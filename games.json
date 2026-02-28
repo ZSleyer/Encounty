@@ -1,0 +1,224 @@
+{
+  "pokemon-red": {
+    "name_de": "Pokémon Rot",
+    "name_en": "Pokémon Red",
+    "generation": 1,
+    "platform": "GB"
+  },
+  "pokemon-blue": {
+    "name_de": "Pokémon Blau",
+    "name_en": "Pokémon Blue",
+    "generation": 1,
+    "platform": "GB"
+  },
+  "pokemon-yellow": {
+    "name_de": "Pokémon Gelb",
+    "name_en": "Pokémon Yellow",
+    "generation": 1,
+    "platform": "GB"
+  },
+  "pokemon-gold": {
+    "name_de": "Pokémon Gold",
+    "name_en": "Pokémon Gold",
+    "generation": 2,
+    "platform": "GBC"
+  },
+  "pokemon-silver": {
+    "name_de": "Pokémon Silber",
+    "name_en": "Pokémon Silver",
+    "generation": 2,
+    "platform": "GBC"
+  },
+  "pokemon-crystal": {
+    "name_de": "Pokémon Kristall",
+    "name_en": "Pokémon Crystal",
+    "generation": 2,
+    "platform": "GBC"
+  },
+  "pokemon-ruby": {
+    "name_de": "Pokémon Rubin",
+    "name_en": "Pokémon Ruby",
+    "generation": 3,
+    "platform": "GBA"
+  },
+  "pokemon-sapphire": {
+    "name_de": "Pokémon Saphir",
+    "name_en": "Pokémon Sapphire",
+    "generation": 3,
+    "platform": "GBA"
+  },
+  "pokemon-emerald": {
+    "name_de": "Pokémon Smaragd",
+    "name_en": "Pokémon Emerald",
+    "generation": 3,
+    "platform": "GBA"
+  },
+  "pokemon-firered": {
+    "name_de": "Pokémon Feuerrot",
+    "name_en": "Pokémon FireRed",
+    "generation": 3,
+    "platform": "GBA"
+  },
+  "pokemon-leafgreen": {
+    "name_de": "Pokémon Blattgrün",
+    "name_en": "Pokémon LeafGreen",
+    "generation": 3,
+    "platform": "GBA"
+  },
+  "pokemon-diamond": {
+    "name_de": "Pokémon Diamant",
+    "name_en": "Pokémon Diamond",
+    "generation": 4,
+    "platform": "NDS"
+  },
+  "pokemon-pearl": {
+    "name_de": "Pokémon Perl",
+    "name_en": "Pokémon Pearl",
+    "generation": 4,
+    "platform": "NDS"
+  },
+  "pokemon-platinum": {
+    "name_de": "Pokémon Platin",
+    "name_en": "Pokémon Platinum",
+    "generation": 4,
+    "platform": "NDS"
+  },
+  "pokemon-heartgold": {
+    "name_de": "Pokémon Herzgold",
+    "name_en": "Pokémon HeartGold",
+    "generation": 4,
+    "platform": "NDS"
+  },
+  "pokemon-soulsilver": {
+    "name_de": "Pokémon Silberne Seele",
+    "name_en": "Pokémon SoulSilver",
+    "generation": 4,
+    "platform": "NDS"
+  },
+  "pokemon-black": {
+    "name_de": "Pokémon Schwarz",
+    "name_en": "Pokémon Black",
+    "generation": 5,
+    "platform": "NDS"
+  },
+  "pokemon-white": {
+    "name_de": "Pokémon Weiß",
+    "name_en": "Pokémon White",
+    "generation": 5,
+    "platform": "NDS"
+  },
+  "pokemon-black2": {
+    "name_de": "Pokémon Schwarz 2",
+    "name_en": "Pokémon Black 2",
+    "generation": 5,
+    "platform": "NDS"
+  },
+  "pokemon-white2": {
+    "name_de": "Pokémon Weiß 2",
+    "name_en": "Pokémon White 2",
+    "generation": 5,
+    "platform": "NDS"
+  },
+  "pokemon-x": {
+    "name_de": "Pokémon X",
+    "name_en": "Pokémon X",
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-y": {
+    "name_de": "Pokémon Y",
+    "name_en": "Pokémon Y",
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-oras-alpha": {
+    "name_de": "Pokémon Alpha Saphir",
+    "name_en": "Pokémon Alpha Sapphire",
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-oras-omega": {
+    "name_de": "Pokémon Omega Rubin",
+    "name_en": "Pokémon Omega Ruby",
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-sun": {
+    "name_de": "Pokémon Sonne",
+    "name_en": "Pokémon Sun",
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-moon": {
+    "name_de": "Pokémon Mond",
+    "name_en": "Pokémon Moon",
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-ultrasun": {
+    "name_de": "Pokémon Ultrasonne",
+    "name_en": "Pokémon Ultra Sun",
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-ultramoon": {
+    "name_de": "Pokémon Ultramond",
+    "name_en": "Pokémon Ultra Moon",
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-letsgopikachu": {
+    "name_de": "Pokémon Let's Go, Pikachu!",
+    "name_en": "Pokémon Let's Go, Pikachu!",
+    "generation": 7,
+    "platform": "Switch"
+  },
+  "pokemon-letsgoeevee": {
+    "name_de": "Pokémon Let's Go, Evoli!",
+    "name_en": "Pokémon Let's Go, Eevee!",
+    "generation": 7,
+    "platform": "Switch"
+  },
+  "pokemon-sword": {
+    "name_de": "Pokémon Schwert",
+    "name_en": "Pokémon Sword",
+    "generation": 8,
+    "platform": "Switch"
+  },
+  "pokemon-shield": {
+    "name_de": "Pokémon Schild",
+    "name_en": "Pokémon Shield",
+    "generation": 8,
+    "platform": "Switch"
+  },
+  "pokemon-bd": {
+    "name_de": "Pokémon Strahlender Diamant",
+    "name_en": "Pokémon Brilliant Diamond",
+    "generation": 8,
+    "platform": "Switch"
+  },
+  "pokemon-sp": {
+    "name_de": "Pokémon Leuchtende Perle",
+    "name_en": "Pokémon Shining Pearl",
+    "generation": 8,
+    "platform": "Switch"
+  },
+  "pokemon-legends": {
+    "name_de": "Pokémon-Legenden: Arceus",
+    "name_en": "Pokémon Legends: Arceus",
+    "generation": 8,
+    "platform": "Switch"
+  },
+  "pokemon-scarlet": {
+    "name_de": "Pokémon Karmesin",
+    "name_en": "Pokémon Scarlet",
+    "generation": 9,
+    "platform": "Switch"
+  },
+  "pokemon-violet": {
+    "name_de": "Pokémon Purpur",
+    "name_en": "Pokémon Violet",
+    "generation": 9,
+    "platform": "Switch"
+  }
+}

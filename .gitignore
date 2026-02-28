@@ -1,0 +1,37 @@
+# Binaries
+encounty
+encounty-linux
+encounty-windows.exe
+encounty-darwin
+__debug_bin*
+*.exe
+
+# Go build cache
+/vendor/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Config & state (user data)
+~/.config/encounty/
+state.json
+output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+
+# Markdown (except README)
+*.md
+!README.md
