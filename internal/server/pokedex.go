@@ -14,18 +14,16 @@ import (
 )
 
 type PokedexEntry struct {
-	ID        int           `json:"id"`
-	Canonical string        `json:"canonical"`
-	DE        string        `json:"de"`
-	EN        string        `json:"en"`
-	Forms     []PokemonForm `json:"forms,omitempty"`
+	ID        int               `json:"id"`
+	Canonical string            `json:"canonical"`
+	Names     map[string]string `json:"names,omitempty"`
+	Forms     []PokemonForm     `json:"forms,omitempty"`
 }
 
 type PokemonForm struct {
-	Canonical string `json:"canonical"`
-	DE        string `json:"de"`
-	EN        string `json:"en"`
-	SpriteID  int    `json:"sprite_id"`
+	Canonical string            `json:"canonical"`
+	Names     map[string]string `json:"names,omitempty"`
+	SpriteID  int               `json:"sprite_id"`
 }
 
 // handleGetPokedex serves the pokemon list (configDir first, then embedded, then source).
@@ -118,11 +116,198 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 		current = append(current, PokedexEntry{
 			ID:        id,
 			Canonical: entry.Name,
-			DE:        entry.Name,
-			EN:        entry.Name,
 		})
 		added = append(added, entry.Name)
 		existing[entry.Name] = true
+	}
+
+	// Fetch all form data (id > 10000)
+	qNewForms := `{"query":"query{pokemon_v2_pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id}}"}`
+	respForms, errForms := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(qNewForms))
+	if errForms == nil {
+		defer respForms.Body.Close()
+		var glForms struct {
+			Data struct {
+				Pokemon []struct {
+					ID        int    `json:"id"`
+					Name      string `json:"name"`
+					SpeciesID int    `json:"pokemon_species_id"`
+				} `json:"pokemon_v2_pokemon"`
+			} `json:"data"`
+		}
+		if json.NewDecoder(respForms.Body).Decode(&glForms) == nil {
+			specIndex := make(map[int]int)
+			for i := range current {
+				specIndex[current[i].ID] = i
+			}
+			for _, f := range glForms.Data.Pokemon {
+				// Filter out garbage/superfluous forms
+				if strings.Contains(f.Name, "-gmax") || strings.Contains(f.Name, "-totem") || strings.Contains(f.Name, "-cap") || strings.Contains(f.Name, "-starter") || strings.Contains(f.Name, "cosplay") || strings.Contains(f.Name, "battle-bond") || strings.HasSuffix(f.Name, "-star") {
+					continue
+				}
+				if i, ok := specIndex[f.SpeciesID]; ok {
+					hasForm := false
+					for _, existingForm := range current[i].Forms {
+						if existingForm.Canonical == f.Name {
+							hasForm = true
+							break
+						}
+					}
+					if !hasForm {
+						current[i].Forms = append(current[i].Forms, PokemonForm{
+							Canonical: f.Name,
+							SpriteID:  f.ID,
+						})
+						added = append(added, f.Name)
+					}
+				}
+			}
+		}
+	}
+
+	// Fetch localized names via GraphQL for all species in one go.
+	q := `{"query":"query{pokemon_v2_pokemonspeciesname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){name pokemon_species_id pokemon_v2_language{name}}}"}`
+	respGL, errGL := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(q))
+	var namesUpdated int
+	if errGL == nil {
+		defer respGL.Body.Close()
+		var glResp struct {
+			Data struct {
+				Names []struct {
+					Name      string `json:"name"`
+					SpeciesID int    `json:"pokemon_species_id"`
+					Language  struct {
+						Name string `json:"name"`
+					} `json:"pokemon_v2_language"`
+				} `json:"pokemon_v2_pokemonspeciesname"`
+			} `json:"data"`
+		}
+		if json.NewDecoder(respGL.Body).Decode(&glResp) == nil {
+			namesMap := make(map[int]map[string]string)
+			langMap := map[string]string{
+				"ja-Hrkt": "ja",
+				"ja":      "ja",
+				"ko":      "ko",
+				"zh-Hant": "zh-hant",
+				"zh-Hans": "zh-hans",
+				"fr":      "fr",
+				"de":      "de",
+				"es":      "es",
+				"it":      "it",
+				"en":      "en",
+			}
+			for _, n := range glResp.Data.Names {
+				l, ok := langMap[n.Language.Name]
+				if !ok || n.Name == "" {
+					continue
+				}
+				if namesMap[n.SpeciesID] == nil {
+					namesMap[n.SpeciesID] = make(map[string]string)
+				}
+				// Prefer Kanji "ja" over Katakana "ja-Hrkt" if both exist.
+				if l == "ja" && n.Language.Name == "ja-Hrkt" && namesMap[n.SpeciesID]["ja"] != "" {
+					continue
+				}
+				namesMap[n.SpeciesID][l] = n.Name
+			}
+
+			// Apply translations to the loaded array
+			for i := range current {
+				if fetchedNames, ok := namesMap[current[i].ID]; ok {
+					if current[i].Names == nil {
+						current[i].Names = make(map[string]string)
+					}
+					for l, n := range fetchedNames {
+						if current[i].Names[l] != n {
+							namesUpdated++
+						}
+						current[i].Names[l] = n
+					}
+				}
+			}
+		}
+	}
+
+	// Fetch localized form names via GraphQL
+	qForms := `{"query":"query{pokemon_v2_pokemonformname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){pokemon_v2_pokemonform{name} pokemon_v2_language{name} pokemon_name name}}"}`
+	respGLForms, errGLForms := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(qForms))
+	if errGLForms == nil {
+		defer respGLForms.Body.Close()
+		var glRespForms struct {
+			Data struct {
+				Names []struct {
+					Form struct {
+						Name string `json:"name"`
+					} `json:"pokemon_v2_pokemonform"`
+					Language struct {
+						Name string `json:"name"`
+					} `json:"pokemon_v2_language"`
+					PokemonName string `json:"pokemon_name"`
+					Name        string `json:"name"`
+				} `json:"pokemon_v2_pokemonformname"`
+			} `json:"data"`
+		}
+		if json.NewDecoder(respGLForms.Body).Decode(&glRespForms) == nil {
+			formNamesMap := make(map[string]map[string]string)
+			langMap := map[string]string{
+				"ja-Hrkt": "ja",
+				"ja":      "ja",
+				"ko":      "ko",
+				"zh-Hant": "zh-hant",
+				"zh-Hans": "zh-hans",
+				"fr":      "fr",
+				"de":      "de",
+				"es":      "es",
+				"it":      "it",
+				"en":      "en",
+			}
+			for _, n := range glRespForms.Data.Names {
+				l, ok := langMap[n.Language.Name]
+				formNameKey := n.Form.Name
+				if !ok || formNameKey == "" {
+					continue
+				}
+
+				// Either pokemon_name or name contains the fully qualified localized string for the form in most cases,
+				// (e.g. pokemon_name: "Alolan Sandshrew"). Fall back on just `name` ("Alolan Form") if pokemon_name is empty.
+				val := n.PokemonName
+				if val == "" {
+					val = n.Name
+				}
+				if val == "" {
+					continue
+				}
+
+				if formNamesMap[formNameKey] == nil {
+					formNamesMap[formNameKey] = make(map[string]string)
+				}
+				// Prefer Kanji "ja" over Katakana "ja-Hrkt" if both exist.
+				if l == "ja" && n.Language.Name == "ja-Hrkt" && formNamesMap[formNameKey]["ja"] != "" {
+					continue
+				}
+				formNamesMap[formNameKey][l] = val
+			}
+
+			// Apply form translations to the loaded array
+			for i := range current {
+				for j := range current[i].Forms {
+					canonical := current[i].Forms[j].Canonical
+					if fetchedNames, ok := formNamesMap[canonical]; ok {
+						if current[i].Forms[j].Names == nil {
+							current[i].Forms[j].Names = make(map[string]string)
+						}
+						// Carry over base name and format manually if the GraphQL provided only a qualifier ("Alolan Form") instead of "Alolan Sandshrew".
+						// We'll just dump whatever GraphQL gives us since it handles formats nicely for DE/FR/EN etc.
+						for l, nVal := range fetchedNames {
+							if current[i].Forms[j].Names[l] != nVal {
+								namesUpdated++
+							}
+							current[i].Forms[j].Names[l] = nVal
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Save updated pokedex to configDir
@@ -143,11 +328,12 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Pokedex sync complete: %d new entries added", len(added))
+	log.Printf("Pokedex sync complete: %d new entries added, %d names updated", len(added), namesUpdated)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"total": len(current),
-		"added": len(added),
-		"new":   added,
+		"total":        len(current),
+		"added":        len(added),
+		"namesUpdated": namesUpdated,
+		"new":          added,
 	})
 }
 

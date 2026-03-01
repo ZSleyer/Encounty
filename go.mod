@@ -1,4 +1,4 @@
-module github.com/encounty/encounty
+module github.com/zsleyer/encounty
 
 go 1.22
 
@@ -8,7 +8,4 @@ require (
 	golang.design/x/hotkey v0.4.0
 )
 
-require (
-	golang.org/x/net v0.17.0 // indirect
-	golang.org/x/sys v0.18.0
-)
+require golang.org/x/net v0.17.0 // indirect

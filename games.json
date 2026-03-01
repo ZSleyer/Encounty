@@ -1,242 +1,779 @@
 {
-  "pokemon-red": {
-    "name_de": "Pokémon Rot",
-    "name_en": "Pokémon Red",
-    "generation": 1,
-    "platform": "GB"
+  "pokemon-alpha-sapphire": {
+    "names": {
+      "de": "Pokémon Alpha Saphir",
+      "en": "Pokémon Alpha Sapphire",
+      "es": "Pokémon Zafiro Alfa",
+      "fr": "Pokémon Saphir Alpha",
+      "it": "Pokémon Zaffiro Alpha",
+      "ja": "ポケットモンスター アルファサファイア",
+      "ko": "포켓몬스터 알파사파이어",
+      "zh-hans": "宝可梦 阿尔法蓝宝石",
+      "zh-hant": "寶可夢 阿爾法藍寶石"
+    },
+    "generation": 6,
+    "platform": "3DS"
   },
-  "pokemon-blue": {
-    "name_de": "Pokémon Blau",
-    "name_en": "Pokémon Blue",
-    "generation": 1,
-    "platform": "GB"
-  },
-  "pokemon-yellow": {
-    "name_de": "Pokémon Gelb",
-    "name_en": "Pokémon Yellow",
-    "generation": 1,
-    "platform": "GB"
-  },
-  "pokemon-gold": {
-    "name_de": "Pokémon Gold",
-    "name_en": "Pokémon Gold",
-    "generation": 2,
-    "platform": "GBC"
-  },
-  "pokemon-silver": {
-    "name_de": "Pokémon Silber",
-    "name_en": "Pokémon Silver",
-    "generation": 2,
-    "platform": "GBC"
-  },
-  "pokemon-crystal": {
-    "name_de": "Pokémon Kristall",
-    "name_en": "Pokémon Crystal",
-    "generation": 2,
-    "platform": "GBC"
-  },
-  "pokemon-ruby": {
-    "name_de": "Pokémon Rubin",
-    "name_en": "Pokémon Ruby",
-    "generation": 3,
-    "platform": "GBA"
-  },
-  "pokemon-sapphire": {
-    "name_de": "Pokémon Saphir",
-    "name_en": "Pokémon Sapphire",
-    "generation": 3,
-    "platform": "GBA"
-  },
-  "pokemon-emerald": {
-    "name_de": "Pokémon Smaragd",
-    "name_en": "Pokémon Emerald",
-    "generation": 3,
-    "platform": "GBA"
-  },
-  "pokemon-firered": {
-    "name_de": "Pokémon Feuerrot",
-    "name_en": "Pokémon FireRed",
-    "generation": 3,
-    "platform": "GBA"
-  },
-  "pokemon-leafgreen": {
-    "name_de": "Pokémon Blattgrün",
-    "name_en": "Pokémon LeafGreen",
-    "generation": 3,
-    "platform": "GBA"
-  },
-  "pokemon-diamond": {
-    "name_de": "Pokémon Diamant",
-    "name_en": "Pokémon Diamond",
-    "generation": 4,
-    "platform": "NDS"
-  },
-  "pokemon-pearl": {
-    "name_de": "Pokémon Perl",
-    "name_en": "Pokémon Pearl",
-    "generation": 4,
-    "platform": "NDS"
-  },
-  "pokemon-platinum": {
-    "name_de": "Pokémon Platin",
-    "name_en": "Pokémon Platinum",
-    "generation": 4,
-    "platform": "NDS"
-  },
-  "pokemon-heartgold": {
-    "name_de": "Pokémon Goldene Edition HeartGold",
-    "name_en": "Pokémon HeartGold",
-    "generation": 4,
-    "platform": "NDS"
-  },
-  "pokemon-soulsilver": {
-    "name_de": "Pokémon Silberne Edition SoulSilver",
-    "name_en": "Pokémon SoulSilver",
-    "generation": 4,
-    "platform": "NDS"
+  "pokemon-bd": {
+    "names": {
+      "de": "Pokémon Strahlender Diamant",
+      "en": "Pokémon Brilliant Diamond",
+      "es": "Pokémon Diamante Brillante",
+      "fr": "Pokémon Diamant Étincelant",
+      "it": "Pokémon Diamante Lucente",
+      "ja": "ポケットモンスター ブリリアントダイヤモンド",
+      "ko": "포켓몬스터 브릴리언트 다이아몬드",
+      "zh-hans": "宝可梦 晶灿钻石",
+      "zh-hant": "寶可夢 晶燦鑽石"
+    },
+    "generation": 8,
+    "platform": "Switch"
   },
   "pokemon-black": {
-    "name_de": "Pokémon Schwarze Edition",
-    "name_en": "Pokémon Black",
+    "names": {
+      "de": "Pokémon Schwarze Edition",
+      "en": "Pokémon Black",
+      "es": "Pokémon Negro",
+      "fr": "Pokémon Noir",
+      "it": "Pokémon Nero",
+      "ja": "ポケットモンスター ブラック",
+      "ko": "포켓몬스터 블랙",
+      "zh-hans": "宝可梦 黑",
+      "zh-hant": "寶可夢 黑"
+    },
     "generation": 5,
     "platform": "NDS"
   },
-  "pokemon-white": {
-    "name_de": "Pokémon Weiße Edition",
-    "name_en": "Pokémon White",
+  "pokemon-black-2": {
+    "names": {
+      "de": "Pokémon Schwarz 2",
+      "en": "Pokémon Black 2",
+      "es": "Pokémon Negro 2",
+      "fr": "Pokémon Noir 2",
+      "it": "Pokémon Nera 2",
+      "ja": "ポケットモンスター ブラック2",
+      "ko": "포켓몬스터 블랙 2",
+      "zh-hans": "宝可梦 黑2",
+      "zh-hant": "寶可夢 黑2"
+    },
     "generation": 5,
     "platform": "NDS"
   },
   "pokemon-black2": {
-    "name_de": "Pokémon Schwarze Edition 2",
-    "name_en": "Pokémon Black 2",
+    "names": {
+      "de": "Pokémon Schwarze Edition 2",
+      "en": "Pokémon Black 2",
+      "es": "Pokémon Negro 2",
+      "fr": "Pokémon Noir 2",
+      "it": "Pokémon Nera 2",
+      "ja": "ポケットモンスター ブラック2",
+      "ko": "포켓몬스터 블랙 2",
+      "zh-hans": "宝可梦 黑2",
+      "zh-hant": "寶可夢 黑2"
+    },
     "generation": 5,
     "platform": "NDS"
   },
-  "pokemon-white2": {
-    "name_de": "Pokémon Weiße Edition 2",
-    "name_en": "Pokémon White 2",
-    "generation": 5,
+  "pokemon-blue": {
+    "names": {
+      "de": "Pokémon Blau",
+      "en": "Pokémon Blue",
+      "es": "Pokémon Azul",
+      "fr": "Pokémon Bleu",
+      "it": "Pokémon Blu",
+      "ja": "ポケットモンスター 青",
+      "ko": "포켓몬스터 블루",
+      "zh-hans": "宝可梦 藍",
+      "zh-hant": "寶可夢 藍"
+    },
+    "generation": 1,
+    "platform": "GB"
+  },
+  "pokemon-brilliant-diamond": {
+    "names": {
+      "de": "Pokémon Strahlender Diamant",
+      "en": "Pokémon Brilliant Diamond",
+      "es": "Pokémon Diamante Brillante",
+      "fr": "Pokémon Diamant Étincelant",
+      "it": "Pokémon Diamante Lucente",
+      "ja": "ポケットモンスター ブリリアントダイヤモンド",
+      "ko": "포켓몬스터 브릴리언트 다이아몬드",
+      "zh-hans": "宝可梦 晶灿钻石",
+      "zh-hant": "寶可夢 晶燦鑽石"
+    },
+    "generation": 8,
+    "platform": "Switch"
+  },
+  "pokemon-crystal": {
+    "names": {
+      "de": "Pokémon Kristall",
+      "en": "Pokémon Crystal",
+      "es": "Pokémon Cristal",
+      "fr": "Pokémon Cristal",
+      "it": "Pokémon Cristallo",
+      "ja": "ポケットモンスター クリスタル",
+      "ko": "포켓몬스터 크리스탈",
+      "zh-hans": "宝可梦 水晶",
+      "zh-hant": "寶可夢 水晶"
+    },
+    "generation": 2,
+    "platform": "GBC"
+  },
+  "pokemon-diamond": {
+    "names": {
+      "de": "Pokémon Diamant",
+      "en": "Pokémon Diamond",
+      "es": "Pokémon Diamante",
+      "fr": "Pokémon Diamant",
+      "it": "Pokémon Diamante",
+      "ja": "ポケットモンスター ダイヤモンド",
+      "ko": "포켓몬스터 디아루가",
+      "zh-hans": "宝可梦 钻石",
+      "zh-hant": "寶可夢 鑽石"
+    },
+    "generation": 4,
     "platform": "NDS"
   },
-  "pokemon-x": {
-    "name_de": "Pokémon X",
-    "name_en": "Pokémon X",
-    "generation": 6,
-    "platform": "3DS"
+  "pokemon-emerald": {
+    "names": {
+      "de": "Pokémon Smaragd",
+      "en": "Pokémon Emerald",
+      "es": "Pokémon Esmeralda",
+      "fr": "Pokémon Émeraude",
+      "it": "Pokémon Smeraldo",
+      "ja": "ポケットモンスター エメラルド",
+      "ko": "포켓몬스터 에메랄드",
+      "zh-hans": "宝可梦 綠寶石",
+      "zh-hant": "寶可夢 綠寶石"
+    },
+    "generation": 3,
+    "platform": "GBA"
   },
-  "pokemon-y": {
-    "name_de": "Pokémon Y",
-    "name_en": "Pokémon Y",
-    "generation": 6,
-    "platform": "3DS"
+  "pokemon-firered": {
+    "names": {
+      "de": "Pokémon Feuerrot",
+      "en": "Pokémon FireRed",
+      "es": "Pokémon Rojo Fuego",
+      "fr": "Pokémon Rouge Feu",
+      "it": "Pokémon Rosso Fuoco",
+      "ja": "ポケットモンスター ファイアレッド",
+      "ko": "포켓몬스터 파이어레드",
+      "zh-hans": "宝可梦 火紅",
+      "zh-hant": "寶可夢 火紅"
+    },
+    "generation": 3,
+    "platform": "GBA"
   },
-  "pokemon-oras-alpha": {
-    "name_de": "Pokémon Alpha Saphir",
-    "name_en": "Pokémon Alpha Sapphire",
-    "generation": 6,
-    "platform": "3DS"
+  "pokemon-gold": {
+    "names": {
+      "de": "Pokémon Gold",
+      "en": "Pokémon Gold",
+      "es": "Pokémon Oro",
+      "fr": "Pokémon Or",
+      "it": "Pokémon Oro",
+      "ja": "ポケットモンスター 金",
+      "ko": "포켓몬스터 골드",
+      "zh-hans": "宝可梦 金",
+      "zh-hant": "寶可夢 金"
+    },
+    "generation": 2,
+    "platform": "GBC"
   },
-  "pokemon-oras-omega": {
-    "name_de": "Pokémon Omega Rubin",
-    "name_en": "Pokémon Omega Ruby",
-    "generation": 6,
-    "platform": "3DS"
+  "pokemon-heartgold": {
+    "names": {
+      "de": "Pokémon Goldene Edition HeartGold",
+      "en": "Pokémon HeartGold",
+      "es": "Pokémon Oro HeartGold",
+      "fr": "Pokémon Or HeartGold",
+      "it": "Pokémon Oro HeartGold",
+      "ja": "ポケットモンスター ハートゴールド",
+      "ko": "포켓몬스터 하트골드",
+      "zh-hans": "宝可梦 心金",
+      "zh-hant": "寶可夢 心金"
+    },
+    "generation": 4,
+    "platform": "NDS"
   },
-  "pokemon-sun": {
-    "name_de": "Pokémon Sonne",
-    "name_en": "Pokémon Sun",
+  "pokemon-leafgreen": {
+    "names": {
+      "de": "Pokémon Blattgrün",
+      "en": "Pokémon LeafGreen",
+      "es": "Pokémon Verde Hoja",
+      "fr": "Pokémon Vert Feuille",
+      "it": "Pokémon Verde Foglia",
+      "ja": "ポケットモンスター リーフグリーン",
+      "ko": "포켓몬스터 리프그린",
+      "zh-hans": "宝可梦 葉綠",
+      "zh-hant": "寶可夢 葉綠"
+    },
+    "generation": 3,
+    "platform": "GBA"
+  },
+  "pokemon-legends": {
+    "names": {
+      "de": "Pokémon Legenden: Arceus",
+      "en": "Pokémon Legends: Arceus",
+      "es": "Pokémon Leyendas: Arceus",
+      "fr": "Pokémon Légendes : Arceus",
+      "it": "Pokémon Leggende: Arceus",
+      "ja": "Pokémon LEGENDS アルセウス",
+      "ko": "포켓몬스터 LEGENDS 아르세우스",
+      "zh-hans": "宝可梦 传说 阿尔宙斯",
+      "zh-hant": "寶可夢 傳說 阿爾宙斯"
+    },
+    "generation": 8,
+    "platform": "Switch"
+  },
+  "pokemon-legends-arceus": {
+    "names": {
+      "de": "Pokémon Legenden: Arceus",
+      "en": "Pokémon Legends: Arceus",
+      "es": "Pokémon Leyendas: Arceus",
+      "fr": "Pokémon Légendes : Arceus",
+      "it": "Pokémon Leggende: Arceus",
+      "ja": "ポケットモンスター LEGENDS アルセウス",
+      "ko": "포켓몬스터 LEGENDS 아르세우스",
+      "zh-hans": "宝可梦 传说 阿尔宙斯",
+      "zh-hant": "寶可夢 傳說 阿爾宙斯"
+    },
+    "generation": 8,
+    "platform": "Switch"
+  },
+  "pokemon-legends-za": {
+    "names": {
+      "de": "Pokémon Legenden: Z-A",
+      "en": "Pokémon Legends: ZA",
+      "es": "Pokémon Leyendas: Z-A",
+      "fr": "Pokémon Légendes : Z-A",
+      "it": "Pokémon Leggende: Z-A",
+      "ja": "Pokémon LEGENDS Z-A",
+      "ko": "포켓몬스터 LEGENDS Z-A",
+      "zh-hans": "宝可梦传说 Z-A",
+      "zh-hant": "寶可夢傳說 Z-A"
+    },
+    "generation": 9,
+    "platform": "Switch 2"
+  },
+  "pokemon-lets-go-eevee": {
+    "names": {
+      "de": "Pokémon Let’s Go, Evoli!",
+      "en": "Pokémon Let’s Go, Eevee!",
+      "es": "Pokémon Let’s Go, Eevee!",
+      "fr": "Pokémon Let’s Go, Évoli",
+      "it": "Pokémon Let’s Go, Eevee!",
+      "ja": "ポケットモンスター Let’s Go! イーブイ",
+      "ko": "포켓몬스터 레츠고! 이브이",
+      "zh-hans": "宝可梦 Let’s Go！伊布",
+      "zh-hant": "寶可夢 Let’s Go！伊布"
+    },
     "generation": 7,
-    "platform": "3DS"
+    "platform": "Switch"
   },
-  "pokemon-moon": {
-    "name_de": "Pokémon Mond",
-    "name_en": "Pokémon Moon",
-    "generation": 7,
-    "platform": "3DS"
-  },
-  "pokemon-ultrasun": {
-    "name_de": "Pokémon Ultrasonne",
-    "name_en": "Pokémon Ultra Sun",
-    "generation": 7,
-    "platform": "3DS"
-  },
-  "pokemon-ultramoon": {
-    "name_de": "Pokémon Ultramond",
-    "name_en": "Pokémon Ultra Moon",
-    "generation": 7,
-    "platform": "3DS"
-  },
-  "pokemon-letsgopikachu": {
-    "name_de": "Pokémon Let's Go, Pikachu!",
-    "name_en": "Pokémon Let's Go, Pikachu!",
+  "pokemon-lets-go-pikachu": {
+    "names": {
+      "de": "Pokémon Let’s Go, Pikachu!",
+      "en": "Pokémon Let’s Go, Pikachu!",
+      "es": "Pokémon Let’s Go, Pikachu!",
+      "fr": "Pokémon Let’s Go, Pikachu",
+      "it": "Pokémon Let’s Go, Pikachu!",
+      "ja": "ポケットモンスター Let’s Go! ピカチュウ",
+      "ko": "포켓몬스터 레츠고! 피카츄",
+      "zh-hans": "宝可梦 Let’s Go！皮卡丘",
+      "zh-hant": "寶可夢 Let’s Go！皮卡丘"
+    },
     "generation": 7,
     "platform": "Switch"
   },
   "pokemon-letsgoeevee": {
-    "name_de": "Pokémon Let's Go, Evoli!",
-    "name_en": "Pokémon Let's Go, Eevee!",
+    "names": {
+      "de": "Pokémon Let's Go, Evoli!",
+      "en": "Pokémon Let's Go, Eevee!",
+      "es": "Pokémon Let's Go, Eevee!",
+      "fr": "Pokémon Let's Go, Évoli",
+      "it": "Pokémon Let's Go, Eevee!",
+      "ja": "ポケットモンスター Let's Go！イーブイ",
+      "ko": "포켓몬스터 레츠고! 이브이",
+      "zh-hans": "宝可梦 Let's Go！伊布",
+      "zh-hant": "寶可夢 Let's Go！伊布"
+    },
     "generation": 7,
     "platform": "Switch"
   },
-  "pokemon-sword": {
-    "name_de": "Pokémon Schwert",
-    "name_en": "Pokémon Sword",
-    "generation": 8,
+  "pokemon-letsgopikachu": {
+    "names": {
+      "de": "Pokémon Let's Go, Pikachu!",
+      "en": "Pokémon Let's Go, Pikachu!",
+      "es": "Pokémon Let's Go, Pikachu!",
+      "fr": "Pokémon Let's Go, Pikachu",
+      "it": "Pokémon Let's Go, Pikachu!",
+      "ja": "ポケットモンスター Let's Go！ピカチュウ",
+      "ko": "포켓몬스터 레츠고! 피카츄",
+      "zh-hans": "宝可梦 Let's Go！皮卡丘",
+      "zh-hant": "寶可夢 Let's Go！皮卡丘"
+    },
+    "generation": 7,
+    "platform": "Switch"
+  },
+  "pokemon-mega-dimension": {
+    "names": {
+      "en": "Pokémon Mega Dimension",
+      "fr": "Pokémon Méga-Dimension"
+    },
+    "generation": 9,
+    "platform": "Switch"
+  },
+  "pokemon-moon": {
+    "names": {
+      "de": "Pokémon Mond",
+      "en": "Pokémon Moon",
+      "es": "Pokémon Luna",
+      "fr": "Pokémon Lune",
+      "it": "Pokémon Luna",
+      "ja": "ポケットモンスター ムーン",
+      "ko": "포켓몬스터 문",
+      "zh-hans": "精灵宝可梦 月亮",
+      "zh-hant": "精靈寶可夢 月亮"
+    },
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-omega-ruby": {
+    "names": {
+      "de": "Pokémon Omega Rubin",
+      "en": "Pokémon Omega Ruby",
+      "es": "Pokémon Rubí Omega",
+      "fr": "Pokémon Rubis Oméga",
+      "it": "Pokémon Rubino Omega",
+      "ja": "ポケットモンスター オメガルビー",
+      "ko": "포켓몬스터 오메가루비",
+      "zh-hans": "宝可梦 欧米伽红宝石",
+      "zh-hant": "寶可夢 歐米加紅寶石"
+    },
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-oras-alpha": {
+    "names": {
+      "de": "Pokémon Alpha Saphir",
+      "en": "Pokémon Alpha Sapphire",
+      "es": "Pokémon Zafiro Alfa",
+      "fr": "Pokémon Saphir Alpha",
+      "it": "Pokémon Zaffiro Alpha",
+      "ja": "ポケットモンスター アルファサファイア",
+      "ko": "포켓몬스터 알파사파이어",
+      "zh-hans": "宝可梦 阿尔法蓝宝石",
+      "zh-hant": "寶可夢 阿爾法藍寶石"
+    },
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-oras-omega": {
+    "names": {
+      "de": "Pokémon Omega Rubin",
+      "en": "Pokémon Omega Ruby",
+      "es": "Pokémon Rubí Omega",
+      "fr": "Pokémon Rubis Oméga",
+      "it": "Pokémon Rubino Omega",
+      "ja": "ポケットモンスター オメガルビー",
+      "ko": "포켓몬스터 오메가루비",
+      "zh-hans": "宝可梦 欧米伽红宝石",
+      "zh-hant": "寶可夢 歐米加紅寶石"
+    },
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-pearl": {
+    "names": {
+      "de": "Pokémon Perl",
+      "en": "Pokémon Pearl",
+      "es": "Pokémon Perla",
+      "fr": "Pokémon Perle",
+      "it": "Pokémon Perla",
+      "ja": "ポケットモンスター パール",
+      "ko": "포켓몬스터 펄기아",
+      "zh-hans": "宝可梦 珍珠",
+      "zh-hant": "寶可夢 珍珠"
+    },
+    "generation": 4,
+    "platform": "NDS"
+  },
+  "pokemon-platinum": {
+    "names": {
+      "de": "Pokémon Platin",
+      "en": "Pokémon Platinum",
+      "es": "Pokémon Platino",
+      "fr": "Pokémon Platine",
+      "it": "Pokémon Platino",
+      "ja": "ポケットモンスター プラチナ",
+      "ko": "포켓몬스터 기라티나",
+      "zh-hans": "宝可梦 白金",
+      "zh-hant": "寶可夢 白金"
+    },
+    "generation": 4,
+    "platform": "NDS"
+  },
+  "pokemon-red": {
+    "names": {
+      "de": "Pokémon Rot",
+      "en": "Pokémon Red",
+      "es": "Pokémon Rojo",
+      "fr": "Pokémon Rouge",
+      "it": "Pokémon Rosso",
+      "ja": "ポケットモンスター 赤",
+      "ko": "포켓몬스터 레드",
+      "zh-hans": "宝可梦 紅",
+      "zh-hant": "寶可夢 紅"
+    },
+    "generation": 1,
+    "platform": "GB"
+  },
+  "pokemon-ruby": {
+    "names": {
+      "de": "Pokémon Rubin",
+      "en": "Pokémon Ruby",
+      "es": "Pokémon Rubí",
+      "fr": "Pokémon Rubis",
+      "it": "Pokémon Rubino",
+      "ja": "ポケットモンスター ルビー",
+      "ko": "포켓몬스터 루비",
+      "zh-hans": "宝可梦 紅寶石",
+      "zh-hant": "寶可夢 紅寶石"
+    },
+    "generation": 3,
+    "platform": "GBA"
+  },
+  "pokemon-sapphire": {
+    "names": {
+      "de": "Pokémon Saphir",
+      "en": "Pokémon Sapphire",
+      "es": "Pokémon Zafiro",
+      "fr": "Pokémon Saphir",
+      "it": "Pokémon Zaffiro",
+      "ja": "ポケットモンスター サファイア",
+      "ko": "포켓몬스터 사파이어",
+      "zh-hans": "宝可梦 藍寶石",
+      "zh-hant": "寶可夢 藍寶石"
+    },
+    "generation": 3,
+    "platform": "GBA"
+  },
+  "pokemon-scarlet": {
+    "names": {
+      "de": "Pokémon Karmesin",
+      "en": "Pokémon Scarlet",
+      "es": "Pokémon Escarlata",
+      "fr": "Pokémon Écarlate",
+      "it": "Pokémon Scarlatto",
+      "ja": "ポケットモンスター スカーレット",
+      "ko": "포켓몬스터 스칼렛",
+      "zh-hans": "宝可梦 朱",
+      "zh-hant": "寶可夢 朱"
+    },
+    "generation": 9,
     "platform": "Switch"
   },
   "pokemon-shield": {
-    "name_de": "Pokémon Schild",
-    "name_en": "Pokémon Shield",
+    "names": {
+      "de": "Pokémon Schild",
+      "en": "Pokémon Shield",
+      "es": "Pokémon Escudo",
+      "fr": "Pokémon Bouclier",
+      "it": "Pokémon Scudo",
+      "ja": "ポケットモンスター シールド",
+      "ko": "포켓몬스터 실드",
+      "zh-hans": "宝可梦 盾",
+      "zh-hant": "寶可夢 盾"
+    },
     "generation": 8,
     "platform": "Switch"
   },
-  "pokemon-bd": {
-    "name_de": "Pokémon Strahlender Diamant",
-    "name_en": "Pokémon Brilliant Diamond",
+  "pokemon-shining-pearl": {
+    "names": {
+      "de": "Pokémon Leuchtende Perle",
+      "en": "Pokémon Shining Pearl",
+      "es": "Pokémon Perla Reluciente",
+      "fr": "Pokémon Perle Scintillante",
+      "it": "Pokémon Perla Splendente",
+      "ja": "ポケットモンスター シャイニングパール",
+      "ko": "포켓몬스터 샤이닝 펄",
+      "zh-hans": "宝可梦 明亮珍珠",
+      "zh-hant": "寶可夢 明亮珍珠"
+    },
     "generation": 8,
     "platform": "Switch"
+  },
+  "pokemon-silver": {
+    "names": {
+      "de": "Pokémon Silber",
+      "en": "Pokémon Silver",
+      "es": "Pokémon Plata",
+      "fr": "Pokémon Argent",
+      "it": "Pokémon Argento",
+      "ja": "ポケットモンスター 銀",
+      "ko": "포켓몬스터 실버",
+      "zh-hans": "宝可梦 銀",
+      "zh-hant": "寶可夢 銀"
+    },
+    "generation": 2,
+    "platform": "GBC"
+  },
+  "pokemon-soulsilver": {
+    "names": {
+      "de": "Pokémon Silberne Edition SoulSilver",
+      "en": "Pokémon SoulSilver",
+      "es": "Pokémon Plata SoulSilver",
+      "fr": "Pokémon Argent SoulSilver",
+      "it": "Pokémon Argento SoulSilver",
+      "ja": "ポケットモンスター ソウルシルバー",
+      "ko": "포켓몬스터 소울실버",
+      "zh-hans": "宝可梦 魂銀",
+      "zh-hant": "寶可夢 魂銀"
+    },
+    "generation": 4,
+    "platform": "NDS"
   },
   "pokemon-sp": {
-    "name_de": "Pokémon Leuchtende Perle",
-    "name_en": "Pokémon Shining Pearl",
+    "names": {
+      "de": "Pokémon Leuchtende Perle",
+      "en": "Pokémon Shining Pearl",
+      "es": "Pokémon Perla Reluciente",
+      "fr": "Pokémon Perle Scintillante",
+      "it": "Pokémon Perla Splendente",
+      "ja": "ポケットモンスター シャイニングパール",
+      "ko": "포켓몬스터 샤이닝 펄",
+      "zh-hans": "宝可梦 明亮珍珠",
+      "zh-hant": "寶可夢 明亮珍珠"
+    },
     "generation": 8,
     "platform": "Switch"
   },
-  "pokemon-legends": {
-    "name_de": "Pokémon-Legenden: Arceus",
-    "name_en": "Pokémon Legends: Arceus",
+  "pokemon-sun": {
+    "names": {
+      "de": "Pokémon Sonne",
+      "en": "Pokémon Sun",
+      "es": "Pokémon Sol",
+      "fr": "Pokémon Soleil",
+      "it": "Pokémon Sole",
+      "ja": "ポケットモンスター サン",
+      "ko": "포켓몬스터 썬",
+      "zh-hans": "精灵宝可梦 太阳",
+      "zh-hant": "精靈寶可夢 太陽"
+    },
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-sword": {
+    "names": {
+      "de": "Pokémon Schwert",
+      "en": "Pokémon Sword",
+      "es": "Pokémon Espada",
+      "fr": "Pokémon Épée",
+      "it": "Pokémon Spada",
+      "ja": "ポケットモンスター ソード",
+      "ko": "포켓몬스터 소드",
+      "zh-hans": "宝可梦 剑",
+      "zh-hant": "寶可夢 劍"
+    },
     "generation": 8,
     "platform": "Switch"
   },
-  "pokemon-scarlet": {
-    "name_de": "Pokémon Karmesin",
-    "name_en": "Pokémon Scarlet",
-    "generation": 9,
-    "platform": "Switch"
+  "pokemon-ultra-moon": {
+    "names": {
+      "de": "Pokémon Ultramond",
+      "en": "Pokémon Ultra Moon",
+      "es": "Pokémon Ultraluna",
+      "fr": "Pokémon Ultra-Lune",
+      "it": "Pokémon Ultraluna",
+      "ja": "ポケットモンスター ウルトラムーン",
+      "ko": "포켓몬스터 울트라문",
+      "zh-hans": "宝可梦 究极之月",
+      "zh-hant": "寶可夢 究極之月"
+    },
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-ultra-sun": {
+    "names": {
+      "de": "Pokémon Ultrasonne",
+      "en": "Pokémon Ultra Sun",
+      "es": "Pokémon Ultrasol",
+      "fr": "Pokémon Ultra-Soleil",
+      "it": "Pokémon Ultrasole",
+      "ja": "ポケットモンスター ウルトラサン",
+      "ko": "포켓몬스터 울트라썬",
+      "zh-hans": "宝可梦 究极之日",
+      "zh-hant": "寶可夢 究極之日"
+    },
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-ultramoon": {
+    "names": {
+      "de": "Pokémon Ultramond",
+      "en": "Pokémon Ultra Moon",
+      "es": "Pokémon Ultraluna",
+      "fr": "Pokémon Ultra-Lune",
+      "it": "Pokémon Ultraluna",
+      "ja": "ポケットモンスター ウルトラムーン",
+      "ko": "포켓몬스터 울트라문",
+      "zh-hans": "精灵宝可梦 究极之月",
+      "zh-hant": "精靈寶可夢 究極之月"
+    },
+    "generation": 7,
+    "platform": "3DS"
+  },
+  "pokemon-ultrasun": {
+    "names": {
+      "de": "Pokémon Ultrasonne",
+      "en": "Pokémon Ultra Sun",
+      "es": "Pokémon Ultrasol",
+      "fr": "Pokémon Ultra-Soleil",
+      "it": "Pokémon Ultrasole",
+      "ja": "ポケットモンスター ウルトラサン",
+      "ko": "포켓몬스터 울트라썬",
+      "zh-hans": "精灵宝可梦 究极之日",
+      "zh-hant": "精靈寶可夢 究極之日"
+    },
+    "generation": 7,
+    "platform": "3DS"
   },
   "pokemon-violet": {
-    "name_de": "Pokémon Purpur",
-    "name_en": "Pokémon Violet",
+    "names": {
+      "de": "Pokémon Purpur",
+      "en": "Pokémon Violet",
+      "es": "Pokémon Púrpura",
+      "fr": "Pokémon Violet",
+      "it": "Pokémon Violetto",
+      "ja": "ポケットモンスター バイオレット",
+      "ko": "포켓몬스터 바이올렛",
+      "zh-hans": "宝可梦 紫",
+      "zh-hant": "寶可夢 紫"
+    },
     "generation": 9,
     "platform": "Switch"
   },
-  "pokemon-legends-za": {
-    "name_de": "Pokémon Legenden: Z-A",
-    "name_en": "Pokémon Legends: Z-A",
-    "generation": 9,
+  "pokemon-waves": {
+    "names": {
+      "de": "Pokémon Welle",
+      "en": "Pokémon Waves",
+      "es-419": "Pokémon Viento y Ola",
+      "es-es": "Pokémon Viento y Oleaje",
+      "fr": "Pokémon Vagues",
+      "it": "Pokémon Onda",
+      "ja": "ポケットモンスター ウェーブ",
+      "ko": "포켓몬스터 웨이브",
+      "pt-br": "Pokémon Ondas",
+      "zh-hans": "宝可梦 波",
+      "zh-hant": "寶可夢 波"
+    },
+    "generation": 10,
     "platform": "Switch 2"
+  },
+  "pokemon-white": {
+    "names": {
+      "de": "Pokémon Weiße Edition",
+      "en": "Pokémon White",
+      "es": "Pokémon Blanco",
+      "fr": "Pokémon Blanc",
+      "it": "Pokémon Bianco",
+      "ja": "ポケットモンスター ホワイト",
+      "ko": "포켓몬스터 화이트",
+      "zh-hans": "宝可梦 白",
+      "zh-hant": "寶可夢 白"
+    },
+    "generation": 5,
+    "platform": "NDS"
+  },
+  "pokemon-white-2": {
+    "names": {
+      "de": "Pokémon Weiß 2",
+      "en": "Pokémon White 2",
+      "es": "Pokémon Blanco 2",
+      "fr": "Pokémon Blanc 2",
+      "it": "Pokémon Bianca 2",
+      "ja": "ポケットモンスター ホワイト2",
+      "ko": "포켓몬스터 화이트 2",
+      "zh-hans": "宝可梦 白2",
+      "zh-hant": "寶可夢 白"
+    },
+    "generation": 5,
+    "platform": "NDS"
+  },
+  "pokemon-white2": {
+    "names": {
+      "de": "Pokémon Weiß 2",
+      "en": "Pokémon White 2",
+      "es": "Pokémon Blanco 2",
+      "fr": "Pokémon Blanc 2",
+      "it": "Pokémon Bianca 2",
+      "ja": "ポケットモンスター ホワイト2",
+      "ko": "포켓몬스터 화이트 2",
+      "zh-hans": "宝可梦 白2",
+      "zh-hant": "寶可夢 白2"
+    },
+    "generation": 5,
+    "platform": "NDS"
   },
   "pokemon-winds": {
-    "name_de": "Pokémon Wind",
-    "name_en": "Pokémon Winds",
+    "names": {
+      "de": "Pokémon Wind",
+      "en": "Pokémon Winds",
+      "es-419": "Pokémon Viento y Ola",
+      "es-es": "Pokémon Viento y Oleaje",
+      "fr": "Pokémon Vents",
+      "it": "Pokémon Vento",
+      "ja": "ポケットモンスター ウインド",
+      "ko": "포켓몬스터 윈드",
+      "pt-br": "Pokémon Ventos",
+      "zh-hans": "宝可梦 风",
+      "zh-hant": "寶可夢 風"
+    },
     "generation": 10,
     "platform": "Switch 2"
   },
-  "pokemon-waves": {
-    "name_de": "Pokémon Welle",
-    "name_en": "Pokémon Waves",
-    "generation": 10,
-    "platform": "Switch 2"
+  "pokemon-x": {
+    "names": {
+      "de": "Pokémon X",
+      "en": "Pokémon X",
+      "es": "Pokémon X",
+      "fr": "Pokémon X",
+      "it": "Pokémon X",
+      "ja": "ポケットモンスター X",
+      "ko": "포켓몬스터 X",
+      "zh-hans": "精灵宝可梦 X",
+      "zh-hant": "精靈寶可夢 X"
+    },
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-y": {
+    "names": {
+      "de": "Pokémon Y",
+      "en": "Pokémon Y",
+      "es": "Pokémon Y",
+      "fr": "Pokémon Y",
+      "it": "Pokémon Y",
+      "ja": "ポケットモンスター Y",
+      "ko": "포켓몬스터 Y",
+      "zh-hans": "精灵宝可梦 Y",
+      "zh-hant": "精靈寶可夢 Y"
+    },
+    "generation": 6,
+    "platform": "3DS"
+  },
+  "pokemon-yellow": {
+    "names": {
+      "de": "Pokémon Gelb",
+      "en": "Pokémon Yellow",
+      "es": "Pokémon Amarillo",
+      "fr": "Pokémon Jaune",
+      "it": "Pokémon Giallo",
+      "ja": "ポケットモンスター ピカチュウ",
+      "ko": "포켓몬스터 피카츄",
+      "zh-hans": "宝可梦 皮卡丘",
+      "zh-hant": "寶可夢 皮卡丘"
+    },
+    "generation": 1,
+    "platform": "GB"
   }
 }

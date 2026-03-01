@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/encounty/encounty/internal/fileoutput"
-	"github.com/encounty/encounty/internal/hotkeys"
-	"github.com/encounty/encounty/internal/state"
+	"github.com/zsleyer/encounty/internal/fileoutput"
+	"github.com/zsleyer/encounty/internal/hotkeys"
+	"github.com/zsleyer/encounty/internal/state"
 )
 
 type Server struct {
@@ -66,10 +66,15 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/sessions", s.handleGetSessions)
 	mux.HandleFunc("/api/settings", s.handleUpdateSettings)
 	mux.HandleFunc("/api/hotkeys", s.handleUpdateHotkeys)
+	mux.HandleFunc("/api/hotkeys/pause", s.handleHotkeysPause)
+	mux.HandleFunc("/api/hotkeys/resume", s.handleHotkeysResume)
 	mux.HandleFunc("/api/overlay/state", s.handleOverlayState)
 	mux.HandleFunc("/api/games", s.handleGetGames)
+	mux.HandleFunc("/api/games/sync", s.handleSyncGames)
 	mux.HandleFunc("/api/pokedex", s.handleGetPokedex)
 	mux.HandleFunc("/api/sync/pokemon", s.handleSyncPokemon)
+	mux.HandleFunc("/api/quit", s.handleQuit)
+	mux.HandleFunc("/api/restart", s.handleRestart)
 
 	mux.HandleFunc("/api/pokemon", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -112,21 +117,56 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		}
 	})
 
-	// Frontend static files / overlay
+	// Frontend static files / SPA fallback
 	if s.frontendFS != nil {
 		subFS, err := fs.Sub(s.frontendFS, "frontend/dist")
 		if err != nil {
 			log.Printf("frontend embed error: %v", err)
 		} else {
-			fileServer := http.FileServer(http.FS(subFS))
-			mux.HandleFunc("/overlay", func(w http.ResponseWriter, r *http.Request) {
-				// Rewrite to overlay page
-				r.URL.Path = "/index.html"
-				fileServer.ServeHTTP(w, r)
-			})
-			mux.Handle("/", fileServer)
+			mux.Handle("/", spaHandler(subFS))
 		}
 	}
+}
+
+// spaHandler serves static assets from the embedded FS for requests that
+// match a real file (JS, CSS, fonts, images, …). All other paths – including
+// React-Router paths like /overlay and /settings – receive index.html so the
+// client-side router can handle them.
+//
+// IMPORTANT: we must NOT rewrite r.URL.Path to "/index.html" and forward to
+// http.FileServer, because FileServer redirects explicit index.html URLs back
+// to the directory (e.g. /index.html → /), causing an infinite redirect loop.
+// Instead we read and write index.html content directly.
+func spaHandler(fsys fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(fsys))
+
+	indexHTML, err := fs.ReadFile(fsys, "index.html")
+	if err != nil {
+		log.Printf("spaHandler: could not read index.html: %v", err)
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Strip leading slash; root "/" becomes "" which maps to the FS root dir.
+		p := strings.TrimPrefix(r.URL.Path, "/")
+
+		// Check whether the path maps to a real file in the embedded FS.
+		f, err := fsys.Open(p)
+		if err == nil {
+			info, statErr := f.Stat()
+			f.Close()
+			// Only forward to the file server if it's a regular file (not a dir).
+			// Directories would trigger FileServer's index-redirect logic.
+			if statErr == nil && !info.IsDir() {
+				fileServer.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		// Not a real file (or it's a directory) → serve index.html directly.
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(indexHTML)
+	})
 }
 
 func (s *Server) Start() error {

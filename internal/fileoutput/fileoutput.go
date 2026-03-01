@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/encounty/encounty/internal/state"
+	"github.com/zsleyer/encounty/internal/state"
 )
 
 type Writer struct {

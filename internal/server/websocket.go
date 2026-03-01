@@ -85,6 +85,17 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Hub) CloseAll() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for conn := range h.clients {
+		_ = conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"))
+		conn.Close()
+	}
+	h.clients = make(map[*websocket.Conn]bool)
+}
+
 func mustMarshal(v any) []byte {
 	b, _ := json.Marshal(v)
 	return b

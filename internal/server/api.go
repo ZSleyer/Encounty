@@ -2,12 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
-	"github.com/encounty/encounty/internal/state"
 	"github.com/google/uuid"
+	"github.com/zsleyer/encounty/internal/state"
 )
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -246,3 +248,85 @@ func pokemonIDFromPath(path, prefix, suffix string) string {
 	}
 	return strings.Trim(path, "/")
 }
+
+func (s *Server) handleSyncGames(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	result, err := SyncGamesFromPokeAPI()
+	if err != nil {
+		log.Printf("games sync error: %v", err)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
+}
+
+func (s *Server) handleHotkeysPause(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if s.hotkeyMgr != nil {
+		s.hotkeyMgr.Pause()
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "paused"})
+}
+
+func (s *Server) handleHotkeysResume(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if s.hotkeyMgr != nil {
+		s.hotkeyMgr.Resume()
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "active"})
+}
+
+func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "shutting down"})
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		if err := s.state.Save(); err != nil {
+			log.Printf("Save error on quit: %v", err)
+		}
+		s.hotkeyMgr.Stop()
+		os.Exit(0)
+	}()
+}
+
+func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "restarting"})
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		if err := s.state.Save(); err != nil {
+			log.Printf("Save error on restart: %v", err)
+		}
+		s.hotkeyMgr.Stop()
+
+		exe, err := os.Executable()
+		if err != nil {
+			log.Printf("Restart: could not get executable path: %v", err)
+			os.Exit(1)
+		}
+		if err := reexec(exe, os.Args[1:]); err != nil {
+			log.Printf("Restart failed: %v", err)
+			os.Exit(1)
+		}
+	}()
+}
+
+// reexec is implemented per-platform in reexec_unix.go / reexec_windows.go.
+// It replaces the current process with a fresh instance of the binary.

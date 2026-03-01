@@ -2,6 +2,8 @@
 
 BINARY = encounty
 FRONTEND_DIR = frontend
+LDFLAGS         = -ldflags="-s -w"
+LDFLAGS_WINDOWS = -ldflags="-s -w -H=windowsgui"
 
 dev:
 	@echo "Starting Encounty in dev mode..."
@@ -14,15 +16,18 @@ frontend:
 
 build: frontend
 	@echo "Building Encounty..."
-	go build -ldflags="-s -w" -o $(BINARY) main.go
+	go build $(LDFLAGS) -o $(BINARY) main.go
+	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY) || true
 	@echo "Done: ./$(BINARY)"
 
 build-linux: frontend
-	GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BINARY)-linux main.go
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY)-linux main.go
+	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-linux || true
 	@echo "Done: ./$(BINARY)-linux"
 
 build-windows: frontend
-	GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o $(BINARY)-windows.exe main.go
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS_WINDOWS) -o $(BINARY)-windows.exe main.go
+	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-windows.exe || true
 	@echo "Done: ./$(BINARY)-windows.exe"
 
 clean:

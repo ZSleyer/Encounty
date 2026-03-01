@@ -6,16 +6,17 @@ import (
 )
 
 type Pokemon struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`           // Display name (localized)
-	CanonicalName string    `json:"canonical_name"` // English PokéAPI slug
-	SpriteURL     string    `json:"sprite_url"`
-	SpriteType    string    `json:"sprite_type"` // "normal" | "shiny"
-	Encounters    int       `json:"encounters"`
-	IsActive      bool      `json:"is_active"`
-	CreatedAt     time.Time `json:"created_at"`
-	Language      string    `json:"language"` // "de" | "en"
-	Game          string    `json:"game"`     // key from games.json
+	ID            string           `json:"id"`
+	Name          string           `json:"name"`           // Display name (localized)
+	CanonicalName string           `json:"canonical_name"` // English PokéAPI slug
+	SpriteURL     string           `json:"sprite_url"`
+	SpriteType    string           `json:"sprite_type"` // "normal" | "shiny"
+	Encounters    int              `json:"encounters"`
+	IsActive      bool             `json:"is_active"`
+	CreatedAt     time.Time        `json:"created_at"`
+	Language      string           `json:"language"`          // "de" | "en"
+	Game          string           `json:"game"`              // key from games.json
+	Overlay       *OverlaySettings `json:"overlay,omitempty"` // Pokemon-specific overlay settings
 }
 
 type Session struct {
@@ -39,21 +40,21 @@ type GradientStop struct {
 }
 
 type TextStyle struct {
-	FontFamily    string         `json:"font_family"`
-	FontSize      int            `json:"font_size"`
-	FontWeight    int            `json:"font_weight"`
-	ColorType     string         `json:"color_type"` // "solid" | "gradient"
-	Color         string         `json:"color"`
-	GradientStops []GradientStop `json:"gradient_stops"`
-	GradientAngle int            `json:"gradient_angle"`
-	OutlineType   string         `json:"outline_type"` // "none" | "solid"
-	OutlineWidth  int            `json:"outline_width"`
-	OutlineColor  string         `json:"outline_color"`
-	TextShadow      bool   `json:"text_shadow"`
-	TextShadowColor string `json:"text_shadow_color"`
-	TextShadowBlur  int    `json:"text_shadow_blur"`
-	TextShadowX     int    `json:"text_shadow_x"`
-	TextShadowY     int    `json:"text_shadow_y"`
+	FontFamily      string         `json:"font_family"`
+	FontSize        int            `json:"font_size"`
+	FontWeight      int            `json:"font_weight"`
+	ColorType       string         `json:"color_type"` // "solid" | "gradient"
+	Color           string         `json:"color"`
+	GradientStops   []GradientStop `json:"gradient_stops"`
+	GradientAngle   int            `json:"gradient_angle"`
+	OutlineType     string         `json:"outline_type"` // "none" | "solid"
+	OutlineWidth    int            `json:"outline_width"`
+	OutlineColor    string         `json:"outline_color"`
+	TextShadow      bool           `json:"text_shadow"`
+	TextShadowColor string         `json:"text_shadow_color"`
+	TextShadowBlur  int            `json:"text_shadow_blur"`
+	TextShadowX     int            `json:"text_shadow_x"`
+	TextShadowY     int            `json:"text_shadow_y"`
 }
 
 type OverlayElementBase struct {
@@ -111,6 +112,7 @@ type Settings struct {
 	OutputDir   string          `json:"output_dir"`
 	AutoSave    bool            `json:"auto_save"`
 	BrowserPort int             `json:"browser_port"`
+	Languages   []string        `json:"languages"` // active game-name languages; default ["de","en"]
 	Overlay     OverlaySettings `json:"overlay"`
 }
 
@@ -138,6 +140,7 @@ func NewManager(configDir string) *Manager {
 			Settings: Settings{
 				AutoSave:    true,
 				BrowserPort: 8080,
+				Languages:   []string{"de", "en"},
 				Overlay: OverlaySettings{
 					CanvasWidth:       800,
 					CanvasHeight:      200,
@@ -149,12 +152,12 @@ func NewManager(configDir string) *Manager {
 					BorderRadius:      40,
 					Sprite: SpriteElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 10, Y: 10, Width: 180, Height: 180, ZIndex: 1},
-						ShowGlow:      true,
-						GlowColor:     "#ffffff",
-						GlowOpacity:   0.2,
-						GlowBlur:      20,
-						IdleAnimation: "float",
-						TriggerEnter:  "pop",
+						ShowGlow:           true,
+						GlowColor:          "#ffffff",
+						GlowOpacity:        0.2,
+						GlowBlur:           20,
+						IdleAnimation:      "float",
+						TriggerEnter:       "pop",
 					},
 					Name: NameElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
@@ -275,6 +278,10 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 			if update.Game != "" {
 				m.state.Pokemon[i].Game = update.Game
 			}
+
+			// Empty string check won't work for struct pointers. We either allow clearing via special means
+			// or replace if provided. But since we send the whole Pokemon back, we just replace it:
+			m.state.Pokemon[i].Overlay = update.Overlay
 
 			go m.notify()
 			return true

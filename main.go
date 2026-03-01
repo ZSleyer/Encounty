@@ -16,11 +16,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/encounty/encounty/internal/fileoutput"
-	"github.com/encounty/encounty/internal/hotkeys"
-	"github.com/encounty/encounty/internal/server"
-	"github.com/encounty/encounty/internal/state"
+	"github.com/zsleyer/encounty/internal/fileoutput"
+	"github.com/zsleyer/encounty/internal/hotkeys"
+	"github.com/zsleyer/encounty/internal/server"
+	"github.com/zsleyer/encounty/internal/state"
 )
+
+//go:embed games.json
+var embeddedGamesJSON []byte
 
 //go:embed all:frontend/dist
 var frontendFS embed.FS
@@ -28,6 +31,9 @@ var frontendFS embed.FS
 func main() {
 	devMode := flag.Bool("dev", false, "Development mode (proxy to Vite dev server)")
 	flag.Parse()
+
+	// Inject embedded games.json as fallback for the server package
+	server.SetDefaultGamesJSON(embeddedGamesJSON)
 
 	configDir := getConfigDir()
 	log.Printf("Config directory: %s", configDir)
@@ -82,18 +88,40 @@ func main() {
 		openBrowser(url)
 	}()
 
-	// Graceful shutdown
-	quit := make(chan os.Signal, 1)
+	// Graceful shutdown — buffer 2 so a second signal is never dropped.
+	quit := make(chan os.Signal, 2)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		<-quit
+		<-quit // first signal → start graceful shutdown
 		log.Println("Shutting down...")
-		hotkeyMgr.Stop()
+
+		// Hard-kill safety net: if shutdown takes > 3 s, force-exit.
+		go func() {
+			time.Sleep(3 * time.Second)
+			log.Println("Shutdown timed out – forcing exit")
+			os.Exit(1)
+		}()
+
+		// Also force-exit immediately on a second signal.
+		go func() {
+			<-quit
+			log.Println("Second signal – forcing exit")
+			os.Exit(1)
+		}()
+
+		// Close all WebSocket connections first so http.Shutdown() returns
+		// immediately instead of waiting for persistent connections to time out.
+		srv.Hub().CloseAll()
+
+		if hm := hotkeyMgr; hm != nil {
+			hm.Stop()
+		}
 		if err := stateMgr.Save(); err != nil {
 			log.Printf("Save error: %v", err)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
 			log.Printf("Server shutdown error: %v", err)
