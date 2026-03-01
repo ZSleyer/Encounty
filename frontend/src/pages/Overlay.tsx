@@ -5,7 +5,7 @@ import { useCounterStore } from "../hooks/useCounterState";
 interface Props {
   previewSettings?: OverlaySettings;
   previewPokemon?: Pokemon;
-  testTrigger?: { element: string; n: number };
+  testTrigger?: { element: string; n: number; reverse?: boolean };
 }
 
 // Inject Google Font dynamically
@@ -37,9 +37,10 @@ function buildTextStyle(style: TextStyle): React.CSSProperties {
     fontSize: `${style.font_size}px`,
     fontWeight: style.font_weight,
     color: style.color,
-    WebkitTextStroke: style.outline_type === "solid"
-      ? `${style.outline_width}px ${style.outline_color}`
-      : undefined,
+    WebkitTextStroke:
+      style.outline_type === "solid"
+        ? `${style.outline_width}px ${style.outline_color}`
+        : undefined,
     paintOrder: style.outline_type === "solid" ? "stroke fill" : undefined,
     textShadow: style.text_shadow
       ? `${style.text_shadow_x}px ${style.text_shadow_y}px ${style.text_shadow_blur}px ${style.text_shadow_color}`
@@ -60,7 +61,15 @@ function buildTextStyle(style: TextStyle): React.CSSProperties {
 }
 
 // Slot counter: only digits that change re-mount and animate
-function SlotCounter({ value, counterStyle }: { value: number; counterStyle: React.CSSProperties }) {
+function SlotCounter({
+  value,
+  counterStyle,
+  reverse,
+}: {
+  value: number;
+  counterStyle: React.CSSProperties;
+  reverse?: boolean;
+}) {
   const digits = String(value).split("");
   return (
     <span style={{ display: "inline-flex" }}>
@@ -74,6 +83,7 @@ function SlotCounter({ value, counterStyle }: { value: number; counterStyle: Rea
             style={{
               display: "block",
               animation: "overlay-slide-up 0.22s ease-out forwards",
+              animationDirection: reverse ? "reverse" : "normal",
               ...counterStyle,
             }}
           >
@@ -86,7 +96,15 @@ function SlotCounter({ value, counterStyle }: { value: number; counterStyle: Rea
 }
 
 // Flip counter: like SlotCounter but uses the flip-clock animation per digit
-function FlipCounter({ value, counterStyle }: { value: number; counterStyle: React.CSSProperties }) {
+function FlipCounter({
+  value,
+  counterStyle,
+  reverse,
+}: {
+  value: number;
+  counterStyle: React.CSSProperties;
+  reverse?: boolean;
+}) {
   const digits = String(value).split("");
   return (
     <span style={{ display: "inline-flex" }}>
@@ -100,6 +118,7 @@ function FlipCounter({ value, counterStyle }: { value: number; counterStyle: Rea
             style={{
               display: "block",
               animation: "overlay-flip 0.45s ease-in-out forwards",
+              animationDirection: reverse ? "reverse" : "normal",
               transformOrigin: "center",
               ...counterStyle,
             }}
@@ -114,71 +133,84 @@ function FlipCounter({ value, counterStyle }: { value: number; counterStyle: Rea
 
 // Animation maps
 const COUNTER_ANIMS: Record<string, string> = {
-  pop:        "animate-overlay-pop",
-  flash:      "animate-overlay-flash",
-  bounce:     "animate-overlay-bounce",
-  shake:      "animate-overlay-shake",
+  pop: "animate-overlay-pop",
+  flash: "animate-overlay-flash",
+  bounce: "animate-overlay-bounce",
+  shake: "animate-overlay-shake",
   "slide-up": "animate-overlay-slide-up",
-  flip:       "animate-overlay-flip",
-  rubber:     "animate-overlay-rubber",
+  flip: "animate-overlay-flip",
+  rubber: "animate-overlay-rubber",
   "count-flash": "animate-overlay-flash", // legacy
 };
 
 const SPRITE_ANIMS: Record<string, string> = {
-  pop:    "animate-overlay-pop",
+  pop: "animate-overlay-pop",
   bounce: "animate-overlay-bounce",
-  shake:  "animate-overlay-shake",
-  spin:   "animate-overlay-spin",
-  flip:   "animate-overlay-flip",
+  shake: "animate-overlay-shake",
+  spin: "animate-overlay-spin",
+  flip: "animate-overlay-flip",
   rubber: "animate-overlay-rubber",
-  flash:  "animate-overlay-flash",
+  flash: "animate-overlay-flash",
 };
 
 const NAME_ANIMS: Record<string, string> = {
-  "fade-in":  "animate-overlay-fade-in",
+  "fade-in": "animate-overlay-fade-in",
   "slide-in": "animate-overlay-slide-in",
-  pop:        "animate-overlay-pop",
-  bounce:     "animate-overlay-bounce",
-  shake:      "animate-overlay-shake",
-  flip:       "animate-overlay-flip",
-  rubber:     "animate-overlay-rubber",
+  pop: "animate-overlay-pop",
+  bounce: "animate-overlay-bounce",
+  shake: "animate-overlay-shake",
+  flip: "animate-overlay-flip",
+  rubber: "animate-overlay-rubber",
 };
 
 const SPRITE_IDLE: Record<string, string> = {
   float: "animate-float",
   pulse: "animate-overlay-pulse-idle",
-  rock:  "animate-overlay-rock",
-  bob:   "animate-overlay-bob",
+  rock: "animate-overlay-rock",
+  bob: "animate-overlay-bob",
 };
 
 const TEXT_IDLE: Record<string, string> = {
   breathe: "animate-overlay-breathe",
-  glow:    "animate-overlay-glow",
+  glow: "animate-overlay-glow",
 };
 
-export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props) {
+export function Overlay({
+  previewSettings,
+  previewPokemon,
+  testTrigger,
+}: Props) {
   const { appState } = useCounterStore();
 
   // Counter animation
   const [animClass, setAnimClass] = useState("");
+  const [animReverse, setAnimReverse] = useState(false);
   const [triggerId, setTriggerId] = useState(0);
   // Sprite animation
   const [spriteAnimClass, setSpriteAnimClass] = useState("");
+  const [spriteAnimReverse, setSpriteAnimReverse] = useState(false);
   const [spriteTriggerId, setSpriteTriggerId] = useState(0);
   // Name animation
   const [nameAnimClass, setNameAnimClass] = useState("");
+  const [nameAnimReverse, setNameAnimReverse] = useState(false);
   const [nameTriggerId, setNameTriggerId] = useState(0);
 
   const prevCount = useRef<number | undefined>(undefined);
 
   const activePokemon: Pokemon | null = useMemo(
-    () => previewPokemon || (appState?.pokemon.find((p) => p.id === appState.active_id) ?? null),
+    () =>
+      previewPokemon ||
+      (appState?.pokemon.find((p) => p.id === appState.active_id) ?? null),
     [previewPokemon, appState],
   );
 
   const settings: OverlaySettings | null = useMemo(
-    () => previewSettings || appState?.settings.overlay || null,
-    [previewSettings, appState],
+    () =>
+      previewSettings ||
+      activePokemon?.overlay ||
+      appState?.settings.overlay ||
+      null,
+    [previewSettings, activePokemon, appState],
   );
 
   // Inject fonts
@@ -188,30 +220,49 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
   // Trigger animations on counter change
   useEffect(() => {
     if (!activePokemon || !settings) return;
-    if (prevCount.current !== undefined && activePokemon.encounters !== prevCount.current) {
+    if (
+      prevCount.current !== undefined &&
+      activePokemon.encounters !== prevCount.current
+    ) {
       const isReset = activePokemon.encounters === 0;
       const isIncrement = activePokemon.encounters > (prevCount.current ?? 0);
+      const isDecrement = !isIncrement && !isReset;
 
       // Counter
       const counterKey = settings.counter.trigger_enter;
       if (counterKey !== "slot" && counterKey !== "flip-digit") {
         const key = isReset ? "rubber" : isIncrement ? counterKey : "shake";
         const cls = COUNTER_ANIMS[key] ?? "";
-        if (cls) { setAnimClass(cls); setTriggerId(Date.now()); }
+        if (cls) {
+          setAnimReverse(isDecrement);
+          setAnimClass(cls);
+          setTriggerId(Date.now());
+        }
+      } else {
+        // slot / flip-digit: just toggle reverse so digits re-key with right direction
+        setAnimReverse(isDecrement);
       }
 
       // Sprite
       const spriteKey = settings.sprite.trigger_enter;
       if (spriteKey && spriteKey !== "none") {
         const cls = SPRITE_ANIMS[spriteKey] ?? "";
-        if (cls) { setSpriteAnimClass(cls); setSpriteTriggerId(Date.now()); }
+        if (cls) {
+          setSpriteAnimReverse(isDecrement);
+          setSpriteAnimClass(cls);
+          setSpriteTriggerId(Date.now());
+        }
       }
 
       // Name
       const nameKey = settings.name.trigger_enter;
       if (nameKey && nameKey !== "none") {
         const cls = NAME_ANIMS[nameKey] ?? "";
-        if (cls) { setNameAnimClass(cls); setNameTriggerId(Date.now()); }
+        if (cls) {
+          setNameAnimReverse(isDecrement);
+          setNameAnimClass(cls);
+          setNameTriggerId(Date.now());
+        }
       }
     }
     prevCount.current = activePokemon.encounters;
@@ -220,27 +271,58 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
   // Test trigger from editor
   useEffect(() => {
     if (!testTrigger || !settings) return;
+    const rev = testTrigger.reverse ?? false;
     if (testTrigger.element === "counter") {
       const key = settings.counter.trigger_enter;
       if (key !== "slot" && key !== "flip-digit") {
         const cls = COUNTER_ANIMS[key] ?? "";
-        if (cls) { setAnimClass(cls); setTriggerId(Date.now()); }
+        if (cls) {
+          setAnimReverse(rev);
+          setAnimClass(cls);
+          setTriggerId(Date.now());
+        }
+      } else {
+        setAnimReverse(rev);
+        setTriggerId(Date.now());
       }
     } else if (testTrigger.element === "sprite") {
       const cls = SPRITE_ANIMS[settings.sprite.trigger_enter] ?? "";
-      if (cls) { setSpriteAnimClass(cls); setSpriteTriggerId(Date.now()); }
+      if (cls) {
+        setSpriteAnimReverse(rev);
+        setSpriteAnimClass(cls);
+        setSpriteTriggerId(Date.now());
+      }
     } else if (testTrigger.element === "name") {
       const cls = NAME_ANIMS[settings.name.trigger_enter] ?? "";
-      if (cls) { setNameAnimClass(cls); setNameTriggerId(Date.now()); }
+      if (cls) {
+        setNameAnimReverse(rev);
+        setNameAnimClass(cls);
+        setNameTriggerId(Date.now());
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testTrigger?.n]);
 
   if (!activePokemon || !settings) {
     if (previewSettings) {
       return (
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontFamily: "sans-serif", letterSpacing: "0.2em" }}>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <span
+            style={{
+              color: "rgba(255,255,255,0.3)",
+              fontSize: 11,
+              fontFamily: "sans-serif",
+              letterSpacing: "0.2em",
+            }}
+          >
             Kein aktives Pokémon
           </span>
         </div>
@@ -256,7 +338,9 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
   }
 
   const bgHex = settings.background_color.replace("#", "");
-  const opacity = Math.round(settings.background_opacity * 255).toString(16).padStart(2, "0");
+  const opacity = Math.round(settings.background_opacity * 255)
+    .toString(16)
+    .padStart(2, "0");
   const bgWithOpacity = `#${bgHex}${opacity}`;
 
   const nameStyle = buildTextStyle(settings.name.style);
@@ -269,14 +353,22 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
   // can overflow the card without being clipped (e.g. spin, bounce).
   const outerStyle: React.CSSProperties = previewSettings
     ? { position: "absolute", inset: 0 }
-    : { position: "relative", width: `${settings.canvas_width}px`, height: `${settings.canvas_height}px` };
+    : {
+        position: "relative",
+        width: `${settings.canvas_width}px`,
+        height: `${settings.canvas_height}px`,
+      };
 
   const bgStyle: React.CSSProperties = {
-    position: "absolute", inset: 0, pointerEvents: "none",
+    position: "absolute",
+    inset: 0,
+    pointerEvents: "none",
     backgroundColor: bgWithOpacity,
     backdropFilter: `blur(${settings.blur}px)`,
     borderRadius: `${settings.border_radius}px`,
-    border: settings.show_border ? `2px solid ${settings.border_color}` : "none",
+    border: settings.show_border
+      ? `2px solid ${settings.border_color}`
+      : "none",
     overflow: "hidden",
   };
 
@@ -308,6 +400,7 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
               alignItems: "center",
               justifyContent: "center",
               transformOrigin: "center",
+              animationDirection: spriteAnimReverse ? "reverse" : undefined,
             }}
             className={spriteAnimClass}
           >
@@ -326,7 +419,14 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
             <img
               src={activePokemon.sprite_url}
               alt=""
-              style={{ width: "100%", height: "100%", objectFit: "contain", imageRendering: "pixelated", position: "relative", zIndex: 1 }}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                imageRendering: "pixelated",
+                position: "relative",
+                zIndex: 1,
+              }}
             />
           </div>
         </div>
@@ -350,7 +450,12 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
           <span
             key={`name-${nameTriggerId}`}
             className={`uppercase tracking-widest whitespace-nowrap overflow-hidden text-ellipsis ${nameAnimClass}`}
-            style={{ ...nameStyle, display: "inline-block", transformOrigin: "center" }}
+            style={{
+              ...nameStyle,
+              display: "inline-block",
+              transformOrigin: "center",
+              animationDirection: nameAnimReverse ? "reverse" : undefined,
+            }}
           >
             {activePokemon.name}
           </span>
@@ -372,17 +477,34 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
             alignItems: "flex-start",
             justifyContent: "center",
           }}
-          className={counterMode !== "slot" && counterMode !== "flip-digit" ? (TEXT_IDLE[settings.counter.idle_animation] ?? "") : ""}
+          className={
+            counterMode !== "slot" && counterMode !== "flip-digit"
+              ? (TEXT_IDLE[settings.counter.idle_animation] ?? "")
+              : ""
+          }
         >
           {counterMode === "slot" ? (
-            <SlotCounter value={activePokemon.encounters} counterStyle={counterStyle} />
+            <SlotCounter
+              value={activePokemon.encounters}
+              counterStyle={counterStyle}
+              reverse={animReverse}
+            />
           ) : counterMode === "flip-digit" ? (
-            <FlipCounter value={activePokemon.encounters} counterStyle={counterStyle} />
+            <FlipCounter
+              value={activePokemon.encounters}
+              counterStyle={counterStyle}
+              reverse={animReverse}
+            />
           ) : (
             <span
               key={`counter-${triggerId}`}
               className={`font-black tabular-nums leading-none ${animClass}`}
-              style={{ ...counterStyle, display: "inline-block", transformOrigin: "center" }}
+              style={{
+                ...counterStyle,
+                display: "inline-block",
+                transformOrigin: "center",
+                animationDirection: animReverse ? "reverse" : undefined,
+              }}
             >
               {activePokemon.encounters}
             </span>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor, Copy, ExternalLink, RotateCcw, Play } from "lucide-react";
+import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor, Copy, ExternalLink, RotateCcw, Play, Plus, Minus, RefreshCw } from "lucide-react";
 import { OverlaySettings, OverlayElementBase, TextStyle, GradientStop } from "../types";
 import { Overlay } from "../pages/Overlay";
 import type { Pokemon } from "../types";
@@ -411,8 +411,13 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasScale, setCanvasScale] = useState(1);
-  const [testTrigger, setTestTrigger] = useState<{ element: ElementKey; n: number }>({ element: "counter", n: 0 });
-  const fireTest = (element: ElementKey) => setTestTrigger({ element, n: Date.now() });
+  const [testTrigger, setTestTrigger] = useState<{ element: ElementKey; n: number; reverse?: boolean }>({ element: "counter", n: 0 });
+  const fireTest = (element: ElementKey, reverse = false) => setTestTrigger({ element, n: Date.now(), reverse });
+
+  const triggerAction = useCallback(async (action: "increment" | "decrement" | "reset") => {
+    if (!activePokemon) return;
+    await fetch(`/api/pokemon/${activePokemon.id}/${action}`, { method: "POST" }).catch(() => {});
+  }, [activePokemon]);
 
   useEffect(() => { setLocalSettings(settings); }, [settings]);
 
@@ -547,8 +552,42 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
         </div>
       </div>
 
-      {/* CENTER: Canvas */}
-      <div ref={canvasContainerRef} className="flex-1 bg-[repeating-conic-gradient(#1a1a2a_0%_25%,#141420_0%_50%)] bg-[length:20px_20px] rounded-xl border border-border-subtle flex items-center justify-center overflow-hidden">
+      {/* CENTER: Canvas + Tester */}
+      <div className="flex-1 flex flex-col gap-2 min-w-0">
+
+      {/* Hotkey Tester toolbar */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-xl border border-border-subtle flex-shrink-0">
+        <span className="text-[10px] text-gray-500 mr-1">Hotkey-Test:</span>
+        <button
+          onClick={() => triggerAction("increment")}
+          disabled={!activePokemon}
+          title="+1 Encounter (simuliert F1)"
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-green/20 hover:bg-accent-green/40 text-accent-green text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <Plus className="w-3 h-3" /> +1
+        </button>
+        <button
+          onClick={() => triggerAction("decrement")}
+          disabled={!activePokemon}
+          title="-1 Encounter (simuliert F2)"
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <Minus className="w-3 h-3" /> -1
+        </button>
+        <button
+          onClick={() => triggerAction("reset")}
+          disabled={!activePokemon}
+          title="Reset (simuliert F3)"
+          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-gray-400 hover:text-white text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <RefreshCw className="w-3 h-3" /> Reset
+        </button>
+        {!activePokemon && (
+          <span className="text-[10px] text-gray-600 ml-1">Kein aktives Pokémon</span>
+        )}
+      </div>
+
+      <div ref={canvasContainerRef} className="flex-1 bg-[repeating-conic-gradient(#1a1a2a_0%_25%,#141420_0%_50%)] bg-[length:20px_20px] rounded-xl border border-border-subtle flex items-center justify-center overflow-hidden min-h-0">
         <div
           style={{
             transform: `scale(${canvasScale})`,
@@ -595,6 +634,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
           })}
         </div>
       </div>
+      </div>{/* end CENTER flex-col */}
 
       {/* RIGHT: Properties */}
       <div className="w-56 flex-shrink-0 bg-bg-secondary rounded-xl border border-border-subtle p-3 overflow-y-auto">

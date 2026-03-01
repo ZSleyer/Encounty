@@ -4,20 +4,30 @@ import { WSMessage } from '../types'
 const WS_URL = `ws://${globalThis.location.host}/ws`
 const RECONNECT_DELAY = 2000
 
-export function useWebSocket(onMessage: (msg: WSMessage) => void) {
+export function useWebSocket(
+  onMessage: (msg: WSMessage) => void,
+  onConnect?: () => void,
+  onDisconnect?: () => void,
+) {
   const ws = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onMessageRef = useRef(onMessage)
+  const onConnectRef = useRef(onConnect)
+  const onDisconnectRef = useRef(onDisconnect)
   onMessageRef.current = onMessage
+  onConnectRef.current = onConnect
+  onDisconnectRef.current = onDisconnect
 
   const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) return
+    const state = ws.current?.readyState
+    if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return
 
     const socket = new WebSocket(WS_URL)
     ws.current = socket
 
     socket.onopen = () => {
       console.log('[WS] Connected')
+      onConnectRef.current?.()
     }
 
     socket.onmessage = (event) => {
@@ -31,6 +41,7 @@ export function useWebSocket(onMessage: (msg: WSMessage) => void) {
 
     socket.onclose = () => {
       console.log('[WS] Disconnected, reconnecting...')
+      onDisconnectRef.current?.()
       reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY)
     }
 

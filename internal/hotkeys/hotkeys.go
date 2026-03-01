@@ -7,10 +7,11 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"golang.design/x/hotkey"
 
-	"github.com/encounty/encounty/internal/state"
+	"github.com/zsleyer/encounty/internal/state"
 )
 
 type Manager struct {
@@ -18,6 +19,7 @@ type Manager struct {
 	registered map[string]*hotkey.Hotkey
 	actions    chan Action
 	stateMgr   *state.Manager
+	paused     atomic.Bool
 }
 
 func New(stateMgr *state.Manager) *Manager {
@@ -41,12 +43,37 @@ func (m *Manager) Reload(hkMap state.HotkeyMap, stateMgr *state.Manager) error {
 	m.mu.Lock()
 	m.stateMgr = stateMgr
 	m.mu.Unlock()
+	// If paused, the keys are already unregistered. Don't re-register now;
+	// Resume() will pick up the new state when the user leaves the settings tab.
+	if m.paused.Load() {
+		m.unregisterAll() // no-op if already empty, but keeps m.registered clean
+		return nil
+	}
 	m.unregisterAll()
 	return m.register(hkMap)
 }
 
 func (m *Manager) Stop() {
 	m.unregisterAll()
+}
+
+// Pause unregisters all hotkeys so the OS delivers key events to the focused
+// application (browser). Called when entering the hotkeys or overlay settings tab.
+func (m *Manager) Pause() {
+	m.paused.Store(true)
+	m.unregisterAll()
+	log.Println("Hotkeys paused")
+}
+
+// Resume re-registers all hotkeys from the current state.
+func (m *Manager) Resume() {
+	m.paused.Store(false)
+	m.unregisterAll() // clear anything that may have been registered while paused
+	hkMap := m.stateMgr.GetState().Hotkeys
+	if err := m.register(hkMap); err != nil {
+		log.Printf("hotkeys resume register error: %v", err)
+	}
+	log.Println("Hotkeys resumed")
 }
 
 func (m *Manager) register(hkMap state.HotkeyMap) error {
@@ -81,6 +108,9 @@ func (m *Manager) register(hkMap state.HotkeyMap) error {
 
 func (m *Manager) listen(hk *hotkey.Hotkey, actionType string) {
 	for range hk.Keydown() {
+		if m.paused.Load() {
+			continue // muted while overlay editor is open
+		}
 		var pid string
 		if active := m.stateMgr.GetActivePokemon(); active != nil {
 			pid = active.ID

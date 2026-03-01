@@ -13,15 +13,19 @@ export function App() {
   const { setAppState, setConnected, flashPokemon, isConnected } =
     useCounterStore();
 
-  useWebSocket((msg: WSMessage) => {
-    if (msg.type === "state_update") {
-      setAppState(msg.payload as AppState);
-      setConnected(true);
-    } else if (msg.type === "encounter_added") {
-      const p = msg.payload as { pokemon_id: string; count: number };
-      flashPokemon(p.pokemon_id);
-    }
-  });
+  useWebSocket(
+    (msg: WSMessage) => {
+      if (msg.type === "state_update") {
+        setAppState(msg.payload as AppState);
+        setConnected(true);
+      } else if (msg.type === "encounter_added") {
+        const p = msg.payload as { pokemon_id: string; count: number };
+        flashPokemon(p.pokemon_id);
+      }
+    },
+    () => setConnected(true),
+    () => setConnected(false),
+  );
 
   if (isOverlay) {
     return <Overlay />;
@@ -74,7 +78,7 @@ export function App() {
         {/* Footer */}
         <footer className="h-10 px-6 flex items-center justify-between bg-bg-secondary/30 border-t border-border-subtle/30 text-xs text-gray-500">
           <span className="font-bold tracking-wider">
-            ENCONTY - &copy; {new Date().getFullYear()} ZSleyer
+            ENCOUNTY - &copy; {new Date().getFullYear()} ZSleyer
           </span>
           <a
             href="https://youtube.com/@ZSleyer"
