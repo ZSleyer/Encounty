@@ -32,7 +32,7 @@ export default {
         'count-flash': 'count-flash 0.4s ease-out',
         'overlay-fade-in': 'overlay-fade-in 0.4s ease-out',
         'overlay-slide-in': 'overlay-slide-in 0.3s ease-out',
-        // Counter trigger animations
+        // Counter / sprite / name trigger animations
         'overlay-pop':      'overlay-pop 0.3s ease-out',
         'overlay-flash':    'overlay-flash 0.45s ease-out',
         'overlay-bounce':   'overlay-bounce 0.5s ease-out',
@@ -40,6 +40,13 @@ export default {
         'overlay-slide-up': 'overlay-slide-up 0.3s ease-out',
         'overlay-flip':     'overlay-flip 0.45s ease-in-out',
         'overlay-rubber':   'overlay-rubber 0.55s ease-out',
+        'overlay-spin':     'overlay-spin 0.6s ease-in-out',
+        // Idle animations
+        'overlay-pulse-idle': 'overlay-pulse-idle 2s ease-in-out infinite',
+        'overlay-rock':       'overlay-rock 2.5s ease-in-out infinite',
+        'overlay-bob':        'overlay-bob 1.6s ease-in-out infinite',
+        'overlay-breathe':    'overlay-breathe 3s ease-in-out infinite',
+        'overlay-glow':       'overlay-glow 2s ease-in-out infinite',
       },
       keyframes: {
         flash: {
@@ -113,6 +120,33 @@ export default {
           '42%':  { transform: 'perspective(300px) rotateX(-92deg)', opacity: '0' },
           '58%':  { transform: 'perspective(300px) rotateX(92deg)',  opacity: '0' },
           '100%': { transform: 'perspective(300px) rotateX(0deg)',   opacity: '1' },
+        },
+        // New trigger
+        'overlay-spin': {
+          '0%':   { transform: 'rotate(0deg) scale(1)' },
+          '50%':  { transform: 'rotate(200deg) scale(1.18)' },
+          '100%': { transform: 'rotate(360deg) scale(1)' },
+        },
+        // Idle keyframes
+        'overlay-pulse-idle': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%':      { transform: 'scale(1.09)' },
+        },
+        'overlay-rock': {
+          '0%, 100%': { transform: 'rotate(-5deg)' },
+          '50%':      { transform: 'rotate(5deg)' },
+        },
+        'overlay-bob': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%':      { transform: 'translateY(-5px)' },
+        },
+        'overlay-breathe': {
+          '0%, 100%': { transform: 'scale(1)',     opacity: '0.85' },
+          '50%':      { transform: 'scale(1.03)',  opacity: '1' },
+        },
+        'overlay-glow': {
+          '0%, 100%': { filter: 'brightness(1)' },
+          '50%':      { filter: 'brightness(1.6) drop-shadow(0 0 8px rgba(255,255,255,0.55))' },
         },
         'overlay-rubber': {
           '0%':   { transform: 'scaleX(1)    scaleY(1)' },

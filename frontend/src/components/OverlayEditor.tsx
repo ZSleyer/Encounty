@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor, Copy, ExternalLink, RotateCcw } from "lucide-react";
+import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor, Copy, ExternalLink, RotateCcw, Play } from "lucide-react";
 import { OverlaySettings, OverlayElementBase, TextStyle, GradientStop } from "../types";
 import { Overlay } from "../pages/Overlay";
 import type { Pokemon } from "../types";
@@ -411,6 +411,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasScale, setCanvasScale] = useState(1);
+  const [testTrigger, setTestTrigger] = useState<{ element: ElementKey; n: number }>({ element: "counter", n: 0 });
+  const fireTest = (element: ElementKey) => setTestTrigger({ element, n: Date.now() });
 
   useEffect(() => { setLocalSettings(settings); }, [settings]);
 
@@ -557,7 +559,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
           }}
         >
           {/* Actual overlay preview */}
-          <Overlay previewSettings={localSettings} previewPokemon={fakePreviewPokemon} />
+          <Overlay previewSettings={localSettings} previewPokemon={fakePreviewPokemon} testTrigger={testTrigger} />
 
           {/* Drag/resize overlays for each element */}
           {LAYERS.map((key) => {
@@ -645,19 +647,30 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
                 <option value="none">Keine</option>
                 <option value="float">Schweben</option>
+                <option value="bob">Bob</option>
                 <option value="pulse">Puls</option>
+                <option value="rock">Wackeln</option>
               </select>
             </div>
             <div>
-              <label className="text-[10px] text-gray-500">Trigger Animation</label>
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="text-[10px] text-gray-500">Trigger Animation</label>
+                <button onClick={() => fireTest("sprite")}
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors">
+                  <Play className="w-2.5 h-2.5" /> Test
+                </button>
+              </div>
               <select value={localSettings.sprite.trigger_enter}
                 onChange={(e) => update({ ...localSettings, sprite: { ...localSettings.sprite, trigger_enter: e.target.value } })}
                 className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
                 <option value="none">Keine</option>
                 <option value="pop">Pop</option>
+                <option value="bounce">Bounce (Hüpfen)</option>
                 <option value="shake">Shake</option>
-                <option value="bounce">Bounce</option>
                 <option value="spin">Spin</option>
+                <option value="flip">Flip</option>
+                <option value="rubber">Rubber Band</option>
+                <option value="flash">Flash</option>
               </select>
             </div>
           </div>
@@ -671,13 +684,34 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               onChange={(s) => update({ ...localSettings, name: { ...localSettings.name, style: s } })}
             />
             <div>
-              <label className="text-[10px] text-gray-500">Trigger Animation</label>
+              <label className="text-[10px] text-gray-500">Idle Animation</label>
+              <select value={localSettings.name.idle_animation}
+                onChange={(e) => update({ ...localSettings, name: { ...localSettings.name, idle_animation: e.target.value } })}
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+                <option value="none">Keine</option>
+                <option value="breathe">Atmen</option>
+                <option value="glow">Glühen</option>
+              </select>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="text-[10px] text-gray-500">Trigger Animation</label>
+                <button onClick={() => fireTest("name")}
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors">
+                  <Play className="w-2.5 h-2.5" /> Test
+                </button>
+              </div>
               <select value={localSettings.name.trigger_enter}
                 onChange={(e) => update({ ...localSettings, name: { ...localSettings.name, trigger_enter: e.target.value } })}
                 className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
                 <option value="none">Keine</option>
                 <option value="fade-in">Einblenden</option>
                 <option value="slide-in">Einsliden</option>
+                <option value="pop">Pop</option>
+                <option value="bounce">Bounce</option>
+                <option value="shake">Shake</option>
+                <option value="flip">Flip</option>
+                <option value="rubber">Rubber Band</option>
               </select>
             </div>
           </div>
@@ -710,7 +744,23 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               </>
             )}
             <div>
-              <label className="text-[10px] text-gray-500">Trigger Animation (Inkrement)</label>
+              <label className="text-[10px] text-gray-500">Idle Animation</label>
+              <select value={localSettings.counter.idle_animation}
+                onChange={(e) => update({ ...localSettings, counter: { ...localSettings.counter, idle_animation: e.target.value } })}
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+                <option value="none">Keine</option>
+                <option value="breathe">Atmen</option>
+                <option value="glow">Glühen</option>
+              </select>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-0.5">
+                <label className="text-[10px] text-gray-500">Trigger Animation</label>
+                <button onClick={() => fireTest("counter")}
+                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors">
+                  <Play className="w-2.5 h-2.5" /> Test
+                </button>
+              </div>
               <select value={localSettings.counter.trigger_enter}
                 onChange={(e) => update({ ...localSettings, counter: { ...localSettings.counter, trigger_enter: e.target.value } })}
                 className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
@@ -719,9 +769,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 <option value="flash">Flash</option>
                 <option value="bounce">Bounce (Hüpfen)</option>
                 <option value="shake">Shake</option>
-                <option value="slot">Slot (Ziffern)</option>
+                <option value="slot">Slot (Ziffern slide)</option>
+                <option value="flip-digit">Flip (Ziffern, Wecker)</option>
                 <option value="slide-up">Slide Up (gesamt)</option>
-                <option value="flip">Flip (Wecker)</option>
+                <option value="flip">Flip (gesamt, Wecker)</option>
                 <option value="rubber">Rubber Band</option>
               </select>
             </div>
