@@ -58,6 +58,18 @@ function buildTextStyle(style: TextStyle): React.CSSProperties {
   return css;
 }
 
+const COUNTER_ANIMS: Record<string, string> = {
+  pop:        "animate-overlay-pop",
+  flash:      "animate-overlay-flash",
+  bounce:     "animate-overlay-bounce",
+  shake:      "animate-overlay-shake",
+  "slide-up": "animate-overlay-slide-up",
+  flip:       "animate-overlay-flip",
+  rubber:     "animate-overlay-rubber",
+  // legacy
+  "count-flash": "animate-overlay-flash",
+};
+
 export function Overlay({ previewSettings, previewPokemon }: Props) {
   const { appState } = useCounterStore();
   const [animClass, setAnimClass] = useState("");
@@ -82,13 +94,14 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
   useEffect(() => {
     if (!activePokemon || !settings) return;
     if (prevCount.current !== undefined && activePokemon.encounters !== prevCount.current) {
-      const triggerAnim = activePokemon.encounters === 0
-        ? "rotate"
+      const key = activePokemon.encounters === 0
+        ? "rubber"
         : activePokemon.encounters > prevCount.current
           ? settings.counter.trigger_enter
           : "shake";
-      if (triggerAnim && triggerAnim !== "none") {
-        setAnimClass(`animate-${triggerAnim}`);
+      const cls = COUNTER_ANIMS[key] ?? "";
+      if (cls) {
+        setAnimClass(cls);
         setTriggerId(Date.now());
       }
     }
@@ -219,11 +232,10 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
               alignItems: "flex-start",
               justifyContent: "center",
             }}
-            className={animClass}
           >
             <span
-              className="font-black tabular-nums leading-none"
-              style={counterStyle}
+              className={`font-black tabular-nums leading-none ${animClass}`}
+              style={{ ...counterStyle, display: "inline-block", transformOrigin: "center" }}
             >
               {activePokemon.encounters}
             </span>

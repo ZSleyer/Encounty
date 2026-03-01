@@ -32,6 +32,14 @@ export default {
         'count-flash': 'count-flash 0.4s ease-out',
         'overlay-fade-in': 'overlay-fade-in 0.4s ease-out',
         'overlay-slide-in': 'overlay-slide-in 0.3s ease-out',
+        // Counter trigger animations
+        'overlay-pop':      'overlay-pop 0.3s ease-out',
+        'overlay-flash':    'overlay-flash 0.45s ease-out',
+        'overlay-bounce':   'overlay-bounce 0.5s ease-out',
+        'overlay-shake':    'overlay-shake 0.4s ease-out',
+        'overlay-slide-up': 'overlay-slide-up 0.3s ease-out',
+        'overlay-flip':     'overlay-flip 0.45s ease-in-out',
+        'overlay-rubber':   'overlay-rubber 0.55s ease-out',
       },
       keyframes: {
         flash: {
@@ -66,6 +74,51 @@ export default {
         'overlay-slide-in': {
           '0%': { transform: 'translateX(-20px)', opacity: '0' },
           '100%': { transform: 'translateX(0)', opacity: '1' },
+        },
+        // Counter trigger keyframes
+        'overlay-pop': {
+          '0%':   { transform: 'scale(1)' },
+          '50%':  { transform: 'scale(1.45)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        'overlay-flash': {
+          '0%, 100%': { filter: 'brightness(1)' },
+          '50%':      { filter: 'brightness(2.5) drop-shadow(0 0 12px rgba(255,230,80,0.9))' },
+        },
+        'overlay-bounce': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '20%':      { transform: 'scale(1.38)' },
+          '40%':      { transform: 'scale(0.87)' },
+          '60%':      { transform: 'scale(1.14)' },
+          '80%':      { transform: 'scale(0.97)' },
+        },
+        'overlay-shake': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '15%':      { transform: 'translateX(-9px)' },
+          '30%':      { transform: 'translateX(9px)' },
+          '45%':      { transform: 'translateX(-6px)' },
+          '60%':      { transform: 'translateX(6px)' },
+          '75%':      { transform: 'translateX(-3px)' },
+          '90%':      { transform: 'translateX(3px)' },
+        },
+        'overlay-slide-up': {
+          '0%':   { transform: 'translateY(40px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)',    opacity: '1' },
+        },
+        // Flip-clock / split-flap: top half folds away, new number folds in
+        'overlay-flip': {
+          '0%':   { transform: 'perspective(300px) rotateX(0deg)',   opacity: '1' },
+          '42%':  { transform: 'perspective(300px) rotateX(-92deg)', opacity: '0' },
+          '58%':  { transform: 'perspective(300px) rotateX(92deg)',  opacity: '0' },
+          '100%': { transform: 'perspective(300px) rotateX(0deg)',   opacity: '1' },
+        },
+        'overlay-rubber': {
+          '0%':   { transform: 'scaleX(1)    scaleY(1)' },
+          '28%':  { transform: 'scaleX(1.42) scaleY(0.62)' },
+          '48%':  { transform: 'scaleX(0.80) scaleY(1.18)' },
+          '68%':  { transform: 'scaleX(1.12) scaleY(0.9)' },
+          '84%':  { transform: 'scaleX(0.96) scaleY(1.04)' },
+          '100%': { transform: 'scaleX(1)    scaleY(1)' },
         },
       },
     },

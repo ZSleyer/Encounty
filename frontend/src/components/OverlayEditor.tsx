@@ -710,14 +710,18 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               </>
             )}
             <div>
-              <label className="text-[10px] text-gray-500">Trigger Animation</label>
+              <label className="text-[10px] text-gray-500">Trigger Animation (Inkrement)</label>
               <select value={localSettings.counter.trigger_enter}
                 onChange={(e) => update({ ...localSettings, counter: { ...localSettings.counter, trigger_enter: e.target.value } })}
                 className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
                 <option value="none">Keine</option>
                 <option value="pop">Pop</option>
-                <option value="count-flash">Flash</option>
+                <option value="flash">Flash</option>
+                <option value="bounce">Bounce</option>
                 <option value="shake">Shake</option>
+                <option value="slide-up">Slide Up</option>
+                <option value="flip">Flip (Wecker)</option>
+                <option value="rubber">Rubber Band</option>
               </select>
             </div>
           </div>
