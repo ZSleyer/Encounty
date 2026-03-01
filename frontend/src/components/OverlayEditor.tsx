@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor, Copy, ExternalLink } from "lucide-react";
+import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor, Copy, ExternalLink, RotateCcw } from "lucide-react";
 import { OverlaySettings, OverlayElementBase, TextStyle, GradientStop } from "../types";
 import { Overlay } from "../pages/Overlay";
 import type { Pokemon } from "../types";
@@ -35,6 +35,34 @@ const DEFAULT_TEXT_STYLE: TextStyle = {
   text_shadow_blur: 4,
   text_shadow_x: 1,
   text_shadow_y: 1,
+};
+
+const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
+  canvas_width: 800,
+  canvas_height: 200,
+  background_color: "#000000",
+  background_opacity: 0.6,
+  blur: 8,
+  show_border: true,
+  border_color: "rgba(255,255,255,0.1)",
+  border_radius: 40,
+  sprite: {
+    visible: true, x: 10, y: 10, width: 180, height: 180, z_index: 1,
+    show_glow: true, glow_color: "rgba(255,255,255,0.2)",
+    idle_animation: "float", trigger_enter: "pop", trigger_exit: "none",
+  },
+  name: {
+    visible: true, x: 200, y: 20, width: 300, height: 40, z_index: 2,
+    style: { ...DEFAULT_TEXT_STYLE, font_family: "sans", font_size: 20, font_weight: 400, color: "#94a3b8" },
+    idle_animation: "none", trigger_enter: "fade-in",
+  },
+  counter: {
+    visible: true, x: 200, y: 80, width: 300, height: 100, z_index: 3,
+    style: { ...DEFAULT_TEXT_STYLE, font_family: "pokemon", font_size: 80, font_weight: 700, color: "#ffffff", outline_type: "solid", outline_width: 6, outline_color: "#000000" },
+    show_label: false, label_text: "Begegnungen",
+    label_style: { ...DEFAULT_TEXT_STYLE, font_family: "sans", font_size: 14, font_weight: 400, color: "#94a3b8" },
+    idle_animation: "none", trigger_enter: "pop",
+  },
 };
 
 function FontPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -363,7 +391,17 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
     <div className="flex gap-4 h-[600px]">
       {/* LEFT: Element tree */}
       <div className="w-44 flex-shrink-0 bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 overflow-y-auto">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Ebenen</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Ebenen</p>
+          <button
+            onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
+            title="Layout zurücksetzen"
+            className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <RotateCcw className="w-3 h-3" />
+            Reset
+          </button>
+        </div>
         {LAYERS.map((key) => {
           const el = localSettings[key] as OverlayElementBase;
           return (
