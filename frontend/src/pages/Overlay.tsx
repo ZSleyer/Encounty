@@ -332,10 +332,9 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
         </div>
       )}
 
-      {/* Name */}
+      {/* Name — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
       {settings.name.visible && (
         <div
-          key={`name-${nameTriggerId}`}
           style={{
             position: "absolute",
             left: settings.name.x,
@@ -346,9 +345,11 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
             display: "flex",
             alignItems: "center",
           }}
+          className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
         >
           <span
-            className={`uppercase tracking-widest whitespace-nowrap overflow-hidden text-ellipsis ${TEXT_IDLE[settings.name.idle_animation] ?? ""} ${nameAnimClass}`}
+            key={`name-${nameTriggerId}`}
+            className={`uppercase tracking-widest whitespace-nowrap overflow-hidden text-ellipsis ${nameAnimClass}`}
             style={{ ...nameStyle, display: "inline-block", transformOrigin: "center" }}
           >
             {activePokemon.name}
@@ -356,10 +357,9 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
         </div>
       )}
 
-      {/* Counter */}
+      {/* Counter — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
       {settings.counter.visible && (
         <div
-          key={counterMode === "slot" || counterMode === "flip-digit" ? `counter-digit` : `counter-${triggerId}`}
           style={{
             position: "absolute",
             left: settings.counter.x,
@@ -372,6 +372,7 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
             alignItems: "flex-start",
             justifyContent: "center",
           }}
+          className={counterMode !== "slot" && counterMode !== "flip-digit" ? (TEXT_IDLE[settings.counter.idle_animation] ?? "") : ""}
         >
           {counterMode === "slot" ? (
             <SlotCounter value={activePokemon.encounters} counterStyle={counterStyle} />
@@ -379,7 +380,8 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
             <FlipCounter value={activePokemon.encounters} counterStyle={counterStyle} />
           ) : (
             <span
-              className={`font-black tabular-nums leading-none ${TEXT_IDLE[settings.counter.idle_animation] ?? ""} ${animClass}`}
+              key={`counter-${triggerId}`}
+              className={`font-black tabular-nums leading-none ${animClass}`}
               style={{ ...counterStyle, display: "inline-block", transformOrigin: "center" }}
             >
               {activePokemon.encounters}
