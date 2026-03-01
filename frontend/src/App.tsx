@@ -10,7 +10,7 @@ import { WSMessage, AppState } from "./types";
 export function App() {
   const location = useLocation();
   const isOverlay = location.pathname === "/overlay";
-  const { setAppState, setConnected, flashPokemon } = useCounterStore();
+  const { setAppState, setConnected, flashPokemon, isConnected } = useCounterStore();
 
   useWebSocket((msg: WSMessage) => {
     if (msg.type === "state_update") {
@@ -29,22 +29,19 @@ export function App() {
   return (
     <div className="flex h-screen bg-bg-primary text-white overflow-hidden">
       {/* Sidebar */}
-      <nav className="w-16 flex flex-col items-center py-4 bg-bg-secondary border-r border-border-subtle gap-2 flex-shrink-0">
-        <div className="mb-4">
-          <div className="w-8 h-8 bg-accent-red rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xs">E</span>
-          </div>
+      <nav className="w-14 flex flex-col items-center py-4 bg-bg-secondary border-r border-border-subtle gap-1 flex-shrink-0">
+        {/* Logo */}
+        <div className="mb-4 w-8 h-8 bg-accent-red rounded-lg flex items-center justify-center flex-shrink-0" title="Encounty">
+          <span className="text-white font-black text-sm">E</span>
         </div>
-        <NavIcon
-          to="/"
-          icon={<LayoutGrid className="w-5 h-5" />}
-          label="Dashboard"
-        />
-        <NavIcon
-          to="/settings"
-          icon={<SettingsIcon className="w-5 h-5" />}
-          label="Einstellungen"
-        />
+
+        <NavIcon to="/" icon={<LayoutGrid className="w-5 h-5" />} label="Dashboard" />
+        <NavIcon to="/settings" icon={<SettingsIcon className="w-5 h-5" />} label="Einstellungen" />
+
+        {/* Connection indicator at bottom */}
+        <div className="mt-auto mb-1 flex flex-col items-center gap-1" title={isConnected ? "Verbunden" : "Getrennt"}>
+          <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-accent-green" : "bg-accent-red"}`} />
+        </div>
       </nav>
 
       {/* Main */}
@@ -58,35 +55,18 @@ export function App() {
         </div>
 
         {/* Footer */}
-        <footer className="h-14 px-8 flex items-center justify-between bg-bg-secondary/30 border-t border-border-subtle/30 text-xs text-gray-400 font-medium">
-          <div className="flex items-center gap-6">
-            <span className="text-gray-500 font-bold tracking-wider">
-              &copy; {new Date().getFullYear()} ENCOUNTY
-            </span>
-            <span className="w-1 h-1 rounded-full bg-gray-700" />
-            <span>
-              Created by{" "}
-              <span className="text-white font-black tracking-wide">
-                ZSleyer
-              </span>
-            </span>
-          </div>
+        <footer className="h-10 px-6 flex items-center justify-between bg-bg-secondary/30 border-t border-border-subtle/30 text-xs text-gray-500">
+          <span className="font-bold tracking-wider">&copy; {new Date().getFullYear()} ENCOUNTY</span>
           <a
             href="https://youtube.com/@ZSleyer"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 hover:text-accent-blue transition-all duration-300 group scale-110"
+            className="flex items-center gap-1.5 hover:text-gray-300 transition-colors"
           >
-            <span className="w-6 h-6 flex items-center justify-center bg-red-500/10 group-hover:bg-red-500/20 rounded-lg transition-all duration-300">
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3.5 h-3.5 fill-red-500"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-              </svg>
-            </span>
-            <span className="font-bold">YouTube @ZSleyer</span>
+            <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-red-500" xmlns="http://www.w3.org/2000/svg">
+              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+            </svg>
+            <span className="font-semibold">@ZSleyer</span>
           </a>
         </footer>
       </div>
