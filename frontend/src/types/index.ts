@@ -9,17 +9,17 @@ export interface Pokemon {
   created_at: string;
   language: Language; // "de" | "en"
   game: string; // key from games.json
+  overlay?: OverlaySettings; // Pokemon-specific overlay settings
 }
 
 export interface GameEntry {
   key: string;
-  name_de: string;
-  name_en: string;
+  names: Record<string, string>; // lang code → localised name
   generation: number;
   platform: string;
 }
 
-export type Language = "de" | "en";
+export type Language = string;
 
 export interface Session {
   id: string;
@@ -42,9 +42,9 @@ export interface GradientStop {
 }
 
 export interface TextStyle {
-  font_family: string;        // Google Font name or "sans"/"serif"/"monospace"/"pokemon"
+  font_family: string; // Google Font name or "sans"/"serif"/"monospace"/"pokemon"
   font_size: number;
-  font_weight: number;        // 100–900
+  font_weight: number; // 100–900
   color_type: "solid" | "gradient";
   color: string;
   gradient_stops: GradientStop[];
@@ -70,9 +70,9 @@ export interface OverlayElementBase {
 
 export interface SpriteElement extends OverlayElementBase {
   show_glow: boolean;
-  glow_color: string;   // hex "#rrggbb"
+  glow_color: string; // hex "#rrggbb"
   glow_opacity: number; // 0–1
-  glow_blur: number;    // px
+  glow_blur: number; // px
   idle_animation: string;
   trigger_enter: string;
   trigger_exit: string;
@@ -80,8 +80,8 @@ export interface SpriteElement extends OverlayElementBase {
 
 export interface NameElement extends OverlayElementBase {
   style: TextStyle;
-  idle_animation: string;  // "none" | "shimmer"
-  trigger_enter: string;   // "none" | "slide-in" | "fade-in"
+  idle_animation: string; // "none" | "shimmer"
+  trigger_enter: string; // "none" | "slide-in" | "fade-in"
 }
 
 export interface CounterElement extends OverlayElementBase {
@@ -89,8 +89,8 @@ export interface CounterElement extends OverlayElementBase {
   show_label: boolean;
   label_text: string;
   label_style: TextStyle;
-  idle_animation: string;    // "none"
-  trigger_enter: string;     // "none" | "pop" | "count-flash"
+  idle_animation: string; // "none"
+  trigger_enter: string; // "none" | "pop" | "count-flash"
 }
 
 export interface OverlaySettings {
@@ -114,6 +114,7 @@ export interface Settings {
   output_dir: string;
   auto_save: boolean;
   browser_port: number;
+  languages: string[]; // active language codes for game names
   overlay: OverlaySettings;
 }
 

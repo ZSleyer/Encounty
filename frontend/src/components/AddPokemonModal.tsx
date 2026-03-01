@@ -2,10 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { X, Search, Globe } from "lucide-react";
 import { GameEntry, Language } from "../types";
 import { getSpriteUrl, SpriteType } from "../utils/sprites";
+import { getGameName } from "../utils/games";
 
 interface Props {
   readonly onAdd: (data: NewPokemonData) => void;
   readonly onClose: () => void;
+  readonly activeLanguages?: string[];
 }
 
 export interface NewPokemonData {
@@ -19,33 +21,47 @@ export interface NewPokemonData {
 
 interface PokemonForm {
   canonical: string;
-  de: string;
-  en: string;
+  names?: Record<string, string>;
   sprite_id: number;
 }
 
 interface PokemonData {
   id: number;
   canonical: string;
-  de: string;
-  en: string;
+  names?: Record<string, string>;
   forms?: PokemonForm[];
 }
 
 interface SearchResult {
   id: number;
   canonical: string;
-  de: string;
-  en: string;
+  names?: Record<string, string>;
   isForm: boolean;
   spriteId: number; // numeric ID used for sprite URL
 }
 
-export function AddPokemonModal({ onAdd, onClose }: Props) {
+function getPkmnName(
+  p: SearchResult | PokemonData | PokemonForm,
+  lang: string,
+): string {
+  if (p.names && p.names[lang]) return p.names[lang];
+  if (p.names && p.names["en"]) return p.names["en"];
+  return p.canonical;
+}
+
+export function AddPokemonModal({
+  onAdd,
+  onClose,
+  activeLanguages = ["de", "en"],
+}: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [language, setLanguage] = useState<Language>("de");
+  const [language, setLanguage] = useState<Language>(
+    (activeLanguages.includes("de")
+      ? "de"
+      : (activeLanguages[0] ?? "en")) as Language,
+  );
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [allPokemon, setAllPokemon] = useState<PokemonData[]>([]);
@@ -53,8 +69,7 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
   const [selected, setSelected] = useState<{
     id: number;
     canonical: string;
-    nameDE: string;
-    nameEN: string;
+    name: string;
     sprite: string;
     spriteId: number;
   } | null>(null);
@@ -84,17 +99,29 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
   const buildSearchList = (data: PokemonData[]): SearchResult[] => {
     const results: SearchResult[] = [];
     for (const p of data) {
-      results.push({ id: p.id, canonical: p.canonical, de: p.de, en: p.en, isForm: false, spriteId: p.id });
+      results.push({
+        id: p.id,
+        canonical: p.canonical,
+        names: p.names,
+        isForm: false,
+        spriteId: p.id,
+      });
       if (p.forms) {
         for (const f of p.forms) {
-          results.push({ id: p.id, canonical: f.canonical, de: f.de, en: f.en, isForm: true, spriteId: f.sprite_id });
+          results.push({
+            id: p.id,
+            canonical: f.canonical,
+            names: f.names,
+            isForm: true,
+            spriteId: f.sprite_id,
+          });
         }
       }
     }
     return results;
   };
 
-  // Autocomplete: match DE or EN or canonical slug (including forms)
+  // Autocomplete: match name in ANY language or canonical slug
   useEffect(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
@@ -105,11 +132,13 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
     const searchList = buildSearchList(allPokemon);
     const results = searchList
       .filter((p) => {
-        return (
-          p.canonical.includes(q) ||
-          p.de.toLowerCase().includes(q) ||
-          p.en.toLowerCase().includes(q)
+        if (p.canonical.includes(q)) return true;
+        const nameValues = p.names ? Object.values(p.names) : [];
+        const matchesName = nameValues.some((name) =>
+          name.toLowerCase().includes(q),
         );
+        if (matchesName) return true;
+        return false;
       })
       .slice(0, 12);
 
@@ -118,15 +147,18 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
 
   const selectPokemon = (p: SearchResult) => {
     setSuggestions([]);
-    setQuery(language === "de" ? p.de : p.en);
+    setQuery(getPkmnName(p, language));
 
-    const sprite = getSpriteUrl(p.spriteId, selectedGame, spriteType);
+    const sprite = getSpriteUrl(
+      p.spriteId.toString(),
+      selectedGame,
+      spriteType,
+    );
 
     setSelected({
       id: p.id,
       canonical: p.canonical,
-      nameDE: p.de,
-      nameEN: p.en,
+      name: getPkmnName(p, language),
       sprite,
       spriteId: p.spriteId,
     });
@@ -136,23 +168,27 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
   // Update sprite when game or spriteType changes
   useEffect(() => {
     if (selected) {
-      const newSprite = getSpriteUrl(selected.spriteId, selectedGame, spriteType);
+      const newSprite = getSpriteUrl(
+        selected.spriteId.toString(),
+        selectedGame,
+        spriteType,
+      );
       setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
       setCustomSprite(newSprite);
     }
-  }, [selectedGame, spriteType]);
+  }, [selectedGame, spriteType, selected?.spriteId]); // Added selected?.spriteId to dependencies
 
   const handleAdd = () => {
-    if (!selected) return;
-    const displayName = language === "de" ? selected.nameDE : selected.nameEN;
+    if (!selected || !selectedGame) return;
     onAdd({
-      name: displayName,
+      name: selected.name,
       canonical_name: selected.canonical,
       sprite_url: customSprite || selected.sprite,
       sprite_type: spriteType,
       language,
       game: selectedGame,
     });
+    onClose();
   };
 
   const handleCancel = () => {
@@ -160,11 +196,10 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
     onClose();
   };
 
-  const displayName = selected
-    ? language === "de"
-      ? selected.nameDE
-      : selected.nameEN
-    : "";
+  const activeName = selected ? selected.name : "";
+
+  // Available language buttons for Pokemon names
+  const availableLangs = activeLanguages.length > 0 ? activeLanguages : ["en"];
 
   const genGroups = games.reduce<Record<number, GameEntry[]>>((acc, g) => {
     if (!acc[g.generation]) acc[g.generation] = [];
@@ -192,19 +227,33 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
       {/* Language toggle */}
       <div className="flex items-center gap-2 mb-4">
         <Globe className="w-4 h-4 text-gray-500" />
-        <span className="text-xs text-gray-500">Namenssprache:</span>
-        {(["de", "en"] as Language[]).map((lang) => (
+        <span className="text-xs text-gray-500">Lokalisierung:</span>
+        {availableLangs.map((lang) => (
           <button
             key={lang}
             onClick={() => {
-              setLanguage(lang);
-              if (selected)
-                setQuery(lang === "de" ? selected.nameDE : selected.nameEN);
+              setLanguage(lang as Language);
+              if (selected) {
+                // Find complete data from search list
+                const searchList = buildSearchList(allPokemon);
+                const fullP = searchList.find(
+                  (p) =>
+                    p.spriteId === selected.spriteId &&
+                    p.canonical === selected.canonical,
+                ); // Added canonical check for forms
+                if (fullP) {
+                  setQuery(getPkmnName(fullP, lang));
+                  setSelected({
+                    ...selected,
+                    name: getPkmnName(fullP, lang),
+                  });
+                }
+              }
             }}
-            className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
               language === lang
-                ? "bg-accent-blue text-white"
-                : "bg-bg-secondary text-gray-400 hover:text-white"
+                ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
+                : "bg-bg-dark text-gray-500 border-border-subtle hover:text-gray-300"
             }`}
           >
             {lang.toUpperCase()}
@@ -241,8 +290,10 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
                 onClick={() => selectPokemon(s)}
                 className="w-full text-left px-4 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center justify-between"
               >
-                <span className={`capitalize ${s.isForm ? "text-gray-300 pl-3 border-l border-border-subtle" : "text-white"}`}>
-                  {language === "de" ? s.de : s.en}
+                <span
+                  className={`capitalize ${s.isForm ? "text-gray-300 pl-3 border-l border-border-subtle" : "text-white"}`}
+                >
+                  {getPkmnName(s, language)}
                 </span>
                 <span className="text-gray-500 text-xs italic">
                   {s.canonical}
@@ -260,7 +311,7 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
             {selected.sprite ? (
               <img
                 src={customSprite || selected.sprite}
-                alt={displayName}
+                alt={activeName}
                 className="w-full h-full object-contain"
                 style={{ imageRendering: "pixelated" }}
               />
@@ -269,18 +320,11 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white text-lg">{displayName}</p>
+            <p className="font-bold text-white text-lg">{activeName}</p>
             <p className="text-xs text-gray-500 capitalize">
               {selected.canonical}
             </p>
-            <div className="flex gap-2 mt-1">
-              <span className="text-xs bg-bg-hover px-2 py-0.5 rounded text-gray-400">
-                DE: {selected.nameDE}
-              </span>
-              <span className="text-xs bg-bg-hover px-2 py-0.5 rounded text-gray-400">
-                EN: {selected.nameEN}
-              </span>
-            </div>
+            {/* Removed hardcoded DE/EN names, as 'name' now holds the selected language name */}
           </div>
         </div>
       )}
@@ -299,7 +343,9 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
                 onChange={() => setSpriteType(t)}
                 className="accent-accent-blue"
               />
-              <span className={`text-sm capitalize ${spriteType === t ? "text-white" : "text-gray-400"}`}>
+              <span
+                className={`text-sm capitalize ${spriteType === t ? "text-white" : "text-gray-400"}`}
+              >
                 {t === "shiny" ? "✨ Shiny" : "Normal"}
               </span>
             </label>
@@ -344,7 +390,7 @@ export function AddPokemonModal({ onAdd, onClose }: Props) {
             <optgroup key={gen} label={`Generation ${gen}`}>
               {entries.map((g) => (
                 <option key={g.key} value={g.key}>
-                  {language === "de" ? g.name_de : g.name_en}
+                  {getGameName(g, [language, ...activeLanguages, "en"])}
                 </option>
               ))}
             </optgroup>

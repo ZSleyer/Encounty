@@ -1,5 +1,16 @@
 import { useState, useEffect } from "react";
-import { Plus, Wifi, WifiOff, Star, Minus, RotateCcw, Clock, Zap, Edit2, Gamepad2 } from "lucide-react";
+import {
+  Plus,
+  Wifi,
+  WifiOff,
+  Star,
+  Minus,
+  RotateCcw,
+  Clock,
+  Zap,
+  Edit2,
+  Gamepad2,
+} from "lucide-react";
 import { AddPokemonModal, NewPokemonData } from "../components/AddPokemonModal";
 import { EditPokemonModal } from "../components/EditPokemonModal";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -61,7 +72,8 @@ export function Dashboard() {
     setConfirmConfig({
       isOpen: true,
       title: "Zähler zurücksetzen",
-      message: "Bist du sicher, dass du die Encounter für dieses Pokémon auf 0 setzen möchtest?",
+      message:
+        "Bist du sicher, dass du die Encounter für dieses Pokémon auf 0 setzen möchtest?",
       isDestructive: true,
       onConfirm: () => send("reset", { pokemon_id: id }),
     });
@@ -71,9 +83,12 @@ export function Dashboard() {
     setConfirmConfig({
       isOpen: true,
       title: "Pokémon löschen",
-      message: "Willst du dieses Pokémon wirklich löschen? Alle Daten gehen unwiderruflich verloren!",
+      message:
+        "Willst du dieses Pokémon wirklich löschen? Alle Daten gehen unwiderruflich verloren!",
       isDestructive: true,
-      onConfirm: async () => { await fetch(`${API}/pokemon/${id}`, { method: "DELETE" }); },
+      onConfirm: async () => {
+        await fetch(`${API}/pokemon/${id}`, { method: "DELETE" });
+      },
     });
   };
   const handleAddPokemon = async (data: NewPokemonData) => {
@@ -85,10 +100,12 @@ export function Dashboard() {
     setShowAddModal(false);
   };
   const handleSavePokemon = async (id: string, data: NewPokemonData) => {
+    const p = appState!.pokemon.find((x) => x.id === id);
+    const payload = { ...data, overlay: p?.overlay };
     await fetch(`${API}/pokemon/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     setEditingPokemon(null);
   };
@@ -104,11 +121,17 @@ export function Dashboard() {
     );
   }
 
-  const activePokemon = appState.pokemon.find((p) => p.id === appState.active_id) ?? null;
-  const totalEncounters = appState.pokemon.reduce((s, p) => s + p.encounters, 0);
+  const activePokemon =
+    appState.pokemon.find((p) => p.id === appState.active_id) ?? null;
+  const totalEncounters = appState.pokemon.reduce(
+    (s, p) => s + p.encounters,
+    0,
+  );
 
   const formatGame = (game: string) =>
-    game ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase() : "—";
+    game
+      ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase()
+      : "—";
 
   const FALLBACK = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23333'/><text y='.9em' font-size='60' x='50%' text-anchor='middle' dominant-baseline='middle'>?</text></svg>`;
 
@@ -118,8 +141,12 @@ export function Dashboard() {
       <header className="flex items-center justify-between px-6 py-3 border-b border-border-subtle bg-bg-secondary flex-shrink-0">
         <div className="flex items-center gap-3">
           <h1 className="text-base font-bold text-white">Encounty</h1>
-          <div className={`flex items-center gap-1.5 text-xs ${isConnected ? "text-accent-green" : "text-accent-red"}`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-accent-green" : "bg-accent-red"}`} />
+          <div
+            className={`flex items-center gap-1.5 text-xs ${isConnected ? "text-accent-green" : "text-accent-red"}`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-accent-green" : "bg-accent-red"}`}
+            />
             {isConnected ? "Verbunden" : "Getrennt"}
           </div>
         </div>
@@ -142,7 +169,9 @@ export function Dashboard() {
         {/* LEFT: Pokemon list */}
         <aside className="w-72 flex-shrink-0 border-r border-border-subtle bg-bg-secondary flex flex-col">
           <div className="p-4 border-b border-border-subtle flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pokémon</span>
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Pokémon
+            </span>
             <button
               onClick={() => setShowAddModal(true)}
               className="flex items-center gap-1 px-2.5 py-1.5 bg-accent-blue hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors"
@@ -168,7 +197,8 @@ export function Dashboard() {
               <ul className="py-2">
                 {appState.pokemon.map((p) => {
                   const isActive = p.id === appState.active_id;
-                  const src = imgError[p.id] || !p.sprite_url ? FALLBACK : p.sprite_url;
+                  const src =
+                    imgError[p.id] || !p.sprite_url ? FALLBACK : p.sprite_url;
                   return (
                     <li
                       key={p.id}
@@ -183,26 +213,39 @@ export function Dashboard() {
                         <img
                           src={src}
                           alt={p.name}
-                          onError={() => setImgError((prev) => ({ ...prev, [p.id]: true }))}
+                          onError={() =>
+                            setImgError((prev) => ({ ...prev, [p.id]: true }))
+                          }
                           className="w-full h-full object-contain"
                           style={{ imageRendering: "pixelated" }}
                         />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          {isActive && <Star className="w-3 h-3 text-accent-blue fill-accent-blue flex-shrink-0" />}
-                          <span className="text-sm font-semibold text-white truncate capitalize">{p.name}</span>
+                          {isActive && (
+                            <Star className="w-3 h-3 text-accent-blue fill-accent-blue flex-shrink-0" />
+                          )}
+                          <span className="text-sm font-semibold text-white truncate capitalize">
+                            {p.name}
+                          </span>
                         </div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-xs text-gray-500 tabular-nums">{p.encounters} enc.</span>
+                          <span className="text-xs text-gray-500 tabular-nums">
+                            {p.encounters} enc.
+                          </span>
                           {p.game && (
-                            <span className="text-[10px] text-gray-600 uppercase">{formatGame(p.game)}</span>
+                            <span className="text-[10px] text-gray-600 uppercase">
+                              {formatGame(p.game)}
+                            </span>
                           )}
                         </div>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={(e) => { e.stopPropagation(); setEditingPokemon(p); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingPokemon(p);
+                          }}
                           className="p-1 rounded hover:bg-bg-secondary text-gray-500 hover:text-white transition-colors"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -221,8 +264,12 @@ export function Dashboard() {
           {!activePokemon ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="text-6xl mb-4">✨</div>
-              <h2 className="text-xl font-semibold text-white mb-2">Kein aktives Pokémon</h2>
-              <p className="text-gray-500 text-sm">Wähle ein Pokémon aus der Liste oder füge ein neues hinzu.</p>
+              <h2 className="text-xl font-semibold text-white mb-2">
+                Kein aktives Pokémon
+              </h2>
+              <p className="text-gray-500 text-sm">
+                Wähle ein Pokémon aus der Liste oder füge ein neues hinzu.
+              </p>
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 gap-8">
@@ -230,9 +277,18 @@ export function Dashboard() {
               <div className="relative flex items-center justify-center">
                 <div className="absolute inset-0 bg-accent-blue/5 rounded-full blur-3xl scale-150" />
                 <img
-                  src={imgError[activePokemon.id] || !activePokemon.sprite_url ? FALLBACK : activePokemon.sprite_url}
+                  src={
+                    imgError[activePokemon.id] || !activePokemon.sprite_url
+                      ? FALLBACK
+                      : activePokemon.sprite_url
+                  }
                   alt={activePokemon.name}
-                  onError={() => setImgError((prev) => ({ ...prev, [activePokemon.id]: true }))}
+                  onError={() =>
+                    setImgError((prev) => ({
+                      ...prev,
+                      [activePokemon.id]: true,
+                    }))
+                  }
                   className="w-40 h-40 object-contain relative z-10 drop-shadow-2xl"
                   style={{ imageRendering: "pixelated" }}
                 />
@@ -240,11 +296,15 @@ export function Dashboard() {
 
               {/* Name + Game */}
               <div className="text-center">
-                <h2 className="text-3xl font-black text-white capitalize tracking-wide">{activePokemon.name}</h2>
+                <h2 className="text-3xl font-black text-white capitalize tracking-wide">
+                  {activePokemon.name}
+                </h2>
                 {activePokemon.game && (
                   <div className="flex items-center gap-1.5 justify-center mt-2">
                     <Gamepad2 className="w-3.5 h-3.5 text-gray-500" />
-                    <span className="text-sm text-gray-500 uppercase tracking-wider">{formatGame(activePokemon.game)}</span>
+                    <span className="text-sm text-gray-500 uppercase tracking-wider">
+                      {formatGame(activePokemon.game)}
+                    </span>
                   </div>
                 )}
               </div>
@@ -307,13 +367,18 @@ export function Dashboard() {
 
       {/* Modals */}
       {showAddModal && (
-        <AddPokemonModal onAdd={handleAddPokemon} onClose={() => setShowAddModal(false)} />
+        <AddPokemonModal
+          onAdd={handleAddPokemon}
+          onClose={() => setShowAddModal(false)}
+          activeLanguages={appState.settings.languages ?? ["de", "en"]}
+        />
       )}
       {editingPokemon && (
         <EditPokemonModal
           pokemon={editingPokemon}
           onSave={handleSavePokemon}
           onClose={() => setEditingPokemon(null)}
+          activeLanguages={appState.settings.languages ?? ["de", "en"]}
         />
       )}
       {confirmConfig.isOpen && (
