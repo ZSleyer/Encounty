@@ -65,6 +65,39 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   },
 };
 
+function NumInput({ value, min, max, step = 1, onChange, className }: {
+  value: number; min?: number; max?: number; step?: number;
+  onChange: (v: number) => void; className?: string;
+}) {
+  const clamp = (v: number) => {
+    let n = v;
+    if (min !== undefined) n = Math.max(min, n);
+    if (max !== undefined) n = Math.min(max, n);
+    return n;
+  };
+  return (
+    <div className={`flex items-center border border-border-subtle rounded overflow-hidden bg-bg-primary ${className ?? ""}`}>
+      <button type="button" onClick={() => onChange(clamp(value - step))}
+        className="px-1.5 self-stretch flex items-center text-gray-500 hover:text-white hover:bg-bg-hover transition-colors text-sm leading-none flex-shrink-0">
+        −
+      </button>
+      <input
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 min-w-0 bg-transparent text-[10px] text-white text-center outline-none py-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <button type="button" onClick={() => onChange(clamp(value + step))}
+        className="px-1.5 self-stretch flex items-center text-gray-500 hover:text-white hover:bg-bg-hover transition-colors text-sm leading-none flex-shrink-0">
+        +
+      </button>
+    </div>
+  );
+}
+
 function NumSlider({
   label, value, min, max, step = 1, onChange,
 }: {
@@ -75,15 +108,7 @@ function NumSlider({
     <div>
       <div className="flex items-center justify-between mb-0.5">
         <label className="text-[10px] text-gray-500">{label}</label>
-        <input
-          type="number"
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="w-14 bg-bg-primary border border-border-subtle rounded px-1.5 py-0.5 text-[10px] text-white outline-none text-right"
-        />
+        <NumInput value={value} min={min} max={max} step={step} onChange={onChange} className="w-20" />
       </div>
       <input
         type="range"
@@ -126,17 +151,7 @@ function GradientEditor({ stops, angle, onChange, onAngleChange }: {
 }) {
   return (
     <div className="space-y-2">
-      <div className="flex gap-2 items-center">
-        <label className="text-xs text-gray-500">Winkel:</label>
-        <input
-          type="number"
-          value={angle}
-          onChange={(e) => onAngleChange(Number(e.target.value))}
-          min={0} max={360}
-          className="w-16 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-        />
-        <span className="text-xs text-gray-500">°</span>
-      </div>
+      <NumSlider label="Winkel (°)" value={angle} min={0} max={360} onChange={onAngleChange} />
       {stops.map((stop, i) => (
         <div key={i} className="flex gap-2 items-center">
           <input
@@ -176,33 +191,29 @@ function TextStyleEditor({ style, onChange, label }: {
   return (
     <div className="space-y-2 border border-border-subtle/50 rounded p-2">
       <p className="text-xs text-gray-400 font-semibold">{label}</p>
-      <div className="grid grid-cols-2 gap-1">
-        <div>
-          <label className="text-[10px] text-gray-500">Schriftart</label>
-          <FontPicker value={style.font_family} onChange={(v) => u("font_family", v)} />
-        </div>
-        <div>
-          <label className="text-[10px] text-gray-500">Größe</label>
-          <input type="number" value={style.font_size}
-            onChange={(e) => u("font_size", Number(e.target.value))}
-            className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] text-gray-500">Gewicht</label>
-          <select value={style.font_weight} onChange={(e) => u("font_weight", Number(e.target.value))}
-            className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
-            {[100, 300, 400, 500, 700, 900].map((w) => <option key={w} value={w}>{w}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="text-[10px] text-gray-500">Farb-Typ</label>
-          <select value={style.color_type} onChange={(e) => u("color_type", e.target.value as "solid" | "gradient")}
-            className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
-            <option value="solid">Einfarbig</option>
-            <option value="gradient">Verlauf</option>
-          </select>
-        </div>
+
+      {/* Font */}
+      <div>
+        <label className="text-[10px] text-gray-500">Schriftart</label>
+        <FontPicker value={style.font_family} onChange={(v) => u("font_family", v)} />
+      </div>
+      <NumSlider label="Größe (px)" value={style.font_size} min={6} max={200} onChange={(v) => u("font_size", v)} />
+      <div>
+        <label className="text-[10px] text-gray-500">Gewicht</label>
+        <select value={style.font_weight} onChange={(e) => u("font_weight", Number(e.target.value))}
+          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+          {[100, 300, 400, 500, 700, 900].map((w) => <option key={w} value={w}>{w}</option>)}
+        </select>
+      </div>
+
+      {/* Color */}
+      <div>
+        <label className="text-[10px] text-gray-500">Farb-Typ</label>
+        <select value={style.color_type} onChange={(e) => u("color_type", e.target.value as "solid" | "gradient")}
+          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+          <option value="solid">Einfarbig</option>
+          <option value="gradient">Verlauf</option>
+        </select>
       </div>
       {style.color_type === "solid" ? (
         <div className="flex gap-2 items-center">
@@ -219,20 +230,48 @@ function TextStyleEditor({ style, onChange, label }: {
           onAngleChange={(a) => u("gradient_angle", a)}
         />
       )}
-      <div className="flex gap-2 items-center">
-        <label className="text-[10px] text-gray-500">Umriss</label>
-        <select value={style.outline_type} onChange={(e) => u("outline_type", e.target.value as "none" | "solid")}
-          className="flex-1 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
-          <option value="none">Kein</option>
-          <option value="solid">Einfarbig</option>
-        </select>
+
+      {/* Outline */}
+      <div className="space-y-1">
+        <div className="flex gap-2 items-center">
+          <label className="text-[10px] text-gray-500 w-14 flex-shrink-0">Umriss</label>
+          <select value={style.outline_type} onChange={(e) => u("outline_type", e.target.value as "none" | "solid")}
+            className="flex-1 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+            <option value="none">Kein</option>
+            <option value="solid">Einfarbig</option>
+          </select>
+        </div>
         {style.outline_type === "solid" && (
-          <>
-            <input type="number" value={style.outline_width} onChange={(e) => u("outline_width", Number(e.target.value))}
-              className="w-12 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none" />
-            <input type="color" value={style.outline_color} onChange={(e) => u("outline_color", e.target.value)}
-              className="w-7 h-6 rounded cursor-pointer border-0" />
-          </>
+          <div className="pl-4 space-y-1">
+            <div className="flex gap-2 items-center">
+              <label className="text-[10px] text-gray-500 w-10 flex-shrink-0">Farbe</label>
+              <input type="color" value={style.outline_color} onChange={(e) => u("outline_color", e.target.value)}
+                className="w-8 h-6 rounded cursor-pointer border-0" />
+            </div>
+            <NumSlider label="Breite (px)" value={style.outline_width} min={1} max={20} onChange={(v) => u("outline_width", v)} />
+          </div>
+        )}
+      </div>
+
+      {/* Text Shadow */}
+      <div className="space-y-1">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" checked={style.text_shadow}
+            onChange={(e) => u("text_shadow", e.target.checked)}
+            className="accent-accent-blue" />
+          <span className="text-[10px] text-gray-400">Schatten</span>
+        </label>
+        {style.text_shadow && (
+          <div className="pl-4 space-y-1">
+            <div className="flex gap-2 items-center">
+              <label className="text-[10px] text-gray-500 w-10 flex-shrink-0">Farbe</label>
+              <input type="color" value={style.text_shadow_color} onChange={(e) => u("text_shadow_color", e.target.value)}
+                className="w-8 h-6 rounded cursor-pointer border-0" />
+            </div>
+            <NumSlider label="Blur (px)" value={style.text_shadow_blur} min={0} max={40} onChange={(v) => u("text_shadow_blur", v)} />
+            <NumSlider label="X (px)" value={style.text_shadow_x} min={-30} max={30} onChange={(v) => u("text_shadow_x", v)} />
+            <NumSlider label="Y (px)" value={style.text_shadow_y} min={-30} max={30} onChange={(v) => u("text_shadow_y", v)} />
+          </div>
         )}
       </div>
     </div>
