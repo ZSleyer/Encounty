@@ -96,6 +96,15 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
   }, [activePokemon?.encounters, settings]);
 
   if (!activePokemon || !settings) {
+    if (previewSettings) {
+      return (
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11, fontFamily: "sans-serif", letterSpacing: "0.2em" }}>
+            Kein aktives Pokémon
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent">
         <div className="text-white/20 text-xs font-bold uppercase tracking-[0.3em] animate-pulse">
@@ -113,20 +122,29 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
   const counterStyle = buildTextStyle(settings.counter.style);
   const labelStyle = buildTextStyle(settings.counter.label_style);
 
-  return (
-    <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent">
-      <div
-        style={{
-          position: "relative",
-          width: `${settings.canvas_width}px`,
-          height: `${settings.canvas_height}px`,
-          backgroundColor: bgWithOpacity,
-          backdropFilter: `blur(${settings.blur}px)`,
-          borderRadius: `${settings.border_radius}px`,
-          border: settings.show_border ? `2px solid ${settings.border_color}` : "none",
-          overflow: "hidden",
-        }}
-      >
+  const canvasStyle: React.CSSProperties = previewSettings
+    ? {
+        position: "absolute",
+        inset: 0,
+        backgroundColor: bgWithOpacity,
+        backdropFilter: `blur(${settings.blur}px)`,
+        borderRadius: `${settings.border_radius}px`,
+        border: settings.show_border ? `2px solid ${settings.border_color}` : "none",
+        overflow: "hidden",
+      }
+    : {
+        position: "relative",
+        width: `${settings.canvas_width}px`,
+        height: `${settings.canvas_height}px`,
+        backgroundColor: bgWithOpacity,
+        backdropFilter: `blur(${settings.blur}px)`,
+        borderRadius: `${settings.border_radius}px`,
+        border: settings.show_border ? `2px solid ${settings.border_color}` : "none",
+        overflow: "hidden",
+      };
+
+  const canvas = (
+    <div style={canvasStyle}>
         {/* Sprite */}
         {settings.sprite.visible && (
           <div
@@ -214,7 +232,14 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
             )}
           </div>
         )}
-      </div>
+    </div>
+  );
+
+  if (previewSettings) return canvas;
+
+  return (
+    <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent">
+      {canvas}
     </div>
   );
 }
