@@ -414,10 +414,29 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
   const [testTrigger, setTestTrigger] = useState<{ element: ElementKey; n: number; reverse?: boolean }>({ element: "counter", n: 0 });
   const fireTest = (element: ElementKey, reverse = false) => setTestTrigger({ element, n: Date.now(), reverse });
 
-  const triggerAction = useCallback(async (action: "increment" | "decrement" | "reset") => {
-    if (!activePokemon) return;
-    await fetch(`/api/pokemon/${activePokemon.id}/${action}`, { method: "POST" }).catch(() => {});
-  }, [activePokemon]);
+  // Local fake counter — isolated from live OBS overlay
+  const [fakeCount, setFakeCount] = useState<number | null>(null);
+  useEffect(() => { setFakeCount(null); }, [activePokemon?.id]);
+  const currentCount = fakeCount !== null ? fakeCount : (activePokemon?.encounters ?? 0);
+
+  const testIncrement = () => {
+    setFakeCount(currentCount + 1);
+    fireTest("counter");
+    fireTest("sprite");
+    fireTest("name");
+  };
+  const testDecrement = () => {
+    if (currentCount > 0) {
+      setFakeCount(currentCount - 1);
+      fireTest("counter", true);
+      fireTest("sprite", true);
+      fireTest("name", true);
+    }
+  };
+  const testReset = () => {
+    setFakeCount(0);
+    fireTest("counter");
+  };
 
   useEffect(() => { setLocalSettings(settings); }, [settings]);
 
@@ -463,7 +482,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
   };
 
   const fakePreviewPokemon: Pokemon | undefined = activePokemon
-    ? { ...activePokemon }
+    ? { ...activePokemon, encounters: currentCount }
     : undefined;
 
   return (
@@ -557,31 +576,34 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
 
       {/* Hotkey Tester toolbar */}
       <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-xl border border-border-subtle flex-shrink-0">
-        <span className="text-[10px] text-gray-500 mr-1">Hotkey-Test:</span>
+        <span className="text-[10px] text-gray-500 mr-1">Animations-Test:</span>
         <button
-          onClick={() => triggerAction("increment")}
+          onClick={testIncrement}
           disabled={!activePokemon}
-          title="+1 Encounter (simuliert F1)"
+          title="+1 (nur Vorschau, kein echtes Zählen)"
           className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-green/20 hover:bg-accent-green/40 text-accent-green text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <Plus className="w-3 h-3" /> +1
         </button>
         <button
-          onClick={() => triggerAction("decrement")}
+          onClick={testDecrement}
           disabled={!activePokemon}
-          title="-1 Encounter (simuliert F2)"
+          title="-1 (nur Vorschau, kein echtes Zählen)"
           className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <Minus className="w-3 h-3" /> -1
         </button>
         <button
-          onClick={() => triggerAction("reset")}
+          onClick={testReset}
           disabled={!activePokemon}
-          title="Reset (simuliert F3)"
+          title="Reset (nur Vorschau)"
           className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-gray-400 hover:text-white text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <RefreshCw className="w-3 h-3" /> Reset
         </button>
+        {activePokemon && (
+          <span className="text-[10px] text-gray-600 ml-auto">{currentCount} (Vorschau)</span>
+        )}
         {!activePokemon && (
           <span className="text-[10px] text-gray-600 ml-1">Kein aktives Pokémon</span>
         )}

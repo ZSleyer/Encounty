@@ -61,9 +61,7 @@ func main() {
 
 	// Hotkey manager
 	hotkeyMgr := hotkeys.New(stateMgr)
-	if err := hotkeyMgr.Start(); err != nil {
-		log.Printf("Warning: could not register hotkeys: %v", err)
-	}
+	hotkeyMgr.Start()
 
 	// Frontend FS
 	var frontFS fs.FS

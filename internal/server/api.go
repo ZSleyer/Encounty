@@ -148,10 +148,7 @@ func (s *Server) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 	s.state.UpdateHotkeys(hk)
 	s.state.ScheduleSave()
 	if s.hotkeyMgr != nil {
-		if err := s.hotkeyMgr.Reload(hk, s.state); err != nil {
-			writeJSON(w, http.StatusConflict, errResp{"hotkey conflict: " + err.Error()})
-			return
-		}
+		s.hotkeyMgr.Reload(hk, s.state)
 	}
 	s.broadcastState()
 	writeJSON(w, http.StatusOK, hk)
@@ -233,7 +230,7 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 			s.state.UpdateHotkeys(hk)
 			s.state.ScheduleSave()
 			if s.hotkeyMgr != nil {
-				_ = s.hotkeyMgr.Reload(hk, s.state)
+				s.hotkeyMgr.Reload(hk, s.state)
 			}
 			s.broadcastState()
 		}
