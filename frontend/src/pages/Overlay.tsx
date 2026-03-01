@@ -325,7 +325,7 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
             )}
             <img
               src={activePokemon.sprite_url}
-              alt={activePokemon.name}
+              alt=""
               style={{ width: "100%", height: "100%", objectFit: "contain", imageRendering: "pixelated", position: "relative", zIndex: 1 }}
             />
           </div>
