@@ -13,9 +13,9 @@ func New(_ *state.Manager) *Manager {
 	return &Manager{actions: make(chan Action)}
 }
 
-func (m *Manager) Actions() <-chan Action                           { return m.actions }
-func (m *Manager) Start() error                                     { return nil }
-func (m *Manager) Stop()                                            {}
-func (m *Manager) Pause()                                           {}
-func (m *Manager) Resume()                                          {}
-func (m *Manager) Reload(_ state.HotkeyMap, _ *state.Manager) error { return nil }
+func (m *Manager) Actions() <-chan Action                      { return m.actions }
+func (m *Manager) Start()                                      {}
+func (m *Manager) Stop()                                       {}
+func (m *Manager) Pause()                                      {}
+func (m *Manager) Resume()                                     {}
+func (m *Manager) Reload(_ state.HotkeyMap, _ *state.Manager) {}
