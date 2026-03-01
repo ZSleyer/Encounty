@@ -65,6 +65,39 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   },
 };
 
+function NumSlider({
+  label, value, min, max, step = 1, onChange,
+}: {
+  label: string; value: number; min: number; max: number; step?: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <label className="text-[10px] text-gray-500">{label}</label>
+        <input
+          type="number"
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(e) => onChange(Number(e.target.value))}
+          className="w-14 bg-bg-primary border border-border-subtle rounded px-1.5 py-0.5 text-[10px] text-white outline-none text-right"
+        />
+      </div>
+      <input
+        type="range"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full h-1 accent-accent-blue cursor-pointer"
+      />
+    </div>
+  );
+}
+
 function FontPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const POPULAR_FONTS = [
     "sans", "serif", "monospace", "pokemon",
@@ -436,18 +469,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
 
         <div className="border-t border-border-subtle pt-3 space-y-2">
           <p className="text-[10px] text-gray-500">Canvas</p>
-          <div>
-            <label className="text-[10px] text-gray-500">Breite</label>
-            <input type="number" value={localSettings.canvas_width}
-              onChange={(e) => updateField("canvas_width", Number(e.target.value))}
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none" />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-500">Höhe</label>
-            <input type="number" value={localSettings.canvas_height}
-              onChange={(e) => updateField("canvas_height", Number(e.target.value))}
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none" />
-          </div>
+          <NumSlider label="Breite" value={localSettings.canvas_width} min={100} max={1920} step={10}
+            onChange={(v) => updateField("canvas_width", v)} />
+          <NumSlider label="Höhe" value={localSettings.canvas_height} min={50} max={1080} step={10}
+            onChange={(v) => updateField("canvas_height", v)} />
           <div>
             <label className="text-[10px] text-gray-500">Hintergrund</label>
             <input type="color" value={localSettings.background_color}
@@ -537,21 +562,24 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
         </p>
 
         {/* Position & Size */}
-        <div className="grid grid-cols-2 gap-1 mb-3">
-          {(["x", "y", "width", "height"] as (keyof OverlayElementBase)[]).map((field) => (
-            <div key={field}>
-              <label className="text-[10px] text-gray-500 uppercase">{field}</label>
-              <input
-                type="number"
-                value={(localSettings[selectedEl] as OverlayElementBase)[field] as number}
-                onChange={(e) => {
-                  const el = localSettings[selectedEl] as OverlayElementBase;
-                  update({ ...localSettings, [selectedEl]: { ...el, [field]: Number(e.target.value) } });
-                }}
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+        <div className="space-y-2 mb-3">
+          {(["x", "y", "width", "height"] as (keyof OverlayElementBase)[]).map((field) => {
+            const el = localSettings[selectedEl] as OverlayElementBase;
+            const isPos = field === "x" || field === "y";
+            const sliderMax = field === "x" || field === "width"
+              ? localSettings.canvas_width
+              : localSettings.canvas_height;
+            return (
+              <NumSlider
+                key={field}
+                label={field.toUpperCase()}
+                value={el[field] as number}
+                min={isPos ? 0 : 10}
+                max={sliderMax}
+                onChange={(v) => update({ ...localSettings, [selectedEl]: { ...el, [field]: v } })}
               />
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Element-specific properties */}
