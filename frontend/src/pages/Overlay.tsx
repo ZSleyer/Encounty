@@ -58,6 +58,32 @@ function buildTextStyle(style: TextStyle): React.CSSProperties {
   return css;
 }
 
+// Renders each digit individually; only changed digits re-mount and slide in
+function SlotCounter({ value, counterStyle }: { value: number; counterStyle: React.CSSProperties }) {
+  const digits = String(value).split("");
+  return (
+    <span style={{ display: "inline-flex" }}>
+      {digits.map((digit, i) => (
+        <span
+          key={`${i}_${digit}`}
+          style={{ display: "inline-block", overflow: "hidden" }}
+        >
+          <span
+            className="font-black tabular-nums leading-none"
+            style={{
+              display: "block",
+              animation: "overlay-slide-up 0.22s ease-out forwards",
+              ...counterStyle,
+            }}
+          >
+            {digit}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 const COUNTER_ANIMS: Record<string, string> = {
   pop:        "animate-overlay-pop",
   flash:      "animate-overlay-flash",
@@ -94,15 +120,17 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
   useEffect(() => {
     if (!activePokemon || !settings) return;
     if (prevCount.current !== undefined && activePokemon.encounters !== prevCount.current) {
-      const key = activePokemon.encounters === 0
-        ? "rubber"
-        : activePokemon.encounters > prevCount.current
-          ? settings.counter.trigger_enter
-          : "shake";
-      const cls = COUNTER_ANIMS[key] ?? "";
-      if (cls) {
-        setAnimClass(cls);
-        setTriggerId(Date.now());
+      if (settings.counter.trigger_enter !== "slot") {
+        const key = activePokemon.encounters === 0
+          ? "rubber"
+          : activePokemon.encounters > prevCount.current
+            ? settings.counter.trigger_enter
+            : "shake";
+        const cls = COUNTER_ANIMS[key] ?? "";
+        if (cls) {
+          setAnimClass(cls);
+          setTriggerId(Date.now());
+        }
       }
     }
     prevCount.current = activePokemon.encounters;
@@ -219,7 +247,7 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
         {/* Counter */}
         {settings.counter.visible && (
           <div
-            key={`counter-${triggerId}`}
+            key={settings.counter.trigger_enter === "slot" ? "counter-slot" : `counter-${triggerId}`}
             style={{
               position: "absolute",
               left: settings.counter.x,
@@ -233,12 +261,16 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
               justifyContent: "center",
             }}
           >
-            <span
-              className={`font-black tabular-nums leading-none ${animClass}`}
-              style={{ ...counterStyle, display: "inline-block", transformOrigin: "center" }}
-            >
-              {activePokemon.encounters}
-            </span>
+            {settings.counter.trigger_enter === "slot" ? (
+              <SlotCounter value={activePokemon.encounters} counterStyle={counterStyle} />
+            ) : (
+              <span
+                className={`font-black tabular-nums leading-none ${animClass}`}
+                style={{ ...counterStyle, display: "inline-block", transformOrigin: "center" }}
+              >
+                {activePokemon.encounters}
+              </span>
+            )}
             {settings.counter.show_label && (
               <span style={labelStyle}>{settings.counter.label_text}</span>
             )}

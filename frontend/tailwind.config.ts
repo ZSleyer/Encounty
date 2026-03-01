@@ -86,11 +86,13 @@ export default {
           '50%':      { filter: 'brightness(2.5) drop-shadow(0 0 12px rgba(255,230,80,0.9))' },
         },
         'overlay-bounce': {
-          '0%, 100%': { transform: 'scale(1)' },
-          '20%':      { transform: 'scale(1.38)' },
-          '40%':      { transform: 'scale(0.87)' },
-          '60%':      { transform: 'scale(1.14)' },
-          '80%':      { transform: 'scale(0.97)' },
+          '0%':   { transform: 'translateY(0)' },
+          '25%':  { transform: 'translateY(-22px)' },
+          '50%':  { transform: 'translateY(0)' },
+          '68%':  { transform: 'translateY(-10px)' },
+          '82%':  { transform: 'translateY(0)' },
+          '91%':  { transform: 'translateY(-4px)' },
+          '100%': { transform: 'translateY(0)' },
         },
         'overlay-shake': {
           '0%, 100%': { transform: 'translateX(0)' },

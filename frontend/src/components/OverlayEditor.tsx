@@ -717,9 +717,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 <option value="none">Keine</option>
                 <option value="pop">Pop</option>
                 <option value="flash">Flash</option>
-                <option value="bounce">Bounce</option>
+                <option value="bounce">Bounce (Hüpfen)</option>
                 <option value="shake">Shake</option>
-                <option value="slide-up">Slide Up</option>
+                <option value="slot">Slot (Ziffern)</option>
+                <option value="slide-up">Slide Up (gesamt)</option>
                 <option value="flip">Flip (Wecker)</option>
                 <option value="rubber">Rubber Band</option>
               </select>
