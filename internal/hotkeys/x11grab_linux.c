@@ -27,11 +27,18 @@ void grabAndListen(uintptr_t handle, unsigned int mod, int keysym, int cancelFd)
 	if (d == NULL) return;
 
 	int keycode = XKeysymToKeycode(d, (KeySym)keysym);
+	if (keycode == 0) {
+		// Keysym not present on this keyboard layout — nothing to grab.
+		XCloseDisplay(d);
+		return;
+	}
 	Window root = DefaultRootWindow(d);
 
-	// Grab with and without Mod2Mask (NumLock) so hotkeys fire regardless of NumLock state.
-	XGrabKey(d, keycode, mod,           root, False, GrabModeAsync, GrabModeAsync);
-	XGrabKey(d, keycode, mod|Mod2Mask,  root, False, GrabModeAsync, GrabModeAsync);
+	// Grab with all combinations of NumLock (Mod2Mask) and CapsLock (LockMask)
+	// so hotkeys fire regardless of those lock-key states.
+	unsigned int locks[] = { 0, Mod2Mask, LockMask, Mod2Mask|LockMask };
+	for (int i = 0; i < 4; i++)
+		XGrabKey(d, keycode, mod|locks[i], root, False, GrabModeAsync, GrabModeAsync);
 	XSelectInput(d, root, KeyPressMask);
 	XFlush(d);
 
@@ -66,7 +73,7 @@ void grabAndListen(uintptr_t handle, unsigned int mod, int keysym, int cancelFd)
 		// x11fd ready: loop to drain events
 	}
 
-	XUngrabKey(d, keycode, mod,          root);
-	XUngrabKey(d, keycode, mod|Mod2Mask, root);
+	for (int i = 0; i < 4; i++)
+		XUngrabKey(d, keycode, mod|locks[i], root);
 	XCloseDisplay(d);
 }

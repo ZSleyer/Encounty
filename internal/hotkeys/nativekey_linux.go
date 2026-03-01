@@ -87,6 +87,45 @@ const (
 	Key7 Key = 0x0037
 	Key8 Key = 0x0038
 	Key9 Key = 0x0039
+
+	// Special characters (XK_* from keysymdef.h).
+	KeySpace        Key = 0x0020
+	KeyApostrophe   Key = 0x0027
+	KeyAsterisk     Key = 0x002a
+	KeyPlus         Key = 0x002b
+	KeyComma        Key = 0x002c
+	KeyMinus        Key = 0x002d
+	KeyPeriod       Key = 0x002e
+	KeySlash        Key = 0x002f
+	KeySemicolon    Key = 0x003b
+	KeyEqual        Key = 0x003d
+	KeyBracketLeft  Key = 0x005b
+	KeyBackslash    Key = 0x005c
+	KeyBracketRight Key = 0x005d
+	KeyGrave        Key = 0x0060
+
+	// Navigation / editing.
+	KeyBackspace Key = 0xff08
+	KeyTab       Key = 0xff09
+	KeyReturn    Key = 0xff0d
+	KeyEscape    Key = 0xff1b
+	KeyDelete    Key = 0xffff
+	KeyInsert    Key = 0xff63
+	KeyHome      Key = 0xff50
+	KeyEnd       Key = 0xff57
+	KeyPageUp    Key = 0xff55
+	KeyPageDown  Key = 0xff56
+	KeyLeft      Key = 0xff51
+	KeyUp        Key = 0xff52
+	KeyRight     Key = 0xff53
+	KeyDown      Key = 0xff54
+
+	// Numpad.
+	KeyNumpadAdd      Key = 0xffab
+	KeyNumpadSubtract Key = 0xffad
+	KeyNumpadMultiply Key = 0xffaa
+	KeyNumpadDivide   Key = 0xffaf
+	KeyNumpadDecimal  Key = 0xffae
 )
 
 //export encountyKeyDown
