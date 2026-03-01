@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor } from "lucide-react";
+import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor, Copy, ExternalLink } from "lucide-react";
 import { OverlaySettings, OverlayElementBase, TextStyle, GradientStop } from "../types";
 import { Overlay } from "../pages/Overlay";
 import type { Pokemon } from "../types";
@@ -259,6 +259,50 @@ function ResizeHandle({ dir, onResizeStart }: { dir: ResizeDir; onResizeStart: (
       onMouseDown={onResizeStart(dir)}
       style={{ position: "absolute", width: 8, height: 8, background: "#3b82f6", border: "1px solid white", borderRadius: 2, zIndex: 100, ...posStyles[dir] }}
     />
+  );
+}
+
+function OBSSourceHint() {
+  const [copied, setCopied] = useState(false);
+  const overlayUrl = `${window.location.origin}/overlay`;
+
+  const copy = () => {
+    navigator.clipboard.writeText(overlayUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <div className="mt-4 pt-3 border-t border-border-subtle">
+      <div className="flex items-center gap-1 text-xs text-gray-500 mb-1.5">
+        <Monitor className="w-3 h-3" />
+        OBS Browser Source:
+      </div>
+      <div className="bg-bg-primary rounded px-2 py-1.5 mb-1.5">
+        <code className="text-[10px] text-accent-blue break-all">{overlayUrl}</code>
+      </div>
+      <div className="flex gap-1">
+        <button
+          onClick={copy}
+          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-gray-400 hover:text-white transition-colors"
+          title="URL kopieren"
+        >
+          <Copy className="w-3 h-3" />
+          {copied ? "Kopiert!" : "Kopieren"}
+        </button>
+        <a
+          href={overlayUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-gray-400 hover:text-white transition-colors"
+          title="In neuem Tab öffnen"
+        >
+          <ExternalLink className="w-3 h-3" />
+          Öffnen
+        </a>
+      </div>
+    </div>
   );
 }
 
@@ -575,15 +619,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
         )}
 
         {/* OBS URL hint */}
-        <div className="mt-4 pt-3 border-t border-border-subtle">
-          <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
-            <Monitor className="w-3 h-3" />
-            OBS Browser Source:
-          </div>
-          <code className="text-[10px] text-accent-blue break-all">
-            http://localhost:8080/overlay
-          </code>
-        </div>
+        <OBSSourceHint />
       </div>
     </div>
   );
