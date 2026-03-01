@@ -1,22 +1,8 @@
-import { useState, useEffect } from "react";
-import {
-  Move,
-  Layout,
-  Type,
-  Palette,
-  Monitor,
-  Eye,
-  EyeOff,
-  RefreshCw,
-  Plus,
-  Minus,
-  RotateCcw,
-  Sparkles,
-  ChevronUp,
-  ChevronDown,
-} from "lucide-react";
-import { OverlaySettings, Pokemon } from "../types";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Eye, EyeOff, ChevronUp, ChevronDown, Monitor } from "lucide-react";
+import { OverlaySettings, OverlayElementBase, TextStyle, GradientStop } from "../types";
 import { Overlay } from "../pages/Overlay";
+import type { Pokemon } from "../types";
 
 interface Props {
   settings: OverlaySettings;
@@ -24,743 +10,581 @@ interface Props {
   activePokemon?: Pokemon;
 }
 
-export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
-  const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
-  const [previewCounter, setPreviewCounter] = useState<number>(
-    activePokemon?.encounters || 0,
-  );
-  const [lastPokemonId, setLastPokemonId] = useState<string | undefined>(
-    activePokemon?.id,
-  );
+type ElementKey = "sprite" | "name" | "counter";
+type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
-  useEffect(() => {
-    setLocalSettings(settings);
-  }, [settings]);
+const ELEMENT_LABELS: Record<ElementKey, string> = {
+  sprite: "Sprite",
+  name: "Name",
+  counter: "Zähler",
+};
 
-  useEffect(() => {
-    if (activePokemon?.id !== lastPokemonId) {
-      setPreviewCounter(activePokemon?.encounters || 0);
-      setLastPokemonId(activePokemon?.id);
-    }
-  }, [activePokemon, lastPokemonId]);
+const DEFAULT_TEXT_STYLE: TextStyle = {
+  font_family: "sans",
+  font_size: 16,
+  font_weight: 400,
+  color_type: "solid",
+  color: "#ffffff",
+  gradient_stops: [{ color: "#ffffff", position: 0 }, { color: "#aaaaaa", position: 100 }],
+  gradient_angle: 180,
+  outline_type: "none",
+  outline_width: 2,
+  outline_color: "#000000",
+  text_shadow: false,
+  text_shadow_color: "#000000",
+  text_shadow_blur: 4,
+  text_shadow_x: 1,
+  text_shadow_y: 1,
+};
 
-  const updateField = (field: keyof OverlaySettings, value: any) => {
-    const newSettings = { ...localSettings, [field]: value };
-    setLocalSettings(newSettings);
-    onUpdate(newSettings);
-  };
-
-  const handleReset = () => {
-    const defaultSettings: OverlaySettings = {
-      layout: "horizontal",
-      sprite_position: "left",
-      sprite_size: 150,
-      font_family: "pokemon",
-      font_size: 80,
-      text_color: "#ffffff",
-      outline_color: "#000000",
-      outline_width: 8,
-      background_color: "#1a1a2a",
-      opacity: 0.8,
-      blur: 10,
-      show_name: true,
-      show_encounter: true,
-      show_border: true,
-      gap: 20,
-      custom_font: "",
-      gradient_enabled: false,
-      gradient_color: "#ffd700",
-      animation_increment: "pop",
-      animation_decrement: "shake",
-      animation_reset: "rotate",
-      show_sprite_glow: true,
-      sprite_on_top: false,
-      animation_target: "both",
-      inner_layout: "vertical",
-      outer_element: "none",
-      layer_order: ["sprite", "name", "counter"],
-      name_size: 24,
-      name_color: "#94a3b8",
-      name_outline_color: "#000000",
-      name_outline_width: 0,
-      name_gradient_enabled: false,
-      name_gradient_color: "#ffffff",
-      name_font_family: "sans",
-      name_custom_font: "",
-    };
-    setLocalSettings(defaultSettings);
-    onUpdate(defaultSettings);
-  };
-
-  const moveLayer = (index: number, direction: "up" | "down") => {
-    const newOrder = [
-      ...(localSettings.layer_order || ["sprite", "name", "counter"]),
-    ];
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex >= 0 && targetIndex < newOrder.length) {
-      [newOrder[index], newOrder[targetIndex]] = [
-        newOrder[targetIndex],
-        newOrder[index],
-      ];
-      updateField("layer_order", newOrder);
-    }
-  };
-
-  const fonts = [
-    { value: "sans", label: "Modern Sans" },
-    { value: "serif", label: "Classic Serif" },
-    { value: "pokemon", label: "Pokémon Pixel" },
+function FontPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const POPULAR_FONTS = [
+    "sans", "serif", "monospace", "pokemon",
+    "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Raleway",
+    "Poppins", "Nunito", "Ubuntu", "Merriweather", "Playfair Display",
+    "Bebas Neue", "Cinzel", "Exo 2", "Orbitron", "Press Start 2P",
   ];
-
-  const mockPokemon = activePokemon
-    ? { ...activePokemon, encounters: previewCounter }
-    : undefined;
-
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-      {/* Editor Controls */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-xs text-gray-500 uppercase tracking-widest font-bold">
-            Overlay Konfiguration
-          </p>
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-bold uppercase tracking-wider transition-colors border border-red-500/20"
-          >
-            <RefreshCw className="w-3 h-3" /> Standardwerte
-          </button>
-        </div>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+    >
+      {POPULAR_FONTS.map((f) => (
+        <option key={f} value={f}>{f}</option>
+      ))}
+    </select>
+  );
+}
 
-        {/* Global Layout */}
-        <section className="bg-bg-secondary/50 rounded-xl p-5 border border-border-subtle/50">
-          <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <Layout className="w-4 h-4 text-accent-blue" /> Layout & Hintergrund
-          </h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                Ausrichtung
-              </label>
-              <select
-                value={localSettings.layout}
-                onChange={(e) => updateField("layout", e.target.value)}
-                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white"
-              >
-                <option value="horizontal">Horizontal</option>
-                <option value="vertical">Vertikal</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                Abstand (Gap: {localSettings.gap}px)
-              </label>
-              <input
-                type="range"
-                min="-50"
-                max="200"
-                value={localSettings.gap}
-                onChange={(e) => updateField("gap", parseInt(e.target.value))}
-                className="w-full accent-accent-blue"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                HG Farbe
-              </label>
-              <input
-                type="color"
-                value={localSettings.background_color}
-                onChange={(e) =>
-                  updateField("background_color", e.target.value)
-                }
-                className="w-full h-8 rounded-lg bg-transparent cursor-pointer"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                Deckkraft ({Math.round(localSettings.opacity * 100)}%)
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={localSettings.opacity}
-                onChange={(e) =>
-                  updateField("opacity", parseFloat(e.target.value))
-                }
-                className="w-full accent-accent-blue"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Grouping / Nesting */}
-        <section className="bg-bg-secondary/50 rounded-xl p-5 border border-border-subtle/50">
-          <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <Move className="w-4 h-4 text-accent-purple" /> Gruppierung &
-            Schachtelung
-          </h3>
-          <p className="text-[10px] text-gray-500 mb-4 leading-relaxed">
-            Ermöglicht "gemischte" Layouts: Wähle ein Element, das außen steht.
-            Die anderen beiden bilden eine Gruppe.
-          </p>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                Außenelement
-              </label>
-              <select
-                value={localSettings.outer_element}
-                onChange={(e) => updateField("outer_element", e.target.value)}
-                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white outline-none"
-              >
-                <option value="none">Alle gleichberechtigt</option>
-                <option value="sprite">Pokémon Sprite</option>
-                <option value="name">Pokémon Name</option>
-                <option value="counter">Begegnungszahl</option>
-              </select>
-            </div>
-            {localSettings.outer_element !== "none" && (
-              <div>
-                <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                  Innere Ausrichtung
-                </label>
-                <select
-                  value={localSettings.inner_layout}
-                  onChange={(e) => updateField("inner_layout", e.target.value)}
-                  className="w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white outline-none"
-                >
-                  <option value="horizontal">Horizontal</option>
-                  <option value="vertical">Vertikal</option>
-                </select>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Layer Management */}
-        <section className="bg-bg-secondary/50 rounded-xl p-5 border border-border-subtle/50">
-          <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <Move className="w-4 h-4 text-accent-purple" /> Ebenen & Reihenfolge
-          </h3>
-          <div className="space-y-2">
-            {(localSettings.layer_order || ["sprite", "name", "counter"]).map(
-              (type, idx) => (
-                <div
-                  key={type}
-                  className="flex items-center justify-between p-3 bg-bg-primary rounded-lg border border-border-subtle"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-[10px] font-bold text-gray-600 w-4">
-                      {idx + 1}
-                    </span>
-                    <span className="text-xs font-bold uppercase tracking-wider text-white">
-                      {type === "sprite"
-                        ? "Pokémon Sprite"
-                        : type === "name"
-                          ? "Pokémon Name"
-                          : "Zähler / Zahl"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() =>
-                        updateField(
-                          type === "sprite"
-                            ? "sprite_position"
-                            : type === "name"
-                              ? "show_name"
-                              : "show_encounter",
-                          type === "sprite"
-                            ? localSettings.sprite_position === "hidden"
-                              ? "left"
-                              : "hidden"
-                            : !(localSettings as any)[
-                                type === "name" ? "show_name" : "show_encounter"
-                              ],
-                        )
-                      }
-                      className="p-1 px-2 rounded hover:bg-white/5 transition-colors"
-                    >
-                      {(
-                        type === "sprite"
-                          ? localSettings.sprite_position !== "hidden"
-                          : (localSettings as any)[
-                              type === "name" ? "show_name" : "show_encounter"
-                            ]
-                      ) ? (
-                        <Eye className="w-3.5 h-3.5 text-accent-blue" />
-                      ) : (
-                        <EyeOff className="w-3.5 h-3.5 text-gray-600" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => moveLayer(idx, "up")}
-                      disabled={idx === 0}
-                      className="p-1.5 rounded hover:bg-white/5 disabled:opacity-30"
-                    >
-                      <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => moveLayer(idx, "down")}
-                      disabled={idx === 2}
-                      className="p-1.5 rounded hover:bg-white/5 disabled:opacity-30"
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ),
-            )}
-          </div>
-        </section>
-
-        {/* Sprite Styling */}
-        <section className="bg-bg-secondary/50 rounded-xl p-5 border border-border-subtle/50">
-          <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-accent-yellow" /> Sprite
-            Einstellungen
-          </h4>
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                Größe ({localSettings.sprite_size}px)
-              </label>
-              <input
-                type="range"
-                min="40"
-                max="600"
-                value={localSettings.sprite_size}
-                onChange={(e) =>
-                  updateField("sprite_size", parseInt(e.target.value))
-                }
-                className="w-full h-10 accent-accent-blue"
-              />
-            </div>
-            <div className="flex flex-col gap-2 pt-2">
-              <Toggle
-                label="Glow Effekt"
-                active={localSettings.show_sprite_glow}
-                onClick={() =>
-                  updateField(
-                    "show_sprite_glow",
-                    !localSettings.show_sprite_glow,
-                  )
-                }
-              />
-              <Toggle
-                label="Vordergrund"
-                active={localSettings.sprite_on_top}
-                onClick={() =>
-                  updateField("sprite_on_top", !localSettings.sprite_on_top)
-                }
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Name Styling */}
-        <StylingSection
-          title="Name Einstellungen"
-          prefix="name"
-          settings={localSettings}
-          updateField={updateField}
-          fonts={fonts}
+function GradientEditor({ stops, angle, onChange, onAngleChange }: {
+  stops: GradientStop[];
+  angle: number;
+  onChange: (stops: GradientStop[]) => void;
+  onAngleChange: (a: number) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2 items-center">
+        <label className="text-xs text-gray-500">Winkel:</label>
+        <input
+          type="number"
+          value={angle}
+          onChange={(e) => onAngleChange(Number(e.target.value))}
+          min={0} max={360}
+          className="w-16 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
         />
-
-        {/* Counter Styling */}
-        <StylingSection
-          title="Zähler Einstellungen"
-          prefix="counter" // Note: we'll handle the actual field mapping inside
-          settings={localSettings}
-          updateField={updateField}
-          fonts={fonts}
-        />
-
-        {/* Animations */}
-        <section className="bg-bg-secondary/50 rounded-xl p-5 border border-border-subtle/50">
-          <h3 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-            <Move className="w-4 h-4 text-accent-blue" /> Animationen
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                Plus (+1)
-              </label>
-              <select
-                value={localSettings.animation_increment}
-                onChange={(e) =>
-                  updateField("animation_increment", e.target.value)
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white"
-              >
-                <option value="pop">Pop</option>
-                <option value="bounce">Bounce</option>
-                <option value="flip">Flip</option>
-                <option value="pulse">Pulse</option>
-                <option value="flash">Flash</option>
-                <option value="slide-up">Slide Up</option>
-                <option value="rotate">Rotation</option>
-                <option value="none">Keine</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                Minus (-1)
-              </label>
-              <select
-                value={localSettings.animation_decrement}
-                onChange={(e) =>
-                  updateField("animation_decrement", e.target.value)
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white"
-              >
-                <option value="shake">Shake</option>
-                <option value="slide-down">Slide Down</option>
-                <option value="none">Keine</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-                Reset
-              </label>
-              <select
-                value={localSettings.animation_reset}
-                onChange={(e) => updateField("animation_reset", e.target.value)}
-                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white"
-              >
-                <option value="rotate">Rotation</option>
-                <option value="pop">Pop</option>
-                <option value="flip">Flip</option>
-                <option value="none">Keine</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-              Ziel
-            </label>
-            <select
-              value={localSettings.animation_target}
-              onChange={(e) => updateField("animation_target", e.target.value)}
-              className="w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white"
-            >
-              <option value="both">Beide</option>
-              <option value="sprite">Nur Sprite</option>
-              <option value="counter">Nur Zahl</option>
-            </select>
-          </div>
-        </section>
+        <span className="text-xs text-gray-500">°</span>
       </div>
-
-      {/* Preview Column */}
-      <div className="flex flex-col gap-6">
-        <div className="sticky top-6 space-y-6">
-          <div className="relative aspect-video bg-gray-950 rounded-3xl border-2 border-dashed border-white/5 flex items-center justify-center overflow-hidden shadow-2xl">
-            <div className="absolute inset-0 bg-[radial-gradient(#ffffff05_1px,transparent_1px)] [background-size:24px_24px]" />
-            <div className="transform scale-[0.6] xl:scale-[0.85] origin-center sharp-preview">
-              <Overlay
-                previewSettings={localSettings}
-                previewPokemon={mockPokemon}
-              />
-            </div>
-          </div>
-
-          {/* Test Actions */}
-          <div className="bg-bg-secondary/40 rounded-2xl p-6 border border-border-subtle/50 backdrop-blur-sm shadow-xl">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-              <Sparkles className="w-3 h-3 text-accent-yellow" /> Test-Suite
-            </h4>
-            <div className="grid grid-cols-3 gap-3">
-              <button
-                onClick={() => setPreviewCounter((prev) => prev + 1)}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-accent-blue/10 hover:bg-accent-blue/20 border border-accent-blue/20 text-accent-blue transition-all active:scale-95 group"
-              >
-                <Plus className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] font-bold uppercase tracking-wider">
-                  Plus
-                </span>
-              </button>
-              <button
-                onClick={() =>
-                  setPreviewCounter((prev) => Math.max(0, prev - 1))
-                }
-                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-accent-yellow/10 hover:bg-accent-yellow/20 border border-accent-yellow/20 text-accent-yellow transition-all active:scale-95 group"
-              >
-                <Minus className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] font-bold uppercase tracking-wider">
-                  Minus
-                </span>
-              </button>
-              <button
-                onClick={() => setPreviewCounter(0)}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 transition-all active:scale-95 group"
-              >
-                <RotateCcw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />
-                <span className="text-[9px] font-bold uppercase tracking-wider">
-                  Reset
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* OBS Link */}
-          <div className="bg-bg-card border border-border-subtle rounded-2xl p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-3 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-              <span>OBS Browser URL</span>
-              <button
-                onClick={() =>
-                  navigator.clipboard.writeText(
-                    `${window.location.origin}/overlay`,
-                  )
-                }
-                className="text-accent-blue hover:underline"
-              >
-                Kopieren
-              </button>
-            </div>
-            <div className="bg-black/20 p-3 rounded-xl border border-white/5 font-mono text-[11px] text-accent-blue/80 break-all">
-              {window.location.origin}/overlay
-            </div>
-          </div>
+      {stops.map((stop, i) => (
+        <div key={i} className="flex gap-2 items-center">
+          <input
+            type="color"
+            value={stop.color}
+            onChange={(e) => {
+              const newStops = [...stops];
+              newStops[i] = { ...stop, color: e.target.value };
+              onChange(newStops);
+            }}
+            className="w-8 h-6 rounded cursor-pointer border-0"
+          />
+          <input
+            type="range"
+            value={stop.position}
+            onChange={(e) => {
+              const newStops = [...stops];
+              newStops[i] = { ...stop, position: Number(e.target.value) };
+              onChange(newStops);
+            }}
+            min={0} max={100}
+            className="flex-1 h-1 accent-accent-blue"
+          />
+          <span className="text-xs text-gray-500 w-8">{stop.position}%</span>
         </div>
+      ))}
+    </div>
+  );
+}
+
+function TextStyleEditor({ style, onChange, label }: {
+  style: TextStyle;
+  onChange: (s: TextStyle) => void;
+  label: string;
+}) {
+  const u = (field: keyof TextStyle, value: unknown) => onChange({ ...style, [field]: value });
+  return (
+    <div className="space-y-2 border border-border-subtle/50 rounded p-2">
+      <p className="text-xs text-gray-400 font-semibold">{label}</p>
+      <div className="grid grid-cols-2 gap-1">
+        <div>
+          <label className="text-[10px] text-gray-500">Schriftart</label>
+          <FontPicker value={style.font_family} onChange={(v) => u("font_family", v)} />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500">Größe</label>
+          <input type="number" value={style.font_size}
+            onChange={(e) => u("font_size", Number(e.target.value))}
+            className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500">Gewicht</label>
+          <select value={style.font_weight} onChange={(e) => u("font_weight", Number(e.target.value))}
+            className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+            {[100, 300, 400, 500, 700, 900].map((w) => <option key={w} value={w}>{w}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-[10px] text-gray-500">Farb-Typ</label>
+          <select value={style.color_type} onChange={(e) => u("color_type", e.target.value as "solid" | "gradient")}
+            className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+            <option value="solid">Einfarbig</option>
+            <option value="gradient">Verlauf</option>
+          </select>
+        </div>
+      </div>
+      {style.color_type === "solid" ? (
+        <div className="flex gap-2 items-center">
+          <label className="text-[10px] text-gray-500">Farbe</label>
+          <input type="color" value={style.color} onChange={(e) => u("color", e.target.value)}
+            className="w-8 h-6 rounded cursor-pointer border-0" />
+          <span className="text-[10px] text-gray-400">{style.color}</span>
+        </div>
+      ) : (
+        <GradientEditor
+          stops={style.gradient_stops || []}
+          angle={style.gradient_angle || 180}
+          onChange={(s) => u("gradient_stops", s)}
+          onAngleChange={(a) => u("gradient_angle", a)}
+        />
+      )}
+      <div className="flex gap-2 items-center">
+        <label className="text-[10px] text-gray-500">Umriss</label>
+        <select value={style.outline_type} onChange={(e) => u("outline_type", e.target.value as "none" | "solid")}
+          className="flex-1 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+          <option value="none">Kein</option>
+          <option value="solid">Einfarbig</option>
+        </select>
+        {style.outline_type === "solid" && (
+          <>
+            <input type="number" value={style.outline_width} onChange={(e) => u("outline_width", Number(e.target.value))}
+              className="w-12 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none" />
+            <input type="color" value={style.outline_color} onChange={(e) => u("outline_color", e.target.value)}
+              className="w-7 h-6 rounded cursor-pointer border-0" />
+          </>
+        )}
       </div>
     </div>
   );
 }
 
-function StylingSection({
-  title,
-  prefix,
-  settings,
-  updateField,
-  fonts,
-}: {
-  title: string;
-  prefix: "name" | "counter";
-  settings: OverlaySettings;
-  updateField: any;
-  fonts: any[];
-}) {
-  // Mapping for counter to use existing general fields
-  const getF = (f: string) =>
-    prefix === "counter"
-      ? (f
-          .replace("counter_", "")
-          .replace("name_", "") as keyof OverlaySettings)
-      : (`name_${f}` as keyof OverlaySettings);
+function useElementDrag(
+  elementKey: ElementKey,
+  settings: OverlaySettings,
+  onUpdate: (s: OverlaySettings) => void,
+  canvasScale: number,
+) {
+  const dragging = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  const resizing = useRef<{ dir: ResizeDir; startX: number; startY: number; origX: number; origY: number; origW: number; origH: number } | null>(null);
 
-  const size = settings[prefix === "counter" ? "font_size" : "name_size"];
-  const color = settings[prefix === "counter" ? "text_color" : "name_color"];
-  const oColor =
-    settings[prefix === "counter" ? "outline_color" : "name_outline_color"];
-  const oWidth =
-    settings[prefix === "counter" ? "outline_width" : "name_outline_width"];
-  const gradEnabled =
-    settings[
-      prefix === "counter" ? "gradient_enabled" : "name_gradient_enabled"
-    ];
-  const gradColor =
-    settings[prefix === "counter" ? "gradient_color" : "name_gradient_color"];
-  const family =
-    settings[prefix === "counter" ? "font_family" : "name_font_family"];
-  const customFont =
-    settings[prefix === "counter" ? "custom_font" : "name_custom_font"];
+  const getEl = useCallback(() => settings[elementKey] as OverlayElementBase, [settings, elementKey]);
+  const setEl = useCallback((patch: Partial<OverlayElementBase>) => {
+    onUpdate({ ...settings, [elementKey]: { ...settings[elementKey], ...patch } });
+  }, [settings, elementKey, onUpdate]);
 
+  const onDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = getEl();
+    dragging.current = { startX: e.clientX, startY: e.clientY, origX: el.x, origY: el.y };
+
+    const onMove = (me: MouseEvent) => {
+      if (!dragging.current) return;
+      const dx = (me.clientX - dragging.current.startX) / canvasScale;
+      const dy = (me.clientY - dragging.current.startY) / canvasScale;
+      setEl({ x: Math.round(dragging.current.origX + dx), y: Math.round(dragging.current.origY + dy) });
+    };
+    const onUp = () => {
+      dragging.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [getEl, setEl, canvasScale]);
+
+  const onResizeStart = useCallback((dir: ResizeDir) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = getEl();
+    resizing.current = { dir, startX: e.clientX, startY: e.clientY, origX: el.x, origY: el.y, origW: el.width, origH: el.height };
+
+    const onMove = (me: MouseEvent) => {
+      if (!resizing.current) return;
+      const { dir: d, startX, startY, origX, origY, origW, origH } = resizing.current;
+      const dx = (me.clientX - startX) / canvasScale;
+      const dy = (me.clientY - startY) / canvasScale;
+      let x = origX, y = origY, w = origW, h = origH;
+      if (d.includes("e")) w = Math.max(20, origW + dx);
+      if (d.includes("s")) h = Math.max(20, origH + dy);
+      if (d.includes("w")) { w = Math.max(20, origW - dx); x = origX + origW - w; }
+      if (d.includes("n")) { h = Math.max(20, origH - dy); y = origY + origH - h; }
+      setEl({ x: Math.round(x), y: Math.round(y), width: Math.round(w), height: Math.round(h) });
+    };
+    const onUp = () => {
+      resizing.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [getEl, setEl, canvasScale]);
+
+  return { onDragStart, onResizeStart };
+}
+
+function ResizeHandle({ dir, onResizeStart }: { dir: ResizeDir; onResizeStart: (dir: ResizeDir) => (e: React.MouseEvent) => void }) {
+  const posStyles: Record<ResizeDir, React.CSSProperties> = {
+    n:  { top: -4, left: "50%", transform: "translateX(-50%)", cursor: "n-resize" },
+    s:  { bottom: -4, left: "50%", transform: "translateX(-50%)", cursor: "s-resize" },
+    e:  { right: -4, top: "50%", transform: "translateY(-50%)", cursor: "e-resize" },
+    w:  { left: -4, top: "50%", transform: "translateY(-50%)", cursor: "w-resize" },
+    ne: { top: -4, right: -4, cursor: "ne-resize" },
+    nw: { top: -4, left: -4, cursor: "nw-resize" },
+    se: { bottom: -4, right: -4, cursor: "se-resize" },
+    sw: { bottom: -4, left: -4, cursor: "sw-resize" },
+  };
   return (
-    <section className="bg-bg-secondary/50 rounded-xl p-5 border border-border-subtle/50">
-      <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2 uppercase tracking-tight">
-        <Palette
-          className={`w-4 h-4 ${prefix === "name" ? "text-accent-green" : "text-accent-blue"}`}
-        />{" "}
-        {title}
-      </h4>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-              Größe ({size}px)
-            </label>
-            <input
-              type="range"
-              min="10"
-              max="300"
-              value={size}
-              onChange={(e) =>
-                updateField(
-                  prefix === "counter" ? "font_size" : "name_size",
-                  parseInt(e.target.value),
-                )
-              }
-              className="w-full accent-accent-blue"
-            />
-          </div>
-          <div>
-            <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-              Schriftart
-            </label>
-            <select
-              value={family}
-              onChange={(e) =>
-                updateField(
-                  prefix === "counter" ? "font_family" : "name_font_family",
-                  e.target.value,
-                )
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1.5 text-xs text-white"
-            >
-              {fonts.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div>
-          <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-            System-Font
-          </label>
-          <input
-            type="text"
-            value={customFont}
-            onChange={(e) =>
-              updateField(
-                prefix === "counter" ? "custom_font" : "name_custom_font",
-                e.target.value,
-              )
-            }
-            placeholder="Arial, 'Open Sans'..."
-            className="w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-xs text-white"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-              Farbe
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="color"
-                value={color}
-                onChange={(e) =>
-                  updateField(
-                    prefix === "counter" ? "text_color" : "name_color",
-                    e.target.value,
-                  )
-                }
-                className="w-8 h-8 rounded bg-transparent cursor-pointer"
-              />
-              <input
-                type="text"
-                value={color}
-                onChange={(e) =>
-                  updateField(
-                    prefix === "counter" ? "text_color" : "name_color",
-                    e.target.value,
-                  )
-                }
-                className="flex-1 bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-[10px] text-white uppercase"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-              Kontur ({oWidth}px)
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="30"
-              value={oWidth}
-              onChange={(e) =>
-                updateField(
-                  prefix === "counter" ? "outline_width" : "name_outline_width",
-                  parseInt(e.target.value),
-                )
-              }
-              className="w-full accent-accent-blue"
-            />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">
-              Kontur Farbe
-            </label>
-            <input
-              type="color"
-              value={oColor}
-              onChange={(e) =>
-                updateField(
-                  prefix === "counter" ? "outline_color" : "name_outline_color",
-                  e.target.value,
-                )
-              }
-              className="w-full h-8 rounded-lg bg-transparent cursor-pointer"
-            />
-          </div>
-          <div>
-            <label className="flex items-center gap-2 cursor-pointer pt-4">
-              <input
-                type="checkbox"
-                checked={gradEnabled}
-                onChange={(e) =>
-                  updateField(
-                    prefix === "counter"
-                      ? "gradient_enabled"
-                      : "name_gradient_enabled",
-                    e.target.checked,
-                  )
-                }
-                className="w-3.5 h-3.5 accent-accent-blue"
-              />
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider">
-                Verlauf
-              </span>
-            </label>
-            {gradEnabled && (
-              <input
-                type="color"
-                value={gradColor}
-                onChange={(e) =>
-                  updateField(
-                    prefix === "counter"
-                      ? "gradient_color"
-                      : "name_gradient_color",
-                    e.target.value,
-                  )
-                }
-                className="w-full h-8 mt-2 rounded bg-transparent cursor-pointer"
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </section>
+    <div
+      onMouseDown={onResizeStart(dir)}
+      style={{ position: "absolute", width: 8, height: 8, background: "#3b82f6", border: "1px solid white", borderRadius: 2, zIndex: 100, ...posStyles[dir] }}
+    />
   );
 }
 
-function Toggle({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
+  const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
+  const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const [canvasScale, setCanvasScale] = useState(1);
+
+  useEffect(() => { setLocalSettings(settings); }, [settings]);
+
+  // Compute scale to fit canvas in the preview area
+  useEffect(() => {
+    const updateScale = () => {
+      if (!canvasContainerRef.current) return;
+      const { clientWidth, clientHeight } = canvasContainerRef.current;
+      const scaleX = clientWidth / localSettings.canvas_width;
+      const scaleY = clientHeight / localSettings.canvas_height;
+      setCanvasScale(Math.min(scaleX, scaleY, 1));
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, [localSettings.canvas_width, localSettings.canvas_height]);
+
+  const update = useCallback((s: OverlaySettings) => {
+    setLocalSettings(s);
+    onUpdate(s);
+  }, [onUpdate]);
+
+  const updateField = <K extends keyof OverlaySettings>(field: K, value: OverlaySettings[K]) => {
+    update({ ...localSettings, [field]: value });
+  };
+
+  const spriteHandlers = useElementDrag("sprite", localSettings, update, canvasScale);
+  const nameHandlers = useElementDrag("name", localSettings, update, canvasScale);
+  const counterHandlers = useElementDrag("counter", localSettings, update, canvasScale);
+
+  const handlers: Record<ElementKey, ReturnType<typeof useElementDrag>> = {
+    sprite: spriteHandlers,
+    name: nameHandlers,
+    counter: counterHandlers,
+  };
+
+  const LAYERS: ElementKey[] = ["sprite", "name", "counter"];
+
+  const moveLayer = (key: ElementKey, dir: "up" | "down") => {
+    const el = localSettings[key] as OverlayElementBase;
+    const delta = dir === "up" ? 1 : -1;
+    update({ ...localSettings, [key]: { ...el, z_index: Math.max(0, el.z_index + delta) } });
+  };
+
+  const fakePreviewPokemon: Pokemon | undefined = activePokemon
+    ? { ...activePokemon }
+    : undefined;
+
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg border transition-all text-[11px] font-bold ${active ? "bg-accent-blue/10 border-accent-blue text-white" : "bg-bg-primary/50 border-border-subtle text-gray-500 hover:text-gray-400"}`}
-    >
-      {active ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-      <span className="uppercase tracking-tighter">{label}</span>
-    </button>
+    <div className="flex gap-4 h-[600px]">
+      {/* LEFT: Element tree */}
+      <div className="w-44 flex-shrink-0 bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 overflow-y-auto">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Ebenen</p>
+        {LAYERS.map((key) => {
+          const el = localSettings[key] as OverlayElementBase;
+          return (
+            <div
+              key={key}
+              onClick={() => setSelectedEl(key)}
+              className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors ${
+                selectedEl === key ? "bg-accent-blue/20 border border-accent-blue/40" : "hover:bg-bg-hover border border-transparent"
+              }`}
+            >
+              <span className="text-xs text-white">{ELEMENT_LABELS[key]}</span>
+              <div className="flex items-center gap-1">
+                <button onClick={(e) => { e.stopPropagation(); moveLayer(key, "up"); }} className="text-gray-500 hover:text-white transition-colors">
+                  <ChevronUp className="w-3 h-3" />
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); moveLayer(key, "down"); }} className="text-gray-500 hover:text-white transition-colors">
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    update({ ...localSettings, [key]: { ...el, visible: !el.visible } });
+                  }}
+                  className="text-gray-500 hover:text-white transition-colors"
+                >
+                  {el.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="border-t border-border-subtle pt-3 space-y-2">
+          <p className="text-[10px] text-gray-500">Canvas</p>
+          <div>
+            <label className="text-[10px] text-gray-500">Breite</label>
+            <input type="number" value={localSettings.canvas_width}
+              onChange={(e) => updateField("canvas_width", Number(e.target.value))}
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500">Höhe</label>
+            <input type="number" value={localSettings.canvas_height}
+              onChange={(e) => updateField("canvas_height", Number(e.target.value))}
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500">Hintergrund</label>
+            <input type="color" value={localSettings.background_color}
+              onChange={(e) => updateField("background_color", e.target.value)}
+              className="w-full h-6 rounded cursor-pointer border-0" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500">Deckkraft {Math.round(localSettings.background_opacity * 100)}%</label>
+            <input type="range" min={0} max={1} step={0.05} value={localSettings.background_opacity}
+              onChange={(e) => updateField("background_opacity", Number(e.target.value))}
+              className="w-full h-1 accent-accent-blue" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500">Blur {localSettings.blur}px</label>
+            <input type="range" min={0} max={30} value={localSettings.blur}
+              onChange={(e) => updateField("blur", Number(e.target.value))}
+              className="w-full h-1 accent-accent-blue" />
+          </div>
+          <div>
+            <label className="text-[10px] text-gray-500">Radius {localSettings.border_radius}px</label>
+            <input type="range" min={0} max={60} value={localSettings.border_radius}
+              onChange={(e) => updateField("border_radius", Number(e.target.value))}
+              className="w-full h-1 accent-accent-blue" />
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={localSettings.show_border}
+              onChange={(e) => updateField("show_border", e.target.checked)}
+              className="accent-accent-blue" />
+            <span className="text-[10px] text-gray-400">Rahmen</span>
+          </label>
+        </div>
+      </div>
+
+      {/* CENTER: Canvas */}
+      <div ref={canvasContainerRef} className="flex-1 bg-[repeating-conic-gradient(#1a1a2a_0%_25%,#141420_0%_50%)] bg-[length:20px_20px] rounded-xl border border-border-subtle flex items-center justify-center overflow-hidden">
+        <div
+          style={{
+            transform: `scale(${canvasScale})`,
+            transformOrigin: "center center",
+            position: "relative",
+            width: localSettings.canvas_width,
+            height: localSettings.canvas_height,
+          }}
+        >
+          {/* Actual overlay preview */}
+          <Overlay previewSettings={localSettings} previewPokemon={fakePreviewPokemon} />
+
+          {/* Drag/resize overlays for each element */}
+          {LAYERS.map((key) => {
+            const el = localSettings[key] as OverlayElementBase;
+            if (!el.visible) return null;
+            const { onDragStart, onResizeStart } = handlers[key];
+            const isSelected = selectedEl === key;
+            return (
+              <div
+                key={key}
+                onMouseDown={(e) => { setSelectedEl(key); onDragStart(e); }}
+                style={{
+                  position: "absolute",
+                  left: el.x,
+                  top: el.y,
+                  width: el.width,
+                  height: el.height,
+                  zIndex: 50 + el.z_index,
+                  cursor: "move",
+                  border: isSelected ? "2px solid #3b82f6" : "2px solid transparent",
+                  boxSizing: "border-box",
+                }}
+              >
+                {isSelected && (
+                  <>
+                    {(["n", "s", "e", "w", "ne", "nw", "se", "sw"] as ResizeDir[]).map((dir) => (
+                      <ResizeHandle key={dir} dir={dir} onResizeStart={onResizeStart} />
+                    ))}
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* RIGHT: Properties */}
+      <div className="w-56 flex-shrink-0 bg-bg-secondary rounded-xl border border-border-subtle p-3 overflow-y-auto">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          {ELEMENT_LABELS[selectedEl]}
+        </p>
+
+        {/* Position & Size */}
+        <div className="grid grid-cols-2 gap-1 mb-3">
+          {(["x", "y", "width", "height"] as (keyof OverlayElementBase)[]).map((field) => (
+            <div key={field}>
+              <label className="text-[10px] text-gray-500 uppercase">{field}</label>
+              <input
+                type="number"
+                value={(localSettings[selectedEl] as OverlayElementBase)[field] as number}
+                onChange={(e) => {
+                  const el = localSettings[selectedEl] as OverlayElementBase;
+                  update({ ...localSettings, [selectedEl]: { ...el, [field]: Number(e.target.value) } });
+                }}
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Element-specific properties */}
+        {selectedEl === "sprite" && (
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={localSettings.sprite.show_glow}
+                onChange={(e) => update({ ...localSettings, sprite: { ...localSettings.sprite, show_glow: e.target.checked } })}
+                className="accent-accent-blue" />
+              <span className="text-xs text-gray-400">Glow</span>
+            </label>
+            {localSettings.sprite.show_glow && (
+              <div className="flex gap-2 items-center">
+                <label className="text-[10px] text-gray-500">Farbe</label>
+                <input type="color" value={localSettings.sprite.glow_color.replace(/rgba?\([^)]+\)/, "#ffffff") || "#ffffff"}
+                  onChange={(e) => update({ ...localSettings, sprite: { ...localSettings.sprite, glow_color: e.target.value + "33" } })}
+                  className="w-8 h-6 rounded cursor-pointer border-0" />
+              </div>
+            )}
+            <div>
+              <label className="text-[10px] text-gray-500">Idle Animation</label>
+              <select value={localSettings.sprite.idle_animation}
+                onChange={(e) => update({ ...localSettings, sprite: { ...localSettings.sprite, idle_animation: e.target.value } })}
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+                <option value="none">Keine</option>
+                <option value="float">Schweben</option>
+                <option value="pulse">Puls</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500">Trigger Animation</label>
+              <select value={localSettings.sprite.trigger_enter}
+                onChange={(e) => update({ ...localSettings, sprite: { ...localSettings.sprite, trigger_enter: e.target.value } })}
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+                <option value="none">Keine</option>
+                <option value="pop">Pop</option>
+                <option value="shake">Shake</option>
+                <option value="bounce">Bounce</option>
+                <option value="spin">Spin</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {selectedEl === "name" && (
+          <div className="space-y-2">
+            <TextStyleEditor
+              style={localSettings.name.style || DEFAULT_TEXT_STYLE}
+              label="Text-Stil"
+              onChange={(s) => update({ ...localSettings, name: { ...localSettings.name, style: s } })}
+            />
+            <div>
+              <label className="text-[10px] text-gray-500">Trigger Animation</label>
+              <select value={localSettings.name.trigger_enter}
+                onChange={(e) => update({ ...localSettings, name: { ...localSettings.name, trigger_enter: e.target.value } })}
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+                <option value="none">Keine</option>
+                <option value="fade-in">Einblenden</option>
+                <option value="slide-in">Einsliden</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {selectedEl === "counter" && (
+          <div className="space-y-2">
+            <TextStyleEditor
+              style={localSettings.counter.style || DEFAULT_TEXT_STYLE}
+              label="Zähler-Stil"
+              onChange={(s) => update({ ...localSettings, counter: { ...localSettings.counter, style: s } })}
+            />
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={localSettings.counter.show_label}
+                onChange={(e) => update({ ...localSettings, counter: { ...localSettings.counter, show_label: e.target.checked } })}
+                className="accent-accent-blue" />
+              <span className="text-xs text-gray-400">Label anzeigen</span>
+            </label>
+            {localSettings.counter.show_label && (
+              <>
+                <input type="text" value={localSettings.counter.label_text}
+                  onChange={(e) => update({ ...localSettings, counter: { ...localSettings.counter, label_text: e.target.value } })}
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                  placeholder="Label-Text" />
+                <TextStyleEditor
+                  style={localSettings.counter.label_style || DEFAULT_TEXT_STYLE}
+                  label="Label-Stil"
+                  onChange={(s) => update({ ...localSettings, counter: { ...localSettings.counter, label_style: s } })}
+                />
+              </>
+            )}
+            <div>
+              <label className="text-[10px] text-gray-500">Trigger Animation</label>
+              <select value={localSettings.counter.trigger_enter}
+                onChange={(e) => update({ ...localSettings, counter: { ...localSettings.counter, trigger_enter: e.target.value } })}
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none">
+                <option value="none">Keine</option>
+                <option value="pop">Pop</option>
+                <option value="count-flash">Flash</option>
+                <option value="shake">Shake</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* OBS URL hint */}
+        <div className="mt-4 pt-3 border-t border-border-subtle">
+          <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+            <Monitor className="w-3 h-3" />
+            OBS Browser Source:
+          </div>
+          <code className="text-[10px] text-accent-blue break-all">
+            http://localhost:8080/overlay
+          </code>
+        </div>
+      </div>
+    </div>
   );
 }

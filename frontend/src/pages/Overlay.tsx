@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, useState } from "react";
-import { Pokemon, OverlaySettings } from "../types";
+import { Pokemon, OverlaySettings, TextStyle } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 
 interface Props {
@@ -7,237 +7,94 @@ interface Props {
   previewPokemon?: Pokemon;
 }
 
+// Inject Google Font dynamically
+function useGoogleFont(fontFamily: string) {
+  useEffect(() => {
+    const systemFonts = ["sans", "serif", "monospace", "pokemon"];
+    if (!fontFamily || systemFonts.includes(fontFamily)) return;
+    const id = `gfont-${fontFamily.replace(/\s+/g, "-")}`;
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@100;300;400;700;900&display=swap`;
+    document.head.appendChild(link);
+  }, [fontFamily]);
+}
+
+function resolveFont(family: string): string {
+  if (family === "pokemon") return "'Press Start 2P', cursive";
+  if (family === "sans") return "'Inter', sans-serif";
+  if (family === "serif") return "serif";
+  if (family === "monospace") return "monospace";
+  return `'${family}', sans-serif`;
+}
+
+function buildTextStyle(style: TextStyle): React.CSSProperties {
+  const css: React.CSSProperties = {
+    fontFamily: resolveFont(style.font_family),
+    fontSize: `${style.font_size}px`,
+    fontWeight: style.font_weight,
+    color: style.color,
+    WebkitTextStroke: style.outline_type === "solid"
+      ? `${style.outline_width}px ${style.outline_color}`
+      : undefined,
+    paintOrder: style.outline_type === "solid" ? "stroke fill" : undefined,
+    textShadow: style.text_shadow
+      ? `${style.text_shadow_x}px ${style.text_shadow_y}px ${style.text_shadow_blur}px ${style.text_shadow_color}`
+      : undefined,
+  } as React.CSSProperties;
+
+  if (style.color_type === "gradient" && style.gradient_stops?.length >= 2) {
+    const stops = style.gradient_stops
+      .map((s) => `${s.color} ${s.position}%`)
+      .join(", ");
+    css.background = `linear-gradient(${style.gradient_angle}deg, ${stops})`;
+    css.WebkitBackgroundClip = "text";
+    css.WebkitTextFillColor = "transparent";
+    css.color = undefined;
+  }
+
+  return css;
+}
+
 export function Overlay({ previewSettings, previewPokemon }: Props) {
   const { appState } = useCounterStore();
-  const [animationClass, setAnimationClass] = useState("");
+  const [animClass, setAnimClass] = useState("");
   const [triggerId, setTriggerId] = useState(0);
   const prevCount = useRef<number | undefined>(undefined);
 
-  const activePokemon: Pokemon | null = useMemo(() => {
-    return (
-      previewPokemon ||
-      (appState
-        ? (appState.pokemon.find((p) => p.id === appState.active_id) ?? null)
-        : null)
-    );
-  }, [previewPokemon, appState]);
+  const activePokemon: Pokemon | null = useMemo(
+    () => previewPokemon || (appState?.pokemon.find((p) => p.id === appState.active_id) ?? null),
+    [previewPokemon, appState],
+  );
 
-  const settings: OverlaySettings | null = useMemo(() => {
-    return previewSettings || appState?.settings.overlay || null;
-  }, [previewSettings, appState]);
+  const settings: OverlaySettings | null = useMemo(
+    () => previewSettings || appState?.settings.overlay || null,
+    [previewSettings, appState],
+  );
 
-  // Handle Animation Triggering
+  // Inject fonts
+  useGoogleFont(settings?.name.style.font_family || "sans");
+  useGoogleFont(settings?.counter.style.font_family || "sans");
+
+  // Animation trigger
   useEffect(() => {
     if (!activePokemon || !settings) return;
-
-    if (
-      prevCount.current !== undefined &&
-      activePokemon.encounters !== prevCount.current
-    ) {
-      let anim = "";
-      if (activePokemon.encounters === 0) {
-        anim = settings.animation_reset;
-      } else if (activePokemon.encounters > prevCount.current) {
-        anim = settings.animation_increment;
-      } else {
-        anim = settings.animation_decrement;
-      }
-
-      if (anim && anim !== "none") {
-        setAnimationClass(`animate-${anim}`);
+    if (prevCount.current !== undefined && activePokemon.encounters !== prevCount.current) {
+      const triggerAnim = activePokemon.encounters === 0
+        ? "rotate"
+        : activePokemon.encounters > prevCount.current
+          ? settings.counter.trigger_enter
+          : "shake";
+      if (triggerAnim && triggerAnim !== "none") {
+        setAnimClass(`animate-${triggerAnim}`);
         setTriggerId(Date.now());
       }
     }
     prevCount.current = activePokemon.encounters;
   }, [activePokemon?.encounters, settings]);
 
-  const nameStyle = useMemo(() => {
-    if (!settings) return {};
-    const getFont = (family: string, custom: string) => {
-      if (family === "pokemon") return "'Press Start 2P', cursive";
-      if (family === "sans") return "'Inter', sans-serif";
-      if (family === "serif") return "serif";
-      return custom || "'Inter'";
-    };
-
-    const style: any = {
-      fontFamily: getFont(settings.name_font_family, settings.name_custom_font),
-      fontSize: `${settings.name_size}px`,
-      color: settings.name_color,
-      "--outline-color": settings.name_outline_color,
-      "--outline-width": `${settings.name_outline_width}px`,
-      WebkitTextStroke: `${settings.name_outline_width}px ${settings.name_outline_color}`,
-      paintOrder: "stroke fill",
-      transition: "all 0.3s ease",
-    };
-
-    if (settings.name_gradient_enabled) {
-      style.background = `linear-gradient(to bottom, ${settings.name_color}, ${settings.name_gradient_color})`;
-      style.WebkitBackgroundClip = "text";
-      style.WebkitTextFillColor = "transparent";
-    }
-
-    return style;
-  }, [settings]);
-
-  const counterStyle = useMemo(() => {
-    if (!settings) return {};
-    const getFont = (family: string, custom: string) => {
-      if (family === "pokemon") return "'Press Start 2P', cursive";
-      if (family === "sans") return "'Inter', sans-serif";
-      if (family === "serif") return "serif";
-      return custom || "'Inter'";
-    };
-
-    const style: any = {
-      fontFamily: getFont(settings.font_family, settings.custom_font),
-      fontSize: `${settings.font_size}px`,
-      color: settings.text_color,
-      "--outline-color": settings.outline_color,
-      "--outline-width": `${settings.outline_width}px`,
-      WebkitTextStroke: `${settings.outline_width}px ${settings.outline_color}`,
-      paintOrder: "stroke fill",
-      transition: "all 0.3s ease",
-    };
-
-    if (settings.gradient_enabled) {
-      style.background = `linear-gradient(to bottom, ${settings.text_color}, ${settings.gradient_color})`;
-      style.WebkitBackgroundClip = "text";
-      style.WebkitTextFillColor = "transparent";
-    }
-
-    return style;
-  }, [settings]);
-
-  const order = settings?.layer_order || ["sprite", "name", "counter"];
-  const outer = settings?.outer_element || "none";
-
-  const renderSingleElement = (type: string) => {
-    if (!activePokemon || !settings) return null;
-
-    if (type === "sprite" && settings.sprite_position !== "hidden") {
-      const spriteAnimClass =
-        settings.animation_target === "both" ||
-        settings.animation_target === "sprite"
-          ? animationClass
-          : "";
-      return (
-        <div
-          key="sprite"
-          style={{
-            width: `${settings.sprite_size}px`,
-            height: `${settings.sprite_size}px`,
-            zIndex: settings.sprite_on_top ? 20 : 10,
-            transition: "all 0.3s ease",
-          }}
-          className="flex items-center justify-center relative"
-        >
-          <div
-            key={`anim-sprite-${triggerId}`}
-            className={spriteAnimClass}
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {settings.show_sprite_glow && (
-              <div className="absolute inset-x-0 inset-y-0 bg-white/10 rounded-full blur-3xl animate-pulse" />
-            )}
-            <img
-              src={activePokemon.sprite_url}
-              alt={activePokemon.name}
-              className="w-full h-full object-contain relative z-10 drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
-              style={{ imageRendering: "pixelated" }}
-            />
-          </div>
-        </div>
-      );
-    }
-    if (type === "name" && settings.show_name) {
-      return (
-        <span
-          key="name"
-          className="uppercase font-bold tracking-widest whitespace-nowrap"
-          style={nameStyle}
-        >
-          {activePokemon.name}
-        </span>
-      );
-    }
-    if (type === "counter" && settings.show_encounter) {
-      const countAnimClass =
-        settings.animation_target === "both" ||
-        settings.animation_target === "counter"
-          ? animationClass
-          : "";
-      return (
-        <div key={`anim-counter-${triggerId}`} className={countAnimClass}>
-          <span
-            className="font-black tabular-nums leading-none"
-            style={counterStyle}
-          >
-            {activePokemon.encounters}
-          </span>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const elements = useMemo(() => {
-    if (!activePokemon || !settings) return null;
-
-    if (outer === "none") {
-      return order.map((type) => renderSingleElement(type));
-    }
-
-    const innerTypes = order.filter((t) => t !== outer);
-    let innerGroupRendered = false;
-    const finalElements: (JSX.Element | null)[] = [];
-
-    order.forEach((type) => {
-      if (type === outer) {
-        finalElements.push(renderSingleElement(type));
-      } else if (!innerGroupRendered) {
-        finalElements.push(
-          <div
-            key="inner-group"
-            style={{
-              display: "flex",
-              flexDirection:
-                settings.inner_layout === "vertical"
-                  ? ("column" as const)
-                  : ("row" as const),
-              alignItems: "center",
-              justifyContent: "center",
-              gap: `${settings.gap}px`,
-              transition: "all 0.3s ease",
-            }}
-          >
-            {innerTypes.map((it) => renderSingleElement(it))}
-          </div>,
-        );
-        innerGroupRendered = true;
-      }
-    });
-
-    return finalElements;
-  }, [
-    order,
-    outer,
-    settings,
-    activePokemon,
-    triggerId,
-    animationClass,
-    nameStyle,
-    counterStyle,
-  ]);
-
-  // FINAL CHECK: If no state yet and not in preview, show a loading placeholder or NOTHING.
-  // But call all hooks above this!
   if (!activePokemon || !settings) {
     return (
       <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent">
@@ -248,33 +105,115 @@ export function Overlay({ previewSettings, previewPokemon }: Props) {
     );
   }
 
+  const bgHex = settings.background_color.replace("#", "");
+  const opacity = Math.round(settings.background_opacity * 255).toString(16).padStart(2, "0");
+  const bgWithOpacity = `#${bgHex}${opacity}`;
+
+  const nameStyle = buildTextStyle(settings.name.style);
+  const counterStyle = buildTextStyle(settings.counter.style);
+  const labelStyle = buildTextStyle(settings.counter.label_style);
+
   return (
     <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent">
       <div
         style={{
-          backgroundColor: `${settings.background_color}${Math.round(
-            settings.opacity * 255,
-          )
-            .toString(16)
-            .padStart(2, "0")}`,
-          borderWidth: settings.show_border ? "2px" : "0px",
-          borderColor: "rgba(255,255,255,0.1)",
+          position: "relative",
+          width: `${settings.canvas_width}px`,
+          height: `${settings.canvas_height}px`,
+          backgroundColor: bgWithOpacity,
           backdropFilter: `blur(${settings.blur}px)`,
-          display: "flex",
-          flexDirection:
-            settings.layout === "vertical"
-              ? ("column" as const)
-              : ("row" as const),
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "2rem",
-          borderRadius: "2.5rem",
-          gap: `${settings.gap}px`,
-          transition: "all 0.3s ease",
+          borderRadius: `${settings.border_radius}px`,
+          border: settings.show_border ? `2px solid ${settings.border_color}` : "none",
+          overflow: "hidden",
         }}
-        className="transition-all duration-300"
       >
-        {elements}
+        {/* Sprite */}
+        {settings.sprite.visible && (
+          <div
+            style={{
+              position: "absolute",
+              left: settings.sprite.x,
+              top: settings.sprite.y,
+              width: settings.sprite.width,
+              height: settings.sprite.height,
+              zIndex: settings.sprite.z_index,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            className={`${settings.sprite.idle_animation === "float" ? "animate-float" : ""}`}
+          >
+            {settings.sprite.show_glow && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: settings.sprite.glow_color,
+                  borderRadius: "50%",
+                  filter: "blur(20px)",
+                }}
+              />
+            )}
+            <img
+              src={activePokemon.sprite_url}
+              alt={activePokemon.name}
+              style={{ width: "100%", height: "100%", objectFit: "contain", imageRendering: "pixelated", position: "relative", zIndex: 1 }}
+            />
+          </div>
+        )}
+
+        {/* Name */}
+        {settings.name.visible && (
+          <div
+            style={{
+              position: "absolute",
+              left: settings.name.x,
+              top: settings.name.y,
+              width: settings.name.width,
+              height: settings.name.height,
+              zIndex: settings.name.z_index,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            <span
+              className="uppercase tracking-widest whitespace-nowrap overflow-hidden text-ellipsis"
+              style={nameStyle}
+            >
+              {activePokemon.name}
+            </span>
+          </div>
+        )}
+
+        {/* Counter */}
+        {settings.counter.visible && (
+          <div
+            key={`counter-${triggerId}`}
+            style={{
+              position: "absolute",
+              left: settings.counter.x,
+              top: settings.counter.y,
+              width: settings.counter.width,
+              height: settings.counter.height,
+              zIndex: settings.counter.z_index,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              justifyContent: "center",
+            }}
+            className={animClass}
+          >
+            <span
+              className="font-black tabular-nums leading-none"
+              style={counterStyle}
+            >
+              {activePokemon.encounters}
+            </span>
+            {settings.counter.show_label && (
+              <span style={labelStyle}>{settings.counter.label_text}</span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

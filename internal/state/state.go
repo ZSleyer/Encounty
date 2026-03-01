@@ -33,45 +33,76 @@ type HotkeyMap struct {
 	NextPokemon string `json:"next_pokemon"`
 }
 
+type GradientStop struct {
+	Color    string  `json:"color"`
+	Position float64 `json:"position"`
+}
+
+type TextStyle struct {
+	FontFamily    string         `json:"font_family"`
+	FontSize      int            `json:"font_size"`
+	FontWeight    int            `json:"font_weight"`
+	ColorType     string         `json:"color_type"` // "solid" | "gradient"
+	Color         string         `json:"color"`
+	GradientStops []GradientStop `json:"gradient_stops"`
+	GradientAngle int            `json:"gradient_angle"`
+	OutlineType   string         `json:"outline_type"` // "none" | "solid"
+	OutlineWidth  int            `json:"outline_width"`
+	OutlineColor  string         `json:"outline_color"`
+	TextShadow      bool   `json:"text_shadow"`
+	TextShadowColor string `json:"text_shadow_color"`
+	TextShadowBlur  int    `json:"text_shadow_blur"`
+	TextShadowX     int    `json:"text_shadow_x"`
+	TextShadowY     int    `json:"text_shadow_y"`
+}
+
+type OverlayElementBase struct {
+	Visible bool `json:"visible"`
+	X       int  `json:"x"`
+	Y       int  `json:"y"`
+	Width   int  `json:"width"`
+	Height  int  `json:"height"`
+	ZIndex  int  `json:"z_index"`
+}
+
+type SpriteElement struct {
+	OverlayElementBase
+	ShowGlow      bool   `json:"show_glow"`
+	GlowColor     string `json:"glow_color"`
+	IdleAnimation string `json:"idle_animation"`
+	TriggerEnter  string `json:"trigger_enter"`
+	TriggerExit   string `json:"trigger_exit"`
+}
+
+type NameElement struct {
+	OverlayElementBase
+	Style         TextStyle `json:"style"`
+	IdleAnimation string    `json:"idle_animation"`
+	TriggerEnter  string    `json:"trigger_enter"`
+}
+
+type CounterElement struct {
+	OverlayElementBase
+	Style         TextStyle `json:"style"`
+	ShowLabel     bool      `json:"show_label"`
+	LabelText     string    `json:"label_text"`
+	LabelStyle    TextStyle `json:"label_style"`
+	IdleAnimation string    `json:"idle_animation"`
+	TriggerEnter  string    `json:"trigger_enter"`
+}
+
 type OverlaySettings struct {
-	Layout         string `json:"layout"`          // "horizontal", "vertical", "classic"
-	SpritePosition string `json:"sprite_position"` // "top", "bottom", "left", "right", "hidden"
-	FontSize       int    `json:"font_size"`
-	SpriteSize     int    `json:"sprite_size"`
-	FontFamily     string `json:"font_family"`
-	TextColor      string `json:"text_color"`
-	OutlineColor   string `json:"outline_color"`
-	OutlineWidth   int    `json:"outline_width"`
-	ShowName       bool   `json:"show_name"`
-	// ShowPhase removed
-	ShowEncounter      bool    `json:"show_encounter"`
-	ShowBorder         bool    `json:"show_border"`
-	Gap                int     `json:"gap"`
-	CustomFont         string  `json:"custom_font"`
-	GradientEnabled    bool    `json:"gradient_enabled"`
-	GradientColor      string  `json:"gradient_color"`
-	BackgroundColor    string  `json:"background_color"`
-	Opacity            float64 `json:"opacity"`
-	Blur               int     `json:"blur"`
-	AnimationIncrement string  `json:"animation_increment"`
-	AnimationDecrement string  `json:"animation_decrement"`
-	AnimationReset     string  `json:"animation_reset"`
-	ShowSpriteGlow     bool    `json:"show_sprite_glow"`
-	SpriteOnTop        bool    `json:"sprite_on_top"`
-	AnimationTarget    string  `json:"animation_target"` // "both", "sprite", "counter"
-	// Grouping
-	InnerLayout  string   `json:"inner_layout"`  // "horizontal", "vertical"
-	OuterElement string   `json:"outer_element"` // "sprite", "name", "counter", "none"
-	LayerOrder   []string `json:"layer_order"`   // ["sprite", "name", "counter"]
-	// Name styling
-	NameSize            int    `json:"name_size"`
-	NameColor           string `json:"name_color"`
-	NameOutlineColor    string `json:"name_outline_color"`
-	NameOutlineWidth    int    `json:"name_outline_width"`
-	NameGradientEnabled bool   `json:"name_gradient_enabled"`
-	NameGradientColor   string `json:"name_gradient_color"`
-	NameFontFamily      string `json:"name_font_family"`
-	NameCustomFont      string `json:"name_custom_font"`
+	CanvasWidth       int            `json:"canvas_width"`
+	CanvasHeight      int            `json:"canvas_height"`
+	BackgroundColor   string         `json:"background_color"`
+	BackgroundOpacity float64        `json:"background_opacity"`
+	Blur              int            `json:"blur"`
+	ShowBorder        bool           `json:"show_border"`
+	BorderColor       string         `json:"border_color"`
+	BorderRadius      int            `json:"border_radius"`
+	Sprite            SpriteElement  `json:"sprite"`
+	Name              NameElement    `json:"name"`
+	Counter           CounterElement `json:"counter"`
 }
 
 type Settings struct {
@@ -106,41 +137,59 @@ func NewManager(configDir string) *Manager {
 				AutoSave:    true,
 				BrowserPort: 8080,
 				Overlay: OverlaySettings{
-					Layout:         "horizontal",
-					SpritePosition: "left",
-					FontSize:       48,
-					SpriteSize:     120,
-					TextColor:      "#ffffff",
-					OutlineColor:   "#000000",
-					OutlineWidth:   2,
-					ShowName:       true,
-					// ShowPhase removed
-					ShowEncounter:       true,
-					ShowBorder:          true,
-					Gap:                 24,
-					CustomFont:          "",
-					GradientEnabled:     false,
-					GradientColor:       "#3b82f6",
-					BackgroundColor:     "#000000",
-					Opacity:             0.6,
-					Blur:                8,
-					AnimationIncrement:  "pop",
-					AnimationDecrement:  "shake",
-					AnimationReset:      "rotate",
-					ShowSpriteGlow:      true,
-					SpriteOnTop:         false,
-					AnimationTarget:     "both",
-					InnerLayout:         "vertical",
-					OuterElement:        "none",
-					LayerOrder:          []string{"sprite", "name", "counter"},
-					NameSize:            20,
-					NameColor:           "#94a3b8",
-					NameOutlineColor:    "#000000",
-					NameOutlineWidth:    0,
-					NameGradientEnabled: false,
-					NameGradientColor:   "#ffffff",
-					NameFontFamily:      "sans",
-					NameCustomFont:      "",
+					CanvasWidth:       800,
+					CanvasHeight:      200,
+					BackgroundColor:   "#000000",
+					BackgroundOpacity: 0.6,
+					Blur:              8,
+					ShowBorder:        true,
+					BorderColor:       "rgba(255,255,255,0.1)",
+					BorderRadius:      40,
+					Sprite: SpriteElement{
+						OverlayElementBase: OverlayElementBase{Visible: true, X: 10, Y: 10, Width: 180, Height: 180, ZIndex: 1},
+						ShowGlow:      true,
+						GlowColor:     "rgba(255,255,255,0.2)",
+						IdleAnimation: "float",
+						TriggerEnter:  "pop",
+					},
+					Name: NameElement{
+						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
+						Style: TextStyle{
+							FontFamily:   "sans",
+							FontSize:     20,
+							FontWeight:   400,
+							ColorType:    "solid",
+							Color:        "#94a3b8",
+							OutlineType:  "none",
+							OutlineColor: "#000000",
+						},
+						IdleAnimation: "none",
+						TriggerEnter:  "fade-in",
+					},
+					Counter: CounterElement{
+						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 80, Width: 300, Height: 100, ZIndex: 3},
+						Style: TextStyle{
+							FontFamily:   "pokemon",
+							FontSize:     80,
+							FontWeight:   700,
+							ColorType:    "solid",
+							Color:        "#ffffff",
+							OutlineType:  "solid",
+							OutlineWidth: 6,
+							OutlineColor: "#000000",
+						},
+						ShowLabel: false,
+						LabelText: "Begegnungen",
+						LabelStyle: TextStyle{
+							FontFamily: "sans",
+							FontSize:   14,
+							FontWeight: 400,
+							ColorType:  "solid",
+							Color:      "#94a3b8",
+						},
+						IdleAnimation: "none",
+						TriggerEnter:  "pop",
+					},
 				},
 			},
 			Hotkeys: HotkeyMap{

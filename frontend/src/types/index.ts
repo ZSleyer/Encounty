@@ -36,44 +36,76 @@ export interface HotkeyMap {
   next_pokemon: string;
 }
 
-export interface OverlaySettings {
-  layout: "horizontal" | "vertical" | "classic";
-  sprite_position: "top" | "bottom" | "left" | "right" | "hidden";
+export interface GradientStop {
+  color: string;
+  position: number; // 0-100
+}
+
+export interface TextStyle {
+  font_family: string;        // Google Font name or "sans"/"serif"/"monospace"/"pokemon"
   font_size: number;
-  sprite_size: number;
-  font_family: string;
-  text_color: string;
-  outline_color: string;
+  font_weight: number;        // 100–900
+  color_type: "solid" | "gradient";
+  color: string;
+  gradient_stops: GradientStop[];
+  gradient_angle: number;
+  outline_type: "none" | "solid";
   outline_width: number;
-  show_name: boolean;
-  // show_phase removed
-  show_encounter: boolean;
-  show_border: boolean;
-  gap: number;
-  custom_font: string;
-  gradient_enabled: boolean;
-  gradient_color: string;
+  outline_color: string;
+  text_shadow: boolean;
+  text_shadow_color: string;
+  text_shadow_blur: number;
+  text_shadow_x: number;
+  text_shadow_y: number;
+}
+
+export interface OverlayElementBase {
+  visible: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z_index: number;
+}
+
+export interface SpriteElement extends OverlayElementBase {
+  show_glow: boolean;
+  glow_color: string;
+  idle_animation: string;  // "none" | "float" | "pulse"
+  trigger_enter: string;   // "none" | "pop" | "shake" | "bounce" | "spin"
+  trigger_exit: string;    // "none" | "fade-out"
+}
+
+export interface NameElement extends OverlayElementBase {
+  style: TextStyle;
+  idle_animation: string;  // "none" | "shimmer"
+  trigger_enter: string;   // "none" | "slide-in" | "fade-in"
+}
+
+export interface CounterElement extends OverlayElementBase {
+  style: TextStyle;
+  show_label: boolean;
+  label_text: string;
+  label_style: TextStyle;
+  idle_animation: string;    // "none"
+  trigger_enter: string;     // "none" | "pop" | "count-flash"
+}
+
+export interface OverlaySettings {
+  // Canvas
+  canvas_width: number;
+  canvas_height: number;
   background_color: string;
-  opacity: number;
+  background_opacity: number;
   blur: number;
-  animation_increment: string;
-  animation_decrement: string;
-  animation_reset: string;
-  show_sprite_glow: boolean;
-  sprite_on_top: boolean;
-  animation_target: "both" | "sprite" | "counter";
-  inner_layout: "horizontal" | "vertical";
-  outer_element: "sprite" | "name" | "counter" | "none";
-  layer_order: string[];
-  // Name styling
-  name_size: number;
-  name_color: string;
-  name_outline_color: string;
-  name_outline_width: number;
-  name_gradient_enabled: boolean;
-  name_gradient_color: string;
-  name_font_family: string;
-  name_custom_font: string;
+  show_border: boolean;
+  border_color: string;
+  border_radius: number;
+
+  // Elements
+  sprite: SpriteElement;
+  name: NameElement;
+  counter: CounterElement;
 }
 
 export interface Settings {
