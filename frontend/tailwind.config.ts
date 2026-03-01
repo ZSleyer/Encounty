@@ -159,5 +159,14 @@ export default {
       },
     },
   },
+  safelist: [
+    // Dynamically resolved via JS objects in Overlay.tsx — must not be purged
+    'animate-overlay-pulse-idle', 'animate-overlay-rock', 'animate-overlay-bob',
+    'animate-overlay-breathe', 'animate-overlay-glow', 'animate-overlay-spin',
+    'animate-overlay-pop', 'animate-overlay-flash', 'animate-overlay-bounce',
+    'animate-overlay-shake', 'animate-overlay-slide-up', 'animate-overlay-flip',
+    'animate-overlay-rubber', 'animate-overlay-fade-in', 'animate-overlay-slide-in',
+    'animate-float',
+  ],
   plugins: [],
 } satisfies Config

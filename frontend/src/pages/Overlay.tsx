@@ -265,29 +265,25 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
 
   const counterMode = settings.counter.trigger_enter;
 
-  const canvasStyle: React.CSSProperties = previewSettings
-    ? {
-        position: "absolute",
-        inset: 0,
-        backgroundColor: bgWithOpacity,
-        backdropFilter: `blur(${settings.blur}px)`,
-        borderRadius: `${settings.border_radius}px`,
-        border: settings.show_border ? `2px solid ${settings.border_color}` : "none",
-        overflow: "hidden",
-      }
-    : {
-        position: "relative",
-        width: `${settings.canvas_width}px`,
-        height: `${settings.canvas_height}px`,
-        backgroundColor: bgWithOpacity,
-        backdropFilter: `blur(${settings.blur}px)`,
-        borderRadius: `${settings.border_radius}px`,
-        border: settings.show_border ? `2px solid ${settings.border_color}` : "none",
-        overflow: "hidden",
-      };
+  // Background and content are on separate layers so animated elements
+  // can overflow the card without being clipped (e.g. spin, bounce).
+  const outerStyle: React.CSSProperties = previewSettings
+    ? { position: "absolute", inset: 0 }
+    : { position: "relative", width: `${settings.canvas_width}px`, height: `${settings.canvas_height}px` };
+
+  const bgStyle: React.CSSProperties = {
+    position: "absolute", inset: 0, pointerEvents: "none",
+    backgroundColor: bgWithOpacity,
+    backdropFilter: `blur(${settings.blur}px)`,
+    borderRadius: `${settings.border_radius}px`,
+    border: settings.show_border ? `2px solid ${settings.border_color}` : "none",
+    overflow: "hidden",
+  };
 
   const canvas = (
-    <div style={canvasStyle}>
+    <div style={outerStyle}>
+      {/* Card background — clipped to border-radius, does NOT clip content */}
+      <div style={bgStyle} />
 
       {/* Sprite — outer div holds idle, inner keyed div holds trigger */}
       {settings.sprite.visible && (
@@ -321,8 +317,9 @@ export function Overlay({ previewSettings, previewPokemon, testTrigger }: Props)
                   position: "absolute",
                   inset: 0,
                   background: settings.sprite.glow_color,
+                  opacity: settings.sprite.glow_opacity ?? 0.2,
                   borderRadius: "50%",
-                  filter: "blur(20px)",
+                  filter: `blur(${settings.sprite.glow_blur ?? 20}px)`,
                 }}
               />
             )}

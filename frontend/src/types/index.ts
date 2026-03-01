@@ -70,10 +70,12 @@ export interface OverlayElementBase {
 
 export interface SpriteElement extends OverlayElementBase {
   show_glow: boolean;
-  glow_color: string;
-  idle_animation: string;  // "none" | "float" | "pulse"
-  trigger_enter: string;   // "none" | "pop" | "shake" | "bounce" | "spin"
-  trigger_exit: string;    // "none" | "fade-out"
+  glow_color: string;   // hex "#rrggbb"
+  glow_opacity: number; // 0–1
+  glow_blur: number;    // px
+  idle_animation: string;
+  trigger_enter: string;
+  trigger_exit: string;
 }
 
 export interface NameElement extends OverlayElementBase {

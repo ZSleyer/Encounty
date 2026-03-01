@@ -67,11 +67,13 @@ type OverlayElementBase struct {
 
 type SpriteElement struct {
 	OverlayElementBase
-	ShowGlow      bool   `json:"show_glow"`
-	GlowColor     string `json:"glow_color"`
-	IdleAnimation string `json:"idle_animation"`
-	TriggerEnter  string `json:"trigger_enter"`
-	TriggerExit   string `json:"trigger_exit"`
+	ShowGlow      bool    `json:"show_glow"`
+	GlowColor     string  `json:"glow_color"`
+	GlowOpacity   float64 `json:"glow_opacity"`
+	GlowBlur      int     `json:"glow_blur"`
+	IdleAnimation string  `json:"idle_animation"`
+	TriggerEnter  string  `json:"trigger_enter"`
+	TriggerExit   string  `json:"trigger_exit"`
 }
 
 type NameElement struct {
@@ -148,7 +150,9 @@ func NewManager(configDir string) *Manager {
 					Sprite: SpriteElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 10, Y: 10, Width: 180, Height: 180, ZIndex: 1},
 						ShowGlow:      true,
-						GlowColor:     "rgba(255,255,255,0.2)",
+						GlowColor:     "#ffffff",
+						GlowOpacity:   0.2,
+						GlowBlur:      20,
 						IdleAnimation: "float",
 						TriggerEnter:  "pop",
 					},

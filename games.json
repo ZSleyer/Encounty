@@ -84,37 +84,37 @@
     "platform": "NDS"
   },
   "pokemon-heartgold": {
-    "name_de": "Pokémon Herzgold",
+    "name_de": "Pokémon Goldene Edition HeartGold",
     "name_en": "Pokémon HeartGold",
     "generation": 4,
     "platform": "NDS"
   },
   "pokemon-soulsilver": {
-    "name_de": "Pokémon Silberne Seele",
+    "name_de": "Pokémon Silberne Edition SoulSilver",
     "name_en": "Pokémon SoulSilver",
     "generation": 4,
     "platform": "NDS"
   },
   "pokemon-black": {
-    "name_de": "Pokémon Schwarz",
+    "name_de": "Pokémon Schwarze Edition",
     "name_en": "Pokémon Black",
     "generation": 5,
     "platform": "NDS"
   },
   "pokemon-white": {
-    "name_de": "Pokémon Weiß",
+    "name_de": "Pokémon Weiße Edition",
     "name_en": "Pokémon White",
     "generation": 5,
     "platform": "NDS"
   },
   "pokemon-black2": {
-    "name_de": "Pokémon Schwarz 2",
+    "name_de": "Pokémon Schwarze Edition 2",
     "name_en": "Pokémon Black 2",
     "generation": 5,
     "platform": "NDS"
   },
   "pokemon-white2": {
-    "name_de": "Pokémon Weiß 2",
+    "name_de": "Pokémon Weiße Edition 2",
     "name_en": "Pokémon White 2",
     "generation": 5,
     "platform": "NDS"
@@ -220,5 +220,23 @@
     "name_en": "Pokémon Violet",
     "generation": 9,
     "platform": "Switch"
+  },
+  "pokemon-legends-za": {
+    "name_de": "Pokémon Legenden: Z-A",
+    "name_en": "Pokémon Legends: Z-A",
+    "generation": 9,
+    "platform": "Switch 2"
+  },
+  "pokemon-winds": {
+    "name_de": "Pokémon Wind",
+    "name_en": "Pokémon Winds",
+    "generation": 10,
+    "platform": "Switch 2"
+  },
+  "pokemon-waves": {
+    "name_de": "Pokémon Welle",
+    "name_en": "Pokémon Waves",
+    "generation": 10,
+    "platform": "Switch 2"
   }
 }

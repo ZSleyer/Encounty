@@ -48,7 +48,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   border_radius: 40,
   sprite: {
     visible: true, x: 10, y: 10, width: 180, height: 180, z_index: 1,
-    show_glow: true, glow_color: "rgba(255,255,255,0.2)",
+    show_glow: true, glow_color: "#ffffff", glow_opacity: 0.2, glow_blur: 20,
     idle_animation: "float", trigger_enter: "pop", trigger_exit: "none",
   },
   name: {
@@ -633,11 +633,19 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               <span className="text-xs text-gray-400">Glow</span>
             </label>
             {localSettings.sprite.show_glow && (
-              <div className="flex gap-2 items-center">
-                <label className="text-[10px] text-gray-500">Farbe</label>
-                <input type="color" value={localSettings.sprite.glow_color.replace(/rgba?\([^)]+\)/, "#ffffff") || "#ffffff"}
-                  onChange={(e) => update({ ...localSettings, sprite: { ...localSettings.sprite, glow_color: e.target.value + "33" } })}
-                  className="w-8 h-6 rounded cursor-pointer border-0" />
+              <div className="space-y-2">
+                <div className="flex gap-2 items-center">
+                  <label className="text-[10px] text-gray-500 w-12">Farbe</label>
+                  <input type="color" value={localSettings.sprite.glow_color || "#ffffff"}
+                    onChange={(e) => update({ ...localSettings, sprite: { ...localSettings.sprite, glow_color: e.target.value } })}
+                    className="w-8 h-6 rounded cursor-pointer border-0" />
+                </div>
+                <NumSlider label="Deckkraft" min={0} max={1} step={0.05}
+                  value={localSettings.sprite.glow_opacity ?? 0.2}
+                  onChange={(v) => update({ ...localSettings, sprite: { ...localSettings.sprite, glow_opacity: v } })} />
+                <NumSlider label="Blur" min={0} max={80} step={1}
+                  value={localSettings.sprite.glow_blur ?? 20}
+                  onChange={(v) => update({ ...localSettings, sprite: { ...localSettings.sprite, glow_blur: v } })} />
               </div>
             )}
             <div>
