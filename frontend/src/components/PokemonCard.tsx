@@ -86,6 +86,11 @@ export function PokemonCard({
             src={spriteUrl}
             alt={pokemon.name}
             className="w-full h-full object-contain pixelated relative z-10 drop-shadow-lg"
+            style={
+              pokemon.sprite_style && pokemon.sprite_style !== "classic"
+                ? undefined
+                : { imageRendering: "pixelated" as const }
+            }
             onError={() => setImgError(true)}
           />
         </div>

@@ -217,7 +217,11 @@ export function Dashboard() {
                             setImgError((prev) => ({ ...prev, [p.id]: true }))
                           }
                           className="w-full h-full object-contain"
-                          style={{ imageRendering: "pixelated" }}
+                          style={
+                            p.sprite_style && p.sprite_style !== "classic"
+                              ? undefined
+                              : { imageRendering: "pixelated" }
+                          }
                         />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -290,7 +294,12 @@ export function Dashboard() {
                     }))
                   }
                   className="w-40 h-40 object-contain relative z-10 drop-shadow-2xl"
-                  style={{ imageRendering: "pixelated" }}
+                  style={
+                    activePokemon.sprite_style &&
+                    activePokemon.sprite_style !== "classic"
+                      ? undefined
+                      : { imageRendering: "pixelated" }
+                  }
                 />
               </div>
 

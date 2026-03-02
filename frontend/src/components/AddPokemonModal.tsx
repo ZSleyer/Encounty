@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Search, Globe } from "lucide-react";
+import { X, Search, Globe, AlertTriangle } from "lucide-react";
 import { GameEntry, Language } from "../types";
-import { getSpriteUrl, SpriteType } from "../utils/sprites";
+import {
+  getSpriteUrl,
+  SpriteType,
+  SpriteStyle,
+  SPRITE_STYLES,
+  isSpriteStyleAvailable,
+  bestAvailableStyle,
+} from "../utils/sprites";
 import { getGameName } from "../utils/games";
 
 interface Props {
@@ -15,6 +22,7 @@ export interface NewPokemonData {
   canonical_name: string;
   sprite_url: string;
   sprite_type: SpriteType;
+  sprite_style: SpriteStyle;
   language: Language;
   game: string;
 }
@@ -37,7 +45,7 @@ interface SearchResult {
   canonical: string;
   names?: Record<string, string>;
   isForm: boolean;
-  spriteId: number; // numeric ID used for sprite URL
+  spriteId: number;
 }
 
 function getPkmnName(
@@ -65,6 +73,7 @@ export function AddPokemonModal({
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [allPokemon, setAllPokemon] = useState<PokemonData[]>([]);
+  const [missingNames, setMissingNames] = useState(false);
 
   const [selected, setSelected] = useState<{
     id: number;
@@ -75,18 +84,28 @@ export function AddPokemonModal({
   } | null>(null);
   const [customSprite, setCustomSprite] = useState("");
   const [spriteType, setSpriteType] = useState<SpriteType>("shiny");
+  const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>("classic");
 
   const [games, setGames] = useState<GameEntry[]>([]);
   const [selectedGame, setSelectedGame] = useState("");
 
-  // Open dialog + load data on mount
+  // Get the generation for the currently selected game
+  const selectedGameGen: number | null =
+    games.find((g) => g.key === selectedGame)?.generation ?? null;
+
   useEffect(() => {
     dialogRef.current?.showModal();
     inputRef.current?.focus();
 
     fetch("/api/pokedex")
       .then((r) => r.json())
-      .then((data) => setAllPokemon(data))
+      .then((data: PokemonData[]) => {
+        setAllPokemon(data);
+        const hasNames = data.some(
+          (p) => p.names && Object.keys(p.names).length > 0,
+        );
+        setMissingNames(!hasNames);
+      })
       .catch(() => {});
 
     fetch("/api/games")
@@ -95,7 +114,16 @@ export function AddPokemonModal({
       .catch(() => {});
   }, []);
 
-  // Build flat search list including forms
+  // Auto-switch style when game changes and current style is unavailable
+  useEffect(() => {
+    if (selectedGameGen != null) {
+      const best = bestAvailableStyle(spriteStyle, selectedGameGen);
+      if (best !== spriteStyle) {
+        setSpriteStyle(best);
+      }
+    }
+  }, [selectedGameGen]);
+
   const buildSearchList = (data: PokemonData[]): SearchResult[] => {
     const results: SearchResult[] = [];
     for (const p of data) {
@@ -121,40 +149,38 @@ export function AddPokemonModal({
     return results;
   };
 
-  // Autocomplete: match name in ANY language or canonical slug
   useEffect(() => {
     const q = query.trim().toLowerCase();
     if (!q) {
       setSuggestions([]);
       return;
     }
-
     const searchList = buildSearchList(allPokemon);
     const results = searchList
       .filter((p) => {
         if (p.canonical.includes(q)) return true;
-        const nameValues = p.names ? Object.values(p.names) : [];
-        const matchesName = nameValues.some((name) =>
-          name.toLowerCase().includes(q),
-        );
-        if (matchesName) return true;
+        if (p.names) {
+          for (const name of Object.values(p.names)) {
+            if (name?.toLowerCase().includes(q)) return true;
+          }
+        }
+        if (q.match(/^\d+$/) && p.spriteId === parseInt(q, 10)) return true;
         return false;
       })
       .slice(0, 12);
-
     setSuggestions(results);
   }, [query, allPokemon]);
 
   const selectPokemon = (p: SearchResult) => {
     setSuggestions([]);
     setQuery(getPkmnName(p, language));
-
     const sprite = getSpriteUrl(
       p.spriteId.toString(),
       selectedGame,
       spriteType,
+      spriteStyle,
+      p.canonical,
     );
-
     setSelected({
       id: p.id,
       canonical: p.canonical,
@@ -165,18 +191,19 @@ export function AddPokemonModal({
     setCustomSprite(sprite);
   };
 
-  // Update sprite when game or spriteType changes
   useEffect(() => {
     if (selected) {
       const newSprite = getSpriteUrl(
         selected.spriteId.toString(),
         selectedGame,
         spriteType,
+        spriteStyle,
+        selected.canonical,
       );
       setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
       setCustomSprite(newSprite);
     }
-  }, [selectedGame, spriteType, selected?.spriteId]); // Added selected?.spriteId to dependencies
+  }, [selectedGame, spriteType, spriteStyle, selected?.spriteId]);
 
   const handleAdd = () => {
     if (!selected || !selectedGame) return;
@@ -185,6 +212,7 @@ export function AddPokemonModal({
       canonical_name: selected.canonical,
       sprite_url: customSprite || selected.sprite,
       sprite_type: spriteType,
+      sprite_style: spriteStyle,
       language,
       game: selectedGame,
     });
@@ -197,8 +225,6 @@ export function AddPokemonModal({
   };
 
   const activeName = selected ? selected.name : "";
-
-  // Available language buttons for Pokemon names
   const availableLangs = activeLanguages.length > 0 ? activeLanguages : ["en"];
 
   const genGroups = games.reduce<Record<number, GameEntry[]>>((acc, g) => {
@@ -213,7 +239,6 @@ export function AddPokemonModal({
       onCancel={handleCancel}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-lg animate-slide-in backdrop:bg-black/70"
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <h2 className="text-lg font-bold text-white">Pokémon hinzufügen</h2>
         <button
@@ -224,7 +249,18 @@ export function AddPokemonModal({
         </button>
       </div>
 
-      {/* Language toggle */}
+      {missingNames && (
+        <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-900/20 border border-amber-700/30 text-amber-300 text-xs">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <span>
+            Pokémon-Namen sind nicht lokalisiert. Bitte synchronisiere die
+            Pokémon-Daten unter{" "}
+            <strong>Einstellungen → Pokémon-Daten aktualisieren</strong>, um in
+            allen Sprachen suchen zu können.
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 mb-4">
         <Globe className="w-4 h-4 text-gray-500" />
         <span className="text-xs text-gray-500">Lokalisierung:</span>
@@ -234,19 +270,15 @@ export function AddPokemonModal({
             onClick={() => {
               setLanguage(lang as Language);
               if (selected) {
-                // Find complete data from search list
                 const searchList = buildSearchList(allPokemon);
                 const fullP = searchList.find(
                   (p) =>
                     p.spriteId === selected.spriteId &&
                     p.canonical === selected.canonical,
-                ); // Added canonical check for forms
+                );
                 if (fullP) {
                   setQuery(getPkmnName(fullP, lang));
-                  setSelected({
-                    ...selected,
-                    name: getPkmnName(fullP, lang),
-                  });
+                  setSelected({ ...selected, name: getPkmnName(fullP, lang) });
                 }
               }
             }}
@@ -261,7 +293,6 @@ export function AddPokemonModal({
         ))}
       </div>
 
-      {/* Search */}
       <div className="relative mb-4">
         <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2">
           <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
@@ -304,7 +335,6 @@ export function AddPokemonModal({
         )}
       </div>
 
-      {/* Preview */}
       {selected && (
         <div className="flex items-center gap-4 bg-bg-secondary rounded-lg p-4 mb-4">
           <div className="w-20 h-20 bg-bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
@@ -313,7 +343,11 @@ export function AddPokemonModal({
                 src={customSprite || selected.sprite}
                 alt={activeName}
                 className="w-full h-full object-contain"
-                style={{ imageRendering: "pixelated" }}
+                style={
+                  spriteStyle === "classic"
+                    ? { imageRendering: "pixelated" }
+                    : undefined
+                }
               />
             ) : (
               <span className="text-3xl">?</span>
@@ -324,14 +358,46 @@ export function AddPokemonModal({
             <p className="text-xs text-gray-500 capitalize">
               {selected.canonical}
             </p>
-            {/* Removed hardcoded DE/EN names, as 'name' now holds the selected language name */}
           </div>
         </div>
       )}
 
-      {/* Sprite type */}
+      {/* Sprite style — with generation-aware availability */}
       <div className="mb-4">
-        <span className="block text-xs text-gray-500 mb-2">Sprite-Typ:</span>
+        <span className="block text-xs text-gray-500 mb-2">Sprite-Stil:</span>
+        <div className="grid grid-cols-4 gap-2">
+          {SPRITE_STYLES.map((s) => {
+            const available = isSpriteStyleAvailable(s.key, selectedGameGen);
+            return (
+              <button
+                key={s.key}
+                onClick={() => available && setSpriteStyle(s.key)}
+                disabled={!available}
+                title={
+                  available
+                    ? s.desc
+                    : `Nicht verfügbar für Gen ${selectedGameGen}`
+                }
+                className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border ${
+                  !available
+                    ? "bg-bg-dark/50 text-gray-700 border-border-subtle/50 cursor-not-allowed opacity-40"
+                    : spriteStyle === s.key
+                      ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
+                      : "bg-bg-dark text-gray-500 border-border-subtle hover:text-gray-300"
+                }`}
+              >
+                <span className="text-sm">{s.label}</span>
+                <span className="text-[10px] text-gray-600 leading-tight text-center">
+                  {s.desc}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <span className="block text-xs text-gray-500 mb-2">Farb-Variante:</span>
         <div className="flex gap-3">
           {(["shiny", "normal"] as SpriteType[]).map((t) => (
             <label key={t} className="flex items-center gap-2 cursor-pointer">
@@ -353,7 +419,6 @@ export function AddPokemonModal({
         </div>
       </div>
 
-      {/* Custom sprite */}
       <div className="mb-4">
         <label
           htmlFor="custom-sprite-add"
@@ -371,7 +436,6 @@ export function AddPokemonModal({
         />
       </div>
 
-      {/* Game Selection */}
       <div className="mb-5">
         <label
           htmlFor="game-select-add"
@@ -398,7 +462,6 @@ export function AddPokemonModal({
         </select>
       </div>
 
-      {/* Actions */}
       <div className="flex gap-3">
         <button
           onClick={handleCancel}

@@ -423,7 +423,11 @@ export function Overlay({
                 width: "100%",
                 height: "100%",
                 objectFit: "contain",
-                imageRendering: "pixelated",
+                imageRendering:
+                  activePokemon.sprite_style &&
+                  activePokemon.sprite_style !== "classic"
+                    ? undefined
+                    : ("pixelated" as const),
                 position: "relative",
                 zIndex: 1,
               }}

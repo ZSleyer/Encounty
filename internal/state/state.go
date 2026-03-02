@@ -10,7 +10,8 @@ type Pokemon struct {
 	Name          string           `json:"name"`           // Display name (localized)
 	CanonicalName string           `json:"canonical_name"` // English PokéAPI slug
 	SpriteURL     string           `json:"sprite_url"`
-	SpriteType    string           `json:"sprite_type"` // "normal" | "shiny"
+	SpriteType    string           `json:"sprite_type"`            // "normal" | "shiny"
+	SpriteStyle   string           `json:"sprite_style,omitempty"` // "classic" | "animated" | "3d" | "artwork"
 	Encounters    int              `json:"encounters"`
 	IsActive      bool             `json:"is_active"`
 	CreatedAt     time.Time        `json:"created_at"`
@@ -272,6 +273,8 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 			if update.SpriteType != "" {
 				m.state.Pokemon[i].SpriteType = update.SpriteType
 			}
+			// Always update SpriteStyle (allow clearing to "" which means "classic")
+			m.state.Pokemon[i].SpriteStyle = update.SpriteStyle
 			if update.Language != "" {
 				m.state.Pokemon[i].Language = update.Language
 			}

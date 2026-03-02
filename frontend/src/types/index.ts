@@ -4,6 +4,7 @@ export interface Pokemon {
   canonical_name: string; // English PokéAPI slug
   sprite_url: string;
   sprite_type: "normal" | "shiny";
+  sprite_style?: "classic" | "animated" | "3d" | "artwork";
   encounters: number;
   is_active: boolean;
   created_at: string;
