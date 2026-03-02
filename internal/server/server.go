@@ -111,6 +111,12 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		case strings.HasSuffix(path, "/activate"):
 			id := pokemonIDFromPath(path, "/api/pokemon/", "/activate")
 			s.handleActivate(w, r, id)
+		case strings.HasSuffix(path, "/complete"):
+			id := pokemonIDFromPath(path, "/api/pokemon/", "/complete")
+			s.handleCompletePokemon(w, r, id)
+		case strings.HasSuffix(path, "/uncomplete"):
+			id := pokemonIDFromPath(path, "/api/pokemon/", "/uncomplete")
+			s.handleUncompletePokemon(w, r, id)
 		default:
 			id := pokemonIDFromPath(path, "/api/pokemon/", "")
 			switch r.Method {

@@ -15,8 +15,9 @@ type Pokemon struct {
 	Encounters    int              `json:"encounters"`
 	IsActive      bool             `json:"is_active"`
 	CreatedAt     time.Time        `json:"created_at"`
-	Language      string           `json:"language"`          // "de" | "en"
-	Game          string           `json:"game"`              // key from games.json
+	Language      string           `json:"language"` // "de" | "en"
+	Game          string           `json:"game"`     // key from games.json
+	CompletedAt   *time.Time       `json:"completed_at,omitempty"`
 	Overlay       *OverlaySettings `json:"overlay,omitempty"` // Pokemon-specific overlay settings
 }
 
@@ -375,6 +376,33 @@ func (m *Manager) SetActive(id string) bool {
 	}
 	go m.notify()
 	return true
+}
+
+func (m *Manager) CompletePokemon(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			now := time.Now()
+			m.state.Pokemon[i].CompletedAt = &now
+			go m.notify()
+			return true
+		}
+	}
+	return false
+}
+
+func (m *Manager) UncompletePokemon(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			m.state.Pokemon[i].CompletedAt = nil
+			go m.notify()
+			return true
+		}
+	}
+	return false
 }
 
 func (m *Manager) NextPokemon() {

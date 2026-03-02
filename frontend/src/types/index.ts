@@ -10,6 +10,7 @@ export interface Pokemon {
   created_at: string;
   language: Language; // "de" | "en"
   game: string; // key from games.json
+  completed_at?: string; // ISO timestamp when hunt completed
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
 }
 

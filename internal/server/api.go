@@ -122,6 +122,26 @@ func (s *Server) handleActivate(w http.ResponseWriter, _ *http.Request, id strin
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) handleCompletePokemon(w http.ResponseWriter, _ *http.Request, id string) {
+	if !s.state.CompletePokemon(id) {
+		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		return
+	}
+	s.state.ScheduleSave()
+	s.broadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleUncompletePokemon(w http.ResponseWriter, _ *http.Request, id string) {
+	if !s.state.UncompletePokemon(id) {
+		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		return
+	}
+	s.state.ScheduleSave()
+	s.broadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 	st := s.state.GetState()
 	writeJSON(w, http.StatusOK, st.Sessions)
@@ -242,6 +262,20 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 		var p idPayload
 		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
 			s.state.SetActive(p.PokemonID)
+			s.state.ScheduleSave()
+			s.broadcastState()
+		}
+	case "complete":
+		var p idPayload
+		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
+			s.state.CompletePokemon(p.PokemonID)
+			s.state.ScheduleSave()
+			s.broadcastState()
+		}
+	case "uncomplete":
+		var p idPayload
+		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
+			s.state.UncompletePokemon(p.PokemonID)
 			s.state.ScheduleSave()
 			s.broadcastState()
 		}

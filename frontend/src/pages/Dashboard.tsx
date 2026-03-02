@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus,
-  Wifi,
-  WifiOff,
   Star,
   Minus,
   RotateCcw,
@@ -10,9 +8,14 @@ import {
   Zap,
   Edit2,
   Gamepad2,
+  Search,
+  Trophy,
+  Archive,
+  Undo2,
+  Sparkles,
 } from "lucide-react";
 import { AddPokemonModal, NewPokemonData } from "../components/AddPokemonModal";
-import { EditPokemonModal } from "../components/EditPokemonModal";
+import { EditPokemonPanel, UpdateData } from "../components/EditPokemonPanel";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -39,13 +42,20 @@ function useDuration(start: Date) {
   return elapsed;
 }
 
+type SidebarTab = "active" | "archived";
+
 export function Dashboard() {
   const { appState, isConnected, flashPokemon } = useCounterStore();
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingPokemon, setEditingPokemon] = useState<Pokemon | null>(null);
+  const [editingPokemonId, setEditingPokemonId] = useState<string | null>(null);
   const [imgError, setImgError] = useState<Record<string, boolean>>({});
   const [sessionStart] = useState(new Date());
   const elapsed = useDuration(sessionStart);
+
+  // Sidebar state
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("active");
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -62,6 +72,18 @@ export function Dashboard() {
   });
 
   const { send } = useWebSocket(() => {});
+
+  // Cmd+K / Ctrl+K shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const handleIncrement = (id: string) => {
     send("increment", { pokemon_id: id });
@@ -91,6 +113,12 @@ export function Dashboard() {
       },
     });
   };
+  const handleComplete = async (id: string) => {
+    await fetch(`${API}/pokemon/${id}/complete`, { method: "POST" });
+  };
+  const handleUncomplete = async (id: string) => {
+    await fetch(`${API}/pokemon/${id}/uncomplete`, { method: "POST" });
+  };
   const handleAddPokemon = async (data: NewPokemonData) => {
     await fetch(`${API}/pokemon`, {
       method: "POST",
@@ -99,7 +127,7 @@ export function Dashboard() {
     });
     setShowAddModal(false);
   };
-  const handleSavePokemon = async (id: string, data: NewPokemonData) => {
+  const handleSavePokemon = async (id: string, data: UpdateData) => {
     const p = appState!.pokemon.find((x) => x.id === id);
     const payload = { ...data, overlay: p?.overlay };
     await fetch(`${API}/pokemon/${id}`, {
@@ -107,7 +135,7 @@ export function Dashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    setEditingPokemon(null);
+    setEditingPokemonId(null);
   };
 
   if (!appState) {
@@ -126,6 +154,29 @@ export function Dashboard() {
   const totalEncounters = appState.pokemon.reduce(
     (s, p) => s + p.encounters,
     0,
+  );
+  const editingPokemon = editingPokemonId
+    ? (appState.pokemon.find((p) => p.id === editingPokemonId) ?? null)
+    : null;
+
+  // Split Pokémon into active hunts and archived
+  const activeHunts = appState.pokemon.filter((p) => !p.completed_at);
+  const archivedHunts = appState.pokemon.filter((p) => !!p.completed_at);
+
+  // Filter by search query
+  const q = searchQuery.trim().toLowerCase();
+  const filterPokemon = (list: Pokemon[]) =>
+    q
+      ? list.filter(
+          (p) =>
+            p.name.toLowerCase().includes(q) ||
+            p.canonical_name.toLowerCase().includes(q) ||
+            (p.game && p.game.toLowerCase().includes(q)),
+        )
+      : list;
+
+  const displayList = filterPokemon(
+    sidebarTab === "active" ? activeHunts : archivedHunts,
   );
 
   const formatGame = (game: string) =>
@@ -166,37 +217,126 @@ export function Dashboard() {
 
       {/* Body: split layout */}
       <div className="flex flex-1 overflow-hidden">
-        {/* LEFT: Pokemon list */}
+        {/* LEFT: Pokemon sidebar */}
         <aside className="w-72 flex-shrink-0 border-r border-border-subtle bg-bg-secondary flex flex-col">
-          <div className="p-4 border-b border-border-subtle flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Pokémon
-            </span>
+          {/* Search bar */}
+          <div className="p-3 border-b border-border-subtle">
+            <div className="flex items-center gap-2 bg-bg-dark border border-border-subtle rounded-lg px-3 py-2">
+              <Search className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Suchen… (Ctrl+K)"
+                className="flex-1 bg-transparent text-white placeholder-gray-600 outline-none text-xs"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-gray-500 hover:text-white text-xs"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Tabs: Aktiv | Archiv */}
+          <div className="flex border-b border-border-subtle">
             <button
-              onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-accent-blue hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors"
+              onClick={() => setSidebarTab("active")}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors relative ${
+                sidebarTab === "active"
+                  ? "text-accent-blue"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
             >
-              <Plus className="w-3.5 h-3.5" />
-              Hinzufügen
+              <span className="flex items-center justify-center gap-1.5">
+                <Sparkles className="w-3 h-3" />
+                Aktiv
+                {activeHunts.length > 0 && (
+                  <span className="bg-accent-blue/20 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-full tabular-nums">
+                    {activeHunts.length}
+                  </span>
+                )}
+              </span>
+              {sidebarTab === "active" && (
+                <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-blue rounded-full" />
+              )}
+            </button>
+            <button
+              onClick={() => setSidebarTab("archived")}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors relative ${
+                sidebarTab === "archived"
+                  ? "text-accent-green"
+                  : "text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              <span className="flex items-center justify-center gap-1.5">
+                <Trophy className="w-3 h-3" />
+                Archiv
+                {archivedHunts.length > 0 && (
+                  <span className="bg-accent-green/20 text-accent-green text-[10px] px-1.5 py-0.5 rounded-full tabular-nums">
+                    {archivedHunts.length}
+                  </span>
+                )}
+              </span>
+              {sidebarTab === "archived" && (
+                <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-green rounded-full" />
+              )}
             </button>
           </div>
 
+          {/* Pokémon list */}
           <div className="flex-1 overflow-y-auto">
-            {appState.pokemon.length === 0 ? (
+            {displayList.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-                <div className="text-4xl mb-3">🎮</div>
-                <p className="text-sm text-gray-500">Noch kein Pokémon</p>
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="mt-4 text-xs text-accent-blue hover:underline"
-                >
-                  Erstes Pokémon hinzufügen →
-                </button>
+                {q ? (
+                  <>
+                    <div className="text-3xl mb-3">🔍</div>
+                    <p className="text-sm text-gray-500">
+                      Kein Treffer für „{q}"
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSearchQuery("");
+                        setShowAddModal(true);
+                      }}
+                      className="mt-3 text-xs text-accent-blue hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Neues Pokémon hinzufügen
+                    </button>
+                  </>
+                ) : sidebarTab === "active" ? (
+                  <>
+                    <div className="text-4xl mb-3">🎮</div>
+                    <p className="text-sm text-gray-500">Noch kein Pokémon</p>
+                    <button
+                      onClick={() => setShowAddModal(true)}
+                      className="mt-4 text-xs text-accent-blue hover:underline"
+                    >
+                      Erstes Pokémon hinzufügen →
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-4xl mb-3">🏆</div>
+                    <p className="text-sm text-gray-500">
+                      Noch keine Hunts archiviert
+                    </p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Markiere gefundene Shinys mit „Gefangen!"
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
-              <ul className="py-2">
-                {appState.pokemon.map((p) => {
+              <ul className="py-1">
+                {displayList.map((p) => {
                   const isActive = p.id === appState.active_id;
+                  const isArchived = !!p.completed_at;
                   const src =
                     imgError[p.id] || !p.sprite_url ? FALLBACK : p.sprite_url;
                   return (
@@ -207,7 +347,7 @@ export function Dashboard() {
                         isActive
                           ? "bg-accent-blue/10 border-r-2 border-accent-blue"
                           : "hover:bg-bg-hover"
-                      }`}
+                      } ${isArchived ? "opacity-70" : ""}`}
                     >
                       <div className="w-9 h-9 flex-shrink-0 relative">
                         <img
@@ -223,10 +363,15 @@ export function Dashboard() {
                               : { imageRendering: "pixelated" }
                           }
                         />
+                        {isArchived && (
+                          <div className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-full p-0.5">
+                            <Trophy className="w-2.5 h-2.5 text-white" />
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          {isActive && (
+                          {isActive && !isArchived && (
                             <Star className="w-3 h-3 text-accent-blue fill-accent-blue flex-shrink-0" />
                           )}
                           <span className="text-sm font-semibold text-white truncate capitalize">
@@ -248,9 +393,10 @@ export function Dashboard() {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setEditingPokemon(p);
+                            setEditingPokemonId(p.id);
                           }}
                           className="p-1 rounded hover:bg-bg-secondary text-gray-500 hover:text-white transition-colors"
+                          title="Bearbeiten"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
@@ -261,11 +407,34 @@ export function Dashboard() {
               </ul>
             )}
           </div>
+
+          {/* Add button (always visible at bottom of active tab) */}
+          {sidebarTab === "active" && (
+            <div className="p-3 border-t border-border-subtle">
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="w-full flex items-center justify-center gap-1.5 py-2 bg-accent-blue hover:bg-blue-500 text-white rounded-lg text-xs font-semibold transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Pokémon hinzufügen
+              </button>
+            </div>
+          )}
         </aside>
 
-        {/* RIGHT: Active Pokemon detail */}
+        {/* RIGHT: Active Pokemon detail or Edit panel */}
         <main className="flex-1 flex flex-col overflow-hidden bg-bg-primary">
-          {!activePokemon ? (
+          {editingPokemon ? (
+            /* Inline edit panel */
+            <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+              <EditPokemonPanel
+                pokemon={editingPokemon}
+                onSave={handleSavePokemon}
+                onCancel={() => setEditingPokemonId(null)}
+                activeLanguages={appState.settings.languages ?? ["de", "en"]}
+              />
+            </div>
+          ) : !activePokemon ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="text-6xl mb-4">✨</div>
               <h2 className="text-xl font-semibold text-white mb-2">
@@ -277,6 +446,20 @@ export function Dashboard() {
             </div>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-8 gap-8">
+              {/* Archived banner */}
+              {activePokemon.completed_at && (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-green/10 border border-accent-green/20 text-accent-green text-sm">
+                  <Trophy className="w-4 h-4" />
+                  <span className="font-semibold">Gefangen!</span>
+                  <span className="text-accent-green/60 text-xs">
+                    {new Date(activePokemon.completed_at).toLocaleDateString(
+                      "de-DE",
+                      { day: "2-digit", month: "short", year: "numeric" },
+                    )}
+                  </span>
+                </div>
+              )}
+
               {/* Sprite */}
               <div className="relative flex items-center justify-center">
                 <div className="absolute inset-0 bg-accent-blue/5 rounded-full blur-3xl scale-150" />
@@ -329,39 +512,60 @@ export function Dashboard() {
               </div>
 
               {/* Controls */}
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => handleDecrement(activePokemon.id)}
-                  className="flex items-center justify-center w-14 h-14 rounded-2xl bg-bg-card border border-border-subtle hover:border-accent-blue/30 hover:bg-bg-hover text-gray-400 hover:text-white transition-all"
-                  title="−1"
-                >
-                  <Minus className="w-6 h-6" />
-                </button>
-                <button
-                  onClick={() => handleIncrement(activePokemon.id)}
-                  className="flex items-center justify-center w-20 h-20 rounded-2xl bg-accent-blue hover:bg-blue-500 text-white shadow-lg shadow-accent-blue/20 transition-all hover:scale-105 active:scale-95"
-                  title="+1"
-                >
-                  <Plus className="w-8 h-8" />
-                </button>
-                <button
-                  onClick={() => handleReset(activePokemon.id)}
-                  className="flex items-center justify-center w-14 h-14 rounded-2xl bg-bg-card border border-border-subtle hover:border-red-500/30 hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-all"
-                  title="Reset"
-                >
-                  <RotateCcw className="w-5 h-5" />
-                </button>
-              </div>
+              {!activePokemon.completed_at && (
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => handleDecrement(activePokemon.id)}
+                    className="flex items-center justify-center w-14 h-14 rounded-2xl bg-bg-card border border-border-subtle hover:border-accent-blue/30 hover:bg-bg-hover text-gray-400 hover:text-white transition-all"
+                    title="−1"
+                  >
+                    <Minus className="w-6 h-6" />
+                  </button>
+                  <button
+                    onClick={() => handleIncrement(activePokemon.id)}
+                    className="flex items-center justify-center w-20 h-20 rounded-2xl bg-accent-blue hover:bg-blue-500 text-white shadow-lg shadow-accent-blue/20 transition-all hover:scale-105 active:scale-95"
+                    title="+1"
+                  >
+                    <Plus className="w-8 h-8" />
+                  </button>
+                  <button
+                    onClick={() => handleReset(activePokemon.id)}
+                    className="flex items-center justify-center w-14 h-14 rounded-2xl bg-bg-card border border-border-subtle hover:border-red-500/30 hover:bg-red-500/10 text-gray-400 hover:text-red-400 transition-all"
+                    title="Reset"
+                  >
+                    <RotateCcw className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
 
               {/* Action row */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap justify-center">
                 <button
-                  onClick={() => setEditingPokemon(activePokemon)}
+                  onClick={() => setEditingPokemonId(activePokemon.id)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-card border border-border-subtle hover:border-accent-blue/30 text-gray-400 hover:text-white text-sm transition-colors"
                 >
                   <Edit2 className="w-4 h-4" />
                   Bearbeiten
                 </button>
+
+                {!activePokemon.completed_at ? (
+                  <button
+                    onClick={() => handleComplete(activePokemon.id)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-green/10 border border-accent-green/20 hover:bg-accent-green/20 text-accent-green text-sm font-semibold transition-colors"
+                  >
+                    <Trophy className="w-4 h-4" />
+                    🎉 Gefangen!
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleUncomplete(activePokemon.id)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-card border border-border-subtle hover:border-amber-500/30 text-gray-400 hover:text-amber-400 text-sm transition-colors"
+                  >
+                    <Undo2 className="w-4 h-4" />
+                    Reaktivieren
+                  </button>
+                )}
+
                 <button
                   onClick={() => handleDelete(activePokemon.id)}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-card border border-border-subtle hover:border-red-500/30 hover:bg-red-500/10 text-gray-400 hover:text-red-400 text-sm transition-colors"
@@ -379,14 +583,6 @@ export function Dashboard() {
         <AddPokemonModal
           onAdd={handleAddPokemon}
           onClose={() => setShowAddModal(false)}
-          activeLanguages={appState.settings.languages ?? ["de", "en"]}
-        />
-      )}
-      {editingPokemon && (
-        <EditPokemonModal
-          pokemon={editingPokemon}
-          onSave={handleSavePokemon}
-          onClose={() => setEditingPokemon(null)}
           activeLanguages={appState.settings.languages ?? ["de", "en"]}
         />
       )}
