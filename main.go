@@ -61,7 +61,9 @@ func main() {
 
 	// Hotkey manager
 	hotkeyMgr := hotkeys.New(stateMgr)
-	hotkeyMgr.Start()
+	if err := hotkeyMgr.Start(); err != nil {
+		log.Printf("Warning: global hotkeys unavailable: %v", err)
+	}
 
 	// Frontend FS
 	var frontFS fs.FS
@@ -112,9 +114,7 @@ func main() {
 		// immediately instead of waiting for persistent connections to time out.
 		srv.Hub().CloseAll()
 
-		if hm := hotkeyMgr; hm != nil {
-			hm.Stop()
-		}
+		hotkeyMgr.Stop()
 		if err := stateMgr.Save(); err != nil {
 			log.Printf("Save error: %v", err)
 		}

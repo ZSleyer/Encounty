@@ -16,7 +16,7 @@ import (
 type Server struct {
 	state      *state.Manager
 	hub        *Hub
-	hotkeyMgr  *hotkeys.Manager
+	hotkeyMgr  hotkeys.Manager
 	fileWriter *fileoutput.Writer
 	httpServer *http.Server
 	frontendFS fs.FS
@@ -26,7 +26,7 @@ type Config struct {
 	Port       int
 	FrontendFS fs.FS
 	State      *state.Manager
-	HotkeyMgr  *hotkeys.Manager
+	HotkeyMgr  hotkeys.Manager
 	FileWriter *fileoutput.Writer
 }
 
@@ -40,9 +40,7 @@ func New(cfg Config) *Server {
 	}
 
 	// Wire hotkey actions to state changes
-	if cfg.HotkeyMgr != nil {
-		go s.processHotkeyActions(cfg.HotkeyMgr.Actions())
-	}
+	go s.processHotkeyActions(cfg.HotkeyMgr.Actions())
 
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
@@ -68,6 +66,15 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/hotkeys", s.handleUpdateHotkeys)
 	mux.HandleFunc("/api/hotkeys/pause", s.handleHotkeysPause)
 	mux.HandleFunc("/api/hotkeys/resume", s.handleHotkeysResume)
+	mux.HandleFunc("/api/hotkeys/status", s.handleHotkeysStatus)
+	mux.HandleFunc("/api/hotkeys/", func(w http.ResponseWriter, r *http.Request) {
+		action := strings.TrimPrefix(r.URL.Path, "/api/hotkeys/")
+		if r.Method == http.MethodPut {
+			s.handleUpdateSingleHotkey(w, r, action)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
 	mux.HandleFunc("/api/overlay/state", s.handleOverlayState)
 	mux.HandleFunc("/api/games", s.handleGetGames)
 	mux.HandleFunc("/api/games/sync", s.handleSyncGames)

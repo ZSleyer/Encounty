@@ -37,7 +37,6 @@ export function Settings() {
   const [settings, setSettings] = useState<SettingsType | null>(null);
   const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(null);
   const [saved, setSaved] = useState(false);
-  const [hotkeyError, setHotkeyError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
   const [gamesSyncing, setGamesSyncing] = useState(false);
@@ -88,10 +87,11 @@ export function Settings() {
     JSON.stringify(settings?.languages),
   ]);
 
-  // Pause hotkeys (fully unregisters X11 grabs) when on overlay or hotkeys tab,
-  // so the browser can receive all keydown events without interference.
+  // Pause hotkeys (fully unregisters X11 grabs) only on overlay tab,
+  // so the browser can receive all keydown events for the overlay editor.
+  // On the hotkeys tab, HotkeySettings pauses/resumes per recording session.
   useEffect(() => {
-    if (activeTab === "overlay" || activeTab === "hotkeys") {
+    if (activeTab === "overlay") {
       fetch(`${API}/hotkeys/pause`, { method: "POST" }).catch(() => {});
     } else {
       fetch(`${API}/hotkeys/resume`, { method: "POST" }).catch(() => {});
@@ -107,16 +107,6 @@ export function Settings() {
 
   const activePokemon =
     appState?.pokemon.find((p) => p.id === appState.active_id) ?? null;
-
-  const saveSettings = async () => {
-    await fetch(`${API}/settings`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
 
   const quitApp = async () => {
     if (!confirm("Encounty wirklich beenden?")) return;
@@ -212,18 +202,8 @@ export function Settings() {
     setOverlaySaving(false);
   };
 
-  const updateHotkeys = async (hk: HotkeyMap) => {
+  const updateHotkeys = (hk: HotkeyMap) => {
     setHotkeys(hk);
-    setHotkeyError(null);
-    const res = await fetch(`${API}/hotkeys`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(hk),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setHotkeyError(data.error ?? "Fehler beim Speichern der Hotkeys");
-    }
   };
 
   const syncPokemonData = async () => {
@@ -498,9 +478,6 @@ export function Settings() {
                 Globale Hotkeys
               </h2>
               <HotkeySettings hotkeys={hotkeys} onUpdate={updateHotkeys} />
-              {hotkeyError && (
-                <p className="mt-3 text-xs text-red-400">{hotkeyError}</p>
-              )}
             </section>
           </div>
         )}

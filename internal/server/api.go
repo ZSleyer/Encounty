@@ -147,11 +147,32 @@ func (s *Server) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 	}
 	s.state.UpdateHotkeys(hk)
 	s.state.ScheduleSave()
-	if s.hotkeyMgr != nil {
-		s.hotkeyMgr.Reload(hk, s.state)
+	if err := s.hotkeyMgr.UpdateAllBindings(hk); err != nil {
+		log.Printf("hotkeys: UpdateAllBindings: %v", err)
 	}
 	s.broadcastState()
 	writeJSON(w, http.StatusOK, hk)
+}
+
+func (s *Server) handleUpdateSingleHotkey(w http.ResponseWriter, r *http.Request, action string) {
+	var body struct {
+		Key string `json:"key"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+		return
+	}
+	if !s.state.UpdateSingleHotkey(action, body.Key) {
+		writeJSON(w, http.StatusNotFound, errResp{"unknown hotkey action"})
+		return
+	}
+	s.state.ScheduleSave()
+	if err := s.hotkeyMgr.UpdateBinding(action, body.Key); err != nil {
+		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+		return
+	}
+	s.broadcastState()
+	writeJSON(w, http.StatusOK, map[string]string{"action": action, "key": body.Key})
 }
 
 func (s *Server) handleGetGames(w http.ResponseWriter, _ *http.Request) {
@@ -224,16 +245,6 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 			s.state.ScheduleSave()
 			s.broadcastState()
 		}
-	case "update_hotkeys":
-		var hk state.HotkeyMap
-		if json.Unmarshal(msg.Payload, &hk) == nil {
-			s.state.UpdateHotkeys(hk)
-			s.state.ScheduleSave()
-			if s.hotkeyMgr != nil {
-				s.hotkeyMgr.Reload(hk, s.state)
-			}
-			s.broadcastState()
-		}
 	}
 }
 
@@ -265,9 +276,7 @@ func (s *Server) handleHotkeysPause(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if s.hotkeyMgr != nil {
-		s.hotkeyMgr.Pause()
-	}
+	s.hotkeyMgr.SetPaused(true)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "paused"})
 }
 
@@ -276,10 +285,14 @@ func (s *Server) handleHotkeysResume(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if s.hotkeyMgr != nil {
-		s.hotkeyMgr.Resume()
-	}
+	s.hotkeyMgr.SetPaused(false)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "active"})
+}
+
+func (s *Server) handleHotkeysStatus(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"available": s.hotkeyMgr.IsAvailable(),
+	})
 }
 
 func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {

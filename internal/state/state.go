@@ -408,6 +408,28 @@ func (m *Manager) UpdateHotkeys(h HotkeyMap) {
 	m.notify()
 }
 
+// UpdateSingleHotkey updates one field of the HotkeyMap and notifies listeners.
+// Returns false if action is not a recognised key name.
+func (m *Manager) UpdateSingleHotkey(action, key string) bool {
+	m.mu.Lock()
+	switch action {
+	case "increment":
+		m.state.Hotkeys.Increment = key
+	case "decrement":
+		m.state.Hotkeys.Decrement = key
+	case "reset":
+		m.state.Hotkeys.Reset = key
+	case "next_pokemon":
+		m.state.Hotkeys.NextPokemon = key
+	default:
+		m.mu.Unlock()
+		return false
+	}
+	m.mu.Unlock()
+	m.notify()
+	return true
+}
+
 func (m *Manager) AddSession(sess Session) {
 	m.mu.Lock()
 	m.state.Sessions = append(m.state.Sessions, sess)
