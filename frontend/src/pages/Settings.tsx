@@ -131,7 +131,10 @@ export function Settings() {
   const downloadBackup = () => {
     const a = document.createElement("a");
     a.href = `${API}/backup`;
+    a.download = "encounty-backup.zip";
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   };
 
   const handleRestoreFile = async (file: File) => {

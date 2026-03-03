@@ -52,8 +52,6 @@ func (m *Manager) Reload() error {
 	if err := m.Load(); err != nil {
 		return err
 	}
-	m.mu.Lock()
-	m.mu.Unlock()
 	m.notify()
 	return nil
 }

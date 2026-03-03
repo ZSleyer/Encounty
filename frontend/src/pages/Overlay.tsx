@@ -419,13 +419,14 @@ export function Overlay({
             <img
               src={activePokemon.sprite_url}
               alt=""
+              className="pokemon-sprite"
               style={{
                 width: "100%",
                 height: "100%",
                 objectFit: "contain",
                 imageRendering:
-                  activePokemon.sprite_style &&
-                  activePokemon.sprite_style !== "classic"
+                  activePokemon.sprite_style === "3d" ||
+                  activePokemon.sprite_style === "artwork"
                     ? undefined
                     : ("pixelated" as const),
                 position: "relative",
