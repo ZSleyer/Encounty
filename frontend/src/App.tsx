@@ -31,13 +31,13 @@ function AppShell() {
   const [quitting, setQuitting] = useState(false);
 
   const quitApp = async () => {
-    if (!confirm("Encounty wirklich beenden?")) return;
+    if (!confirm(t("app.confirmQuit"))) return;
     setQuitting(true);
     await fetch("/api/quit", { method: "POST" }).catch(() => {});
   };
 
   const restartApp = async () => {
-    if (!confirm("Encounty wirklich neu starten?")) return;
+    if (!confirm(t("app.confirmRestart"))) return;
     setRestarting(true);
     await fetch("/api/restart", { method: "POST" }).catch(() => {});
     setTimeout(() => window.location.reload(), 1500);
@@ -64,12 +64,12 @@ function AppShell() {
   return (
     <div className="flex flex-col h-screen bg-bg-primary text-text-primary overflow-hidden">
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
-      <header className="flex items-center h-12 px-4 bg-bg-secondary border-b border-border-subtle flex-shrink-0">
+      <header className="flex items-center h-12 px-4 bg-bg-secondary flex-shrink-0">
         {/* Left: Logo + Nav tabs */}
         <div className="flex items-center gap-1 mr-auto">
           {/* Logo */}
           <div
-            className="w-7 h-7 bg-accent-red rounded-lg flex items-center justify-center flex-shrink-0 mr-3"
+            className="w-7 h-7 bg-accent-red rounded-lg flex items-center justify-center flex-shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(230,64,64,0.5)]"
             title="Encounty"
           >
             <span className="text-white font-black text-xs">E</span>
@@ -103,7 +103,7 @@ function AppShell() {
               onClick={restartApp}
               disabled={restarting || quitting}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 transition-colors disabled:opacity-50"
-              title="Neu starten"
+              title={t("app.restart")}
             >
               <RefreshCcw
                 className={`w-4 h-4 ${restarting ? "animate-spin" : ""}`}
@@ -113,7 +113,7 @@ function AppShell() {
               onClick={quitApp}
               disabled={quitting || restarting}
               className="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-500/10 hover:text-red-400 transition-colors disabled:opacity-50"
-              title="Beenden"
+              title={t("app.quit")}
             >
               <Power className={`w-4 h-4 ${quitting ? "animate-pulse" : ""}`} />
             </button>
@@ -155,6 +155,7 @@ function AppShell() {
           </button>
         </div>
       </header>
+      <div className="glow-line-h flex-shrink-0" />
 
       {/* ── Main content ─────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden">
@@ -214,14 +215,17 @@ function NavTab({ to, icon, children }: NavTabProps) {
   return (
     <Link
       to={to}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
         isActive
-          ? "bg-accent-blue/15 text-accent-blue"
+          ? "text-accent-blue"
           : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
       }`}
     >
       {icon}
       {children}
+      {isActive && (
+        <span className="absolute bottom-0 left-2 right-2 h-px bg-accent-blue rounded-full" />
+      )}
     </Link>
   );
 }
