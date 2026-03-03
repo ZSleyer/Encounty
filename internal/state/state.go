@@ -99,11 +99,13 @@ type CounterElement struct {
 type OverlaySettings struct {
 	CanvasWidth       int            `json:"canvas_width"`
 	CanvasHeight      int            `json:"canvas_height"`
+	Hidden            bool           `json:"hidden"`
 	BackgroundColor   string         `json:"background_color"`
 	BackgroundOpacity float64        `json:"background_opacity"`
 	Blur              int            `json:"blur"`
 	ShowBorder        bool           `json:"show_border"`
 	BorderColor       string         `json:"border_color"`
+	BorderWidth       int            `json:"border_width"`
 	BorderRadius      int            `json:"border_radius"`
 	Sprite            SpriteElement  `json:"sprite"`
 	Name              NameElement    `json:"name"`

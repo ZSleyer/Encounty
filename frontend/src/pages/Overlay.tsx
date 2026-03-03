@@ -359,18 +359,23 @@ export function Overlay({
         height: `${settings.canvas_height}px`,
       };
 
-  const bgStyle: React.CSSProperties = {
-    position: "absolute",
-    inset: 0,
-    pointerEvents: "none",
-    backgroundColor: bgWithOpacity,
-    backdropFilter: `blur(${settings.blur}px)`,
-    borderRadius: `${settings.border_radius}px`,
-    border: settings.show_border
-      ? `2px solid ${settings.border_color}`
-      : "none",
-    overflow: "hidden",
-  };
+  const hidden = settings.hidden ?? false;
+  const borderWidth = settings.border_width ?? 2;
+
+  const bgStyle: React.CSSProperties = hidden
+    ? { position: "absolute", inset: 0, pointerEvents: "none" }
+    : {
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        backgroundColor: bgWithOpacity,
+        backdropFilter: `blur(${settings.blur}px)`,
+        borderRadius: `${settings.border_radius}px`,
+        border: settings.show_border
+          ? `${borderWidth}px solid ${settings.border_color}`
+          : "none",
+        overflow: "hidden",
+      };
 
   const canvas = (
     <div style={outerStyle}>

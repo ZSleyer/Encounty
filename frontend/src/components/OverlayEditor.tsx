@@ -69,11 +69,13 @@ const DEFAULT_TEXT_STYLE: TextStyle = {
 const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   canvas_width: 800,
   canvas_height: 200,
+  hidden: false,
   background_color: "#000000",
   background_opacity: 0.6,
   blur: 8,
   show_border: true,
   border_color: "rgba(255,255,255,0.1)",
+  border_width: 2,
   border_radius: 40,
   sprite: {
     visible: true,
@@ -1023,6 +1025,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
 
         <div className="border-t border-border-subtle pt-3 space-y-2">
           <p className="text-[10px] text-gray-500">Canvas</p>
+
+          {/* Size */}
           <NumSlider
             label="Breite"
             value={localSettings.canvas_width}
@@ -1039,48 +1043,48 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             step={10}
             onChange={(v) => updateField("canvas_height", v)}
           />
-          <div>
-            <label className="text-[10px] text-gray-500">Hintergrund</label>
-            <input
-              type="color"
-              value={localSettings.background_color}
-              onChange={(e) =>
-                updateField("background_color", e.target.value)
-              }
-              className="w-full h-6 rounded cursor-pointer border-0"
-            />
+
+          {/* Hintergrund */}
+          <div className={localSettings.hidden ? "opacity-30 pointer-events-none" : ""}>
+            <div>
+              <label className="text-[10px] text-gray-500">Hintergrund</label>
+              <input
+                type="color"
+                value={localSettings.background_color}
+                onChange={(e) => updateField("background_color", e.target.value)}
+                className="w-full h-6 rounded cursor-pointer border-0"
+              />
+            </div>
+            <div className="mt-2">
+              <label className="text-[10px] text-gray-500">
+                Deckkraft {Math.round(localSettings.background_opacity * 100)}%
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={localSettings.background_opacity}
+                onChange={(e) => updateField("background_opacity", Number(e.target.value))}
+                className="w-full h-1 accent-accent-blue"
+              />
+            </div>
+            <div className="mt-2">
+              <label className="text-[10px] text-gray-500">
+                Blur {localSettings.blur}px
+              </label>
+              <input
+                type="range"
+                min={0}
+                max={30}
+                value={localSettings.blur}
+                onChange={(e) => updateField("blur", Number(e.target.value))}
+                className="w-full h-1 accent-accent-blue"
+              />
+            </div>
           </div>
-          <div>
-            <label className="text-[10px] text-gray-500">
-              Deckkraft {Math.round(localSettings.background_opacity * 100)}%
-            </label>
-            <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={localSettings.background_opacity}
-              onChange={(e) =>
-                updateField("background_opacity", Number(e.target.value))
-              }
-              className="w-full h-1 accent-accent-blue"
-            />
-          </div>
-          <div>
-            <label className="text-[10px] text-gray-500">
-              Blur {localSettings.blur}px
-            </label>
-            <input
-              type="range"
-              min={0}
-              max={30}
-              value={localSettings.blur}
-              onChange={(e) =>
-                updateField("blur", Number(e.target.value))
-              }
-              className="w-full h-1 accent-accent-blue"
-            />
-          </div>
+
+          {/* Radius */}
           <div>
             <label className="text-[10px] text-gray-500">
               Radius {localSettings.border_radius}px
@@ -1090,22 +1094,62 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               min={0}
               max={60}
               value={localSettings.border_radius}
-              onChange={(e) =>
-                updateField("border_radius", Number(e.target.value))
-              }
+              onChange={(e) => updateField("border_radius", Number(e.target.value))}
               className="w-full h-1 accent-accent-blue"
             />
           </div>
+
+          {/* Kontur */}
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={localSettings.show_border}
-              onChange={(e) =>
-                updateField("show_border", e.target.checked)
-              }
+              onChange={(e) => updateField("show_border", e.target.checked)}
               className="accent-accent-blue"
             />
-            <span className="text-[10px] text-gray-400">Rahmen</span>
+            <span className="text-[10px] text-gray-400">Kontur</span>
+          </label>
+          {localSettings.show_border && (
+            <div className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}>
+              <div>
+                <label className="text-[10px] text-gray-500">Kontur Farbe</label>
+                <input
+                  type="color"
+                  value={(() => {
+                    const c = localSettings.border_color;
+                    if (c && c.startsWith("#")) return c;
+                    return "#ffffff";
+                  })()}
+                  onChange={(e) => updateField("border_color", e.target.value)}
+                  className="w-full h-6 rounded cursor-pointer border-0"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-gray-500">
+                  Kontur Stärke {localSettings.border_width ?? 2}px
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={8}
+                  step={1}
+                  value={localSettings.border_width ?? 2}
+                  onChange={(e) => updateField("border_width", Number(e.target.value))}
+                  className="w-full h-1 accent-accent-blue"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Versteckt */}
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              checked={localSettings.hidden ?? false}
+              onChange={(e) => updateField("hidden", e.target.checked)}
+              className="accent-accent-blue"
+            />
+            <span className="text-[10px] text-gray-400">Versteckt</span>
           </label>
         </div>
       </div>

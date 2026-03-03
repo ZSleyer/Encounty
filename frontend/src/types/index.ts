@@ -99,11 +99,13 @@ export interface OverlaySettings {
   // Canvas
   canvas_width: number;
   canvas_height: number;
+  hidden?: boolean;
   background_color: string;
   background_opacity: number;
   blur: number;
   show_border: boolean;
   border_color: string;
+  border_width?: number;
   border_radius: number;
 
   // Elements
