@@ -122,6 +122,14 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.saved": "Gespeichert",
     "settings.themeDark": "Dunkel",
     "settings.themeLight": "Hell",
+    "settings.backupTitle": "Backup & Wiederherstellung",
+    "settings.backupDesc": "Alle Pokémon, Zähler und Einstellungen als ZIP-Datei sichern.",
+    "settings.backupBtn": "Backup erstellen",
+    "settings.restoreDesc": "Backup-ZIP hochladen und Daten wiederherstellen.",
+    "settings.restoreBtn": "Backup wiederherstellen",
+    "settings.restoreSuccess": "Backup erfolgreich wiederhergestellt",
+    "settings.restoreError": "Wiederherstellung fehlgeschlagen",
+    "settings.encounterToast": "enc.",
 
     // ── Overlay Editor ──
     "overlay.layers": "Ebenen",
@@ -298,6 +306,14 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.saved": "Saved",
     "settings.themeDark": "Dark",
     "settings.themeLight": "Light",
+    "settings.backupTitle": "Backup & Restore",
+    "settings.backupDesc": "Save all Pokémon, counters and settings as a ZIP file.",
+    "settings.backupBtn": "Create backup",
+    "settings.restoreDesc": "Upload a backup ZIP to restore your data.",
+    "settings.restoreBtn": "Restore backup",
+    "settings.restoreSuccess": "Backup restored successfully",
+    "settings.restoreError": "Restore failed",
+    "settings.encounterToast": "enc.",
 
     // ── Overlay Editor ──
     "overlay.layers": "Layers",

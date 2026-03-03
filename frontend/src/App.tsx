@@ -21,15 +21,18 @@ import { useCounterStore } from "./hooks/useCounterState";
 import { WSMessage, AppState } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import { ToastProvider, useToast } from "./contexts/ToastContext";
+import { ToastContainer } from "./components/ToastContainer";
 import { LOCALES, Locale } from "./utils/i18n";
 
 function AppShell() {
   const location = useLocation();
   const isOverlay = location.pathname === "/overlay";
-  const { setAppState, setConnected, flashPokemon, isConnected } =
+  const { setAppState, setConnected, flashPokemon, isConnected, appState } =
     useCounterStore();
   const { t, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
+  const { push: pushToast } = useToast();
 
   const [restarting, setRestarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
@@ -55,6 +58,15 @@ function AppShell() {
       } else if (msg.type === "encounter_added") {
         const p = msg.payload as { pokemon_id: string; count: number };
         flashPokemon(p.pokemon_id);
+        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
+        if (pokemon) {
+          pushToast({
+            type: "encounter",
+            title: pokemon.name,
+            message: `${p.count} ${t("settings.encounterToast")}`,
+            spriteUrl: pokemon.sprite_url || undefined,
+          });
+        }
       }
     },
     () => setConnected(true),
@@ -178,6 +190,8 @@ function AppShell() {
         </Routes>
       </div>
 
+      <ToastContainer />
+
       {/* ── Footer ───────────────────────────────────────────── */}
       <div className="flex-shrink-0">
         <div className="footer-line" />
@@ -248,7 +262,9 @@ export function App() {
   return (
     <ThemeProvider>
       <I18nProvider>
-        <AppShell />
+        <ToastProvider>
+          <AppShell />
+        </ToastProvider>
       </I18nProvider>
     </ThemeProvider>
   );
