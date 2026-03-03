@@ -274,28 +274,34 @@ export function Settings() {
 
       {/* Tab bar */}
       <div className="flex justify-center border-b border-border-subtle bg-bg-secondary flex-shrink-0 px-6">
-        <div className="flex max-w-xl w-full">
+        <div className="relative flex max-w-xl w-full">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex justify-center items-center gap-2 px-2 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              className={`flex-1 flex justify-center items-center gap-2 px-2 py-3 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "border-accent-blue text-white"
-                  : "border-transparent text-gray-500 hover:text-gray-300"
+                  ? "text-white"
+                  : "text-gray-500 hover:text-gray-300"
               }`}
             >
               {tab.icon}
               {tab.label}
             </button>
           ))}
+          {/* Sliding indicator */}
+          <div
+            className="absolute bottom-0 h-px bg-accent-blue transition-all duration-300"
+            style={{
+              left: `${TABS.findIndex((t) => t.id === activeTab) * (100 / TABS.length)}%`,
+              width: `${100 / TABS.length}%`,
+            }}
+          />
         </div>
       </div>
 
       {/* Tab content */}
-      <main className="flex-1 overflow-auto p-6 dash-bg">
-        <div className="dash-orb dash-orb-1 opacity-20" />
-        <div className="dash-orb dash-orb-2 opacity-20" />
+      <main className="flex-1 overflow-auto p-6 settings-bg">
         <div className="max-w-xl mx-auto space-y-6 relative z-10">
           {/* ──────────────────────────────────────────────────
               GENERAL TAB
