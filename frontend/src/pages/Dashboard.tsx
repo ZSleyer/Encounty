@@ -356,9 +356,9 @@ export function Dashboard() {
                         onError={() =>
                           setImgError((prev) => ({ ...prev, [p.id]: true }))
                         }
-                        className="w-full h-full object-contain"
+                        className="pokemon-sprite w-full h-full object-contain"
                         style={
-                          p.sprite_style && p.sprite_style !== "classic"
+                          p.sprite_style === "3d" || p.sprite_style === "artwork"
                             ? undefined
                             : { imageRendering: "pixelated" }
                         }
@@ -476,10 +476,10 @@ export function Dashboard() {
                     [activePokemon.id]: true,
                   }))
                 }
-                className="w-40 h-40 object-contain relative z-10 drop-shadow-2xl transition-transform duration-300 group-hover:scale-110"
+                className="pokemon-sprite w-40 h-40 object-contain relative z-10 drop-shadow-2xl transition-transform duration-300 group-hover:scale-110"
                 style={
-                  activePokemon.sprite_style &&
-                  activePokemon.sprite_style !== "classic"
+                  activePokemon.sprite_style === "3d" ||
+                  activePokemon.sprite_style === "artwork"
                     ? undefined
                     : { imageRendering: "pixelated" }
                 }

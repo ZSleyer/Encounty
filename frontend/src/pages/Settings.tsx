@@ -30,6 +30,16 @@ export function Settings() {
   const [gamesSyncResult, setGamesSyncResult] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
+  const [crispSprites, setCrispSpritesState] = useState(
+    () => localStorage.getItem("encounty_crisp_sprites") === "true",
+  );
+
+  const setCrispSprites = (v: boolean) => {
+    localStorage.setItem("encounty_crisp_sprites", String(v));
+    setCrispSpritesState(v);
+    if (v) document.documentElement.setAttribute("data-crisp-sprites", "");
+    else document.documentElement.removeAttribute("data-crisp-sprites");
+  };
 
   const initialised = useState(false);
   useEffect(() => {
@@ -208,6 +218,33 @@ export function Settings() {
                 >
                   <div
                     className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${settings.auto_save ? "translate-x-6" : "translate-x-0"}`}
+                  />
+                </button>
+              </div>
+            </section>
+
+            {/* Crisp sprites */}
+            <section className="glass-card rounded-2xl p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <span className="text-base leading-none">🔍</span>
+                    {t("settings.crispSprites")}
+                  </h3>
+                  <p className="text-xs text-text-muted mt-1 max-w-xs">
+                    {t("settings.crispSpritesDesc")}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCrispSprites(!crispSprites)}
+                  className={`relative w-12 h-6 rounded-full transition-colors flex items-center px-1 flex-shrink-0 mt-0.5 ${
+                    crispSprites
+                      ? "bg-accent-blue/80"
+                      : "bg-bg-secondary border border-border-subtle"
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${crispSprites ? "translate-x-6" : "translate-x-0"}`}
                   />
                 </button>
               </div>

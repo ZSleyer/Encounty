@@ -130,6 +130,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.restoreSuccess": "Backup erfolgreich wiederhergestellt",
     "settings.restoreError": "Wiederherstellung fehlgeschlagen",
     "settings.encounterToast": "enc.",
+    "settings.crispSprites": "Sprites scharf skalieren",
+    "settings.crispSpritesDesc": "Pixel-Art Sprites (Classic, Animated) mit Nearest-Neighbour skalieren – verhindert Unschärfe.",
 
     // ── Overlay Editor ──
     "overlay.layers": "Ebenen",
@@ -314,6 +316,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.restoreSuccess": "Backup restored successfully",
     "settings.restoreError": "Restore failed",
     "settings.encounterToast": "enc.",
+    "settings.crispSprites": "Crisp sprite scaling",
+    "settings.crispSpritesDesc": "Scale pixel-art sprites (Classic, Animated) with nearest-neighbour — prevents blurriness on small sprites.",
 
     // ── Overlay Editor ──
     "overlay.layers": "Layers",

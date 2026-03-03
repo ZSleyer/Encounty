@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import {
   LayoutGrid,
@@ -36,6 +36,13 @@ function AppShell() {
 
   const [restarting, setRestarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
+
+  // Restore crisp-sprites preference on mount
+  useEffect(() => {
+    if (localStorage.getItem("encounty_crisp_sprites") === "true") {
+      document.documentElement.setAttribute("data-crisp-sprites", "");
+    }
+  }, []);
 
   const quitApp = async () => {
     if (!confirm(t("app.confirmQuit"))) return;

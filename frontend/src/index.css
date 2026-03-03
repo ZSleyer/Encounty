@@ -566,6 +566,14 @@ code {
   transform-style: preserve-3d;
 }
 
+/* ── Sprite rendering ──────────────────────────────────────────── */
+/* When [data-crisp-sprites] is set on <html>, ALL pokemon sprites use
+   nearest-neighbour scaling regardless of their individual style. */
+[data-crisp-sprites] .pokemon-sprite {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges; /* Firefox fallback */
+}
+
 /* ── Toast animations ──────────────────────────────────────────── */
 @keyframes toast-in {
   from {
