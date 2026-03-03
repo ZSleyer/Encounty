@@ -202,9 +202,9 @@ export function Dashboard() {
   return (
     <div className="flex h-full">
       {/* LEFT: Pokemon sidebar */}
-      <aside className="w-72 flex-shrink-0 border-r border-border-subtle bg-bg-secondary flex flex-col">
+      <aside className="w-72 flex-shrink-0 bg-bg-secondary flex flex-col">
         {/* Stats bar */}
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-border-subtle text-[11px] text-text-muted">
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-border-subtle text-[11px] text-text-muted glass-card rounded-none border-x-0 border-t-0">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3 h-3" />
             <span className="tabular-nums">{elapsed}</span>
@@ -343,10 +343,10 @@ export function Dashboard() {
                   <li
                     key={p.id}
                     onClick={() => handleActivate(p.id)}
-                    className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors group ${
+                    className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors group hover-glow ${
                       isActive
-                        ? "bg-accent-blue/10 border-r-2 border-accent-blue"
-                        : "hover:bg-bg-hover"
+                        ? "bg-accent-blue/10 border-l-2 border-accent-blue"
+                        : "hover:bg-bg-hover border-l-2 border-transparent"
                     } ${isArchived ? "opacity-70" : ""}`}
                   >
                     <div className="w-9 h-9 flex-shrink-0 relative">
@@ -413,7 +413,7 @@ export function Dashboard() {
           <div className="p-3 border-t border-border-subtle">
             <button
               onClick={() => setShowAddModal(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs font-semibold transition-colors"
+              className="w-full flex items-center justify-center gap-1.5 py-2 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs font-semibold transition-colors glass-card hover-glow hover:border-accent-blue/50"
             >
               <Plus className="w-3.5 h-3.5" />
               {t("dash.addPokemon")}
@@ -421,6 +421,7 @@ export function Dashboard() {
           </div>
         )}
       </aside>
+      <div className="glow-line-v flex-shrink-0" />
 
       {/* RIGHT: Active Pokemon detail */}
       <main className="flex-1 flex flex-col overflow-hidden bg-bg-primary dash-bg">
