@@ -119,6 +119,7 @@ export interface Settings {
   auto_save: boolean;
   browser_port: number;
   languages: string[]; // active language codes for game names
+  crisp_sprites?: boolean;
   overlay: OverlaySettings;
 }
 

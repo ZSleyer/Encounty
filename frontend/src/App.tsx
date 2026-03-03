@@ -37,12 +37,14 @@ function AppShell() {
   const [restarting, setRestarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
 
-  // Restore crisp-sprites preference on mount
+  // Sync crisp-sprites attribute from backend settings whenever state arrives
   useEffect(() => {
-    if (localStorage.getItem("encounty_crisp_sprites") === "true") {
+    if (appState?.settings.crisp_sprites) {
       document.documentElement.setAttribute("data-crisp-sprites", "");
+    } else if (appState) {
+      document.documentElement.removeAttribute("data-crisp-sprites");
     }
-  }, []);
+  }, [appState?.settings.crisp_sprites]);
 
   const quitApp = async () => {
     if (!confirm(t("app.confirmQuit"))) return;

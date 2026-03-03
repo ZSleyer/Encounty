@@ -113,11 +113,12 @@ type OverlaySettings struct {
 }
 
 type Settings struct {
-	OutputDir   string          `json:"output_dir"`
-	AutoSave    bool            `json:"auto_save"`
-	BrowserPort int             `json:"browser_port"`
-	Languages   []string        `json:"languages"` // active game-name languages; default ["de","en"]
-	Overlay     OverlaySettings `json:"overlay"`
+	OutputDir    string          `json:"output_dir"`
+	AutoSave     bool            `json:"auto_save"`
+	BrowserPort  int             `json:"browser_port"`
+	Languages    []string        `json:"languages"` // active game-name languages; default ["de","en"]
+	CrispSprites bool            `json:"crisp_sprites"`
+	Overlay      OverlaySettings `json:"overlay"`
 }
 
 type AppState struct {

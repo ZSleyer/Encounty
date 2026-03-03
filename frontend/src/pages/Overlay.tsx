@@ -361,6 +361,7 @@ export function Overlay({
 
   const hidden = settings.hidden ?? false;
   const borderWidth = settings.border_width ?? 2;
+  const crispSprites = appState?.settings.crisp_sprites ?? false;
 
   const bgStyle: React.CSSProperties = hidden
     ? { position: "absolute", inset: 0, pointerEvents: "none" }
@@ -431,6 +432,7 @@ export function Overlay({
                 objectFit: "contain",
                 position: "relative",
                 zIndex: 1,
+                imageRendering: crispSprites ? "pixelated" : undefined,
               }}
             />
           </div>

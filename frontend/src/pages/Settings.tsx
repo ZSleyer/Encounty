@@ -30,13 +30,10 @@ export function Settings() {
   const [gamesSyncResult, setGamesSyncResult] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
-  const [crispSprites, setCrispSpritesState] = useState(
-    () => localStorage.getItem("encounty_crisp_sprites") === "true",
-  );
 
   const setCrispSprites = (v: boolean) => {
-    localStorage.setItem("encounty_crisp_sprites", String(v));
-    setCrispSpritesState(v);
+    setSettings((s) => s ? { ...s, crisp_sprites: v } : s);
+    // Immediate visual feedback before the debounced save completes
     if (v) document.documentElement.setAttribute("data-crisp-sprites", "");
     else document.documentElement.removeAttribute("data-crisp-sprites");
   };
@@ -67,6 +64,7 @@ export function Settings() {
     settings?.output_dir,
     settings?.auto_save,
     settings?.browser_port,
+    settings?.crisp_sprites,
     JSON.stringify(settings?.languages),
   ]);
 
@@ -239,15 +237,15 @@ export function Settings() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setCrispSprites(!crispSprites)}
+                  onClick={() => setCrispSprites(!(settings.crisp_sprites ?? false))}
                   className={`relative w-12 h-6 rounded-full transition-colors flex items-center px-1 flex-shrink-0 mt-0.5 ${
-                    crispSprites
+                    (settings.crisp_sprites ?? false)
                       ? "bg-accent-blue/80"
                       : "bg-bg-secondary border border-border-subtle"
                   }`}
                 >
                   <div
-                    className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${crispSprites ? "translate-x-6" : "translate-x-0"}`}
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${(settings.crisp_sprites ?? false) ? "translate-x-6" : "translate-x-0"}`}
                   />
                 </button>
               </div>
