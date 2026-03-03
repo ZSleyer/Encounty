@@ -3,12 +3,12 @@ import {
   Save,
   FolderOpen,
   RefreshCw,
-  RefreshCcw,
   Keyboard,
   Layers,
   Settings as SettingsIcon,
-  Power,
   Globe,
+  Database,
+  MonitorSmartphone,
 } from "lucide-react";
 
 import { HotkeySettings } from "../components/HotkeySettings";
@@ -16,23 +16,38 @@ import { OverlayEditor } from "../components/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { Settings as SettingsType, HotkeyMap, OverlaySettings } from "../types";
 import { ALL_LANGUAGES } from "../utils/games";
+import { useI18n } from "../contexts/I18nContext";
 
 const API = "/api";
 
-type Tab = "general" | "hotkeys" | "output" | "overlay";
-
-const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  {
-    id: "general",
-    label: "Allgemein",
-    icon: <SettingsIcon className="w-4 h-4" />,
-  },
-  { id: "hotkeys", label: "Hotkeys", icon: <Keyboard className="w-4 h-4" /> },
-  { id: "output", label: "Ausgabe", icon: <FolderOpen className="w-4 h-4" /> },
-  { id: "overlay", label: "Overlay", icon: <Layers className="w-4 h-4" /> },
-];
+type Tab = "general" | "data" | "display" | "overlay";
 
 export function Settings() {
+  const { t } = useI18n();
+
+  const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    {
+      id: "general",
+      label: t("settings.tabGeneral"),
+      icon: <SettingsIcon className="w-4 h-4" />,
+    },
+    {
+      id: "data",
+      label: t("settings.tabData"),
+      icon: <Database className="w-4 h-4" />,
+    },
+    {
+      id: "display",
+      label: t("settings.tabDisplay"),
+      icon: <MonitorSmartphone className="w-4 h-4" />,
+    },
+    {
+      id: "overlay",
+      label: t("settings.tabOverlay"),
+      icon: <Layers className="w-4 h-4" />,
+    },
+  ];
+
   const { appState } = useCounterStore();
   const [settings, setSettings] = useState<SettingsType | null>(null);
   const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(null);
@@ -42,8 +57,6 @@ export function Settings() {
   const [gamesSyncing, setGamesSyncing] = useState(false);
   const [gamesSyncResult, setGamesSyncResult] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("general");
-  const [quitting, setQuitting] = useState(false);
-  const [restarting, setRestarting] = useState(false);
 
   // Overlay Editor State
   const [overlayTarget, setOverlayTarget] = useState<string>("global");
@@ -107,19 +120,6 @@ export function Settings() {
 
   const activePokemon =
     appState?.pokemon.find((p) => p.id === appState.active_id) ?? null;
-
-  const quitApp = async () => {
-    if (!confirm("Encounty wirklich beenden?")) return;
-    setQuitting(true);
-    await fetch(`${API}/quit`, { method: "POST" }).catch(() => {});
-  };
-
-  const restartApp = async () => {
-    if (!confirm("Encounty wirklich neu starten?")) return;
-    setRestarting(true);
-    await fetch(`${API}/restart`, { method: "POST" }).catch(() => {});
-    setTimeout(() => window.location.reload(), 1500);
-  };
 
   const toggleLanguage = (code: string) => {
     const current = settings.languages ?? ["de", "en"];
@@ -255,288 +255,281 @@ export function Settings() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-border-subtle bg-bg-secondary flex-shrink-0">
-        <h1 className="text-base font-bold text-white">Einstellungen</h1>
+        <h1 className="text-base font-bold text-white max-w-xl mx-auto w-full flex-1">
+          {t("settings.title")}
+        </h1>
         <div className="flex items-center gap-3">
           {activeTab === "overlay" && (
             <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-900/20 border border-amber-900/30 px-2.5 py-1 rounded-lg">
-              <Keyboard className="w-3.5 h-3.5" /> Hotkeys pausiert
+              <Keyboard className="w-3.5 h-3.5" /> {t("settings.hotkeysPaused")}
             </span>
           )}
           {saved && activeTab !== "overlay" && (
             <span className="flex items-center gap-1.5 text-xs text-accent-green">
-              <Save className="w-3.5 h-3.5" /> Gespeichert
+              <Save className="w-3.5 h-3.5" /> {t("settings.saved")}
             </span>
           )}
         </div>
       </header>
 
       {/* Tab bar */}
-      <div className="flex border-b border-border-subtle bg-bg-secondary flex-shrink-0 px-6">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              activeTab === tab.id
-                ? "border-accent-blue text-white"
-                : "border-transparent text-gray-500 hover:text-gray-300"
-            }`}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex justify-center border-b border-border-subtle bg-bg-secondary flex-shrink-0 px-6">
+        <div className="flex max-w-xl w-full">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex justify-center items-center gap-2 px-2 py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${
+                activeTab === tab.id
+                  ? "border-accent-blue text-white"
+                  : "border-transparent text-gray-500 hover:text-gray-300"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab content */}
-      <main className="flex-1 overflow-auto p-6">
-        {/* General */}
-        {activeTab === "general" && (
-          <div className="max-w-xl space-y-6">
-            <section className="bg-bg-card border border-border-subtle rounded-xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-4">Server</h2>
-              <div>
-                <label
-                  htmlFor="browser-port"
-                  className="block text-xs text-gray-400 mb-1.5"
-                >
-                  Lokaler Port (Neustart erforderlich)
-                </label>
-                <input
-                  id="browser-port"
-                  type="number"
-                  value={settings.browser_port}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      browser_port: Number(e.target.value),
-                    })
-                  }
-                  min={1024}
-                  max={65535}
-                  className="w-32 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent-blue/50 transition-colors"
-                />
-              </div>
-            </section>
-
-            <section className="bg-bg-card border border-border-subtle rounded-xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                <Globe className="w-4 h-4 text-accent-blue" />{" "}
-                Spielnamen-Sprachen
-              </h2>
-              <p className="text-xs text-gray-500 mb-4">
-                Welche Sprachen in der Spielauswahl angezeigt werden. Ältere
-                Spiele haben nicht alle Übersetzungen.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {ALL_LANGUAGES.map(({ code, label, flag }) => {
-                  const active = (settings.languages ?? ["de", "en"]).includes(
-                    code,
-                  );
-                  return (
-                    <button
-                      key={code}
-                      onClick={() => toggleLanguage(code)}
-                      title={code}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                        active
-                          ? "bg-accent-blue/20 border-accent-blue/50 text-white"
-                          : "bg-bg-secondary border-border-subtle text-gray-500 hover:text-gray-300"
-                      }`}
-                    >
-                      <span>{flag}</span>
-                      <span>{label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-
-            <section className="bg-bg-card border border-border-subtle rounded-xl p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <Save className="w-4 h-4 text-accent-green" /> Automatisches
-                    Speichern
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Zählerstände sofort auf die Festplatte schreiben
-                  </p>
-                </div>
-                <button
-                  onClick={() =>
-                    setSettings({ ...settings, auto_save: !settings.auto_save })
-                  }
-                  className={`relative w-12 h-6 rounded-full transition-colors flex items-center px-1 ${
-                    settings.auto_save
-                      ? "bg-accent-green/80"
-                      : "bg-bg-secondary border border-border-subtle"
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${settings.auto_save ? "translate-x-6" : "translate-x-0"}`}
-                  />
-                </button>
-              </div>
-            </section>
-
-            <section className="bg-bg-card border border-border-subtle rounded-xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-accent-blue" /> Pokémon-Daten
-              </h2>
-              <p className="text-xs text-gray-500 mb-4">
-                Pokédex von PokeAPI aktualisieren (neue Generationen, neue
-                Formen).
-              </p>
-              <button
-                onClick={syncPokemonData}
-                disabled={syncing}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-secondary hover:bg-bg-hover text-sm text-gray-300 hover:text-white border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`}
-                />
-                {syncing ? "Synchronisiere…" : "Pokémon-Daten aktualisieren"}
-              </button>
-              {syncResult && (
-                <p
-                  className={`mt-3 text-xs ${syncResult.startsWith("Fehler") ? "text-red-400" : "text-accent-green"}`}
-                >
-                  {syncResult}
-                </p>
-              )}
-            </section>
-
-            <section className="bg-bg-card border border-border-subtle rounded-xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-accent-blue" /> Spieldaten
-              </h2>
-              <p className="text-xs text-gray-500 mb-4">
-                Neue Spiele und fehlende Übersetzungen von PokéAPI laden.
-                Bestehende Einträge werden nicht überschrieben.
-              </p>
-              <button
-                onClick={syncGamesData}
-                disabled={gamesSyncing}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-secondary hover:bg-bg-hover text-sm text-gray-300 hover:text-white border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${gamesSyncing ? "animate-spin" : ""}`}
-                />
-                {gamesSyncing ? "Synchronisiere…" : "Spieldaten aktualisieren"}
-              </button>
-              {gamesSyncResult && (
-                <p
-                  className={`mt-3 text-xs ${
-                    gamesSyncResult.startsWith("Fehler")
-                      ? "text-red-400"
-                      : "text-accent-green"
-                  }`}
-                >
-                  {gamesSyncResult}
-                </p>
-              )}
-            </section>
-
-            <section className="bg-bg-card border border-red-900/40 rounded-xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <Power className="w-4 h-4 text-red-400" /> App-Steuerung
-              </h2>
-              <div className="flex gap-3">
-                <button
-                  id="btn-restart-app"
-                  onClick={restartApp}
-                  disabled={restarting || quitting}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-secondary hover:bg-amber-900/30 text-sm text-amber-400 hover:text-amber-300 border border-amber-900/40 hover:border-amber-700/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <RefreshCcw
-                    className={`w-4 h-4 ${restarting ? "animate-spin" : ""}`}
-                  />
-                  {restarting ? "Neustart…" : "Neu starten"}
-                </button>
-                <button
-                  id="btn-quit-app"
-                  onClick={quitApp}
-                  disabled={quitting || restarting}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-secondary hover:bg-red-900/30 text-sm text-red-400 hover:text-red-300 border border-red-900/40 hover:border-red-700/60 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Power
-                    className={`w-4 h-4 ${quitting ? "animate-pulse" : ""}`}
-                  />
-                  {quitting ? "Wird beendet…" : "Beenden"}
-                </button>
-              </div>
-            </section>
-          </div>
-        )}
-
-        {/* Hotkeys */}
-        {activeTab === "hotkeys" && (
-          <div className="max-w-xl">
-            <section className="bg-bg-card border border-border-subtle rounded-xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-6">
-                Globale Hotkeys
-              </h2>
-              <HotkeySettings hotkeys={hotkeys} onUpdate={updateHotkeys} />
-            </section>
-          </div>
-        )}
-
-        {/* Output */}
-        {activeTab === "output" && (
-          <div className="max-w-xl">
-            <section className="bg-bg-card border border-border-subtle rounded-xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <FolderOpen className="w-4 h-4 text-accent-yellow" />{" "}
-                Dateiausgabe (OBS)
-              </h2>
-              <div className="space-y-4">
+      <main className="flex-1 overflow-auto p-6 dash-bg">
+        <div className="dash-orb dash-orb-1 opacity-20" />
+        <div className="dash-orb dash-orb-2 opacity-20" />
+        <div className="max-w-xl mx-auto space-y-6 relative z-10">
+          {/* ──────────────────────────────────────────────────
+              GENERAL TAB
+          ────────────────────────────────────────────────── */}
+          {activeTab === "general" && (
+            <>
+              <section className="glass-card rounded-2xl p-6">
+                <h2 className="text-sm font-semibold text-white mb-4">
+                  {t("settings.server")}
+                </h2>
                 <div>
                   <label
-                    htmlFor="output-dir"
-                    className="block text-xs text-gray-400 mb-1.5"
+                    htmlFor="browser-port"
+                    className="block text-xs text-text-muted mb-1.5"
                   >
-                    Ausgabe-Ordner
+                    {t("settings.port")}
                   </label>
                   <input
-                    id="output-dir"
-                    type="text"
-                    value={settings.output_dir}
+                    id="browser-port"
+                    type="number"
+                    value={settings.browser_port}
                     onChange={(e) =>
-                      setSettings({ ...settings, output_dir: e.target.value })
+                      setSettings({
+                        ...settings,
+                        browser_port: Number(e.target.value),
+                      })
                     }
-                    placeholder="z.B. C:\OBS\counter oder ~/obs/counter"
-                    className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-accent-blue/50 transition-colors"
+                    min={1024}
+                    max={65535}
+                    className="w-32 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent-blue/50 transition-colors"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs text-gray-400 mb-2">
-                    Erzeugte Textdateien:
-                  </label>
-                  <div className="bg-bg-secondary/50 border border-border-subtle rounded-lg p-3">
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        "encounters.txt",
-                        "pokemon_name.txt",
-                        "encounters_label.txt",
-                        "session_duration.txt",
-                        "encounters_today.txt",
-                        "phase.txt",
-                      ].map((f) => (
-                        <span
-                          key={f}
-                          className="text-xs font-mono bg-bg-primary border border-border-subtle px-2 py-1 rounded text-gray-300"
-                        >
-                          {f}
-                        </span>
-                      ))}
+              </section>
+
+              <section className="glass-card rounded-2xl p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Save className="w-4 h-4 text-accent-green" />{" "}
+                      {t("settings.autoSave")}
+                    </h3>
+                    <p className="text-xs text-text-muted mt-1">
+                      {t("settings.autoSaveDesc")}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        auto_save: !settings.auto_save,
+                      })
+                    }
+                    className={`relative w-12 h-6 rounded-full transition-colors flex items-center px-1 ${
+                      settings.auto_save
+                        ? "bg-accent-green/80"
+                        : "bg-bg-secondary border border-border-subtle"
+                    }`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${settings.auto_save ? "translate-x-6" : "translate-x-0"}`}
+                    />
+                  </button>
+                </div>
+              </section>
+
+              <section className="glass-card rounded-2xl p-6">
+                <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-accent-blue" />{" "}
+                  {t("settings.languages")}
+                </h2>
+                <p className="text-xs text-text-muted mb-4">
+                  {t("settings.languagesDesc")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_LANGUAGES.map(({ code, label, flag }) => {
+                    const active = (
+                      settings.languages ?? ["de", "en"]
+                    ).includes(code);
+                    return (
+                      <button
+                        key={code}
+                        onClick={() => toggleLanguage(code)}
+                        title={code}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                          active
+                            ? "bg-accent-blue/20 border-accent-blue/50 text-white"
+                            : "bg-bg-secondary border-border-subtle text-text-muted hover:text-white"
+                        }`}
+                      >
+                        <span className="text-[14px] leading-none">{flag}</span>
+                        <span>{label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            </>
+          )}
+
+          {/* ──────────────────────────────────────────────────
+              DATA & SYNC TAB
+          ────────────────────────────────────────────────── */}
+          {activeTab === "data" && (
+            <>
+              <section className="glass-card rounded-2xl p-6">
+                <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-accent-yellow" />{" "}
+                  {t("settings.outputTitle")}
+                </h2>
+                <div className="space-y-4">
+                  <div>
+                    <label
+                      htmlFor="output-dir"
+                      className="block text-xs text-text-muted mb-1.5"
+                    >
+                      {t("settings.outputDir")}
+                    </label>
+                    <input
+                      id="output-dir"
+                      type="text"
+                      value={settings.output_dir}
+                      onChange={(e) =>
+                        setSettings({ ...settings, output_dir: e.target.value })
+                      }
+                      placeholder="z.B. C:\OBS\counter oder ~/obs/counter"
+                      className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-text-muted mb-2">
+                      {t("settings.outputDesc")}
+                    </label>
+                    <div className="bg-bg-secondary/30 border border-border-subtle rounded-xl p-3">
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          "encounters.txt",
+                          "pokemon_name.txt",
+                          "encounters_label.txt",
+                          "session_duration.txt",
+                          "encounters_today.txt",
+                          "phase.txt",
+                        ].map((f) => (
+                          <span
+                            key={f}
+                            className="text-xs font-mono bg-bg-secondary border border-border-subtle px-2 py-1 rounded-md text-text-muted"
+                          >
+                            {f}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </section>
-          </div>
-        )}
+              </section>
+
+              <section className="glass-card rounded-2xl p-6">
+                <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                  <Database className="w-4 h-4 text-accent-blue" />{" "}
+                  {t("settings.syncPokemon")}
+                </h2>
+                <p className="text-xs text-text-muted mb-4">
+                  {t("settings.syncPokemonDesc")}
+                </p>
+                <button
+                  onClick={syncPokemonData}
+                  disabled={syncing}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`}
+                  />
+                  {syncing
+                    ? t("settings.syncing")
+                    : t("settings.syncPokemonBtn")}
+                </button>
+                {syncResult && (
+                  <p
+                    className={`mt-3 text-xs ${syncResult.startsWith("Fehler") || syncResult.startsWith("Error") ? "text-accent-red" : "text-accent-green"}`}
+                  >
+                    {syncResult}
+                  </p>
+                )}
+              </section>
+
+              <section className="glass-card rounded-2xl p-6">
+                <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                  <Database className="w-4 h-4 text-accent-blue" />{" "}
+                  {t("settings.syncGames")}
+                </h2>
+                <p className="text-xs text-text-muted mb-4">
+                  {t("settings.syncGamesDesc")}
+                </p>
+                <button
+                  onClick={syncGamesData}
+                  disabled={gamesSyncing}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw
+                    className={`w-4 h-4 ${gamesSyncing ? "animate-spin" : ""}`}
+                  />
+                  {gamesSyncing
+                    ? t("settings.syncing")
+                    : t("settings.syncGamesBtn")}
+                </button>
+                {gamesSyncResult && (
+                  <p
+                    className={`mt-3 text-xs ${
+                      gamesSyncResult.startsWith("Fehler") ||
+                      gamesSyncResult.startsWith("Error")
+                        ? "text-accent-red"
+                        : "text-accent-green"
+                    }`}
+                  >
+                    {gamesSyncResult}
+                  </p>
+                )}
+              </section>
+            </>
+          )}
+
+          {/* ──────────────────────────────────────────────────
+              DISPLAY & HOTKEYS TAB
+          ────────────────────────────────────────────────── */}
+          {activeTab === "display" && (
+            <>
+              <section className="glass-card rounded-2xl p-6">
+                <h2 className="text-sm font-semibold text-white mb-6">
+                  {t("settings.hotkeysTitle")}
+                </h2>
+                <HotkeySettings hotkeys={hotkeys} onUpdate={updateHotkeys} />
+              </section>
+            </>
+          )}
+        </div>
 
         {/* Overlay */}
         {activeTab === "overlay" && currentOverlay && (

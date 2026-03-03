@@ -29,7 +29,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.total": "gesamt",
     "dash.encounters": "Begegnungen",
     "dash.noActive": "Kein aktives Pokémon",
-    "dash.noActiveHint": "Wähle ein Pokémon aus der Liste oder füge ein neues hinzu.",
+    "dash.noActiveHint":
+      "Wähle ein Pokémon aus der Liste oder füge ein neues hinzu.",
     "dash.noPokemon": "Noch kein Pokémon",
     "dash.addFirst": "Erstes Pokémon hinzufügen →",
     "dash.noMatch": "Kein Treffer für",
@@ -50,9 +51,11 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // ── Confirm dialogs ──
     "confirm.resetTitle": "Zähler zurücksetzen",
-    "confirm.resetMsg": "Bist du sicher, dass du die Encounter für dieses Pokémon auf 0 setzen möchtest?",
+    "confirm.resetMsg":
+      "Bist du sicher, dass du die Encounter für dieses Pokémon auf 0 setzen möchtest?",
     "confirm.deleteTitle": "Pokémon löschen",
-    "confirm.deleteMsg": "Willst du dieses Pokémon wirklich löschen? Alle Daten gehen unwiderruflich verloren!",
+    "confirm.deleteMsg":
+      "Willst du dieses Pokémon wirklich löschen? Alle Daten gehen unwiderruflich verloren!",
     "confirm.cancel": "Abbrechen",
     "confirm.confirm": "Bestätigen",
 
@@ -74,27 +77,43 @@ const translations: Record<Locale, Record<string, string>> = {
     "modal.cancel": "Abbrechen",
     "modal.change": "Wechseln",
     "modal.notAvailable": "Nicht verfügbar für Gen",
-    "modal.missingNames": "Pokémon-Namen sind nicht lokalisiert. Bitte synchronisiere die Pokémon-Daten unter Einstellungen → Pokémon-Daten aktualisieren.",
-    "modal.missingNamesShort": "Pokédex nicht synchronisiert — nur englische Namen verfügbar.",
+    "modal.missingNames":
+      "Pokémon-Namen sind nicht lokalisiert. Bitte synchronisiere die Pokémon-Daten unter Einstellungen → Pokémon-Daten aktualisieren.",
+    "modal.missingNamesShort":
+      "Pokédex nicht synchronisiert — nur englische Namen verfügbar.",
 
     // ── Settings ──
     "settings.title": "Einstellungen",
-    "settings.general": "Allgemein",
-    "settings.hotkeys": "Hotkeys",
-    "settings.output": "Ausgabe",
-    "settings.overlay": "Overlay",
-    "settings.languages": "Aktive Sprachen",
-    "settings.syncPokemon": "Pokémon-Daten aktualisieren",
-    "settings.syncGames": "Spiele-Daten aktualisieren",
+    "settings.tabGeneral": "Allgemein",
+    "settings.tabData": "Daten & Sync",
+    "settings.tabDisplay": "Anzeige & Hotkeys",
+    "settings.tabOverlay": "Overlay",
+    "settings.server": "Server",
+    "settings.port": "Lokaler Port (Neustart erforderlich)",
+    "settings.autoSave": "Automatisches Speichern",
+    "settings.autoSaveDesc": "Zählerstände sofort auf die Festplatte schreiben",
+    "settings.languages": "Spielnamen-Sprachen",
+    "settings.languagesDesc":
+      "Welche Sprachen in der Spielauswahl angezeigt werden. Ältere Spiele haben nicht alle Übersetzungen.",
+    "settings.outputTitle": "Dateiausgabe (OBS)",
+    "settings.outputDir": "Ausgabe-Ordner",
+    "settings.outputDesc": "Erzeugte Textdateien:",
+    "settings.syncPokemon": "Pokémon-Daten",
+    "settings.syncPokemonDesc":
+      "Pokédex von PokéAPI aktualisieren (neue Generationen, neue Formen).",
+    "settings.syncPokemonBtn": "Pokémon-Daten aktualisieren",
+    "settings.syncGames": "Spieldaten",
+    "settings.syncGamesDesc":
+      "Neue Spiele und fehlende Übersetzungen von PokéAPI laden. Bestehende Einträge bleiben erhalten.",
+    "settings.syncGamesBtn": "Spieldaten aktualisieren",
     "settings.syncing": "Synchronisiere…",
+    "settings.syncSuccess": "Sync abgeschlossen:",
+    "settings.syncError": "Fehler:",
+    "settings.syncFailed": "Sync fehlgeschlagen – keine Verbindung zu PokéAPI",
+    "settings.syncNoChanges": "Alles aktuell – keine Änderungen.",
+    "settings.hotkeysTitle": "Globale Hotkeys",
+    "settings.hotkeysPaused": "Hotkeys pausiert",
     "settings.saved": "Gespeichert",
-    "settings.outputDir": "Ausgabeverzeichnis",
-    "settings.autoSave": "Automatisch speichern",
-    "settings.port": "Browser-Port",
-    "settings.quit": "Beenden",
-    "settings.restart": "Neu starten",
-    "settings.uiLanguage": "Sprache",
-    "settings.theme": "Design",
     "settings.themeDark": "Dunkel",
     "settings.themeLight": "Hell",
 
@@ -195,9 +214,11 @@ const translations: Record<Locale, Record<string, string>> = {
 
     // ── Confirm dialogs ──
     "confirm.resetTitle": "Reset counter",
-    "confirm.resetMsg": "Are you sure you want to reset the encounters for this Pokémon to 0?",
+    "confirm.resetMsg":
+      "Are you sure you want to reset the encounters for this Pokémon to 0?",
     "confirm.deleteTitle": "Delete Pokémon",
-    "confirm.deleteMsg": "Do you really want to delete this Pokémon? All data will be lost!",
+    "confirm.deleteMsg":
+      "Do you really want to delete this Pokémon? All data will be lost!",
     "confirm.cancel": "Cancel",
     "confirm.confirm": "Confirm",
 
@@ -219,27 +240,43 @@ const translations: Record<Locale, Record<string, string>> = {
     "modal.cancel": "Cancel",
     "modal.change": "Change",
     "modal.notAvailable": "Not available for Gen",
-    "modal.missingNames": "Pokémon names are not localized. Please sync the Pokémon data under Settings → Update Pokémon data.",
-    "modal.missingNamesShort": "Pokédex not synced — only English names available.",
+    "modal.missingNames":
+      "Pokémon names are not localized. Please sync the Pokémon data under Settings → Update Pokémon data.",
+    "modal.missingNamesShort":
+      "Pokédex not synced — only English names available.",
 
     // ── Settings ──
     "settings.title": "Settings",
-    "settings.general": "General",
-    "settings.hotkeys": "Hotkeys",
-    "settings.output": "Output",
-    "settings.overlay": "Overlay",
-    "settings.languages": "Active Languages",
-    "settings.syncPokemon": "Update Pokémon data",
-    "settings.syncGames": "Update game data",
-    "settings.syncing": "Syncing…",
-    "settings.saved": "Saved",
-    "settings.outputDir": "Output directory",
+    "settings.tabGeneral": "General",
+    "settings.tabData": "Data & Sync",
+    "settings.tabDisplay": "Display & Hotkeys",
+    "settings.tabOverlay": "Overlay",
+    "settings.server": "Server",
+    "settings.port": "Local port (Restart required)",
     "settings.autoSave": "Auto-save",
-    "settings.port": "Browser port",
-    "settings.quit": "Quit",
-    "settings.restart": "Restart",
-    "settings.uiLanguage": "Language",
-    "settings.theme": "Theme",
+    "settings.autoSaveDesc": "Write counters to disk immediately",
+    "settings.languages": "Game Name Languages",
+    "settings.languagesDesc":
+      "Which languages to show in the game selection. Older games may lack some translations.",
+    "settings.outputTitle": "File Output (OBS)",
+    "settings.outputDir": "Output directory",
+    "settings.outputDesc": "Generated text files:",
+    "settings.syncPokemon": "Pokémon Data",
+    "settings.syncPokemonDesc":
+      "Update Pokédex from PokéAPI (new generations, new forms).",
+    "settings.syncPokemonBtn": "Update Pokémon Data",
+    "settings.syncGames": "Game Data",
+    "settings.syncGamesDesc":
+      "Fetch new games and missing translations from PokéAPI. Existing entries are kept.",
+    "settings.syncGamesBtn": "Update Game Data",
+    "settings.syncing": "Syncing…",
+    "settings.syncSuccess": "Sync complete:",
+    "settings.syncError": "Error:",
+    "settings.syncFailed": "Sync failed – no connection to PokéAPI",
+    "settings.syncNoChanges": "Everything up to date – no changes.",
+    "settings.hotkeysTitle": "Global Hotkeys",
+    "settings.hotkeysPaused": "Hotkeys paused",
+    "settings.saved": "Saved",
     "settings.themeDark": "Dark",
     "settings.themeLight": "Light",
 

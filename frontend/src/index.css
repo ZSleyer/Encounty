@@ -174,8 +174,19 @@
     var(--accent-red) 80%,
     transparent 100%
   );
+  background-size: 200% 100%;
   height: 1px;
-  opacity: 0.3;
+  opacity: 0.4;
+  animation: gradient-shift 8s linear infinite;
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 body {

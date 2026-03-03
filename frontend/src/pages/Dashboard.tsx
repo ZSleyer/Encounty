@@ -458,12 +458,10 @@ export function Dashboard() {
               </div>
             )}
 
-            {/* Sprite with glow ring */}
+            {/* Sprite with glow */}
             <div className="relative flex items-center justify-center group">
-              {/* Glow ring */}
-              <div className="absolute w-48 h-48 rounded-full border border-accent-blue/10 group-hover:border-accent-blue/20 transition-colors duration-500" />
-              <div className="absolute w-56 h-56 rounded-full border border-accent-purple/5 group-hover:border-accent-purple/10 transition-colors duration-700" />
-              <div className="absolute inset-0 bg-accent-blue/5 rounded-full blur-3xl scale-150 group-hover:bg-accent-blue/10 transition-all duration-500" />
+              {/* Soft ambient glow instead of hard rings */}
+              <div className="absolute inset-0 bg-accent-blue/10 rounded-full blur-3xl scale-125 group-hover:scale-150 group-hover:bg-accent-blue/20 transition-all duration-700" />
               <img
                 src={
                   imgError[activePokemon.id] || !activePokemon.sprite_url
@@ -493,7 +491,7 @@ export function Dashboard() {
                 {activePokemon.name}
               </h2>
               {activePokemon.game && (
-                <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-bg-card/50 border border-border-subtle/50">
+                <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-bg-card/50 border border-border-subtle">
                   <Gamepad2 className="w-3 h-3 text-text-muted" />
                   <span className="text-[11px] text-text-muted uppercase tracking-wider font-medium">
                     {formatGame(activePokemon.game)}
@@ -552,7 +550,7 @@ export function Dashboard() {
               {!activePokemon.completed_at ? (
                 <button
                   onClick={() => handleComplete(activePokemon.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent-green/10 border border-accent-green/20 hover:bg-accent-green/20 text-accent-green text-xs font-bold transition-all"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent-green/10 border border-accent-green hover:bg-accent-green/20 text-accent-green text-xs font-bold transition-all"
                 >
                   <PartyPopper className="w-3.5 h-3.5" />
                   {t("dash.caught")}

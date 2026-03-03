@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import {
   LayoutGrid,
@@ -5,6 +6,8 @@ import {
   Sun,
   Moon,
   Globe,
+  Power,
+  RefreshCcw,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
@@ -23,6 +26,22 @@ function AppShell() {
     useCounterStore();
   const { t, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
+
+  const [restarting, setRestarting] = useState(false);
+  const [quitting, setQuitting] = useState(false);
+
+  const quitApp = async () => {
+    if (!confirm("Encounty wirklich beenden?")) return;
+    setQuitting(true);
+    await fetch("/api/quit", { method: "POST" }).catch(() => {});
+  };
+
+  const restartApp = async () => {
+    if (!confirm("Encounty wirklich neu starten?")) return;
+    setRestarting(true);
+    await fetch("/api/restart", { method: "POST" }).catch(() => {});
+    setTimeout(() => window.location.reload(), 1500);
+  };
 
   useWebSocket(
     (msg: WSMessage) => {
@@ -78,6 +97,28 @@ function AppShell() {
 
         {/* Right: Theme + Locale */}
         <div className="flex items-center gap-1 ml-auto">
+          {/* App Controls */}
+          <div className="flex items-center gap-1.5 mr-2 border-r border-border-subtle pr-3">
+            <button
+              onClick={restartApp}
+              disabled={restarting || quitting}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 transition-colors disabled:opacity-50"
+              title="Neu starten"
+            >
+              <RefreshCcw
+                className={`w-4 h-4 ${restarting ? "animate-spin" : ""}`}
+              />
+            </button>
+            <button
+              onClick={quitApp}
+              disabled={quitting || restarting}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-500/10 hover:text-red-400 transition-colors disabled:opacity-50"
+              title="Beenden"
+            >
+              <Power className={`w-4 h-4 ${quitting ? "animate-pulse" : ""}`} />
+            </button>
+          </div>
+
           {/* Language toggle */}
           <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden mr-1">
             {LOCALES.map((l) => (
