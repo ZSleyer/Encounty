@@ -8,9 +8,13 @@ import {
   Globe,
   Power,
   RefreshCcw,
+  Keyboard,
+  Layers,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
+import { HotkeyPage } from "./pages/HotkeyPage";
+import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useCounterStore } from "./hooks/useCounterState";
@@ -77,6 +81,12 @@ function AppShell() {
 
           <NavTab to="/" icon={<LayoutGrid className="w-4 h-4" />}>
             {t("nav.dashboard")}
+          </NavTab>
+          <NavTab to="/hotkeys" icon={<Keyboard className="w-4 h-4" />}>
+            {t("nav.hotkeys")}
+          </NavTab>
+          <NavTab to="/overlay-editor" icon={<Layers className="w-4 h-4" />}>
+            {t("nav.overlayEditor")}
           </NavTab>
           <NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4" />}>
             {t("nav.settings")}
@@ -161,6 +171,8 @@ function AppShell() {
       <div className="flex-1 overflow-hidden">
         <Routes>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/hotkeys" element={<HotkeyPage />} />
+          <Route path="/overlay-editor" element={<OverlayEditorPage />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/overlay" element={<Overlay />} />
         </Routes>
