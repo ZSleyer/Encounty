@@ -20,6 +20,10 @@ const translations: Record<Locale, Record<string, string>> = {
   de: {
     // ── App / Nav ──
     "app.name": "Encounty",
+    "app.confirmQuit": "Encounty wirklich beenden?",
+    "app.confirmRestart": "Encounty wirklich neu starten?",
+    "app.restart": "Neu starten",
+    "app.quit": "Beenden",
     "nav.dashboard": "Dashboard",
     "nav.settings": "Einstellungen",
     "nav.connected": "Verbunden",
@@ -184,6 +188,10 @@ const translations: Record<Locale, Record<string, string>> = {
   en: {
     // ── App / Nav ──
     "app.name": "Encounty",
+    "app.confirmQuit": "Really quit Encounty?",
+    "app.confirmRestart": "Really restart Encounty?",
+    "app.restart": "Restart",
+    "app.quit": "Quit",
     "nav.dashboard": "Dashboard",
     "nav.settings": "Settings",
     "nav.connected": "Connected",
