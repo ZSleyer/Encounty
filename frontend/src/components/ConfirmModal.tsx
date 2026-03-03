@@ -44,23 +44,25 @@ export function ConfirmModal({
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          {isDestructive && <AlertTriangle className="w-5 h-5 text-red-500" />}
-          <h2 className="text-lg font-bold text-white">{title}</h2>
+          {isDestructive && (
+            <AlertTriangle className="w-5 h-5 text-accent-red" />
+          )}
+          <h2 className="text-lg font-bold text-text-primary">{title}</h2>
         </div>
         <button
           onClick={handleCancel}
-          className="text-gray-500 hover:text-white transition-colors"
+          className="text-text-muted hover:text-text-primary transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      <p className="text-sm text-gray-400 mb-6">{message}</p>
+      <p className="text-sm text-text-secondary mb-6">{message}</p>
 
       <div className="flex gap-3">
         <button
           onClick={handleCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-sm"
+          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           {cancelLabel}
         </button>
@@ -68,8 +70,8 @@ export function ConfirmModal({
           onClick={handleConfirm}
           className={`flex-1 py-2 rounded-lg text-white font-semibold text-sm transition-colors shadow-sm ${
             isDestructive
-              ? "bg-red-500/80 hover:bg-red-600 border border-red-500/50"
-              : "bg-accent-blue hover:bg-blue-500"
+              ? "bg-accent-red/80 hover:bg-accent-red border border-accent-red/50"
+              : "bg-accent-blue hover:bg-accent-blue/80"
           }`}
         >
           {confirmLabel}

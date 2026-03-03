@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Search, Globe, AlertTriangle } from "lucide-react";
+import { X, Search, Globe, AlertTriangle, Sparkles } from "lucide-react";
+import { useI18n } from "../contexts/I18nContext";
 import { GameEntry, Language } from "../types";
 import {
   getSpriteUrl,
@@ -64,6 +65,7 @@ export function AddPokemonModal({
 }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t } = useI18n();
 
   const [language, setLanguage] = useState<Language>(
     (activeLanguages.includes("de")
@@ -240,10 +242,12 @@ export function AddPokemonModal({
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-lg animate-slide-in backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg font-bold text-white">Pokémon hinzufügen</h2>
+        <h2 className="text-lg font-bold text-text-primary">
+          {t("modal.addTitle")}
+        </h2>
         <button
           onClick={handleCancel}
-          className="text-gray-500 hover:text-white transition-colors"
+          className="text-text-muted hover:text-text-primary transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -252,18 +256,13 @@ export function AddPokemonModal({
       {missingNames && (
         <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-900/20 border border-amber-700/30 text-amber-300 text-xs">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>
-            Pokémon-Namen sind nicht lokalisiert. Bitte synchronisiere die
-            Pokémon-Daten unter{" "}
-            <strong>Einstellungen → Pokémon-Daten aktualisieren</strong>, um in
-            allen Sprachen suchen zu können.
-          </span>
+          <span>{t("modal.missingNames")}</span>
         </div>
       )}
 
       <div className="flex items-center gap-2 mb-4">
-        <Globe className="w-4 h-4 text-gray-500" />
-        <span className="text-xs text-gray-500">Lokalisierung:</span>
+        <Globe className="w-4 h-4 text-text-muted" />
+        <span className="text-xs text-text-muted">{t("modal.language")}:</span>
         {availableLangs.map((lang) => (
           <button
             key={lang}
@@ -285,7 +284,7 @@ export function AddPokemonModal({
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
               language === lang
                 ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                : "bg-bg-dark text-gray-500 border-border-subtle hover:text-gray-300"
+                : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
             }`}
           >
             {lang.toUpperCase()}
@@ -295,7 +294,7 @@ export function AddPokemonModal({
 
       <div className="relative mb-4">
         <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2">
-          <Search className="w-4 h-4 text-gray-500 flex-shrink-0" />
+          <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -304,12 +303,8 @@ export function AddPokemonModal({
               setQuery(e.target.value);
               setSelected(null);
             }}
-            placeholder={
-              language === "de"
-                ? "z.B. Bisasam, Glumanda…"
-                : "e.g. Bulbasaur, Charmander…"
-            }
-            className="flex-1 bg-transparent text-white placeholder-gray-600 outline-none text-sm"
+            placeholder={t("modal.searchPokemon")}
+            className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-sm"
           />
         </div>
 
@@ -322,11 +317,11 @@ export function AddPokemonModal({
                 className="w-full text-left px-4 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center justify-between"
               >
                 <span
-                  className={`capitalize ${s.isForm ? "text-gray-300 pl-3 border-l border-border-subtle" : "text-white"}`}
+                  className={`capitalize ${s.isForm ? "text-text-secondary pl-3 border-l border-border-subtle" : "text-text-primary"}`}
                 >
                   {getPkmnName(s, language)}
                 </span>
-                <span className="text-gray-500 text-xs italic">
+                <span className="text-text-muted text-xs italic">
                   {s.canonical}
                 </span>
               </button>
@@ -350,12 +345,12 @@ export function AddPokemonModal({
                 }
               />
             ) : (
-              <span className="text-3xl">?</span>
+              <span className="text-3xl text-text-faint">?</span>
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-white text-lg">{activeName}</p>
-            <p className="text-xs text-gray-500 capitalize">
+            <p className="font-bold text-text-primary text-lg">{activeName}</p>
+            <p className="text-xs text-text-muted capitalize">
               {selected.canonical}
             </p>
           </div>
@@ -364,7 +359,9 @@ export function AddPokemonModal({
 
       {/* Sprite style — with generation-aware availability */}
       <div className="mb-4">
-        <span className="block text-xs text-gray-500 mb-2">Sprite-Stil:</span>
+        <span className="block text-xs text-text-muted mb-2">
+          {t("modal.spriteStyle")}:
+        </span>
         <div className="grid grid-cols-4 gap-2">
           {SPRITE_STYLES.map((s) => {
             const available = isSpriteStyleAvailable(s.key, selectedGameGen);
@@ -376,18 +373,18 @@ export function AddPokemonModal({
                 title={
                   available
                     ? s.desc
-                    : `Nicht verfügbar für Gen ${selectedGameGen}`
+                    : `${t("modal.notAvailable")} ${selectedGameGen}`
                 }
                 className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border ${
                   !available
-                    ? "bg-bg-dark/50 text-gray-700 border-border-subtle/50 cursor-not-allowed opacity-40"
+                    ? "bg-bg-primary/50 text-text-faint border-border-subtle/50 cursor-not-allowed opacity-40"
                     : spriteStyle === s.key
                       ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                      : "bg-bg-dark text-gray-500 border-border-subtle hover:text-gray-300"
+                      : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
                 }`}
               >
                 <span className="text-sm">{s.label}</span>
-                <span className="text-[10px] text-gray-600 leading-tight text-center">
+                <span className="text-[10px] text-text-faint leading-tight text-center">
                   {s.desc}
                 </span>
               </button>
@@ -397,22 +394,25 @@ export function AddPokemonModal({
       </div>
 
       <div className="mb-4">
-        <span className="block text-xs text-gray-500 mb-2">Farb-Variante:</span>
+        <span className="block text-xs text-text-muted mb-2">
+          {t("modal.variant")}:
+        </span>
         <div className="flex gap-3">
-          {(["shiny", "normal"] as SpriteType[]).map((t) => (
-            <label key={t} className="flex items-center gap-2 cursor-pointer">
+          {(["shiny", "normal"] as SpriteType[]).map((tp) => (
+            <label key={tp} className="flex items-center gap-2 cursor-pointer">
               <input
                 type="radio"
                 name="sprite-type"
-                value={t}
-                checked={spriteType === t}
-                onChange={() => setSpriteType(t)}
+                value={tp}
+                checked={spriteType === tp}
+                onChange={() => setSpriteType(tp)}
                 className="accent-accent-blue"
               />
               <span
-                className={`text-sm capitalize ${spriteType === t ? "text-white" : "text-gray-400"}`}
+                className={`text-sm capitalize flex items-center gap-1 ${spriteType === tp ? "text-text-primary" : "text-text-muted"}`}
               >
-                {t === "shiny" ? "✨ Shiny" : "Normal"}
+                {tp === "shiny" && <Sparkles className="w-3.5 h-3.5" />}
+                {tp === "shiny" ? "Shiny" : "Normal"}
               </span>
             </label>
           ))}
@@ -422,9 +422,9 @@ export function AddPokemonModal({
       <div className="mb-4">
         <label
           htmlFor="custom-sprite-add"
-          className="block text-xs text-gray-500 mb-1"
+          className="block text-xs text-text-muted mb-1"
         >
-          Eigene Sprite-URL (optional)
+          {t("modal.customSprite")}
         </label>
         <input
           id="custom-sprite-add"
@@ -432,26 +432,26 @@ export function AddPokemonModal({
           value={customSprite}
           onChange={(e) => setCustomSprite(e.target.value)}
           placeholder="https://…"
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:border-accent-blue/50 transition-colors"
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
         />
       </div>
 
       <div className="mb-5">
         <label
           htmlFor="game-select-add"
-          className="block text-xs text-gray-500 mb-1"
+          className="block text-xs text-text-muted mb-1"
         >
-          Spiel
+          {t("modal.game")}
         </label>
         <select
           id="game-select-add"
           value={selectedGame}
           onChange={(e) => setSelectedGame(e.target.value)}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent-blue/50 transition-colors"
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
         >
-          <option value="">— Kein Spiel —</option>
+          <option value="">{t("modal.noGame")}</option>
           {Object.entries(genGroups).map(([gen, entries]) => (
-            <optgroup key={gen} label={`Generation ${gen}`}>
+            <optgroup key={gen} label={`${t("modal.generation")} ${gen}`}>
               {entries.map((g) => (
                 <option key={g.key} value={g.key}>
                   {getGameName(g, [language, ...activeLanguages, "en"])}
@@ -465,16 +465,16 @@ export function AddPokemonModal({
       <div className="flex gap-3">
         <button
           onClick={handleCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-sm"
+          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
-          Abbrechen
+          {t("modal.cancel")}
         </button>
         <button
           onClick={handleAdd}
           disabled={!selected}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          Hinzufügen
+          {t("modal.add")}
         </button>
       </div>
     </dialog>

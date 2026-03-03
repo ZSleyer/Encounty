@@ -2,15 +2,180 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-card: #1e293b;
-  --accent-blue: #3b82f6;
-  --accent-green: #10b981;
-  --accent-yellow: #f59e0b;
-  --accent-purple: #8b5cf6;
-  --border-subtle: #334155;
+/* ── Theme Variables ─────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg-primary: #0f0f13;
+  --bg-secondary: #1a1a24;
+  --bg-card: #1e1e2e;
+  --bg-hover: #252535;
+  --accent-blue: #4a9eff;
+  --accent-green: #4ade80;
+  --accent-yellow: #ffd700;
+  --accent-red: #e64040;
+  --accent-purple: #a855f7;
+  --border-subtle: #2a2a3a;
+  --border-active: #4a9eff;
+  --text-primary: #ffffff;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-faint: #475569;
+  --scrollbar-track: #0f0f13;
+  --scrollbar-thumb: #2a2a3a;
+  --scrollbar-thumb-hover: #475569;
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  --accent-blue: #2563eb;
+  --accent-green: #16a34a;
+  --accent-yellow: #d97706;
+  --accent-red: #dc2626;
+  --accent-purple: #7c3aed;
+  --border-subtle: #e2e8f0;
+  --border-active: #2563eb;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-faint: #cbd5e1;
+  --scrollbar-track: #f8fafc;
+  --scrollbar-thumb: #cbd5e1;
+  --scrollbar-thumb-hover: #94a3b8;
+  color-scheme: light;
+}
+
+/* ── Animated Background ───────────────────────────────────── */
+
+.dash-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.dash-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 80% 60% at 50% 20%,
+      var(--accent-blue-glow, rgba(74, 158, 255, 0.06)) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 60% 40% at 70% 80%,
+      var(--accent-purple-glow, rgba(168, 85, 247, 0.04)) 0%,
+      transparent 50%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+[data-theme="light"] .dash-bg::before {
+  --accent-blue-glow: rgba(37, 99, 235, 0.05);
+  --accent-purple-glow: rgba(124, 58, 237, 0.03);
+}
+
+.dash-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(60px);
+  opacity: 0.35;
+  z-index: 0;
+}
+
+.dash-orb-1 {
+  width: 200px;
+  height: 200px;
+  background: var(--accent-blue);
+  top: 15%;
+  left: 55%;
+  animation: orb-float-1 12s ease-in-out infinite;
+}
+
+.dash-orb-2 {
+  width: 150px;
+  height: 150px;
+  background: var(--accent-purple);
+  bottom: 20%;
+  right: 15%;
+  animation: orb-float-2 10s ease-in-out infinite;
+}
+
+.dash-orb-3 {
+  width: 120px;
+  height: 120px;
+  background: var(--accent-green);
+  top: 60%;
+  left: 20%;
+  animation: orb-float-3 14s ease-in-out infinite;
+  opacity: 0.2;
+}
+
+@keyframes orb-float-1 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -20px) scale(1.1);
+  }
+  66% {
+    transform: translate(-20px, 15px) scale(0.95);
+  }
+}
+
+@keyframes orb-float-2 {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  40% {
+    transform: translate(-25px, 20px) scale(1.05);
+  }
+  70% {
+    transform: translate(15px, -10px) scale(0.9);
+  }
+}
+
+@keyframes orb-float-3 {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(20px, -30px);
+  }
+}
+
+/* Glass card */
+.glass-card {
+  background: rgba(30, 30, 46, 0.4);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Footer gradient line */
+.footer-line {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent-blue) 20%,
+    var(--accent-purple) 50%,
+    var(--accent-red) 80%,
+    transparent 100%
+  );
+  height: 1px;
+  opacity: 0.3;
 }
 
 body {
@@ -31,7 +196,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: transparent; /* Changed to transparent for OBS */
-  color: white;
+  color: var(--text-primary);
 }
 
 code {
@@ -243,16 +408,16 @@ code {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: var(--scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* Sharp scaling for preview */

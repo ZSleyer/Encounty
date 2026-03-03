@@ -226,12 +226,8 @@ func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 			}
 		case "reset":
 			if id != "" {
-				s.state.Reset(id)
-				s.state.ScheduleSave()
-				s.broadcastState()
-				if s.fileWriter != nil {
-					s.fileWriter.Write(s.state.GetState())
-				}
+				// Don't reset directly — ask the frontend to confirm first.
+				s.hub.BroadcastRaw("request_reset_confirm", map[string]any{"pokemon_id": id})
 			}
 		case "next":
 			s.state.NextPokemon()
