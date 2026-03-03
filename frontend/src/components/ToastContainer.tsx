@@ -34,7 +34,6 @@ function ToastItem({
               src={toast.spriteUrl}
               alt=""
               className="pokemon-sprite w-14 h-14 object-contain"
-              style={{ imageRendering: "pixelated" }}
             />
           </div>
         )}

@@ -357,11 +357,6 @@ export function Dashboard() {
                           setImgError((prev) => ({ ...prev, [p.id]: true }))
                         }
                         className="pokemon-sprite w-full h-full object-contain"
-                        style={
-                          p.sprite_style === "3d" || p.sprite_style === "artwork"
-                            ? undefined
-                            : { imageRendering: "pixelated" }
-                        }
                       />
                       {isArchived && (
                         <div className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-full p-0.5">
@@ -477,12 +472,6 @@ export function Dashboard() {
                   }))
                 }
                 className="pokemon-sprite w-40 h-40 object-contain relative z-10 drop-shadow-2xl transition-transform duration-300 group-hover:scale-110"
-                style={
-                  activePokemon.sprite_style === "3d" ||
-                  activePokemon.sprite_style === "artwork"
-                    ? undefined
-                    : { imageRendering: "pixelated" }
-                }
               />
             </div>
 
