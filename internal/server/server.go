@@ -80,6 +80,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/games/sync", s.handleSyncGames)
 	mux.HandleFunc("/api/pokedex", s.handleGetPokedex)
 	mux.HandleFunc("/api/sync/pokemon", s.handleSyncPokemon)
+	mux.HandleFunc("/api/backup", s.handleBackup)
+	mux.HandleFunc("/api/restore", s.handleRestore)
 	mux.HandleFunc("/api/quit", s.handleQuit)
 	mux.HandleFunc("/api/restart", s.handleRestart)
 
