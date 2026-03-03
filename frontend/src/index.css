@@ -565,3 +565,19 @@ code {
   -webkit-font-smoothing: subpixel-antialiased;
   transform-style: preserve-3d;
 }
+
+/* ── Toast animations ──────────────────────────────────────────── */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.2s ease-out forwards;
+}
