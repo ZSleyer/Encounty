@@ -408,7 +408,7 @@ export function Dashboard() {
           <div className="p-3 border-t border-border-subtle">
             <button
               onClick={() => setShowAddModal(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs font-semibold transition-colors glass-card hover-glow hover:border-accent-blue/50"
+              className="w-full flex items-center justify-center gap-1.5 py-2 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs font-semibold transition-colors hover-glow"
             >
               <Plus className="w-3.5 h-3.5" />
               {t("dash.addPokemon")}
@@ -418,19 +418,14 @@ export function Dashboard() {
       </aside>
       <div className="glow-line-v flex-shrink-0" />
 
-      {/* RIGHT: Active Pokemon detail */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-bg-primary dash-bg">
-        {/* Animated orbs */}
-        <div className="dash-orb dash-orb-1" />
-        <div className="dash-orb dash-orb-2" />
-        <div className="dash-orb dash-orb-3" />
+      <main className="flex-1 flex flex-col overflow-hidden bg-transparent relative">
 
         {!activePokemon ? (
-          <div className="flex flex-col items-center justify-center h-full text-center relative z-10">
-            <div className="w-20 h-20 rounded-full bg-bg-card border border-border-subtle flex items-center justify-center mb-6">
+          <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
+            <div className="w-20 h-20 rounded-full bg-bg-card border border-border-subtle flex items-center justify-center mb-6 shadow-sm">
               <Sparkles className="w-8 h-8 text-text-faint" />
             </div>
-            <h2 className="text-xl font-semibold text-text-primary mb-2">
+            <h2 className="text-2xl font-semibold text-text-primary mb-2">
               {t("dash.noActive")}
             </h2>
             <p className="text-text-muted text-sm max-w-xs">
@@ -438,130 +433,158 @@ export function Dashboard() {
             </p>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 gap-6 relative z-10">
-            {/* Archived banner */}
-            {activePokemon.completed_at && (
-              <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full glass-card text-accent-green text-sm">
-                <Trophy className="w-4 h-4" />
-                <span className="font-bold">{t("dash.caughtBanner")}</span>
-                <span className="w-px h-3 bg-accent-green/20" />
-                <span className="text-accent-green/60 text-xs">
-                  {new Date(activePokemon.completed_at).toLocaleDateString(
-                    "de-DE",
-                    { day: "2-digit", month: "short", year: "numeric" },
-                  )}
-                </span>
-              </div>
-            )}
-
-            {/* Sprite with glow */}
-            <div className="relative flex items-center justify-center group">
-              {/* Soft ambient glow instead of hard rings */}
-              <div className="absolute inset-0 bg-accent-blue/10 rounded-full blur-3xl scale-125 group-hover:scale-150 group-hover:bg-accent-blue/20 transition-all duration-700" />
-              <img
-                src={
-                  imgError[activePokemon.id] || !activePokemon.sprite_url
-                    ? FALLBACK
-                    : activePokemon.sprite_url
-                }
-                alt={activePokemon.name}
-                onError={() =>
-                  setImgError((prev) => ({
-                    ...prev,
-                    [activePokemon.id]: true,
-                  }))
-                }
-                className="pokemon-sprite w-40 h-40 object-contain relative z-10 drop-shadow-2xl transition-transform duration-300 group-hover:scale-110"
-              />
-            </div>
-
-            {/* Name + Game badge */}
-            <div className="text-center">
-              <h2 className="text-3xl font-black text-text-primary capitalize tracking-wide">
-                {activePokemon.name}
-              </h2>
-              {activePokemon.game && (
-                <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full bg-bg-card/50 border border-border-subtle">
-                  <Gamepad2 className="w-3 h-3 text-text-muted" />
-                  <span className="text-[11px] text-text-muted uppercase tracking-wider font-medium">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 relative z-10 w-full max-w-5xl mx-auto min-h-0">
+            {/* Top Bar inside Dashboard (Game + Edit/Delete) */}
+            <div className="absolute top-8 left-8 right-8 flex justify-between items-start">
+              {/* Game Badge */}
+              {activePokemon.game ? (
+                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm text-text-muted">
+                  <Gamepad2 className="w-4 h-4" />
+                  <span className="text-xs uppercase tracking-wider font-semibold">
                     {formatGame(activePokemon.game)}
                   </span>
                 </div>
-              )}
-            </div>
+              ) : <div />}
 
-            {/* Counter — glassmorphism */}
-            <div className="glass-card rounded-2xl px-14 py-7 text-center">
-              <div className="text-7xl font-black text-text-primary tabular-nums leading-none tracking-tight">
-                {activePokemon.encounters.toLocaleString()}
-              </div>
-              <div className="text-[10px] text-text-muted uppercase tracking-[0.2em] font-semibold mt-3">
-                {t("dash.encounters")}
-              </div>
-            </div>
-
-            {/* Control buttons — harmonized */}
-            {!activePokemon.completed_at && (
-              <div className="flex items-center gap-3">
+              {/* Action row — unified pill-shaped buttons */}
+              <div className="flex gap-2">
                 <button
-                  onClick={() => handleDecrement(activePokemon.id)}
-                  className="flex items-center justify-center w-12 h-12 rounded-xl glass-card hover:border-accent-blue/30 text-text-muted hover:text-text-primary transition-all active:scale-95"
+                  onClick={() => setEditingPokemon(activePokemon)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm hover:border-accent-blue/40 text-text-muted hover:text-text-primary text-xs font-semibold transition-all hover:bg-bg-hover"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  {t("dash.edit")}
+                </button>
+
+                {!activePokemon.completed_at ? (
+                  <button
+                    onClick={() => handleComplete(activePokemon.id)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent-green text-white shadow-sm hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-all"
+                  >
+                    <PartyPopper className="w-3.5 h-3.5" />
+                    {t("dash.caught")}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleUncomplete(activePokemon.id)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle hover:border-accent-yellow/40 text-text-muted hover:text-accent-yellow text-xs font-semibold shadow-sm transition-all hover:bg-bg-hover"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                    {t("dash.reactivate")}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => handleDelete(activePokemon.id)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm hover:border-accent-red/40 text-text-muted hover:text-accent-red text-xs font-semibold transition-all hover:bg-bg-hover"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {t("dash.delete")}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center w-full max-w-3xl mt-12">
+              {/* Archived banner */}
+              {activePokemon.completed_at && (
+                <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm">
+                  <Trophy className="w-4 h-4" />
+                  <span className="font-bold">{t("dash.caughtBanner")}</span>
+                  <span className="w-px h-3 bg-accent-green/30" />
+                  <span className="text-accent-green/80 text-xs font-medium">
+                    {new Date(activePokemon.completed_at).toLocaleDateString(
+                      "de-DE",
+                      { day: "2-digit", month: "short", year: "numeric" },
+                    )}
+                  </span>
+                </div>
+              )}
+
+              {/* Solid Card for Sprite */}
+              <div className="relative w-full aspect-[2/1] max-h-[300px] mb-8 flex items-center justify-center">
+                {/* Clean, no-glow sprite container */}
+                <div className="relative z-10 p-8 flex flex-col items-center">
+                  <img
+                    src={
+                      imgError[activePokemon.id] || !activePokemon.sprite_url
+                        ? FALLBACK
+                        : activePokemon.sprite_url
+                    }
+                    alt={activePokemon.name}
+                    onError={() =>
+                      setImgError((prev) => ({
+                        ...prev,
+                        [activePokemon.id]: true,
+                      }))
+                    }
+                    className="pokemon-sprite w-56 h-56 object-contain relative z-10 drop-shadow-xl transition-transform duration-300 hover:scale-110"
+                  />
+                </div>
+                {/* Pokemon Name Overlay */}
+                <h2 className="absolute -bottom-2 text-4xl font-black text-text-primary capitalize tracking-wide drop-shadow-md z-20">
+                  {activePokemon.name}
+                </h2>
+              </div>
+
+              {/* Main Counter Section */}
+              <div className="flex items-center gap-6 mt-8 w-full justify-center">
+                {/* Minus Button */}
+                <button
+                  onClick={() => !activePokemon.completed_at && handleDecrement(activePokemon.id)}
+                  disabled={!!activePokemon.completed_at}
+                  className="flex items-center justify-center w-16 h-16 rounded-2xl bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   title="−1"
                 >
-                  <Minus className="w-5 h-5" />
+                  <Minus className="w-8 h-8" />
                 </button>
+
+                {/* Solid Counter Card */}
+                <div className="bg-bg-card rounded-3xl px-16 py-8 text-center border border-border-subtle shadow-md min-w-[340px]">
+                  <div 
+                    className="text-7xl font-black tabular-nums leading-none tracking-tight text-text-primary"
+                  >
+                    {activePokemon.encounters.toLocaleString()}
+                  </div>
+                </div>
+
+                {/* Plus Button */}
                 <button
-                  onClick={() => handleIncrement(activePokemon.id)}
-                  className="flex items-center justify-center w-16 h-16 rounded-2xl bg-accent-blue text-white shadow-lg shadow-accent-blue/25 transition-all hover:shadow-accent-blue/40 hover:scale-105 active:scale-95"
+                  onClick={() => !activePokemon.completed_at && handleIncrement(activePokemon.id)}
+                  disabled={!!activePokemon.completed_at}
+                  className="flex items-center justify-center w-20 h-20 rounded-2xl bg-accent-green border border-transparent hover:bg-accent-green/90 text-white transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   title="+1"
                 >
-                  <Plus className="w-7 h-7" />
-                </button>
-                <button
-                  onClick={() => handleReset(activePokemon.id)}
-                  className="flex items-center justify-center w-12 h-12 rounded-xl glass-card hover:border-accent-red/30 text-text-muted hover:text-accent-red transition-all active:scale-95"
-                  title="Reset"
-                >
-                  <RotateCcw className="w-4.5 h-4.5" />
+                  <Plus className="w-10 h-10 stroke-[3px]" />
                 </button>
               </div>
-            )}
 
-            {/* Action row — unified pill-shaped buttons */}
-            <div className="flex gap-2 flex-wrap justify-center">
-              <button
-                onClick={() => setEditingPokemon(activePokemon)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full glass-card hover:border-accent-blue/20 text-text-muted hover:text-text-primary text-xs font-medium transition-all"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                {t("dash.edit")}
-              </button>
-
-              {!activePokemon.completed_at ? (
+              {/* Reset Button */}
+              {!activePokemon.completed_at && (
                 <button
-                  onClick={() => handleComplete(activePokemon.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent-green/10 border border-accent-green hover:bg-accent-green/20 text-accent-green text-xs font-bold transition-all"
-                >
-                  <PartyPopper className="w-3.5 h-3.5" />
-                  {t("dash.caught")}
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleUncomplete(activePokemon.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full glass-card hover:border-accent-yellow/20 text-text-muted hover:text-accent-yellow text-xs font-medium transition-all"
-                >
-                  <Undo2 className="w-3.5 h-3.5" />
-                  {t("dash.reactivate")}
-                </button>
+                   onClick={() => handleReset(activePokemon.id)}
+                   className="mt-6 flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all shadow-sm text-xs font-semibold"
+                 >
+                   <RotateCcw className="w-4 h-4" />
+                   Reset Counter
+                 </button>
               )}
 
-              <button
-                onClick={() => handleDelete(activePokemon.id)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full glass-card hover:border-accent-red/20 text-text-muted hover:text-accent-red text-xs font-medium transition-all"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                {t("dash.delete")}
-              </button>
+              {/* Bottom Statistics Cards */}
+              <div className="grid grid-cols-2 gap-6 mt-12 w-full max-w-xl mx-auto">
+                {/* Encounter */}
+                <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
+                  <div className="text-text-muted text-[11px] font-bold uppercase tracking-widest mb-1">{t("dash.phase") || "Encounter"}</div>
+                  <div className="text-xl font-black text-text-primary">{activePokemon.encounters.toLocaleString()}</div>
+                </div>
+                {/* Odds */}
+                <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
+                  <div className="text-text-muted text-[11px] font-bold uppercase tracking-widest mb-1">{t("dash.odds") || "Odds"}</div>
+                  <div className="text-xl font-black text-accent-blue">
+                    1/{(!activePokemon.game || activePokemon.game.match(/red|blue|yellow|gold|silver|crystal|ruby|sapphire|emerald|firered|leafgreen|diamond|pearl|platinum|heartgold|soulsilver|black|white/)) ? "8192" : "4096"}
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         )}

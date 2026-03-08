@@ -166,6 +166,20 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, settings)
 }
 
+func (s *Server) handleVersion(w http.ResponseWriter, _ *http.Request) {
+	var display string
+	if s.version == "dev" {
+		display = "Build " + s.commit
+	} else {
+		display = s.version + " Build " + s.commit
+	}
+	writeJSON(w, http.StatusOK, map[string]string{
+		"version": s.version,
+		"commit":  s.commit,
+		"display": display,
+	})
+}
+
 func (s *Server) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 	var hk state.HotkeyMap
 	if err := readJSON(r, &hk); err != nil {

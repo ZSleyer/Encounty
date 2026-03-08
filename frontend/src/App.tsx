@@ -36,6 +36,16 @@ function AppShell() {
 
   const [restarting, setRestarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
+  const [buildInfo, setBuildInfo] = useState("Encounty");
+
+  useEffect(() => {
+    fetch("/api/version")
+      .then((r) => r.json())
+      .then((d: { display: string }) =>
+        setBuildInfo(`Encounty ${d.display}`)
+      )
+      .catch(() => setBuildInfo("Encounty"));
+  }, []);
 
   // Sync crisp-sprites attribute from backend settings whenever state arrives
   useEffect(() => {
@@ -136,9 +146,12 @@ function AppShell() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-bg-primary text-text-primary overflow-hidden">
+    <div className="flex flex-col h-screen bg-transparent text-text-primary overflow-hidden relative">
+      <div className="switch-waves-container">
+        <div className="switch-waves" />
+      </div>
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
-      <header className="flex items-center h-12 px-4 bg-bg-secondary flex-shrink-0">
+      <header className="flex items-center h-12 px-4 bg-bg-secondary flex-shrink-0 relative z-10">
         {/* Left: Logo + Nav tabs */}
         <div className="flex items-center gap-1 mr-auto">
           {/* Logo */}
@@ -163,17 +176,6 @@ function AppShell() {
           </NavTab>
         </div>
 
-        {/* Center: Connection */}
-        <div className="flex items-center gap-4 text-xs text-text-muted">
-          <div
-            className={`flex items-center gap-1.5 ${isConnected ? "text-accent-green" : "text-accent-red"}`}
-          >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${isConnected ? "bg-accent-green" : "bg-accent-red"}`}
-            />
-            {isConnected ? t("nav.connected") : t("nav.disconnected")}
-          </div>
-        </div>
 
         {/* Right: Theme + Locale */}
         <div className="flex items-center gap-1 ml-auto">
@@ -256,11 +258,27 @@ function AppShell() {
         <footer className="h-8 px-5 flex items-center justify-between text-[10px] text-text-faint select-none">
           <div className="flex items-center gap-2">
             <span className="font-bold tracking-widest uppercase text-text-muted">
-              Encounty v0.2-dev
+              {buildInfo}
             </span>
             <span className="text-text-faint/30">|</span>
             <span className="tracking-wide">
               &copy; {new Date().getFullYear()} ZSleyer
+            </span>
+          </div>
+          {/* WS connection — subtle, small, in the footer */}
+          <div
+            className={`flex items-center gap-1 text-[10px] transition-colors ${
+              isConnected ? "text-text-faint" : "text-accent-red/70"
+            }`}
+            title={isConnected ? t("nav.connected") : t("nav.disconnected")}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                isConnected ? "bg-accent-green/60" : "bg-accent-red/70"
+              }`}
+            />
+            <span className="tracking-wide">
+              {isConnected ? t("nav.connected") : t("nav.disconnected")}
             </span>
           </div>
           <a

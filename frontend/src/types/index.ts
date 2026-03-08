@@ -102,6 +102,7 @@ export interface OverlaySettings {
   hidden?: boolean;
   background_color: string;
   background_opacity: number;
+  background_animation?: string;
   blur: number;
   show_border: boolean;
   border_color: string;

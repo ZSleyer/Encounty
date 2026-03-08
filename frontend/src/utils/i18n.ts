@@ -56,6 +56,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.caughtBanner": "Gefangen!",
     "dash.reactivate": "Reaktivieren",
     "dash.enc": "enc.",
+    "dash.phase": "Encounter",
+    "dash.odds": "Chancen",
 
     // ── Confirm dialogs ──
     "confirm.resetTitle": "Zähler zurücksetzen",
@@ -247,6 +249,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.caughtBanner": "Caught!",
     "dash.reactivate": "Reactivate",
     "dash.enc": "enc.",
+    "dash.phase": "Encounter",
+    "dash.odds": "Odds",
 
     // ── Confirm dialogs ──
     "confirm.resetTitle": "Reset counter",

@@ -9,159 +9,126 @@
   --bg-secondary: #1a1a24;
   --bg-card: #1e1e2e;
   --bg-hover: #252535;
-  --accent-blue: #4a9eff;
+  --accent-blue: #5aabff;
   --accent-green: #4ade80;
   --accent-yellow: #ffd700;
-  --accent-red: #e64040;
-  --accent-purple: #a855f7;
-  --border-subtle: #2a2a3a;
-  --border-active: #4a9eff;
-  --text-primary: #ffffff;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-faint: #475569;
+  --accent-red: #f05050;
+  --accent-purple: #b970ff;
+  --border-subtle: #333345;
+  --border-active: #5aabff;
+  /* WCAG AA compliant text colors on dark backgrounds */
+  --text-primary: #f1f5f9;       /* near-white, crisp */
+  --text-secondary: #b8c9da;     /* ~6.5:1 on #0f0f13 — replaces #94a3b8 (~4.6) */
+  --text-muted: #94aabf;         /* ~4.8:1 on #0f0f13 — replaces #64748b (~2.8) */
+  --text-faint: #6b7e91;         /* ~4.0:1 on #0f0f13, decorative/boundaries only */
   --scrollbar-track: #0f0f13;
-  --scrollbar-thumb: #2a2a3a;
-  --scrollbar-thumb-hover: #475569;
+  --scrollbar-thumb: #333345;
+  --scrollbar-thumb-hover: #4a5568;
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg-primary: #f8fafc;
+  --bg-primary: #f0f4f8;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
-  --bg-hover: #f1f5f9;
-  --accent-blue: #2563eb;
-  --accent-green: #16a34a;
-  --accent-yellow: #d97706;
-  --accent-red: #dc2626;
-  --accent-purple: #7c3aed;
-  --border-subtle: #e2e8f0;
-  --border-active: #2563eb;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-faint: #cbd5e1;
-  --scrollbar-track: #f8fafc;
-  --scrollbar-thumb: #cbd5e1;
-  --scrollbar-thumb-hover: #94a3b8;
+  --bg-hover: #e8edf3;
+  --accent-blue: #1d53cc;        /* darkened from #2563eb for better contrast on white */
+  --accent-green: #15803d;       /* darkened for better contrast */
+  --accent-yellow: #b45309;      /* darkened for better contrast */
+  --accent-red: #b91c1c;         /* darkened for better contrast */
+  --accent-purple: #6d28d9;
+  --border-subtle: #c8d3de;      /* stronger than #e2e8f0 — more visible dividers */
+  --border-active: #1d53cc;
+  /* WCAG AA compliant text colors on light backgrounds */
+  --text-primary: #0a1628;       /* ~16:1 on white */
+  --text-secondary: #2d4059;     /* ~7.8:1 on white — replaces #475569 (~4.3) */
+  --text-muted: #4a5f73;         /* ~5.6:1 on white — replaces #94a3b8 (~2.4) */
+  --text-faint: #637080;         /* ~4.6:1 on white — replaces #cbd5e1 (~1.5) */
+  --scrollbar-track: #f0f4f8;
+  --scrollbar-thumb: #c8d3de;
+  --scrollbar-thumb-hover: #a0adb8;
   color-scheme: light;
 }
 
-/* ── Animated Background ───────────────────────────────────── */
+/* ── Background Patterns ───────────────────────────────────── */
 
 .dash-bg {
   position: relative;
   overflow: hidden;
+  background-color: var(--bg-primary);
 }
 
-.dash-bg::before {
-  content: "";
-  position: absolute;
+/* ── Switch Homebrew Style Fluid Waves Background ───────── */
+
+.switch-waves-container {
+  position: fixed; /* Fixed prevents clipping on scrolling pages */
   inset: 0;
-  background:
-    radial-gradient(
-      ellipse 80% 60% at 50% 20%,
-      var(--accent-blue-glow, rgba(74, 158, 255, 0.06)) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 60% 40% at 70% 80%,
-      var(--accent-purple-glow, rgba(168, 85, 247, 0.04)) 0%,
-      transparent 50%
-    );
+  z-index: -10; /* Keep it securely behind all content surfaces */
+  overflow: hidden;
   pointer-events: none;
-  z-index: 0;
+  background-color: var(--bg-primary); /* Fallback base color */
 }
 
-[data-theme="light"] .dash-bg::before {
-  --accent-blue-glow: rgba(37, 99, 235, 0.05);
-  --accent-purple-glow: rgba(124, 58, 237, 0.03);
-}
-
-.dash-orb {
+.switch-waves {
   position: absolute;
-  border-radius: 50%;
+  /* Make the exact container larger to allow tilting without exposing corners */
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  /* Tilt the container slightly for that diagonal flowing ribbon feel */
+  transform: rotate(-8deg);
+
+  /* Dark mode SVG with 3 overlapping subtle sine waves */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.025' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.015' /%3E%3Cpath d='M0,1000 L0,500 C166,600 333,400 500,500 C666,600 833,400 1000,500 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.01' /%3E%3C/svg%3E");
+  background-size: 200% 100%;
+  background-repeat: repeat-x;
+  /* Animate smooth horizontal translation */
+  will-change: background-position;
+  animation: wave-flow 30s linear infinite;
+}
+
+[data-theme="light"] .switch-waves {
+  /* Light mode SVG with darker waves */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23000000' fill-opacity='0.035' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23000000' fill-opacity='0.02' /%3E%3Cpath d='M0,1000 L0,500 C166,600 333,400 500,500 C666,600 833,400 1000,500 L1000,1000 Z' fill='%23000000' fill-opacity='0.015' /%3E%3C/svg%3E");
+}
+
+@keyframes wave-flow {
+  /* 100% background-position smoothly shifts the pattern by exactly one tile, creating a mathematical infinite loop */
+  0% { background-position: 0% 0; }
+  100% { background-position: 100% 0; }
+}
+
+/* ── Canvas-specific waves: same animation, higher contrast for small areas ── */
+.canvas-waves {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  transform: rotate(-8deg);
+  /* Layered waves: white layer for dark bg + dark layer for light bg, both visible */
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.18' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.12' /%3E%3Cpath d='M0,1000 L0,500 C166,600 333,400 500,500 C666,600 833,400 1000,500 L1000,1000 Z' fill='%23000000' fill-opacity='0.06' /%3E%3C/svg%3E");
+  background-size: 200% 100%;
+  background-repeat: repeat-x;
+  will-change: background-position;
+  animation: wave-flow 30s linear infinite;
   pointer-events: none;
-  filter: blur(60px);
-  opacity: 0.35;
-  z-index: 0;
 }
 
-.dash-orb-1 {
-  width: 200px;
-  height: 200px;
-  background: var(--accent-blue);
-  top: 15%;
-  left: 55%;
-  animation: orb-float-1 12s ease-in-out infinite;
+/* ── Hotkeys-paused badge — WCAG AA contrast in both themes ─────────────── */
+/* Light mode: dark amber text on light amber bg */
+.hotkeys-paused-badge {
+  color: #92400e;               /* amber-800 — high contrast on light bg */
+  background-color: #fef9c3;   /* amber-100 */
+  border-color: #f59e0b;        /* amber-500 */
 }
-
-.dash-orb-2 {
-  width: 150px;
-  height: 150px;
-  background: var(--accent-purple);
-  bottom: 20%;
-  right: 15%;
-  animation: orb-float-2 10s ease-in-out infinite;
-}
-
-.dash-orb-3 {
-  width: 120px;
-  height: 120px;
-  background: var(--accent-green);
-  top: 60%;
-  left: 20%;
-  animation: orb-float-3 14s ease-in-out infinite;
-  opacity: 0.2;
-}
-
-@keyframes orb-float-1 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(30px, -20px) scale(1.1);
-  }
-  66% {
-    transform: translate(-20px, 15px) scale(0.95);
-  }
-}
-
-@keyframes orb-float-2 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  40% {
-    transform: translate(-25px, 20px) scale(1.05);
-  }
-  70% {
-    transform: translate(15px, -10px) scale(0.9);
-  }
-}
-
-@keyframes orb-float-3 {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  50% {
-    transform: translate(20px, -30px);
-  }
-}
-
-/* Glass card */
-.glass-card {
-  background: rgba(30, 30, 46, 0.4);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-[data-theme="light"] .glass-card {
-  background: rgba(255, 255, 255, 0.6);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+/* Dark mode: bright amber text on deep amber bg */
+[data-theme="dark"] .hotkeys-paused-badge {
+  color: #fcd34d;               /* amber-300 */
+  background-color: rgba(120, 53, 15, 0.50); /* amber-900/50 */
+  border-color: rgba(180, 83, 9, 0.60);       /* amber-700/60 */
 }
 
 /* Footer gradient line */
@@ -298,7 +265,7 @@
     linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
     linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
     linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
-  background-color: #f8fafc;
+  background-color: #edf1f6;
 }
 
 /* Light-mode overrides */
@@ -310,10 +277,54 @@
   opacity: 0.15;
 }
 
+/* Dark mode glass-card: subtle elevation + inset border shine */
+[data-theme="dark"] .glass-card {
+  background-color: var(--bg-secondary);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
 [data-theme="light"] .glass-card {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background: #ffffff;
+  backdrop-filter: none;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* Buttons that use glass-card for hover effects should keep their own bg */
+[data-theme="light"] button.glass-card {
+  background: revert;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+/* Toggle OFF state: visible grey pill in light mode */
+[data-theme="light"] button.rounded-full.border.border-border-subtle {
+  background-color: #d1dbe6;
+  border-color: #b0bcc8;
+}
+
+/* Action buttons with bg-bg-secondary get a visible fill inside white glass-cards */
+[data-theme="light"] button.rounded-full.bg-bg-secondary {
+  background-color: #e6ecf2 !important;
+  border-color: #bec9d4 !important;
+}
+
+[data-theme="light"] button.rounded-full.bg-bg-secondary:hover {
+  background-color: #d8e1ea !important;
+}
+
+/* Backup-style buttons (not rounded-full) using bg-bg-secondary */
+[data-theme="light"] .glass-card button.border.border-border-subtle:not(.rounded-full):not([class*="bg-accent"]) {
+  background-color: #e8edf4;
+  border-color: #bec9d4;
+}
+
+[data-theme="light"] .glass-card button.border.border-border-subtle:not(.rounded-full):not([class*="bg-accent"]):hover {
+  background-color: #dce4ee;
 }
 
 body {

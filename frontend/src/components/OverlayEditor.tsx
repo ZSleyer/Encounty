@@ -72,6 +72,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   hidden: false,
   background_color: "#000000",
   background_opacity: 0.6,
+  background_animation: "none",
   blur: 8,
   show_border: true,
   border_color: "rgba(255,255,255,0.1)",
@@ -1102,7 +1103,22 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             onChange={(v) => updateField("canvas_height", v)}
           />
 
-          {/* Hintergrund */}
+          {/* Hintergrund Animation */}
+          <div>
+            <label className="text-[10px] text-text-muted">
+              Hintergrund-Animation
+            </label>
+            <select
+              value={localSettings.background_animation ?? "none"}
+              onChange={(e) => updateField("background_animation", e.target.value)}
+              className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none mt-1"
+            >
+              <option value="none">Keine</option>
+              <option value="waves">Wellen (Homebrew)</option>
+            </select>
+          </div>
+
+          {/* Hintergrund Farbe & Transparenz */}
           <div
             className={
               localSettings.hidden ? "opacity-30 pointer-events-none" : ""

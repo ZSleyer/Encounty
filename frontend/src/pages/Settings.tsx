@@ -161,8 +161,12 @@ export function Settings() {
   };
 
   return (
-    <div className="flex-1 overflow-auto p-6 settings-bg">
-      <div className="max-w-5xl mx-auto relative z-10">
+    <div className="flex-1 flex flex-col bg-transparent">
+      <div className="switch-waves-container">
+        <div className="switch-waves" />
+      </div>
+      <div className="flex-1 overflow-auto p-6 relative z-10">
+        <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* ── Left column: General ─────────────────────────── */}
           <div className="space-y-6">
@@ -484,5 +488,6 @@ export function Settings() {
         </div>
       </div>
     </div>
+  </div>
   );
 }

@@ -34,6 +34,10 @@ func (m *Manager) Load() error {
 	if m.state.Settings.OutputDir == "" {
 		m.state.Settings.OutputDir = filepath.Join(m.configDir, "output")
 	}
+	// Migration: field added later — default to "none" if not present in saved state
+	if m.state.Settings.Overlay.BackgroundAnimation == "" {
+		m.state.Settings.Overlay.BackgroundAnimation = "none"
+	}
 	return nil
 }
 

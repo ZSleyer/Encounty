@@ -22,6 +22,13 @@ import (
 	"github.com/zsleyer/encounty/internal/state"
 )
 
+// Injected at build time via -ldflags "-X main.version=v1.0.0 -X main.commit=abc1234"
+// Falls back to "dev" / "unknown" when running via `go run`.
+var (
+	version = "dev"
+	commit  = "unknown"
+)
+
 //go:embed games.json
 var embeddedGamesJSON []byte
 
@@ -79,6 +86,8 @@ func main() {
 		State:      stateMgr,
 		HotkeyMgr:  hotkeyMgr,
 		FileWriter: fileWriter,
+		Version:    version,
+		Commit:     commit,
 	})
 
 	// Open browser

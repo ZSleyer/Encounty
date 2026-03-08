@@ -329,8 +329,8 @@ export function Overlay({
       );
     }
     return (
-      <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent">
-        <div className="text-white/20 text-xs font-bold uppercase tracking-[0.3em] animate-pulse">
+      <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent overflow-hidden relative">
+        <div className="text-white/20 text-xs font-bold uppercase tracking-[0.3em] animate-pulse relative z-10">
           Warten auf Daten...
         </div>
       </div>
@@ -363,13 +363,17 @@ export function Overlay({
   const borderWidth = settings.border_width ?? 2;
   const crispSprites = appState?.settings.crisp_sprites ?? false;
 
+  const hasWaves = settings.background_animation === "waves";
+
   const bgStyle: React.CSSProperties = hidden
     ? { position: "absolute", inset: 0, pointerEvents: "none" }
     : {
         position: "absolute",
         inset: 0,
         pointerEvents: "none",
-        backgroundColor: bgWithOpacity,
+        // When waves are active, use solid background_color as base (waves animate on top)
+        // When no animation, use the configured color + opacity
+        backgroundColor: hasWaves ? settings.background_color : bgWithOpacity,
         backdropFilter: `blur(${settings.blur}px)`,
         borderRadius: `${settings.border_radius}px`,
         border: settings.show_border
@@ -378,10 +382,15 @@ export function Overlay({
         overflow: "hidden",
       };
 
+
   const canvas = (
     <div style={outerStyle}>
       {/* Card background — clipped to border-radius, does NOT clip content */}
-      <div style={bgStyle} />
+      <div style={bgStyle}>
+        {hasWaves && (
+          <div className="canvas-waves" />
+        )}
+      </div>
 
       {/* Sprite — outer div holds idle, inner keyed div holds trigger */}
       {settings.sprite.visible && (
@@ -527,7 +536,7 @@ export function Overlay({
   if (previewSettings) return canvas;
 
   return (
-    <div className="overlay-page w-screen h-screen bg-transparent absolute top-0 left-0">
+    <div className="overlay-page w-screen h-screen bg-transparent absolute top-0 left-0 overflow-hidden">
       <style>{`
         html, body, #root {
           width: 100vw !important;

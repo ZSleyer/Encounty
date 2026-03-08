@@ -20,6 +20,8 @@ type Server struct {
 	fileWriter *fileoutput.Writer
 	httpServer *http.Server
 	frontendFS fs.FS
+	version    string
+	commit     string
 }
 
 type Config struct {
@@ -28,6 +30,8 @@ type Config struct {
 	State      *state.Manager
 	HotkeyMgr  hotkeys.Manager
 	FileWriter *fileoutput.Writer
+	Version    string
+	Commit     string
 }
 
 func New(cfg Config) *Server {
@@ -37,6 +41,8 @@ func New(cfg Config) *Server {
 		hotkeyMgr:  cfg.HotkeyMgr,
 		fileWriter: cfg.FileWriter,
 		frontendFS: cfg.FrontendFS,
+		version:    cfg.Version,
+		commit:     cfg.Commit,
 	}
 
 	// Wire hotkey actions to state changes
@@ -84,6 +90,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/restore", s.handleRestore)
 	mux.HandleFunc("/api/quit", s.handleQuit)
 	mux.HandleFunc("/api/restart", s.handleRestart)
+	mux.HandleFunc("/api/version", s.handleVersion)
 
 	mux.HandleFunc("/api/pokemon", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

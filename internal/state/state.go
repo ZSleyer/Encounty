@@ -103,6 +103,7 @@ type OverlaySettings struct {
 	Hidden            bool           `json:"hidden"`
 	BackgroundColor   string         `json:"background_color"`
 	BackgroundOpacity float64        `json:"background_opacity"`
+	BackgroundAnimation string      `json:"background_animation"`
 	Blur              int            `json:"blur"`
 	ShowBorder        bool           `json:"show_border"`
 	BorderColor       string         `json:"border_color"`
@@ -157,6 +158,7 @@ func NewManager(configDir string) *Manager {
 					CanvasHeight:      200,
 					BackgroundColor:   "#000000",
 					BackgroundOpacity: 0.6,
+					BackgroundAnimation: "none",
 					Blur:              8,
 					ShowBorder:        true,
 					BorderColor:       "rgba(255,255,255,0.1)",

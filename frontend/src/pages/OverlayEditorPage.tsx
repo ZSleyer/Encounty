@@ -129,7 +129,10 @@ export function OverlayEditorPage() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-transparent">
+      <div className="switch-waves-container">
+        <div className="switch-waves" />
+      </div>
       {/* Header bar */}
       <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-secondary border-b border-border-subtle flex-shrink-0 flex-wrap">
         <Layers className="w-4 h-4 text-accent-blue flex-shrink-0" />
@@ -192,7 +195,7 @@ export function OverlayEditorPage() {
 
         <div className="ml-auto flex items-center gap-3">
           {/* Hotkeys paused badge */}
-          <span className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-900/20 border border-amber-900/30 px-2.5 py-1 rounded-lg">
+          <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">
             <Keyboard className="w-3.5 h-3.5" /> {t("settings.hotkeysPaused")}
           </span>
 
