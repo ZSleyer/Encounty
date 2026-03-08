@@ -88,6 +88,7 @@ func main() {
 		FileWriter: fileWriter,
 		Version:    version,
 		Commit:     commit,
+		ConfigDir:  configDir,
 	})
 
 	// Open browser

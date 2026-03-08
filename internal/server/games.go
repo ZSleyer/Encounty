@@ -18,6 +18,10 @@ func SetDefaultGamesJSON(data []byte) {
 	defaultGamesJSON = data
 }
 
+// gamesConfigDir is set once by the server at startup so we know where to
+// read/write the user-editable games.json inside the config directory.
+var gamesConfigDir string
+
 type GameEntry struct {
 	Key        string            `json:"key"`
 	Names      map[string]string `json:"names"`
@@ -71,7 +75,15 @@ func loadGames() []GameEntry {
 }
 
 func readGamesJSON() ([]byte, error) {
-	// 1. Next to the binary (external file takes priority so users can customise it)
+	// 1. Config directory — primary location, user can edit it here.
+	if gamesConfigDir != "" {
+		p := filepath.Join(gamesConfigDir, "games.json")
+		if data, err := os.ReadFile(p); err == nil {
+			return data, nil
+		}
+	}
+
+	// 2. Next to the binary — legacy / portable installs.
 	if exe, err := os.Executable(); err == nil {
 		p := filepath.Join(filepath.Dir(exe), "games.json")
 		if data, err := os.ReadFile(p); err == nil {
@@ -79,20 +91,24 @@ func readGamesJSON() ([]byte, error) {
 		}
 	}
 
-	// 2. Working directory
+	// 3. Working directory (dev mode convenience).
 	if data, err := os.ReadFile("games.json"); err == nil {
 		return data, nil
 	}
 
-	// 3. Fall back to the embedded default (set by main.go) and write it next
-	//    to the binary so the user can edit it in the future.
+	// 4. Fall back to the embedded default and write it into the config dir
+	//    so the user can find and edit it in the future.
 	if len(defaultGamesJSON) > 0 {
-		log.Println("games.json not found – writing default from embedded data")
-		if exe, err := os.Executable(); err == nil {
-			p := filepath.Join(filepath.Dir(exe), "games.json")
-			if werr := os.WriteFile(p, defaultGamesJSON, 0644); werr != nil {
-				log.Printf("Warning: could not write default games.json: %v", werr)
+		if gamesConfigDir != "" {
+			p := filepath.Join(gamesConfigDir, "games.json")
+			log.Printf("games.json not found – writing default to %s", p)
+			if werr := os.MkdirAll(gamesConfigDir, 0755); werr == nil {
+				if werr := os.WriteFile(p, defaultGamesJSON, 0644); werr != nil {
+					log.Printf("Warning: could not write default games.json: %v", werr)
+				}
 			}
+		} else {
+			log.Println("games.json not found – using embedded default (no config dir set)")
 		}
 		return defaultGamesJSON, nil
 	}

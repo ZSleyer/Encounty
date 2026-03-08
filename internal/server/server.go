@@ -32,9 +32,15 @@ type Config struct {
 	FileWriter *fileoutput.Writer
 	Version    string
 	Commit     string
+	ConfigDir  string
 }
 
 func New(cfg Config) *Server {
+	// Make games.json use the config directory
+	if cfg.ConfigDir != "" {
+		gamesConfigDir = cfg.ConfigDir
+	}
+
 	s := &Server{
 		state:      cfg.State,
 		hub:        NewHub(),

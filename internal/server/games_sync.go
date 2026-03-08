@@ -253,6 +253,9 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 // gamesSyncSavePath returns the path where the synced games.json is written.
 // It matches the highest-priority load path used by readGamesJSON.
 func gamesSyncSavePath() string {
+	if gamesConfigDir != "" {
+		return filepath.Join(gamesConfigDir, "games.json")
+	}
 	if exePath, err := os.Executable(); err == nil {
 		return filepath.Join(filepath.Dir(exePath), "games.json")
 	}
