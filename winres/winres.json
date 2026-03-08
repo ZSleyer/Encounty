@@ -1,0 +1,69 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": [
+        "icon.png",
+        "icon48.png",
+        "icon32.png",
+        "icon16.png"
+      ]
+    }
+  },
+  "RT_MANIFEST": {
+    "#1": {
+      "0000": {
+        "identity": {
+          "name": "Encounty",
+          "version": "0.2.0.0"
+        },
+        "description": "Encounty - Pokémon Shiny Encounter Counter & Tracker",
+        "minimum-os": "win7",
+        "execution-level": "as invoker",
+        "ui-access": false,
+        "auto-elevate": false,
+        "dpi-awareness": "system",
+        "disable-theming": false,
+        "disable-window-filtering": false,
+        "high-resolution-scrolling-aware": false,
+        "ultra-high-resolution-scrolling-aware": false,
+        "long-path-aware": false,
+        "printer-driver-isolation": false,
+        "gdi-scaling": false,
+        "segment-heap": false,
+        "use-common-controls-v6": true
+      }
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "fixed": {
+          "file_version": "0.2.0.0",
+          "product_version": "0.2.0.0"
+        },
+        "info": {
+          "0409": {
+            "CompanyName": "ZSleyer",
+            "FileDescription": "Encounty - Pokémon Shiny Encounter Counter & Tracker",
+            "FileVersion": "0.2.0.0",
+            "InternalName": "Encounty",
+            "LegalCopyright": "© 2026 ZSleyer",
+            "OriginalFilename": "encounty-windows.exe",
+            "ProductName": "Encounty",
+            "ProductVersion": "0.2.0.0"
+          },
+          "0407": {
+            "CompanyName": "ZSleyer",
+            "FileDescription": "Encounty - Pokémon Shiny Encounter Counter & Tracker",
+            "FileVersion": "0.2.0.0",
+            "InternalName": "Encounty",
+            "LegalCopyright": "© 2026 ZSleyer",
+            "OriginalFilename": "encounty-windows.exe",
+            "ProductName": "Encounty",
+            "ProductVersion": "0.2.0.0"
+          }
+        }
+      }
+    }
+  }
+}

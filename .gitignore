@@ -38,5 +38,8 @@ Thumbs.db
 
 # Windows Resource Build Files
 *.syso
-winres/
+winres/*.png
+dist-linux/
+encounty-windows*
 *.exe.bak
+# (winres/winres.json is now tracked)
