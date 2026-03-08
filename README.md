@@ -2,6 +2,12 @@
 
 Encounty is a modern Pokémon Shiny Encounter Counter and Tracker. It provides a customizable dashboard and OBS overlays for shiny hunters.
 
+![Dashboard](docs/images/dashboard.png)
+*Modern, customizable dashboard with real-time stats.*
+
+![Overlay Editor](docs/images/overlay_editor.png)
+*Powerful overlay editor with drag-and-drop and real-time preview.*
+
 ## Download
 
 Ready-to-use binaries for Windows and Linux can be found on the [GitHub Releases](https://github.com/ZSleyer/Encounty/releases) page.
