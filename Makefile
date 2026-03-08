@@ -26,8 +26,10 @@ build-linux: frontend
 	@echo "Done: ./$(BINARY)-linux"
 
 build-windows: frontend
+	@command -v go-winres >/dev/null 2>&1 || (echo "Installing go-winres..." && go install github.com/tc-hib/go-winres@latest)
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS_WINDOWS) -o $(BINARY)-windows.exe main.go
-	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-windows.exe || true
+	@~/go/bin/go-winres patch $(BINARY)-windows.exe || echo "Warning: go-winres patch failed, icon may not be included"
+	@command -v upx >/dev/null 2>&1 && upx --best --compress-icons=0 $(BINARY)-windows.exe || true
 	@echo "Done: ./$(BINARY)-windows.exe"
 
 clean:

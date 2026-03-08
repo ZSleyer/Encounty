@@ -76,6 +76,55 @@ function AppShell() {
             spriteUrl: pokemon.sprite_url || undefined,
           });
         }
+      } else if (msg.type === "encounter_removed") {
+        const p = msg.payload as { pokemon_id: string; count: number };
+        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
+        if (pokemon) {
+          pushToast({
+            type: "encounter",
+            badge: "-1",
+            spriteUrl: pokemon.sprite_url || undefined,
+            title: pokemon.name,
+            message: `${p.count} ${t("settings.encounterToast")}`,
+          });
+        }
+      } else if (msg.type === "encounter_reset") {
+        const p = msg.payload as { pokemon_id: string };
+        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
+        if (pokemon) {
+          pushToast({
+            type: "encounter",
+            badge: "0",
+            spriteUrl: pokemon.sprite_url || undefined,
+            title: pokemon.name,
+            message: t("app.counterReset") || "Zähler zurückgesetzt",
+          });
+        }
+      } else if (msg.type === "pokemon_completed") {
+        const p = msg.payload as { pokemon_id: string };
+        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
+        if (pokemon) {
+          pushToast({
+            type: "encounter",
+            badge: "✔",
+            spriteUrl: pokemon.sprite_url || undefined,
+            title: pokemon.name,
+            message:
+              t("app.pokemonCompleted") || "Jagd erfolgreich abgeschlossen!",
+          });
+        }
+      } else if (msg.type === "pokemon_deleted") {
+        const p = msg.payload as { pokemon_id: string };
+        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
+        if (pokemon) {
+          pushToast({
+            type: "encounter",
+            badge: "🗑",
+            spriteUrl: pokemon.sprite_url || undefined,
+            title: pokemon.name,
+            message: t("app.pokemonDeleted") || "Pokémon entfernt",
+          });
+        }
       }
     },
     () => setConnected(true),
@@ -207,7 +256,7 @@ function AppShell() {
         <footer className="h-8 px-5 flex items-center justify-between text-[10px] text-text-faint select-none">
           <div className="flex items-center gap-2">
             <span className="font-bold tracking-widest uppercase text-text-muted">
-              Encounty
+              Encounty v0.1-dev
             </span>
             <span className="text-text-faint/30">|</span>
             <span className="tracking-wide">

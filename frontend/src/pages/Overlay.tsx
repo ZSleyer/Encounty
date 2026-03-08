@@ -527,7 +527,17 @@ export function Overlay({
   if (previewSettings) return canvas;
 
   return (
-    <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent">
+    <div className="overlay-page w-screen h-screen bg-transparent absolute top-0 left-0">
+      <style>{`
+        html, body, #root {
+          width: 100vw !important;
+          height: 100vh !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+          background-color: transparent !important;
+        }
+      `}</style>
       {canvas}
     </div>
   );

@@ -35,3 +35,7 @@ Thumbs.db
 # Markdown (except README)
 *.md
 !README.md
+
+# Windows Resource Build Files
+*.syso
+winres/

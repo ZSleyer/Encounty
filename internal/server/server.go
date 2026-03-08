@@ -219,11 +219,14 @@ func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 			}
 		case "decrement":
 			if id != "" {
-				s.state.Decrement(id)
-				s.state.ScheduleSave()
-				s.broadcastState()
-				if s.fileWriter != nil {
-					s.fileWriter.Write(s.state.GetState())
+				count, ok := s.state.Decrement(id)
+				if ok {
+					s.state.ScheduleSave()
+					s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
+					s.broadcastState()
+					if s.fileWriter != nil {
+						s.fileWriter.Write(s.state.GetState())
+					}
 				}
 			}
 		case "reset":

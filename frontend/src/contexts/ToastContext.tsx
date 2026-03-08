@@ -8,6 +8,7 @@ export interface Toast {
   title: string;
   message?: string;
   spriteUrl?: string;
+  badge?: string;
   duration?: number;
 }
 

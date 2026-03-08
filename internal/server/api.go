@@ -66,6 +66,7 @@ func (s *Server) handleDeletePokemon(w http.ResponseWriter, _ *http.Request, id 
 		return
 	}
 	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("pokemon_deleted", map[string]any{"pokemon_id": id})
 	s.broadcastState()
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -92,6 +93,7 @@ func (s *Server) handleDecrement(w http.ResponseWriter, _ *http.Request, id stri
 		return
 	}
 	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
 	if s.fileWriter != nil {
 		s.fileWriter.Write(s.state.GetState())
@@ -105,6 +107,7 @@ func (s *Server) handleReset(w http.ResponseWriter, _ *http.Request, id string) 
 		return
 	}
 	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": id})
 	s.broadcastState()
 	if s.fileWriter != nil {
 		s.fileWriter.Write(s.state.GetState())
@@ -128,6 +131,7 @@ func (s *Server) handleCompletePokemon(w http.ResponseWriter, _ *http.Request, i
 		return
 	}
 	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("pokemon_completed", map[string]any{"pokemon_id": id})
 	s.broadcastState()
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -241,21 +245,27 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 	case "decrement":
 		var p idPayload
 		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			s.state.Decrement(p.PokemonID)
-			s.state.ScheduleSave()
-			s.broadcastState()
-			if s.fileWriter != nil {
-				s.fileWriter.Write(s.state.GetState())
+			count, ok := s.state.Decrement(p.PokemonID)
+			if ok {
+				s.state.ScheduleSave()
+				s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": p.PokemonID, "count": count})
+				s.broadcastState()
+				if s.fileWriter != nil {
+					s.fileWriter.Write(s.state.GetState())
+				}
 			}
 		}
 	case "reset":
 		var p idPayload
 		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			s.state.Reset(p.PokemonID)
-			s.state.ScheduleSave()
-			s.broadcastState()
-			if s.fileWriter != nil {
-				s.fileWriter.Write(s.state.GetState())
+			ok := s.state.Reset(p.PokemonID)
+			if ok {
+				s.state.ScheduleSave()
+				s.hub.BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": p.PokemonID})
+				s.broadcastState()
+				if s.fileWriter != nil {
+					s.fileWriter.Write(s.state.GetState())
+				}
 			}
 		}
 	case "set_active":
@@ -268,9 +278,12 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 	case "complete":
 		var p idPayload
 		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			s.state.CompletePokemon(p.PokemonID)
-			s.state.ScheduleSave()
-			s.broadcastState()
+			ok := s.state.CompletePokemon(p.PokemonID)
+			if ok {
+				s.state.ScheduleSave()
+				s.hub.BroadcastRaw("pokemon_completed", map[string]any{"pokemon_id": p.PokemonID})
+				s.broadcastState()
+			}
 		}
 	case "uncomplete":
 		var p idPayload

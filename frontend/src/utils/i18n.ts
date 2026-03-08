@@ -18,12 +18,14 @@ export const LOCALES: { code: Locale; label: string; flag: string }[] = [
 
 const translations: Record<Locale, Record<string, string>> = {
   de: {
-    // ── App / Nav ──
     "app.name": "Encounty",
     "app.confirmQuit": "Encounty wirklich beenden?",
     "app.confirmRestart": "Encounty wirklich neu starten?",
     "app.restart": "Neu starten",
     "app.quit": "Beenden",
+    "app.counterReset": "Zähler zurückgesetzt",
+    "app.pokemonCompleted": "Jagd erfolgreich abgeschlossen!",
+    "app.pokemonDeleted": "Pokémon entfernt",
     "nav.dashboard": "Dashboard",
     "nav.hotkeys": "Hotkeys",
     "nav.overlayEditor": "Overlay",
@@ -205,12 +207,14 @@ const translations: Record<Locale, Record<string, string>> = {
   },
 
   en: {
-    // ── App / Nav ──
     "app.name": "Encounty",
     "app.confirmQuit": "Really quit Encounty?",
     "app.confirmRestart": "Really restart Encounty?",
     "app.restart": "Restart",
     "app.quit": "Quit",
+    "app.counterReset": "Counter reset",
+    "app.pokemonCompleted": "Hunt successfully finished!",
+    "app.pokemonDeleted": "Pokémon removed",
     "nav.dashboard": "Dashboard",
     "nav.hotkeys": "Hotkeys",
     "nav.overlayEditor": "Overlay",

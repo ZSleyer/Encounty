@@ -558,8 +558,20 @@ function useElementDrag(
         const rawX = Math.round(dragging.current.origX + dx);
         const rawY = Math.round(dragging.current.origY + dy);
         const el2 = getEl();
-        const snapped = snapping.snap(rawX, rawY, el2.width, el2.height, me.shiftKey);
-        const guides = snapping.getGuides(elementKey, snapped.x, snapped.y, el2.width, el2.height);
+        const snapped = snapping.snap(
+          rawX,
+          rawY,
+          el2.width,
+          el2.height,
+          me.shiftKey,
+        );
+        const guides = snapping.getGuides(
+          elementKey,
+          snapped.x,
+          snapped.y,
+          el2.width,
+          el2.height,
+        );
         onGuidesChange?.(guides);
         setEl({ x: snapped.x, y: snapped.y });
       };
@@ -573,7 +585,15 @@ function useElementDrag(
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [getEl, setEl, canvasScale, snapping, elementKey, onDragStateChange, onGuidesChange],
+    [
+      getEl,
+      setEl,
+      canvasScale,
+      snapping,
+      elementKey,
+      onDragStateChange,
+      onGuidesChange,
+    ],
   );
 
   const onResizeStart = useCallback(
@@ -594,11 +614,21 @@ function useElementDrag(
 
       const onMove = (me: MouseEvent) => {
         if (!resizing.current) return;
-        const { dir: d, startX, startY, origX, origY, origW, origH } =
-          resizing.current;
+        const {
+          dir: d,
+          startX,
+          startY,
+          origX,
+          origY,
+          origW,
+          origH,
+        } = resizing.current;
         const dx = (me.clientX - startX) / canvasScale;
         const dy = (me.clientY - startY) / canvasScale;
-        let x = origX, y = origY, w = origW, h = origH;
+        let x = origX,
+          y = origY,
+          w = origW,
+          h = origH;
 
         if (d.includes("e")) w = Math.max(20, origW + dx);
         if (d.includes("s")) h = Math.max(20, origH + dy);
@@ -651,10 +681,30 @@ function ResizeHandle({
   onResizeStart: (dir: ResizeDir) => (e: React.MouseEvent) => void;
 }) {
   const posStyles: Record<ResizeDir, React.CSSProperties> = {
-    n: { top: -4, left: "50%", transform: "translateX(-50%)", cursor: "n-resize" },
-    s: { bottom: -4, left: "50%", transform: "translateX(-50%)", cursor: "s-resize" },
-    e: { right: -4, top: "50%", transform: "translateY(-50%)", cursor: "e-resize" },
-    w: { left: -4, top: "50%", transform: "translateY(-50%)", cursor: "w-resize" },
+    n: {
+      top: -4,
+      left: "50%",
+      transform: "translateX(-50%)",
+      cursor: "n-resize",
+    },
+    s: {
+      bottom: -4,
+      left: "50%",
+      transform: "translateX(-50%)",
+      cursor: "s-resize",
+    },
+    e: {
+      right: -4,
+      top: "50%",
+      transform: "translateY(-50%)",
+      cursor: "e-resize",
+    },
+    w: {
+      left: -4,
+      top: "50%",
+      transform: "translateY(-50%)",
+      cursor: "w-resize",
+    },
     ne: { top: -4, right: -4, cursor: "ne-resize" },
     nw: { top: -4, left: -4, cursor: "nw-resize" },
     se: { bottom: -4, right: -4, cursor: "se-resize" },
@@ -689,7 +739,7 @@ function OBSSourceHint() {
   };
 
   return (
-    <div className="mt-4 pt-3 border-t border-border-subtle">
+    <div>
       <div className="flex items-center gap-1 text-xs text-gray-500 mb-1.5">
         <Monitor className="w-3 h-3" />
         OBS Browser Source:
@@ -753,7 +803,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
     setFakeCount(null);
   }, [activePokemon?.id]);
   const currentCount =
-    fakeCount !== null ? fakeCount : activePokemon?.encounters ?? 0;
+    fakeCount !== null ? fakeCount : (activePokemon?.encounters ?? 0);
 
   const testIncrement = () => {
     setFakeCount(currentCount + 1);
@@ -954,77 +1004,85 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
   };
 
   return (
-    <div className="flex gap-3 h-[620px]">
-      {/* LEFT: Element tree (Layer Panel) */}
-      <div className="w-44 flex-shrink-0 bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 overflow-y-auto">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Ebenen
-          </p>
-          <button
-            onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
-            title="Layout zurücksetzen"
-            className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-          >
-            <RotateCcw className="w-3 h-3" />
-            Reset
-          </button>
-        </div>
-        {LAYERS.map((key) => {
-          const el = localSettings[key] as OverlayElementBase;
-          return (
-            <div
-              key={key}
-              onClick={() => setSelectedEl(key)}
-              className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors ${
-                selectedEl === key
-                  ? "bg-accent-blue/20 border border-accent-blue/40"
-                  : "hover:bg-bg-hover border border-transparent"
-              }`}
+    <div className="flex gap-3 h-full pt-4 pb-8 px-4 min-h-0">
+      {/* LEFT SIDEBAR: Layers & Canvas */}
+      <div className="w-56 flex-shrink-0 flex flex-col gap-3 min-h-0">
+        {/* Layers Panel */}
+        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Ebenen
+            </p>
+            <button
+              onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
+              title="Layout zurücksetzen"
+              className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
             >
-              <span className="text-xs text-white">{ELEMENT_LABELS[key]}</span>
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    moveLayer(key, "up");
-                  }}
-                  className="text-gray-500 hover:text-white transition-colors"
-                >
-                  <ChevronUp className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    moveLayer(key, "down");
-                  }}
-                  className="text-gray-500 hover:text-white transition-colors"
-                >
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    update({
-                      ...localSettings,
-                      [key]: { ...el, visible: !el.visible },
-                    });
-                  }}
-                  className="text-gray-500 hover:text-white transition-colors"
-                >
-                  {el.visible ? (
-                    <Eye className="w-3 h-3" />
-                  ) : (
-                    <EyeOff className="w-3 h-3" />
-                  )}
-                </button>
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </button>
+          </div>
+          {LAYERS.map((key) => {
+            const el = localSettings[key] as OverlayElementBase;
+            return (
+              <div
+                key={key}
+                onClick={() => setSelectedEl(key)}
+                className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors ${
+                  selectedEl === key
+                    ? "bg-accent-blue/20 border border-accent-blue/40"
+                    : "hover:bg-bg-hover border border-transparent"
+                }`}
+              >
+                <span className="text-xs text-white">
+                  {ELEMENT_LABELS[key]}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveLayer(key, "up");
+                    }}
+                    className="text-gray-500 hover:text-white transition-colors"
+                  >
+                    <ChevronUp className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveLayer(key, "down");
+                    }}
+                    className="text-gray-500 hover:text-white transition-colors"
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      update({
+                        ...localSettings,
+                        [key]: { ...el, visible: !el.visible },
+                      });
+                    }}
+                    className="text-gray-500 hover:text-white transition-colors"
+                  >
+                    {el.visible ? (
+                      <Eye className="w-3 h-3" />
+                    ) : (
+                      <EyeOff className="w-3 h-3" />
+                    )}
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
 
-        <div className="border-t border-border-subtle pt-3 space-y-2">
-          <p className="text-[10px] text-gray-500">Canvas</p>
+        {/* Canvas Settings Panel */}
+        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-shrink-0">
+          <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-2">
+            Canvas
+          </p>
 
           {/* Size */}
           <NumSlider
@@ -1045,13 +1103,19 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
           />
 
           {/* Hintergrund */}
-          <div className={localSettings.hidden ? "opacity-30 pointer-events-none" : ""}>
+          <div
+            className={
+              localSettings.hidden ? "opacity-30 pointer-events-none" : ""
+            }
+          >
             <div>
               <label className="text-[10px] text-gray-500">Hintergrund</label>
               <input
                 type="color"
                 value={localSettings.background_color}
-                onChange={(e) => updateField("background_color", e.target.value)}
+                onChange={(e) =>
+                  updateField("background_color", e.target.value)
+                }
                 className="w-full h-6 rounded cursor-pointer border-0"
               />
             </div>
@@ -1065,7 +1129,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 max={1}
                 step={0.05}
                 value={localSettings.background_opacity}
-                onChange={(e) => updateField("background_opacity", Number(e.target.value))}
+                onChange={(e) =>
+                  updateField("background_opacity", Number(e.target.value))
+                }
                 className="w-full h-1 accent-accent-blue"
               />
             </div>
@@ -1094,7 +1160,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               min={0}
               max={60}
               value={localSettings.border_radius}
-              onChange={(e) => updateField("border_radius", Number(e.target.value))}
+              onChange={(e) =>
+                updateField("border_radius", Number(e.target.value))
+              }
               className="w-full h-1 accent-accent-blue"
             />
           </div>
@@ -1110,9 +1178,13 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             <span className="text-[10px] text-gray-400">Kontur</span>
           </label>
           {localSettings.show_border && (
-            <div className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}>
+            <div
+              className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}
+            >
               <div>
-                <label className="text-[10px] text-gray-500">Kontur Farbe</label>
+                <label className="text-[10px] text-gray-500">
+                  Kontur Farbe
+                </label>
                 <input
                   type="color"
                   value={(() => {
@@ -1134,7 +1206,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                   max={8}
                   step={1}
                   value={localSettings.border_width ?? 2}
-                  onChange={(e) => updateField("border_width", Number(e.target.value))}
+                  onChange={(e) =>
+                    updateField("border_width", Number(e.target.value))
+                  }
                   className="w-full h-1 accent-accent-blue"
                 />
               </div>
@@ -1166,17 +1240,17 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             onClick={testIncrement}
             disabled={!activePokemon}
             title="+1 (nur Vorschau)"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-green/20 hover:bg-accent-green/40 text-accent-green text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-green hover:text-white text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <Plus className="w-3 h-3" /> +1
+            <Plus className="w-3 h-3" /> 1
           </button>
           <button
             onClick={testDecrement}
             disabled={!activePokemon}
             title="-1 (nur Vorschau)"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500/20 hover:bg-red-500/40 text-red-400 text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-yellow hover:text-white text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <Minus className="w-3 h-3" /> -1
+            <Minus className="w-3 h-3" /> 1
           </button>
           <button
             onClick={testReset}
@@ -1184,7 +1258,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             title="Reset (nur Vorschau)"
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-gray-400 hover:text-white text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <RefreshCw className="w-3 h-3" /> Reset
+            <RefreshCw className="w-3 h-3" /> 0
           </button>
 
           <div className="w-px h-4 bg-border-subtle mx-1" />
@@ -1323,9 +1397,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               >
                 {Array.from(
                   {
-                    length: Math.floor(
-                      localSettings.canvas_width / gridSize,
-                    ),
+                    length: Math.floor(localSettings.canvas_width / gridSize),
                   },
                   (_, i) => (
                     <line
@@ -1341,9 +1413,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 )}
                 {Array.from(
                   {
-                    length: Math.floor(
-                      localSettings.canvas_height / gridSize,
-                    ),
+                    length: Math.floor(localSettings.canvas_height / gridSize),
                   },
                   (_, i) => (
                     <line
@@ -1448,394 +1518,399 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
         </div>
       </div>
 
-      {/* RIGHT: Properties Panel */}
-      <div className="w-56 flex-shrink-0 bg-bg-secondary rounded-xl border border-border-subtle p-3 overflow-y-auto">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-          {ELEMENT_LABELS[selectedEl]}
-        </p>
-
-        {/* Position & Size — compact Photoshop style */}
-        <div className="space-y-1.5 mb-3">
-          <div className="flex gap-2">
-            <label className="flex items-center gap-1 flex-1">
-              <span className="text-[10px] text-text-muted w-3">X</span>
-              <NumInput
-                value={(localSettings[selectedEl] as OverlayElementBase).x}
-                min={0}
-                max={localSettings.canvas_width}
-                onChange={(v) => updateSelectedEl({ x: v })}
-                className="flex-1"
-              />
-            </label>
-            <label className="flex items-center gap-1 flex-1">
-              <span className="text-[10px] text-text-muted w-3">Y</span>
-              <NumInput
-                value={(localSettings[selectedEl] as OverlayElementBase).y}
-                min={0}
-                max={localSettings.canvas_height}
-                onChange={(v) => updateSelectedEl({ y: v })}
-                className="flex-1"
-              />
-            </label>
-          </div>
-          <div className="flex gap-2">
-            <label className="flex items-center gap-1 flex-1">
-              <span className="text-[10px] text-text-muted w-3">W</span>
-              <NumInput
-                value={
-                  (localSettings[selectedEl] as OverlayElementBase).width
-                }
-                min={10}
-                max={localSettings.canvas_width}
-                onChange={(v) => updateSelectedEl({ width: v })}
-                className="flex-1"
-              />
-            </label>
-            <label className="flex items-center gap-1 flex-1">
-              <span className="text-[10px] text-text-muted w-3">H</span>
-              <NumInput
-                value={
-                  (localSettings[selectedEl] as OverlayElementBase).height
-                }
-                min={10}
-                max={localSettings.canvas_height}
-                onChange={(v) => updateSelectedEl({ height: v })}
-                className="flex-1"
-              />
-            </label>
-          </div>
-          <p className="text-[9px] text-gray-600 mt-1">
-            Pfeiltasten: 1px | Shift: 10px | Tab: wechseln
+      {/* RIGHT SIDEBAR: Properties & OBS */}
+      <div className="w-72 flex-shrink-0 flex flex-col gap-3 min-h-0">
+        {/* Properties Panel */}
+        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            {ELEMENT_LABELS[selectedEl]}
           </p>
-        </div>
 
-        {/* Element-specific properties */}
-        {selectedEl === "sprite" && (
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={localSettings.sprite.show_glow}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    sprite: {
-                      ...localSettings.sprite,
-                      show_glow: e.target.checked,
-                    },
-                  })
-                }
-                className="accent-accent-blue"
-              />
-              <span className="text-xs text-gray-400">Glow</span>
-            </label>
-            {localSettings.sprite.show_glow && (
-              <div className="space-y-2">
-                <div className="flex gap-2 items-center">
-                  <label className="text-[10px] text-gray-500 w-12">
-                    Farbe
-                  </label>
-                  <input
-                    type="color"
-                    value={localSettings.sprite.glow_color || "#ffffff"}
-                    onChange={(e) =>
+          {/* Position & Size — compact Photoshop style */}
+          <div className="space-y-1.5 mb-3">
+            <div className="flex gap-2">
+              <label className="flex items-center gap-1 flex-1">
+                <span className="text-[10px] text-text-muted w-3">X</span>
+                <NumInput
+                  value={(localSettings[selectedEl] as OverlayElementBase).x}
+                  min={0}
+                  max={localSettings.canvas_width}
+                  onChange={(v) => updateSelectedEl({ x: v })}
+                  className="flex-1"
+                />
+              </label>
+              <label className="flex items-center gap-1 flex-1">
+                <span className="text-[10px] text-text-muted w-3">Y</span>
+                <NumInput
+                  value={(localSettings[selectedEl] as OverlayElementBase).y}
+                  min={0}
+                  max={localSettings.canvas_height}
+                  onChange={(v) => updateSelectedEl({ y: v })}
+                  className="flex-1"
+                />
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <label className="flex items-center gap-1 flex-1">
+                <span className="text-[10px] text-text-muted w-3">W</span>
+                <NumInput
+                  value={
+                    (localSettings[selectedEl] as OverlayElementBase).width
+                  }
+                  min={10}
+                  max={localSettings.canvas_width}
+                  onChange={(v) => updateSelectedEl({ width: v })}
+                  className="flex-1"
+                />
+              </label>
+              <label className="flex items-center gap-1 flex-1">
+                <span className="text-[10px] text-text-muted w-3">H</span>
+                <NumInput
+                  value={
+                    (localSettings[selectedEl] as OverlayElementBase).height
+                  }
+                  min={10}
+                  max={localSettings.canvas_height}
+                  onChange={(v) => updateSelectedEl({ height: v })}
+                  className="flex-1"
+                />
+              </label>
+            </div>
+            <p className="text-[9px] text-gray-600 mt-1">
+              Pfeiltasten: 1px | Shift: 10px | Tab: wechseln
+            </p>
+          </div>
+
+          {/* Element-specific properties */}
+          {selectedEl === "sprite" && (
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={localSettings.sprite.show_glow}
+                  onChange={(e) =>
+                    update({
+                      ...localSettings,
+                      sprite: {
+                        ...localSettings.sprite,
+                        show_glow: e.target.checked,
+                      },
+                    })
+                  }
+                  className="accent-accent-blue"
+                />
+                <span className="text-xs text-gray-400">Glow</span>
+              </label>
+              {localSettings.sprite.show_glow && (
+                <div className="space-y-2">
+                  <div className="flex gap-2 items-center">
+                    <label className="text-[10px] text-gray-500 w-12">
+                      Farbe
+                    </label>
+                    <input
+                      type="color"
+                      value={localSettings.sprite.glow_color || "#ffffff"}
+                      onChange={(e) =>
+                        update({
+                          ...localSettings,
+                          sprite: {
+                            ...localSettings.sprite,
+                            glow_color: e.target.value,
+                          },
+                        })
+                      }
+                      className="w-8 h-6 rounded cursor-pointer border-0"
+                    />
+                  </div>
+                  <NumSlider
+                    label="Deckkraft"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={localSettings.sprite.glow_opacity ?? 0.2}
+                    onChange={(v) =>
                       update({
                         ...localSettings,
-                        sprite: {
-                          ...localSettings.sprite,
-                          glow_color: e.target.value,
-                        },
+                        sprite: { ...localSettings.sprite, glow_opacity: v },
                       })
                     }
-                    className="w-8 h-6 rounded cursor-pointer border-0"
+                  />
+                  <NumSlider
+                    label="Blur"
+                    min={0}
+                    max={80}
+                    step={1}
+                    value={localSettings.sprite.glow_blur ?? 20}
+                    onChange={(v) =>
+                      update({
+                        ...localSettings,
+                        sprite: { ...localSettings.sprite, glow_blur: v },
+                      })
+                    }
                   />
                 </div>
-                <NumSlider
-                  label="Deckkraft"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={localSettings.sprite.glow_opacity ?? 0.2}
-                  onChange={(v) =>
+              )}
+              <div>
+                <label className="text-[10px] text-gray-500">
+                  Idle Animation
+                </label>
+                <select
+                  value={localSettings.sprite.idle_animation}
+                  onChange={(e) =>
                     update({
                       ...localSettings,
-                      sprite: { ...localSettings.sprite, glow_opacity: v },
+                      sprite: {
+                        ...localSettings.sprite,
+                        idle_animation: e.target.value,
+                      },
                     })
                   }
-                />
-                <NumSlider
-                  label="Blur"
-                  min={0}
-                  max={80}
-                  step={1}
-                  value={localSettings.sprite.glow_blur ?? 20}
-                  onChange={(v) =>
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                >
+                  <option value="none">Keine</option>
+                  <option value="float">Schweben</option>
+                  <option value="bob">Bob</option>
+                  <option value="pulse">Puls</option>
+                  <option value="rock">Wackeln</option>
+                </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-0.5">
+                  <label className="text-[10px] text-gray-500">
+                    Trigger Animation
+                  </label>
+                  <button
+                    onClick={() => fireTest("sprite")}
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                  >
+                    <Play className="w-2.5 h-2.5" /> Test
+                  </button>
+                </div>
+                <select
+                  value={localSettings.sprite.trigger_enter}
+                  onChange={(e) =>
                     update({
                       ...localSettings,
-                      sprite: { ...localSettings.sprite, glow_blur: v },
+                      sprite: {
+                        ...localSettings.sprite,
+                        trigger_enter: e.target.value,
+                      },
                     })
                   }
-                />
-              </div>
-            )}
-            <div>
-              <label className="text-[10px] text-gray-500">
-                Idle Animation
-              </label>
-              <select
-                value={localSettings.sprite.idle_animation}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    sprite: {
-                      ...localSettings.sprite,
-                      idle_animation: e.target.value,
-                    },
-                  })
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-              >
-                <option value="none">Keine</option>
-                <option value="float">Schweben</option>
-                <option value="bob">Bob</option>
-                <option value="pulse">Puls</option>
-                <option value="rock">Wackeln</option>
-              </select>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="text-[10px] text-gray-500">
-                  Trigger Animation
-                </label>
-                <button
-                  onClick={() => fireTest("sprite")}
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
                 >
-                  <Play className="w-2.5 h-2.5" /> Test
-                </button>
+                  <option value="none">Keine</option>
+                  <option value="pop">Pop</option>
+                  <option value="bounce">Bounce (Hüpfen)</option>
+                  <option value="shake">Shake</option>
+                  <option value="spin">Spin</option>
+                  <option value="flip">Flip</option>
+                  <option value="rubber">Rubber Band</option>
+                  <option value="flash">Flash</option>
+                </select>
               </div>
-              <select
-                value={localSettings.sprite.trigger_enter}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    sprite: {
-                      ...localSettings.sprite,
-                      trigger_enter: e.target.value,
-                    },
-                  })
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-              >
-                <option value="none">Keine</option>
-                <option value="pop">Pop</option>
-                <option value="bounce">Bounce (Hüpfen)</option>
-                <option value="shake">Shake</option>
-                <option value="spin">Spin</option>
-                <option value="flip">Flip</option>
-                <option value="rubber">Rubber Band</option>
-                <option value="flash">Flash</option>
-              </select>
             </div>
-          </div>
-        )}
+          )}
 
-        {selectedEl === "name" && (
-          <div className="space-y-2">
-            <TextStyleEditor
-              style={localSettings.name.style || DEFAULT_TEXT_STYLE}
-              label="Text-Stil"
-              onChange={(s) =>
-                update({
-                  ...localSettings,
-                  name: { ...localSettings.name, style: s },
-                })
-              }
-            />
-            <div>
-              <label className="text-[10px] text-gray-500">
-                Idle Animation
-              </label>
-              <select
-                value={localSettings.name.idle_animation}
-                onChange={(e) =>
+          {selectedEl === "name" && (
+            <div className="space-y-2">
+              <TextStyleEditor
+                style={localSettings.name.style || DEFAULT_TEXT_STYLE}
+                label="Text-Stil"
+                onChange={(s) =>
                   update({
                     ...localSettings,
-                    name: {
-                      ...localSettings.name,
-                      idle_animation: e.target.value,
-                    },
+                    name: { ...localSettings.name, style: s },
                   })
                 }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-              >
-                <option value="none">Keine</option>
-                <option value="breathe">Atmen</option>
-                <option value="glow">Glühen</option>
-              </select>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="text-[10px] text-gray-500">
-                  Trigger Animation
-                </label>
-                <button
-                  onClick={() => fireTest("name")}
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
-                >
-                  <Play className="w-2.5 h-2.5" /> Test
-                </button>
-              </div>
-              <select
-                value={localSettings.name.trigger_enter}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    name: {
-                      ...localSettings.name,
-                      trigger_enter: e.target.value,
-                    },
-                  })
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-              >
-                <option value="none">Keine</option>
-                <option value="fade-in">Einblenden</option>
-                <option value="slide-in">Einsliden</option>
-                <option value="pop">Pop</option>
-                <option value="bounce">Bounce</option>
-                <option value="shake">Shake</option>
-                <option value="flip">Flip</option>
-                <option value="rubber">Rubber Band</option>
-              </select>
-            </div>
-          </div>
-        )}
-
-        {selectedEl === "counter" && (
-          <div className="space-y-2">
-            <TextStyleEditor
-              style={localSettings.counter.style || DEFAULT_TEXT_STYLE}
-              label="Zähler-Stil"
-              onChange={(s) =>
-                update({
-                  ...localSettings,
-                  counter: { ...localSettings.counter, style: s },
-                })
-              }
-            />
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={localSettings.counter.show_label}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    counter: {
-                      ...localSettings.counter,
-                      show_label: e.target.checked,
-                    },
-                  })
-                }
-                className="accent-accent-blue"
               />
-              <span className="text-xs text-gray-400">Label anzeigen</span>
-            </label>
-            {localSettings.counter.show_label && (
-              <>
+              <div>
+                <label className="text-[10px] text-gray-500">
+                  Idle Animation
+                </label>
+                <select
+                  value={localSettings.name.idle_animation}
+                  onChange={(e) =>
+                    update({
+                      ...localSettings,
+                      name: {
+                        ...localSettings.name,
+                        idle_animation: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                >
+                  <option value="none">Keine</option>
+                  <option value="breathe">Atmen</option>
+                  <option value="glow">Glühen</option>
+                </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-0.5">
+                  <label className="text-[10px] text-gray-500">
+                    Trigger Animation
+                  </label>
+                  <button
+                    onClick={() => fireTest("name")}
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                  >
+                    <Play className="w-2.5 h-2.5" /> Test
+                  </button>
+                </div>
+                <select
+                  value={localSettings.name.trigger_enter}
+                  onChange={(e) =>
+                    update({
+                      ...localSettings,
+                      name: {
+                        ...localSettings.name,
+                        trigger_enter: e.target.value,
+                      },
+                    })
+                  }
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                >
+                  <option value="none">Keine</option>
+                  <option value="fade-in">Einblenden</option>
+                  <option value="slide-in">Einsliden</option>
+                  <option value="pop">Pop</option>
+                  <option value="bounce">Bounce</option>
+                  <option value="shake">Shake</option>
+                  <option value="flip">Flip</option>
+                  <option value="rubber">Rubber Band</option>
+                </select>
+              </div>
+            </div>
+          )}
+
+          {selectedEl === "counter" && (
+            <div className="space-y-2">
+              <TextStyleEditor
+                style={localSettings.counter.style || DEFAULT_TEXT_STYLE}
+                label="Zähler-Stil"
+                onChange={(s) =>
+                  update({
+                    ...localSettings,
+                    counter: { ...localSettings.counter, style: s },
+                  })
+                }
+              />
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="text"
-                  value={localSettings.counter.label_text}
+                  type="checkbox"
+                  checked={localSettings.counter.show_label}
                   onChange={(e) =>
                     update({
                       ...localSettings,
                       counter: {
                         ...localSettings.counter,
-                        label_text: e.target.value,
+                        show_label: e.target.checked,
+                      },
+                    })
+                  }
+                  className="accent-accent-blue"
+                />
+                <span className="text-xs text-gray-400">Label anzeigen</span>
+              </label>
+              {localSettings.counter.show_label && (
+                <>
+                  <input
+                    type="text"
+                    value={localSettings.counter.label_text}
+                    onChange={(e) =>
+                      update({
+                        ...localSettings,
+                        counter: {
+                          ...localSettings.counter,
+                          label_text: e.target.value,
+                        },
+                      })
+                    }
+                    className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                    placeholder="Label-Text"
+                  />
+                  <TextStyleEditor
+                    style={
+                      localSettings.counter.label_style || DEFAULT_TEXT_STYLE
+                    }
+                    label="Label-Stil"
+                    onChange={(s) =>
+                      update({
+                        ...localSettings,
+                        counter: { ...localSettings.counter, label_style: s },
+                      })
+                    }
+                  />
+                </>
+              )}
+              <div>
+                <label className="text-[10px] text-gray-500">
+                  Idle Animation
+                </label>
+                <select
+                  value={localSettings.counter.idle_animation}
+                  onChange={(e) =>
+                    update({
+                      ...localSettings,
+                      counter: {
+                        ...localSettings.counter,
+                        idle_animation: e.target.value,
                       },
                     })
                   }
                   className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-                  placeholder="Label-Text"
-                />
-                <TextStyleEditor
-                  style={
-                    localSettings.counter.label_style || DEFAULT_TEXT_STYLE
-                  }
-                  label="Label-Stil"
-                  onChange={(s) =>
+                >
+                  <option value="none">Keine</option>
+                  <option value="breathe">Atmen</option>
+                  <option value="glow">Glühen</option>
+                </select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between mb-0.5">
+                  <label className="text-[10px] text-gray-500">
+                    Trigger Animation
+                  </label>
+                  <button
+                    onClick={() => fireTest("counter")}
+                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                  >
+                    <Play className="w-2.5 h-2.5" /> Test
+                  </button>
+                </div>
+                <select
+                  value={localSettings.counter.trigger_enter}
+                  onChange={(e) =>
                     update({
                       ...localSettings,
-                      counter: { ...localSettings.counter, label_style: s },
+                      counter: {
+                        ...localSettings.counter,
+                        trigger_enter: e.target.value,
+                      },
                     })
                   }
-                />
-              </>
-            )}
-            <div>
-              <label className="text-[10px] text-gray-500">
-                Idle Animation
-              </label>
-              <select
-                value={localSettings.counter.idle_animation}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    counter: {
-                      ...localSettings.counter,
-                      idle_animation: e.target.value,
-                    },
-                  })
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-              >
-                <option value="none">Keine</option>
-                <option value="breathe">Atmen</option>
-                <option value="glow">Glühen</option>
-              </select>
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="text-[10px] text-gray-500">
-                  Trigger Animation
-                </label>
-                <button
-                  onClick={() => fireTest("counter")}
-                  className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
                 >
-                  <Play className="w-2.5 h-2.5" /> Test
-                </button>
+                  <option value="none">Keine</option>
+                  <option value="pop">Pop</option>
+                  <option value="flash">Flash</option>
+                  <option value="bounce">Bounce (Hüpfen)</option>
+                  <option value="shake">Shake</option>
+                  <option value="slot">Slot (Ziffern slide)</option>
+                  <option value="flip-digit">Flip (Ziffern, Wecker)</option>
+                  <option value="slide-up">Slide Up (gesamt)</option>
+                  <option value="flip">Flip (gesamt, Wecker)</option>
+                  <option value="rubber">Rubber Band</option>
+                </select>
               </div>
-              <select
-                value={localSettings.counter.trigger_enter}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    counter: {
-                      ...localSettings.counter,
-                      trigger_enter: e.target.value,
-                    },
-                  })
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
-              >
-                <option value="none">Keine</option>
-                <option value="pop">Pop</option>
-                <option value="flash">Flash</option>
-                <option value="bounce">Bounce (Hüpfen)</option>
-                <option value="shake">Shake</option>
-                <option value="slot">Slot (Ziffern slide)</option>
-                <option value="flip-digit">Flip (Ziffern, Wecker)</option>
-                <option value="slide-up">Slide Up (gesamt)</option>
-                <option value="flip">Flip (gesamt, Wecker)</option>
-                <option value="rubber">Rubber Band</option>
-              </select>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* OBS URL hint */}
-        <OBSSourceHint />
+        {/* OBS Source Panel */}
+        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-shrink-0">
+          <OBSSourceHint />
+        </div>
       </div>
     </div>
   );

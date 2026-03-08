@@ -7,7 +7,7 @@ export function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-10 right-4 z-[9999] flex flex-col gap-2.5 items-end pointer-events-none">
+    <div className="fixed bottom-10 right-4 z-[9999] flex flex-col gap-3 items-end pointer-events-none scale-150 origin-bottom-right">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={dismiss} />
       ))}
@@ -38,15 +38,27 @@ function ToastItem({
           </div>
         )}
         <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-sm font-bold text-white truncate">
+          <span className="text-base font-bold text-white truncate">
             {toast.title}
           </span>
           {toast.message && (
-            <span className="text-xs text-text-muted">{toast.message}</span>
+            <span className="text-sm text-text-muted">{toast.message}</span>
           )}
         </div>
-        <span className="text-xs font-bold text-accent-blue bg-accent-blue/15 px-2 py-1 rounded-full flex-shrink-0">
-          +1
+        <span
+          className={`text-sm font-bold px-2.5 py-1 rounded-full flex-shrink-0 ${
+            toast.badge === "-1"
+              ? "text-accent-yellow bg-accent-yellow/15"
+              : toast.badge === "0"
+                ? "text-text-muted bg-bg-secondary"
+                : toast.badge === "🗑"
+                  ? "text-accent-red bg-accent-red/15"
+                  : toast.badge === "✔"
+                    ? "text-accent-green bg-accent-green/15"
+                    : "text-accent-blue bg-accent-blue/15"
+          }`}
+        >
+          {toast.badge || "+1"}
         </span>
         <button
           onClick={() => onDismiss(toast.id)}
@@ -59,21 +71,25 @@ function ToastItem({
   }
 
   const icons: Record<string, React.ReactNode> = {
-    success: <CheckCircle className="w-5 h-5 text-accent-green flex-shrink-0" />,
-    error: <AlertCircle className="w-5 h-5 text-accent-red flex-shrink-0" />,
-    info: <Info className="w-5 h-5 text-accent-blue flex-shrink-0" />,
+    success: (
+      <CheckCircle className="w-6 h-6 text-accent-green flex-shrink-0" />
+    ),
+    error: <AlertCircle className="w-6 h-6 text-accent-red flex-shrink-0" />,
+    info: <Info className="w-6 h-6 text-accent-blue flex-shrink-0" />,
   };
 
   return (
     <div
-      className="pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl glass-card border border-border-subtle shadow-xl animate-toast-in"
-      style={{ minWidth: 220 }}
+      className="pointer-events-auto flex items-center gap-4 px-5 py-3.5 rounded-xl glass-card border border-border-subtle shadow-xl animate-toast-in"
+      style={{ minWidth: 260 }}
     >
       {icons[toast.type]}
       <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-sm font-semibold text-white">{toast.title}</span>
+        <span className="text-base font-semibold text-white">
+          {toast.title}
+        </span>
         {toast.message && (
-          <span className="text-xs text-text-muted">{toast.message}</span>
+          <span className="text-sm text-text-muted">{toast.message}</span>
         )}
       </div>
       <button

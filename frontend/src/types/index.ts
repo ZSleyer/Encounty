@@ -112,6 +112,10 @@ export interface OverlaySettings {
   sprite: SpriteElement;
   name: NameElement;
   counter: CounterElement;
+
+  // Editor Tools
+  snap_enabled?: boolean;
+  snap_grid_size?: number;
 }
 
 export interface Settings {
