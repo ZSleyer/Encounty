@@ -52,11 +52,12 @@ func main() {
 
 	// File output writer
 	outputDir := st.Settings.OutputDir
+	outputEnabled := st.Settings.OutputEnabled
 	var fileWriter *fileoutput.Writer
 	if outputDir != "" {
-		fileWriter = fileoutput.New(outputDir)
+		fileWriter = fileoutput.New(outputDir, outputEnabled)
 	} else {
-		fileWriter = fileoutput.New(filepath.Join(configDir, "output"))
+		fileWriter = fileoutput.New(filepath.Join(configDir, "output"), outputEnabled)
 	}
 
 	// Hotkey manager

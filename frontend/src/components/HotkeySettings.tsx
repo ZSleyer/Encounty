@@ -134,9 +134,9 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
       {hotkeyAvailable === false && (
         <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
           <p className="text-xs text-amber-400">Globale Hotkeys nicht verfügbar</p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-text-muted mt-1">
             Linux:{' '}
-            <code className="text-gray-400">sudo usermod -aG input $USER</code>{' '}
+            <code className="text-text-secondary">sudo usermod -aG input $USER</code>{' '}
             dann neu einloggen
           </p>
         </div>
@@ -163,10 +163,10 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
                       ? 'bg-accent-blue animate-pulse'
                       : currentCombo
                         ? 'bg-accent-green'
-                        : 'bg-gray-600'
+                        : 'bg-border-subtle'
                   }`}
                 />
-                <span className="text-sm text-gray-300">{label}</span>
+                <span className="text-sm text-text-secondary">{label}</span>
               </div>
 
               <div className="flex items-center gap-2">
@@ -174,7 +174,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
                   className={`px-2 py-1 border rounded text-xs font-mono min-w-[72px] text-center ${
                     isRecording
                       ? 'bg-accent-blue/10 border-accent-blue/30 text-accent-blue'
-                      : 'bg-bg-primary border-border-subtle text-gray-300'
+                      : 'bg-bg-primary border-border-subtle text-text-secondary'
                   }`}
                 >
                   {isRecording
@@ -191,7 +191,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
                   className={`px-3 py-1 rounded text-xs transition-colors ${
                     isRecording
                       ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
-                      : 'bg-bg-hover text-gray-400 hover:text-white'
+                      : 'bg-bg-hover text-text-secondary hover:text-text-primary'
                   }`}
                 >
                   {isRecording ? 'Abbrechen' : 'Aufzeichnen'}
@@ -200,7 +200,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
                 {!isRecording && currentCombo && (
                   <button
                     onClick={() => deleteBinding(key)}
-                    className="p-1 rounded text-gray-600 hover:text-red-400 transition-colors"
+                    className="p-1 rounded text-text-faint hover:text-red-400 transition-colors"
                     title="Bindung löschen"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -224,12 +224,12 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
             ● Drücke eine Taste für „
             {ACTIONS.find((a) => a.key === recording)?.label}"
             {liveModifiers && (
-              <span className="ml-2 font-mono text-white">
+              <span className="ml-2 font-mono text-text-primary">
                 {liveModifiers}+…
               </span>
             )}
           </p>
-          <p className="text-xs text-gray-400 mt-1">ESC zum Abbrechen</p>
+          <p className="text-xs text-text-secondary mt-1">ESC zum Abbrechen</p>
         </div>
       )}
 

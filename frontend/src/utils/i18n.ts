@@ -104,6 +104,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.languagesDesc":
       "Welche Sprachen in der Spielauswahl angezeigt werden. Ältere Spiele haben nicht alle Übersetzungen.",
     "settings.outputTitle": "Dateiausgabe (OBS)",
+    "settings.outputEnabled": "Dateiausgabe aktivieren",
+    "settings.outputEnabledDesc": "Aktualisiert Text-Dateien (z.B. für OBS)",
     "settings.outputDir": "Ausgabe-Ordner",
     "settings.outputDesc": "Erzeugte Textdateien:",
     "settings.syncPokemon": "Pokémon-Daten",
@@ -126,6 +128,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.themeLight": "Hell",
     "settings.backupTitle": "Backup & Wiederherstellung",
     "settings.backupDesc": "Alle Pokémon, Zähler und Einstellungen als ZIP-Datei sichern.",
+    "settings.dataPath": "Daten gespeichert unter:",
     "settings.backupBtn": "Backup erstellen",
     "settings.restoreDesc": "Backup-ZIP hochladen und Daten wiederherstellen.",
     "settings.restoreBtn": "Backup wiederherstellen",
@@ -292,6 +295,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.languagesDesc":
       "Which languages to show in the game selection. Older games may lack some translations.",
     "settings.outputTitle": "File Output (OBS)",
+    "settings.outputEnabled": "Enable file output",
+    "settings.outputEnabledDesc": "Updates text files (e.g. for OBS)",
     "settings.outputDir": "Output directory",
     "settings.outputDesc": "Generated text files:",
     "settings.syncPokemon": "Pokémon Data",
@@ -314,6 +319,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.themeLight": "Light",
     "settings.backupTitle": "Backup & Restore",
     "settings.backupDesc": "Save all Pokémon, counters and settings as a ZIP file.",
+    "settings.dataPath": "Data currently stored at:",
     "settings.backupBtn": "Create backup",
     "settings.restoreDesc": "Upload a backup ZIP to restore your data.",
     "settings.restoreBtn": "Restore backup",

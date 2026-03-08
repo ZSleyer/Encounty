@@ -28,13 +28,13 @@ export function SessionStats({ appState, sessionStart }: Props) {
   return (
     <div className="flex items-center gap-4">
       <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5">
-        <Clock className="w-4 h-4 text-gray-500" />
-        <span className="text-sm text-gray-300 tabular-nums">{elapsed}</span>
+        <Clock className="w-4 h-4 text-text-muted" />
+        <span className="text-sm text-text-secondary tabular-nums">{elapsed}</span>
       </div>
       <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5">
         <Zap className="w-4 h-4 text-accent-yellow" />
-        <span className="text-sm text-gray-300 tabular-nums">{totalEncounters}</span>
-        <span className="text-xs text-gray-600">gesamt</span>
+        <span className="text-sm text-text-secondary tabular-nums">{totalEncounters}</span>
+        <span className="text-xs text-text-faint">gesamt</span>
       </div>
     </div>
   )

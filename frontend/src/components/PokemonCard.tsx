@@ -71,7 +71,7 @@ export function PokemonCard({
             e.stopPropagation();
             onEdit(pokemon);
           }}
-          className="p-1.5 rounded-md bg-bg-secondary/80 hover:bg-accent-blue hover:text-white text-gray-400 backdrop-blur-sm transition-colors"
+          className="p-1.5 rounded-md bg-bg-secondary/80 hover:bg-accent-blue hover:text-white text-text-secondary backdrop-blur-sm transition-colors"
           title="Bearbeiten"
         >
           <Edit2 className="w-3.5 h-3.5" />
@@ -97,13 +97,13 @@ export function PokemonCard({
 
         {/* Text */}
         <div className="text-center w-full mb-4">
-          <h3 className="font-bold text-white text-lg truncate capitalize leading-tight mb-1">
+          <h3 className="font-bold text-text-primary text-lg truncate capitalize leading-tight mb-1">
             {pokemon.name}
           </h3>
 
           {/* Game Badges */}
           <div
-            className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-gray-400"
+            className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary"
             title="Game"
           >
             <Gamepad2 className="w-3 h-3" />
@@ -115,10 +115,10 @@ export function PokemonCard({
         <div
           className={`mt-auto text-center w-full bg-bg-secondary/30 rounded-xl py-3 border border-border-subtle/50 mb-4 transition-all duration-200 ${isFlashing ? "scale-110 bg-accent-blue/20 border-accent-blue/50" : ""}`}
         >
-          <span className="text-4xl font-black text-white tabular-nums tracking-tight">
+          <span className="text-4xl font-black text-text-primary tabular-nums tracking-tight">
             {pokemon.encounters}
           </span>
-          <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold mt-0.5">
+          <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold mt-0.5">
             Encounters
           </p>
         </div>
@@ -130,7 +130,7 @@ export function PokemonCard({
               e.stopPropagation();
               onDecrement(pokemon.id);
             }}
-            className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-gray-400 hover:text-white transition-colors"
+            className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
             title="−1"
           >
             <Minus className="w-4 h-4" />
@@ -150,7 +150,7 @@ export function PokemonCard({
               e.stopPropagation();
               onReset(pokemon.id);
             }}
-            className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-gray-400 hover:text-red-400 transition-colors"
+            className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-red-400 transition-colors"
             title="Reset"
           >
             <RotateCcw className="w-4 h-4" />
@@ -164,7 +164,7 @@ export function PokemonCard({
               e.stopPropagation();
               onDelete(pokemon.id);
             }}
-            className="flex-1 py-1.5 rounded-md text-xs font-medium text-gray-500 hover:text-red-400 border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all"
+            className="flex-1 py-1.5 rounded-md text-xs font-medium text-text-muted hover:text-red-400 border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all"
           >
             Löschen
           </button>

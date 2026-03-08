@@ -26,7 +26,15 @@ func (m *Manager) Load() error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return json.Unmarshal(data, &m.state)
+	err = json.Unmarshal(data, &m.state)
+	if err != nil {
+		return err
+	}
+	m.state.DataPath = m.configDir
+	if m.state.Settings.OutputDir == "" {
+		m.state.Settings.OutputDir = filepath.Join(m.configDir, "output")
+	}
+	return nil
 }
 
 func (m *Manager) Save() error {

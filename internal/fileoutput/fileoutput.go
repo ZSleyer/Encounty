@@ -14,25 +14,28 @@ import (
 type Writer struct {
 	mu        sync.Mutex
 	dir       string
+	enabled   bool
 	startedAt time.Time
 }
 
-func New(dir string) *Writer {
-	return &Writer{dir: dir, startedAt: time.Now()}
+func New(dir string, enabled bool) *Writer {
+	return &Writer{dir: dir, enabled: enabled, startedAt: time.Now()}
 }
 
-func (w *Writer) SetDir(dir string) {
+func (w *Writer) SetConfig(dir string, enabled bool) {
 	w.mu.Lock()
 	w.dir = dir
+	w.enabled = enabled
 	w.mu.Unlock()
 }
 
 func (w *Writer) Write(st state.AppState) {
 	w.mu.Lock()
 	dir := w.dir
+	enabled := w.enabled
 	w.mu.Unlock()
 
-	if dir == "" {
+	if dir == "" || !enabled {
 		return
 	}
 

@@ -38,7 +38,7 @@ function ToastItem({
           </div>
         )}
         <div className="flex flex-col min-w-0 flex-1">
-          <span className="text-base font-bold text-white truncate">
+          <span className="text-base font-bold text-text-primary truncate">
             {toast.title}
           </span>
           {toast.message && (
@@ -85,7 +85,7 @@ function ToastItem({
     >
       {icons[toast.type]}
       <div className="flex flex-col min-w-0 flex-1">
-        <span className="text-base font-semibold text-white">
+        <span className="text-base font-semibold text-text-primary">
           {toast.title}
         </span>
         {toast.message && (

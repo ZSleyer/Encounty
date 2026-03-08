@@ -168,7 +168,7 @@ function NumInput({
       <button
         type="button"
         onClick={() => onChange(clamp(value - step))}
-        className="px-1.5 self-stretch flex items-center text-gray-500 hover:text-white hover:bg-bg-hover transition-colors text-sm leading-none flex-shrink-0"
+        className="px-1.5 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm leading-none flex-shrink-0"
       >
         −
       </button>
@@ -179,12 +179,12 @@ function NumInput({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 min-w-0 bg-transparent text-[10px] text-white text-center outline-none py-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="flex-1 min-w-0 bg-transparent text-[10px] text-text-primary text-center outline-none py-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <button
         type="button"
         onClick={() => onChange(clamp(value + step))}
-        className="px-1.5 self-stretch flex items-center text-gray-500 hover:text-white hover:bg-bg-hover transition-colors text-sm leading-none flex-shrink-0"
+        className="px-1.5 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm leading-none flex-shrink-0"
       >
         +
       </button>
@@ -210,7 +210,7 @@ function NumSlider({
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
-        <label className="text-[10px] text-gray-500">{label}</label>
+        <label className="text-[10px] text-text-muted">{label}</label>
         <NumInput
           value={value}
           min={min}
@@ -266,7 +266,7 @@ function FontPicker({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+      className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
     >
       {POPULAR_FONTS.map((f) => (
         <option key={f} value={f}>
@@ -321,7 +321,7 @@ function GradientEditor({
             max={100}
             className="flex-1 h-1 accent-accent-blue"
           />
-          <span className="text-xs text-gray-500 w-8">{stop.position}%</span>
+          <span className="text-xs text-text-muted w-8">{stop.position}%</span>
         </div>
       ))}
     </div>
@@ -341,10 +341,10 @@ function TextStyleEditor({
     onChange({ ...style, [field]: value });
   return (
     <div className="space-y-2 border border-border-subtle/50 rounded p-2">
-      <p className="text-xs text-gray-400 font-semibold">{label}</p>
+      <p className="text-xs text-text-secondary font-semibold">{label}</p>
 
       <div>
-        <label className="text-[10px] text-gray-500">Schriftart</label>
+        <label className="text-[10px] text-text-muted">Schriftart</label>
         <FontPicker
           value={style.font_family}
           onChange={(v) => u("font_family", v)}
@@ -358,11 +358,11 @@ function TextStyleEditor({
         onChange={(v) => u("font_size", v)}
       />
       <div>
-        <label className="text-[10px] text-gray-500">Gewicht</label>
+        <label className="text-[10px] text-text-muted">Gewicht</label>
         <select
           value={style.font_weight}
           onChange={(e) => u("font_weight", Number(e.target.value))}
-          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
         >
           {[100, 300, 400, 500, 700, 900].map((w) => (
             <option key={w} value={w}>
@@ -373,13 +373,13 @@ function TextStyleEditor({
       </div>
 
       <div>
-        <label className="text-[10px] text-gray-500">Farb-Typ</label>
+        <label className="text-[10px] text-text-muted">Farb-Typ</label>
         <select
           value={style.color_type}
           onChange={(e) =>
             u("color_type", e.target.value as "solid" | "gradient")
           }
-          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
         >
           <option value="solid">Einfarbig</option>
           <option value="gradient">Verlauf</option>
@@ -387,14 +387,14 @@ function TextStyleEditor({
       </div>
       {style.color_type === "solid" ? (
         <div className="flex gap-2 items-center">
-          <label className="text-[10px] text-gray-500">Farbe</label>
+          <label className="text-[10px] text-text-muted">Farbe</label>
           <input
             type="color"
             value={style.color}
             onChange={(e) => u("color", e.target.value)}
             className="w-8 h-6 rounded cursor-pointer border-0"
           />
-          <span className="text-[10px] text-gray-400">{style.color}</span>
+          <span className="text-[10px] text-text-secondary">{style.color}</span>
         </div>
       ) : (
         <GradientEditor
@@ -407,7 +407,7 @@ function TextStyleEditor({
 
       <div className="space-y-1">
         <div className="flex gap-2 items-center">
-          <label className="text-[10px] text-gray-500 w-14 flex-shrink-0">
+          <label className="text-[10px] text-text-muted w-14 flex-shrink-0">
             Umriss
           </label>
           <select
@@ -415,7 +415,7 @@ function TextStyleEditor({
             onChange={(e) =>
               u("outline_type", e.target.value as "none" | "solid")
             }
-            className="flex-1 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+            className="flex-1 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
           >
             <option value="none">Kein</option>
             <option value="solid">Einfarbig</option>
@@ -424,7 +424,7 @@ function TextStyleEditor({
         {style.outline_type === "solid" && (
           <div className="pl-4 space-y-1">
             <div className="flex gap-2 items-center">
-              <label className="text-[10px] text-gray-500 w-10 flex-shrink-0">
+              <label className="text-[10px] text-text-muted w-10 flex-shrink-0">
                 Farbe
               </label>
               <input
@@ -453,12 +453,12 @@ function TextStyleEditor({
             onChange={(e) => u("text_shadow", e.target.checked)}
             className="accent-accent-blue"
           />
-          <span className="text-[10px] text-gray-400">Schatten</span>
+          <span className="text-[10px] text-text-secondary">Schatten</span>
         </label>
         {style.text_shadow && (
           <div className="pl-4 space-y-1">
             <div className="flex gap-2 items-center">
-              <label className="text-[10px] text-gray-500 w-10 flex-shrink-0">
+              <label className="text-[10px] text-text-muted w-10 flex-shrink-0">
                 Farbe
               </label>
               <input
@@ -740,7 +740,7 @@ function OBSSourceHint() {
 
   return (
     <div>
-      <div className="flex items-center gap-1 text-xs text-gray-500 mb-1.5">
+      <div className="flex items-center gap-1 text-xs text-text-muted mb-1.5">
         <Monitor className="w-3 h-3" />
         OBS Browser Source:
       </div>
@@ -752,7 +752,7 @@ function OBSSourceHint() {
       <div className="flex gap-1">
         <button
           onClick={copy}
-          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-gray-400 hover:text-white transition-colors"
+          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
           title="URL kopieren"
         >
           <Copy className="w-3 h-3" />
@@ -762,7 +762,7 @@ function OBSSourceHint() {
           href={overlayUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-gray-400 hover:text-white transition-colors"
+          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
           title="In neuem Tab öffnen"
         >
           <ExternalLink className="w-3 h-3" />
@@ -1010,13 +1010,13 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
         {/* Layers Panel */}
         <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Ebenen
             </p>
             <button
               onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
               title="Layout zurücksetzen"
-              className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
               Reset
@@ -1034,7 +1034,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                     : "hover:bg-bg-hover border border-transparent"
                 }`}
               >
-                <span className="text-xs text-white">
+                <span className="text-xs text-text-primary">
                   {ELEMENT_LABELS[key]}
                 </span>
                 <div className="flex items-center gap-1">
@@ -1043,7 +1043,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                       e.stopPropagation();
                       moveLayer(key, "up");
                     }}
-                    className="text-gray-500 hover:text-white transition-colors"
+                    className="text-text-muted hover:text-text-primary transition-colors"
                   >
                     <ChevronUp className="w-3 h-3" />
                   </button>
@@ -1052,7 +1052,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                       e.stopPropagation();
                       moveLayer(key, "down");
                     }}
-                    className="text-gray-500 hover:text-white transition-colors"
+                    className="text-text-muted hover:text-text-primary transition-colors"
                   >
                     <ChevronDown className="w-3 h-3" />
                   </button>
@@ -1064,7 +1064,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                         [key]: { ...el, visible: !el.visible },
                       });
                     }}
-                    className="text-gray-500 hover:text-white transition-colors"
+                    className="text-text-muted hover:text-text-primary transition-colors"
                   >
                     {el.visible ? (
                       <Eye className="w-3 h-3" />
@@ -1080,7 +1080,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
 
         {/* Canvas Settings Panel */}
         <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-shrink-0">
-          <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider mb-2">
+          <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2">
             Canvas
           </p>
 
@@ -1109,7 +1109,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             }
           >
             <div>
-              <label className="text-[10px] text-gray-500">Hintergrund</label>
+              <label className="text-[10px] text-text-muted">Hintergrund</label>
               <input
                 type="color"
                 value={localSettings.background_color}
@@ -1120,7 +1120,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               />
             </div>
             <div className="mt-2">
-              <label className="text-[10px] text-gray-500">
+              <label className="text-[10px] text-text-muted">
                 Deckkraft {Math.round(localSettings.background_opacity * 100)}%
               </label>
               <input
@@ -1136,7 +1136,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               />
             </div>
             <div className="mt-2">
-              <label className="text-[10px] text-gray-500">
+              <label className="text-[10px] text-text-muted">
                 Blur {localSettings.blur}px
               </label>
               <input
@@ -1152,7 +1152,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
 
           {/* Radius */}
           <div>
-            <label className="text-[10px] text-gray-500">
+            <label className="text-[10px] text-text-muted">
               Radius {localSettings.border_radius}px
             </label>
             <input
@@ -1175,14 +1175,14 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               onChange={(e) => updateField("show_border", e.target.checked)}
               className="accent-accent-blue"
             />
-            <span className="text-[10px] text-gray-400">Kontur</span>
+            <span className="text-[10px] text-text-secondary">Kontur</span>
           </label>
           {localSettings.show_border && (
             <div
               className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}
             >
               <div>
-                <label className="text-[10px] text-gray-500">
+                <label className="text-[10px] text-text-muted">
                   Kontur Farbe
                 </label>
                 <input
@@ -1197,7 +1197,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-gray-500">
+                <label className="text-[10px] text-text-muted">
                   Kontur Stärke {localSettings.border_width ?? 2}px
                 </label>
                 <input
@@ -1223,7 +1223,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               onChange={(e) => updateField("hidden", e.target.checked)}
               className="accent-accent-blue"
             />
-            <span className="text-[10px] text-gray-400">Versteckt</span>
+            <span className="text-[10px] text-text-secondary">Versteckt</span>
           </label>
         </div>
       </div>
@@ -1233,14 +1233,14 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
         {/* Toolbar */}
         <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-xl border border-border-subtle flex-shrink-0">
           {/* Animation test controls */}
-          <span className="text-[10px] text-gray-500 mr-1">
+          <span className="text-[10px] text-text-muted mr-1">
             Animations-Test:
           </span>
           <button
             onClick={testIncrement}
             disabled={!activePokemon}
             title="+1 (nur Vorschau)"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-green hover:text-white text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-green hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Plus className="w-3 h-3" /> 1
           </button>
@@ -1248,7 +1248,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             onClick={testDecrement}
             disabled={!activePokemon}
             title="-1 (nur Vorschau)"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-yellow hover:text-white text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-yellow hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Minus className="w-3 h-3" /> 1
           </button>
@@ -1256,7 +1256,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             onClick={testReset}
             disabled={!activePokemon}
             title="Reset (nur Vorschau)"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-gray-400 hover:text-white text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-text-secondary hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <RefreshCw className="w-3 h-3" /> 0
           </button>
@@ -1267,7 +1267,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
           <button
             onClick={() => setShowGrid((v) => !v)}
             title="Grid"
-            className={`p-1.5 rounded transition-colors ${showGrid ? "text-accent-blue bg-accent-blue/10" : "text-gray-500 hover:text-white hover:bg-bg-hover"}`}
+            className={`p-1.5 rounded transition-colors ${showGrid ? "text-accent-blue bg-accent-blue/10" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
           >
             <Grid3X3 className="w-3.5 h-3.5" />
           </button>
@@ -1276,7 +1276,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
           <button
             onClick={() => setSnapEnabled((v) => !v)}
             title="Snap"
-            className={`p-1.5 rounded transition-colors ${snapEnabled ? "text-accent-blue bg-accent-blue/10" : "text-gray-500 hover:text-white hover:bg-bg-hover"}`}
+            className={`p-1.5 rounded transition-colors ${snapEnabled ? "text-accent-blue bg-accent-blue/10" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
           >
             <Magnet className="w-3.5 h-3.5" />
           </button>
@@ -1286,7 +1286,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             <select
               value={gridSize}
               onChange={(e) => setGridSize(Number(e.target.value))}
-              className="text-xs bg-bg-card border border-border-subtle rounded px-1.5 py-0.5 text-white outline-none"
+              className="text-xs bg-bg-card border border-border-subtle rounded px-1.5 py-0.5 text-text-primary outline-none"
             >
               <option value={8}>8px</option>
               <option value={16}>16px</option>
@@ -1307,7 +1307,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             }}
             disabled={!history.canUndo}
             title="Rückgängig (Ctrl+Z)"
-            className="p-1.5 rounded text-gray-500 hover:text-white hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Undo2 className="w-3.5 h-3.5" />
           </button>
@@ -1321,7 +1321,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
             }}
             disabled={!history.canRedo}
             title="Wiederholen (Ctrl+Y)"
-            className="p-1.5 rounded text-gray-500 hover:text-white hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Redo2 className="w-3.5 h-3.5" />
           </button>
@@ -1332,32 +1332,32 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
           <button
             onClick={() => setZoom((z) => Math.min(2, z + 0.1))}
             title="Reinzoomen"
-            className="p-1.5 rounded text-gray-500 hover:text-white hover:bg-bg-hover transition-colors"
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <ZoomIn className="w-3.5 h-3.5" />
           </button>
-          <span className="text-[10px] text-gray-500 w-8 text-center">
+          <span className="text-[10px] text-text-muted w-8 text-center">
             {Math.round(zoom * 100)}%
           </span>
           <button
             onClick={() => setZoom((z) => Math.max(0.25, z - 0.1))}
             title="Rauszoomen"
-            className="p-1.5 rounded text-gray-500 hover:text-white hover:bg-bg-hover transition-colors"
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <ZoomOut className="w-3.5 h-3.5" />
           </button>
 
           {/* Mouse position */}
-          <span className="ml-auto text-[10px] text-gray-600 font-mono">
+          <span className="ml-auto text-[10px] text-text-faint font-mono">
             X: {mousePos.x} Y: {mousePos.y}
           </span>
           {activePokemon && (
-            <span className="text-[10px] text-gray-600">
+            <span className="text-[10px] text-text-faint">
               {currentCount} (Vorschau)
             </span>
           )}
           {!activePokemon && (
-            <span className="text-[10px] text-gray-600">
+            <span className="text-[10px] text-text-faint">
               Kein aktives Pokémon
             </span>
           )}
@@ -1522,7 +1522,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
       <div className="w-72 flex-shrink-0 flex flex-col gap-3 min-h-0">
         {/* Properties Panel */}
         <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">
             {ELEMENT_LABELS[selectedEl]}
           </p>
 
@@ -1576,7 +1576,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 />
               </label>
             </div>
-            <p className="text-[9px] text-gray-600 mt-1">
+            <p className="text-[9px] text-text-faint mt-1">
               Pfeiltasten: 1px | Shift: 10px | Tab: wechseln
             </p>
           </div>
@@ -1599,12 +1599,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                   }
                   className="accent-accent-blue"
                 />
-                <span className="text-xs text-gray-400">Glow</span>
+                <span className="text-xs text-text-secondary">Glow</span>
               </label>
               {localSettings.sprite.show_glow && (
                 <div className="space-y-2">
                   <div className="flex gap-2 items-center">
-                    <label className="text-[10px] text-gray-500 w-12">
+                    <label className="text-[10px] text-text-muted w-12">
                       Farbe
                     </label>
                     <input
@@ -1651,7 +1651,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 </div>
               )}
               <div>
-                <label className="text-[10px] text-gray-500">
+                <label className="text-[10px] text-text-muted">
                   Idle Animation
                 </label>
                 <select
@@ -1665,7 +1665,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="float">Schweben</option>
@@ -1676,7 +1676,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-0.5">
-                  <label className="text-[10px] text-gray-500">
+                  <label className="text-[10px] text-text-muted">
                     Trigger Animation
                   </label>
                   <button
@@ -1697,7 +1697,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="pop">Pop</option>
@@ -1725,7 +1725,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 }
               />
               <div>
-                <label className="text-[10px] text-gray-500">
+                <label className="text-[10px] text-text-muted">
                   Idle Animation
                 </label>
                 <select
@@ -1739,7 +1739,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="breathe">Atmen</option>
@@ -1748,7 +1748,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-0.5">
-                  <label className="text-[10px] text-gray-500">
+                  <label className="text-[10px] text-text-muted">
                     Trigger Animation
                   </label>
                   <button
@@ -1769,7 +1769,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="fade-in">Einblenden</option>
@@ -1811,7 +1811,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                   }
                   className="accent-accent-blue"
                 />
-                <span className="text-xs text-gray-400">Label anzeigen</span>
+                <span className="text-xs text-text-secondary">Label anzeigen</span>
               </label>
               {localSettings.counter.show_label && (
                 <>
@@ -1827,7 +1827,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                         },
                       })
                     }
-                    className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                    className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
                     placeholder="Label-Text"
                   />
                   <TextStyleEditor
@@ -1845,7 +1845,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                 </>
               )}
               <div>
-                <label className="text-[10px] text-gray-500">
+                <label className="text-[10px] text-text-muted">
                   Idle Animation
                 </label>
                 <select
@@ -1859,7 +1859,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="breathe">Atmen</option>
@@ -1868,7 +1868,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
               </div>
               <div>
                 <div className="flex items-center justify-between mb-0.5">
-                  <label className="text-[10px] text-gray-500">
+                  <label className="text-[10px] text-text-muted">
                     Trigger Animation
                   </label>
                   <button
@@ -1889,7 +1889,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-white outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="pop">Pop</option>

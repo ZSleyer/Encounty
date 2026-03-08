@@ -142,12 +142,12 @@ function AppShell() {
         {/* Left: Logo + Nav tabs */}
         <div className="flex items-center gap-1 mr-auto">
           {/* Logo */}
-          <div
-            className="w-7 h-7 bg-accent-red rounded-lg flex items-center justify-center flex-shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(230,64,64,0.5)]"
+          <img
+            src="/app-icon.png"
+            alt="Encounty Logo"
+            className="w-7 h-7 rounded-md object-contain flex-shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
             title="Encounty"
-          >
-            <span className="text-white font-black text-xs">E</span>
-          </div>
+          />
 
           <NavTab to="/" icon={<LayoutGrid className="w-4 h-4" />}>
             {t("nav.dashboard")}
@@ -256,7 +256,7 @@ function AppShell() {
         <footer className="h-8 px-5 flex items-center justify-between text-[10px] text-text-faint select-none">
           <div className="flex items-center gap-2">
             <span className="font-bold tracking-widest uppercase text-text-muted">
-              Encounty v0.1-dev
+              Encounty v0.2-dev
             </span>
             <span className="text-text-faint/30">|</span>
             <span className="tracking-wide">

@@ -61,6 +61,7 @@ export function Settings() {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    settings?.output_enabled,
     settings?.output_dir,
     settings?.auto_save,
     settings?.browser_port,
@@ -69,7 +70,7 @@ export function Settings() {
   ]);
 
   if (!settings) {
-    return <div className="p-6 text-gray-500">Lade…</div>;
+    return <div className="p-6 text-text-muted">Lade…</div>;
   }
 
   const toggleLanguage = (code: string) => {
@@ -167,7 +168,7 @@ export function Settings() {
           <div className="space-y-6">
             {/* Server */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
                 <SettingsIcon className="w-4 h-4 text-text-muted" />
                 {t("settings.server")}
               </h2>
@@ -190,7 +191,7 @@ export function Settings() {
                   }
                   min={1024}
                   max={65535}
-                  className="w-32 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-accent-blue/50 transition-colors"
+                  className="w-32 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
                 />
               </div>
             </section>
@@ -199,7 +200,7 @@ export function Settings() {
             <section className="glass-card rounded-2xl p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
                     <Save className="w-4 h-4 text-accent-green" />{" "}
                     {t("settings.autoSave")}
                   </h3>
@@ -228,7 +229,7 @@ export function Settings() {
             <section className="glass-card rounded-2xl p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
                     <span className="text-base leading-none">🔍</span>
                     {t("settings.crispSprites")}
                   </h3>
@@ -253,7 +254,7 @@ export function Settings() {
 
             {/* Languages */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
                 <Globe className="w-4 h-4 text-accent-blue" />{" "}
                 {t("settings.languages")}
               </h2>
@@ -272,8 +273,8 @@ export function Settings() {
                       title={code}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                         active
-                          ? "bg-accent-blue/20 border-accent-blue/50 text-white"
-                          : "bg-bg-secondary border-border-subtle text-text-muted hover:text-white"
+                          ? "bg-accent-blue/20 border-accent-blue/50 text-text-primary"
+                          : "bg-bg-secondary border-border-subtle text-text-muted hover:text-text-primary"
                       }`}
                     >
                       <span className="text-[14px] leading-none">{flag}</span>
@@ -286,12 +287,20 @@ export function Settings() {
 
             {/* Backup & Restore */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
                 <ArchiveRestore className="w-4 h-4 text-accent-purple" />
                 {t("settings.backupTitle")}
               </h2>
 
               <div className="mt-4 space-y-4">
+                {appState?.data_path && (
+                  <div className="p-3 rounded-xl bg-bg-secondary/50 border border-border-subtle">
+                    <p className="text-xs text-text-muted mb-1.5">{t("settings.dataPath")}</p>
+                    <p className="text-xs text-text-primary break-all select-all font-mono opacity-80">
+                      {appState.data_path}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-text-muted mb-2">
                     {t("settings.backupDesc")}
@@ -342,11 +351,28 @@ export function Settings() {
           <div className="space-y-6">
             {/* File Output */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-                <FolderOpen className="w-4 h-4 text-accent-yellow" />{" "}
-                {t("settings.outputTitle")}
-              </h2>
-              <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-accent-yellow" />{" "}
+                  {t("settings.outputTitle")}
+                </h2>
+                <button
+                  onClick={() =>
+                    setSettings({ ...settings, output_enabled: !settings.output_enabled })
+                  }
+                  title={t("settings.outputEnabledDesc")}
+                  className={`relative w-12 h-6 rounded-full transition-colors flex items-center px-1 flex-shrink-0 ${
+                    settings.output_enabled
+                      ? "bg-accent-yellow/80"
+                      : "bg-bg-secondary border border-border-subtle"
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${settings.output_enabled ? "translate-x-6" : "translate-x-0"}`}
+                  />
+                </button>
+              </div>
+              <div className={`space-y-4 transition-all duration-300 ${!settings.output_enabled ? "opacity-30 pointer-events-none grayscale" : ""}`}>
                 <div>
                   <label
                     htmlFor="output-dir"
@@ -362,7 +388,7 @@ export function Settings() {
                       setSettings({ ...settings, output_dir: e.target.value })
                     }
                     placeholder="z.B. C:\OBS\counter oder ~/obs/counter"
-                    className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-white placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
+                    className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
                   />
                 </div>
                 <div>
@@ -394,7 +420,7 @@ export function Settings() {
 
             {/* Sync Pokémon */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
                 <Database className="w-4 h-4 text-accent-blue" />{" "}
                 {t("settings.syncPokemon")}
               </h2>
@@ -422,7 +448,7 @@ export function Settings() {
 
             {/* Sync Games */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
                 <Database className="w-4 h-4 text-accent-blue" />{" "}
                 {t("settings.syncGames")}
               </h2>

@@ -159,6 +159,9 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	s.state.UpdateSettings(settings)
 	s.state.ScheduleSave()
+	if s.fileWriter != nil {
+		s.fileWriter.SetConfig(settings.OutputDir, settings.OutputEnabled)
+	}
 	s.broadcastState()
 	writeJSON(w, http.StatusOK, settings)
 }

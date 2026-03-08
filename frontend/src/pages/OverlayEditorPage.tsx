@@ -34,7 +34,7 @@ export function OverlayEditorPage() {
   }, []);
 
   if (!currentOverlay) {
-    return <div className="p-6 text-gray-500">Lade…</div>;
+    return <div className="p-6 text-text-muted">Lade…</div>;
   }
 
   const activePokemon =
@@ -133,7 +133,7 @@ export function OverlayEditorPage() {
       {/* Header bar */}
       <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-secondary border-b border-border-subtle flex-shrink-0 flex-wrap">
         <Layers className="w-4 h-4 text-accent-blue flex-shrink-0" />
-        <span className="text-sm font-semibold text-white mr-2">
+        <span className="text-sm font-semibold text-text-primary mr-2">
           {t("overlay.editorTitle")}
         </span>
 
@@ -141,7 +141,7 @@ export function OverlayEditorPage() {
         <select
           value={overlayTarget}
           onChange={(e) => handleTargetChange(e.target.value)}
-          className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent-blue/50"
+          className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue/50"
         >
           <option value="global">{t("overlay.globalDefault")}</option>
           <optgroup label={t("overlay.specificPokemon")}>
@@ -160,7 +160,7 @@ export function OverlayEditorPage() {
             onChange={(e) => {
               if (e.target.value) copyOverlayFrom(e.target.value);
             }}
-            className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-accent-blue/50"
+            className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue/50"
           >
             <option value="" disabled>
               {t("overlay.copyFrom")}...

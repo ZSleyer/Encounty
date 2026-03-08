@@ -18,14 +18,14 @@ export function HotkeyPage() {
   }, [appState]);
 
   if (!hotkeys) {
-    return <div className="p-6 text-gray-500">Lade…</div>;
+    return <div className="p-6 text-text-muted">Lade…</div>;
   }
 
   return (
     <div className="flex-1 overflow-auto p-6 settings-bg">
       <div className="max-w-xl mx-auto space-y-6 relative z-10">
         <section className="glass-card rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-white mb-6">
+          <h2 className="text-sm font-semibold text-text-primary mb-6">
             {t("settings.hotkeysTitle")}
           </h2>
           <HotkeySettings hotkeys={hotkeys} onUpdate={setHotkeys} />

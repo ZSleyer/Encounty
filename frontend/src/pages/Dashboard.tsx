@@ -360,7 +360,7 @@ export function Dashboard() {
                       />
                       {isArchived && (
                         <div className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-full p-0.5">
-                          <Trophy className="w-2.5 h-2.5 text-white" />
+                          <Trophy className="w-2.5 h-2.5 text-text-primary" />
                         </div>
                       )}
                     </div>

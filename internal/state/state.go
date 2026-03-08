@@ -1,6 +1,7 @@
 package state
 
 import (
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -113,8 +114,9 @@ type OverlaySettings struct {
 }
 
 type Settings struct {
-	OutputDir    string          `json:"output_dir"`
-	AutoSave     bool            `json:"auto_save"`
+	OutputEnabled bool            `json:"output_enabled"`
+	OutputDir     string          `json:"output_dir"`
+	AutoSave      bool            `json:"auto_save"`
 	BrowserPort  int             `json:"browser_port"`
 	Languages    []string        `json:"languages"` // active game-name languages; default ["de","en"]
 	CrispSprites bool            `json:"crisp_sprites"`
@@ -127,6 +129,7 @@ type AppState struct {
 	ActiveID string    `json:"active_id"`
 	Hotkeys  HotkeyMap `json:"hotkeys"`
 	Settings Settings  `json:"settings"`
+	DataPath string    `json:"data_path"`
 }
 
 type Manager struct {
@@ -140,11 +143,14 @@ func NewManager(configDir string) *Manager {
 	m := &Manager{
 		configDir: configDir,
 		state: AppState{
+			DataPath: configDir,
 			Pokemon:  []Pokemon{},
 			Sessions: []Session{},
 			Settings: Settings{
-				AutoSave:    true,
-				BrowserPort: 8080,
+				OutputEnabled: false,
+				OutputDir:     filepath.Join(configDir, "output"),
+				AutoSave:      true,
+				BrowserPort:   8080,
 				Languages:   []string{"de", "en"},
 				Overlay: OverlaySettings{
 					CanvasWidth:       800,

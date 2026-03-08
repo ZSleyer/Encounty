@@ -274,12 +274,12 @@ export function EditPokemonPanel({
     <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 animate-slide-in w-full max-w-md">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-white uppercase tracking-wider">
+        <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">
           Pokémon bearbeiten
         </h3>
         <button
           onClick={onCancel}
-          className="text-gray-500 hover:text-white transition-colors p-1"
+          className="text-text-muted hover:text-text-primary transition-colors p-1"
         >
           <X className="w-4 h-4" />
         </button>
@@ -311,10 +311,10 @@ export function EditPokemonPanel({
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-white capitalize truncate">
+          <p className="font-bold text-text-primary capitalize truncate">
             {selected?.name || pokemon.name}
           </p>
-          <p className="text-[11px] text-gray-500">
+          <p className="text-[11px] text-text-muted">
             {selected?.canonical || pokemon.canonical_name}
           </p>
         </div>
@@ -323,7 +323,7 @@ export function EditPokemonPanel({
             setShowSearch(!showSearch);
             setTimeout(() => searchInputRef.current?.focus(), 50);
           }}
-          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-bg-dark border border-border-subtle text-gray-400 hover:text-white hover:border-accent-blue/30 transition-colors flex items-center gap-1"
+          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-bg-dark border border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-blue/30 transition-colors flex items-center gap-1"
         >
           <ChevronDown className="w-3 h-3" />
           Wechseln
@@ -341,7 +341,7 @@ export function EditPokemonPanel({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Pokémon suchen…"
-              className="flex-1 bg-transparent text-white placeholder-gray-600 outline-none text-sm"
+              className="flex-1 bg-transparent text-text-primary placeholder-gray-600 outline-none text-sm"
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   setShowSearch(false);
@@ -354,7 +354,7 @@ export function EditPokemonPanel({
                 setShowSearch(false);
                 setQuery("");
               }}
-              className="text-gray-500 hover:text-white"
+              className="text-text-muted hover:text-text-primary"
             >
               <X className="w-3 h-3" />
             </button>
@@ -368,11 +368,11 @@ export function EditPokemonPanel({
                   className="w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center justify-between"
                 >
                   <span
-                    className={`capitalize ${s.isForm ? "text-gray-300 pl-2 border-l border-border-subtle" : "text-white"}`}
+                    className={`capitalize ${s.isForm ? "text-text-secondary pl-2 border-l border-border-subtle" : "text-text-primary"}`}
                   >
                     {getPkmnName(s, language)}
                   </span>
-                  <span className="text-gray-600 text-xs italic">
+                  <span className="text-text-faint text-xs italic">
                     {s.canonical}
                   </span>
                 </button>
@@ -386,7 +386,7 @@ export function EditPokemonPanel({
       <div className="space-y-3">
         {/* Sprite style */}
         <div>
-          <span className="block text-[11px] text-gray-500 mb-1.5">
+          <span className="block text-[11px] text-text-muted mb-1.5">
             Sprite-Stil
           </span>
           <div className="grid grid-cols-4 gap-1.5">
@@ -404,10 +404,10 @@ export function EditPokemonPanel({
                   }
                   className={`flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-[11px] font-medium transition-colors border ${
                     !available
-                      ? "opacity-30 cursor-not-allowed bg-bg-dark/50 text-gray-700 border-border-subtle/50"
+                      ? "opacity-30 cursor-not-allowed bg-bg-dark/50 text-text-faint border-border-subtle/50"
                       : spriteStyle === s.key
                         ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                        : "bg-bg-dark text-gray-500 border-border-subtle hover:text-gray-300"
+                        : "bg-bg-dark text-text-muted border-border-subtle hover:text-text-secondary"
                   }`}
                 >
                   <span>{s.label}</span>
@@ -420,7 +420,7 @@ export function EditPokemonPanel({
         {/* Sprite type + Language in one row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <span className="block text-[11px] text-gray-500 mb-1.5">
+            <span className="block text-[11px] text-text-muted mb-1.5">
               Variante
             </span>
             <div className="flex gap-2">
@@ -431,7 +431,7 @@ export function EditPokemonPanel({
                   className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
                     spriteType === t
                       ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                      : "bg-bg-dark text-gray-500 border-border-subtle hover:text-gray-300"
+                      : "bg-bg-dark text-text-muted border-border-subtle hover:text-text-secondary"
                   }`}
                 >
                   {t === "shiny" ? "✨ Shiny" : "Normal"}
@@ -440,7 +440,7 @@ export function EditPokemonPanel({
             </div>
           </div>
           <div>
-            <span className="block text-[11px] text-gray-500 mb-1.5">
+            <span className="block text-[11px] text-text-muted mb-1.5">
               Sprache
             </span>
             <div className="flex gap-1.5">
@@ -466,7 +466,7 @@ export function EditPokemonPanel({
                   className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
                     language === lang
                       ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                      : "bg-bg-dark text-gray-500 border-border-subtle hover:text-gray-300"
+                      : "bg-bg-dark text-text-muted border-border-subtle hover:text-text-secondary"
                   }`}
                 >
                   {lang.toUpperCase()}
@@ -478,11 +478,11 @@ export function EditPokemonPanel({
 
         {/* Game selector */}
         <div>
-          <span className="block text-[11px] text-gray-500 mb-1.5">Spiel</span>
+          <span className="block text-[11px] text-text-muted mb-1.5">Spiel</span>
           <select
             value={selectedGame}
             onChange={(e) => setSelectedGame(e.target.value)}
-            className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-accent-blue/50 transition-colors"
+            className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
           >
             <option value="">— Kein Spiel —</option>
             {Object.entries(genGroups).map(([gen, entries]) => (
@@ -499,7 +499,7 @@ export function EditPokemonPanel({
 
         {/* Custom sprite URL */}
         <div>
-          <span className="block text-[11px] text-gray-500 mb-1.5">
+          <span className="block text-[11px] text-text-muted mb-1.5">
             Eigene Sprite-URL
           </span>
           <input
@@ -507,7 +507,7 @@ export function EditPokemonPanel({
             value={customSprite}
             onChange={(e) => setCustomSprite(e.target.value)}
             placeholder="https://…"
-            className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-white placeholder-gray-600 outline-none focus:border-accent-blue/50 transition-colors"
+            className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder-gray-600 outline-none focus:border-accent-blue/50 transition-colors"
           />
         </div>
       </div>
@@ -516,7 +516,7 @@ export function EditPokemonPanel({
       <div className="flex gap-2 mt-4 pt-4 border-t border-border-subtle">
         <button
           onClick={onCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-gray-400 hover:text-white hover:border-gray-500 transition-colors text-xs"
+          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-subtle transition-colors text-xs"
         >
           Abbrechen
         </button>

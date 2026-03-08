@@ -119,6 +119,7 @@ export interface OverlaySettings {
 }
 
 export interface Settings {
+  output_enabled: boolean;
   output_dir: string;
   auto_save: boolean;
   browser_port: number;
@@ -133,6 +134,7 @@ export interface AppState {
   active_id: string;
   hotkeys: HotkeyMap;
   settings: Settings;
+  data_path: string;
 }
 
 export interface WSMessage {

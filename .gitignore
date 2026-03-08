@@ -39,3 +39,4 @@ Thumbs.db
 # Windows Resource Build Files
 *.syso
 winres/
+*.exe.bak
