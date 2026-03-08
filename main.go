@@ -37,7 +37,15 @@ var frontendFS embed.FS
 
 func main() {
 	devMode := flag.Bool("dev", false, "Development mode (proxy to Vite dev server)")
+	showVersion := flag.Bool("version", false, "Show version information")
+	flag.BoolVar(showVersion, "v", false, "Show version information")
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("Encounty %s (Build %s)\n", version, commit)
+		fmt.Printf("Runtime: %s (%s/%s)\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		os.Exit(0)
+	}
 
 	// Inject embedded games.json as fallback for the server package
 	server.SetDefaultGamesJSON(embeddedGamesJSON)
