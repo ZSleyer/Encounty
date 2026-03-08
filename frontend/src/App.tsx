@@ -11,6 +11,7 @@ import {
   Keyboard,
   Layers,
   Github,
+  ArrowUpCircle,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
@@ -38,6 +39,12 @@ function AppShell() {
   const [restarting, setRestarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
   const [buildInfo, setBuildInfo] = useState("Encounty");
+  const [updateInfo, setUpdateInfo] = useState<{
+    available: boolean;
+    latest_version: string;
+    download_url: string;
+  } | null>(null);
+  const [updateState, setUpdateState] = useState<"idle" | "installing" | "restarting">("idle");
 
   useEffect(() => {
     fetch("/api/version")
@@ -47,6 +54,34 @@ function AppShell() {
       )
       .catch(() => setBuildInfo("Encounty"));
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetch("/api/update/check")
+        .then((r) => r.json())
+        .then((d: { available: boolean; latest_version: string; download_url: string }) => {
+          if (d.available) setUpdateInfo(d);
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const applyUpdate = async () => {
+    if (!updateInfo) return;
+    setUpdateState("installing");
+    try {
+      await fetch("/api/update/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ download_url: updateInfo.download_url }),
+      });
+      setUpdateState("restarting");
+      setTimeout(() => window.location.reload(), 4000);
+    } catch {
+      setUpdateState("idle");
+    }
+  };
 
   // Sync crisp-sprites attribute from backend settings whenever state arrives
   useEffect(() => {
@@ -257,11 +292,33 @@ function AppShell() {
       <div className="flex-shrink-0">
         <div className="footer-line" />
         <footer className="h-8 px-5 grid grid-cols-3 items-center text-[10px] text-text-faint select-none">
-          {/* Left: Build Info */}
-          <div className="flex items-center justify-start">
+          {/* Left: Build Info + Update Badge */}
+          <div className="flex items-center justify-start gap-2">
             <span className="font-bold tracking-widest uppercase text-text-muted">
               {buildInfo}
             </span>
+            {updateInfo && updateState === "idle" && (
+              <button
+                onClick={applyUpdate}
+                title={`${t("update.tooltip")} (${updateInfo.latest_version})`}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent-blue/15 text-accent-blue hover:bg-accent-blue/25 transition-colors font-semibold"
+              >
+                <ArrowUpCircle className="w-3 h-3" />
+                <span>{updateInfo.latest_version}</span>
+              </button>
+            )}
+            {updateState === "installing" && (
+              <span className="flex items-center gap-1 text-accent-blue animate-pulse font-medium">
+                <ArrowUpCircle className="w-3 h-3 animate-spin" />
+                {t("update.installing")}
+              </span>
+            )}
+            {updateState === "restarting" && (
+              <span className="flex items-center gap-1 text-accent-green animate-pulse font-medium">
+                <RefreshCcw className="w-3 h-3 animate-spin" />
+                {t("update.restarting")}
+              </span>
+            )}
           </div>
 
           {/* Center: WS connection */}
