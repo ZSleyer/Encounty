@@ -10,6 +10,7 @@ import {
   RefreshCcw,
   Keyboard,
   Layers,
+  Github,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
@@ -264,6 +265,16 @@ function AppShell() {
             <span className="tracking-wide">
               &copy; {new Date().getFullYear()} ZSleyer
             </span>
+            <span className="text-text-faint/30">|</span>
+            <a
+              href="https://github.com/ZSleyer/Encounty"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 hover:text-text-muted transition-colors"
+            >
+              <Github className="w-3 h-3" />
+              <span>GitHub</span>
+            </a>
           </div>
           {/* WS connection — subtle, small, in the footer */}
           <div
