@@ -256,60 +256,60 @@ function AppShell() {
       {/* ── Footer ───────────────────────────────────────────── */}
       <div className="flex-shrink-0">
         <div className="footer-line" />
-        <footer className="h-8 px-5 flex items-center justify-between text-[10px] text-text-faint select-none">
-          <div className="flex items-center gap-2">
+        <footer className="h-8 px-5 grid grid-cols-3 items-center text-[10px] text-text-faint select-none">
+          {/* Left: Build Info */}
+          <div className="flex items-center justify-start">
             <span className="font-bold tracking-widest uppercase text-text-muted">
               {buildInfo}
             </span>
           </div>
 
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <a
-                href="https://github.com/ZSleyer/Encounty"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 hover:text-text-muted transition-colors font-medium"
-              >
-                <Github className="w-3 h-3" />
-                <span>GitHub</span>
-              </a>
-              <span className="text-text-faint/30">|</span>
-              <a
-                href="https://youtube.com/@ZSleyer"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full hover:bg-accent-red/10 text-text-faint hover:text-accent-red transition-all"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-3 h-3 fill-current"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-                </svg>
-                <span className="font-semibold tracking-wide">@ZSleyer</span>
-              </a>
-            </div>
-
-            <span className="text-text-faint/30">|</span>
-
-            {/* WS connection — subtle, small, in the footer */}
+          {/* Center: WS connection */}
+          <div className="flex items-center justify-center">
             <div
-              className={`flex items-center gap-1 text-[10px] transition-colors ${
+              className={`flex items-center gap-1.5 transition-colors duration-300 ${
                 isConnected ? "text-text-faint" : "text-accent-red/70"
               }`}
               title={isConnected ? t("nav.connected") : t("nav.disconnected")}
             >
-              <span
+              <div
                 className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                   isConnected ? "bg-accent-green/60" : "bg-accent-red/70"
                 }`}
               />
-              <span className="tracking-wide">
+              <span className="font-medium tracking-wide">
                 {isConnected ? t("nav.connected") : t("nav.disconnected")}
               </span>
             </div>
+          </div>
+
+          {/* Right: Brand Links */}
+          <div className="flex items-center justify-end gap-3">
+            <a
+              href="https://github.com/ZSleyer/Encounty"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 hover:text-text-muted transition-colors font-medium"
+            >
+              <Github className="w-3 h-3" />
+              <span>GitHub</span>
+            </a>
+            <span className="text-text-faint/30">|</span>
+            <a
+              href="https://youtube.com/@ZSleyer"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded-full hover:bg-accent-red/10 text-text-faint hover:text-accent-red transition-all"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="w-3 h-3 fill-current"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+              </svg>
+              <span className="font-semibold tracking-wide">@ZSleyer</span>
+            </a>
           </div>
         </footer>
       </div>
