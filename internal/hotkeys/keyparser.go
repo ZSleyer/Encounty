@@ -1,3 +1,6 @@
+// keyparser.go parses and validates human-readable key-combo strings such as
+// "Ctrl+Shift+F1" or "Alt+A" into a structured KeyCombo that the platform
+// managers can use to register OS-level hotkeys.
 package hotkeys
 
 import (

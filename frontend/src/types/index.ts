@@ -1,3 +1,9 @@
+/**
+ * index.ts — TypeScript types that mirror the Go structs in internal/state/state.go.
+ * Keep these in sync whenever the Go model changes.
+ */
+
+/** Pokemon represents one shiny-hunt entry. */
 export interface Pokemon {
   id: string;
   name: string; // Display name (localized)
@@ -14,6 +20,7 @@ export interface Pokemon {
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
 }
 
+/** GameEntry is one Pokémon game as returned by GET /api/games. */
 export interface GameEntry {
   key: string;
   names: Record<string, string>; // lang code → localised name
@@ -31,6 +38,7 @@ export interface Session {
   encounters: number;
 }
 
+/** HotkeyMap holds the key-combo string for each counter action. */
 export interface HotkeyMap {
   increment: string;
   decrement: string;
@@ -95,6 +103,10 @@ export interface CounterElement extends OverlayElementBase {
   trigger_enter: string; // "none" | "pop" | "count-flash"
 }
 
+/**
+ * OverlaySettings is the complete configuration for the OBS Browser Source
+ * overlay, using an absolute-positioning canvas model.
+ */
 export interface OverlaySettings {
   // Canvas
   canvas_width: number;
@@ -119,6 +131,7 @@ export interface OverlaySettings {
   snap_grid_size?: number;
 }
 
+/** Settings holds all user-configurable application preferences. */
 export interface Settings {
   output_enabled: boolean;
   output_dir: string;
@@ -129,6 +142,7 @@ export interface Settings {
   overlay: OverlaySettings;
 }
 
+/** AppState is the complete serialisable snapshot broadcast by the server. */
 export interface AppState {
   pokemon: Pokemon[];
   sessions: Session[];
@@ -138,6 +152,7 @@ export interface AppState {
   data_path: string;
 }
 
+/** WSMessage is the envelope for all WebSocket messages in both directions. */
 export interface WSMessage {
   type: string;
   payload: unknown;

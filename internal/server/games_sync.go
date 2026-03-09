@@ -1,3 +1,6 @@
+// games_sync.go implements SyncGamesFromPokeAPI, which fetches the full
+// version list from the PokéAPI and merges any new games or missing language
+// translations into the on-disk games.json without overwriting existing data.
 package server
 
 import (

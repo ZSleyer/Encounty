@@ -1,3 +1,7 @@
+// games.go loads the Pokémon game catalogue from games.json and serves it
+// via GET /api/games. The file is resolved in priority order:
+// config dir → binary dir → working dir → embedded default.
+// A parsed, sorted slice is cached in memory after the first load.
 package server
 
 import (
@@ -22,6 +26,8 @@ func SetDefaultGamesJSON(data []byte) {
 // read/write the user-editable games.json inside the config directory.
 var gamesConfigDir string
 
+// GameEntry is the public representation of one Pokémon game returned by the
+// API. The Key field is the stable identifier used in Pokemon.Game.
 type GameEntry struct {
 	Key        string            `json:"key"`
 	Names      map[string]string `json:"names"`

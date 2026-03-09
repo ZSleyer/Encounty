@@ -1,3 +1,11 @@
+/**
+ * App.tsx — Root component tree.
+ *
+ * App wraps the application in ThemeProvider, I18nProvider, and ToastProvider,
+ * then renders AppShell which owns the navigation header, route outlets, and
+ * the global WebSocket connection. The /overlay route renders the bare Overlay
+ * page without any chrome so it can be used as an OBS Browser Source.
+ */
 import { useState, useEffect } from "react";
 import { Routes, Route, Link, useLocation } from "react-router-dom";
 import {

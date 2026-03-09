@@ -1,3 +1,11 @@
+/**
+ * Dashboard.tsx — Main counter UI.
+ *
+ * Displays a split layout: a left sidebar lists all tracked Pokémon and an
+ * optional search/filter, while the right panel shows detailed controls for
+ * the active Pokémon (increment, decrement, reset, complete/delete).
+ * Counter actions are sent over WebSocket for immediate multi-tab sync.
+ */
 import { useState, useEffect, useRef } from "react";
 import {
   Plus,
@@ -26,6 +34,10 @@ import { useI18n } from "../contexts/I18nContext";
 
 const API = "/api";
 
+/**
+ * useDuration returns a live HH:MM:SS string for the elapsed time since start.
+ * Updates every second via setInterval.
+ */
 function useDuration(start: Date) {
   const [elapsed, setElapsed] = useState("");
   useEffect(() => {
@@ -103,6 +115,8 @@ export function Dashboard() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // --- Event Handlers ---
+
   const handleIncrement = (id: string) => {
     send("increment", { pokemon_id: id });
     flashPokemon(id);
@@ -164,6 +178,8 @@ export function Dashboard() {
       </div>
     );
   }
+
+  // --- Derived State ---
 
   const activePokemon =
     appState.pokemon.find((p) => p.id === appState.active_id) ?? null;

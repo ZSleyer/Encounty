@@ -1,3 +1,11 @@
+/**
+ * ToastContext.tsx — Toast notification system.
+ *
+ * Toasts auto-dismiss after a configurable duration (default 2 s; 3 s for
+ * "encounter" type). When an encounter toast for the same sprite already
+ * exists it is replaced in-place rather than stacked, so rapid increments
+ * only show one toast per Pokémon at a time. The stack is capped at 5.
+ */
 import { createContext, useContext, useState, useCallback, useRef } from "react";
 
 export type ToastType = "success" | "error" | "info" | "encounter";
@@ -20,6 +28,7 @@ interface ToastContextType {
 
 const ToastContext = createContext<ToastContextType | null>(null);
 
+/** ToastProvider supplies the toast queue and push/dismiss actions to the tree. */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -68,6 +77,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** useToast returns the push and dismiss helpers plus the current toast list. */
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used within ToastProvider");

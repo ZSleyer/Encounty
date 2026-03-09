@@ -1,3 +1,6 @@
+// Package server provides the HTTP server that serves the embedded React
+// frontend, exposes a REST API, and maintains the WebSocket hub for real-time
+// state synchronisation with the browser.
 package server
 
 import (
@@ -13,6 +16,8 @@ import (
 	"github.com/zsleyer/encounty/internal/state"
 )
 
+// Server wires together the HTTP multiplexer, WebSocket hub, hotkey manager,
+// file-output writer, and state manager into a single runnable unit.
 type Server struct {
 	state      *state.Manager
 	hub        *Hub
@@ -24,6 +29,7 @@ type Server struct {
 	commit     string
 }
 
+// Config carries all dependencies needed to construct a Server.
 type Config struct {
 	Port       int
 	FrontendFS fs.FS
@@ -35,6 +41,8 @@ type Config struct {
 	ConfigDir  string
 }
 
+// New creates a Server from cfg, registers all HTTP routes, and starts the
+// goroutine that converts hotkey actions into state mutations.
 func New(cfg Config) *Server {
 	// Make games.json use the config directory
 	if cfg.ConfigDir != "" {
@@ -199,19 +207,28 @@ func spaHandler(fsys fs.FS) http.Handler {
 	})
 }
 
+// Start begins accepting HTTP connections. Blocks until the server is shut
+// down; returns http.ErrServerClosed on a clean shutdown.
 func (s *Server) Start() error {
 	log.Printf("Server listening on %s", s.httpServer.Addr)
 	return s.httpServer.ListenAndServe()
 }
 
+// Shutdown gracefully stops the HTTP server, waiting up to ctx's deadline
+// for in-flight requests to complete.
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
+// Hub returns the WebSocket hub so main can call CloseAll during shutdown.
 func (s *Server) Hub() *Hub {
 	return s.hub
 }
 
+// processHotkeyActions consumes the hotkey action channel and translates each
+// action into the appropriate state mutation + broadcast. For "reset" the
+// frontend is asked to confirm instead of acting immediately, to avoid
+// accidental data loss when the reset hotkey is pressed unintentionally.
 func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 	for action := range ch {
 		active := s.state.GetActivePokemon()
@@ -257,6 +274,8 @@ func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 	}
 }
 
+// corsMiddleware adds permissive CORS headers so the Vite dev server (port
+// 5173) can call the Go API (port 8080) in development mode.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")

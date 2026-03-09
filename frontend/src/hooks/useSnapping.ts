@@ -1,3 +1,9 @@
+/**
+ * useSnapping.ts — Snap-to-grid and snap-to-element alignment helpers for
+ * the overlay canvas editor. Returns two functions:
+ * - getGuides: returns visible alignment guide lines for the current drag position.
+ * - snap: snaps x/y to the nearest grid line (bypassed when Shift is held).
+ */
 import { OverlaySettings } from "../types";
 
 type ElementKey = "sprite" | "name" | "counter";
@@ -9,6 +15,14 @@ export interface Guide {
 
 const SNAP_THRESHOLD = 5;
 
+/**
+ * useSnapping provides snap-to-grid and snap-to-element logic for the
+ * drag/resize interactions in the overlay editor canvas.
+ *
+ * @param settings - Current overlay settings (used to read sibling element bounds).
+ * @param enabled - Whether snapping is active.
+ * @param gridSize - Grid cell size in canvas pixels.
+ */
 export function useSnapping(
   settings: OverlaySettings,
   enabled: boolean,

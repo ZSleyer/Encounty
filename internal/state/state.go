@@ -1,3 +1,7 @@
+// Package state defines all application data types and the in-memory state
+// manager. The Manager is the single source of truth for mutable runtime
+// state and coordinates safe concurrent access via a read/write mutex.
+// Persistence is handled in persist.go; type definitions live here.
 package state
 
 import (
@@ -6,6 +10,9 @@ import (
 	"time"
 )
 
+// Pokemon represents a single shiny-hunt session for one Pokémon species.
+// It stores display metadata (name, sprite), the running encounter count,
+// and an optional per-Pokémon overlay configuration.
 type Pokemon struct {
 	ID            string           `json:"id"`
 	Name          string           `json:"name"`           // Display name (localized)
@@ -22,6 +29,8 @@ type Pokemon struct {
 	Overlay       *OverlaySettings `json:"overlay,omitempty"` // Pokemon-specific overlay settings
 }
 
+// Session records one time-boxed encounter run for a single Pokémon.
+// Sessions are append-only; an open session has EndedAt == nil.
 type Session struct {
 	ID         string     `json:"id"`
 	StartedAt  time.Time  `json:"started_at"`
@@ -30,6 +39,8 @@ type Session struct {
 	Encounters int        `json:"encounters"`
 }
 
+// HotkeyMap holds the key-combo string for each counter action.
+// Each value is a human-readable combo such as "F1" or "Ctrl+Shift+A".
 type HotkeyMap struct {
 	Increment   string `json:"increment"`
 	Decrement   string `json:"decrement"`
@@ -37,11 +48,14 @@ type HotkeyMap struct {
 	NextPokemon string `json:"next_pokemon"`
 }
 
+// GradientStop defines one colour stop in a CSS-style linear gradient.
 type GradientStop struct {
 	Color    string  `json:"color"`
 	Position float64 `json:"position"`
 }
 
+// TextStyle describes the typography and decoration for one text element
+// in the OBS overlay (name label or encounter counter).
 type TextStyle struct {
 	FontFamily      string         `json:"font_family"`
 	FontSize        int            `json:"font_size"`
@@ -60,6 +74,8 @@ type TextStyle struct {
 	TextShadowY     int            `json:"text_shadow_y"`
 }
 
+// OverlayElementBase holds position and size fields shared by every overlay
+// element. Coordinates are in canvas pixels (origin: top-left).
 type OverlayElementBase struct {
 	Visible bool `json:"visible"`
 	X       int  `json:"x"`
@@ -69,6 +85,8 @@ type OverlayElementBase struct {
 	ZIndex  int  `json:"z_index"`
 }
 
+// SpriteElement configures the Pokémon sprite layer of the overlay,
+// including optional glow effect and entry/idle animations.
 type SpriteElement struct {
 	OverlayElementBase
 	ShowGlow      bool    `json:"show_glow"`
@@ -80,6 +98,7 @@ type SpriteElement struct {
 	TriggerExit   string  `json:"trigger_exit"`
 }
 
+// NameElement configures the Pokémon name text layer of the overlay.
 type NameElement struct {
 	OverlayElementBase
 	Style         TextStyle `json:"style"`
@@ -87,6 +106,8 @@ type NameElement struct {
 	TriggerEnter  string    `json:"trigger_enter"`
 }
 
+// CounterElement configures the encounter-count text layer of the overlay,
+// including an optional descriptive label rendered above or below the number.
 type CounterElement struct {
 	OverlayElementBase
 	Style         TextStyle `json:"style"`
@@ -97,6 +118,9 @@ type CounterElement struct {
 	TriggerEnter  string    `json:"trigger_enter"`
 }
 
+// OverlaySettings is the complete configuration for the OBS Browser Source
+// overlay. It uses an absolute-positioning canvas model: each element has its
+// own x/y/width/height within a fixed canvas.
 type OverlaySettings struct {
 	CanvasWidth       int            `json:"canvas_width"`
 	CanvasHeight      int            `json:"canvas_height"`
@@ -114,6 +138,8 @@ type OverlaySettings struct {
 	Counter           CounterElement `json:"counter"`
 }
 
+// Settings holds user-configurable application preferences that are persisted
+// alongside the Pokémon list in state.json.
 type Settings struct {
 	OutputEnabled bool            `json:"output_enabled"`
 	OutputDir     string          `json:"output_dir"`
@@ -124,6 +150,8 @@ type Settings struct {
 	Overlay      OverlaySettings `json:"overlay"`
 }
 
+// AppState is the complete serialisable snapshot of the application. It is
+// sent to the frontend on every WebSocket connection and after every mutation.
 type AppState struct {
 	Pokemon  []Pokemon `json:"pokemon"`
 	Sessions []Session `json:"sessions"`
@@ -133,6 +161,10 @@ type AppState struct {
 	DataPath string    `json:"data_path"`
 }
 
+// Manager holds all in-memory application state and coordinates safe
+// concurrent access. All mutations go through Manager methods, which
+// hold the appropriate lock and then dispatch onChange callbacks so
+// that the WebSocket hub can broadcast the updated state.
 type Manager struct {
 	mu        sync.RWMutex
 	state     AppState
@@ -140,6 +172,8 @@ type Manager struct {
 	onChange  []func(AppState)
 }
 
+// NewManager creates a Manager with sensible defaults for all settings.
+// The defaults are used as-is until Load() overwrites them from disk.
 func NewManager(configDir string) *Manager {
 	m := &Manager{
 		configDir: configDir,
@@ -223,12 +257,19 @@ func NewManager(configDir string) *Manager {
 	return m
 }
 
+// OnChange registers a callback that is invoked (in its own goroutine) after
+// every state mutation. The callback receives a value copy of the state so it
+// is safe to read without holding the lock.
 func (m *Manager) OnChange(fn func(AppState)) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.onChange = append(m.onChange, fn)
 }
 
+// notify dispatches all registered onChange callbacks with a copy of the
+// current state. Each callback runs in its own goroutine so that slow
+// subscribers (e.g. WebSocket broadcast) cannot block the caller.
+// Must be called without holding mu (callbacks take their own locks).
 func (m *Manager) notify() {
 	state := m.state
 	for _, fn := range m.onChange {
@@ -236,12 +277,17 @@ func (m *Manager) notify() {
 	}
 }
 
+// GetState returns a value copy of the current application state.
+// Safe to call concurrently; acquires a read lock.
 func (m *Manager) GetState() AppState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.state
 }
 
+// GetActivePokemon returns a pointer to a copy of the currently active
+// Pokémon, or nil if no Pokémon is active. The returned value is safe to
+// read after the lock is released because it is a copy.
 func (m *Manager) GetActivePokemon() *Pokemon {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -254,6 +300,8 @@ func (m *Manager) GetActivePokemon() *Pokemon {
 	return nil
 }
 
+// AddPokemon appends p to the Pokémon list. If the list was empty before,
+// p is automatically set as the active Pokémon.
 func (m *Manager) AddPokemon(p Pokemon) {
 	m.mu.Lock()
 	m.state.Pokemon = append(m.state.Pokemon, p)
@@ -267,6 +315,10 @@ func (m *Manager) AddPokemon(p Pokemon) {
 	m.notify()
 }
 
+// UpdatePokemon applies non-zero fields from update to the Pokémon with the
+// given id. Returns false if no matching Pokémon was found.
+// Only user-editable fields are updated; immutable fields like ID and
+// CreatedAt are always preserved.
 func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -305,6 +357,8 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 	return false
 }
 
+// DeletePokemon removes the Pokémon with the given id. If it was the active
+// Pokémon, the first remaining entry becomes active. Returns false if not found.
 func (m *Manager) DeletePokemon(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -325,6 +379,8 @@ func (m *Manager) DeletePokemon(id string) bool {
 	return false
 }
 
+// Increment adds one encounter to the Pokémon with the given id.
+// Returns the new count and true, or (0, false) if not found.
 func (m *Manager) Increment(id string) (int, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -339,6 +395,9 @@ func (m *Manager) Increment(id string) (int, bool) {
 	return 0, false
 }
 
+// Decrement subtracts one encounter from the Pokémon with the given id,
+// flooring at zero to prevent negative counts.
+// Returns the new count and true, or (0, false) if not found.
 func (m *Manager) Decrement(id string) (int, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -355,6 +414,8 @@ func (m *Manager) Decrement(id string) (int, bool) {
 	return 0, false
 }
 
+// Reset sets the encounter counter for the given Pokémon to zero.
+// Returns false if the Pokémon was not found.
 func (m *Manager) Reset(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -368,6 +429,8 @@ func (m *Manager) Reset(id string) bool {
 	return false
 }
 
+// SetActive marks the Pokémon with the given id as active and clears the
+// IsActive flag on all others. Returns false if no matching Pokémon exists.
 func (m *Manager) SetActive(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -389,6 +452,8 @@ func (m *Manager) SetActive(id string) bool {
 	return true
 }
 
+// CompletePokemon stamps the Pokémon's CompletedAt field with the current
+// time, marking the hunt as finished. Returns false if not found.
 func (m *Manager) CompletePokemon(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -403,6 +468,8 @@ func (m *Manager) CompletePokemon(id string) bool {
 	return false
 }
 
+// UncompletePokemon clears the CompletedAt timestamp, moving the Pokémon
+// back to active-hunt status. Returns false if not found.
 func (m *Manager) UncompletePokemon(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -416,6 +483,8 @@ func (m *Manager) UncompletePokemon(id string) bool {
 	return false
 }
 
+// NextPokemon advances the active Pokémon to the next entry in the list,
+// wrapping around at the end. No-ops when the list is empty.
 func (m *Manager) NextPokemon() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -436,6 +505,8 @@ func (m *Manager) NextPokemon() {
 	go m.notify()
 }
 
+// UpdateSettings replaces the application settings atomically and notifies
+// all listeners so the frontend and file-output writer stay in sync.
 func (m *Manager) UpdateSettings(s Settings) {
 	m.mu.Lock()
 	m.state.Settings = s
@@ -443,6 +514,7 @@ func (m *Manager) UpdateSettings(s Settings) {
 	m.notify()
 }
 
+// UpdateHotkeys replaces the full hotkey map and notifies listeners.
 func (m *Manager) UpdateHotkeys(h HotkeyMap) {
 	m.mu.Lock()
 	m.state.Hotkeys = h
@@ -472,12 +544,15 @@ func (m *Manager) UpdateSingleHotkey(action, key string) bool {
 	return true
 }
 
+// AddSession appends a new session record. Sessions are informational only
+// and are not currently used to drive encounter counts.
 func (m *Manager) AddSession(sess Session) {
 	m.mu.Lock()
 	m.state.Sessions = append(m.state.Sessions, sess)
 	m.mu.Unlock()
 }
 
+// EndSession sets the EndedAt timestamp on the open session with the given id.
 func (m *Manager) EndSession(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -490,6 +565,8 @@ func (m *Manager) EndSession(id string) {
 	}
 }
 
+// GetConfigDir returns the directory used for state persistence
+// (e.g. ~/.config/encounty on Linux).
 func (m *Manager) GetConfigDir() string {
 	return m.configDir
 }

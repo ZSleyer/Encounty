@@ -1,3 +1,9 @@
+// Encounty — Pokémon Shiny Encounter Counter
+//
+// main.go is the application entry point. It initialises the config
+// directory, loads persisted state, starts the global hotkey manager,
+// creates the HTTP server, opens the browser, and blocks until a signal
+// triggers graceful shutdown.
 package main
 
 import (
@@ -151,6 +157,8 @@ func main() {
 	}
 }
 
+// getConfigDir returns the platform-appropriate configuration directory:
+// %APPDATA%\Encounty on Windows, ~/.config/encounty on all other platforms.
 func getConfigDir() string {
 	switch runtime.GOOS {
 	case "windows":
@@ -165,6 +173,9 @@ func getConfigDir() string {
 	}
 }
 
+// openBrowser launches the system default browser at url using the
+// platform's native open command (xdg-open on Linux, open on macOS,
+// start on Windows). Errors are logged but non-fatal.
 func openBrowser(url string) {
 	var cmd string
 	var args []string

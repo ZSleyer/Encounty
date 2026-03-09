@@ -1,3 +1,11 @@
+/**
+ * useCounterState.ts — Zustand store that is the single source of truth
+ * for UI state. AppState is replaced wholesale on every "state_update"
+ * WebSocket message from the backend.
+ *
+ * flashPokemon sets lastEncounterPokemonId for 400 ms to trigger the card
+ * flash animation whenever an encounter is counted.
+ */
 import { create } from 'zustand'
 import { AppState, Pokemon } from '../types'
 

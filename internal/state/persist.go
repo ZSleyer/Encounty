@@ -1,3 +1,6 @@
+// persist.go handles reading and writing AppState to disk.
+// All disk I/O uses atomic writes (write to .tmp, then rename) to prevent
+// data corruption on unexpected process termination.
 package state
 
 import (
@@ -15,6 +18,10 @@ var (
 	saveTimer *time.Timer
 )
 
+// Load reads state.json from the config directory and unmarshals it into the
+// Manager. If the file does not exist, Load returns nil and the in-memory
+// state keeps the defaults set by NewManager. Any migration of newly added
+// fields (e.g. default values for optional settings) is applied here.
 func (m *Manager) Load() error {
 	path := filepath.Join(m.configDir, stateFile)
 	data, err := os.ReadFile(path)
@@ -41,6 +48,8 @@ func (m *Manager) Load() error {
 	return nil
 }
 
+// Save writes the current state to state.json using an atomic
+// write-to-temp-then-rename pattern to prevent partial writes.
 func (m *Manager) Save() error {
 	if err := os.MkdirAll(m.configDir, 0755); err != nil {
 		return err
