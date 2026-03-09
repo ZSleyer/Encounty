@@ -1,5 +1,10 @@
 //go:build linux
 
+// manager_linux.go implements the hotkeys.Manager interface using Linux evdev.
+// It opens every /dev/input/event* device that reports EV_KEY events and reads
+// raw input_event structs directly, avoiding the need for any display server.
+// Note: the user must have read permission on /dev/input/event* (typically via
+// the "input" group) for hotkeys to work.
 package hotkeys
 
 import (

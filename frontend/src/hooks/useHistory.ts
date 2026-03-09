@@ -1,5 +1,18 @@
+/**
+ * useHistory.ts — A generic undo/redo history stack with debounced pushes.
+ * Used by the overlay editor to allow undoing drag/resize operations without
+ * creating a history entry for every pixel moved.
+ */
 import { useState, useRef } from "react";
 
+/**
+ * useHistory provides a bounded undo/redo stack for any serialisable value.
+ * Pushes are debounced by debounceMs to coalesce rapid changes (e.g. dragging)
+ * into a single history entry. The stack is capped at 50 entries.
+ *
+ * @param initial - The initial state value.
+ * @param debounceMs - How long to wait before committing a pushed state (default 400 ms).
+ */
 export function useHistory<T>(initial: T, debounceMs = 400) {
   const [stack, setStack] = useState<T[]>([initial]);
   const [index, setIndex] = useState(0);

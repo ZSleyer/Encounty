@@ -1,5 +1,9 @@
 //go:build linux
 
+// keycodes_linux.go maps normalised key names (as recorded by the browser's
+// KeyboardEvent.code / KeyboardEvent.key) to Linux evdev KEY_* codes from
+// input-event-codes.h. These codes are layout-independent physical key
+// positions, which is what the evdev reader observes.
 package hotkeys
 
 import "fmt"

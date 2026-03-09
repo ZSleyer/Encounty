@@ -1,3 +1,7 @@
+// update.go implements the auto-update system. It polls the GitHub Releases
+// API to detect newer versions and downloads the platform-specific binary.
+// The actual binary replacement and restart is handled by platform-specific
+// helpers in update_unix.go and update_windows.go.
 package server
 
 import (
@@ -35,6 +39,10 @@ type UpdateInfo struct {
 	DownloadURL    string `json:"download_url"`
 }
 
+// handleUpdateCheck queries the GitHub Releases API for the latest release
+// and returns an UpdateInfo payload indicating whether an update is available.
+// In dev mode (version == "dev") it always returns available=false.
+// GET /api/update/check
 func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -56,6 +64,9 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, info)
 }
 
+// handleUpdateApply begins the update download and replacement in a
+// background goroutine, responding immediately so the UI can show a spinner.
+// POST /api/update/apply
 func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -76,6 +87,8 @@ func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 	go s.performUpdate(req.DownloadURL)
 }
 
+// fetchUpdateInfo calls the GitHub API to get the latest release tag and
+// download URL for the current platform's binary.
 func fetchUpdateInfo(currentVersion string) (*UpdateInfo, error) {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", githubOwner, githubRepo)
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -113,6 +126,8 @@ func fetchUpdateInfo(currentVersion string) (*UpdateInfo, error) {
 	}, nil
 }
 
+// assetDownloadURL finds the download URL for the current platform's binary
+// in the release assets list, or returns "" if not found.
 func assetDownloadURL(assets []githubAsset) string {
 	name := platformAssetName()
 	for _, a := range assets {
@@ -123,6 +138,8 @@ func assetDownloadURL(assets []githubAsset) string {
 	return ""
 }
 
+// platformAssetName returns the filename of the release asset for the
+// current operating system.
 func platformAssetName() string {
 	switch runtime.GOOS {
 	case "windows":
@@ -132,6 +149,9 @@ func platformAssetName() string {
 	}
 }
 
+// performUpdate downloads the binary at downloadURL to a temporary path,
+// sets executable permissions on Unix, saves state, stops hotkeys, and then
+// calls replaceAndRestart to swap the binary and relaunch.
 func (s *Server) performUpdate(downloadURL string) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -177,6 +197,8 @@ func (s *Server) performUpdate(downloadURL string) {
 	}
 }
 
+// downloadFile downloads the resource at url and writes it to dest,
+// truncating any existing file. Uses a 5-minute timeout for large binaries.
 func downloadFile(url, dest string) error {
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Get(url)

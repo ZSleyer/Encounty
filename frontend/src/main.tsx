@@ -1,3 +1,9 @@
+/**
+ * main.tsx — Application entry point.
+ * Mounts the React tree into the #root element with BrowserRouter so that
+ * React Router can handle client-side navigation for Dashboard, Settings,
+ * Overlay, and Hotkeys pages.
+ */
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'

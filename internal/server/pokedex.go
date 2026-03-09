@@ -1,3 +1,6 @@
+// pokedex.go serves pokemon.json (the Pokédex) and handles on-demand syncs
+// from PokéAPI. The JSON file is read from the config dir if present, falling
+// back to the source tree or the embedded frontend dist in production builds.
 package server
 
 import (
@@ -13,6 +16,9 @@ import (
 	"strings"
 )
 
+// PokedexEntry is one species record in pokemon.json.
+// Forms holds alternate forms (regional variants, mega evolutions, etc.)
+// that share the same species ID but have distinct canonical names and sprites.
 type PokedexEntry struct {
 	ID        int               `json:"id"`
 	Canonical string            `json:"canonical"`
@@ -20,6 +26,8 @@ type PokedexEntry struct {
 	Forms     []PokemonForm     `json:"forms,omitempty"`
 }
 
+// PokemonForm represents an alternate form of a Pokémon species.
+// SpriteID is the numeric PokéAPI ID used to construct the sprite URL.
 type PokemonForm struct {
 	Canonical string            `json:"canonical"`
 	Names     map[string]string `json:"names,omitempty"`

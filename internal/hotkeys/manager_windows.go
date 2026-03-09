@@ -1,5 +1,10 @@
 //go:build windows
 
+// manager_windows.go implements the hotkeys.Manager interface using the Win32
+// RegisterHotKey API. All hotkey registration and message dispatch runs on a
+// single OS-locked goroutine that owns a Win32 message queue. Other goroutines
+// communicate with it via PostThreadMessage to avoid thread-safety issues with
+// Win32 message loops.
 package hotkeys
 
 import (

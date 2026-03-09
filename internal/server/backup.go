@@ -1,3 +1,6 @@
+// backup.go implements the backup and restore endpoints.
+// Backups are ZIP archives containing state.json and pokemon.json.
+// Restore extracts those files into the config dir and reloads state.
 package server
 
 import (
@@ -11,6 +14,9 @@ import (
 	"time"
 )
 
+// handleBackup streams a ZIP file containing state.json and pokemon.json
+// directly to the response, triggering a browser file download.
+// GET /api/backup
 func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -43,6 +49,9 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleRestore accepts a multipart form upload of a backup ZIP, extracts
+// state.json and pokemon.json into the config dir using atomic writes, then
+// reloads state and broadcasts the new snapshot. POST /api/restore
 func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)

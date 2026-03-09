@@ -1,5 +1,8 @@
 //go:build darwin
 
+// manager_darwin.go provides a no-op Manager stub for macOS. Global hotkeys
+// are not yet implemented on macOS; this stub ensures the binary compiles and
+// the application runs without hotkey support.
 package hotkeys
 
 import (

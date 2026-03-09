@@ -1,3 +1,7 @@
+// Package fileoutput writes plain-text files to a user-configured directory
+// so that OBS "Text (GDI+)" or "Text (FreeType 2)" sources can display live
+// encounter data without a browser source. Files are updated on every counter
+// change when output is enabled in settings.
 package fileoutput
 
 import (
@@ -11,6 +15,8 @@ import (
 	"github.com/zsleyer/encounty/internal/state"
 )
 
+// Writer manages file output to a directory. All public methods are safe
+// for concurrent use; a mutex protects the mutable dir/enabled fields.
 type Writer struct {
 	mu        sync.Mutex
 	dir       string
@@ -18,10 +24,14 @@ type Writer struct {
 	startedAt time.Time
 }
 
+// New creates a Writer that will write to dir when enabled is true.
+// startedAt is initialised to the current time for session-duration tracking.
 func New(dir string, enabled bool) *Writer {
 	return &Writer{dir: dir, enabled: enabled, startedAt: time.Now()}
 }
 
+// SetConfig updates the output directory and enabled flag at runtime.
+// Called whenever settings are saved.
 func (w *Writer) SetConfig(dir string, enabled bool) {
 	w.mu.Lock()
 	w.dir = dir
@@ -29,6 +39,10 @@ func (w *Writer) SetConfig(dir string, enabled bool) {
 	w.mu.Unlock()
 }
 
+// Write updates all output text files from the given state snapshot.
+// It is a no-op when output is disabled or no output directory is configured.
+// Files written: encounters.txt, pokemon_name.txt, encounters_label.txt,
+// session_duration.txt, encounters_today.txt.
 func (w *Writer) Write(st state.AppState) {
 	w.mu.Lock()
 	dir := w.dir
