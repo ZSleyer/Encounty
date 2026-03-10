@@ -35,6 +35,7 @@ interface Props {
   onUpdate: (settings: OverlaySettings) => void;
   activePokemon?: Pokemon;
   overlayTargetId?: string;
+  readOnly?: boolean;
 }
 
 type ElementKey = "sprite" | "name" | "counter";
@@ -800,7 +801,7 @@ function OBSSourceHint({ pokemonId }: { pokemonId?: string }) {
   );
 }
 
-export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId }: Props) {
+export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId, readOnly }: Props) {
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -1033,7 +1034,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   return (
     <div className="flex gap-3 h-full pt-4 pb-8 px-4 min-h-0">
       {/* LEFT SIDEBAR: Layers & Canvas */}
-      <div className="w-56 2xl:w-64 shrink-0 flex flex-col gap-3 min-h-0">
+      <div className={`w-56 2xl:w-64 shrink-0 flex flex-col gap-3 min-h-0 ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
         {/* Layers Panel */}
         <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
@@ -1490,7 +1491,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             )}
 
             {/* Drag/resize overlays for each element */}
-            {LAYERS.map((key) => {
+            {!readOnly && LAYERS.map((key) => {
               const el = localSettings[key] as OverlayElementBase;
               if (!el.visible) return null;
               const { onDragStart, onResizeStart } = handlers[key];
@@ -1561,7 +1562,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       </div>
 
       {/* RIGHT SIDEBAR: Properties & OBS */}
-      <div className="w-72 2xl:w-80 shrink-0 flex flex-col gap-3 min-h-0">
+      <div className={`w-72 2xl:w-80 shrink-0 flex flex-col gap-3 min-h-0 ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
         {/* Properties Panel */}
         <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto">
           <p className="text-xs 2xl:text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">

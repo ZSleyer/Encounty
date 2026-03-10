@@ -45,6 +45,16 @@ func (m *Manager) Load() error {
 	if m.state.Settings.Overlay.BackgroundAnimation == "" {
 		m.state.Settings.Overlay.BackgroundAnimation = "none"
 	}
+	// Migration: infer overlay_mode from presence of overlay field
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].OverlayMode == "" {
+			if m.state.Pokemon[i].Overlay != nil {
+				m.state.Pokemon[i].OverlayMode = "custom"
+			} else {
+				m.state.Pokemon[i].OverlayMode = "default"
+			}
+		}
+	}
 	return nil
 }
 

@@ -6,7 +6,7 @@
  * the active Pokémon (increment, decrement, reset, complete/delete).
  * Counter actions are sent over WebSocket for immediate multi-tab sync.
  */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Plus,
   Star,
@@ -28,7 +28,10 @@ import {
   Save,
   RefreshCw,
   Keyboard,
+  Link2,
+  ExternalLink,
 } from "lucide-react";
+import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/AddPokemonModal";
 import { EditPokemonModal } from "../components/EditPokemonModal";
 import { ConfirmModal } from "../components/ConfirmModal";
@@ -37,8 +40,9 @@ import { OverlayEditor } from "../components/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { DetectorStatusEntry } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, DetectorRect, OverlaySettings } from "../types";
+import { Pokemon, DetectorConfig, DetectorRect, OverlaySettings, OverlayMode } from "../types";
 import { useI18n } from "../contexts/I18nContext";
+import { resolveOverlay, wouldCreateCircularLink } from "../utils/overlay";
 
 const API = "/api";
 
@@ -83,11 +87,11 @@ export function Dashboard() {
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector" | "overlay">("counter");
 
-  const [overlayTarget, setOverlayTarget] = useState<string>("global");
   const [currentOverlay, setCurrentOverlay] = useState<OverlaySettings | null>(null);
   const [overlayDirty, setOverlayDirty] = useState(false);
   const [overlaySaving, setOverlaySaving] = useState(false);
   const [overlaySaved, setOverlaySaved] = useState(false);
+  const [linkPickerOpen, setLinkPickerOpen] = useState(false);
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -131,14 +135,23 @@ export function Dashboard() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Initialise overlay editor state from backend settings (once)
-  const overlayInitialised = useState(false);
+  // Sync overlay editor state when the viewed Pokemon changes
   useEffect(() => {
-    if (appState && !overlayInitialised[0]) {
-      setCurrentOverlay(appState.settings.overlay);
-      overlayInitialised[1](true);
+    if (!appState) return;
+    const viewed = appState.pokemon.find(
+      (p) => p.id === (viewedPokemonId || appState.active_id),
+    );
+    if (!viewed) return;
+    const mode = viewed.overlay_mode || "default";
+    if (mode === "custom" && viewed.overlay) {
+      setCurrentOverlay(viewed.overlay);
+    } else {
+      setCurrentOverlay(
+        resolveOverlay(viewed, appState.pokemon, appState.settings.overlay),
+      );
     }
-  }, [appState]);
+    setOverlayDirty(false);
+  }, [viewedPokemonId, appState?.active_id]);
 
   // Pause/resume hotkeys when switching to/from overlay tab
   useEffect(() => {
@@ -201,7 +214,7 @@ export function Dashboard() {
   };
   const handleSavePokemon = async (id: string, data: NewPokemonData) => {
     const p = appState!.pokemon.find((x) => x.id === id);
-    const payload = { ...data, overlay: p?.overlay };
+    const payload = { ...data, overlay: p?.overlay, overlay_mode: p?.overlay_mode };
     await fetch(`${API}/pokemon/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -220,60 +233,31 @@ export function Dashboard() {
 
   // --- Overlay Handlers ---
 
-  const handleOverlayTargetChange = (newTarget: string) => {
-    if (overlayDirty) {
-      if (!confirm(t("overlay.unsavedChanges"))) return;
-    }
-    setOverlayTarget(newTarget);
-    if (newTarget === "global") {
-      setCurrentOverlay(appState!.settings.overlay);
-    } else {
-      const p = appState!.pokemon.find((x) => x.id === newTarget);
-      setCurrentOverlay(p?.overlay || appState!.settings.overlay);
-    }
-    setOverlayDirty(false);
-  };
-
-  const copyOverlayFrom = (sourceId: string) => {
-    if (sourceId === "global") {
-      setCurrentOverlay(appState!.settings.overlay);
-    } else {
-      const p = appState!.pokemon.find((x) => x.id === sourceId);
-      if (p?.overlay) setCurrentOverlay(p.overlay);
-    }
-    setOverlayDirty(true);
-  };
-
-  const saveCurrentOverlay = async () => {
-    if (!currentOverlay) return;
+  /** Update a Pokemon's overlay_mode and optionally its overlay settings. */
+  const updatePokemonOverlay = async (
+    pokemonId: string,
+    mode: OverlayMode,
+    overlay: OverlaySettings | null,
+  ) => {
+    const p = appState!.pokemon.find((x) => x.id === pokemonId);
+    if (!p) return;
     setOverlaySaving(true);
     try {
-      if (overlayTarget === "global") {
-        const newSettings = { ...appState!.settings, overlay: currentOverlay };
-        await fetch("/api/settings", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newSettings),
-        });
-      } else {
-        const p = appState!.pokemon.find((x) => x.id === overlayTarget);
-        if (p) {
-          const payload = {
-            name: p.name,
-            canonical_name: p.canonical_name,
-            sprite_url: p.sprite_url,
-            sprite_type: p.sprite_type,
-            language: p.language,
-            game: p.game,
-            overlay: currentOverlay,
-          };
-          await fetch(`/api/pokemon/${p.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-        }
-      }
+      const payload = {
+        name: p.name,
+        canonical_name: p.canonical_name,
+        sprite_url: p.sprite_url,
+        sprite_type: p.sprite_type,
+        language: p.language,
+        game: p.game,
+        overlay_mode: mode,
+        overlay,
+      };
+      await fetch(`/api/pokemon/${p.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       setOverlayDirty(false);
       setOverlaySaved(true);
       setTimeout(() => setOverlaySaved(false), 2000);
@@ -283,28 +267,81 @@ export function Dashboard() {
     setOverlaySaving(false);
   };
 
-  const deleteCustomOverlay = async () => {
-    if (!confirm(t("overlay.deleteCustomConfirm"))) return;
-    const p = appState!.pokemon.find((x) => x.id === overlayTarget);
-    if (p) {
-      setOverlaySaving(true);
-      const payload = {
-        name: p.name,
-        canonical_name: p.canonical_name,
-        sprite_url: p.sprite_url,
-        sprite_type: p.sprite_type,
-        language: p.language,
-        game: p.game,
-        overlay: null,
-      };
-      await fetch(`/api/pokemon/${p.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+  /** Switch overlay mode for the currently viewed Pokemon. */
+  const handleModeChange = async (newMode: "default" | "custom" | "linked") => {
+    if (!viewedPokemon) return;
+    const currentMode = viewedPokemon.overlay_mode || "default";
+
+    // Warn when leaving custom mode
+    if (currentMode === "custom" && newMode !== "custom") {
+      if (!confirm(t("overlay.confirmModeChange"))) return;
+    }
+
+    if (newMode === "default") {
+      await updatePokemonOverlay(viewedPokemon.id, "default", null);
       setCurrentOverlay(appState!.settings.overlay);
-      setOverlayDirty(false);
-      setOverlaySaving(false);
+    } else if (newMode === "custom") {
+      // Initialize custom overlay from current resolved settings
+      const resolved = resolveOverlay(
+        viewedPokemon,
+        appState!.pokemon,
+        appState!.settings.overlay,
+      );
+      setCurrentOverlay(resolved);
+      await updatePokemonOverlay(viewedPokemon.id, "custom", resolved);
+    } else if (newMode === "linked") {
+      setLinkPickerOpen(true);
+    }
+  };
+
+  /** Save the current custom overlay for the viewed Pokemon. */
+  const saveCurrentOverlay = async () => {
+    if (!currentOverlay || !viewedPokemon) return;
+    await updatePokemonOverlay(viewedPokemon.id, "custom", currentOverlay);
+  };
+
+  /** Copy a linked overlay as own custom overlay. */
+  const unlinkOverlay = async () => {
+    if (!viewedPokemon || !appState) return;
+    const resolved = resolveOverlay(
+      viewedPokemon,
+      appState.pokemon,
+      appState.settings.overlay,
+    );
+    setCurrentOverlay(resolved);
+    await updatePokemonOverlay(viewedPokemon.id, "custom", resolved);
+  };
+
+  /** Copy overlay settings from another Pokemon or default. */
+  const copyOverlayFrom = (sourceId: string) => {
+    if (sourceId === "global") {
+      setCurrentOverlay(appState!.settings.overlay);
+    } else {
+      const p = appState!.pokemon.find((x) => x.id === sourceId);
+      if (p) {
+        const resolved = resolveOverlay(
+          p,
+          appState!.pokemon,
+          appState!.settings.overlay,
+        );
+        setCurrentOverlay(resolved);
+      }
+    }
+    setOverlayDirty(true);
+  };
+
+  /** Link to another Pokemon's overlay. */
+  const handleLinkSelect = async (targetId: string) => {
+    if (!viewedPokemon) return;
+    setLinkPickerOpen(false);
+    const mode: OverlayMode = `linked:${targetId}`;
+    await updatePokemonOverlay(viewedPokemon.id, mode, null);
+    // Update local preview to the resolved settings
+    const target = appState!.pokemon.find((p) => p.id === targetId);
+    if (target) {
+      setCurrentOverlay(
+        resolveOverlay(target, appState!.pokemon, appState!.settings.overlay),
+      );
     }
   };
 
@@ -864,91 +901,206 @@ export function Dashboard() {
                 </div>
               ) : rightPanelTab === "overlay" ? (
                 /* Overlay Editor Panel Tab */
-                <div className="w-full">
-                  {/* Overlay header with target selector + save */}
-                  <div className="flex flex-wrap items-center gap-3 mb-4">
-                    <select
-                      value={overlayTarget}
-                      onChange={(e) => handleOverlayTargetChange(e.target.value)}
-                      className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue/50"
-                    >
-                      <option value="global">{t("overlay.globalDefault")}</option>
-                      <optgroup label={t("overlay.specificPokemon")}>
-                        {appState?.pokemon.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} {p.overlay ? t("overlay.customized") : ""}
-                          </option>
-                        ))}
-                      </optgroup>
-                    </select>
+                (() => {
+                  const overlayMode = viewedPokemon.overlay_mode || "default";
+                  const modeBase = overlayMode.startsWith("linked:") ? "linked" : overlayMode;
+                  const linkedTargetId = overlayMode.startsWith("linked:") ? overlayMode.slice(7) : null;
+                  const linkedTarget = linkedTargetId
+                    ? appState?.pokemon.find((p) => p.id === linkedTargetId) ?? null
+                    : null;
 
-                    {overlayTarget !== "global" && (
-                      <select
-                        value=""
-                        onChange={(e) => { if (e.target.value) copyOverlayFrom(e.target.value); }}
-                        className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue/50"
-                      >
-                        <option value="" disabled>{t("overlay.copyFrom")}...</option>
-                        <option value="global">{t("overlay.global")}</option>
-                        <optgroup label={t("overlay.specificPokemon")}>
-                          {appState?.pokemon
-                            .filter((p) => p.id !== overlayTarget && p.overlay)
-                            .map((p) => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                        </optgroup>
-                      </select>
-                    )}
+                  // Pokemon available for linking (exclude self, exclude circular)
+                  const linkablePokemon = appState?.pokemon.filter(
+                    (p) =>
+                      p.id !== viewedPokemon.id &&
+                      !wouldCreateCircularLink(viewedPokemon.id, p.id, appState!.pokemon),
+                  ) ?? [];
 
-                    {overlayTarget !== "global" &&
-                      appState?.pokemon.find((p) => p.id === overlayTarget)?.overlay && (
-                        <button
-                          onClick={deleteCustomOverlay}
-                          disabled={overlaySaving}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm transition-colors disabled:opacity-40"
-                        >
-                          {t("overlay.removeCustom")}
-                        </button>
+                  return (
+                    <div className="w-full">
+                      {/* Mode Selector */}
+                      <div className="flex flex-wrap items-center gap-3 mb-4">
+                        <div className="flex bg-bg-card rounded-xl border border-border-subtle p-1 shadow-sm">
+                          {(["default", "custom", "linked"] as const).map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => handleModeChange(mode)}
+                              className={`px-5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                modeBase === mode
+                                  ? "bg-accent-blue text-white shadow"
+                                  : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                              }`}
+                            >
+                              {t(`overlay.mode${mode.charAt(0).toUpperCase() + mode.slice(1)}`)}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="ml-auto flex items-center gap-3">
+                          <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">
+                            <Keyboard className="w-3.5 h-3.5" /> {t("settings.hotkeysPaused")}
+                          </span>
+                          {overlaySaved && (
+                            <span className="flex items-center gap-1.5 text-xs text-accent-green">
+                              <Save className="w-3.5 h-3.5" /> {t("settings.saved")}
+                            </span>
+                          )}
+                          {modeBase === "custom" && (
+                            <button
+                              onClick={saveCurrentOverlay}
+                              disabled={!overlayDirty || overlaySaving}
+                              className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              {overlaySaving ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Save className="w-4 h-4" />
+                              )}
+                              {t("overlay.saveOverlay")}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Mode: Default */}
+                      {modeBase === "default" && (
+                        <div className="space-y-4">
+                          <div className="bg-bg-card border border-border-subtle rounded-xl p-5 text-center space-y-3">
+                            <p className="text-sm text-text-muted">
+                              {t("overlay.usingDefault")}
+                            </p>
+                            <Link
+                              to="/overlay-editor"
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-blue/10 hover:bg-accent-blue/20 text-accent-blue text-sm font-semibold transition-colors"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              {t("overlay.editDefault")}
+                            </Link>
+                          </div>
+                          {currentOverlay && (
+                            <OverlayEditor
+                              settings={currentOverlay}
+                              activePokemon={viewedPokemon || undefined}
+                              overlayTargetId={viewedPokemon.id}
+                              onUpdate={() => {}}
+                              readOnly
+                            />
+                          )}
+                        </div>
                       )}
 
-                    <div className="ml-auto flex items-center gap-3">
-                      {rightPanelTab === "overlay" && (
-                        <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">
-                          <Keyboard className="w-3.5 h-3.5" /> {t("settings.hotkeysPaused")}
-                        </span>
+                      {/* Mode: Custom */}
+                      {modeBase === "custom" && currentOverlay && (
+                        <div className="space-y-3">
+                          {/* Copy-from selector */}
+                          <div className="flex items-center gap-2">
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) copyOverlayFrom(e.target.value);
+                              }}
+                              className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                            >
+                              <option value="" disabled>
+                                {t("overlay.copyFrom")}...
+                              </option>
+                              <option value="global">{t("overlay.global")}</option>
+                              <optgroup label={t("overlay.specificPokemon")}>
+                                {appState?.pokemon
+                                  .filter((p) => p.id !== viewedPokemon.id && p.overlay)
+                                  .map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name}
+                                    </option>
+                                  ))}
+                              </optgroup>
+                            </select>
+                          </div>
+                          <OverlayEditor
+                            settings={currentOverlay}
+                            activePokemon={viewedPokemon || undefined}
+                            overlayTargetId={viewedPokemon.id}
+                            onUpdate={(overlay) => {
+                              setCurrentOverlay(overlay);
+                              setOverlayDirty(true);
+                            }}
+                          />
+                        </div>
                       )}
-                      {overlaySaved && (
-                        <span className="flex items-center gap-1.5 text-xs text-accent-green">
-                          <Save className="w-3.5 h-3.5" /> {t("settings.saved")}
-                        </span>
+
+                      {/* Mode: Linked */}
+                      {modeBase === "linked" && (
+                        <div className="space-y-4">
+                          {/* Link target selector */}
+                          {(linkPickerOpen || !linkedTarget) && (
+                            <div className="bg-bg-card border border-border-subtle rounded-xl p-4 space-y-3">
+                              <label className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                                <Link2 className="w-4 h-4 text-accent-blue" />
+                                {t("overlay.linkTarget")}
+                              </label>
+                              <select
+                                value={linkedTargetId || ""}
+                                onChange={(e) => {
+                                  if (e.target.value) handleLinkSelect(e.target.value);
+                                }}
+                                className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                              >
+                                <option value="" disabled>
+                                  {t("overlay.linkTarget")}...
+                                </option>
+                                {linkablePokemon.map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+
+                          {linkedTarget && (
+                            <>
+                              {/* Linked banner */}
+                              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-accent-blue/10 border border-accent-blue/30 text-accent-blue text-sm">
+                                <Link2 className="w-4 h-4 shrink-0" />
+                                <span className="font-semibold">
+                                  {t("overlay.linkedTo").replace("{name}", linkedTarget.name)}
+                                </span>
+                                <span className="text-accent-blue/60 text-xs">
+                                  ({t("overlay.readOnlyHint")})
+                                </span>
+                              </div>
+
+                              {/* Unlink button */}
+                              <button
+                                onClick={unlinkOverlay}
+                                disabled={overlaySaving}
+                                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border-subtle hover:bg-bg-hover text-sm font-semibold text-text-primary transition-colors disabled:opacity-40"
+                              >
+                                {overlaySaving ? (
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Save className="w-4 h-4" />
+                                )}
+                                {t("overlay.copyToCustom")}
+                              </button>
+
+                              {/* Read-only preview */}
+                              {currentOverlay && (
+                                <OverlayEditor
+                                  settings={currentOverlay}
+                                  activePokemon={viewedPokemon || undefined}
+                                  overlayTargetId={viewedPokemon.id}
+                                  onUpdate={() => {}}
+                                  readOnly
+                                />
+                              )}
+                            </>
+                          )}
+                        </div>
                       )}
-                      <button
-                        onClick={saveCurrentOverlay}
-                        disabled={!overlayDirty || overlaySaving}
-                        className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        {overlaySaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                        {t("overlay.saveOverlay")}
-                      </button>
                     </div>
-                  </div>
-
-                  {currentOverlay && (
-                    <OverlayEditor
-                      settings={currentOverlay}
-                      overlayTargetId={overlayTarget}
-                      activePokemon={
-                        overlayTarget === "global"
-                          ? viewedPokemon || undefined
-                          : appState?.pokemon.find((p) => p.id === overlayTarget)
-                      }
-                      onUpdate={(overlay) => {
-                        setCurrentOverlay(overlay);
-                        setOverlayDirty(true);
-                      }}
-                    />
-                  )}
-                </div>
+                  );
+                })()
               ) : null}
             </div>
           </div>
