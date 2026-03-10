@@ -1,8 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
   optimizeDeps: {
     include: ["tesseract.js"],
   },
@@ -13,27 +14,20 @@ export default defineConfig({
       "/ws": {
         target: "ws://localhost:8080",
         ws: true,
+        configure: (proxy) => {
+          proxy.on("error", (err) => {
+            // ECONNRESET is expected on page reload (browser kills WebSocket)
+            if ((err as NodeJS.ErrnoException).code === "ECONNRESET") return;
+            console.error("[ws proxy]", err);
+          });
+        },
       },
     },
   },
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    minify: "terser",
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        passes: 2,
-      },
-    },
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          vendor: ["react", "react-dom"],
-        },
-      },
-    },
+    minify: true,
     assetsInlineLimit: 0,
   },
 });

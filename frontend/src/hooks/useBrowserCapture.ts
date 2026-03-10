@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 
 interface BrowserCaptureResult {
   stream: MediaStream | null;
-  videoRef: React.RefObject<HTMLVideoElement>;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
   isCapturing: boolean;
   error: string | null;
   startCapture: () => Promise<void>;
