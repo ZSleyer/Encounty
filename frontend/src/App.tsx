@@ -27,7 +27,7 @@ import { HotkeyPage } from "./pages/HotkeyPage";
 import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket } from "./hooks/useWebSocket";
-import { useCounterStore } from "./hooks/useCounterState";
+import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
 import { WSMessage, AppState } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
@@ -38,7 +38,7 @@ import { LOCALES, Locale } from "./utils/i18n";
 function AppShell() {
   const location = useLocation();
   const isOverlay = location.pathname === "/overlay";
-  const { setAppState, setConnected, flashPokemon, isConnected, appState } =
+  const { setAppState, setConnected, flashPokemon, isConnected, appState, setDetectorStatus, clearDetectorStatus } =
     useCounterStore();
   const { t, locale, setLocale } = useI18n();
   const { theme, toggleTheme } = useTheme();
@@ -116,8 +116,16 @@ function AppShell() {
   useWebSocket(
     (msg: WSMessage) => {
       if (msg.type === "state_update") {
-        setAppState(msg.payload as AppState);
+        const newState = msg.payload as AppState;
+        setAppState(newState);
         setConnected(true);
+        // Clear detector status entries for pokémon whose detector is disabled,
+        // so the UI correctly shows them as stopped.
+        for (const p of newState.pokemon ?? []) {
+          if (!p.detector_config?.enabled) {
+            clearDetectorStatus(p.id);
+          }
+        }
       } else if (msg.type === "encounter_added") {
         const p = msg.payload as { pokemon_id: string; count: number };
         flashPokemon(p.pokemon_id);
@@ -179,6 +187,15 @@ function AppShell() {
             message: t("app.pokemonDeleted") || "Pokémon entfernt",
           });
         }
+      } else if (msg.type === "detector_status") {
+        const p = msg.payload as { pokemon_id: string; state: string; confidence: number; poll_ms: number };
+        setDetectorStatus(p.pokemon_id, {
+          state: p.state,
+          confidence: p.confidence,
+          poll_ms: p.poll_ms,
+        } as DetectorStatusEntry);
+      } else if (msg.type === "detector_match") {
+        // counter already incremented by backend; encounter_added fires separately
       }
     },
     () => setConnected(true),
