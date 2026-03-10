@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 import { Pokemon, OverlaySettings, TextStyle } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -36,6 +37,7 @@ function buildTextStyle(style: TextStyle): React.CSSProperties {
     fontFamily: resolveFont(style.font_family),
     fontSize: `${style.font_size}px`,
     fontWeight: style.font_weight,
+    textAlign: (style.text_align || "left") as React.CSSProperties["textAlign"],
     color: style.color,
     WebkitTextStroke:
       style.outline_type === "solid"
@@ -197,11 +199,19 @@ export function Overlay({
 
   const prevCount = useRef<number | undefined>(undefined);
 
+  // Path-based route param takes priority, query param as fallback
+  const { pokemonId: routePokemonId } = useParams<{ pokemonId?: string }>();
+  const searchParams = new URLSearchParams(window.location.search);
+  const overlayPokemonId = routePokemonId || searchParams.get("id");
+
   const activePokemon: Pokemon | null = useMemo(
     () =>
       previewPokemon ||
+      (overlayPokemonId
+        ? appState?.pokemon.find((p) => p.id === overlayPokemonId)
+        : null) ||
       (appState?.pokemon.find((p) => p.id === appState.active_id) ?? null),
-    [previewPokemon, appState],
+    [previewPokemon, appState, overlayPokemonId],
   );
 
   const settings: OverlaySettings | null = useMemo(
@@ -460,12 +470,15 @@ export function Overlay({
             zIndex: settings.name.z_index,
             display: "flex",
             alignItems: "center",
+            justifyContent: settings.name.style.text_align === "center" ? "center" : settings.name.style.text_align === "right" ? "flex-end" : "flex-start",
+            padding: `0 ${Math.max(2, settings.name.style.outline_type === "solid" ? settings.name.style.outline_width + 1 : 0, settings.name.style.text_shadow ? Math.abs(settings.name.style.text_shadow_x) + settings.name.style.text_shadow_blur : 0)}px`,
+            overflow: "visible",
           }}
           className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
         >
           <span
             key={`name-${nameTriggerId}`}
-            className={`uppercase tracking-widest whitespace-nowrap overflow-hidden text-ellipsis ${nameAnimClass}`}
+            className={`uppercase tracking-widest whitespace-nowrap ${nameAnimClass}`}
             style={{
               ...nameStyle,
               display: "inline-block",
@@ -490,7 +503,7 @@ export function Overlay({
             zIndex: settings.counter.z_index,
             display: "flex",
             flexDirection: "column",
-            alignItems: "flex-start",
+            alignItems: settings.counter.style.text_align === "center" ? "center" : settings.counter.style.text_align === "right" ? "flex-end" : "flex-start",
             justifyContent: "center",
           }}
           className={

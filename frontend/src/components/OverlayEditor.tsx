@@ -34,6 +34,7 @@ interface Props {
   settings: OverlaySettings;
   onUpdate: (settings: OverlaySettings) => void;
   activePokemon?: Pokemon;
+  overlayTargetId?: string;
 }
 
 type ElementKey = "sprite" | "name" | "counter";
@@ -49,6 +50,7 @@ const DEFAULT_TEXT_STYLE: TextStyle = {
   font_family: "sans",
   font_size: 16,
   font_weight: 400,
+  text_align: "left",
   color_type: "solid",
   color: "#ffffff",
   gradient_stops: [
@@ -371,6 +373,26 @@ function TextStyleEditor({
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="flex items-center gap-1">
+        <span className="text-[10px] text-text-muted w-14">Ausrichtung</span>
+        <div className="flex border border-border-subtle rounded overflow-hidden">
+          {(["left", "center", "right"] as const).map((align) => (
+            <button
+              key={align}
+              onClick={() => u("text_align", align)}
+              className={`px-2 py-1 text-[10px] ${
+                (style.text_align || "left") === align
+                  ? "bg-accent-blue/20 text-accent-blue"
+                  : "text-text-muted hover:bg-bg-hover"
+              }`}
+              title={align === "left" ? "Links" : align === "center" ? "Mitte" : "Rechts"}
+            >
+              {align === "left" ? "L" : align === "center" ? "C" : "R"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div>
@@ -728,12 +750,13 @@ function ResizeHandle({
   );
 }
 
-function OBSSourceHint() {
+function OBSSourceHint({ pokemonId }: { pokemonId?: string }) {
   const [copied, setCopied] = useState(false);
-  const overlayUrl = `${window.location.origin}/overlay`;
+  const baseUrl = window.location.origin;
+  const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
 
-  const copy = () => {
-    navigator.clipboard.writeText(overlayUrl).then(() => {
+  const copy = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -745,36 +768,39 @@ function OBSSourceHint() {
         <Monitor className="w-3 h-3" />
         OBS Browser Source:
       </div>
-      <div className="bg-bg-primary rounded px-2 py-1.5 mb-1.5">
-        <code className="text-[10px] text-accent-blue break-all">
-          {overlayUrl}
-        </code>
-      </div>
-      <div className="flex gap-1">
-        <button
-          onClick={copy}
-          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
-          title="URL kopieren"
-        >
-          <Copy className="w-3 h-3" />
-          {copied ? "Kopiert!" : "Kopieren"}
-        </button>
-        <a
-          href={overlayUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
-          title="In neuem Tab öffnen"
-        >
-          <ExternalLink className="w-3 h-3" />
-          Öffnen
-        </a>
-      </div>
+      {pokemonUrl ? (
+        <>
+          <div className="bg-bg-primary rounded px-2 py-1.5 mb-1.5">
+            <code className="text-[10px] text-accent-blue break-all">
+              {pokemonUrl}
+            </code>
+          </div>
+          <div className="flex gap-1">
+            <button
+              onClick={() => copy(pokemonUrl)}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <Copy className="w-3 h-3" />
+              {copied ? "Kopiert!" : "Kopieren"}
+            </button>
+            <a
+              href={pokemonUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
+        </>
+      ) : (
+        <p className="text-[10px] text-text-faint">Wähle ein Pokémon als Ziel, um dessen Overlay-URL zu sehen.</p>
+      )}
     </div>
   );
 }
 
-export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
+export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId }: Props) {
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -1925,7 +1951,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon }: Props) {
 
         {/* OBS Source Panel */}
         <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-shrink-0">
-          <OBSSourceHint />
+          <OBSSourceHint pokemonId={activePokemon?.id} />
         </div>
       </div>
     </div>
