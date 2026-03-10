@@ -190,6 +190,11 @@ func (s *Server) performUpdate(downloadURL string) {
 	}
 	s.hotkeyMgr.Stop()
 
+	// Write marker so the restarted process knows a client was connected
+	// and should not open a new browser tab.
+	markerPath := filepath.Join(s.state.GetConfigDir(), ".update-restart")
+	_ = os.WriteFile(markerPath, []byte("1"), 0644)
+
 	slog.Info("Update: replacing binary and restarting")
 	if err := replaceAndRestart(tmpPath, exe); err != nil {
 		slog.Error("Update: replace and restart failed", "error", err)
