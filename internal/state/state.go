@@ -6,6 +6,7 @@ package state
 
 import (
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -27,6 +28,7 @@ type Pokemon struct {
 	Game          string           `json:"game"`     // key from games.json
 	CompletedAt   *time.Time       `json:"completed_at,omitempty"`
 	Overlay       *OverlaySettings `json:"overlay,omitempty"` // Pokemon-specific overlay settings
+	OverlayMode    string          `json:"overlay_mode"`      // "default" | "custom" | "linked:<pokemon-id>"
 	HuntType       string          `json:"hunt_type,omitempty"`
 	DetectorConfig *DetectorConfig `json:"detector_config,omitempty"`
 }
@@ -84,7 +86,9 @@ type DetectorConfig struct {
 	ConsecutiveHits int                `json:"consecutive_hits"`       // consecutive matching frames required before counting
 	CooldownSec     int                `json:"cooldown_sec"`           // minimum seconds between counts
 	ChangeThreshold float64            `json:"change_threshold"`       // pixel-delta fraction required to leave MATCH state
-	PollIntervalMs  int                `json:"poll_interval_ms"`       // milliseconds between capture polls
+	PollIntervalMs  int                `json:"poll_interval_ms"`       // base milliseconds between capture polls (adaptive centre point)
+	MinPollMs       int                `json:"min_poll_ms"`            // fastest adaptive poll interval (high activity), default 30
+	MaxPollMs       int                `json:"max_poll_ms"`            // slowest adaptive poll interval (static screen), default 500
 	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 
@@ -403,6 +407,15 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 			// or replace if provided. But since we send the whole Pokemon back, we just replace it:
 			m.state.Pokemon[i].Overlay = update.Overlay
 
+			// Handle overlay_mode changes
+			if update.OverlayMode != "" {
+				m.state.Pokemon[i].OverlayMode = update.OverlayMode
+				// When switching away from "custom", clear the per-pokemon overlay
+				if update.OverlayMode != "custom" {
+					m.state.Pokemon[i].Overlay = nil
+				}
+			}
+
 			go m.notify()
 			return true
 		}
@@ -423,6 +436,13 @@ func (m *Manager) DeletePokemon(id string) bool {
 				if len(m.state.Pokemon) > 0 {
 					m.state.ActiveID = m.state.Pokemon[0].ID
 					m.state.Pokemon[0].IsActive = true
+				}
+			}
+			// Reset any Pokemon linked to the deleted one
+			linkedPrefix := "linked:" + id
+			for j := range m.state.Pokemon {
+				if m.state.Pokemon[j].OverlayMode == linkedPrefix {
+					m.state.Pokemon[j].OverlayMode = "default"
 				}
 			}
 			go m.notify()
@@ -638,6 +658,54 @@ func (m *Manager) SetDetectorConfig(id string, cfg *DetectorConfig) bool {
 // (e.g. ~/.config/encounty on Linux).
 func (m *Manager) GetConfigDir() string {
 	return m.configDir
+}
+
+// ResolveOverlay returns the effective OverlaySettings for a Pokemon,
+// following links and falling back to the default layout.
+func (m *Manager) ResolveOverlay(pokemonID string) OverlaySettings {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.resolveOverlayLocked(pokemonID, make(map[string]bool))
+}
+
+// resolveOverlayLocked recursively resolves the overlay for a Pokemon,
+// using a visited set to break cycles in linked overlays.
+func (m *Manager) resolveOverlayLocked(pokemonID string, visited map[string]bool) OverlaySettings {
+	if visited[pokemonID] {
+		return m.state.Settings.Overlay // break cycle
+	}
+	visited[pokemonID] = true
+	for _, p := range m.state.Pokemon {
+		if p.ID == pokemonID {
+			switch {
+			case strings.HasPrefix(p.OverlayMode, "linked:"):
+				targetID := strings.TrimPrefix(p.OverlayMode, "linked:")
+				return m.resolveOverlayLocked(targetID, visited)
+			case p.OverlayMode == "custom" && p.Overlay != nil:
+				return *p.Overlay
+			default:
+				return m.state.Settings.Overlay
+			}
+		}
+	}
+	return m.state.Settings.Overlay
+}
+
+// UnlinkOverlay copies the resolved overlay settings for a Pokemon
+// and sets its mode to "custom", breaking any link.
+func (m *Manager) UnlinkOverlay(pokemonID string) bool {
+	resolved := m.ResolveOverlay(pokemonID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i, p := range m.state.Pokemon {
+		if p.ID == pokemonID {
+			m.state.Pokemon[i].OverlayMode = "custom"
+			m.state.Pokemon[i].Overlay = &resolved
+			go m.notify()
+			return true
+		}
+	}
+	return false
 }
 
 // AppendDetectionLog records a confirmed auto-detection match for the Pokémon

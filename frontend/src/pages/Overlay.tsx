@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router";
 import { Pokemon, OverlaySettings, TextStyle } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
+import { resolveOverlay } from "../utils/overlay";
 
 interface Props {
   previewSettings?: OverlaySettings;
@@ -214,14 +215,15 @@ export function Overlay({
     [previewPokemon, appState, overlayPokemonId],
   );
 
-  const settings: OverlaySettings | null = useMemo(
-    () =>
-      previewSettings ||
-      activePokemon?.overlay ||
-      appState?.settings.overlay ||
-      null,
-    [previewSettings, activePokemon, appState],
-  );
+  const settings: OverlaySettings | null = useMemo(() => {
+    if (previewSettings) return previewSettings;
+    if (!activePokemon || !appState) return null;
+    return resolveOverlay(
+      activePokemon,
+      appState.pokemon,
+      appState.settings.overlay,
+    );
+  }, [previewSettings, activePokemon, appState]);
 
   // Inject fonts
   useGoogleFont(settings?.name.style.font_family || "sans");

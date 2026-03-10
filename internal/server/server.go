@@ -132,6 +132,12 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		path := r.URL.Path
 
 		switch {
+		case strings.HasSuffix(path, "/overlay/unlink"):
+			if r.Method == http.MethodPost {
+				s.handleUnlinkOverlay(w, r)
+			} else {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
 		case strings.HasSuffix(path, "/increment"):
 			id := pokemonIDFromPath(path, "/api/pokemon/", "/increment")
 			s.handleIncrement(w, r, id)

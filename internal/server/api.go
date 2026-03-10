@@ -290,6 +290,20 @@ func (s *Server) handleOverlayState(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleUnlinkOverlay copies the resolved overlay into the Pokemon and sets
+// its mode to "custom", breaking any link to another Pokemon's overlay.
+// POST /api/pokemon/{id}/overlay/unlink
+func (s *Server) handleUnlinkOverlay(w http.ResponseWriter, r *http.Request) {
+	id := pokemonIDFromPath(r.URL.Path, "/api/pokemon/", "/overlay/unlink")
+	if !s.state.UnlinkOverlay(id) {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	s.state.ScheduleSave()
+	s.broadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // broadcastState serialises the current AppState and sends a "state_update"
 // message to every connected WebSocket client.
 func (s *Server) broadcastState() {
