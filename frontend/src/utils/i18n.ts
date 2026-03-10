@@ -376,6 +376,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "regionPicker.confirm": "Bestätigen",
     "regionPicker.reload": "Neu laden",
     "regionPicker.loadError": "Screenshot konnte nicht geladen werden",
+
+    // ── Footer ──
+    "footer.hunts": "Hunts",
+    "footer.encounters": "Enc.",
   },
 
   en: {
@@ -732,6 +736,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "regionPicker.confirm": "Confirm",
     "regionPicker.reload": "Reload",
     "regionPicker.loadError": "Could not load screenshot",
+
+    // ── Footer ──
+    "footer.hunts": "Hunts",
+    "footer.encounters": "Enc.",
   },
 };
 

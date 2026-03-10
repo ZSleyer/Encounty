@@ -8,7 +8,7 @@ LINUX_DIST = dist-linux
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 # Use the exact tag if HEAD is tagged, otherwise "dev"
 VERSION := $(shell git describe --tags --exact-match 2>/dev/null || echo "dev")
-BUILD_DATE := $(shell date +%m%Y)
+BUILD_DATE := $(shell date +%d.%m.%y)
 
 # Base ldflags: strip debug symbols + inject version/commit
 _BASE_LDFLAGS = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)
@@ -52,8 +52,8 @@ build-linux: frontend icons
 build-windows: frontend icons
 	$(eval WINRES := $(shell go env GOPATH)/bin/go-winres)
 	@command -v $(WINRES) >/dev/null 2>&1 || (echo "Installing go-winres..." && go install github.com/tc-hib/go-winres@latest)
-	@# Extract numeric version for Windows (v1.2.3 -> 1.2.3.0)
-	$(eval WIN_VER := $(shell echo $(VERSION) | sed 's/v//' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' || echo "0.2.0"))
+	@# Extract numeric version for Windows (v1.2.3 -> 1.2.3.0, v0.3 -> 0.3.0)
+	$(eval WIN_VER := $(shell echo $(VERSION) | sed 's/v//' | grep -oE '^[0-9]+\.[0-9]+(\.[0-9]+)?' | awk -F. '{if(NF==2) print $$0".0"; else print $$0}' || echo "0.3.0"))
 	@echo "Generating Windows resources (Version: $(WIN_VER).0)..."
 	@$(WINRES) make --product-version "$(WIN_VER).0" --file-version "$(WIN_VER).0"
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS_WINDOWS) -o $(BINARY)-windows.exe .

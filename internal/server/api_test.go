@@ -265,8 +265,8 @@ func TestHandleVersion(t *testing.T) {
 	if resp["commit"] != "abc1234" {
 		t.Errorf("commit = %q, want %q", resp["commit"], "abc1234")
 	}
-	if resp["display"] != "1.0.0-032026-abc1234" {
-		t.Errorf("display = %q, want %q", resp["display"], "1.0.0-032026-abc1234")
+	if resp["display"] != "1.0.0-abc1234" {
+		t.Errorf("display = %q, want %q", resp["display"], "1.0.0-abc1234")
 	}
 }
 
@@ -282,8 +282,8 @@ func TestHandleVersionDev(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal: %v", err)
 	}
-	if resp["display"] != "dev-032026-abc1234" {
-		t.Errorf("display = %q, want %q", resp["display"], "dev-032026-abc1234")
+	if resp["display"] != "dev-abc1234" {
+		t.Errorf("display = %q, want %q", resp["display"], "dev-abc1234")
 	}
 }
 

@@ -130,12 +130,15 @@ function AppShell() {
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
 
+  const [buildDate, setBuildDate] = useState("");
+
   useEffect(() => {
     fetch("/api/version")
       .then((r) => r.json())
-      .then((d: { display: string }) =>
-        setBuildInfo(`Encounty ${d.display}`)
-      )
+      .then((d: { display: string; build_date: string }) => {
+        setBuildInfo(`Encounty ${d.display}`);
+        setBuildDate(d.build_date);
+      })
       .catch(() => setBuildInfo("Encounty"));
   }, []);
 
@@ -490,11 +493,14 @@ function AppShell() {
       <div className="shrink-0">
         <div className="footer-line" />
         <footer className="h-8 2xl:h-10 px-5 grid grid-cols-3 items-center text-[10px] 2xl:text-xs text-text-faint select-none">
-          {/* Left: Build Info + Update Badge */}
+          {/* Left: Build Info + Build Date + Update Badge */}
           <div className="flex items-center justify-start gap-2">
-            <span className="font-bold tracking-widest uppercase text-text-muted">
+            <span className="font-semibold tracking-wide text-text-muted">
               {buildInfo}
             </span>
+            {buildDate && (
+              <span className="text-text-faint/50">({buildDate})</span>
+            )}
             {updateInfo && updateState === "idle" && (
               <button
                 onClick={applyUpdate}
@@ -507,8 +513,8 @@ function AppShell() {
             )}
           </div>
 
-          {/* Center: WS connection */}
-          <div className="flex items-center justify-center">
+          {/* Center: WS connection + Stats */}
+          <div className="flex items-center justify-center gap-3">
             <div
               className={`flex items-center gap-1.5 transition-colors duration-300 ${
                 isConnected
@@ -542,6 +548,14 @@ function AppShell() {
                     : t("nav.disconnected")}
               </span>
             </div>
+            {appState && appState.pokemon.length > 0 && (
+              <>
+                <span className="text-text-faint/30">|</span>
+                <span className="font-medium tracking-wide">
+                  {appState.pokemon.filter((p) => !p.completed_at).length} {t("footer.hunts")} · {appState.pokemon.reduce((s, p) => s + p.encounters, 0)} {t("footer.encounters")}
+                </span>
+              </>
+            )}
           </div>
 
           {/* Right: Brand Links */}

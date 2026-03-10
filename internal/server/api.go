@@ -209,9 +209,9 @@ func (s *Server) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleVersion(w http.ResponseWriter, _ *http.Request) {
 	var display string
 	if s.version == "dev" {
-		display = "dev-" + s.buildDate + "-" + s.commit
+		display = "dev-" + s.commit
 	} else {
-		display = s.version + "-" + s.buildDate + "-" + s.commit
+		display = s.version + "-" + s.commit
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
 		"version":    s.version,

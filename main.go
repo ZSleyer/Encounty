@@ -44,12 +44,12 @@ var embeddedGamesJSON []byte
 //go:embed all:frontend/dist
 var frontendFS embed.FS
 
-// formatVersionDisplay builds the display string in the format "v0.2-032026-abc1234".
-func formatVersionDisplay(ver, date, cmt string) string {
+// formatVersionDisplay builds the display string in the format "v0.3-abc1234".
+func formatVersionDisplay(ver, cmt string) string {
 	if ver == "dev" {
-		return "dev-" + date + "-" + cmt
+		return "dev-" + cmt
 	}
-	return ver + "-" + date + "-" + cmt
+	return ver + "-" + cmt
 }
 
 func main() {
@@ -62,7 +62,7 @@ func main() {
 	logger.Init(*logLevel)
 
 	if *showVersion {
-		fmt.Printf("Encounty %s\n", formatVersionDisplay(version, buildDate, commit))
+		fmt.Printf("Encounty %s (built %s)\n", formatVersionDisplay(version, commit), buildDate)
 		fmt.Printf("Runtime: %s (%s/%s)\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
