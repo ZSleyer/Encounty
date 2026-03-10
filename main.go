@@ -130,13 +130,19 @@ func main() {
 	// Wire the real broadcast function now that the server (and hub) exist.
 	broadcastFn = srv.Broadcast
 
-	// Open browser
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		url := fmt.Sprintf("http://localhost:%d", port)
-		slog.Info("Opening browser", "url", url)
-		openBrowser(url)
-	}()
+	// Open browser — skip if restarting after an update (client is still open)
+	markerPath := filepath.Join(configDir, ".update-restart")
+	if _, err := os.Stat(markerPath); err == nil {
+		slog.Info("Skipping browser open (update restart)")
+		os.Remove(markerPath)
+	} else {
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			url := fmt.Sprintf("http://localhost:%d", port)
+			slog.Info("Opening browser", "url", url)
+			openBrowser(url)
+		}()
+	}
 
 	// Graceful shutdown — buffer 2 so a second signal is never dropped.
 	quit := make(chan os.Signal, 2)

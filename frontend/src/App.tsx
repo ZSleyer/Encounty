@@ -6,7 +6,7 @@
  * the global WebSocket connection. The /overlay route renders the bare Overlay
  * page without any chrome so it can be used as an OBS Browser Source.
  */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Routes, Route, Link, useLocation } from "react-router";
 import {
   LayoutGrid,
@@ -17,12 +17,15 @@ import {
   Power,
   RefreshCcw,
   Keyboard,
+  Layers,
   Github,
   ArrowUpCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
 import { HotkeyPage } from "./pages/HotkeyPage";
+import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
@@ -125,6 +128,7 @@ function AppShell() {
   } | null>(null);
   const [updateState, setUpdateState] = useState<"idle" | "installing" | "restarting">("idle");
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+  const [showCloseWarning, setShowCloseWarning] = useState(false);
 
   useEffect(() => {
     fetch("/api/version")
@@ -160,11 +164,43 @@ function AppShell() {
         body: JSON.stringify({ download_url: updateInfo.download_url }),
       });
       setUpdateState("restarting");
-      setTimeout(() => window.location.reload(), 4000);
+      // Poll until the backend is back, then reload to pick up new frontend assets
+      const pollBackend = () => {
+        fetch("/api/version", { cache: "no-store" })
+          .then(() => window.location.reload())
+          .catch(() => setTimeout(pollBackend, 1000));
+      };
+      setTimeout(pollBackend, 2000);
     } catch {
       setUpdateState("idle");
     }
   };
+
+  // Warn user when closing the tab while backend is still running.
+  // Shows the browser's native "Leave page?" dialog as a last resort.
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isConnected && !quitting && !restarting && updateState === "idle") {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isConnected, quitting, restarting, updateState]);
+
+  // Intercept Ctrl+W / Cmd+W to show custom warning modal instead of closing
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "w") {
+        if (isConnected && !quitting && !restarting && updateState === "idle") {
+          e.preventDefault();
+          setShowCloseWarning(true);
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isConnected, quitting, restarting, updateState]);
 
   // Sync crisp-sprites attribute from backend settings whenever state arrives
   useEffect(() => {
@@ -175,11 +211,14 @@ function AppShell() {
     }
   }, [appState?.settings.crisp_sprites]);
 
-  const quitApp = async () => {
+  const quitApp = useCallback(async () => {
     if (!confirm(t("app.confirmQuit"))) return;
     setQuitting(true);
+    setShowCloseWarning(false);
     await fetch("/api/quit", { method: "POST" }).catch(() => {});
-  };
+    // Try to close the tab (works if opened via window.open)
+    window.close();
+  }, [t]);
 
   const restartApp = async () => {
     if (!confirm(t("app.confirmRestart"))) return;
@@ -286,8 +325,47 @@ function AppShell() {
     );
   }
 
+  // Show a goodbye screen after quitting so the user knows they can close the tab
+  if (quitting) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-transparent text-text-primary gap-4">
+        <Power className="w-12 h-12 text-text-faint" />
+        <p className="text-lg font-semibold">{t("app.quitMessage")}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen bg-transparent text-text-primary overflow-hidden relative">
+      {/* Close-tab warning modal */}
+      {showCloseWarning && (
+        <div className="fixed inset-0 z-[95] bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-amber-500" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="text-lg font-semibold text-text-primary">{t("app.closeWarning")}</p>
+              <p className="text-sm text-text-muted">{t("app.closeWarningDesc")}</p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setShowCloseWarning(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
+              >
+                {t("app.closeWarningStay")}
+              </button>
+              <button
+                onClick={quitApp}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+              >
+                {t("app.closeWarningQuit")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {updateState !== "idle" && updateInfo && (
         <UpdateOverlay
           updateState={updateState as "installing" | "restarting"}
@@ -325,7 +403,10 @@ function AppShell() {
           <NavTab to="/hotkeys" icon={<Keyboard className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.hotkeys")}
           </NavTab>
-<NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
+          <NavTab to="/overlay-editor" icon={<Layers className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
+            {t("nav.overlayEditor")}
+          </NavTab>
+          <NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.settings")}
           </NavTab>
         </div>
@@ -398,7 +479,7 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/hotkeys" element={<HotkeyPage />} />
-          <Route path="/overlay-editor" element={<Dashboard />} />
+          <Route path="/overlay-editor" element={<OverlayEditorPage />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/overlay/:pokemonId" element={<Overlay />} />
           <Route path="/overlay" element={<Overlay />} />
