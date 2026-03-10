@@ -30,11 +30,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "update.installing": "Wird installiert…",
     "update.restarting": "Neustart…",
     "update.tooltip": "Jetzt auf diese Version aktualisieren",
+    "update.downloading": "Update wird heruntergeladen…",
+    "update.doNotClose": "Bitte die Anwendung nicht schließen.",
+    "update.updatingTo": "Aktualisiere auf",
+    "update.newVersion": "Neue Version verfügbar",
+    "update.updateNow": "Jetzt aktualisieren",
+    "update.later": "Später",
     "nav.dashboard": "Dashboard",
     "nav.hotkeys": "Hotkeys",
     "nav.overlayEditor": "Overlay",
     "nav.settings": "Einstellungen",
     "nav.connected": "Verbunden",
+    "nav.connecting": "Verbinde…",
     "nav.disconnected": "Getrennt",
 
     // ── Dashboard ──
@@ -51,6 +58,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.searchShortcut": "Suchen… (Ctrl+K)",
     "dash.tabCounter": "Zähler",
     "dash.tabDetector": "Auto Erkennung",
+    "dash.tabOverlay": "Overlay",
+    "dash.hotkeyHint": "Hotkeys gelten nur für das aktive Pokémon.",
+    "dash.detectorHint": "Auto-Erkennung kann für mehrere Pokémon gleichzeitig laufen.",
     "dash.tabActive": "Aktiv",
     "dash.tabArchive": "Archiv",
     "dash.noArchive": "Noch keine Hunts archiviert",
@@ -64,6 +74,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.enc": "enc.",
     "dash.phase": "Encounter",
     "dash.odds": "Chancen",
+    "dash.hotkeyTarget": "Hotkey-Ziel festlegen",
+    "dash.hotkeyTargetActive": "Hotkeys wirken auf dieses Pokémon",
 
     // ── Confirm dialogs ──
     "confirm.resetTitle": "Zähler zurücksetzen",
@@ -163,6 +175,8 @@ const translations: Record<Locale, Record<string, string>> = {
       "Pixel-Art Sprites (Classic, Animated) mit Nearest-Neighbour skalieren – verhindert Unschärfe.",
 
     // ── Overlay Editor ──
+    "overlay.pokemonUrl": "Pokémon Overlay-URL",
+    "overlay.activeUrl": "Aktives Overlay (wechselt mit aktivem Pokémon)",
     "overlay.layers": "Ebenen",
     "overlay.reset": "Reset",
     "overlay.canvas": "Canvas",
@@ -233,6 +247,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "overlay.deleteCustomConfirm":
       "Spezifisches Overlay löschen und auf globales Overlay zurücksetzen?",
     "overlay.editorTitle": "Overlay-Editor (OBS Browser Source)",
+    "overlay.textAlign": "Ausrichtung",
+    "overlay.alignLeft": "Links",
+    "overlay.alignCenter": "Mitte",
+    "overlay.alignRight": "Rechts",
 
     // ── Detector Panel ──
     "detector.title": "Auto-Erkennung",
@@ -344,11 +362,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "update.installing": "Installing…",
     "update.restarting": "Restarting…",
     "update.tooltip": "Click to update to this version",
+    "update.downloading": "Downloading update…",
+    "update.doNotClose": "Please do not close the application.",
+    "update.updatingTo": "Updating to",
+    "update.newVersion": "New version available",
+    "update.updateNow": "Update now",
+    "update.later": "Later",
     "nav.dashboard": "Dashboard",
     "nav.hotkeys": "Hotkeys",
     "nav.overlayEditor": "Overlay",
     "nav.settings": "Settings",
     "nav.connected": "Connected",
+    "nav.connecting": "Connecting…",
     "nav.disconnected": "Disconnected",
 
     // ── Dashboard ──
@@ -364,6 +389,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.searchShortcut": "Search… (Ctrl+K)",
     "dash.tabCounter": "Counter",
     "dash.tabDetector": "Auto-Detection",
+    "dash.tabOverlay": "Overlay",
+    "dash.hotkeyHint": "Hotkeys only affect the active Pokémon.",
+    "dash.detectorHint": "Auto-detection can run for multiple Pokémon simultaneously.",
     "dash.tabActive": "Active",
     "dash.tabArchive": "Archive",
     "dash.noArchive": "No archived hunts yet",
@@ -377,6 +405,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.enc": "enc.",
     "dash.phase": "Encounter",
     "dash.odds": "Odds",
+    "dash.hotkeyTarget": "Set hotkey target",
+    "dash.hotkeyTargetActive": "Hotkeys affect this Pokémon",
 
     // ── Confirm dialogs ──
     "confirm.resetTitle": "Reset counter",
@@ -476,6 +506,8 @@ const translations: Record<Locale, Record<string, string>> = {
       "Scale pixel-art sprites (Classic, Animated) with nearest-neighbour — prevents blurriness on small sprites.",
 
     // ── Overlay Editor ──
+    "overlay.pokemonUrl": "Pokémon Overlay URL",
+    "overlay.activeUrl": "Active Overlay (follows active Pokémon)",
     "overlay.layers": "Layers",
     "overlay.reset": "Reset",
     "overlay.canvas": "Canvas",
@@ -545,6 +577,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "overlay.deleteCustomConfirm":
       "Delete specific overlay and reset to global?",
     "overlay.editorTitle": "Overlay Editor (OBS Browser Source)",
+    "overlay.textAlign": "Alignment",
+    "overlay.alignLeft": "Left",
+    "overlay.alignCenter": "Center",
+    "overlay.alignRight": "Right",
 
     // ── Detector Panel ──
     "detector.title": "Auto-Detection",

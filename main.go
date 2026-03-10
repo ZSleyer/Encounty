@@ -32,8 +32,9 @@ import (
 // Injected at build time via -ldflags "-X main.version=v1.0.0 -X main.commit=abc1234"
 // Falls back to "dev" / "unknown" when running via `go run`.
 var (
-	version = "dev"
-	commit  = "unknown"
+	version   = "dev"
+	commit    = "unknown"
+	buildDate = "000000"
 )
 
 //go:embed games.json
@@ -42,6 +43,14 @@ var embeddedGamesJSON []byte
 //go:embed all:frontend/dist
 var frontendFS embed.FS
 
+// formatVersionDisplay builds the display string in the format "v0.2-032026-abc1234".
+func formatVersionDisplay(ver, date, cmt string) string {
+	if ver == "dev" {
+		return "dev-" + date + "-" + cmt
+	}
+	return ver + "-" + date + "-" + cmt
+}
+
 func main() {
 	devMode := flag.Bool("dev", false, "Development mode (proxy to Vite dev server)")
 	showVersion := flag.Bool("version", false, "Show version information")
@@ -49,7 +58,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("Encounty %s (Build %s)\n", version, commit)
+		fmt.Printf("Encounty %s\n", formatVersionDisplay(version, buildDate, commit))
 		fmt.Printf("Runtime: %s (%s/%s)\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
@@ -109,6 +118,7 @@ func main() {
 		FileWriter:  fileWriter,
 		Version:     version,
 		Commit:      commit,
+		BuildDate:   buildDate,
 		ConfigDir:   configDir,
 		DetectorMgr: detectorMgr,
 	})

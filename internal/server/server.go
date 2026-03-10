@@ -28,6 +28,7 @@ type Server struct {
 	frontendFS  fs.FS
 	version     string
 	commit      string
+	buildDate   string
 	detectorMgr *detector.Manager
 }
 
@@ -40,6 +41,7 @@ type Config struct {
 	FileWriter  *fileoutput.Writer
 	Version     string
 	Commit      string
+	BuildDate   string
 	ConfigDir   string
 	DetectorMgr *detector.Manager
 }
@@ -60,6 +62,7 @@ func New(cfg Config) *Server {
 		frontendFS:  cfg.FrontendFS,
 		version:     cfg.Version,
 		commit:      cfg.Commit,
+		buildDate:   cfg.BuildDate,
 		detectorMgr: cfg.DetectorMgr,
 	}
 
@@ -253,10 +256,11 @@ func (s *Server) Hub() *Hub {
 // accidental data loss when the reset hotkey is pressed unintentionally.
 func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 	for action := range ch {
-		active := s.state.GetActivePokemon()
 		id := action.PokemonID
-		if id == "" && active != nil {
-			id = active.ID
+		if id == "" {
+			if active := s.state.GetActivePokemon(); active != nil {
+				id = active.ID
+			}
 		}
 		switch action.Type {
 		case "increment":

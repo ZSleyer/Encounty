@@ -21,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -31,6 +31,22 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: yarn install
+
+      - name: Set version from tag
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/}
+          # Strip 'v' prefix for package.json (v0.2 -> 0.2.0)
+          CLEAN_VERSION=$(echo "$TAG_VERSION" | sed 's/^v//')
+          # Ensure semver format (0.2 -> 0.2.0)
+          if [[ "$CLEAN_VERSION" != *.*.* ]]; then
+            CLEAN_VERSION="${CLEAN_VERSION}.0"
+          fi
+          echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
+          echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
+          # Update frontend/package.json version
+          cd frontend
+          npm pkg set version="$CLEAN_VERSION"
+          echo "Set frontend version to $CLEAN_VERSION"
 
       - name: Install go-winres
         run: go install github.com/tc-hib/go-winres@latest

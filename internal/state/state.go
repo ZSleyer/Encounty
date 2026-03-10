@@ -112,6 +112,7 @@ type TextStyle struct {
 	FontFamily      string         `json:"font_family"`
 	FontSize        int            `json:"font_size"`
 	FontWeight      int            `json:"font_weight"`
+	TextAlign       string         `json:"text_align"`
 	ColorType       string         `json:"color_type"` // "solid" | "gradient"
 	Color           string         `json:"color"`
 	GradientStops   []GradientStop `json:"gradient_stops"`
@@ -205,12 +206,12 @@ type Settings struct {
 // AppState is the complete serialisable snapshot of the application. It is
 // sent to the frontend on every WebSocket connection and after every mutation.
 type AppState struct {
-	Pokemon  []Pokemon `json:"pokemon"`
-	Sessions []Session `json:"sessions"`
-	ActiveID string    `json:"active_id"`
-	Hotkeys  HotkeyMap `json:"hotkeys"`
-	Settings Settings  `json:"settings"`
-	DataPath string    `json:"data_path"`
+	Pokemon        []Pokemon `json:"pokemon"`
+	Sessions       []Session `json:"sessions"`
+	ActiveID       string    `json:"active_id"`
+	Hotkeys        HotkeyMap `json:"hotkeys"`
+	Settings       Settings  `json:"settings"`
+	DataPath       string    `json:"data_path"`
 }
 
 // Manager holds all in-memory application state and coordinates safe

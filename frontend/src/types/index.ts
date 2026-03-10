@@ -111,6 +111,7 @@ export interface TextStyle {
   font_family: string; // Google Font name or "sans"/"serif"/"monospace"/"pokemon"
   font_size: number;
   font_weight: number; // 100–900
+  text_align: "left" | "center" | "right";
   color_type: "solid" | "gradient";
   color: string;
   gradient_stops: GradientStop[];

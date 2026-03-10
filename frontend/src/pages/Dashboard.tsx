@@ -24,15 +24,20 @@ import {
   PartyPopper,
   Trash2,
   Eye,
+  Layers,
+  Save,
+  RefreshCw,
+  Keyboard,
 } from "lucide-react";
 import { AddPokemonModal, NewPokemonData } from "../components/AddPokemonModal";
 import { EditPokemonModal } from "../components/EditPokemonModal";
 import { ConfirmModal } from "../components/ConfirmModal";
 import { DetectorPanel } from "../components/DetectorPanel";
+import { OverlayEditor } from "../components/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { DetectorStatusEntry } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, DetectorRect } from "../types";
+import { Pokemon, DetectorConfig, DetectorRect, OverlaySettings } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 
 const API = "/api";
@@ -75,7 +80,14 @@ export function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector">("counter");
+  const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
+  const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector" | "overlay">("counter");
+
+  const [overlayTarget, setOverlayTarget] = useState<string>("global");
+  const [currentOverlay, setCurrentOverlay] = useState<OverlaySettings | null>(null);
+  const [overlayDirty, setOverlayDirty] = useState(false);
+  const [overlaySaving, setOverlaySaving] = useState(false);
+  const [overlaySaved, setOverlaySaved] = useState(false);
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -119,13 +131,31 @@ export function Dashboard() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  // Force counter tab if pokemon gets archived while on detector tab
+  // Initialise overlay editor state from backend settings (once)
+  const overlayInitialised = useState(false);
   useEffect(() => {
-    const activePokemon = appState?.pokemon.find((p) => p.id === appState.active_id);
-    if (activePokemon?.completed_at && rightPanelTab === "detector") {
+    if (appState && !overlayInitialised[0]) {
+      setCurrentOverlay(appState.settings.overlay);
+      overlayInitialised[1](true);
+    }
+  }, [appState]);
+
+  // Pause/resume hotkeys when switching to/from overlay tab
+  useEffect(() => {
+    if (rightPanelTab === "overlay") {
+      fetch("/api/hotkeys/pause", { method: "POST" }).catch(() => {});
+    } else {
+      fetch("/api/hotkeys/resume", { method: "POST" }).catch(() => {});
+    }
+  }, [rightPanelTab]);
+
+  // Force counter tab if the viewed pokemon gets archived while on detector tab
+  useEffect(() => {
+    const viewed = appState?.pokemon.find((p) => p.id === (viewedPokemonId || appState?.active_id));
+    if (viewed?.completed_at && rightPanelTab === "detector") {
       setRightPanelTab("counter");
     }
-  }, [appState?.pokemon, appState?.active_id, rightPanelTab]);
+  }, [appState?.pokemon, viewedPokemonId, appState?.active_id, rightPanelTab]);
 
   // --- Event Handlers ---
 
@@ -143,7 +173,7 @@ export function Dashboard() {
       onConfirm: () => send("reset", { pokemon_id: id }),
     });
   };
-  const handleActivate = (id: string) => send("set_active", { pokemon_id: id });
+  const handleActivate = (id: string) => setViewedPokemonId(id);
   const handleDelete = (id: string) => {
     setConfirmConfig({
       isOpen: true,
@@ -188,13 +218,103 @@ export function Dashboard() {
     });
   };
 
+  // --- Overlay Handlers ---
+
+  const handleOverlayTargetChange = (newTarget: string) => {
+    if (overlayDirty) {
+      if (!confirm(t("overlay.unsavedChanges"))) return;
+    }
+    setOverlayTarget(newTarget);
+    if (newTarget === "global") {
+      setCurrentOverlay(appState!.settings.overlay);
+    } else {
+      const p = appState!.pokemon.find((x) => x.id === newTarget);
+      setCurrentOverlay(p?.overlay || appState!.settings.overlay);
+    }
+    setOverlayDirty(false);
+  };
+
+  const copyOverlayFrom = (sourceId: string) => {
+    if (sourceId === "global") {
+      setCurrentOverlay(appState!.settings.overlay);
+    } else {
+      const p = appState!.pokemon.find((x) => x.id === sourceId);
+      if (p?.overlay) setCurrentOverlay(p.overlay);
+    }
+    setOverlayDirty(true);
+  };
+
+  const saveCurrentOverlay = async () => {
+    if (!currentOverlay) return;
+    setOverlaySaving(true);
+    try {
+      if (overlayTarget === "global") {
+        const newSettings = { ...appState!.settings, overlay: currentOverlay };
+        await fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newSettings),
+        });
+      } else {
+        const p = appState!.pokemon.find((x) => x.id === overlayTarget);
+        if (p) {
+          const payload = {
+            name: p.name,
+            canonical_name: p.canonical_name,
+            sprite_url: p.sprite_url,
+            sprite_type: p.sprite_type,
+            language: p.language,
+            game: p.game,
+            overlay: currentOverlay,
+          };
+          await fetch(`/api/pokemon/${p.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+        }
+      }
+      setOverlayDirty(false);
+      setOverlaySaved(true);
+      setTimeout(() => setOverlaySaved(false), 2000);
+    } catch (err) {
+      console.error(err);
+    }
+    setOverlaySaving(false);
+  };
+
+  const deleteCustomOverlay = async () => {
+    if (!confirm(t("overlay.deleteCustomConfirm"))) return;
+    const p = appState!.pokemon.find((x) => x.id === overlayTarget);
+    if (p) {
+      setOverlaySaving(true);
+      const payload = {
+        name: p.name,
+        canonical_name: p.canonical_name,
+        sprite_url: p.sprite_url,
+        sprite_type: p.sprite_type,
+        language: p.language,
+        game: p.game,
+        overlay: null,
+      };
+      await fetch(`/api/pokemon/${p.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setCurrentOverlay(appState!.settings.overlay);
+      setOverlayDirty(false);
+      setOverlaySaving(false);
+    }
+  };
+
 
   if (!appState) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-text-muted">{t("nav.connected")}…</p>
+          <p className="text-text-muted">{t("nav.connecting")}</p>
         </div>
       </div>
     );
@@ -202,8 +322,8 @@ export function Dashboard() {
 
   // --- Derived State ---
 
-  const activePokemon =
-    appState.pokemon.find((p) => p.id === appState.active_id) ?? null;
+  const viewedPokemon =
+    appState.pokemon.find((p) => p.id === (viewedPokemonId || appState.active_id)) ?? null;
   const totalEncounters = appState.pokemon.reduce(
     (s, p) => s + p.encounters,
     0,
@@ -215,11 +335,11 @@ export function Dashboard() {
     outbreak: "4096", sandwich: "683",
   };
   const oddsDisplay = (() => {
-    if (!activePokemon) return "1/4096";
-    if (activePokemon.hunt_type && HUNT_ODDS[activePokemon.hunt_type]) {
-      return `1/${HUNT_ODDS[activePokemon.hunt_type]}`;
+    if (!viewedPokemon) return "1/4096";
+    if (viewedPokemon.hunt_type && HUNT_ODDS[viewedPokemon.hunt_type]) {
+      return `1/${HUNT_ODDS[viewedPokemon.hunt_type]}`;
     }
-    const oldGen = /red|blue|yellow|gold|silver|crystal|ruby|sapphire|emerald|firered|leafgreen|diamond|pearl|platinum|heartgold|soulsilver|black|white/.test(activePokemon.game ?? "");
+    const oldGen = /red|blue|yellow|gold|silver|crystal|ruby|sapphire|emerald|firered|leafgreen|diamond|pearl|platinum|heartgold|soulsilver|black|white/.test(viewedPokemon.game ?? "");
     return oldGen ? "1/8192" : "1/4096";
   })();
 
@@ -386,7 +506,8 @@ export function Dashboard() {
           ) : (
             <ul className="py-1">
               {displayList.map((p) => {
-                const isActive = p.id === appState.active_id;
+                const isViewed = p.id === (viewedPokemonId || appState.active_id);
+                const isHotkeyTarget = p.id === appState.active_id;
                 const isArchived = !!p.completed_at;
                 const src =
                   imgError[p.id] || !p.sprite_url ? FALLBACK : p.sprite_url;
@@ -395,7 +516,7 @@ export function Dashboard() {
                     key={p.id}
                     onClick={() => handleActivate(p.id)}
                     className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors group hover-glow ${
-                      isActive
+                      isViewed
                         ? "bg-accent-blue/10 border-l-2 border-accent-blue"
                         : "hover:bg-bg-hover border-l-2 border-transparent"
                     } ${isArchived ? "opacity-70" : ""}`}
@@ -414,19 +535,27 @@ export function Dashboard() {
                           <Trophy className="w-2.5 h-2.5 text-text-primary" />
                         </div>
                       )}
-                      {p.detector_config?.enabled && detectorStatus[p.id] && (
-                        <div className={`absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full border border-bg-secondary ${
-                          detectorStatus[p.id].state === "match_active"
-                            ? "bg-accent-green"
-                            : "bg-accent-blue animate-pulse"
-                        }`} />
+                      {p.detector_config && (
+                        <div
+                          className={`absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full border border-bg-secondary ${
+                            detectorStatus[p.id]?.state === "match_active"
+                              ? "bg-accent-green"
+                              : p.detector_config.enabled && detectorStatus[p.id]
+                                ? "bg-accent-blue animate-pulse"
+                                : "bg-text-faint/40"
+                          }`}
+                          title={
+                            detectorStatus[p.id]?.state === "match_active"
+                              ? t("detector.stateMatch")
+                              : p.detector_config.enabled && detectorStatus[p.id]
+                                ? t("detector.stateIdle")
+                                : t("detector.stopped")
+                          }
+                        />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        {isActive && !isArchived && (
-                          <Star className="w-3 h-3 text-accent-blue fill-accent-blue flex-shrink-0" />
-                        )}
                         <span className="text-sm font-semibold text-text-primary truncate capitalize">
                           {p.name}
                         </span>
@@ -442,13 +571,28 @@ export function Dashboard() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-1 items-center">
+                      {/* Hotkey target star — sets active_id (hotkey target) */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          send("set_active", { pokemon_id: p.id });
+                        }}
+                        className={`p-1 rounded transition-colors ${
+                          isHotkeyTarget
+                            ? "text-accent-yellow"
+                            : "opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent-yellow"
+                        }`}
+                        title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${isHotkeyTarget ? "fill-accent-yellow" : ""}`} />
+                      </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingPokemon(p);
                         }}
-                        className="p-1 rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors"
+                        className="p-1 rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors opacity-0 group-hover:opacity-100"
                         title={t("dash.edit")}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
@@ -478,7 +622,7 @@ export function Dashboard() {
 
       <main className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
 
-        {!activePokemon ? (
+        {!viewedPokemon ? (
           <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
             <div className="w-20 h-20 rounded-full bg-bg-card border border-border-subtle flex items-center justify-center mb-6 shadow-sm">
               <Sparkles className="w-8 h-8 text-text-faint" />
@@ -508,7 +652,7 @@ export function Dashboard() {
                   >
                     {t("dash.tabCounter")}
                   </button>
-                  {!activePokemon.completed_at && (
+                  {!viewedPokemon.completed_at && (
                     <button
                       onClick={() => setRightPanelTab("detector")}
                       className={`px-6 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
@@ -519,21 +663,32 @@ export function Dashboard() {
                     >
                       <Eye className="w-3.5 h-3.5" />
                       {t("dash.tabDetector")}
-                      {detectorStatus[activePokemon.id]?.state === "match_active" && (
+                      {detectorStatus[viewedPokemon.id]?.state === "match_active" && (
                         <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
                       )}
                     </button>
                   )}
+                  <button
+                    onClick={() => setRightPanelTab("overlay")}
+                    className={`px-6 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      rightPanelTab === "overlay"
+                        ? "bg-accent-blue text-white shadow"
+                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    {t("dash.tabOverlay")}
+                  </button>
                 </div>
               </div>
 
               {/* Center: Game Badge */}
               <div className="flex shrink-0 items-center justify-center order-1 w-full md:w-auto md:order-2">
-                {activePokemon.game && (
+                {viewedPokemon.game && (
                   <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm text-text-muted">
                     <Gamepad2 className="w-4 h-4" />
                     <span className="text-xs uppercase tracking-wider font-semibold truncate max-w-[120px] md:max-w-none">
-                      {formatGame(activePokemon.game)}
+                      {formatGame(viewedPokemon.game)}
                     </span>
                   </div>
                 )}
@@ -542,16 +697,16 @@ export function Dashboard() {
               {/* Right: Action row (Edit / Catch / Delete) */}
               <div className="flex-[1_1_auto] md:flex-1 flex justify-end gap-2 shrink-0 order-3 md:order-3">
                 <button
-                  onClick={() => setEditingPokemon(activePokemon)}
+                  onClick={() => setEditingPokemon(viewedPokemon)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm hover:border-accent-blue/40 text-text-muted hover:text-text-primary text-xs font-semibold transition-all hover:bg-bg-hover"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                   {t("dash.edit")}
                 </button>
 
-                {!activePokemon.completed_at ? (
+                {!viewedPokemon.completed_at ? (
                   <button
-                    onClick={() => handleComplete(activePokemon.id)}
+                    onClick={() => handleComplete(viewedPokemon.id)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent-green text-white shadow-sm hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-all"
                   >
                     <PartyPopper className="w-3.5 h-3.5" />
@@ -559,7 +714,7 @@ export function Dashboard() {
                   </button>
                 ) : (
                   <button
-                    onClick={() => handleUncomplete(activePokemon.id)}
+                    onClick={() => handleUncomplete(viewedPokemon.id)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle hover:border-accent-yellow/40 text-text-muted hover:text-accent-yellow text-xs font-semibold shadow-sm transition-all hover:bg-bg-hover"
                   >
                     <Undo2 className="w-3.5 h-3.5" />
@@ -568,7 +723,7 @@ export function Dashboard() {
                 )}
 
                 <button
-                  onClick={() => handleDelete(activePokemon.id)}
+                  onClick={() => handleDelete(viewedPokemon.id)}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm hover:border-accent-red/40 text-text-muted hover:text-accent-red text-xs font-semibold transition-all hover:bg-bg-hover"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -580,18 +735,18 @@ export function Dashboard() {
             {/* SCROLLABLE INNER WORK AREA */}
             <div className={`flex-1 overflow-y-auto flex flex-col items-center p-4 md:p-8 relative z-10 w-full ${rightPanelTab === "counter" ? "justify-center" : "justify-start"}`}>
               
-              <div className={`flex flex-col items-center w-full ${rightPanelTab === "counter" ? "max-w-3xl mt-0" : "max-w-2xl mt-0 pb-16"}`}>
+              <div className={`flex flex-col items-center w-full ${rightPanelTab === "counter" ? "max-w-3xl mt-0" : rightPanelTab === "overlay" ? "max-w-full mt-0 pb-16" : "max-w-2xl mt-0 pb-16"}`}>
               
               {rightPanelTab === "counter" ? (
                 <>
                   {/* Archived banner */}
-                  {activePokemon.completed_at && (
+                  {viewedPokemon.completed_at && (
                     <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-12">
                       <Trophy className="w-4 h-4" />
                       <span className="font-bold">{t("dash.caughtBanner")}</span>
                       <span className="w-px h-3 bg-accent-green/30" />
                       <span className="text-accent-green/80 text-xs font-medium">
-                        {new Date(activePokemon.completed_at).toLocaleDateString(
+                        {new Date(viewedPokemon.completed_at).toLocaleDateString(
                           "de-DE",
                           { day: "2-digit", month: "short", year: "numeric" },
                         )}
@@ -605,15 +760,15 @@ export function Dashboard() {
                     <div className="relative z-10 p-8 flex flex-col items-center">
                       <img
                         src={
-                          imgError[activePokemon.id] || !activePokemon.sprite_url
+                          imgError[viewedPokemon.id] || !viewedPokemon.sprite_url
                             ? FALLBACK
-                            : activePokemon.sprite_url
+                            : viewedPokemon.sprite_url
                         }
-                        alt={activePokemon.name}
+                        alt={viewedPokemon.name}
                         onError={() =>
                           setImgError((prev) => ({
                             ...prev,
-                            [activePokemon.id]: true,
+                            [viewedPokemon.id]: true,
                           }))
                         }
                         className="pokemon-sprite w-56 h-56 object-contain relative z-10 drop-shadow-xl transition-transform duration-300 hover:scale-110"
@@ -621,7 +776,7 @@ export function Dashboard() {
                     </div>
                     {/* Pokemon Name Overlay */}
                     <h2 className="absolute -bottom-2 text-4xl font-black text-text-primary capitalize tracking-wide drop-shadow-md z-20">
-                      {activePokemon.name}
+                      {viewedPokemon.name}
                     </h2>
                   </div>
 
@@ -629,8 +784,8 @@ export function Dashboard() {
                   <div className="flex items-center gap-6 mt-8 w-full justify-center">
                     {/* Minus Button */}
                     <button
-                      onClick={() => !activePokemon.completed_at && handleDecrement(activePokemon.id)}
-                      disabled={!!activePokemon.completed_at}
+                      onClick={() => !viewedPokemon.completed_at && handleDecrement(viewedPokemon.id)}
+                      disabled={!!viewedPokemon.completed_at}
                       className="flex items-center justify-center w-16 h-16 rounded-2xl bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       title="−1"
                     >
@@ -642,14 +797,14 @@ export function Dashboard() {
                       <div 
                         className="text-7xl font-black tabular-nums leading-none tracking-tight text-text-primary"
                       >
-                        {activePokemon.encounters.toLocaleString()}
+                        {viewedPokemon.encounters.toLocaleString()}
                       </div>
                     </div>
 
                     {/* Plus Button */}
                     <button
-                      onClick={() => !activePokemon.completed_at && handleIncrement(activePokemon.id)}
-                      disabled={!!activePokemon.completed_at}
+                      onClick={() => !viewedPokemon.completed_at && handleIncrement(viewedPokemon.id)}
+                      disabled={!!viewedPokemon.completed_at}
                       className="flex items-center justify-center w-20 h-20 rounded-2xl bg-accent-green border border-transparent hover:bg-accent-green/90 text-white transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                       title="+1"
                     >
@@ -658,9 +813,9 @@ export function Dashboard() {
                   </div>
 
                   {/* Reset Button */}
-                  {!activePokemon.completed_at && (
+                  {!viewedPokemon.completed_at && (
                     <button
-                       onClick={() => handleReset(activePokemon.id)}
+                       onClick={() => handleReset(viewedPokemon.id)}
                        className="mt-6 flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all shadow-sm text-xs font-semibold"
                      >
                        <RotateCcw className="w-4 h-4" />
@@ -673,7 +828,7 @@ export function Dashboard() {
                     {/* Encounter */}
                     <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
                       <div className="text-text-muted text-[11px] font-bold uppercase tracking-widest mb-1">{t("dash.phase") || "Encounter"}</div>
-                      <div className="text-xl font-black text-text-primary">{activePokemon.encounters.toLocaleString()}</div>
+                      <div className="text-xl font-black text-text-primary">{viewedPokemon.encounters.toLocaleString()}</div>
                     </div>
                     {/* Odds */}
                     <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
@@ -684,27 +839,117 @@ export function Dashboard() {
                     </div>
                   </div>
                 </>
-              ) : (
+              ) : rightPanelTab === "detector" ? (
                 /* Auto-Detection Panel Tab */
                 <div className="w-full">
                   <div className="text-center mb-6">
                      <h2 className="text-2xl font-semibold text-text-primary mb-2 flex items-center justify-center gap-2">
                         <Eye className="w-6 h-6 text-accent-blue" />
-                        {t("dash.tabDetector")}: {activePokemon.name}
+                        {t("dash.tabDetector")}: {viewedPokemon.name}
                      </h2>
                      <p className="text-sm text-text-muted max-w-md mx-auto">
                         {t("detector.tabHint")}
                      </p>
+                     <p className="text-xs text-text-faint mt-1 max-w-md mx-auto">
+                        {t("dash.detectorHint")}
+                     </p>
                   </div>
                   <DetectorPanel
-                    pokemon={activePokemon}
-                    onConfigChange={(cfg) => handleDetectorConfigChange(activePokemon.id, cfg)}
-                    isRunning={detectorStatus[activePokemon.id] !== undefined}
-                    confidence={detectorStatus[activePokemon.id]?.confidence ?? 0}
-                    detectorState={detectorStatus[activePokemon.id]?.state ?? "idle"}
+                    pokemon={viewedPokemon}
+                    onConfigChange={(cfg) => handleDetectorConfigChange(viewedPokemon.id, cfg)}
+                    isRunning={detectorStatus[viewedPokemon.id] !== undefined}
+                    confidence={detectorStatus[viewedPokemon.id]?.confidence ?? 0}
+                    detectorState={detectorStatus[viewedPokemon.id]?.state ?? "idle"}
                   />
                 </div>
-              )}
+              ) : rightPanelTab === "overlay" ? (
+                /* Overlay Editor Panel Tab */
+                <div className="w-full">
+                  {/* Overlay header with target selector + save */}
+                  <div className="flex flex-wrap items-center gap-3 mb-4">
+                    <select
+                      value={overlayTarget}
+                      onChange={(e) => handleOverlayTargetChange(e.target.value)}
+                      className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                    >
+                      <option value="global">{t("overlay.globalDefault")}</option>
+                      <optgroup label={t("overlay.specificPokemon")}>
+                        {appState?.pokemon.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} {p.overlay ? t("overlay.customized") : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+
+                    {overlayTarget !== "global" && (
+                      <select
+                        value=""
+                        onChange={(e) => { if (e.target.value) copyOverlayFrom(e.target.value); }}
+                        className="bg-bg-card border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                      >
+                        <option value="" disabled>{t("overlay.copyFrom")}...</option>
+                        <option value="global">{t("overlay.global")}</option>
+                        <optgroup label={t("overlay.specificPokemon")}>
+                          {appState?.pokemon
+                            .filter((p) => p.id !== overlayTarget && p.overlay)
+                            .map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </optgroup>
+                      </select>
+                    )}
+
+                    {overlayTarget !== "global" &&
+                      appState?.pokemon.find((p) => p.id === overlayTarget)?.overlay && (
+                        <button
+                          onClick={deleteCustomOverlay}
+                          disabled={overlaySaving}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 text-sm transition-colors disabled:opacity-40"
+                        >
+                          {t("overlay.removeCustom")}
+                        </button>
+                      )}
+
+                    <div className="ml-auto flex items-center gap-3">
+                      {rightPanelTab === "overlay" && (
+                        <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">
+                          <Keyboard className="w-3.5 h-3.5" /> {t("settings.hotkeysPaused")}
+                        </span>
+                      )}
+                      {overlaySaved && (
+                        <span className="flex items-center gap-1.5 text-xs text-accent-green">
+                          <Save className="w-3.5 h-3.5" /> {t("settings.saved")}
+                        </span>
+                      )}
+                      <button
+                        onClick={saveCurrentOverlay}
+                        disabled={!overlayDirty || overlaySaving}
+                        className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {overlaySaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                        {t("overlay.saveOverlay")}
+                      </button>
+                    </div>
+                  </div>
+
+                  {currentOverlay && (
+                    <OverlayEditor
+                      settings={currentOverlay}
+                      overlayTargetId={overlayTarget}
+                      activePokemon={
+                        overlayTarget === "global"
+                          ? viewedPokemon || undefined
+                          : appState?.pokemon.find((p) => p.id === overlayTarget)
+                      }
+                      onUpdate={(overlay) => {
+                        setCurrentOverlay(overlay);
+                        setOverlayDirty(true);
+                      }}
+                    />
+                  )}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

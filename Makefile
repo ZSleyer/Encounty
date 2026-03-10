@@ -8,16 +8,17 @@ LINUX_DIST = dist-linux
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 # Use the exact tag if HEAD is tagged, otherwise "dev"
 VERSION := $(shell git describe --tags --exact-match 2>/dev/null || echo "dev")
+BUILD_DATE := $(shell date +%m%Y)
 
 # Base ldflags: strip debug symbols + inject version/commit
-_BASE_LDFLAGS = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
+_BASE_LDFLAGS = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)
 LDFLAGS         = -ldflags="$(_BASE_LDFLAGS)"
 LDFLAGS_WINDOWS = -ldflags="$(_BASE_LDFLAGS) -H=windowsgui"
 
 dev:
 	@echo "Starting Encounty in dev mode (commit=$(COMMIT))..."
 	@cd $(FRONTEND_DIR) && yarn dev &
-	@go run -ldflags="-X main.version=dev -X main.commit=$(COMMIT)" main.go --dev
+	@go run -ldflags="-X main.version=dev -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)" main.go --dev
 
 frontend:
 	@echo "Building frontend..."

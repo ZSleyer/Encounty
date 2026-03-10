@@ -17,14 +17,12 @@ import {
   Power,
   RefreshCcw,
   Keyboard,
-  Layers,
   Github,
   ArrowUpCircle,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
 import { HotkeyPage } from "./pages/HotkeyPage";
-import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
@@ -35,9 +33,82 @@ import { ToastProvider, useToast } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
 import { LOCALES, Locale } from "./utils/i18n";
 
+/** Full-screen blocking overlay shown while an update is being installed or restarting. */
+function UpdateOverlay({
+  updateState,
+  version,
+}: {
+  updateState: "installing" | "restarting";
+  version: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl">
+        <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold text-text-primary">
+            {updateState === "restarting" ? t("update.restarting") : t("update.installing")}
+          </p>
+          <p className="text-sm text-text-muted">
+            {t("update.updatingTo")} {version}
+          </p>
+        </div>
+        <p className="text-xs text-text-faint">
+          {t("update.doNotClose")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Dismissable modal shown on startup when a newer version is available. */
+function UpdateNotification({
+  version,
+  onUpdate,
+  onDismiss,
+}: {
+  version: string;
+  onUpdate: () => void;
+  onDismiss: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+        <div className="w-14 h-14 rounded-full bg-accent-blue/15 flex items-center justify-center">
+          <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
+        </div>
+        <div className="text-center space-y-1.5">
+          <p className="text-lg font-semibold text-text-primary">
+            {t("update.newVersion")}
+          </p>
+          <p className="text-sm text-text-muted">
+            {version}
+          </p>
+        </div>
+        <div className="flex gap-3 w-full">
+          <button
+            onClick={onDismiss}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+          >
+            {t("update.later")}
+          </button>
+          <button
+            onClick={onUpdate}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
+          >
+            {t("update.updateNow")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppShell() {
   const location = useLocation();
-  const isOverlay = location.pathname === "/overlay";
+  const isOverlay = location.pathname === "/overlay" || location.pathname.startsWith("/overlay/");
   const { setAppState, setConnected, flashPokemon, isConnected, appState, setDetectorStatus, clearDetectorStatus } =
     useCounterStore();
   const { t, locale, setLocale } = useI18n();
@@ -53,6 +124,7 @@ function AppShell() {
     download_url: string;
   } | null>(null);
   const [updateState, setUpdateState] = useState<"idle" | "installing" | "restarting">("idle");
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
 
   useEffect(() => {
     fetch("/api/version")
@@ -68,7 +140,10 @@ function AppShell() {
       fetch("/api/update/check")
         .then((r) => r.json())
         .then((d: { available: boolean; latest_version: string; download_url: string }) => {
-          if (d.available) setUpdateInfo(d);
+          if (d.available) {
+            setUpdateInfo(d);
+            setShowUpdateNotification(true);
+          }
         })
         .catch(() => {});
     }, 3000);
@@ -203,11 +278,32 @@ function AppShell() {
   );
 
   if (isOverlay) {
-    return <Overlay />;
+    return (
+      <Routes>
+        <Route path="/overlay/:pokemonId" element={<Overlay />} />
+        <Route path="/overlay" element={<Overlay />} />
+      </Routes>
+    );
   }
 
   return (
     <div className="flex flex-col h-screen bg-transparent text-text-primary overflow-hidden relative">
+      {updateState !== "idle" && updateInfo && (
+        <UpdateOverlay
+          updateState={updateState as "installing" | "restarting"}
+          version={updateInfo.latest_version}
+        />
+      )}
+      {showUpdateNotification && updateInfo && updateState === "idle" && (
+        <UpdateNotification
+          version={updateInfo.latest_version}
+          onUpdate={() => {
+            setShowUpdateNotification(false);
+            applyUpdate();
+          }}
+          onDismiss={() => setShowUpdateNotification(false)}
+        />
+      )}
       <div className="switch-waves-container">
         <div className="switch-waves" />
       </div>
@@ -229,10 +325,7 @@ function AppShell() {
           <NavTab to="/hotkeys" icon={<Keyboard className="w-4 h-4" />}>
             {t("nav.hotkeys")}
           </NavTab>
-          <NavTab to="/overlay-editor" icon={<Layers className="w-4 h-4" />}>
-            {t("nav.overlayEditor")}
-          </NavTab>
-          <NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4" />}>
+<NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4" />}>
             {t("nav.settings")}
           </NavTab>
         </div>
@@ -305,8 +398,9 @@ function AppShell() {
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/hotkeys" element={<HotkeyPage />} />
-          <Route path="/overlay-editor" element={<OverlayEditorPage />} />
+          <Route path="/overlay-editor" element={<Dashboard />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/overlay/:pokemonId" element={<Overlay />} />
           <Route path="/overlay" element={<Overlay />} />
         </Routes>
       </div>
@@ -332,35 +426,41 @@ function AppShell() {
                 <span>{updateInfo.latest_version}</span>
               </button>
             )}
-            {updateState === "installing" && (
-              <span className="flex items-center gap-1 text-accent-blue animate-pulse font-medium">
-                <ArrowUpCircle className="w-3 h-3 animate-spin" />
-                {t("update.installing")}
-              </span>
-            )}
-            {updateState === "restarting" && (
-              <span className="flex items-center gap-1 text-accent-green animate-pulse font-medium">
-                <RefreshCcw className="w-3 h-3 animate-spin" />
-                {t("update.restarting")}
-              </span>
-            )}
           </div>
 
           {/* Center: WS connection */}
           <div className="flex items-center justify-center">
             <div
               className={`flex items-center gap-1.5 transition-colors duration-300 ${
-                isConnected ? "text-text-faint" : "text-accent-red/70"
+                isConnected
+                  ? "text-text-faint"
+                  : !isConnected && appState === null
+                    ? "text-amber-400/70"
+                    : "text-accent-red/70"
               }`}
-              title={isConnected ? t("nav.connected") : t("nav.disconnected")}
+              title={
+                isConnected
+                  ? t("nav.connected")
+                  : appState === null
+                    ? t("nav.connecting")
+                    : t("nav.disconnected")
+              }
             >
               <div
                 className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  isConnected ? "bg-accent-green/60" : "bg-accent-red/70"
+                  isConnected
+                    ? "bg-accent-green/60"
+                    : appState === null
+                      ? "bg-amber-400/70"
+                      : "bg-accent-red/70"
                 }`}
               />
               <span className="font-medium tracking-wide">
-                {isConnected ? t("nav.connected") : t("nav.disconnected")}
+                {isConnected
+                  ? t("nav.connected")
+                  : appState === null
+                    ? t("nav.connecting")
+                    : t("nav.disconnected")}
               </span>
             </div>
           </div>
