@@ -60,8 +60,16 @@ func loadGames() []GameEntry {
 		return nil
 	}
 
+	// Deduplicate entries that share the same English name within the same
+	// generation — the sync can produce alternate keys for one game.
+	seen := make(map[string]bool)
 	entries := make([]GameEntry, 0, len(raw))
 	for key, v := range raw {
+		dedup := v.Names["en"] + "|" + v.Platform
+		if seen[dedup] {
+			continue
+		}
+		seen[dedup] = true
 		entries = append(entries, GameEntry{
 			Key:        key,
 			Names:      v.Names,
