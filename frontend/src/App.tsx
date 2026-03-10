@@ -405,12 +405,10 @@ function AppShell() {
         </Routes>
       </div>
 
-      <ToastContainer />
-
       {/* ── Footer ───────────────────────────────────────────── */}
-      <div className="flex-shrink-0">
+      <div className="shrink-0">
         <div className="footer-line" />
-        <footer className="h-8 px-5 grid grid-cols-3 items-center text-[10px] text-text-faint select-none">
+        <footer className="h-8 2xl:h-10 px-5 grid grid-cols-3 items-center text-[10px] 2xl:text-xs text-text-faint select-none">
           {/* Left: Build Info + Update Badge */}
           <div className="flex items-center justify-start gap-2">
             <span className="font-bold tracking-widest uppercase text-text-muted">
@@ -537,6 +535,7 @@ export function App() {
       <I18nProvider>
         <ToastProvider>
           <AppShell />
+          <ToastContainer />
         </ToastProvider>
       </I18nProvider>
     </ThemeProvider>

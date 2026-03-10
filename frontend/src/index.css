@@ -588,16 +588,31 @@ code {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateX(20px) scale(0.95);
+    transform: translateY(8px) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
   }
 }
 
 .animate-toast-in {
   animation: toast-in 0.2s ease-out forwards;
+}
+
+.animate-toast-out {
+  animation: toast-out 0.2s ease-in forwards;
 }
 
 /* ── Update overlay fade-in ──────────────────────────────────── */
