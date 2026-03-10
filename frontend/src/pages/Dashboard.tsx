@@ -373,9 +373,9 @@ export function Dashboard() {
   return (
     <div className="flex h-full">
       {/* LEFT: Pokemon sidebar */}
-      <aside className="w-72 flex-shrink-0 bg-bg-secondary flex flex-col">
+      <aside className="w-72 2xl:w-80 shrink-0 bg-bg-secondary flex flex-col">
         {/* Stats bar */}
-        <div className="flex items-center gap-3 px-4 py-2 border-b border-border-subtle text-[11px] text-text-muted glass-card rounded-none border-x-0 border-t-0">
+        <div className="flex items-center gap-3 px-4 py-2 2xl:py-2.5 border-b border-border-subtle text-[11px] 2xl:text-xs text-text-muted glass-card rounded-none border-x-0 border-t-0">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3 h-3" />
             <span className="tabular-nums">{elapsed}</span>
@@ -391,7 +391,7 @@ export function Dashboard() {
         {/* Search bar */}
         <div className="p-3 border-b border-border-subtle">
           <div className="flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5">
-            <Search className="w-3.5 h-3.5 text-text-muted flex-shrink-0" />
+            <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
             <input
               ref={searchRef}
               type="text"
@@ -415,7 +415,7 @@ export function Dashboard() {
         <div className="flex border-b border-border-subtle">
           <button
             onClick={() => setSidebarTab("active")}
-            className={`flex-1 py-2 text-xs font-semibold transition-colors relative ${
+            className={`flex-1 py-2 text-xs 2xl:text-sm font-semibold transition-colors relative ${
               sidebarTab === "active"
                 ? "text-accent-blue"
                 : "text-text-muted hover:text-text-secondary"
@@ -436,7 +436,7 @@ export function Dashboard() {
           </button>
           <button
             onClick={() => setSidebarTab("archived")}
-            className={`flex-1 py-2 text-xs font-semibold transition-colors relative ${
+            className={`flex-1 py-2 text-xs 2xl:text-sm font-semibold transition-colors relative ${
               sidebarTab === "archived"
                 ? "text-accent-green"
                 : "text-text-muted hover:text-text-secondary"
@@ -515,13 +515,13 @@ export function Dashboard() {
                   <li
                     key={p.id}
                     onClick={() => handleActivate(p.id)}
-                    className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors group hover-glow ${
+                    className={`flex items-center gap-3 px-4 py-2.5 2xl:px-5 2xl:py-3 cursor-pointer transition-colors group hover-glow ${
                       isViewed
                         ? "bg-accent-blue/10 border-l-2 border-accent-blue"
                         : "hover:bg-bg-hover border-l-2 border-transparent"
                     } ${isArchived ? "opacity-70" : ""}`}
                   >
-                    <div className="w-9 h-9 flex-shrink-0 relative">
+                    <div className="w-9 h-9 2xl:w-11 2xl:h-11 shrink-0 relative">
                       <img
                         src={src}
                         alt={p.name}
@@ -537,7 +537,7 @@ export function Dashboard() {
                       )}
                       {p.detector_config && (
                         <div
-                          className={`absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full border border-bg-secondary ${
+                          className={`absolute -top-0.5 -left-0.5 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full border border-bg-secondary ${
                             detectorStatus[p.id]?.state === "match_active"
                               ? "bg-accent-green"
                               : p.detector_config.enabled && detectorStatus[p.id]
@@ -556,12 +556,12 @@ export function Dashboard() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-semibold text-text-primary truncate capitalize">
+                        <span className="text-sm 2xl:text-base font-semibold text-text-primary truncate capitalize">
                           {p.name}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-xs text-text-muted tabular-nums">
+                        <span className="text-xs 2xl:text-sm text-text-muted tabular-nums">
                           {p.encounters} {t("dash.enc")}
                         </span>
                         {p.game && (
@@ -585,7 +585,7 @@ export function Dashboard() {
                         }`}
                         title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
                       >
-                        <Star className={`w-3.5 h-3.5 ${isHotkeyTarget ? "fill-accent-yellow" : ""}`} />
+                        <Star className={`w-3.5 h-3.5 2xl:w-4 2xl:h-4 ${isHotkeyTarget ? "fill-accent-yellow" : ""}`} />
                       </button>
                       <button
                         onClick={(e) => {
@@ -610,7 +610,7 @@ export function Dashboard() {
           <div className="p-3 border-t border-border-subtle">
             <button
               onClick={() => setShowAddModal(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-2 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs font-semibold transition-colors hover-glow"
+              className="w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs 2xl:text-sm font-semibold transition-colors hover-glow"
             >
               <Plus className="w-3.5 h-3.5" />
               {t("dash.addPokemon")}
@@ -618,7 +618,7 @@ export function Dashboard() {
           </div>
         )}
       </aside>
-      <div className="glow-line-v flex-shrink-0" />
+      <div className="glow-line-v shrink-0" />
 
       <main className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
 
@@ -644,7 +644,7 @@ export function Dashboard() {
                 <div className="flex bg-bg-card rounded-xl border border-border-subtle p-1 shadow-sm shrink-0">
                   <button
                     onClick={() => setRightPanelTab("counter")}
-                    className={`px-6 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    className={`px-6 py-1.5 2xl:px-7 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold transition-all ${
                       rightPanelTab === "counter"
                         ? "bg-accent-blue text-white shadow"
                         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -655,7 +655,7 @@ export function Dashboard() {
                   {!viewedPokemon.completed_at && (
                     <button
                       onClick={() => setRightPanelTab("detector")}
-                      className={`px-6 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      className={`px-6 py-1.5 2xl:px-7 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold transition-all flex items-center gap-1.5 ${
                         rightPanelTab === "detector"
                           ? "bg-accent-blue text-white shadow"
                           : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -670,7 +670,7 @@ export function Dashboard() {
                   )}
                   <button
                     onClick={() => setRightPanelTab("overlay")}
-                    className={`px-6 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    className={`px-6 py-1.5 2xl:px-7 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold transition-all flex items-center gap-1.5 ${
                       rightPanelTab === "overlay"
                         ? "bg-accent-blue text-white shadow"
                         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -755,7 +755,7 @@ export function Dashboard() {
                   )}
 
                   {/* Solid Card for Sprite */}
-                  <div className="relative w-full aspect-[2/1] max-h-[300px] mb-8 mt-12 flex items-center justify-center">
+                  <div className="relative w-full aspect-2/1 max-h-[300px] mb-8 mt-12 flex items-center justify-center">
                     {/* Clean, no-glow sprite container */}
                     <div className="relative z-10 p-8 flex flex-col items-center">
                       <img
@@ -771,11 +771,11 @@ export function Dashboard() {
                             [viewedPokemon.id]: true,
                           }))
                         }
-                        className="pokemon-sprite w-56 h-56 object-contain relative z-10 drop-shadow-xl transition-transform duration-300 hover:scale-110"
+                        className="pokemon-sprite w-56 h-56 2xl:w-64 2xl:h-64 object-contain relative z-10 drop-shadow-xl transition-transform duration-300 hover:scale-110"
                       />
                     </div>
                     {/* Pokemon Name Overlay */}
-                    <h2 className="absolute -bottom-2 text-4xl font-black text-text-primary capitalize tracking-wide drop-shadow-md z-20">
+                    <h2 className="absolute -bottom-2 text-4xl 2xl:text-5xl font-black text-text-primary capitalize tracking-wide drop-shadow-md z-20">
                       {viewedPokemon.name}
                     </h2>
                   </div>
@@ -786,16 +786,16 @@ export function Dashboard() {
                     <button
                       onClick={() => !viewedPokemon.completed_at && handleDecrement(viewedPokemon.id)}
                       disabled={!!viewedPokemon.completed_at}
-                      className="flex items-center justify-center w-16 h-16 rounded-2xl bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center justify-center w-16 h-16 2xl:w-20 2xl:h-20 rounded-2xl bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       title="−1"
                     >
                       <Minus className="w-8 h-8" />
                     </button>
 
                     {/* Solid Counter Card */}
-                    <div className="bg-bg-card rounded-3xl px-16 py-8 text-center border border-border-subtle shadow-md min-w-[340px]">
+                    <div className="bg-bg-card rounded-3xl px-16 py-8 2xl:px-20 2xl:py-10 text-center border border-border-subtle shadow-md min-w-[340px]">
                       <div 
-                        className="text-7xl font-black tabular-nums leading-none tracking-tight text-text-primary"
+                        className="text-7xl 2xl:text-8xl font-black tabular-nums leading-none tracking-tight text-text-primary"
                       >
                         {viewedPokemon.encounters.toLocaleString()}
                       </div>
@@ -805,7 +805,7 @@ export function Dashboard() {
                     <button
                       onClick={() => !viewedPokemon.completed_at && handleIncrement(viewedPokemon.id)}
                       disabled={!!viewedPokemon.completed_at}
-                      className="flex items-center justify-center w-20 h-20 rounded-2xl bg-accent-green border border-transparent hover:bg-accent-green/90 text-white transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex items-center justify-center w-20 h-20 2xl:w-24 2xl:h-24 rounded-2xl bg-accent-green border border-transparent hover:bg-accent-green/90 text-white transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                       title="+1"
                     >
                       <Plus className="w-10 h-10 stroke-[3px]" />
@@ -827,13 +827,13 @@ export function Dashboard() {
                   <div className="grid grid-cols-2 gap-6 mt-12 w-full max-w-xl mx-auto">
                     {/* Encounter */}
                     <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
-                      <div className="text-text-muted text-[11px] font-bold uppercase tracking-widest mb-1">{t("dash.phase") || "Encounter"}</div>
-                      <div className="text-xl font-black text-text-primary">{viewedPokemon.encounters.toLocaleString()}</div>
+                      <div className="text-text-muted text-[11px] 2xl:text-xs font-bold uppercase tracking-widest mb-1">{t("dash.phase") || "Encounter"}</div>
+                      <div className="text-xl 2xl:text-2xl font-black text-text-primary">{viewedPokemon.encounters.toLocaleString()}</div>
                     </div>
                     {/* Odds */}
                     <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
-                      <div className="text-text-muted text-[11px] font-bold uppercase tracking-widest mb-1">{t("dash.odds") || "Odds"}</div>
-                      <div className="text-xl font-black text-accent-blue">
+                      <div className="text-text-muted text-[11px] 2xl:text-xs font-bold uppercase tracking-widest mb-1">{t("dash.odds") || "Odds"}</div>
+                      <div className="text-xl 2xl:text-2xl font-black text-accent-blue">
                         {oddsDisplay}
                       </div>
                     </div>

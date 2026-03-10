@@ -271,10 +271,10 @@ export function EditPokemonPanel({
   }, {});
 
   return (
-    <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 animate-slide-in w-full max-w-md">
+    <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 animate-slide-in w-full max-w-md 2xl:max-w-lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-text-primary uppercase tracking-wider">
+        <h3 className="text-sm 2xl:text-base font-bold text-text-primary uppercase tracking-wider">
           Pokémon bearbeiten
         </h3>
         <button
@@ -287,7 +287,7 @@ export function EditPokemonPanel({
 
       {missingNames && (
         <div className="flex items-start gap-2 p-2 mb-3 rounded-lg bg-amber-900/20 border border-amber-700/30 text-amber-300 text-[11px]">
-          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           <span>
             Pokédex nicht synchronisiert — nur englische Namen verfügbar.
           </span>
@@ -296,7 +296,7 @@ export function EditPokemonPanel({
 
       {/* Current Pokémon display + change button */}
       <div className="flex items-center gap-3 bg-bg-secondary rounded-lg p-3 mb-4">
-        <div className="w-14 h-14 bg-bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="w-14 h-14 2xl:w-16 2xl:h-16 bg-bg-primary rounded-lg flex items-center justify-center shrink-0">
           {selected?.sprite && (
             <img
               src={customSprite || selected.sprite}
@@ -314,7 +314,7 @@ export function EditPokemonPanel({
           <p className="font-bold text-text-primary capitalize truncate">
             {selected?.name || pokemon.name}
           </p>
-          <p className="text-[11px] text-text-muted">
+          <p className="text-[11px] 2xl:text-xs text-text-muted">
             {selected?.canonical || pokemon.canonical_name}
           </p>
         </div>
@@ -334,14 +334,14 @@ export function EditPokemonPanel({
       {showSearch && (
         <div className="relative mb-4">
           <div className="flex items-center gap-2 bg-bg-secondary border border-accent-blue/30 rounded-lg px-3 py-2">
-            <Search className="w-4 h-4 text-accent-blue flex-shrink-0" />
+            <Search className="w-4 h-4 text-accent-blue shrink-0" />
             <input
               ref={searchInputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Pokémon suchen…"
-              className="flex-1 bg-transparent text-text-primary placeholder-gray-600 outline-none text-sm"
+              className="flex-1 bg-transparent text-text-primary placeholder-gray-600 outline-none text-sm 2xl:text-base"
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   setShowSearch(false);
@@ -360,12 +360,12 @@ export function EditPokemonPanel({
             </button>
           </div>
           {suggestions.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-48 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-48 2xl:max-h-60 overflow-y-auto">
               {suggestions.map((s) => (
                 <button
                   key={s.canonical}
                   onClick={() => selectPokemon(s)}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center justify-between"
+                  className="w-full text-left px-3 py-2 text-sm 2xl:text-base hover:bg-bg-hover transition-colors flex items-center justify-between"
                 >
                   <span
                     className={`capitalize ${s.isForm ? "text-text-secondary pl-2 border-l border-border-subtle" : "text-text-primary"}`}
@@ -386,7 +386,7 @@ export function EditPokemonPanel({
       <div className="space-y-3">
         {/* Sprite style */}
         <div>
-          <span className="block text-[11px] text-text-muted mb-1.5">
+          <span className="block text-[11px] 2xl:text-xs text-text-muted mb-1.5">
             Sprite-Stil
           </span>
           <div className="grid grid-cols-4 gap-1.5">
@@ -420,7 +420,7 @@ export function EditPokemonPanel({
         {/* Sprite type + Language in one row */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <span className="block text-[11px] text-text-muted mb-1.5">
+            <span className="block text-[11px] 2xl:text-xs text-text-muted mb-1.5">
               Variante
             </span>
             <div className="flex gap-2">
@@ -440,7 +440,7 @@ export function EditPokemonPanel({
             </div>
           </div>
           <div>
-            <span className="block text-[11px] text-text-muted mb-1.5">
+            <span className="block text-[11px] 2xl:text-xs text-text-muted mb-1.5">
               Sprache
             </span>
             <div className="flex gap-1.5">
@@ -478,11 +478,11 @@ export function EditPokemonPanel({
 
         {/* Game selector */}
         <div>
-          <span className="block text-[11px] text-text-muted mb-1.5">Spiel</span>
+          <span className="block text-[11px] 2xl:text-xs text-text-muted mb-1.5">Spiel</span>
           <select
             value={selectedGame}
             onChange={(e) => setSelectedGame(e.target.value)}
-            className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
+            className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
           >
             <option value="">— Kein Spiel —</option>
             {Object.entries(genGroups).map(([gen, entries]) => (
@@ -499,7 +499,7 @@ export function EditPokemonPanel({
 
         {/* Custom sprite URL */}
         <div>
-          <span className="block text-[11px] text-text-muted mb-1.5">
+          <span className="block text-[11px] 2xl:text-xs text-text-muted mb-1.5">
             Eigene Sprite-URL
           </span>
           <input
@@ -507,7 +507,7 @@ export function EditPokemonPanel({
             value={customSprite}
             onChange={(e) => setCustomSprite(e.target.value)}
             placeholder="https://…"
-            className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder-gray-600 outline-none focus:border-accent-blue/50 transition-colors"
+            className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-1.5 text-xs 2xl:text-sm text-text-primary placeholder-gray-600 outline-none focus:border-accent-blue/50 transition-colors"
           />
         </div>
       </div>
@@ -516,14 +516,14 @@ export function EditPokemonPanel({
       <div className="flex gap-2 mt-4 pt-4 border-t border-border-subtle">
         <button
           onClick={onCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-subtle transition-colors text-xs"
+          className="flex-1 py-2 2xl:py-2.5 rounded-lg border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-subtle transition-colors text-xs 2xl:text-sm"
         >
           Abbrechen
         </button>
         <button
           onClick={handleSave}
           disabled={!selected}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          className="flex-1 py-2 2xl:py-2.5 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-xs 2xl:text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
         >
           <Check className="w-3.5 h-3.5" />
           Speichern

@@ -259,32 +259,32 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
       {/* ── Top bar: instructions + buttons ─────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-bg-card/80 backdrop-blur-sm border-b border-border-subtle flex-shrink-0">
-        <p className="text-sm text-text-secondary">
+      <div className="flex items-center justify-between px-4 py-3 2xl:px-5 2xl:py-4 bg-bg-card/80 backdrop-blur-sm border-b border-border-subtle shrink-0">
+        <p className="text-sm 2xl:text-base text-text-secondary">
           {t("regionPicker.instruction")}
         </p>
         <div className="flex items-center gap-2">
           <button
             onClick={fetchScreenshot}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-bg-secondary border border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-blue/30 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-medium bg-bg-secondary border border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-blue/30 transition-colors"
             title={t("regionPicker.reload")}
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
             {t("regionPicker.reload")}
           </button>
           <button
             onClick={onCancel}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-bg-secondary border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-medium bg-bg-secondary border border-border-subtle text-text-secondary hover:text-text-primary transition-colors"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
             {t("regionPicker.cancel")}
           </button>
           <button
             onClick={handleConfirm}
             disabled={!hasSelection}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-accent-blue hover:bg-blue-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold bg-accent-blue hover:bg-blue-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Check className="w-3.5 h-3.5" />
+            <Check className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
             {t("regionPicker.confirm")}
           </button>
         </div>
@@ -300,12 +300,12 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
 
         {loadError && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-            <p className="text-text-muted text-sm">
+            <p className="text-text-muted text-sm 2xl:text-base">
               {t("regionPicker.loadError")}
             </p>
             <button
               onClick={fetchScreenshot}
-              className="px-4 py-2 rounded-lg text-sm bg-accent-blue hover:bg-blue-500 text-white font-medium transition-colors"
+              className="px-4 py-2 2xl:px-5 2xl:py-2.5 rounded-lg text-sm 2xl:text-base bg-accent-blue hover:bg-blue-500 text-white font-medium transition-colors"
             >
               {t("regionPicker.reload")}
             </button>

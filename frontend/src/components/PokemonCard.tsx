@@ -61,7 +61,7 @@ export function PokemonCard({
       }}
       className={`relative rounded-xl border transition-all duration-300 overflow-hidden flex flex-col ${
         pokemon.is_active
-          ? "border-accent-blue/50 bg-gradient-to-b from-bg-card to-accent-blue/5 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-[1.02]"
+          ? "border-accent-blue/50 bg-linear-to-b from-bg-card to-accent-blue/5 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-[1.02]"
 
           : "border-border-subtle bg-bg-card hover:border-border-active/40 hover:shadow-lg cursor-pointer"
       } ${isFlashing ? "animate-flash" : ""}`}
@@ -76,7 +76,7 @@ export function PokemonCard({
         const { cls, pulse, title } = detectorDotClass(statusEntry);
         return (
           <span
-            className={`absolute top-2 left-2 w-2 h-2 rounded-full ${cls} ${pulse ? "animate-pulse" : ""}`}
+            className={`absolute top-2 left-2 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full ${cls} ${pulse ? "animate-pulse" : ""}`}
             title={title}
           />
         );
@@ -104,9 +104,9 @@ export function PokemonCard({
         </button>
       </div>
 
-      <div className="p-5 flex-1 flex flex-col items-center">
+      <div className="p-5 2xl:p-6 flex-1 flex flex-col items-center">
         {/* Sprite */}
-        <div className="w-24 h-24 mb-3 relative group">
+        <div className="w-24 h-24 2xl:w-32 2xl:h-32 mb-3 relative group">
           <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-xl scale-75 group-hover:scale-110 transition-transform duration-500" />
           <img
             src={spriteUrl}
@@ -123,13 +123,13 @@ export function PokemonCard({
 
         {/* Text */}
         <div className="text-center w-full mb-4">
-          <h3 className="font-bold text-text-primary text-lg truncate capitalize leading-tight mb-1">
+          <h3 className="font-bold text-text-primary text-lg 2xl:text-xl truncate capitalize leading-tight mb-1">
             {pokemon.name}
           </h3>
 
           {/* Game Badges */}
           <div
-            className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary"
+            className="flex items-center gap-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary"
             title="Game"
           >
             <Gamepad2 className="w-3 h-3" />
@@ -141,10 +141,10 @@ export function PokemonCard({
         <div
           className={`mt-auto text-center w-full bg-bg-secondary/30 rounded-xl py-3 border border-border-subtle/50 mb-4 transition-all duration-200 ${isFlashing ? "scale-110 bg-accent-blue/20 border-accent-blue/50" : ""}`}
         >
-          <span className="text-4xl font-black text-text-primary tabular-nums tracking-tight">
+          <span className="text-4xl 2xl:text-5xl font-black text-text-primary tabular-nums tracking-tight">
             {pokemon.encounters}
           </span>
-          <p className="text-[10px] text-text-muted uppercase tracking-widest font-bold mt-0.5">
+          <p className="text-[10px] 2xl:text-xs text-text-muted uppercase tracking-widest font-bold mt-0.5">
             Encounters
           </p>
         </div>

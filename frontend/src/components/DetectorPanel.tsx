@@ -399,8 +399,8 @@ export function DetectorPanel({
         }`}>
           {/* Status indicator */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className={`inline-block w-2.5 h-2.5 rounded-full flex-shrink-0 ${dotClass} ${pulse || isStarting ? "animate-pulse" : ""}`} />
-            <span className={`text-xs font-semibold truncate ${
+            <span className={`inline-block w-2.5 h-2.5 2xl:w-3 2xl:h-3 rounded-full shrink-0 ${dotClass} ${pulse || isStarting ? "animate-pulse" : ""}`} />
+            <span className={`text-xs 2xl:text-sm font-semibold truncate ${
               detectorState === "match_active" ? "text-green-400" :
               showAsRunning ? "text-accent-blue" : "text-text-muted"
             }`}>
@@ -419,7 +419,7 @@ export function DetectorPanel({
             title={!isRunning && !canStart ? (
               !isCapturing ? t("detector.errNoStream") : t("detector.errNoTemplates")
             ) : undefined}
-            className={`px-5 py-1.5 rounded-lg text-xs font-bold transition-colors border flex-shrink-0 flex items-center gap-1.5 ${
+            className={`px-5 py-1.5 2xl:px-6 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-bold transition-colors border shrink-0 flex items-center gap-1.5 ${
               isRunning
                 ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
                 : isStarting
@@ -441,7 +441,7 @@ export function DetectorPanel({
             onClick={() => setErrorMsg(null)}
           >
             <span className="flex-1">{errorMsg}</span>
-            <span className="flex-shrink-0 opacity-60">✕</span>
+            <span className="shrink-0 opacity-60">✕</span>
           </div>
         )}
 
@@ -482,7 +482,7 @@ export function DetectorPanel({
           <div className="relative w-full aspect-video bg-black">
             {!stream ? (
               <div className="w-full h-full flex flex-col items-center justify-center">
-                <Camera className="w-10 h-10 text-white/20 mb-2" />
+                <Camera className="w-10 h-10 2xl:w-12 2xl:h-12 text-white/20 mb-2" />
                 <p className="text-xs text-white/30">{t("detector.noStream")}</p>
               </div>
             ) : (
@@ -512,7 +512,7 @@ export function DetectorPanel({
                   if (!stream) { setErrorMsg(t("detector.errNoStream")); return; }
                   setShowAddTemplate(true);
                 }}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 {t("detector.addFromVideo")}
@@ -521,7 +521,7 @@ export function DetectorPanel({
                 <button
                   onClick={handleAddSpriteTemplate}
                   disabled={addingSprite}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors disabled:opacity-50"
                 >
                   {addingSprite ? (
                     <Loader2 className="w-3 h-3 animate-spin" />
@@ -535,7 +535,7 @@ export function DetectorPanel({
           </div>
 
           {templates.length > 0 ? (
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 2xl:grid-cols-5 gap-2">
               {templates.map((tmpl, index) => (
                 <div key={index} className="relative group">
                   <img
@@ -594,8 +594,8 @@ export function DetectorPanel({
               {/* Precision slider */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-text-muted">{t("detector.precision")}</label>
-                  <span className="text-xs text-text-secondary font-mono">{(cfg.precision * 100).toFixed(0)}%</span>
+                  <label className="text-xs 2xl:text-sm text-text-muted">{t("detector.precision")}</label>
+                  <span className="text-xs 2xl:text-sm text-text-secondary font-mono">{(cfg.precision * 100).toFixed(0)}%</span>
                 </div>
                 <input
                   type="range" min={0.5} max={1.0} step={0.01}
@@ -609,7 +609,7 @@ export function DetectorPanel({
               {/* Grid: cooldown + hits + interval */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs text-text-muted mb-1">{t("detector.cooldown")}</label>
+                  <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.cooldown")}</label>
                   <input
                     type="number" min={1} max={120} value={cfg.cooldown_sec}
                     onChange={(e) => setCfg((prev) => ({ ...prev, cooldown_sec: parseInt(e.target.value, 10) || 1 }))}
@@ -618,7 +618,7 @@ export function DetectorPanel({
                   <p className="text-[10px] text-text-faint mt-0.5">{t("detector.cooldownDesc")}</p>
                 </div>
                 <div>
-                  <label className="block text-xs text-text-muted mb-1">{t("detector.hits")}</label>
+                  <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.hits")}</label>
                   <input
                     type="number" min={1} max={10} value={cfg.consecutive_hits}
                     onChange={(e) => setCfg((prev) => ({ ...prev, consecutive_hits: parseInt(e.target.value, 10) || 1 }))}
@@ -627,7 +627,7 @@ export function DetectorPanel({
                   <p className="text-[10px] text-text-faint mt-0.5">{t("detector.hitsDesc")}</p>
                 </div>
                 <div>
-                  <label className="block text-xs text-text-muted mb-1">{t("detector.interval")}</label>
+                  <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.interval")}</label>
                   <input
                     type="number" min={200} max={5000} step={100} value={cfg.poll_interval_ms}
                     onChange={(e) => setCfg((prev) => ({ ...prev, poll_interval_ms: parseInt(e.target.value, 10) || 500 }))}

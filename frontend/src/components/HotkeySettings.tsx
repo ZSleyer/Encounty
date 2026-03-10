@@ -158,7 +158,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
             >
               <div className="flex items-center gap-3">
                 <span
-                  className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                  className={`w-2 h-2 rounded-full shrink-0 ${
                     isRecording
                       ? 'bg-accent-blue animate-pulse'
                       : currentCombo
@@ -166,12 +166,12 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
                         : 'bg-border-subtle'
                   }`}
                 />
-                <span className="text-sm text-text-secondary">{label}</span>
+                <span className="text-sm 2xl:text-base text-text-secondary">{label}</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <kbd
-                  className={`px-2 py-1 border rounded text-xs font-mono min-w-[72px] text-center ${
+                  className={`px-2 py-1 border rounded text-xs 2xl:text-sm font-mono min-w-[72px] 2xl:min-w-[84px] text-center ${
                     isRecording
                       ? 'bg-accent-blue/10 border-accent-blue/30 text-accent-blue'
                       : 'bg-bg-primary border-border-subtle text-text-secondary'
@@ -188,7 +188,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
                   onClick={() =>
                     isRecording ? cancelRecording() : startRecording(key)
                   }
-                  className={`px-3 py-1 rounded text-xs transition-colors ${
+                  className={`px-3 py-1 2xl:px-4 2xl:py-1.5 rounded text-xs 2xl:text-sm transition-colors ${
                     isRecording
                       ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
                       : 'bg-bg-hover text-text-secondary hover:text-text-primary'
@@ -210,7 +210,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
             </div>
 
             {conflictAction && (
-              <p className="text-xs text-amber-400 ml-4">
+              <p className="text-xs 2xl:text-sm text-amber-400 ml-4">
                 ⚠ Gleiche Taste wie „{conflictAction.label}"
               </p>
             )}
@@ -220,7 +220,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
 
       {recording && (
         <div className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg">
-          <p className="text-sm text-accent-blue">
+          <p className="text-sm 2xl:text-base text-accent-blue">
             ● Drücke eine Taste für „
             {ACTIONS.find((a) => a.key === recording)?.label}"
             {liveModifiers && (
@@ -229,7 +229,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
               </span>
             )}
           </p>
-          <p className="text-xs text-text-secondary mt-1">ESC zum Abbrechen</p>
+          <p className="text-xs 2xl:text-sm text-text-secondary mt-1">ESC zum Abbrechen</p>
         </div>
       )}
 

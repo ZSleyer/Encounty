@@ -134,8 +134,8 @@ export function OverlayEditorPage() {
         <div className="switch-waves" />
       </div>
       {/* Header bar */}
-      <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-secondary border-b border-border-subtle flex-shrink-0 flex-wrap">
-        <Layers className="w-4 h-4 text-accent-blue flex-shrink-0" />
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-secondary border-b border-border-subtle shrink-0 flex-wrap">
+        <Layers className="w-4 h-4 text-accent-blue shrink-0" />
         <span className="text-sm font-semibold text-text-primary mr-2">
           {t("overlay.editorTitle")}
         </span>
