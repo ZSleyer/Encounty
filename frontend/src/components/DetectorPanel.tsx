@@ -9,10 +9,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Eye, X, Camera, Plus, Pencil, Sparkles, Loader2, Video, VideoOff,
-  ChevronDown, Settings,
+  ChevronDown, Settings, Save,
 } from "lucide-react";
 import { DetectorConfig, DetectorRect, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion } from "../types";
 import { useI18n } from "../contexts/I18nContext";
+import { useToast } from "../contexts/ToastContext";
 import { useBrowserCapture } from "../hooks/useBrowserCapture";
 import { TemplateEditor } from "./TemplateEditor";
 import { getSpriteUrl } from "../utils/sprites";
@@ -26,10 +27,12 @@ const DEFAULT_CONFIG: DetectorConfig = {
   window_title: "",
   templates: [],
   precision: 0.80,
-  consecutive_hits: 3,
-  cooldown_sec: 5,
+  consecutive_hits: 1,
+  cooldown_sec: 8,
   change_threshold: 0.15,
-  poll_interval_ms: 500,
+  poll_interval_ms: 50,
+  min_poll_ms: 30,
+  max_poll_ms: 500,
 };
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -78,18 +81,23 @@ export function DetectorPanel({
   detectorState,
 }: DetectorPanelProps) {
   const { t } = useI18n();
+  const { push: pushToast } = useToast();
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [settingsDirty, setSettingsDirty] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [cfg, setCfg] = useState<DetectorConfig>(() => {
     const saved = pokemon.detector_config;
     if (!saved) return { ...DEFAULT_CONFIG };
     return {
+      ...DEFAULT_CONFIG,
       ...saved,
       precision: saved.precision || DEFAULT_CONFIG.precision,
       consecutive_hits: saved.consecutive_hits || DEFAULT_CONFIG.consecutive_hits,
       cooldown_sec: saved.cooldown_sec || DEFAULT_CONFIG.cooldown_sec,
       poll_interval_ms: saved.poll_interval_ms || DEFAULT_CONFIG.poll_interval_ms,
+      min_poll_ms: saved.min_poll_ms || DEFAULT_CONFIG.min_poll_ms,
+      max_poll_ms: saved.max_poll_ms || DEFAULT_CONFIG.max_poll_ms,
     };
   });
   const [templates, setTemplates] = useState<DetectorTemplate[]>(
@@ -120,11 +128,14 @@ export function DetectorPanel({
       return;
     }
     setCfg({
+      ...DEFAULT_CONFIG,
       ...saved,
       precision: saved.precision || DEFAULT_CONFIG.precision,
       consecutive_hits: saved.consecutive_hits || DEFAULT_CONFIG.consecutive_hits,
       cooldown_sec: saved.cooldown_sec || DEFAULT_CONFIG.cooldown_sec,
       poll_interval_ms: saved.poll_interval_ms || DEFAULT_CONFIG.poll_interval_ms,
+      min_poll_ms: saved.min_poll_ms || DEFAULT_CONFIG.min_poll_ms,
+      max_poll_ms: saved.max_poll_ms || DEFAULT_CONFIG.max_poll_ms,
     });
     setTemplates(saved.templates ?? []);
   }, [pokemon.id, pokemon.detector_config]);
@@ -194,11 +205,11 @@ export function DetectorPanel({
       if (!isCapturing || !isRunning || !active) return;
       const blob = await captureFrame();
       if (blob) {
-        try {
-          await fetch(`/api/detector/${pokemon.id}/match_frame`, {
-            method: "POST", body: blob,
-          });
-        } catch { /* retry on next loop */ }
+        // Fire-and-forget: don't block the loop waiting for the server response.
+        // This keeps the capture cadence consistent regardless of server latency.
+        fetch(`/api/detector/${pokemon.id}/match_frame`, {
+          method: "POST", body: blob,
+        }).catch(() => {});
       }
       if (active) timerId = setTimeout(loop, cfg.poll_interval_ms);
     };
@@ -373,8 +384,24 @@ export function DetectorPanel({
       precision: DEFAULT_CONFIG.precision,
       consecutive_hits: DEFAULT_CONFIG.consecutive_hits,
       cooldown_sec: DEFAULT_CONFIG.cooldown_sec,
+      change_threshold: DEFAULT_CONFIG.change_threshold,
       poll_interval_ms: DEFAULT_CONFIG.poll_interval_ms,
+      min_poll_ms: DEFAULT_CONFIG.min_poll_ms,
+      max_poll_ms: DEFAULT_CONFIG.max_poll_ms,
     }));
+    setSettingsDirty(true);
+  };
+
+  const handleSaveSettings = async () => {
+    await onConfigChange({ ...cfg, templates });
+    setSettingsDirty(false);
+    pushToast({ type: "success", title: t("detector.settingsSaved") });
+  };
+
+  /** Wrapper that updates a cfg field and marks settings as dirty. */
+  const updateCfg = (patch: Partial<DetectorConfig>) => {
+    setCfg((prev) => ({ ...prev, ...patch }));
+    setSettingsDirty(true);
   };
 
   // ── Derived ────────────────────────────────────────────────────────────────
@@ -600,19 +627,19 @@ export function DetectorPanel({
                 <input
                   type="range" min={0.5} max={1.0} step={0.01}
                   value={cfg.precision}
-                  onChange={(e) => setCfg((prev) => ({ ...prev, precision: parseFloat(e.target.value) }))}
+                  onChange={(e) => updateCfg({ precision: parseFloat(e.target.value) })}
                   className="w-full accent-accent-blue"
                 />
                 <p className="text-[10px] text-text-faint mt-0.5">{t("detector.precisionDesc")}</p>
               </div>
 
-              {/* Grid: cooldown + hits + interval */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Grid: cooldown + hits */}
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.cooldown")}</label>
                   <input
                     type="number" min={1} max={120} value={cfg.cooldown_sec}
-                    onChange={(e) => setCfg((prev) => ({ ...prev, cooldown_sec: parseInt(e.target.value, 10) || 1 }))}
+                    onChange={(e) => updateCfg({ cooldown_sec: parseInt(e.target.value, 10) || 1 })}
                     className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
                   />
                   <p className="text-[10px] text-text-faint mt-0.5">{t("detector.cooldownDesc")}</p>
@@ -621,19 +648,45 @@ export function DetectorPanel({
                   <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.hits")}</label>
                   <input
                     type="number" min={1} max={10} value={cfg.consecutive_hits}
-                    onChange={(e) => setCfg((prev) => ({ ...prev, consecutive_hits: parseInt(e.target.value, 10) || 1 }))}
+                    onChange={(e) => updateCfg({ consecutive_hits: parseInt(e.target.value, 10) || 1 })}
                     className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
                   />
                   <p className="text-[10px] text-text-faint mt-0.5">{t("detector.hitsDesc")}</p>
                 </div>
-                <div>
-                  <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.interval")}</label>
-                  <input
-                    type="number" min={200} max={5000} step={100} value={cfg.poll_interval_ms}
-                    onChange={(e) => setCfg((prev) => ({ ...prev, poll_interval_ms: parseInt(e.target.value, 10) || 500 }))}
-                    className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
-                  />
-                  <p className="text-[10px] text-text-faint mt-0.5">{t("detector.intervalDesc")}</p>
+              </div>
+
+              {/* Adaptive Polling section */}
+              <div className="border-t border-border-subtle pt-3">
+                <p className="text-xs 2xl:text-sm text-text-muted font-semibold mb-1">{t("detector.adaptivePolling")}</p>
+                <p className="text-[10px] text-text-faint mb-3">{t("detector.adaptivePollingDesc")}</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.basePoll")}</label>
+                    <input
+                      type="number" min={10} max={2000} step={10} value={cfg.poll_interval_ms}
+                      onChange={(e) => updateCfg({ poll_interval_ms: parseInt(e.target.value, 10) || 50 })}
+                      className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                    />
+                    <p className="text-[10px] text-text-faint mt-0.5">{t("detector.basePollDesc")}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.minPoll")}</label>
+                    <input
+                      type="number" min={10} max={1000} step={5} value={cfg.min_poll_ms}
+                      onChange={(e) => updateCfg({ min_poll_ms: parseInt(e.target.value, 10) || 30 })}
+                      className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                    />
+                    <p className="text-[10px] text-text-faint mt-0.5">{t("detector.minPollDesc")}</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.maxPoll")}</label>
+                    <input
+                      type="number" min={100} max={5000} step={50} value={cfg.max_poll_ms}
+                      onChange={(e) => updateCfg({ max_poll_ms: parseInt(e.target.value, 10) || 500 })}
+                      className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                    />
+                    <p className="text-[10px] text-text-faint mt-0.5">{t("detector.maxPollDesc")}</p>
+                  </div>
                 </div>
               </div>
 
@@ -646,7 +699,7 @@ export function DetectorPanel({
                       {activePreset.odds_numer} / {activePreset.odds_denom}
                     </span>
                     <button
-                      onClick={handleApplyDefaults}
+                      onClick={() => { handleApplyDefaults(); setSettingsDirty(true); }}
                       className="px-2 py-0.5 rounded text-[11px] font-medium border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
                     >
                       {t("detector.applyDefaults")}
@@ -655,13 +708,25 @@ export function DetectorPanel({
                 </div>
               )}
 
-              {/* Reset settings to defaults */}
-              <div className="flex justify-end pt-1">
+              {/* Save + Reset */}
+              <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
                 <button
                   onClick={handleResetSettings}
                   className="text-[11px] text-text-muted hover:text-text-primary transition-colors underline underline-offset-2"
                 >
                   {t("detector.resetSettings")}
+                </button>
+                <button
+                  onClick={handleSaveSettings}
+                  disabled={!settingsDirty}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    settingsDirty
+                      ? "bg-accent-blue text-white hover:bg-accent-blue/90"
+                      : "bg-bg-hover border border-border-subtle text-text-muted cursor-default opacity-60"
+                  }`}
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {t("detector.saveSettings")}
                 </button>
               </div>
             </div>

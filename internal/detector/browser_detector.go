@@ -88,7 +88,10 @@ func (bd *BrowserDetector) SubmitFrame(frame image.Image) BrowserMatchResult {
 	}
 	consecutiveHits := bd.cfg.ConsecutiveHits
 	if consecutiveHits == 0 {
-		consecutiveHits = defaultConsecutiveHits
+		// The browser detector uses edge detection (prevAbove tracking) which
+		// prevents re-triggers on sustained high scores, making a single
+		// consecutive hit sufficient for reliable match confirmation.
+		consecutiveHits = 1
 	}
 	cooldownSec := bd.cfg.CooldownSec
 	if cooldownSec == 0 {
