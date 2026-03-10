@@ -5,6 +5,63 @@ const POKEAPI_BASE =
   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
 
+/**
+ * Canonical name to correct PokeAPI numeric ID for regional forms.
+ * Used as a safety net so sprite URLs resolve correctly even when
+ * the pokedex data has stale or wrong sprite_id values.
+ */
+const REGIONAL_FORM_IDS: Record<string, number> = {
+  "rattata-alola": 10091, "raticate-alola": 10092,
+  "raichu-alola": 10100, "sandshrew-alola": 10101,
+  "sandslash-alola": 10102, "vulpix-alola": 10103,
+  "ninetales-alola": 10104, "diglett-alola": 10105,
+  "dugtrio-alola": 10106, "meowth-alola": 10107,
+  "persian-alola": 10108, "geodude-alola": 10109,
+  "graveler-alola": 10110, "golem-alola": 10111,
+  "grimer-alola": 10112, "muk-alola": 10113,
+  "exeggutor-alola": 10114, "marowak-alola": 10115,
+  "meowth-galar": 10161, "ponyta-galar": 10162,
+  "rapidash-galar": 10163, "slowpoke-galar": 10164,
+  "slowbro-galar": 10165, "farfetchd-galar": 10166,
+  "weezing-galar": 10167, "mr-mime-galar": 10168,
+  "articuno-galar": 10169, "zapdos-galar": 10170,
+  "moltres-galar": 10171, "slowking-galar": 10172,
+  "corsola-galar": 10173, "zigzagoon-galar": 10174,
+  "linoone-galar": 10175, "darumaka-galar": 10176,
+  "darmanitan-galar-standard": 10177, "darmanitan-galar-zen": 10178,
+  "yamask-galar": 10179, "stunfisk-galar": 10180,
+  "growlithe-hisui": 10229, "arcanine-hisui": 10230,
+  "voltorb-hisui": 10231, "electrode-hisui": 10232,
+  "typhlosion-hisui": 10233, "qwilfish-hisui": 10234,
+  "sneasel-hisui": 10235, "samurott-hisui": 10236,
+  "lilligant-hisui": 10237, "zorua-hisui": 10238,
+  "zoroark-hisui": 10239, "braviary-hisui": 10240,
+  "sliggoo-hisui": 10241, "goodra-hisui": 10242,
+  "avalugg-hisui": 10243, "decidueye-hisui": 10244,
+  "wooper-paldea": 10253,
+  "tauros-paldea-combat-breed": 10250,
+  "tauros-paldea-blaze-breed": 10251,
+  "tauros-paldea-aqua-breed": 10252,
+};
+
+/**
+ * Resolves the correct PokeAPI numeric ID for a pokemon.
+ * For regional forms, uses the canonical name lookup table to ensure
+ * the correct ID is returned even if the pokedex data is stale.
+ */
+function resolvePokeApiId(
+  pokemonId: number | string,
+  canonicalName?: string,
+): number {
+  if (canonicalName) {
+    const mapped = REGIONAL_FORM_IDS[canonicalName.toLowerCase()];
+    if (mapped) return mapped;
+  }
+  return typeof pokemonId === "number"
+    ? pokemonId
+    : parseInt(String(pokemonId), 10);
+}
+
 /** Sprite style metadata for UI display and per-generation availability. */
 export interface SpriteStyleOption {
   key: SpriteStyle;
@@ -101,24 +158,25 @@ export function getSpriteUrl(
   canonicalName?: string,
 ): string {
   const shiny = spriteType === "shiny";
+  const resolvedId = resolvePokeApiId(pokemonId, canonicalName);
 
   // ── Animated (Pokémon Showdown GIFs) ─────────────────────────────────
   if (spriteStyle === "animated") {
-    return getShowdownAnimatedUrl(pokemonId, canonicalName, shiny);
+    return getShowdownAnimatedUrl(resolvedId, canonicalName, shiny);
   }
 
   // ── 3D Home renders ──────────────────────────────────────────────────
   if (spriteStyle === "3d") {
-    return getHome3dUrl(pokemonId, shiny);
+    return getHome3dUrl(resolvedId, shiny);
   }
 
   // ── Official Artwork ─────────────────────────────────────────────────
   if (spriteStyle === "artwork") {
-    return getOfficialArtworkUrl(pokemonId, shiny);
+    return getOfficialArtworkUrl(resolvedId, shiny);
   }
 
   // ── Classic: version-specific PokeAPI sprites ────────────────────────
-  return getClassicSpriteUrl(pokemonId, gameKey, shiny, canonicalName);
+  return getClassicSpriteUrl(resolvedId, gameKey, shiny, canonicalName);
 }
 
 /**
@@ -126,7 +184,7 @@ export function getSpriteUrl(
  * Uses canonical name (e.g. "bulbasaur", "charizard-mega-x").
  */
 function getShowdownAnimatedUrl(
-  pokemonId: number | string,
+  pokemonId: number,
   canonicalName?: string,
   shiny = false,
 ): string {
@@ -138,27 +196,22 @@ function getShowdownAnimatedUrl(
 
 /**
  * High-quality 3D render from Pokémon Home via PokeAPI.
+ * The ID must be the correct PokeAPI numeric ID (use resolvePokeApiId first).
  */
-function getHome3dUrl(pokemonId: number | string, shiny = false): string {
-  const id =
-    typeof pokemonId === "number" ? pokemonId : parseInt(String(pokemonId), 10);
+function getHome3dUrl(pokemonId: number, shiny = false): string {
   return shiny
-    ? `${POKEAPI_BASE}/other/home/shiny/${id || pokemonId}.png`
-    : `${POKEAPI_BASE}/other/home/${id || pokemonId}.png`;
+    ? `${POKEAPI_BASE}/other/home/shiny/${pokemonId}.png`
+    : `${POKEAPI_BASE}/other/home/${pokemonId}.png`;
 }
 
 /**
  * Official artwork (Ken Sugimori illustrations) from PokeAPI.
+ * The ID must be the correct PokeAPI numeric ID (use resolvePokeApiId first).
  */
-function getOfficialArtworkUrl(
-  pokemonId: number | string,
-  shiny = false,
-): string {
-  const id =
-    typeof pokemonId === "number" ? pokemonId : parseInt(String(pokemonId), 10);
+function getOfficialArtworkUrl(pokemonId: number, shiny = false): string {
   return shiny
-    ? `${POKEAPI_BASE}/other/official-artwork/shiny/${id || pokemonId}.png`
-    : `${POKEAPI_BASE}/other/official-artwork/${id || pokemonId}.png`;
+    ? `${POKEAPI_BASE}/other/official-artwork/shiny/${pokemonId}.png`
+    : `${POKEAPI_BASE}/other/official-artwork/${pokemonId}.png`;
 }
 
 /**
@@ -166,7 +219,7 @@ function getOfficialArtworkUrl(
  * Gen 6+ falls through to Showdown dex renders.
  */
 function getClassicSpriteUrl(
-  pokemonId: number | string,
+  pokemonId: number,
   gameKey: string,
   shiny: boolean,
   canonicalName?: string,
@@ -174,14 +227,11 @@ function getClassicSpriteUrl(
   const shinyPart = shiny ? "shiny/" : "";
   gameKey = gameKey || "";
 
-  const numId =
-    typeof pokemonId === "number" ? pokemonId : parseInt(String(pokemonId), 10);
-
   // Form variants (IDs > 10000) — always use default path
-  if (!isNaN(numId) && numId > 10000) {
+  if (pokemonId > 10000) {
     return shiny
-      ? `${POKEAPI_BASE}/shiny/${numId}.png`
-      : `${POKEAPI_BASE}/${numId}.png`;
+      ? `${POKEAPI_BASE}/shiny/${pokemonId}.png`
+      : `${POKEAPI_BASE}/${pokemonId}.png`;
   }
 
   // ── Gen 1 ────────────────────────────────────────────────────────────
