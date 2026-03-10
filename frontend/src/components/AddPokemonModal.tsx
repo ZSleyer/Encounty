@@ -26,6 +26,7 @@ export interface NewPokemonData {
   sprite_style: SpriteStyle;
   language: Language;
   game: string;
+  hunt_type: string;
 }
 
 interface PokemonForm {
@@ -90,6 +91,7 @@ export function AddPokemonModal({
 
   const [games, setGames] = useState<GameEntry[]>([]);
   const [selectedGame, setSelectedGame] = useState("");
+  const [huntType, setHuntType] = useState("encounter");
 
   // Get the generation for the currently selected game
   const selectedGameGen: number | null =
@@ -217,6 +219,7 @@ export function AddPokemonModal({
       sprite_style: spriteStyle,
       language,
       game: selectedGame,
+      hunt_type: huntType,
     });
     onClose();
   };
@@ -436,7 +439,7 @@ export function AddPokemonModal({
         />
       </div>
 
-      <div className="mb-5">
+      <div className="mb-4">
         <label
           htmlFor="game-select-add"
           className="block text-xs text-text-muted mb-1"
@@ -458,6 +461,27 @@ export function AddPokemonModal({
                 </option>
               ))}
             </optgroup>
+          ))}
+        </select>
+      </div>
+
+      <div className="mb-5">
+        <label
+          htmlFor="hunt-type-select-add"
+          className="block text-xs text-text-muted mb-1"
+        >
+          {t("huntType.label")}
+        </label>
+        <select
+          id="hunt-type-select-add"
+          value={huntType}
+          onChange={(e) => setHuntType(e.target.value)}
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
+        >
+          {(["encounter", "soft_reset", "masuda", "fossil", "gift", "radar", "horde", "sos", "outbreak", "sandwich"] as const).map((key) => (
+            <option key={key} value={key}>
+              {t(`huntType.${key}`)}
+            </option>
           ))}
         </select>
       </div>

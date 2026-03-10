@@ -27,6 +27,8 @@ type Pokemon struct {
 	Game          string           `json:"game"`     // key from games.json
 	CompletedAt   *time.Time       `json:"completed_at,omitempty"`
 	Overlay       *OverlaySettings `json:"overlay,omitempty"` // Pokemon-specific overlay settings
+	HuntType       string          `json:"hunt_type,omitempty"`
+	DetectorConfig *DetectorConfig `json:"detector_config,omitempty"`
 }
 
 // Session records one time-boxed encounter run for a single Pokémon.
@@ -47,6 +49,56 @@ type HotkeyMap struct {
 	Reset       string `json:"reset"`
 	NextPokemon string `json:"next_pokemon"`
 }
+
+// MatchedRegion defines a bounding box within a template and its match criteria.
+type MatchedRegion struct {
+	Type         string       `json:"type"`          // "image" | "text"
+	ExpectedText string       `json:"expected_text"` // used if Type == "text"
+	Rect         DetectorRect `json:"rect"`
+}
+
+// DetectorTemplate bundles the saved screenshot and its defined regions.
+type DetectorTemplate struct {
+	ImagePath string          `json:"image_path"`
+	Regions   []MatchedRegion `json:"regions"`
+}
+
+// DetectorRect defines a rectangular screen region in absolute pixel coordinates.
+type DetectorRect struct {
+	X int `json:"x"`
+	Y int `json:"y"`
+	W int `json:"w"`
+	H int `json:"h"`
+}
+
+// DetectorConfig holds all auto-detection settings for a single Pokémon hunt.
+// A nil DetectorConfig means auto-detection is disabled for that hunt.
+type DetectorConfig struct {
+	Enabled         bool               `json:"enabled"`
+	SourceType      string             `json:"source_type"`            // "screen_region" | "window" | "browser_camera" | "browser_display"
+	Region          DetectorRect       `json:"region"`
+	WindowTitle     string             `json:"window_title"`
+	Templates       []DetectorTemplate `json:"templates"`              // replaces TemplatePaths
+
+	Precision       float64            `json:"precision"`              // 0.0–1.0, default 0.85
+	ConsecutiveHits int                `json:"consecutive_hits"`       // consecutive matching frames required before counting
+	CooldownSec     int                `json:"cooldown_sec"`           // minimum seconds between counts
+	ChangeThreshold float64            `json:"change_threshold"`       // pixel-delta fraction required to leave MATCH state
+	PollIntervalMs  int                `json:"poll_interval_ms"`       // milliseconds between capture polls
+	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
+}
+
+// DetectionLogEntry records a single confirmed auto-detection match.
+type DetectionLogEntry struct {
+	// At is the UTC timestamp when the match was confirmed.
+	At time.Time `json:"at"`
+	// Confidence is the NCC score that triggered the match (0.0–1.0).
+	Confidence float64 `json:"confidence"`
+}
+
+// maxDetectionLog is the maximum number of log entries retained per hunt.
+const maxDetectionLog = 20
+
 
 // GradientStop defines one colour stop in a CSS-style linear gradient.
 type GradientStop struct {
@@ -565,8 +617,44 @@ func (m *Manager) EndSession(id string) {
 	}
 }
 
+// SetDetectorConfig replaces the DetectorConfig for the Pokémon with the given id.
+// Pass nil to disable auto-detection for that hunt.
+// Returns false if no matching Pokémon was found.
+func (m *Manager) SetDetectorConfig(id string, cfg *DetectorConfig) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			m.state.Pokemon[i].DetectorConfig = cfg
+			go m.notify()
+			return true
+		}
+	}
+	return false
+}
+
 // GetConfigDir returns the directory used for state persistence
 // (e.g. ~/.config/encounty on Linux).
 func (m *Manager) GetConfigDir() string {
 	return m.configDir
+}
+
+// AppendDetectionLog records a confirmed auto-detection match for the Pokémon
+// with the given id. Only the last maxDetectionLog entries are retained; older
+// entries are dropped (FIFO). No-ops silently if the Pokémon has no DetectorConfig.
+func (m *Manager) AppendDetectionLog(id string, confidence float64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		p := &m.state.Pokemon[i]
+		if p.ID != id || p.DetectorConfig == nil {
+			continue
+		}
+		entry := DetectionLogEntry{At: time.Now().UTC(), Confidence: confidence}
+		p.DetectorConfig.DetectionLog = append(p.DetectorConfig.DetectionLog, entry)
+		if len(p.DetectorConfig.DetectionLog) > maxDetectionLog {
+			p.DetectorConfig.DetectionLog = p.DetectorConfig.DetectionLog[len(p.DetectorConfig.DetectionLog)-maxDetectionLog:]
+		}
+		return
+	}
 }

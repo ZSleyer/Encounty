@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zsleyer/encounty/internal/detector"
 	"github.com/zsleyer/encounty/internal/fileoutput"
 	"github.com/zsleyer/encounty/internal/hotkeys"
 	"github.com/zsleyer/encounty/internal/server"
@@ -87,6 +88,12 @@ func main() {
 		log.Printf("Warning: global hotkeys unavailable: %v", err)
 	}
 
+	// Detector manager — broadcast function is wired after server creation.
+	var broadcastFn detector.BroadcastFunc = func(msgType string, payload any) {}
+	detectorMgr := detector.NewManager(stateMgr, func(msgType string, payload any) {
+		broadcastFn(msgType, payload)
+	}, configDir)
+
 	// Frontend FS
 	var frontFS fs.FS
 	if !*devMode {
@@ -95,15 +102,19 @@ func main() {
 
 	// Server
 	srv := server.New(server.Config{
-		Port:       port,
-		FrontendFS: frontFS,
-		State:      stateMgr,
-		HotkeyMgr:  hotkeyMgr,
-		FileWriter: fileWriter,
-		Version:    version,
-		Commit:     commit,
-		ConfigDir:  configDir,
+		Port:        port,
+		FrontendFS:  frontFS,
+		State:       stateMgr,
+		HotkeyMgr:   hotkeyMgr,
+		FileWriter:  fileWriter,
+		Version:     version,
+		Commit:      commit,
+		ConfigDir:   configDir,
+		DetectorMgr: detectorMgr,
 	})
+
+	// Wire the real broadcast function now that the server (and hub) exist.
+	broadcastFn = srv.Broadcast
 
 	// Open browser
 	go func() {

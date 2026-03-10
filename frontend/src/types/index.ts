@@ -18,6 +18,8 @@ export interface Pokemon {
   game: string; // key from games.json
   completed_at?: string; // ISO timestamp when hunt completed
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
+  hunt_type?: string;
+  detector_config?: DetectorConfig;
 }
 
 /** GameEntry is one Pokémon game as returned by GET /api/games. */
@@ -44,6 +46,60 @@ export interface HotkeyMap {
   decrement: string;
   reset: string;
   next_pokemon: string;
+}
+
+/** DetectorRect defines a rectangular screen region in absolute pixel coordinates. */
+export interface DetectorRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** DetectionLogEntry records one confirmed auto-detection match. */
+export interface DetectionLogEntry {
+  at: string;          // ISO timestamp
+  confidence: number;  // 0.0–1.0
+}
+
+/** MatchedRegion defines a bounding box within a template and its match criteria. */
+export interface MatchedRegion {
+  type: "image" | "text";
+  expected_text: string;
+  rect: DetectorRect;
+}
+
+/** DetectorTemplate bundles the saved screenshot and its defined regions. */
+export interface DetectorTemplate {
+  image_path: string;
+  regions: MatchedRegion[];
+}
+
+/** DetectorConfig holds all auto-detection settings for a single Pokémon hunt. */
+export interface DetectorConfig {
+  enabled: boolean;
+  source_type: "screen_region" | "window" | "browser_camera" | "browser_display";
+  region: DetectorRect;
+  window_title: string;
+  templates: DetectorTemplate[];
+  precision: number;        // 0.0–1.0
+  consecutive_hits: number;
+  cooldown_sec: number;
+  change_threshold: number;
+  poll_interval_ms: number;
+  detection_log?: DetectionLogEntry[]; // last N confirmed matches
+}
+
+/** HuntTypePreset is metadata for one shiny hunting method, returned by the server. */
+export interface HuntTypePreset {
+  key: string;
+  name_de: string;
+  name_en: string;
+  odds_numer: number;
+  odds_denom: number;
+  default_cooldown_sec: number;
+  default_consecutive_hits: number;
+  template_tip: string;
 }
 
 export interface GradientStop {

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -74,8 +75,13 @@ func (s *Server) handleUpdatePokemon(w http.ResponseWriter, r *http.Request, id 
 }
 
 // handleDeletePokemon removes the Pokémon with the given id.
+// It also stops any running detector goroutine and removes the template files.
 // DELETE /api/pokemon/{id}
 func (s *Server) handleDeletePokemon(w http.ResponseWriter, _ *http.Request, id string) {
+	if s.detectorMgr != nil {
+		s.detectorMgr.Stop(id)
+	}
+	_ = os.RemoveAll(filepath.Join(s.state.GetConfigDir(), "templates", id))
 	if !s.state.DeletePokemon(id) {
 		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
 		return
@@ -257,6 +263,13 @@ func (s *Server) handleUpdateSingleHotkey(w http.ResponseWriter, r *http.Request
 // handleGetGames returns the games list sorted by generation. GET /api/games
 func (s *Server) handleGetGames(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, loadGames())
+}
+
+// handleGetHuntTypes returns all available hunt type presets as JSON.
+// The slice is ordered as defined in state.HuntTypePresets.
+// GET /api/hunt-types
+func (s *Server) handleGetHuntTypes(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, state.HuntTypePresets)
 }
 
 // handleOverlayState returns only the data needed by the OBS overlay page:

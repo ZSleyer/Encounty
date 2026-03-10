@@ -47,6 +47,29 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		io.Copy(fw, f)
 		f.Close()
 	}
+
+	// Recursively include all template images under templates/.
+	templatesDir := filepath.Join(configDir, "templates")
+	_ = filepath.WalkDir(templatesDir, func(path string, d os.DirEntry, _ error) error {
+		if d == nil || d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(configDir, path)
+		if err != nil {
+			return nil
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return nil
+		}
+		defer f.Close()
+		fw, err := zw.Create(rel)
+		if err != nil {
+			return nil
+		}
+		io.Copy(fw, f)
+		return nil
+	})
 }
 
 // handleRestore accepts a multipart form upload of a backup ZIP, extracts

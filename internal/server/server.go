@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/zsleyer/encounty/internal/detector"
 	"github.com/zsleyer/encounty/internal/fileoutput"
 	"github.com/zsleyer/encounty/internal/hotkeys"
 	"github.com/zsleyer/encounty/internal/state"
@@ -19,26 +20,28 @@ import (
 // Server wires together the HTTP multiplexer, WebSocket hub, hotkey manager,
 // file-output writer, and state manager into a single runnable unit.
 type Server struct {
-	state      *state.Manager
-	hub        *Hub
-	hotkeyMgr  hotkeys.Manager
-	fileWriter *fileoutput.Writer
-	httpServer *http.Server
-	frontendFS fs.FS
-	version    string
-	commit     string
+	state       *state.Manager
+	hub         *Hub
+	hotkeyMgr   hotkeys.Manager
+	fileWriter  *fileoutput.Writer
+	httpServer  *http.Server
+	frontendFS  fs.FS
+	version     string
+	commit      string
+	detectorMgr *detector.Manager
 }
 
 // Config carries all dependencies needed to construct a Server.
 type Config struct {
-	Port       int
-	FrontendFS fs.FS
-	State      *state.Manager
-	HotkeyMgr  hotkeys.Manager
-	FileWriter *fileoutput.Writer
-	Version    string
-	Commit     string
-	ConfigDir  string
+	Port        int
+	FrontendFS  fs.FS
+	State       *state.Manager
+	HotkeyMgr   hotkeys.Manager
+	FileWriter  *fileoutput.Writer
+	Version     string
+	Commit      string
+	ConfigDir   string
+	DetectorMgr *detector.Manager
 }
 
 // New creates a Server from cfg, registers all HTTP routes, and starts the
@@ -50,13 +53,14 @@ func New(cfg Config) *Server {
 	}
 
 	s := &Server{
-		state:      cfg.State,
-		hub:        NewHub(),
-		hotkeyMgr:  cfg.HotkeyMgr,
-		fileWriter: cfg.FileWriter,
-		frontendFS: cfg.FrontendFS,
-		version:    cfg.Version,
-		commit:     cfg.Commit,
+		state:       cfg.State,
+		hub:         NewHub(),
+		hotkeyMgr:   cfg.HotkeyMgr,
+		fileWriter:  cfg.FileWriter,
+		frontendFS:  cfg.FrontendFS,
+		version:     cfg.Version,
+		commit:      cfg.Commit,
+		detectorMgr: cfg.DetectorMgr,
 	}
 
 	// Wire hotkey actions to state changes
@@ -97,6 +101,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("/api/overlay/state", s.handleOverlayState)
 	mux.HandleFunc("/api/games", s.handleGetGames)
+	mux.HandleFunc("/api/hunt-types", s.handleGetHuntTypes)
 	mux.HandleFunc("/api/games/sync", s.handleSyncGames)
 	mux.HandleFunc("/api/pokedex", s.handleGetPokedex)
 	mux.HandleFunc("/api/sync/pokemon", s.handleSyncPokemon)
@@ -154,6 +159,12 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 			}
 		}
 	})
+
+	// Detector API
+	mux.HandleFunc("/api/detector/screenshot", s.handleDetectorScreenshot)
+	mux.HandleFunc("/api/detector/windows", s.handleDetectorWindows)
+	mux.HandleFunc("/api/detector/status", s.handleDetectorStatus)
+	mux.HandleFunc("/api/detector/", s.handleDetectorDispatch)
 
 	// Frontend static files / SPA fallback
 	if s.frontendFS != nil {
@@ -215,9 +226,20 @@ func (s *Server) Start() error {
 }
 
 // Shutdown gracefully stops the HTTP server, waiting up to ctx's deadline
-// for in-flight requests to complete.
+// for in-flight requests to complete. If a detector manager is wired, all
+// running detectors are stopped before the HTTP server shuts down.
 func (s *Server) Shutdown(ctx context.Context) error {
+	if s.detectorMgr != nil {
+		s.detectorMgr.StopAll()
+	}
 	return s.httpServer.Shutdown(ctx)
+}
+
+// Broadcast sends a WebSocket event to all connected clients.
+// This is the same as calling hub.Broadcast directly and is exposed
+// so that external packages (e.g. detector) can emit events.
+func (s *Server) Broadcast(msgType string, payload any) {
+	s.hub.BroadcastRaw(msgType, payload)
 }
 
 // Hub returns the WebSocket hub so main can call CloseAll during shutdown.

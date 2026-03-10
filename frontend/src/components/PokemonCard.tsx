@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Minus, RotateCcw, Star, Edit2, Gamepad2 } from "lucide-react";
 import { Pokemon } from "../types";
-import { useCounterStore } from "../hooks/useCounterState";
+import { useCounterStore, DetectorStatusEntry } from "../hooks/useCounterState";
 
 interface Props {
   readonly pokemon: Pokemon;
@@ -15,6 +15,19 @@ interface Props {
 
 const SPRITE_FALLBACK = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23333'/><text y='.9em' font-size='60' x='50%' text-anchor='middle' dominant-baseline='middle'>?</text></svg>`;
 
+/** Returns Tailwind dot colour + pulse flag based on detector status. */
+function detectorDotClass(entry: DetectorStatusEntry): { cls: string; pulse: boolean; title: string } {
+  switch (entry.state) {
+    case "match_active":
+      return { cls: "bg-green-400", pulse: false, title: "Detector: Match" };
+    case "cooldown":
+      return { cls: "bg-amber-400", pulse: false, title: "Detector: Cooldown" };
+    default:
+      return { cls: "bg-accent-blue", pulse: true, title: "Detector: Running" };
+  }
+}
+
+
 export function PokemonCard({
   pokemon,
   onIncrement,
@@ -24,9 +37,10 @@ export function PokemonCard({
   onDelete,
   onEdit,
 }: Props) {
-  const { lastEncounterPokemonId } = useCounterStore();
+  const { lastEncounterPokemonId, detectorStatus } = useCounterStore();
   const isFlashing = lastEncounterPokemonId === pokemon.id;
   const [imgError, setImgError] = useState(false);
+  const statusEntry = detectorStatus[pokemon.id];
 
   const spriteUrl =
     imgError || !pokemon.sprite_url ? SPRITE_FALLBACK : pokemon.sprite_url;
@@ -48,6 +62,7 @@ export function PokemonCard({
       className={`relative rounded-xl border transition-all duration-300 overflow-hidden flex flex-col ${
         pokemon.is_active
           ? "border-accent-blue/50 bg-gradient-to-b from-bg-card to-accent-blue/5 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-[1.02]"
+
           : "border-border-subtle bg-bg-card hover:border-border-active/40 hover:shadow-lg cursor-pointer"
       } ${isFlashing ? "animate-flash" : ""}`}
     >
@@ -55,6 +70,17 @@ export function PokemonCard({
       {pokemon.is_active && (
         <div className="absolute top-0 left-0 right-0 h-1 bg-accent-blue" />
       )}
+
+      {/* Detector status indicator — only visible while a detector is active */}
+      {statusEntry && (() => {
+        const { cls, pulse, title } = detectorDotClass(statusEntry);
+        return (
+          <span
+            className={`absolute top-2 left-2 w-2 h-2 rounded-full ${cls} ${pulse ? "animate-pulse" : ""}`}
+            title={title}
+          />
+        );
+      })()}
 
       {/* Header logic (edit, active star, delete) */}
       <div className="absolute top-2 right-2 flex gap-1">

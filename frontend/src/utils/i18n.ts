@@ -49,6 +49,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.addNew": "Neues Pokémon hinzufügen",
     "dash.search": "Suchen…",
     "dash.searchShortcut": "Suchen… (Ctrl+K)",
+    "dash.tabCounter": "Zähler",
+    "dash.tabDetector": "Auto Erkennung",
     "dash.tabActive": "Aktiv",
     "dash.tabArchive": "Archiv",
     "dash.noArchive": "Noch keine Hunts archiviert",
@@ -96,6 +98,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "modal.missingNamesShort":
       "Pokédex nicht synchronisiert — nur englische Namen verfügbar.",
 
+    // ── Hunt Types ──
+    "huntType.label": "Jagd-Methode",
+    "huntType.encounter": "Zufallsbegegnung",
+    "huntType.soft_reset": "Soft Reset",
+    "huntType.masuda": "Masuda-Methode",
+    "huntType.fossil": "Fossil-Revival",
+    "huntType.gift": "Geschenk / Mystery Gift",
+    "huntType.radar": "Pokéradar",
+    "huntType.horde": "Horden-Begegnung",
+    "huntType.sos": "Notruf-Kette",
+    "huntType.outbreak": "Massenausbruch",
+    "huntType.sandwich": "Sandwich-Methode",
+    "huntType.odds": "Chancen",
+
     // ── Settings ──
     "settings.title": "Einstellungen",
     "settings.tabGeneral": "Allgemein",
@@ -133,7 +149,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.themeDark": "Dunkel",
     "settings.themeLight": "Hell",
     "settings.backupTitle": "Backup & Wiederherstellung",
-    "settings.backupDesc": "Alle Pokémon, Zähler und Einstellungen als ZIP-Datei sichern.",
+    "settings.backupDesc":
+      "Alle Pokémon, Zähler und Einstellungen als ZIP-Datei sichern.",
     "settings.dataPath": "Daten gespeichert unter:",
     "settings.backupBtn": "Backup erstellen",
     "settings.restoreDesc": "Backup-ZIP hochladen und Daten wiederherstellen.",
@@ -142,7 +159,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.restoreError": "Wiederherstellung fehlgeschlagen",
     "settings.encounterToast": "enc.",
     "settings.crispSprites": "Sprites scharf skalieren",
-    "settings.crispSpritesDesc": "Pixel-Art Sprites (Classic, Animated) mit Nearest-Neighbour skalieren – verhindert Unschärfe.",
+    "settings.crispSpritesDesc":
+      "Pixel-Art Sprites (Classic, Animated) mit Nearest-Neighbour skalieren – verhindert Unschärfe.",
 
     // ── Overlay Editor ──
     "overlay.layers": "Ebenen",
@@ -210,9 +228,107 @@ const translations: Record<Locale, Record<string, string>> = {
     "overlay.specificPokemon": "Spezifisches Pokémon",
     "overlay.customized": "(Angepasst)",
     "overlay.removeCustom": "Entfernen",
-    "overlay.unsavedChanges": "Du hast ungespeicherte Änderungen am Overlay. Trotzdem wechseln?",
-    "overlay.deleteCustomConfirm": "Spezifisches Overlay löschen und auf globales Overlay zurücksetzen?",
+    "overlay.unsavedChanges":
+      "Du hast ungespeicherte Änderungen am Overlay. Trotzdem wechseln?",
+    "overlay.deleteCustomConfirm":
+      "Spezifisches Overlay löschen und auf globales Overlay zurücksetzen?",
     "overlay.editorTitle": "Overlay-Editor (OBS Browser Source)",
+
+    // ── Detector Panel ──
+    "detector.title": "Auto-Erkennung",
+    "detector.start": "Erkennung starten",
+    "detector.stop": "Stoppen",
+    "detector.starting": "Wird gestartet…",
+    "detector.stopped": "Gestoppt",
+    "detector.stateIdle": "Suche…",
+    "detector.stateMatch": "Treffer!",
+    "detector.stateCooldown": "Cooldown",
+    "detector.sourceClassic": "Screen Region (Classic)",
+    "detector.sourceCamera": "Kamera / OBS Virtual Camera",
+    "detector.sourceBrowser": "Screen Capture (Browser)",
+    "detector.source": "Quelle",
+    "detector.connect": "Verbinden",
+    "detector.disconnect": "Trennen",
+    "detector.noStream": "Keine Verbindung",
+    "detector.settings": "Einstellungen",
+    "detector.errNoStream": "Verbinde zuerst eine Quelle",
+    "detector.addFromVideo": "Aus Video",
+    "detector.addFromSprite": "Aus Sprite",
+    "detector.editTemplate": "Bearbeiten",
+    "detector.tabHint":
+      "Encounters automatisch per Bildschirmaufnahme oder Kamera erkennen.",
+    "detector.precisionDesc":
+      "Wie genau das Bild übereinstimmen muss. Niedrigere Werte sind fehlertoleranter.",
+    "detector.cooldownDesc":
+      "Pause nach einem Treffer bevor erneut geprüft wird.",
+    "detector.hitsDesc": "Aufeinanderfolgende Treffer für eine Wertung.",
+    "detector.intervalDesc": "Wie oft ein Frame geprüft wird.",
+    "detector.resetSettings": "Einstellungen zurücksetzen",
+    "detector.region": "Erkennungsbereich",
+    "detector.noRegion": "Kein Bereich ausgewählt",
+    "detector.selectRegion": "Region auswählen",
+    "detector.templates": "Templates",
+    "detector.noTemplates": "Keine Templates",
+    "detector.captureTemplate": "Template aufnehmen",
+    "detector.deleteTemplate": "Template löschen",
+    "detector.precision": "Genauigkeit",
+    "detector.cooldown": "Cooldown (s)",
+    "detector.hits": "Treffer",
+    "detector.interval": "Intervall (ms)",
+    "detector.save": "Speichern",
+    "detector.reset": "Zurücksetzen",
+    "detector.odds": "Chancen",
+    "detector.applyDefaults": "Defaults",
+    "detector.applyDefaultsTitle":
+      "Cooldown und Treffer auf Preset-Werte zurücksetzen",
+    "detector.errNoRegion": "Kein Erkennungsbereich ausgewählt.",
+    "detector.errNoTemplates": "Keine Templates vorhanden.",
+    "detector.errCaptureFailed": "Template-Aufnahme fehlgeschlagen.",
+    "detector.errStartFailed": "Detektor konnte nicht gestartet werden.",
+    "detector.errDeleteTemplate": "Template konnte nicht gelöscht werden.",
+    "detector.errDismiss": "Klicken zum Schließen",
+    "detector.logTitle": "Erkennungs-Verlauf",
+    "detector.source.browserDisplay": "Bildschirmaufnahme (Browser)",
+    "detector.source.browserCamera": "Kamera (Browser)",
+    "detector.startCapture": "Aufnahme starten",
+    "detector.stopCapture": "Aufnahme stoppen",
+    "detector.openEditor": "Template-Editor öffnen",
+    "detector.tesseractHint": "Tesseract installieren für Text-Erkennung",
+
+    // ── Template Editor ──
+    "templateEditor.title": "Template-Editor",
+    "templateEditor.editTitle": "Template bearbeiten",
+    "templateEditor.step1Title": "Schritt 1: Frame auswählen",
+    "templateEditor.step2Title": "Schritt 2: Regionen definieren",
+    "templateEditor.editHint":
+      "Passe die gescannten Bereiche auf dem bestehenden Template-Bild an.",
+    "templateEditor.step1Hint":
+      "Warte auf den richtigen Moment und pausiere das Bild.",
+    "templateEditor.step2Hint":
+      "Ziehe Rechtecke, um zu scannende Bereiche zu markieren (z.B. Pokémon und Text).",
+    "templateEditor.takeSnapshot": "Schnappschuss",
+    "templateEditor.retake": "Neu aufnehmen",
+    "templateEditor.cancel": "Abbrechen",
+    "templateEditor.saving": "Speichere…",
+    "templateEditor.addRegion": "Region hinzufügen",
+    "templateEditor.regionType": "Typ",
+    "templateEditor.regionImage": "Bild",
+    "templateEditor.regionText": "Text",
+    "templateEditor.expectedText": "Erwarteter Text",
+    "templateEditor.saveTemplate": "Template speichern",
+    "templateEditor.noRegions": "Keine Regionen — ganzes Bild wird verglichen",
+    "templateEditor.ocrHint":
+      "Text-Regionen werden per OCR mit dem erwarteten Text verglichen.",
+    "templateEditor.deleteRegion": "Region löschen",
+    "templateEditor.regionN": "Region",
+
+    // ── Region Picker ──
+    "regionPicker.instruction":
+      "Klicke und ziehe um den Spielbereich auszuwählen",
+    "regionPicker.cancel": "Abbrechen",
+    "regionPicker.confirm": "Bestätigen",
+    "regionPicker.reload": "Neu laden",
+    "regionPicker.loadError": "Screenshot konnte nicht geladen werden",
   },
 
   en: {
@@ -246,6 +362,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.addNew": "Add new Pokémon",
     "dash.search": "Search…",
     "dash.searchShortcut": "Search… (Ctrl+K)",
+    "dash.tabCounter": "Counter",
+    "dash.tabDetector": "Auto-Detection",
     "dash.tabActive": "Active",
     "dash.tabArchive": "Archive",
     "dash.noArchive": "No archived hunts yet",
@@ -293,6 +411,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "modal.missingNamesShort":
       "Pokédex not synced — only English names available.",
 
+    // ── Hunt Types ──
+    "huntType.label": "Hunt Method",
+    "huntType.encounter": "Wild Encounter",
+    "huntType.soft_reset": "Soft Reset",
+    "huntType.masuda": "Masuda Method",
+    "huntType.fossil": "Fossil Revival",
+    "huntType.gift": "Gift / Mystery Gift",
+    "huntType.radar": "Poké Radar",
+    "huntType.horde": "Horde Encounter",
+    "huntType.sos": "SOS Chaining",
+    "huntType.outbreak": "Mass Outbreak",
+    "huntType.sandwich": "Sandwich Method",
+    "huntType.odds": "Odds",
+
     // ── Settings ──
     "settings.title": "Settings",
     "settings.tabGeneral": "General",
@@ -330,7 +462,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.themeDark": "Dark",
     "settings.themeLight": "Light",
     "settings.backupTitle": "Backup & Restore",
-    "settings.backupDesc": "Save all Pokémon, counters and settings as a ZIP file.",
+    "settings.backupDesc":
+      "Save all Pokémon, counters and settings as a ZIP file.",
     "settings.dataPath": "Data currently stored at:",
     "settings.backupBtn": "Create backup",
     "settings.restoreDesc": "Upload a backup ZIP to restore your data.",
@@ -339,7 +472,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.restoreError": "Restore failed",
     "settings.encounterToast": "enc.",
     "settings.crispSprites": "Crisp sprite scaling",
-    "settings.crispSpritesDesc": "Scale pixel-art sprites (Classic, Animated) with nearest-neighbour — prevents blurriness on small sprites.",
+    "settings.crispSpritesDesc":
+      "Scale pixel-art sprites (Classic, Animated) with nearest-neighbour — prevents blurriness on small sprites.",
 
     // ── Overlay Editor ──
     "overlay.layers": "Layers",
@@ -408,8 +542,103 @@ const translations: Record<Locale, Record<string, string>> = {
     "overlay.customized": "(Customized)",
     "overlay.removeCustom": "Remove",
     "overlay.unsavedChanges": "You have unsaved changes. Switch anyway?",
-    "overlay.deleteCustomConfirm": "Delete specific overlay and reset to global?",
+    "overlay.deleteCustomConfirm":
+      "Delete specific overlay and reset to global?",
     "overlay.editorTitle": "Overlay Editor (OBS Browser Source)",
+
+    // ── Detector Panel ──
+    "detector.title": "Auto-Detection",
+    "detector.start": "Start Detection",
+    "detector.stop": "Stop",
+    "detector.starting": "Starting…",
+    "detector.stopped": "Stopped",
+    "detector.stateIdle": "Scanning…",
+    "detector.stateMatch": "Match!",
+    "detector.stateCooldown": "Cooldown",
+    "detector.sourceClassic": "Screen Region (Classic)",
+    "detector.sourceCamera": "Camera / OBS Virtual Camera",
+    "detector.sourceBrowser": "Screen Capture (Browser)",
+    "detector.source": "Source",
+    "detector.connect": "Connect",
+    "detector.disconnect": "Disconnect",
+    "detector.noStream": "No connection",
+    "detector.settings": "Settings",
+    "detector.errNoStream": "Connect a source first",
+    "detector.addFromVideo": "From Video",
+    "detector.addFromSprite": "From Sprite",
+    "detector.editTemplate": "Edit",
+    "detector.tabHint":
+      "Automatically track encounters via screen capture or camera.",
+    "detector.precisionDesc":
+      "How closely the image must match. Lower values are more forgiving.",
+    "detector.cooldownDesc": "Pause after a match before checking again.",
+    "detector.hitsDesc": "Consecutive matches required to count.",
+    "detector.intervalDesc": "How often a frame is checked.",
+    "detector.resetSettings": "Reset settings",
+    "detector.region": "Detection Region",
+    "detector.noRegion": "No region selected",
+    "detector.selectRegion": "Select Region",
+    "detector.templates": "Templates",
+    "detector.noTemplates": "No templates",
+    "detector.captureTemplate": "Capture Template",
+    "detector.deleteTemplate": "Delete template",
+    "detector.precision": "Precision",
+    "detector.cooldown": "Cooldown (s)",
+    "detector.hits": "Hits",
+    "detector.interval": "Interval (ms)",
+    "detector.save": "Save",
+    "detector.reset": "Reset",
+    "detector.odds": "Odds",
+    "detector.applyDefaults": "Defaults",
+    "detector.applyDefaultsTitle":
+      "Reset cooldown and hits to hunt-type preset values",
+    "detector.errNoRegion": "No detection region selected.",
+    "detector.errNoTemplates": "No templates captured yet.",
+    "detector.errCaptureFailed": "Template capture failed.",
+    "detector.errStartFailed": "Failed to start detector.",
+    "detector.errDeleteTemplate": "Failed to delete template.",
+    "detector.errDismiss": "Click to dismiss",
+    "detector.logTitle": "Detection History",
+    "detector.source.browserDisplay": "Screen Capture (Browser)",
+    "detector.source.browserCamera": "Camera (Browser)",
+    "detector.startCapture": "Start Capture",
+    "detector.stopCapture": "Stop Capture",
+    "detector.openEditor": "Open Template Editor",
+    "detector.tesseractHint": "Install Tesseract for text matching",
+
+    // ── Template Editor ──
+    "templateEditor.title": "Template Editor",
+    "templateEditor.editTitle": "Edit Template",
+    "templateEditor.step1Title": "Step 1: Select Frame",
+    "templateEditor.step2Title": "Step 2: Define Regions",
+    "templateEditor.editHint":
+      "Adjust the scanned regions on the existing template image.",
+    "templateEditor.step1Hint":
+      "Wait for the right moment and freeze the image.",
+    "templateEditor.step2Hint":
+      "Draw rectangles to mark scan regions (e.g. Pokémon and text).",
+    "templateEditor.takeSnapshot": "Take Snapshot",
+    "templateEditor.retake": "Retake",
+    "templateEditor.cancel": "Cancel",
+    "templateEditor.saving": "Saving…",
+    "templateEditor.addRegion": "Add Region",
+    "templateEditor.regionType": "Type",
+    "templateEditor.regionImage": "Image",
+    "templateEditor.regionText": "Text",
+    "templateEditor.expectedText": "Expected Text",
+    "templateEditor.saveTemplate": "Save Template",
+    "templateEditor.noRegions": "No regions — full image will be compared",
+    "templateEditor.ocrHint":
+      "Text regions are matched against the expected text via OCR.",
+    "templateEditor.deleteRegion": "Delete Region",
+    "templateEditor.regionN": "Region",
+
+    // ── Region Picker ──
+    "regionPicker.instruction": "Click and drag to select the game area",
+    "regionPicker.cancel": "Cancel",
+    "regionPicker.confirm": "Confirm",
+    "regionPicker.reload": "Reload",
+    "regionPicker.loadError": "Could not load screenshot",
   },
 };
 
