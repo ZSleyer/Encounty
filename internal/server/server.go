@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -173,7 +173,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	if s.frontendFS != nil {
 		subFS, err := fs.Sub(s.frontendFS, "frontend/dist")
 		if err != nil {
-			log.Printf("frontend embed error: %v", err)
+			slog.Error("Frontend embed error", "error", err)
 		} else {
 			mux.Handle("/", spaHandler(subFS))
 		}
@@ -194,7 +194,7 @@ func spaHandler(fsys fs.FS) http.Handler {
 
 	indexHTML, err := fs.ReadFile(fsys, "index.html")
 	if err != nil {
-		log.Printf("spaHandler: could not read index.html: %v", err)
+		slog.Error("spaHandler: could not read index.html", "error", err)
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -224,7 +224,7 @@ func spaHandler(fsys fs.FS) http.Handler {
 // Start begins accepting HTTP connections. Blocks until the server is shut
 // down; returns http.ErrServerClosed on a clean shutdown.
 func (s *Server) Start() error {
-	log.Printf("Server listening on %s", s.httpServer.Addr)
+	slog.Info("Server listening", "addr", s.httpServer.Addr)
 	return s.httpServer.ListenAndServe()
 }
 

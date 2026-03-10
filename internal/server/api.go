@@ -6,7 +6,7 @@ package server
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -232,7 +232,7 @@ func (s *Server) handleUpdateHotkeys(w http.ResponseWriter, r *http.Request) {
 	s.state.UpdateHotkeys(hk)
 	s.state.ScheduleSave()
 	if err := s.hotkeyMgr.UpdateAllBindings(hk); err != nil {
-		log.Printf("hotkeys: UpdateAllBindings: %v", err)
+		slog.Error("Failed to update hotkey bindings", "error", err)
 	}
 	s.broadcastState()
 	writeJSON(w, http.StatusOK, hk)
@@ -391,7 +391,7 @@ func (s *Server) handleSyncGames(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := SyncGamesFromPokeAPI()
 	if err != nil {
-		log.Printf("games sync error: %v", err)
+		slog.Error("Games sync error", "error", err)
 		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
@@ -443,7 +443,7 @@ func (s *Server) handleQuit(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		if err := s.state.Save(); err != nil {
-			log.Printf("Save error on quit: %v", err)
+			slog.Error("Failed to save state on quit", "error", err)
 		}
 		s.hotkeyMgr.Stop()
 		os.Exit(0)
@@ -462,17 +462,17 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		if err := s.state.Save(); err != nil {
-			log.Printf("Save error on restart: %v", err)
+			slog.Error("Failed to save state on restart", "error", err)
 		}
 		s.hotkeyMgr.Stop()
 
 		exe, err := os.Executable()
 		if err != nil {
-			log.Printf("Restart: could not get executable path: %v", err)
+			slog.Error("Restart: could not get executable path", "error", err)
 			os.Exit(1)
 		}
 		if err := reexec(exe, os.Args[1:]); err != nil {
-			log.Printf("Restart failed: %v", err)
+			slog.Error("Restart failed", "error", err)
 			os.Exit(1)
 		}
 	}()

@@ -13,7 +13,7 @@ package detector
 
 import (
 	"image"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -124,7 +124,7 @@ func (bd *BrowserDetector) SubmitFrame(frame image.Image) BrowserMatchResult {
 			bd.cooldownEnd = time.Now().Add(time.Duration(cooldownSec) * time.Second)
 			bd.phase = stateMatchActive
 			incremented = true
-			log.Printf("[detector] match confirmed, cooldown=%ds", cooldownSec)
+			slog.Debug("Detector match confirmed", "cooldown_sec", cooldownSec)
 		}
 
 	case stateMatchActive:

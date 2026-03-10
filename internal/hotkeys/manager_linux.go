@@ -11,7 +11,7 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -75,7 +75,7 @@ func (m *linuxManager) Start() error {
 
 	devs, err := findKeyboardDevices()
 	if err != nil {
-		log.Printf("hotkeys: device enumeration error: %v", err)
+		slog.Warn("Hotkeys: device enumeration error", "error", err)
 	}
 	if len(devs) == 0 {
 		m.available = false
@@ -134,11 +134,11 @@ func (m *linuxManager) loadBindings(hm state.HotkeyMap) {
 		}
 		kc, err := ParseKeyCombo(combo)
 		if err != nil {
-			log.Printf("hotkeys: parse error for %q (%s): %v", combo, action, err)
+			slog.Warn("Hotkeys: parse error", "combo", combo, "action", action, "error", err)
 			continue
 		}
 		if platformValidateKey(kc.Key) != nil {
-			log.Printf("hotkeys: unknown key %q in combo %q (%s)", kc.Key, combo, action)
+			slog.Warn("Hotkeys: unknown key", "key", kc.Key, "combo", combo, "action", action)
 			continue
 		}
 		next[action] = kc

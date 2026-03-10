@@ -4,7 +4,7 @@ import (
 	"context"
 	"image"
 	"image/png"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -102,13 +102,13 @@ func loadTemplates(templates []state.DetectorTemplate, configDir, pokemonID stri
 		}
 		f, err := os.Open(absPath)
 		if err != nil {
-			log.Printf("detector[%s]: skipping missing template %q: %v", pokemonID, absPath, err)
+			slog.Warn("Detector skipping missing template", "pokemon_id", pokemonID, "path", absPath, "error", err)
 			continue
 		}
 		img, err := png.Decode(f)
 		f.Close()
 		if err != nil {
-			log.Printf("detector[%s]: failed to decode template %q: %v", pokemonID, absPath, err)
+			slog.Warn("Detector failed to decode template", "pokemon_id", pokemonID, "path", absPath, "error", err)
 			continue
 		}
 		result = append(result, loadedTemplate{img: img, meta: t})
@@ -121,7 +121,7 @@ func (d *Detector) Run(ctx context.Context) {
 	// Load templates.
 	d.templates = loadTemplates(d.cfg.Templates, d.configDir, d.pokemonID)
 	if len(d.templates) == 0 {
-		log.Printf("detector[%s]: no templates loaded; stopping", d.pokemonID)
+		slog.Warn("Detector has no templates loaded, stopping", "pokemon_id", d.pokemonID)
 		return
 	}
 
@@ -165,7 +165,7 @@ func (d *Detector) Run(ctx context.Context) {
 
 		frame, err := CaptureRegion(d.cfg.Region.X, d.cfg.Region.Y, d.cfg.Region.W, d.cfg.Region.H)
 		if err != nil {
-			log.Printf("detector[%s]: capture failed: %v", d.pokemonID, err)
+			slog.Debug("Detector capture failed", "pokemon_id", d.pokemonID, "error", err)
 		} else {
 			switch d.phase {
 			case stateIdle:

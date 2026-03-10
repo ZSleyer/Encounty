@@ -6,7 +6,7 @@ package fileoutput
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -54,7 +54,7 @@ func (w *Writer) Write(st state.AppState) {
 	}
 
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		log.Printf("fileoutput mkdir error: %v", err)
+		slog.Error("File output mkdir error", "error", err)
 		return
 	}
 
@@ -102,6 +102,6 @@ func (w *Writer) Write(st state.AppState) {
 func (w *Writer) writeFile(dir, name, content string) {
 	path := filepath.Join(dir, name)
 	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
-		log.Printf("fileoutput write %s: %v", name, err)
+		slog.Error("File output write error", "file", name, "error", err)
 	}
 }

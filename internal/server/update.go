@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -57,7 +57,7 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	info, err := fetchUpdateInfo(s.version)
 	if err != nil {
-		log.Printf("update check error: %v", err)
+		slog.Error("Update check error", "error", err)
 		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
 		return
 	}
@@ -155,12 +155,12 @@ func platformAssetName() string {
 func (s *Server) performUpdate(downloadURL string) {
 	exe, err := os.Executable()
 	if err != nil {
-		log.Printf("update: get executable: %v", err)
+		slog.Error("Update: get executable failed", "error", err)
 		return
 	}
 	exe, err = filepath.EvalSymlinks(exe)
 	if err != nil {
-		log.Printf("update: eval symlinks: %v", err)
+		slog.Error("Update: eval symlinks failed", "error", err)
 		return
 	}
 
@@ -170,29 +170,29 @@ func (s *Server) performUpdate(downloadURL string) {
 		tmpPath += ".exe"
 	}
 
-	log.Printf("update: downloading to %s", tmpPath)
+	slog.Info("Update: downloading", "path", tmpPath)
 	if err := downloadFile(downloadURL, tmpPath); err != nil {
-		log.Printf("update: download failed: %v", err)
+		slog.Error("Update: download failed", "error", err)
 		return
 	}
 
 	if runtime.GOOS != "windows" {
 		if err := os.Chmod(tmpPath, 0755); err != nil {
-			log.Printf("update: chmod failed: %v", err)
+			slog.Error("Update: chmod failed", "error", err)
 			os.Remove(tmpPath)
 			return
 		}
 	}
 
-	log.Printf("update: saving state and stopping hotkeys")
+	slog.Info("Update: saving state and stopping hotkeys")
 	if err := s.state.Save(); err != nil {
-		log.Printf("update: save state: %v", err)
+		slog.Warn("Update: save state failed", "error", err)
 	}
 	s.hotkeyMgr.Stop()
 
-	log.Printf("update: replacing binary and restarting")
+	slog.Info("Update: replacing binary and restarting")
 	if err := replaceAndRestart(tmpPath, exe); err != nil {
-		log.Printf("update: replace and restart failed: %v", err)
+		slog.Error("Update: replace and restart failed", "error", err)
 		os.Remove(tmpPath)
 	}
 }

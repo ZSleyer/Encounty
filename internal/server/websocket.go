@@ -6,7 +6,7 @@ package server
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"sync"
 
@@ -51,7 +51,7 @@ func (h *Hub) Broadcast(msg WSMessage) {
 	defer h.mu.RUnlock()
 	for conn := range h.clients {
 		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			log.Printf("ws write error: %v", err)
+			slog.Debug("WebSocket write error", "error", err)
 		}
 	}
 }
@@ -73,7 +73,7 @@ func (h *Hub) BroadcastRaw(msgType string, payload any) {
 func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("ws upgrade error: %v", err)
+		slog.Error("WebSocket upgrade error", "error", err)
 		return
 	}
 
