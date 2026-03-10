@@ -242,10 +242,10 @@ export function AddPokemonModal({
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-lg animate-slide-in backdrop:bg-black/70"
+      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-lg 2xl:max-w-xl animate-slide-in backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg font-bold text-text-primary">
+        <h2 className="text-lg 2xl:text-xl font-bold text-text-primary">
           {t("modal.addTitle")}
         </h2>
         <button
@@ -258,7 +258,7 @@ export function AddPokemonModal({
 
       {missingNames && (
         <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-900/20 border border-amber-700/30 text-amber-300 text-xs">
-          <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{t("modal.missingNames")}</span>
         </div>
       )}
@@ -297,7 +297,7 @@ export function AddPokemonModal({
 
       <div className="relative mb-4">
         <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2">
-          <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
+          <Search className="w-4 h-4 text-text-muted shrink-0" />
           <input
             ref={inputRef}
             type="text"
@@ -307,17 +307,17 @@ export function AddPokemonModal({
               setSelected(null);
             }}
             placeholder={t("modal.searchPokemon")}
-            className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-sm"
+            className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-sm 2xl:text-base"
           />
         </div>
 
         {suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-52 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-52 2xl:max-h-64 overflow-y-auto">
             {suggestions.map((s) => (
               <button
                 key={s.canonical}
                 onClick={() => selectPokemon(s)}
-                className="w-full text-left px-4 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center justify-between"
+                className="w-full text-left px-4 py-2 text-sm 2xl:text-base hover:bg-bg-hover transition-colors flex items-center justify-between"
               >
                 <span
                   className={`capitalize ${s.isForm ? "text-text-secondary pl-3 border-l border-border-subtle" : "text-text-primary"}`}
@@ -335,7 +335,7 @@ export function AddPokemonModal({
 
       {selected && (
         <div className="flex items-center gap-4 bg-bg-secondary rounded-lg p-4 mb-4">
-          <div className="w-20 h-20 bg-bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="w-20 h-20 2xl:w-24 2xl:h-24 bg-bg-primary rounded-lg flex items-center justify-center shrink-0">
             {selected.sprite ? (
               <img
                 src={customSprite || selected.sprite}
@@ -435,7 +435,7 @@ export function AddPokemonModal({
           value={customSprite}
           onChange={(e) => setCustomSprite(e.target.value)}
           placeholder="https://…"
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
         />
       </div>
 
@@ -450,7 +450,7 @@ export function AddPokemonModal({
           id="game-select-add"
           value={selectedGame}
           onChange={(e) => setSelectedGame(e.target.value)}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
         >
           <option value="">{t("modal.noGame")}</option>
           {Object.entries(genGroups).map(([gen, entries]) => (
@@ -476,7 +476,7 @@ export function AddPokemonModal({
           id="hunt-type-select-add"
           value={huntType}
           onChange={(e) => setHuntType(e.target.value)}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
         >
           {(["encounter", "soft_reset", "masuda", "fossil", "gift", "radar", "horde", "sos", "outbreak", "sandwich"] as const).map((key) => (
             <option key={key} value={key}>
@@ -489,14 +489,14 @@ export function AddPokemonModal({
       <div className="flex gap-3">
         <button
           onClick={handleCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          className="flex-1 py-2 2xl:py-2.5 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm 2xl:text-base"
         >
           {t("modal.cancel")}
         </button>
         <button
           onClick={handleAdd}
           disabled={!selected}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-2 2xl:py-2.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm 2xl:text-base transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {t("modal.add")}
         </button>

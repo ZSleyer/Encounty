@@ -171,7 +171,7 @@ function NumInput({
       <button
         type="button"
         onClick={() => onChange(clamp(value - step))}
-        className="px-1.5 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm leading-none flex-shrink-0"
+        className="px-1.5 2xl:px-2 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm 2xl:text-base leading-none shrink-0"
       >
         −
       </button>
@@ -182,12 +182,12 @@ function NumInput({
         max={max}
         step={step}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 min-w-0 bg-transparent text-[10px] text-text-primary text-center outline-none py-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="flex-1 min-w-0 bg-transparent text-[10px] 2xl:text-xs text-text-primary text-center outline-none py-0.5 2xl:py-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <button
         type="button"
         onClick={() => onChange(clamp(value + step))}
-        className="px-1.5 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm leading-none flex-shrink-0"
+        className="px-1.5 2xl:px-2 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm 2xl:text-base leading-none shrink-0"
       >
         +
       </button>
@@ -213,14 +213,14 @@ function NumSlider({
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
-        <label className="text-[10px] text-text-muted">{label}</label>
+        <label className="text-[10px] 2xl:text-xs text-text-muted">{label}</label>
         <NumInput
           value={value}
           min={min}
           max={max}
           step={step}
           onChange={onChange}
-          className="w-20"
+          className="w-20 2xl:w-24"
         />
       </div>
       <input
@@ -269,7 +269,7 @@ function FontPicker({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+      className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
     >
       {POPULAR_FONTS.map((f) => (
         <option key={f} value={f}>
@@ -310,7 +310,7 @@ function GradientEditor({
               newStops[i] = { ...stop, color: e.target.value };
               onChange(newStops);
             }}
-            className="w-8 h-6 rounded cursor-pointer border-0"
+            className="w-8 h-6 2xl:w-10 2xl:h-7 rounded cursor-pointer border-0"
           />
           <input
             type="range"
@@ -324,7 +324,7 @@ function GradientEditor({
             max={100}
             className="flex-1 h-1 accent-accent-blue"
           />
-          <span className="text-xs text-text-muted w-8">{stop.position}%</span>
+          <span className="text-xs 2xl:text-sm text-text-muted w-8 2xl:w-10">{stop.position}%</span>
         </div>
       ))}
     </div>
@@ -344,10 +344,10 @@ function TextStyleEditor({
     onChange({ ...style, [field]: value });
   return (
     <div className="space-y-2 border border-border-subtle/50 rounded p-2">
-      <p className="text-xs text-text-secondary font-semibold">{label}</p>
+      <p className="text-xs 2xl:text-sm text-text-secondary font-semibold">{label}</p>
 
       <div>
-        <label className="text-[10px] text-text-muted">Schriftart</label>
+        <label className="text-[10px] 2xl:text-xs text-text-muted">Schriftart</label>
         <FontPicker
           value={style.font_family}
           onChange={(v) => u("font_family", v)}
@@ -361,11 +361,11 @@ function TextStyleEditor({
         onChange={(v) => u("font_size", v)}
       />
       <div>
-        <label className="text-[10px] text-text-muted">Gewicht</label>
+        <label className="text-[10px] 2xl:text-xs text-text-muted">Gewicht</label>
         <select
           value={style.font_weight}
           onChange={(e) => u("font_weight", Number(e.target.value))}
-          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
         >
           {[100, 300, 400, 500, 700, 900].map((w) => (
             <option key={w} value={w}>
@@ -376,13 +376,13 @@ function TextStyleEditor({
       </div>
 
       <div className="flex items-center gap-1">
-        <span className="text-[10px] text-text-muted w-14">Ausrichtung</span>
+        <span className="text-[10px] 2xl:text-xs text-text-muted w-14 2xl:w-16">Ausrichtung</span>
         <div className="flex border border-border-subtle rounded overflow-hidden">
           {(["left", "center", "right"] as const).map((align) => (
             <button
               key={align}
               onClick={() => u("text_align", align)}
-              className={`px-2 py-1 text-[10px] ${
+              className={`px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-[10px] 2xl:text-xs ${
                 (style.text_align || "left") === align
                   ? "bg-accent-blue/20 text-accent-blue"
                   : "text-text-muted hover:bg-bg-hover"
@@ -396,13 +396,13 @@ function TextStyleEditor({
       </div>
 
       <div>
-        <label className="text-[10px] text-text-muted">Farb-Typ</label>
+        <label className="text-[10px] 2xl:text-xs text-text-muted">Farb-Typ</label>
         <select
           value={style.color_type}
           onChange={(e) =>
             u("color_type", e.target.value as "solid" | "gradient")
           }
-          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
         >
           <option value="solid">Einfarbig</option>
           <option value="gradient">Verlauf</option>
@@ -410,14 +410,14 @@ function TextStyleEditor({
       </div>
       {style.color_type === "solid" ? (
         <div className="flex gap-2 items-center">
-          <label className="text-[10px] text-text-muted">Farbe</label>
+          <label className="text-[10px] 2xl:text-xs text-text-muted">Farbe</label>
           <input
             type="color"
             value={style.color}
             onChange={(e) => u("color", e.target.value)}
-            className="w-8 h-6 rounded cursor-pointer border-0"
+            className="w-8 h-6 2xl:w-10 2xl:h-7 rounded cursor-pointer border-0"
           />
-          <span className="text-[10px] text-text-secondary">{style.color}</span>
+          <span className="text-[10px] 2xl:text-xs text-text-secondary">{style.color}</span>
         </div>
       ) : (
         <GradientEditor
@@ -430,7 +430,7 @@ function TextStyleEditor({
 
       <div className="space-y-1">
         <div className="flex gap-2 items-center">
-          <label className="text-[10px] text-text-muted w-14 flex-shrink-0">
+          <label className="text-[10px] 2xl:text-xs text-text-muted w-14 2xl:w-16 shrink-0">
             Umriss
           </label>
           <select
@@ -438,7 +438,7 @@ function TextStyleEditor({
             onChange={(e) =>
               u("outline_type", e.target.value as "none" | "solid")
             }
-            className="flex-1 bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+            className="flex-1 bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
           >
             <option value="none">Kein</option>
             <option value="solid">Einfarbig</option>
@@ -447,14 +447,14 @@ function TextStyleEditor({
         {style.outline_type === "solid" && (
           <div className="pl-4 space-y-1">
             <div className="flex gap-2 items-center">
-              <label className="text-[10px] text-text-muted w-10 flex-shrink-0">
+              <label className="text-[10px] 2xl:text-xs text-text-muted w-10 2xl:w-12 shrink-0">
                 Farbe
               </label>
               <input
                 type="color"
                 value={style.outline_color}
                 onChange={(e) => u("outline_color", e.target.value)}
-                className="w-8 h-6 rounded cursor-pointer border-0"
+                className="w-8 h-6 2xl:w-10 2xl:h-7 rounded cursor-pointer border-0"
               />
             </div>
             <NumSlider
@@ -476,19 +476,19 @@ function TextStyleEditor({
             onChange={(e) => u("text_shadow", e.target.checked)}
             className="accent-accent-blue"
           />
-          <span className="text-[10px] text-text-secondary">Schatten</span>
+          <span className="text-[10px] 2xl:text-xs text-text-secondary">Schatten</span>
         </label>
         {style.text_shadow && (
           <div className="pl-4 space-y-1">
             <div className="flex gap-2 items-center">
-              <label className="text-[10px] text-text-muted w-10 flex-shrink-0">
+              <label className="text-[10px] 2xl:text-xs text-text-muted w-10 2xl:w-12 shrink-0">
                 Farbe
               </label>
               <input
                 type="color"
                 value={style.text_shadow_color}
                 onChange={(e) => u("text_shadow_color", e.target.value)}
-                className="w-8 h-6 rounded cursor-pointer border-0"
+                className="w-8 h-6 2xl:w-10 2xl:h-7 rounded cursor-pointer border-0"
               />
             </div>
             <NumSlider
@@ -764,37 +764,37 @@ function OBSSourceHint({ pokemonId }: { pokemonId?: string }) {
 
   return (
     <div>
-      <div className="flex items-center gap-1 text-xs text-text-muted mb-1.5">
-        <Monitor className="w-3 h-3" />
+      <div className="flex items-center gap-1 text-xs 2xl:text-sm text-text-muted mb-1.5">
+        <Monitor className="w-3 h-3 2xl:w-4 2xl:h-4" />
         OBS Browser Source:
       </div>
       {pokemonUrl ? (
         <>
-          <div className="bg-bg-primary rounded px-2 py-1.5 mb-1.5">
-            <code className="text-[10px] text-accent-blue break-all">
+          <div className="bg-bg-primary rounded px-2 py-1.5 2xl:px-2.5 2xl:py-2 mb-1.5">
+            <code className="text-[10px] 2xl:text-xs text-accent-blue break-all">
               {pokemonUrl}
             </code>
           </div>
           <div className="flex gap-1">
             <button
               onClick={() => copy(pokemonUrl)}
-              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
+              className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
             >
-              <Copy className="w-3 h-3" />
+              <Copy className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
               {copied ? "Kopiert!" : "Kopieren"}
             </button>
             <a
               href={pokemonUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
+              className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
             >
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
             </a>
           </div>
         </>
       ) : (
-        <p className="text-[10px] text-text-faint">Wähle ein Pokémon als Ziel, um dessen Overlay-URL zu sehen.</p>
+        <p className="text-[10px] 2xl:text-xs text-text-faint">Wähle ein Pokémon als Ziel, um dessen Overlay-URL zu sehen.</p>
       )}
     </div>
   );
@@ -1033,19 +1033,19 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   return (
     <div className="flex gap-3 h-full pt-4 pb-8 px-4 min-h-0">
       {/* LEFT SIDEBAR: Layers & Canvas */}
-      <div className="w-56 flex-shrink-0 flex flex-col gap-3 min-h-0">
+      <div className="w-56 2xl:w-64 shrink-0 flex flex-col gap-3 min-h-0">
         {/* Layers Panel */}
         <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
+            <p className="text-xs 2xl:text-sm font-semibold text-text-secondary uppercase tracking-wider">
               Ebenen
             </p>
             <button
               onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
               title="Layout zurücksetzen"
-              className="flex items-center gap-1 px-1.5 py-1 rounded text-[10px] text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="flex items-center gap-1 px-1.5 py-1 2xl:px-2 2xl:py-1.5 rounded text-[10px] 2xl:text-xs text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
               Reset
             </button>
           </div>
@@ -1061,7 +1061,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     : "hover:bg-bg-hover border border-transparent"
                 }`}
               >
-                <span className="text-xs text-text-primary">
+                <span className="text-xs 2xl:text-sm text-text-primary">
                   {ELEMENT_LABELS[key]}
                 </span>
                 <div className="flex items-center gap-1">
@@ -1106,8 +1106,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         </div>
 
         {/* Canvas Settings Panel */}
-        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-shrink-0">
-          <p className="text-[10px] text-text-muted font-semibold uppercase tracking-wider mb-2">
+        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 shrink-0">
+          <p className="text-[10px] 2xl:text-xs text-text-muted font-semibold uppercase tracking-wider mb-2">
             Canvas
           </p>
 
@@ -1131,13 +1131,13 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
           {/* Hintergrund Animation */}
           <div>
-            <label className="text-[10px] text-text-muted">
+            <label className="text-[10px] 2xl:text-xs text-text-muted">
               Hintergrund-Animation
             </label>
             <select
               value={localSettings.background_animation ?? "none"}
               onChange={(e) => updateField("background_animation", e.target.value)}
-              className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none mt-1"
+              className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
             >
               <option value="none">Keine</option>
               <option value="waves">Wellen (Homebrew)</option>
@@ -1151,7 +1151,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             }
           >
             <div>
-              <label className="text-[10px] text-text-muted">Hintergrund</label>
+              <label className="text-[10px] 2xl:text-xs text-text-muted">Hintergrund</label>
               <input
                 type="color"
                 value={localSettings.background_color}
@@ -1162,7 +1162,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               />
             </div>
             <div className="mt-2">
-              <label className="text-[10px] text-text-muted">
+              <label className="text-[10px] 2xl:text-xs text-text-muted">
                 Deckkraft {Math.round(localSettings.background_opacity * 100)}%
               </label>
               <input
@@ -1178,7 +1178,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               />
             </div>
             <div className="mt-2">
-              <label className="text-[10px] text-text-muted">
+              <label className="text-[10px] 2xl:text-xs text-text-muted">
                 Blur {localSettings.blur}px
               </label>
               <input
@@ -1194,7 +1194,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
           {/* Radius */}
           <div>
-            <label className="text-[10px] text-text-muted">
+            <label className="text-[10px] 2xl:text-xs text-text-muted">
               Radius {localSettings.border_radius}px
             </label>
             <input
@@ -1217,14 +1217,14 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               onChange={(e) => updateField("show_border", e.target.checked)}
               className="accent-accent-blue"
             />
-            <span className="text-[10px] text-text-secondary">Kontur</span>
+            <span className="text-[10px] 2xl:text-xs text-text-secondary">Kontur</span>
           </label>
           {localSettings.show_border && (
             <div
               className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}
             >
               <div>
-                <label className="text-[10px] text-text-muted">
+                <label className="text-[10px] 2xl:text-xs text-text-muted">
                   Kontur Farbe
                 </label>
                 <input
@@ -1239,7 +1239,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 />
               </div>
               <div>
-                <label className="text-[10px] text-text-muted">
+                <label className="text-[10px] 2xl:text-xs text-text-muted">
                   Kontur Stärke {localSettings.border_width ?? 2}px
                 </label>
                 <input
@@ -1265,7 +1265,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               onChange={(e) => updateField("hidden", e.target.checked)}
               className="accent-accent-blue"
             />
-            <span className="text-[10px] text-text-secondary">Versteckt</span>
+            <span className="text-[10px] 2xl:text-xs text-text-secondary">Versteckt</span>
           </label>
         </div>
       </div>
@@ -1273,9 +1273,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       {/* CENTER: Toolbar + Canvas */}
       <div className="flex-1 flex flex-col gap-2 min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-xl border border-border-subtle flex-shrink-0">
+        <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-xl border border-border-subtle shrink-0">
           {/* Animation test controls */}
-          <span className="text-[10px] text-text-muted mr-1">
+          <span className="text-[10px] 2xl:text-xs text-text-muted mr-1">
             Animations-Test:
           </span>
           <button
@@ -1311,7 +1311,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             title="Grid"
             className={`p-1.5 rounded transition-colors ${showGrid ? "text-accent-blue bg-accent-blue/10" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
           >
-            <Grid3X3 className="w-3.5 h-3.5" />
+            <Grid3X3 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
 
           {/* Snap toggle */}
@@ -1320,7 +1320,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             title="Snap"
             className={`p-1.5 rounded transition-colors ${snapEnabled ? "text-accent-blue bg-accent-blue/10" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
           >
-            <Magnet className="w-3.5 h-3.5" />
+            <Magnet className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
 
           {/* Grid size */}
@@ -1351,7 +1351,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             title="Rückgängig (Ctrl+Z)"
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <Undo2 className="w-3.5 h-3.5" />
+            <Undo2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
           <button
             onClick={() => {
@@ -1365,7 +1365,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             title="Wiederholen (Ctrl+Y)"
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <Redo2 className="w-3.5 h-3.5" />
+            <Redo2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
 
           <div className="w-px h-4 bg-border-subtle mx-1" />
@@ -1376,9 +1376,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             title="Reinzoomen"
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
-            <ZoomIn className="w-3.5 h-3.5" />
+            <ZoomIn className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
-          <span className="text-[10px] text-text-muted w-8 text-center">
+          <span className="text-[10px] 2xl:text-xs text-text-muted w-8 2xl:w-10 text-center">
             {Math.round(zoom * 100)}%
           </span>
           <button
@@ -1386,20 +1386,20 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             title="Rauszoomen"
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
-            <ZoomOut className="w-3.5 h-3.5" />
+            <ZoomOut className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
 
           {/* Mouse position */}
-          <span className="ml-auto text-[10px] text-text-faint font-mono">
+          <span className="ml-auto text-[10px] 2xl:text-xs text-text-faint font-mono">
             X: {mousePos.x} Y: {mousePos.y}
           </span>
           {activePokemon && (
-            <span className="text-[10px] text-text-faint">
+            <span className="text-[10px] 2xl:text-xs text-text-faint">
               {currentCount} (Vorschau)
             </span>
           )}
           {!activePokemon && (
-            <span className="text-[10px] text-text-faint">
+            <span className="text-[10px] 2xl:text-xs text-text-faint">
               Kein aktives Pokémon
             </span>
           )}
@@ -1561,10 +1561,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       </div>
 
       {/* RIGHT SIDEBAR: Properties & OBS */}
-      <div className="w-72 flex-shrink-0 flex flex-col gap-3 min-h-0">
+      <div className="w-72 2xl:w-80 shrink-0 flex flex-col gap-3 min-h-0">
         {/* Properties Panel */}
         <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto">
-          <p className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-3">
+          <p className="text-xs 2xl:text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
             {ELEMENT_LABELS[selectedEl]}
           </p>
 
@@ -1572,7 +1572,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           <div className="space-y-1.5 mb-3">
             <div className="flex gap-2">
               <label className="flex items-center gap-1 flex-1">
-                <span className="text-[10px] text-text-muted w-3">X</span>
+                <span className="text-[10px] 2xl:text-xs text-text-muted w-3">X</span>
                 <NumInput
                   value={(localSettings[selectedEl] as OverlayElementBase).x}
                   min={0}
@@ -1582,7 +1582,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 />
               </label>
               <label className="flex items-center gap-1 flex-1">
-                <span className="text-[10px] text-text-muted w-3">Y</span>
+                <span className="text-[10px] 2xl:text-xs text-text-muted w-3">Y</span>
                 <NumInput
                   value={(localSettings[selectedEl] as OverlayElementBase).y}
                   min={0}
@@ -1594,7 +1594,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             </div>
             <div className="flex gap-2">
               <label className="flex items-center gap-1 flex-1">
-                <span className="text-[10px] text-text-muted w-3">W</span>
+                <span className="text-[10px] 2xl:text-xs text-text-muted w-3">W</span>
                 <NumInput
                   value={
                     (localSettings[selectedEl] as OverlayElementBase).width
@@ -1606,7 +1606,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 />
               </label>
               <label className="flex items-center gap-1 flex-1">
-                <span className="text-[10px] text-text-muted w-3">H</span>
+                <span className="text-[10px] 2xl:text-xs text-text-muted w-3">H</span>
                 <NumInput
                   value={
                     (localSettings[selectedEl] as OverlayElementBase).height
@@ -1618,7 +1618,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 />
               </label>
             </div>
-            <p className="text-[9px] text-text-faint mt-1">
+            <p className="text-[9px] 2xl:text-[10px] text-text-faint mt-1">
               Pfeiltasten: 1px | Shift: 10px | Tab: wechseln
             </p>
           </div>
@@ -1641,12 +1641,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                   }
                   className="accent-accent-blue"
                 />
-                <span className="text-xs text-text-secondary">Glow</span>
+                <span className="text-xs 2xl:text-sm text-text-secondary">Glow</span>
               </label>
               {localSettings.sprite.show_glow && (
                 <div className="space-y-2">
                   <div className="flex gap-2 items-center">
-                    <label className="text-[10px] text-text-muted w-12">
+                    <label className="text-[10px] 2xl:text-xs text-text-muted w-12 2xl:w-14">
                       Farbe
                     </label>
                     <input
@@ -1693,7 +1693,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 </div>
               )}
               <div>
-                <label className="text-[10px] text-text-muted">
+                <label className="text-[10px] 2xl:text-xs text-text-muted">
                   Idle Animation
                 </label>
                 <select
@@ -1707,7 +1707,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="float">Schweben</option>
@@ -1718,14 +1718,14 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               </div>
               <div>
                 <div className="flex items-center justify-between mb-0.5">
-                  <label className="text-[10px] text-text-muted">
+                  <label className="text-[10px] 2xl:text-xs text-text-muted">
                     Trigger Animation
                   </label>
                   <button
                     onClick={() => fireTest("sprite")}
                     className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
                   >
-                    <Play className="w-2.5 h-2.5" /> Test
+                    <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
                   </button>
                 </div>
                 <select
@@ -1739,7 +1739,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="pop">Pop</option>
@@ -1767,7 +1767,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 }
               />
               <div>
-                <label className="text-[10px] text-text-muted">
+                <label className="text-[10px] 2xl:text-xs text-text-muted">
                   Idle Animation
                 </label>
                 <select
@@ -1781,7 +1781,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="breathe">Atmen</option>
@@ -1790,14 +1790,14 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               </div>
               <div>
                 <div className="flex items-center justify-between mb-0.5">
-                  <label className="text-[10px] text-text-muted">
+                  <label className="text-[10px] 2xl:text-xs text-text-muted">
                     Trigger Animation
                   </label>
                   <button
                     onClick={() => fireTest("name")}
                     className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
                   >
-                    <Play className="w-2.5 h-2.5" /> Test
+                    <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
                   </button>
                 </div>
                 <select
@@ -1811,7 +1811,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="fade-in">Einblenden</option>
@@ -1853,7 +1853,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                   }
                   className="accent-accent-blue"
                 />
-                <span className="text-xs text-text-secondary">Label anzeigen</span>
+                <span className="text-xs 2xl:text-sm text-text-secondary">Label anzeigen</span>
               </label>
               {localSettings.counter.show_label && (
                 <>
@@ -1869,7 +1869,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                         },
                       })
                     }
-                    className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+                    className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
                     placeholder="Label-Text"
                   />
                   <TextStyleEditor
@@ -1887,7 +1887,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 </>
               )}
               <div>
-                <label className="text-[10px] text-text-muted">
+                <label className="text-[10px] 2xl:text-xs text-text-muted">
                   Idle Animation
                 </label>
                 <select
@@ -1901,7 +1901,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="breathe">Atmen</option>
@@ -1910,14 +1910,14 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               </div>
               <div>
                 <div className="flex items-center justify-between mb-0.5">
-                  <label className="text-[10px] text-text-muted">
+                  <label className="text-[10px] 2xl:text-xs text-text-muted">
                     Trigger Animation
                   </label>
                   <button
                     onClick={() => fireTest("counter")}
                     className="flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
                   >
-                    <Play className="w-2.5 h-2.5" /> Test
+                    <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
                   </button>
                 </div>
                 <select
@@ -1931,7 +1931,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       },
                     })
                   }
-                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 text-xs text-text-primary outline-none"
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
                 >
                   <option value="none">Keine</option>
                   <option value="pop">Pop</option>
@@ -1950,7 +1950,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         </div>
 
         {/* OBS Source Panel */}
-        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-shrink-0">
+        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 shrink-0">
           <OBSSourceHint pokemonId={activePokemon?.id} />
         </div>
       </div>

@@ -166,13 +166,13 @@ export function Settings() {
         <div className="switch-waves" />
       </div>
       <div className="flex-1 overflow-auto p-6 relative z-10">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-5xl 2xl:max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* ── Left column: General ─────────────────────────── */}
           <div className="space-y-6">
             {/* Server */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary mb-4 flex items-center gap-2">
                 <SettingsIcon className="w-4 h-4 text-text-muted" />
                 {t("settings.server")}
               </h2>
@@ -195,7 +195,7 @@ export function Settings() {
                   }
                   min={1024}
                   max={65535}
-                  className="w-32 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
+                  className="w-32 2xl:w-40 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
                 />
               </div>
             </section>
@@ -204,7 +204,7 @@ export function Settings() {
             <section className="glass-card rounded-2xl p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <h3 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
                     <Save className="w-4 h-4 text-accent-green" />{" "}
                     {t("settings.autoSave")}
                   </h3>
@@ -216,7 +216,7 @@ export function Settings() {
                   onClick={() =>
                     setSettings({ ...settings, auto_save: !settings.auto_save })
                   }
-                  className={`relative w-12 h-6 rounded-full transition-colors flex items-center px-1 flex-shrink-0 ${
+                  className={`relative w-12 h-6 2xl:w-14 2xl:h-7 rounded-full transition-colors flex items-center px-1 shrink-0 ${
                     settings.auto_save
                       ? "bg-accent-green/80"
                       : "bg-bg-secondary border border-border-subtle"
@@ -233,7 +233,7 @@ export function Settings() {
             <section className="glass-card rounded-2xl p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <h3 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
                     <span className="text-base leading-none">🔍</span>
                     {t("settings.crispSprites")}
                   </h3>
@@ -243,7 +243,7 @@ export function Settings() {
                 </div>
                 <button
                   onClick={() => setCrispSprites(!(settings.crisp_sprites ?? false))}
-                  className={`relative w-12 h-6 rounded-full transition-colors flex items-center px-1 flex-shrink-0 mt-0.5 ${
+                  className={`relative w-12 h-6 2xl:w-14 2xl:h-7 rounded-full transition-colors flex items-center px-1 shrink-0 mt-0.5 ${
                     (settings.crisp_sprites ?? false)
                       ? "bg-accent-blue/80"
                       : "bg-bg-secondary border border-border-subtle"
@@ -258,7 +258,7 @@ export function Settings() {
 
             {/* Languages */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
+              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary mb-1 flex items-center gap-2">
                 <Globe className="w-4 h-4 text-accent-blue" />{" "}
                 {t("settings.languages")}
               </h2>
@@ -275,7 +275,7 @@ export function Settings() {
                       key={code}
                       onClick={() => toggleLanguage(code)}
                       title={code}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-full text-xs 2xl:text-sm font-medium border transition-colors ${
                         active
                           ? "bg-accent-blue/20 border-accent-blue/50 text-text-primary"
                           : "bg-bg-secondary border-border-subtle text-text-muted hover:text-text-primary"
@@ -291,7 +291,7 @@ export function Settings() {
 
             {/* Backup & Restore */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
+              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary mb-1 flex items-center gap-2">
                 <ArchiveRestore className="w-4 h-4 text-accent-purple" />
                 {t("settings.backupTitle")}
               </h2>
@@ -356,7 +356,7 @@ export function Settings() {
             {/* File Output */}
             <section className="glass-card rounded-2xl p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
                   <FolderOpen className="w-4 h-4 text-accent-yellow" />{" "}
                   {t("settings.outputTitle")}
                 </h2>
@@ -365,7 +365,7 @@ export function Settings() {
                     setSettings({ ...settings, output_enabled: !settings.output_enabled })
                   }
                   title={t("settings.outputEnabledDesc")}
-                  className={`relative w-12 h-6 rounded-full transition-colors flex items-center px-1 flex-shrink-0 ${
+                  className={`relative w-12 h-6 2xl:w-14 2xl:h-7 rounded-full transition-colors flex items-center px-1 shrink-0 ${
                     settings.output_enabled
                       ? "bg-accent-yellow/80"
                       : "bg-bg-secondary border border-border-subtle"
@@ -392,7 +392,7 @@ export function Settings() {
                       setSettings({ ...settings, output_dir: e.target.value })
                     }
                     placeholder="z.B. C:\OBS\counter oder ~/obs/counter"
-                    className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
+                    className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
                   />
                 </div>
                 <div>
@@ -424,7 +424,7 @@ export function Settings() {
 
             {/* Sync Pokémon */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
+              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary mb-2 flex items-center gap-2">
                 <Database className="w-4 h-4 text-accent-blue" />{" "}
                 {t("settings.syncPokemon")}
               </h2>
@@ -452,7 +452,7 @@ export function Settings() {
 
             {/* Sync Games */}
             <section className="glass-card rounded-2xl p-6">
-              <h2 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
+              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary mb-2 flex items-center gap-2">
                 <Database className="w-4 h-4 text-accent-blue" />{" "}
                 {t("settings.syncGames")}
               </h2>

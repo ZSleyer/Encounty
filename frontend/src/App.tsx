@@ -7,7 +7,7 @@
  * page without any chrome so it can be used as an OBS Browser Source.
  */
 import { useState, useEffect } from "react";
-import { Routes, Route, Link, useLocation } from "react-router-dom";
+import { Routes, Route, Link, useLocation } from "react-router";
 import {
   LayoutGrid,
   Settings as SettingsIcon,
@@ -43,7 +43,7 @@ function UpdateOverlay({
 }) {
   const { t } = useI18n();
   return (
-    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+    <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl">
         <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
         <div className="text-center space-y-2">
@@ -74,7 +74,7 @@ function UpdateNotification({
 }) {
   const { t } = useI18n();
   return (
-    <div className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+    <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
         <div className="w-14 h-14 rounded-full bg-accent-blue/15 flex items-center justify-center">
           <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
@@ -308,24 +308,24 @@ function AppShell() {
         <div className="switch-waves" />
       </div>
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
-      <header className="flex items-center h-12 px-4 bg-bg-secondary flex-shrink-0 relative z-10">
+      <header className="flex items-center h-12 2xl:h-14 px-4 bg-bg-secondary shrink-0 relative z-10">
         {/* Left: Logo + Nav tabs */}
         <div className="flex items-center gap-1 mr-auto">
           {/* Logo */}
           <img
             src="/app-icon.png"
             alt="Encounty Logo"
-            className="w-7 h-7 rounded-md object-contain flex-shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
+            className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-md object-contain shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
             title="Encounty"
           />
 
-          <NavTab to="/" icon={<LayoutGrid className="w-4 h-4" />}>
+          <NavTab to="/" icon={<LayoutGrid className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.dashboard")}
           </NavTab>
-          <NavTab to="/hotkeys" icon={<Keyboard className="w-4 h-4" />}>
+          <NavTab to="/hotkeys" icon={<Keyboard className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.hotkeys")}
           </NavTab>
-<NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4" />}>
+<NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.settings")}
           </NavTab>
         </div>
@@ -361,7 +361,7 @@ function AppShell() {
               <button
                 key={l.code}
                 onClick={() => setLocale(l.code)}
-                className={`px-2 py-1 text-[11px] font-medium transition-colors ${
+                className={`px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-[11px] 2xl:text-xs font-medium transition-colors ${
                   locale === l.code
                     ? "bg-accent-blue/15 text-accent-blue"
                     : "text-text-muted hover:text-text-primary"
@@ -391,7 +391,7 @@ function AppShell() {
           </button>
         </div>
       </header>
-      <div className="glow-line-h flex-shrink-0" />
+      <div className="glow-line-h shrink-0" />
 
       {/* ── Main content ─────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden">
@@ -445,7 +445,7 @@ function AppShell() {
               }
             >
               <div
-                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                className={`w-1.5 h-1.5 2xl:w-2 2xl:h-2 rounded-full shrink-0 ${
                   isConnected
                     ? "bg-accent-green/60"
                     : appState === null
@@ -512,7 +512,7 @@ function NavTab({ to, icon, children }: NavTabProps) {
   return (
     <Link
       to={to}
-      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs 2xl:text-sm font-medium transition-colors ${
         isActive
           ? "text-accent-blue"
           : "text-text-muted hover:text-text-primary hover:bg-bg-hover"

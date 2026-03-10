@@ -302,23 +302,23 @@ export function TemplateEditor({
   const isEditMode = !!initialImageUrl || !!onUpdateRegions;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 md:p-8 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 bg-black/95 flex flex-col items-center justify-center p-4 md:p-8 backdrop-blur-sm">
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors z-[110]"
+        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors z-110"
       >
-        <X className="w-6 h-6" />
+        <X className="w-6 h-6 2xl:w-7 2xl:h-7" />
       </button>
 
-      <div className="text-white text-center mb-4 mt-8 flex-shrink-0">
-        <h2 className="text-xl font-bold mb-1">
+      <div className="text-white text-center mb-4 mt-8 shrink-0">
+        <h2 className="text-xl 2xl:text-2xl font-bold mb-1">
           {isEditMode
             ? t("templateEditor.editTitle")
             : phase === "video"
             ? t("templateEditor.step1Title")
             : t("templateEditor.step2Title")}
         </h2>
-        <p className="text-sm text-gray-400">
+        <p className="text-sm 2xl:text-base text-gray-400">
           {isEditMode
             ? t("templateEditor.editHint")
             : phase === "video"
@@ -329,7 +329,7 @@ export function TemplateEditor({
 
       <div
         ref={containerRef}
-        className="relative w-full max-w-[80vw] max-h-[60vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-6 flex items-center justify-center cursor-crosshair select-none touch-none"
+        className="relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[60vh] 2xl:max-h-[65vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-6 flex items-center justify-center cursor-crosshair select-none touch-none"
         onMouseDown={onPointerDown}
         onMouseMove={onPointerMove}
         onMouseUp={onPointerUp}
@@ -384,9 +384,9 @@ export function TemplateEditor({
                   height: `${(r.rect.h / snapshotHeight) * 100}%`,
                 }}
               >
-                <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 rounded text-white font-mono text-xs whitespace-nowrap shadow-md">
+                <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-md">
                   <strong className={r.type === 'text' ? 'text-purple-400' : 'text-accent-blue'}>#{i + 1}</strong>
-                  {r.type === 'text' ? <Type className="w-3 h-3" /> : <ImageIcon className="w-3 h-3" />}
+                  {r.type === 'text' ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" /> : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />}
                   {r.type === 'text' && r.expected_text && (
                     <span className="opacity-80 ml-1 truncate max-w-[60px]">"{r.expected_text}"</span>
                   )}
@@ -412,14 +412,14 @@ export function TemplateEditor({
 
       {/* Region List Editor */}
       {phase === "snapshot" && regions.length > 0 && (
-        <div className="w-full max-w-4xl flex flex-wrap justify-center gap-3 mb-2 max-h-32 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
+        <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-3 mb-2 max-h-32 2xl:max-h-40 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
           {regions.map((r, i) => (
             <div key={i} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-2 shadow-lg hover:border-accent-blue/50 transition-colors">
-              <span className={`font-mono font-bold w-5 flex-shrink-0 ${r.type === 'text' ? 'text-purple-400' : 'text-accent-blue'}`}>
+              <span className={`font-mono font-bold w-5 shrink-0 ${r.type === 'text' ? 'text-purple-400' : 'text-accent-blue'}`}>
                 #{i + 1}
               </span>
               <select
-                className="bg-bg-primary text-xs p-1 rounded border border-border-subtle outline-none min-w-[100px]"
+                className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-[100px] 2xl:min-w-[120px]"
                 value={r.type}
                 onChange={(e) => updateRegion(i, { type: e.target.value as "image" | "text" })}
               >
@@ -433,7 +433,7 @@ export function TemplateEditor({
                     placeholder={t("templateEditor.expectedText")}
                     value={r.expected_text}
                     onChange={(e) => updateRegion(i, { expected_text: e.target.value })}
-                    className="bg-bg-primary text-xs p-1 rounded border border-border-subtle outline-none min-w-[120px] focus:border-purple-400"
+                    className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-[120px] 2xl:min-w-[140px] focus:border-purple-400"
                   />
                   <button
                     title="Auto-recognize text (OCR)"
@@ -444,7 +444,7 @@ export function TemplateEditor({
                     {isRecognizing ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      <ScanText className="w-4 h-4" />
+                      <ScanText className="w-4 h-4 2xl:w-5 2xl:h-5" />
                     )}
                   </button>
                 </>
@@ -455,7 +455,7 @@ export function TemplateEditor({
                 onClick={() => deleteRegion(i)}
                 className="text-text-muted hover:text-red-400 transition-colors p-1"
               >
-                 <Trash2 className="w-4 h-4" />
+                 <Trash2 className="w-4 h-4 2xl:w-5 2xl:h-5" />
               </button>
             </div>
           ))}
@@ -466,17 +466,17 @@ export function TemplateEditor({
       {phase === "snapshot" && (
         <div className="w-full max-w-4xl px-4 mb-4 flex flex-col items-center gap-1">
           {regions.length === 0 && (
-            <p className="text-xs text-text-muted text-center">
+            <p className="text-xs 2xl:text-sm text-text-muted text-center">
               {t("templateEditor.noRegions")}
             </p>
           )}
           {hasTextRegion && (
-            <p className="text-xs text-amber-400 text-center">
+            <p className="text-xs 2xl:text-sm text-amber-400 text-center">
               {t("templateEditor.ocrHint")}
             </p>
           )}
           {ocrError && (
-            <p className="text-xs text-red-400 text-center">
+            <p className="text-xs 2xl:text-sm text-red-400 text-center">
               OCR error: {ocrError}
             </p>
           )}
@@ -484,23 +484,23 @@ export function TemplateEditor({
       )}
 
       {/* Flow Controls */}
-      <div className="flex flex-col items-center gap-3 w-full max-w-sm flex-shrink-0">
+      <div className="flex flex-col items-center gap-3 w-full max-w-sm 2xl:max-w-md shrink-0">
         {isEditMode ? (
           // Edit mode: just show Save/Cancel
           <div className="flex w-full gap-3">
             <button
               onClick={onClose}
               disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
             >
               {t("templateEditor.cancel")}
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-[2] flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+              className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
             >
-              <Save className="w-5 h-5" />
+              <Save className="w-5 h-5 2xl:w-6 2xl:h-6" />
               {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
             </button>
           </div>
@@ -508,9 +508,9 @@ export function TemplateEditor({
           // New template mode: take snapshot
           <button
             onClick={handleTakeSnapshot}
-            className="flex items-center justify-center gap-2 w-full py-4 rounded-xl text-sm font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+            className="flex items-center justify-center gap-2 w-full py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
           >
-            <Camera className="w-5 h-5" />
+            <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
             {t("templateEditor.takeSnapshot")}
           </button>
         ) : (
@@ -519,24 +519,24 @@ export function TemplateEditor({
             <button
               onClick={resetSnapshot}
               disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5" />
               {t("templateEditor.retake")}
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving}
-              className="flex-[2] flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+              className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
             >
-              <Save className="w-5 h-5" />
+              <Save className="w-5 h-5 2xl:w-6 2xl:h-6" />
               {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
             </button>
           </div>
         )}
 
         {errorMsg && (
-          <div className="w-full px-4 py-3 bg-red-500/10 text-red-500 text-sm text-center rounded-lg font-medium border border-red-500/20">
+          <div className="w-full px-4 py-3 bg-red-500/10 text-red-500 text-sm 2xl:text-base text-center rounded-lg font-medium border border-red-500/20">
             {errorMsg}
           </div>
         )}
