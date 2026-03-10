@@ -27,6 +27,7 @@ function makeAppState(activeId: string): AppState {
         created_at: "2024-01-01T00:00:00Z",
         language: "de",
         game: "red",
+        overlay_mode: "default",
       },
       {
         id: "poke-2",
@@ -39,6 +40,7 @@ function makeAppState(activeId: string): AppState {
         created_at: "2024-01-02T00:00:00Z",
         language: "de",
         game: "blue",
+        overlay_mode: "default",
       },
     ],
     sessions: [],

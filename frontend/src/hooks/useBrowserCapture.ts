@@ -76,24 +76,27 @@ export function useBrowserCapture(
     }
   }, [sourceType, stopCapture]);
 
+  // Reuse a single offscreen canvas to avoid allocation overhead per frame.
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
   const captureFrame = useCallback(async (): Promise<Blob | null> => {
     if (!videoRef.current || !stream) return null;
     const video = videoRef.current;
-    
+
     // Ensure video is playing and has valid dimensions
     if (video.videoWidth === 0 || video.videoHeight === 0) return null;
 
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    if (!canvasRef.current) canvasRef.current = document.createElement("canvas");
+    const canvas = canvasRef.current;
+    if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
+    if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     return new Promise((resolve) => {
-      // JPEG quality 0.8 is a good balance between size and quality for matching
-      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.8);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.7);
     });
   }, [stream]);
 

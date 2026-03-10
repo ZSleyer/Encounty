@@ -17,6 +17,7 @@ export interface Pokemon {
   language: Language; // "de" | "en"
   game: string; // key from games.json
   completed_at?: string; // ISO timestamp when hunt completed
+  overlay_mode: OverlayMode;
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
   hunt_type?: string;
   detector_config?: DetectorConfig;
@@ -29,6 +30,8 @@ export interface GameEntry {
   generation: number;
   platform: string;
 }
+
+export type OverlayMode = "default" | "custom" | `linked:${string}`;
 
 export type Language = string;
 
@@ -86,7 +89,9 @@ export interface DetectorConfig {
   consecutive_hits: number;
   cooldown_sec: number;
   change_threshold: number;
-  poll_interval_ms: number;
+  poll_interval_ms: number;  // base interval (adaptive centre point)
+  min_poll_ms: number;       // fastest adaptive interval (high activity)
+  max_poll_ms: number;       // slowest adaptive interval (static screen)
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
 }
 
