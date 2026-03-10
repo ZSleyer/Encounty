@@ -12,7 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -25,6 +25,7 @@ import (
 	"github.com/zsleyer/encounty/internal/detector"
 	"github.com/zsleyer/encounty/internal/fileoutput"
 	"github.com/zsleyer/encounty/internal/hotkeys"
+	"github.com/zsleyer/encounty/internal/logger"
 	"github.com/zsleyer/encounty/internal/server"
 	"github.com/zsleyer/encounty/internal/state"
 )
@@ -53,9 +54,12 @@ func formatVersionDisplay(ver, date, cmt string) string {
 
 func main() {
 	devMode := flag.Bool("dev", false, "Development mode (proxy to Vite dev server)")
+	logLevel := flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	showVersion := flag.Bool("version", false, "Show version information")
 	flag.BoolVar(showVersion, "v", false, "Show version information")
 	flag.Parse()
+
+	logger.Init(*logLevel)
 
 	if *showVersion {
 		fmt.Printf("Encounty %s\n", formatVersionDisplay(version, buildDate, commit))
@@ -67,12 +71,12 @@ func main() {
 	server.SetDefaultGamesJSON(embeddedGamesJSON)
 
 	configDir := getConfigDir()
-	log.Printf("Config directory: %s", configDir)
+	slog.Info("Config directory", "path", configDir)
 
 	// State
 	stateMgr := state.NewManager(configDir)
 	if err := stateMgr.Load(); err != nil {
-		log.Printf("Warning: could not load state: %v", err)
+		slog.Warn("Could not load state", "error", err)
 	}
 
 	st := stateMgr.GetState()
@@ -94,7 +98,7 @@ func main() {
 	// Hotkey manager
 	hotkeyMgr := hotkeys.New(stateMgr)
 	if err := hotkeyMgr.Start(); err != nil {
-		log.Printf("Warning: global hotkeys unavailable: %v", err)
+		slog.Warn("Global hotkeys unavailable", "error", err)
 	}
 
 	// Detector manager — broadcast function is wired after server creation.
@@ -130,7 +134,7 @@ func main() {
 	go func() {
 		time.Sleep(500 * time.Millisecond)
 		url := fmt.Sprintf("http://localhost:%d", port)
-		log.Printf("Opening browser at %s", url)
+		slog.Info("Opening browser", "url", url)
 		openBrowser(url)
 	}()
 
@@ -140,19 +144,19 @@ func main() {
 
 	go func() {
 		<-quit // first signal → start graceful shutdown
-		log.Println("Shutting down...")
+		slog.Info("Shutting down...")
 
 		// Hard-kill safety net: if shutdown takes > 3 s, force-exit.
 		go func() {
 			time.Sleep(3 * time.Second)
-			log.Println("Shutdown timed out – forcing exit")
+			slog.Warn("Shutdown timed out, forcing exit")
 			os.Exit(1)
 		}()
 
 		// Also force-exit immediately on a second signal.
 		go func() {
 			<-quit
-			log.Println("Second signal – forcing exit")
+			slog.Warn("Second signal, forcing exit")
 			os.Exit(1)
 		}()
 
@@ -162,19 +166,20 @@ func main() {
 
 		hotkeyMgr.Stop()
 		if err := stateMgr.Save(); err != nil {
-			log.Printf("Save error: %v", err)
+			slog.Error("Failed to save state", "error", err)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Printf("Server shutdown error: %v", err)
+			slog.Error("Server shutdown error", "error", err)
 		}
 		os.Exit(0)
 	}()
 
 	if err := srv.Start(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server error: %v", err)
+		slog.Error("Server error", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -212,6 +217,6 @@ func openBrowser(url string) {
 		args = []string{url}
 	}
 	if err := exec.Command(cmd, args...).Start(); err != nil {
-		log.Printf("Could not open browser: %v", err)
+		slog.Warn("Could not open browser", "error", err)
 	}
 }

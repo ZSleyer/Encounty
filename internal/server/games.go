@@ -6,7 +6,7 @@ package server
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -50,13 +50,13 @@ func loadGames() []GameEntry {
 
 	data, err := readGamesJSON()
 	if err != nil {
-		log.Printf("Warning: could not load games.json: %v", err)
+		slog.Warn("Could not load games.json", "error", err)
 		return nil
 	}
 
 	var raw map[string]rawGameEntry
 	if err := json.Unmarshal(data, &raw); err != nil {
-		log.Printf("Warning: could not parse games.json: %v", err)
+		slog.Warn("Could not parse games.json", "error", err)
 		return nil
 	}
 
@@ -107,14 +107,14 @@ func readGamesJSON() ([]byte, error) {
 	if len(defaultGamesJSON) > 0 {
 		if gamesConfigDir != "" {
 			p := filepath.Join(gamesConfigDir, "games.json")
-			log.Printf("games.json not found – writing default to %s", p)
+			slog.Info("games.json not found, writing default", "path", p)
 			if werr := os.MkdirAll(gamesConfigDir, 0755); werr == nil {
 				if werr := os.WriteFile(p, defaultGamesJSON, 0644); werr != nil {
-					log.Printf("Warning: could not write default games.json: %v", werr)
+					slog.Warn("Could not write default games.json", "error", werr)
 				}
 			}
 		} else {
-			log.Println("games.json not found – using embedded default (no config dir set)")
+			slog.Info("games.json not found, using embedded default (no config dir set)")
 		}
 		return defaultGamesJSON, nil
 	}

@@ -8,7 +8,7 @@
 package hotkeys
 
 import (
-	"log"
+	"log/slog"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -144,11 +144,11 @@ func (m *windowsManager) loadBindings(hm state.HotkeyMap) {
 		}
 		kc, err := ParseKeyCombo(combo)
 		if err != nil {
-			log.Printf("hotkeys: parse error for %q (%s): %v", combo, action, err)
+			slog.Warn("Hotkeys: parse error", "combo", combo, "action", action, "error", err)
 			continue
 		}
 		if platformValidateKey(kc.Key) != nil {
-			log.Printf("hotkeys: unknown key %q in combo %q (%s)", kc.Key, combo, action)
+			slog.Warn("Hotkeys: unknown key", "key", kc.Key, "combo", combo, "action", action)
 			continue
 		}
 		next[action] = kc
@@ -231,7 +231,7 @@ func (m *windowsManager) doRegisterAll() {
 		m.nextID++
 		ret, _, err := procRegisterHotKey.Call(0, uintptr(id), uintptr(mods), uintptr(vk))
 		if ret == 0 {
-			log.Printf("hotkeys: RegisterHotKey(%s) failed: %v", action, err)
+			slog.Error("Hotkeys: RegisterHotKey failed", "action", action, "error", err)
 			continue
 		}
 		m.registered[id] = action

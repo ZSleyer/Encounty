@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -156,7 +156,7 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 		// Fetch version detail (names + version-group reference).
 		var detail apiVersion
 		if err := fetchAPIJSON(v.URL, &detail); err != nil {
-			log.Printf("SyncGames: skip %q: %v", v.Name, err)
+			slog.Debug("SyncGames: skipping version", "name", v.Name, "error", err)
 			continue
 		}
 		time.Sleep(60 * time.Millisecond) // be polite to PokeAPI
@@ -230,12 +230,12 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 				Platform:   info.platform,
 			}
 			result.Added++
-			log.Printf("SyncGames: new game %q (gen %d, %s)", ourKey, info.gen, info.platform)
+			slog.Info("SyncGames: new game discovered", "key", ourKey, "gen", info.gen, "platform", info.platform)
 		}
 	}
 
 	if result.Added == 0 && result.Updated == 0 {
-		log.Printf("SyncGames: everything up to date")
+		slog.Info("SyncGames: everything up to date")
 		return result, nil
 	}
 
@@ -249,7 +249,7 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 		return result, fmt.Errorf("write %s: %w", outPath, err)
 	}
 	cachedGames = nil // invalidate in-memory cache
-	log.Printf("SyncGames: added=%d updated=%d → %s", result.Added, result.Updated, outPath)
+	slog.Info("SyncGames: sync complete", "added", result.Added, "updated", result.Updated, "path", outPath)
 	return result, nil
 }
 

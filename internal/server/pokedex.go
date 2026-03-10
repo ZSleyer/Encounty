@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -336,7 +336,7 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Pokedex sync complete: %d new entries added, %d names updated", len(added), namesUpdated)
+	slog.Info("Pokedex sync complete", "added", len(added), "names_updated", namesUpdated)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"total":        len(current),
 		"added":        len(added),
