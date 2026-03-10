@@ -16,7 +16,7 @@ import { useState, useRef } from "react";
 export function useHistory<T>(initial: T, debounceMs = 400) {
   const [stack, setStack] = useState<T[]>([initial]);
   const [index, setIndex] = useState(0);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const push = (state: T) => {
     clearTimeout(timer.current);
