@@ -377,6 +377,22 @@ const translations: Record<Locale, Record<string, string>> = {
     "regionPicker.reload": "Neu laden",
     "regionPicker.loadError": "Screenshot konnte nicht geladen werden",
 
+    // ── Licenses ──
+    "licenses.title": "Open-Source-Lizenzen",
+    "licenses.desc":
+      "Encounty nutzt folgende Open-Source-Bibliotheken:",
+    "licenses.project": "Encounty steht unter der",
+
+    // ── Settings search & sections ──
+    "settings.search": "Einstellungen durchsuchen…",
+    "settings.noResults": "Keine Einstellungen gefunden",
+    "settings.sectionGeneral": "Allgemein",
+    "settings.sectionDisplay": "Darstellung",
+    "settings.sectionOutput": "Dateiausgabe (OBS)",
+    "settings.sectionData": "Datenbank & Sync",
+    "settings.sectionBackup": "Backup & Wiederherstellung",
+    "settings.sectionAbout": "Über Encounty",
+
     // ── Footer ──
     "footer.hunts": "Hunts",
     "footer.encounters": "Enc.",
@@ -736,6 +752,22 @@ const translations: Record<Locale, Record<string, string>> = {
     "regionPicker.confirm": "Confirm",
     "regionPicker.reload": "Reload",
     "regionPicker.loadError": "Could not load screenshot",
+
+    // ── Licenses ──
+    "licenses.title": "Open Source Licenses",
+    "licenses.desc":
+      "Encounty uses the following open-source libraries:",
+    "licenses.project": "Encounty is licensed under the",
+
+    // ── Settings search & sections ──
+    "settings.search": "Search settings…",
+    "settings.noResults": "No settings found",
+    "settings.sectionGeneral": "General",
+    "settings.sectionDisplay": "Display",
+    "settings.sectionOutput": "File Output (OBS)",
+    "settings.sectionData": "Database & Sync",
+    "settings.sectionBackup": "Backup & Restore",
+    "settings.sectionAbout": "About Encounty",
 
     // ── Footer ──
     "footer.hunts": "Hunts",
