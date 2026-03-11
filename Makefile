@@ -1,4 +1,4 @@
-.PHONY: dev build build-windows build-linux frontend clean licenses
+.PHONY: dev build build-windows build-linux frontend clean licenses test coverage
 
 BINARY = encounty
 FRONTEND_DIR = frontend
@@ -65,6 +65,44 @@ build-windows: frontend icons licenses
 	@rm -f *.syso
 	@command -v upx >/dev/null 2>&1 && upx --best --compress-icons=0 $(BINARY)-windows.exe || true
 	@echo "Done: ./$(BINARY)-windows.exe"
+
+# ── Go files excluded from coverage (platform-specific / untestable) ──
+# Platform managers & keycodes  — OS-level evdev/HID/input API
+# Capture, Sound              — cgo/screenshot, audio subsystem
+# Reexec / update platform    — syscall.Exec, binary replacement
+# update.go                   — GitHub API + platform binary swap
+# games_sync / pokedex        — external PokéAPI HTTP calls
+# detector_api                — tightly coupled to capture + filesystem
+# detector.go, ocr.go         — main loop needs screen capture; OCR needs tesseract
+# main.go / scripts           — entry points with os.Exit / signal handling
+GO_COVERAGE_EXCLUDE = manager_linux\.go|manager_windows\.go|manager_darwin\.go|\
+keycodes_linux\.go|keycodes_windows\.go|\
+capture\.go|sound_unix\.go|sound_windows\.go|\
+reexec_unix\.go|reexec_windows\.go|\
+update_unix\.go|update_windows\.go|update\.go|\
+games_sync\.go|detector_api\.go|detector\.go|\
+ocr\.go|pokedex\.go|\
+main\.go|scripts/generate_icons\.go
+
+test:
+	@echo "=== Go Tests ==="
+	@go test ./... -count=1
+	@echo ""
+	@echo "=== Frontend Tests ==="
+	@cd $(FRONTEND_DIR) && yarn test
+
+coverage:
+	@echo "=== Go Coverage (filtered) ==="
+	@go test ./... -coverprofile=coverage.out -count=1
+	@grep -vE '$(GO_COVERAGE_EXCLUDE)' coverage.out > coverage_filtered.out
+	@go tool cover -func=coverage_filtered.out | tail -1
+	@echo ""
+	@echo "=== Go Coverage by package (filtered) ==="
+	@go tool cover -func=coverage_filtered.out | grep 'total\|^[^ ]' | grep -v '100.0%' || echo "All functions at 100%!"
+	@echo ""
+	@echo "=== Frontend Coverage ==="
+	@cd $(FRONTEND_DIR) && yarn vitest run --coverage
+	@rm -f coverage.out coverage_filtered.out
 
 clean:
 	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-windows.exe *.syso

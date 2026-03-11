@@ -43,3 +43,8 @@ dist-linux/
 encounty-windows*
 *.exe.bak
 # (winres/winres.json is now tracked)
+
+# Coverage Reports
+coverage.out
+coverage_filtered.out
+frontend/coverage/
