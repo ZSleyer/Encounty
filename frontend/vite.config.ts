@@ -30,4 +30,22 @@ export default defineConfig({
     minify: true,
     assetsInlineLimit: 0,
   },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test-setup.ts"],
+    coverage: {
+      provider: "v8",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/*.test.{ts,tsx}",
+        "src/test-setup.ts",
+        "src/test-utils.tsx",
+        "src/main.tsx",
+        "src/utils/test.ts",
+        "src/types/index.ts",
+        "src/contexts/CaptureServiceContext.tsx",
+      ],
+    },
+  },
 });
