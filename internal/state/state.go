@@ -112,6 +112,8 @@ type GradientStop struct {
 
 // TextStyle describes the typography and decoration for one text element
 // in the OBS overlay (name label or encounter counter).
+// Outlines support "none" and "solid" modes.
+// Text shadows support "solid" or "gradient" colour with dedicated stops and angle.
 type TextStyle struct {
 	FontFamily      string         `json:"font_family"`
 	FontSize        int            `json:"font_size"`
@@ -124,11 +126,16 @@ type TextStyle struct {
 	OutlineType     string         `json:"outline_type"` // "none" | "solid"
 	OutlineWidth    int            `json:"outline_width"`
 	OutlineColor    string         `json:"outline_color"`
-	TextShadow      bool           `json:"text_shadow"`
-	TextShadowColor string         `json:"text_shadow_color"`
-	TextShadowBlur  int            `json:"text_shadow_blur"`
-	TextShadowX     int            `json:"text_shadow_x"`
-	TextShadowY     int            `json:"text_shadow_y"`
+	OutlineGradientStops []GradientStop `json:"outline_gradient_stops"`
+	OutlineGradientAngle int            `json:"outline_gradient_angle"`
+	TextShadow           bool           `json:"text_shadow"`
+	TextShadowColor      string         `json:"text_shadow_color"`
+	TextShadowColorType  string         `json:"text_shadow_color_type"` // "solid" | "gradient"
+	TextShadowGradientStops []GradientStop `json:"text_shadow_gradient_stops"`
+	TextShadowGradientAngle int            `json:"text_shadow_gradient_angle"`
+	TextShadowBlur       int            `json:"text_shadow_blur"`
+	TextShadowX          int            `json:"text_shadow_x"`
+	TextShadowY          int            `json:"text_shadow_y"`
 }
 
 // OverlayElementBase holds position and size fields shared by every overlay

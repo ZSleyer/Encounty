@@ -34,19 +34,30 @@ function resolveFont(family: string): string {
 }
 
 function buildTextStyle(style: TextStyle): React.CSSProperties {
+  const hasSolidOutline = style.outline_type === "solid";
+
+  // Double width because fill covers the inner half via paint-order: stroke fill
+  const effectiveOutlineWidth = style.outline_width * 2;
+
+  // For gradient shadows, fall back to the first gradient stop color
+  const shadowColor =
+    style.text_shadow_color_type === "gradient" &&
+    style.text_shadow_gradient_stops?.length
+      ? style.text_shadow_gradient_stops[0].color
+      : style.text_shadow_color;
+
   const css: React.CSSProperties = {
     fontFamily: resolveFont(style.font_family),
     fontSize: `${style.font_size}px`,
     fontWeight: style.font_weight,
     textAlign: (style.text_align || "left") as React.CSSProperties["textAlign"],
     color: style.color,
-    WebkitTextStroke:
-      style.outline_type === "solid"
-        ? `${style.outline_width}px ${style.outline_color}`
-        : undefined,
-    paintOrder: style.outline_type === "solid" ? "stroke fill" : undefined,
+    WebkitTextStroke: hasSolidOutline
+      ? `${effectiveOutlineWidth}px ${style.outline_color}`
+      : undefined,
+    paintOrder: hasSolidOutline ? "stroke fill" : undefined,
     textShadow: style.text_shadow
-      ? `${style.text_shadow_x}px ${style.text_shadow_y}px ${style.text_shadow_blur}px ${style.text_shadow_color}`
+      ? `${style.text_shadow_x}px ${style.text_shadow_y}px ${style.text_shadow_blur}px ${shadowColor}`
       : undefined,
   } as React.CSSProperties;
 
@@ -512,88 +523,88 @@ export function Overlay({
 
       {/* Name — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
       {settings.name.visible && (
-        <div
-          style={{
-            position: "absolute",
-            left: settings.name.x,
-            top: settings.name.y,
-            width: settings.name.width,
-            height: settings.name.height,
-            zIndex: settings.name.z_index,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: settings.name.style.text_align === "center" ? "center" : settings.name.style.text_align === "right" ? "flex-end" : "flex-start",
-            padding: `0 ${Math.max(2, settings.name.style.outline_type === "solid" ? settings.name.style.outline_width + 1 : 0, settings.name.style.text_shadow ? Math.abs(settings.name.style.text_shadow_x) + settings.name.style.text_shadow_blur : 0)}px`,
-            overflow: "visible",
-          }}
-          className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
-        >
-          <span
-            key={`name-${nameTriggerId}`}
-            className={`uppercase tracking-widest whitespace-nowrap ${nameAnimClass}`}
+          <div
             style={{
-              ...nameStyle,
-              display: "inline-block",
-              transformOrigin: "center",
-              animationDirection: nameAnimReverse ? "reverse" : undefined,
+              position: "absolute",
+              left: settings.name.x,
+              top: settings.name.y,
+              width: settings.name.width,
+              height: settings.name.height,
+              zIndex: settings.name.z_index,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: settings.name.style.text_align === "center" ? "center" : settings.name.style.text_align === "right" ? "flex-end" : "flex-start",
+              padding: `0 ${Math.max(2, settings.name.style.outline_type === "solid" ? settings.name.style.outline_width * 2 + 1 : 0, settings.name.style.text_shadow ? Math.abs(settings.name.style.text_shadow_x) + settings.name.style.text_shadow_blur : 0)}px`,
+              overflow: "visible",
             }}
+            className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
           >
-            {activePokemon.name}
-          </span>
-        </div>
+            <span
+              key={`name-${nameTriggerId}`}
+              className={`uppercase tracking-widest whitespace-nowrap ${nameAnimClass}`}
+              style={{
+                ...nameStyle,
+                display: "inline-block",
+                transformOrigin: "center",
+                animationDirection: nameAnimReverse ? "reverse" : undefined,
+              }}
+            >
+              {activePokemon.name}
+            </span>
+          </div>
       )}
 
       {/* Counter — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
       {settings.counter.visible && (
-        <div
-          style={{
-            position: "absolute",
-            left: settings.counter.x,
-            top: settings.counter.y,
-            width: settings.counter.width,
-            height: settings.counter.height,
-            zIndex: settings.counter.z_index,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: settings.counter.style.text_align === "center" ? "center" : settings.counter.style.text_align === "right" ? "flex-end" : "flex-start",
-            justifyContent: "center",
-          }}
-          className={
-            counterMode !== "slot" && counterMode !== "flip-digit"
-              ? (TEXT_IDLE[settings.counter.idle_animation] ?? "")
-              : ""
-          }
-        >
-          {counterMode === "slot" ? (
-            <SlotCounter
-              value={activePokemon.encounters}
-              counterStyle={counterStyle}
-              reverse={animReverse}
-            />
-          ) : counterMode === "flip-digit" ? (
-            <FlipCounter
-              value={activePokemon.encounters}
-              counterStyle={counterStyle}
-              reverse={animReverse}
-            />
-          ) : (
-            <span
-              key={`counter-${triggerId}`}
-              className={`font-black tabular-nums leading-none ${animClass}`}
-              style={{
-                ...counterStyle,
-                display: "inline-block",
-                transformOrigin: "center",
-                animationDirection: animReverse ? "reverse" : undefined,
-              }}
-            >
-              {activePokemon.encounters}
-            </span>
-          )}
-          {settings.counter.show_label && (
-            <span style={labelStyle}>{settings.counter.label_text}</span>
-          )}
-        </div>
+          <div
+            style={{
+              position: "absolute",
+              left: settings.counter.x,
+              top: settings.counter.y,
+              width: settings.counter.width,
+              height: settings.counter.height,
+              zIndex: settings.counter.z_index,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: settings.counter.style.text_align === "center" ? "center" : settings.counter.style.text_align === "right" ? "flex-end" : "flex-start",
+              justifyContent: "center",
+            }}
+            className={
+              counterMode !== "slot" && counterMode !== "flip-digit"
+                ? (TEXT_IDLE[settings.counter.idle_animation] ?? "")
+                : ""
+            }
+          >
+            {counterMode === "slot" ? (
+              <SlotCounter
+                value={activePokemon.encounters}
+                counterStyle={counterStyle}
+                reverse={animReverse}
+              />
+            ) : counterMode === "flip-digit" ? (
+              <FlipCounter
+                value={activePokemon.encounters}
+                counterStyle={counterStyle}
+                reverse={animReverse}
+              />
+            ) : (
+              <span
+                key={`counter-${triggerId}`}
+                className={`font-black tabular-nums leading-none ${animClass}`}
+                style={{
+                  ...counterStyle,
+                  display: "inline-block",
+                  transformOrigin: "center",
+                  animationDirection: animReverse ? "reverse" : undefined,
+                }}
+              >
+                {activePokemon.encounters}
+              </span>
+            )}
+            {settings.counter.show_label && (
+              <span style={labelStyle}>{settings.counter.label_text}</span>
+            )}
+          </div>
       )}
     </div>
   );

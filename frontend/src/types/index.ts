@@ -124,8 +124,13 @@ export interface TextStyle {
   outline_type: "none" | "solid";
   outline_width: number;
   outline_color: string;
+  outline_gradient_stops: GradientStop[];
+  outline_gradient_angle: number;
   text_shadow: boolean;
   text_shadow_color: string;
+  text_shadow_color_type: "solid" | "gradient";
+  text_shadow_gradient_stops: GradientStop[];
+  text_shadow_gradient_angle: number;
   text_shadow_blur: number;
   text_shadow_x: number;
   text_shadow_y: number;
