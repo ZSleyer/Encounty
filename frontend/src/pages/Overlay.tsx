@@ -144,6 +144,9 @@ const COUNTER_ANIMS: Record<string, string> = {
   flip: "animate-overlay-flip",
   rubber: "animate-overlay-rubber",
   "count-flash": "animate-overlay-flash", // legacy
+  jello: "animate-overlay-jello",
+  tada: "animate-overlay-tada",
+  "zoom-in": "animate-overlay-zoom-in",
 };
 
 const SPRITE_ANIMS: Record<string, string> = {
@@ -154,6 +157,9 @@ const SPRITE_ANIMS: Record<string, string> = {
   flip: "animate-overlay-flip",
   rubber: "animate-overlay-rubber",
   flash: "animate-overlay-flash",
+  jello: "animate-overlay-jello",
+  tada: "animate-overlay-tada",
+  swing: "animate-overlay-swing",
 };
 
 const NAME_ANIMS: Record<string, string> = {
@@ -164,6 +170,9 @@ const NAME_ANIMS: Record<string, string> = {
   shake: "animate-overlay-shake",
   flip: "animate-overlay-flip",
   rubber: "animate-overlay-rubber",
+  jello: "animate-overlay-jello",
+  tada: "animate-overlay-tada",
+  "zoom-in": "animate-overlay-zoom-in",
 };
 
 const SPRITE_IDLE: Record<string, string> = {
@@ -171,11 +180,31 @@ const SPRITE_IDLE: Record<string, string> = {
   pulse: "animate-overlay-pulse-idle",
   rock: "animate-overlay-rock",
   bob: "animate-overlay-bob",
+  wiggle: "animate-overlay-wiggle",
+  shimmer: "animate-overlay-shimmer-idle",
 };
 
 const TEXT_IDLE: Record<string, string> = {
   breathe: "animate-overlay-breathe",
   glow: "animate-overlay-glow",
+  shimmer: "animate-overlay-text-shimmer",
+  float: "animate-overlay-text-float",
+};
+
+const BG_ANIM_CLASS: Record<string, string> = {
+  waves: "canvas-waves",
+  "gradient-shift": "canvas-gradient-shift",
+  "pulse-bg": "canvas-pulse-bg",
+  "shimmer-bg": "canvas-shimmer-bg",
+  particles: "canvas-particles",
+};
+
+const BG_ANIM_DEFAULT_DURATION: Record<string, number> = {
+  waves: 30,
+  "gradient-shift": 8,
+  "pulse-bg": 3,
+  "shimmer-bg": 3,
+  particles: 12,
 };
 
 export function Overlay({
@@ -375,7 +404,8 @@ export function Overlay({
   const borderWidth = settings.border_width ?? 2;
   const crispSprites = appState?.settings.crisp_sprites ?? false;
 
-  const hasWaves = settings.background_animation === "waves";
+  const bgAnimKey = settings.background_animation ?? "none";
+  const hasBgAnim = bgAnimKey !== "none" && bgAnimKey in BG_ANIM_CLASS;
 
   const bgStyle: React.CSSProperties = hidden
     ? { position: "absolute", inset: 0, pointerEvents: "none" }
@@ -383,9 +413,8 @@ export function Overlay({
         position: "absolute",
         inset: 0,
         pointerEvents: "none",
-        // When waves are active, use solid background_color as base (waves animate on top)
-        // When no animation, use the configured color + opacity
-        backgroundColor: hasWaves ? settings.background_color : bgWithOpacity,
+        // When animation is active, use solid background_color as base
+        backgroundColor: hasBgAnim ? settings.background_color : bgWithOpacity,
         backdropFilter: `blur(${settings.blur}px)`,
         borderRadius: `${settings.border_radius}px`,
         border: settings.show_border
@@ -394,13 +423,34 @@ export function Overlay({
         overflow: "hidden",
       };
 
+  const bgImageFit = settings.background_image_fit ?? "cover";
+  const bgImageStyle: React.CSSProperties | undefined = settings.background_image
+    ? {
+        position: "absolute",
+        inset: 0,
+        backgroundImage: `url(/api/backgrounds/${settings.background_image})`,
+        backgroundSize: bgImageFit === "tile" ? "auto" : bgImageFit === "stretch" ? "100% 100%" : bgImageFit,
+        backgroundRepeat: bgImageFit === "tile" ? "repeat" : "no-repeat",
+        backgroundPosition: "center",
+        borderRadius: `${settings.border_radius}px`,
+        pointerEvents: "none",
+      }
+    : undefined;
 
   const canvas = (
     <div style={outerStyle}>
       {/* Card background — clipped to border-radius, does NOT clip content */}
       <div style={bgStyle}>
-        {hasWaves && (
-          <div className="canvas-waves" />
+        {bgImageStyle && <div style={bgImageStyle} />}
+        {hasBgAnim && (
+          <div
+            className={BG_ANIM_CLASS[bgAnimKey]}
+            style={
+              settings.background_animation_speed && settings.background_animation_speed !== 1
+                ? { animationDuration: `${(BG_ANIM_DEFAULT_DURATION[bgAnimKey] ?? 8) / settings.background_animation_speed}s` }
+                : undefined
+            }
+          />
         )}
       </div>
 

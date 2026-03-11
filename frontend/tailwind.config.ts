@@ -54,6 +54,16 @@ export default {
         "overlay-bob": "overlay-bob 1.6s ease-in-out infinite",
         "overlay-breathe": "overlay-breathe 3s ease-in-out infinite",
         "overlay-glow": "overlay-glow 2s ease-in-out infinite",
+        // New idle animations
+        "overlay-wiggle": "overlay-wiggle 1.5s ease-in-out infinite",
+        "overlay-shimmer-idle": "overlay-shimmer-idle 2s linear infinite",
+        "overlay-text-shimmer": "overlay-text-shimmer 2.5s linear infinite",
+        "overlay-text-float": "overlay-text-float 3s ease-in-out infinite",
+        // New trigger animations
+        "overlay-jello": "overlay-jello 0.7s ease-out",
+        "overlay-tada": "overlay-tada 0.6s ease-out",
+        "overlay-swing": "overlay-swing 0.6s ease-out",
+        "overlay-zoom-in": "overlay-zoom-in 0.4s ease-out",
       },
       keyframes: {
         flash: {
@@ -174,6 +184,59 @@ export default {
           "84%": { transform: "scaleX(0.96) scaleY(1.04)" },
           "100%": { transform: "scaleX(1)    scaleY(1)" },
         },
+        // Sprite idle: wiggle
+        "overlay-wiggle": {
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "25%": { transform: "rotate(-5deg)" },
+          "75%": { transform: "rotate(5deg)" },
+        },
+        // Sprite idle: shimmer (brightness cycling)
+        "overlay-shimmer-idle": {
+          "0%, 100%": { filter: "brightness(1)" },
+          "50%": { filter: "brightness(1.4)" },
+        },
+        // Text idle: shimmer sweep
+        "overlay-text-shimmer": {
+          "0%": { backgroundPosition: "-200% center" },
+          "100%": { backgroundPosition: "200% center" },
+        },
+        // Text idle: float
+        "overlay-text-float": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
+        // Trigger: jello
+        "overlay-jello": {
+          "0%": { transform: "scale3d(1,1,1)" },
+          "30%": { transform: "scale3d(1.25,0.75,1)" },
+          "40%": { transform: "scale3d(0.75,1.25,1)" },
+          "50%": { transform: "scale3d(1.15,0.85,1)" },
+          "65%": { transform: "scale3d(0.95,1.05,1)" },
+          "75%": { transform: "scale3d(1.05,0.95,1)" },
+          "100%": { transform: "scale3d(1,1,1)" },
+        },
+        // Trigger: tada
+        "overlay-tada": {
+          "0%": { transform: "scale(1) rotate(0deg)" },
+          "10%, 20%": { transform: "scale(0.9) rotate(-3deg)" },
+          "30%, 50%, 70%, 90%": { transform: "scale(1.1) rotate(3deg)" },
+          "40%, 60%, 80%": { transform: "scale(1.1) rotate(-3deg)" },
+          "100%": { transform: "scale(1) rotate(0deg)" },
+        },
+        // Trigger: swing
+        "overlay-swing": {
+          "0%": { transform: "rotate(0deg)" },
+          "20%": { transform: "rotate(15deg)" },
+          "40%": { transform: "rotate(-10deg)" },
+          "60%": { transform: "rotate(5deg)" },
+          "80%": { transform: "rotate(-5deg)" },
+          "100%": { transform: "rotate(0deg)" },
+        },
+        // Trigger: zoom-in
+        "overlay-zoom-in": {
+          "0%": { transform: "scale(0)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
       },
     },
   },
@@ -195,6 +258,14 @@ export default {
     "animate-overlay-fade-in",
     "animate-overlay-slide-in",
     "animate-float",
+    "animate-overlay-wiggle",
+    "animate-overlay-shimmer-idle",
+    "animate-overlay-text-shimmer",
+    "animate-overlay-text-float",
+    "animate-overlay-jello",
+    "animate-overlay-tada",
+    "animate-overlay-swing",
+    "animate-overlay-zoom-in",
   ],
   plugins: [],
 } satisfies Config;

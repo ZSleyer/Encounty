@@ -687,7 +687,7 @@ export function Settings() {
                             />
                           </button>
                           {expandedLicense === dep.name && dep.text && (
-                            <pre className="px-3 py-2 text-[10px] leading-relaxed text-text-muted border-t border-border-subtle/50 max-h-48 overflow-auto whitespace-pre-wrap break-words">
+                            <pre className="px-3 py-2 text-[10px] leading-relaxed text-text-muted border-t border-border-subtle/50 max-h-48 overflow-auto whitespace-pre-wrap wrap-break-word">
                               {dep.text}
                             </pre>
                           )}

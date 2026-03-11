@@ -21,13 +21,19 @@ function makePreviewPokemon(): Pokemon {
     id: "preview-torchic",
     name: "Flemmli",
     canonical_name: "torchic",
-    sprite_url: getSpriteUrl(255, "", "shiny", "3d", "torchic"),
+    sprite_url: getSpriteUrl(
+      255,
+      "pokemon-white2",
+      "shiny",
+      "classic",
+      "torchic",
+    ),
     sprite_type: "shiny",
     encounters: 42,
     is_active: false,
     created_at: new Date().toISOString(),
     language: "de",
-    game: "",
+    game: "WHITE-2",
     overlay_mode: "default",
   };
 }
