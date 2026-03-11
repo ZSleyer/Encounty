@@ -115,6 +115,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/version", s.handleVersion)
 	mux.HandleFunc("/api/update/check", s.handleUpdateCheck)
 	mux.HandleFunc("/api/update/apply", s.handleUpdateApply)
+	mux.HandleFunc("/api/licenses", s.handleLicenses)
 
 	mux.HandleFunc("/api/pokemon", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
