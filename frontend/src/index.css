@@ -116,6 +116,99 @@
   pointer-events: none;
 }
 
+/* ── Background animation: gradient-shift (hue-cycling) ────────────────── */
+.canvas-gradient-shift {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #ff6b6b);
+  background-size: 400% 400%;
+  animation: bg-gradient-shift 8s ease infinite;
+}
+
+@keyframes bg-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Background animation: pulse (opacity breathing) ───────────────────── */
+.canvas-pulse-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: inherit;
+  animation: bg-pulse 3s ease-in-out infinite;
+}
+
+@keyframes bg-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ── Background animation: shimmer (diagonal sweep) ────────────────────── */
+.canvas-shimmer-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    -45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.12) 50%,
+    transparent 70%
+  );
+  background-size: 300% 300%;
+  animation: bg-shimmer 3s linear infinite;
+}
+
+@keyframes bg-shimmer {
+  0% { background-position: 200% 200%; }
+  100% { background-position: -100% -100%; }
+}
+
+/* ── Background animation: particles (CSS-only floating dots) ──────────── */
+.canvas-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.canvas-particles::before,
+.canvas-particles::after {
+  content: "";
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow:
+    20px 30px 0 rgba(255, 255, 255, 0.2),
+    60px 80px 0 rgba(255, 255, 255, 0.25),
+    100px 20px 0 rgba(255, 255, 255, 0.15),
+    140px 60px 0 rgba(255, 255, 255, 0.3),
+    180px 40px 0 rgba(255, 255, 255, 0.2),
+    220px 70px 0 rgba(255, 255, 255, 0.18),
+    260px 10px 0 rgba(255, 255, 255, 0.22),
+    300px 50px 0 rgba(255, 255, 255, 0.28),
+    340px 90px 0 rgba(255, 255, 255, 0.16),
+    380px 35px 0 rgba(255, 255, 255, 0.24);
+  animation: particle-float 12s linear infinite;
+}
+
+.canvas-particles::after {
+  width: 3px;
+  height: 3px;
+  animation-delay: -6s;
+  animation-duration: 16s;
+  opacity: 0.7;
+}
+
+@keyframes particle-float {
+  0% { transform: translateY(100%) translateX(0); }
+  100% { transform: translateY(-100%) translateX(30px); }
+}
+
 /* ── Hotkeys-paused badge — WCAG AA contrast in both themes ─────────────── */
 /* Light mode: dark amber text on light amber bg */
 .hotkeys-paused-badge {

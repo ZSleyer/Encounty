@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import {
   Eye,
   EyeOff,
@@ -18,7 +18,14 @@ import {
   Redo2,
   ZoomIn,
   ZoomOut,
+  MousePointer2,
+  Hand,
+  Maximize,
+  Upload,
+  Trash2,
+  HelpCircle,
 } from "lucide-react";
+import { EditorTutorial } from "./EditorTutorial";
 import {
   OverlaySettings,
   OverlayElementBase,
@@ -822,6 +829,32 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   const [isDragging, setIsDragging] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
+  // Zoom + Pan (Phase 4) — scroll-based
+  const [activeTool, setActiveTool] = useState<"pointer" | "hand">("pointer");
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  const pendingScroll = useRef<{ left: number; top: number } | null>(null);
+  const zoomRef = useRef(1);
+  const panDragStart = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
+  const [isPanDragging, setIsPanDragging] = useState(false);
+
+  // Tutorial
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Canvas background for testing (transparent = checkered, white, black)
+  const [canvasBg, setCanvasBg] = useState<"transparent" | "white" | "black">("transparent");
+
+  const effectiveTool = (activeTool === "hand" || spaceHeld) ? "hand" : "pointer";
+
+  // Background image upload state
+  const [bgUploading, setBgUploading] = useState(false);
+
+  // Padding around canvas in the virtual scroll area
+  const getPadding = useCallback(() => {
+    const c = canvasContainerRef.current;
+    if (!c) return { x: 200, y: 200 };
+    return { x: c.clientWidth * 0.4, y: c.clientHeight * 0.4 };
+  }, []);
+
   const fireTest = (element: ElementKey, reverse = false) =>
     setTestTrigger({ element, n: Date.now(), reverse });
 
@@ -859,32 +892,82 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     setLocalSettings(settings);
   }, [settings]);
 
-  // Compute scale to fit canvas in the preview area
+  // Keep zoomRef in sync
+  useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+
+  // Compute scale to fit canvas in the preview area + center it initially
+  const hasInitialCentered = useRef(false);
   useEffect(() => {
     const updateScale = () => {
       if (!canvasContainerRef.current) return;
       const { clientWidth, clientHeight } = canvasContainerRef.current;
       const scaleX = clientWidth / localSettings.canvas_width;
       const scaleY = clientHeight / localSettings.canvas_height;
-      setCanvasScale(Math.min(scaleX, scaleY, 1));
+      const scale = Math.min(scaleX, scaleY, 1);
+      setCanvasScale(scale);
+      // Center the canvas via scroll
+      const pad = getPadding();
+      const es = scale * zoom;
+      const scaledW = localSettings.canvas_width * es;
+      const scaledH = localSettings.canvas_height * es;
+      const container = canvasContainerRef.current;
+      container.scrollLeft = pad.x - (clientWidth - scaledW) / 2;
+      container.scrollTop = pad.y - (clientHeight - scaledH) / 2;
     };
-    updateScale();
+    if (!hasInitialCentered.current) {
+      hasInitialCentered.current = true;
+      requestAnimationFrame(updateScale);
+    } else {
+      updateScale();
+    }
     window.addEventListener("resize", updateScale);
     return () => window.removeEventListener("resize", updateScale);
-  }, [localSettings.canvas_width, localSettings.canvas_height]);
+  }, [localSettings.canvas_width, localSettings.canvas_height, getPadding]);
 
-  // Ctrl+Scroll to zoom
+  // Apply pending scroll position after DOM update (zoom changes virtual size)
+  useLayoutEffect(() => {
+    if (pendingScroll.current && canvasContainerRef.current) {
+      canvasContainerRef.current.scrollLeft = pendingScroll.current.left;
+      canvasContainerRef.current.scrollTop = pendingScroll.current.top;
+      pendingScroll.current = null;
+    }
+  });
+
+  // Scroll to zoom (anchored to cursor position)
   useEffect(() => {
     const container = canvasContainerRef.current;
     if (!container) return;
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey) return;
       e.preventDefault();
-      setZoom((z) => Math.min(2, Math.max(0.25, z - e.deltaY * 0.001)));
+      const rect = container.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const oldZoom = zoomRef.current;
+      const newZoom = Math.min(4, Math.max(0.1, oldZoom - e.deltaY * 0.001));
+      if (newZoom === oldZoom) return;
+
+      // Point in virtual space under cursor (before zoom)
+      const pad = getPadding();
+      const vxBefore = container.scrollLeft + mx;
+      const vyBefore = container.scrollTop + my;
+
+      // Canvas coords of that point
+      const oldEs = canvasScale * oldZoom;
+      const cx = (vxBefore - pad.x) / oldEs;
+      const cy = (vyBefore - pad.y) / oldEs;
+
+      // After zoom: where that canvas point will be
+      const newEs = canvasScale * newZoom;
+      const newVx = cx * newEs + pad.x;
+      const newVy = cy * newEs + pad.y;
+
+      // Schedule scroll adjustment after render
+      pendingScroll.current = { left: newVx - mx, top: newVy - my };
+      setZoom(newZoom);
     };
     container.addEventListener("wheel", onWheel, { passive: false });
     return () => container.removeEventListener("wheel", onWheel);
-  }, []);
+  }, [canvasScale, getPadding]);
 
   const update = useCallback(
     (s: OverlaySettings) => {
@@ -910,11 +993,13 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     [localSettings, selectedEl, update],
   );
 
+  const effectiveScale = canvasScale * zoom;
+
   const spriteHandlers = useElementDrag(
     "sprite",
     localSettings,
     update,
-    canvasScale,
+    effectiveScale,
     setIsDragging,
     setGuides,
     snapEnabled,
@@ -924,7 +1009,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     "name",
     localSettings,
     update,
-    canvasScale,
+    effectiveScale,
     setIsDragging,
     setGuides,
     snapEnabled,
@@ -934,7 +1019,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     "counter",
     localSettings,
     update,
-    canvasScale,
+    effectiveScale,
     setIsDragging,
     setGuides,
     snapEnabled,
@@ -962,11 +1047,16 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     ? { ...activePokemon, encounters: currentCount }
     : undefined;
 
-  const effectiveScale = canvasScale * zoom;
-
-  // Keyboard navigation
+  // Keyboard navigation + spacebar for hand tool
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Space for hand tool (not in input/select/textarea)
+      if (e.code === "Space" && !["INPUT", "SELECT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) {
+        e.preventDefault();
+        setSpaceHeld(true);
+        return;
+      }
+
       // Undo/Redo
       if (e.ctrlKey && e.key === "z") {
         e.preventDefault();
@@ -1013,21 +1103,122 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         setSelectedEl(LAYERS[(idx + 1) % LAYERS.length]);
       }
     };
+    const upHandler = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        setSpaceHeld(false);
+      }
+    };
     window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keyup", upHandler);
+    return () => {
+      window.removeEventListener("keydown", handler);
+      window.removeEventListener("keyup", upHandler);
+    };
   }, [selectedEl, localSettings, history, updateSelectedEl, onUpdate, LAYERS]);
 
-  // Track mouse position over canvas
+  // Show tutorial on first visit
+  useEffect(() => {
+    if (!localStorage.getItem("encounty_editor_tutorial_seen")) {
+      setShowTutorial(true);
+    }
+  }, []);
+
+  // Track mouse position over canvas (scroll-aware)
   const handleCanvasMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = Math.round((e.clientX - rect.left) / effectiveScale);
-    const y = Math.round((e.clientY - rect.top) / effectiveScale);
+    const container = canvasContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const rawX = e.clientX - rect.left;
+    const rawY = e.clientY - rect.top;
+    const pad = getPadding();
+    const vx = container.scrollLeft + rawX - pad.x;
+    const vy = container.scrollTop + rawY - pad.y;
+    const x = Math.round(vx / effectiveScale);
+    const y = Math.round(vy / effectiveScale);
     setMousePos({ x, y });
     if (isDragging) {
-      setTooltipPos({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
+      setTooltipPos({ x: rawX, y: rawY });
+    }
+    // Pan dragging via scroll
+    if (isPanDragging && panDragStart.current) {
+      container.scrollLeft = panDragStart.current.sl - (e.clientX - panDragStart.current.x);
+      container.scrollTop = panDragStart.current.st - (e.clientY - panDragStart.current.y);
+    }
+  };
+
+  const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (effectiveTool === "hand") {
+      e.preventDefault();
+      const container = canvasContainerRef.current;
+      if (!container) return;
+      setIsPanDragging(true);
+      panDragStart.current = { x: e.clientX, y: e.clientY, sl: container.scrollLeft, st: container.scrollTop };
+    }
+  };
+
+  const handleCanvasMouseUp = () => {
+    if (isPanDragging) {
+      setIsPanDragging(false);
+      panDragStart.current = null;
+    }
+  };
+
+  // Fit-to-view: reset zoom and center canvas via scroll
+  const fitToView = () => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+    const { clientWidth, clientHeight } = container;
+    const scaleX = clientWidth / localSettings.canvas_width;
+    const scaleY = clientHeight / localSettings.canvas_height;
+    const fitScale = Math.min(scaleX, scaleY, 1);
+    setZoom(1);
+    setCanvasScale(fitScale);
+    // Center via scroll after render
+    const pad = getPadding();
+    const scaledW = localSettings.canvas_width * fitScale;
+    const scaledH = localSettings.canvas_height * fitScale;
+    pendingScroll.current = {
+      left: pad.x - (clientWidth - scaledW) / 2,
+      top: pad.y - (clientHeight - scaledH) / 2,
+    };
+  };
+
+  // Background image upload handler
+  const handleBgUpload = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/png,image/jpeg,image/webp";
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      setBgUploading(true);
+      try {
+        const reader = new FileReader();
+        const base64 = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        const res = await fetch("/api/backgrounds/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image_base64: base64 }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          update({ ...localSettings, background_image: data.filename, background_image_fit: localSettings.background_image_fit || "cover" });
+        }
+      } catch (err) {
+        console.error("Background upload failed:", err);
+      }
+      setBgUploading(false);
+    };
+    input.click();
+  };
+
+  const handleBgRemove = async () => {
+    if (localSettings.background_image) {
+      await fetch(`/api/backgrounds/${localSettings.background_image}`, { method: "DELETE" }).catch(() => {});
+      update({ ...localSettings, background_image: "", background_image_fit: "cover" });
     }
   };
 
@@ -1036,7 +1227,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       {/* LEFT SIDEBAR: Layers & Canvas */}
       <div className={`w-56 2xl:w-64 shrink-0 flex flex-col gap-3 min-h-0 ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
         {/* Layers Panel */}
-        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
+        <div data-tutorial="layers" className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs 2xl:text-sm font-semibold text-text-secondary uppercase tracking-wider">
               Ebenen
@@ -1142,7 +1333,71 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             >
               <option value="none">Keine</option>
               <option value="waves">Wellen (Homebrew)</option>
+              <option value="gradient-shift">Farbverlauf</option>
+              <option value="pulse-bg">Pulsieren</option>
+              <option value="shimmer-bg">Schimmern</option>
+              <option value="particles">Partikel</option>
             </select>
+          </div>
+
+          {/* Animation speed */}
+          {(localSettings.background_animation ?? "none") !== "none" && (
+            <NumSlider
+              label={`Geschwindigkeit ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
+              value={localSettings.background_animation_speed ?? 1}
+              min={0.1}
+              max={3}
+              step={0.1}
+              onChange={(v) => updateField("background_animation_speed", v)}
+            />
+          )}
+
+          {/* Hintergrundbild */}
+          <div>
+            <label className="text-[10px] 2xl:text-xs text-text-muted">
+              Hintergrundbild
+            </label>
+            <div className="flex items-center gap-1.5 mt-1">
+              <button
+                onClick={handleBgUpload}
+                disabled={bgUploading}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+              >
+                <Upload className="w-3 h-3" />
+                {bgUploading ? "..." : "Hochladen"}
+              </button>
+              {localSettings.background_image && (
+                <button
+                  onClick={handleBgRemove}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-colors"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Entfernen
+                </button>
+              )}
+            </div>
+            {localSettings.background_image && (
+              <>
+                <div
+                  className="mt-1.5 w-full h-12 rounded border border-border-subtle bg-bg-primary overflow-hidden"
+                  style={{
+                    backgroundImage: `url(/api/backgrounds/${localSettings.background_image})`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                />
+                <select
+                  value={localSettings.background_image_fit ?? "cover"}
+                  onChange={(e) => updateField("background_image_fit", e.target.value as "cover" | "contain" | "stretch" | "tile")}
+                  className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
+                >
+                  <option value="cover">Cover</option>
+                  <option value="contain">Contain</option>
+                  <option value="stretch">Stretch</option>
+                  <option value="tile">Kacheln</option>
+                </select>
+              </>
+            )}
           </div>
 
           {/* Hintergrund Farbe & Transparenz */}
@@ -1274,7 +1529,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       {/* CENTER: Toolbar + Canvas */}
       <div className="flex-1 flex flex-col gap-2 min-w-0">
         {/* Toolbar */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-xl border border-border-subtle shrink-0">
+        <div data-tutorial="toolbar" className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-xl border border-border-subtle shrink-0">
           {/* Animation test controls */}
           <span className="text-[10px] 2xl:text-xs text-text-muted mr-1">
             Animations-Test:
@@ -1371,9 +1626,34 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
           <div className="w-px h-4 bg-border-subtle mx-1" />
 
+          {/* Pointer / Hand / Fit tools */}
+          <button
+            onClick={() => setActiveTool("pointer")}
+            title="Zeiger-Werkzeug"
+            className={`p-1.5 rounded transition-colors ${activeTool === "pointer" ? "text-accent-blue bg-accent-blue/20" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
+          >
+            <MousePointer2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
+          </button>
+          <button
+            onClick={() => setActiveTool("hand")}
+            title="Hand-Werkzeug (oder Leertaste halten)"
+            className={`p-1.5 rounded transition-colors ${activeTool === "hand" ? "text-accent-blue bg-accent-blue/20" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
+          >
+            <Hand className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
+          </button>
+          <button
+            onClick={fitToView}
+            title="An Ansicht anpassen"
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+          >
+            <Maximize className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
+          </button>
+
+          <div className="w-px h-4 bg-border-subtle mx-1" />
+
           {/* Zoom */}
           <button
-            onClick={() => setZoom((z) => Math.min(2, z + 0.1))}
+            onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
             title="Reinzoomen"
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
@@ -1383,40 +1663,88 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             {Math.round(zoom * 100)}%
           </span>
           <button
-            onClick={() => setZoom((z) => Math.max(0.25, z - 0.1))}
+            onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
             title="Rauszoomen"
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <ZoomOut className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
 
-          {/* Mouse position */}
-          <span className="ml-auto text-[10px] 2xl:text-xs text-text-faint font-mono">
+          <div className="w-px h-4 bg-border-subtle mx-1" />
+
+          {/* Canvas background toggle */}
+          <div className="flex border border-border-subtle rounded overflow-hidden">
+            {(["transparent", "white", "black"] as const).map((bg) => (
+              <button
+                key={bg}
+                onClick={() => setCanvasBg(bg)}
+                title={bg === "transparent" ? "Transparent" : bg === "white" ? "Weiß" : "Schwarz"}
+                className={`px-1.5 py-1 text-[10px] 2xl:text-xs ${canvasBg === bg ? "bg-accent-blue/20 text-accent-blue" : "text-text-muted hover:bg-bg-hover"}`}
+              >
+                <div
+                  className="w-3 h-3 rounded-sm border border-border-subtle"
+                  style={{
+                    background: bg === "transparent"
+                      ? "repeating-conic-gradient(#666 0% 25%, #999 0% 50%) 50% / 6px 6px"
+                      : bg,
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+
+          {/* Mouse position — same height as toolbar buttons */}
+          <span className="ml-auto flex items-center text-[10px] 2xl:text-xs text-text-faint font-mono leading-none py-1">
             X: {mousePos.x} Y: {mousePos.y}
           </span>
           {activePokemon && (
-            <span className="text-[10px] 2xl:text-xs text-text-faint">
+            <span className="flex items-center text-[10px] 2xl:text-xs text-text-faint leading-none py-1">
               {currentCount} (Vorschau)
             </span>
           )}
           {!activePokemon && (
-            <span className="text-[10px] 2xl:text-xs text-text-faint">
+            <span className="flex items-center text-[10px] 2xl:text-xs text-text-faint leading-none py-1">
               Kein aktives Pokémon
             </span>
           )}
+          <button
+            onClick={() => setShowTutorial(true)}
+            title="Tutorial anzeigen"
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+          >
+            <HelpCircle className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
+          </button>
         </div>
 
-        {/* Canvas */}
+        {/* Canvas — scrollable container with virtual space */}
         <div
           ref={canvasContainerRef}
-          className="flex-1 canvas-checkered rounded-xl border border-border-subtle flex items-center justify-center overflow-hidden min-h-0 relative"
+          data-tutorial="canvas"
+          className={`flex-1 rounded-xl border border-border-subtle overflow-auto min-h-0 relative ${canvasBg === "transparent" ? "canvas-checkered" : ""}`}
+          style={{
+            cursor: effectiveTool === "hand" ? (isPanDragging ? "grabbing" : "grab") : "default",
+            backgroundColor: canvasBg === "white" ? "#ffffff" : canvasBg === "black" ? "#000000" : undefined,
+          }}
           onMouseMove={handleCanvasMouseMove}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseUp={handleCanvasMouseUp}
+          onMouseLeave={handleCanvasMouseUp}
         >
+          {/* Virtual space — defines the scrollable extent */}
+          <div
+            style={{
+              width: localSettings.canvas_width * effectiveScale + (canvasContainerRef.current?.clientWidth ?? 800) * 0.8,
+              height: localSettings.canvas_height * effectiveScale + (canvasContainerRef.current?.clientHeight ?? 600) * 0.8,
+              position: "relative",
+            }}
+          >
           <div
             style={{
               transform: `scale(${effectiveScale})`,
-              transformOrigin: "center center",
-              position: "relative",
+              transformOrigin: "0 0",
+              position: "absolute",
+              left: (canvasContainerRef.current?.clientWidth ?? 800) * 0.4,
+              top: (canvasContainerRef.current?.clientHeight ?? 600) * 0.4,
               width: localSettings.canvas_width,
               height: localSettings.canvas_height,
             }}
@@ -1500,6 +1828,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 <div
                   key={key}
                   onMouseDown={(e) => {
+                    if (effectiveTool === "hand") return;
                     setSelectedEl(key);
                     onDragStart(e);
                   }}
@@ -1510,7 +1839,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     width: el.width,
                     height: el.height,
                     zIndex: 50 + el.z_index,
-                    cursor: "move",
+                    cursor: effectiveTool === "hand" ? "inherit" : "move",
                     border: isSelected
                       ? "2px solid #3b82f6"
                       : "2px solid transparent",
@@ -1548,8 +1877,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               <div
                 className="absolute pointer-events-none bg-black/80 text-white text-[10px] px-2 py-0.5 rounded font-mono"
                 style={{
-                  left: tooltipPos.x / effectiveScale,
-                  top: Math.max(0, tooltipPos.y / effectiveScale - 22),
+                  left: (localSettings[selectedEl] as OverlayElementBase).x + (localSettings[selectedEl] as OverlayElementBase).width / 2 - 20,
+                  top: Math.max(0, (localSettings[selectedEl] as OverlayElementBase).y - 18),
                   zIndex: 200,
                 }}
               >
@@ -1558,13 +1887,14 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               </div>
             )}
           </div>
+          </div>
         </div>
       </div>
 
       {/* RIGHT SIDEBAR: Properties & OBS */}
       <div className={`w-72 2xl:w-80 shrink-0 flex flex-col gap-3 min-h-0 ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
         {/* Properties Panel */}
-        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto">
+        <div data-tutorial="properties" className="bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto">
           <p className="text-xs 2xl:text-sm font-semibold text-text-secondary uppercase tracking-wider mb-3">
             {ELEMENT_LABELS[selectedEl]}
           </p>
@@ -1715,6 +2045,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                   <option value="bob">Bob</option>
                   <option value="pulse">Puls</option>
                   <option value="rock">Wackeln</option>
+                  <option value="wiggle">Wippen</option>
+                  <option value="shimmer">Schimmern</option>
                 </select>
               </div>
               <div>
@@ -1750,6 +2082,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                   <option value="flip">Flip</option>
                   <option value="rubber">Rubber Band</option>
                   <option value="flash">Flash</option>
+                  <option value="jello">Jello</option>
+                  <option value="tada">Tada</option>
+                  <option value="swing">Swing</option>
                 </select>
               </div>
             </div>
@@ -1787,6 +2122,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                   <option value="none">Keine</option>
                   <option value="breathe">Atmen</option>
                   <option value="glow">Glühen</option>
+                  <option value="shimmer">Schimmern</option>
+                  <option value="float">Schweben</option>
                 </select>
               </div>
               <div>
@@ -1822,6 +2159,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                   <option value="shake">Shake</option>
                   <option value="flip">Flip</option>
                   <option value="rubber">Rubber Band</option>
+                  <option value="jello">Jello</option>
+                  <option value="tada">Tada</option>
+                  <option value="zoom-in">Zoom In</option>
                 </select>
               </div>
             </div>
@@ -1907,6 +2247,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                   <option value="none">Keine</option>
                   <option value="breathe">Atmen</option>
                   <option value="glow">Glühen</option>
+                  <option value="shimmer">Schimmern</option>
+                  <option value="float">Schweben</option>
                 </select>
               </div>
               <div>
@@ -1944,6 +2286,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                   <option value="slide-up">Slide Up (gesamt)</option>
                   <option value="flip">Flip (gesamt, Wecker)</option>
                   <option value="rubber">Rubber Band</option>
+                  <option value="jello">Jello</option>
+                  <option value="tada">Tada</option>
+                  <option value="zoom-in">Zoom In</option>
                 </select>
               </div>
             </div>
@@ -1955,6 +2300,16 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           <OBSSourceHint pokemonId={activePokemon?.id} />
         </div>
       </div>
+
+      {/* Tutorial overlay */}
+      {showTutorial && (
+        <EditorTutorial
+          onComplete={() => {
+            setShowTutorial(false);
+            localStorage.setItem("encounty_editor_tutorial_seen", "true");
+          }}
+        />
+      )}
     </div>
   );
 }

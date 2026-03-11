@@ -170,6 +170,19 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		}
 	})
 
+	// Background image API
+	mux.HandleFunc("/api/backgrounds/upload", s.handleBackgroundUpload)
+	mux.HandleFunc("/api/backgrounds/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			s.handleBackgroundServe(w, r)
+		case http.MethodDelete:
+			s.handleBackgroundDelete(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+
 	// Detector API
 	mux.HandleFunc("/api/detector/screenshot", s.handleDetectorScreenshot)
 	mux.HandleFunc("/api/detector/windows", s.handleDetectorWindows)

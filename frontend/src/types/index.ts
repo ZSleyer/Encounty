@@ -177,6 +177,9 @@ export interface OverlaySettings {
   background_color: string;
   background_opacity: number;
   background_animation?: string;
+  background_animation_speed?: number; // multiplier, 1 = default, 0.5 = slow, 2 = fast
+  background_image?: string;
+  background_image_fit?: "cover" | "contain" | "stretch" | "tile";
   blur: number;
   show_border: boolean;
   border_color: string;
