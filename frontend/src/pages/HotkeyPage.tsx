@@ -22,11 +22,11 @@ export function HotkeyPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-transparent">
+    <div className="flex-1 flex flex-col min-h-0 bg-transparent">
       <div className="switch-waves-container">
         <div className="switch-waves" />
       </div>
-      <div className="flex-1 overflow-auto p-6 relative z-10">
+      <div className="flex-1 min-h-0 overflow-auto p-6 relative z-10">
         <div className="max-w-xl mx-auto space-y-6">
         <section className="glass-card rounded-2xl p-6">
           <h2 className="text-sm font-semibold text-text-primary mb-6">
