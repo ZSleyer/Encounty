@@ -14,7 +14,7 @@ import {
 import { DetectorConfig, DetectorRect, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
-import { useBrowserCapture } from "../hooks/useBrowserCapture";
+import { useCaptureService, useCaptureVersion } from "../contexts/CaptureServiceContext";
 import { TemplateEditor } from "./TemplateEditor";
 import { getSpriteUrl } from "../utils/sprites";
 
@@ -111,10 +111,27 @@ export function DetectorPanel({
   } | null>(null);
   const [addingSprite, setAddingSprite] = useState(false);
 
-  const {
-    stream, videoRef, isCapturing, startCapture, stopCapture, captureFrame,
-    error: captureError,
-  } = useBrowserCapture(cfg.source_type);
+  const capture = useCaptureService();
+  // Subscribe to capture version changes so we re-render when streams start/stop
+  useCaptureVersion();
+
+  // Per-pokemon stream from the capture service
+  const stream = capture.getStream(pokemon.id);
+  const isCapturing = capture.isCapturing(pokemon.id);
+
+  const startCapture = useCallback(() => {
+    if (cfg.source_type === "browser_display" || cfg.source_type === "browser_camera") {
+      return capture.startCapture(pokemon.id, cfg.source_type);
+    }
+    return Promise.resolve();
+  }, [cfg.source_type, capture, pokemon.id]);
+
+  const stopCapture = useCallback(() => {
+    capture.stopCapture(pokemon.id);
+  }, [capture, pokemon.id]);
+
+  // Local video element for preview (display only, no lifecycle impact)
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const pokemonOcrLang = LANG_MAP[pokemon.language ?? ""] ?? "eng";
 
@@ -196,38 +213,35 @@ export function DetectorPanel({
     }));
   };
 
-  // ── Frame submission loop for browser sources ──────────────────────────────
-
+  // Propagate capture errors from the shared service
   useEffect(() => {
-    let active = true;
-    let timerId: ReturnType<typeof setTimeout>;
-    const loop = async () => {
-      if (!isCapturing || !isRunning || !active) return;
-      const blob = await captureFrame();
-      if (blob) {
-        // Fire-and-forget: don't block the loop waiting for the server response.
-        // This keeps the capture cadence consistent regardless of server latency.
-        fetch(`/api/detector/${pokemon.id}/match_frame`, {
-          method: "POST", body: blob,
-        }).catch(() => {});
-      }
-      if (active) timerId = setTimeout(loop, cfg.poll_interval_ms);
-    };
-    if (isRunning && isCapturing) loop();
-    return () => { active = false; clearTimeout(timerId); };
-  }, [isRunning, isCapturing, captureFrame, pokemon.id, cfg.poll_interval_ms]);
+    if (capture.captureError) setErrorMsg(capture.captureError);
+  }, [capture.captureError]);
 
-  useEffect(() => {
-    if (captureError) setErrorMsg(captureError);
-  }, [captureError]);
-
-  // Wire stream to video element
+  // Wire shared stream to the local preview video element
   useEffect(() => {
     if (stream && videoRef.current && videoRef.current.srcObject !== stream) {
       videoRef.current.srcObject = stream;
       videoRef.current.play().catch(() => {});
+    } else if (!stream && videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   }, [stream, showAddTemplate, editingTemplate]);
+
+  // Re-register submitter when component mounts for an already-running detector
+  // (e.g. user switched away and came back in the sidebar)
+  useEffect(() => {
+    if (isRunning && isCapturing && cfg.source_type.startsWith("browser")) {
+      capture.registerSubmitter(pokemon.id, cfg.poll_interval_ms);
+    }
+  }, [pokemon.id]); // Only on pokemon change / mount
+
+  // Sync poll interval to capture service when config changes
+  useEffect(() => {
+    if (isRunning) {
+      capture.updateSubmitterInterval(pokemon.id, cfg.poll_interval_ms);
+    }
+  }, [cfg.poll_interval_ms, isRunning, pokemon.id, capture]);
 
   // ── Template operations ────────────────────────────────────────────────────
 
@@ -360,8 +374,13 @@ export function DetectorPanel({
       // sees the latest templates and settings when /start is called.
       await onConfigChange({ ...cfg, templates });
       const res = await fetch(`/api/detector/${pokemon.id}/start`, { method: "POST" });
-      if (res.ok) setErrorMsg(null);
-      else {
+      if (res.ok) {
+        setErrorMsg(null);
+        // Register this pokemon for frame dispatch via the capture service
+        if (cfg.source_type.startsWith("browser")) {
+          capture.registerSubmitter(pokemon.id, cfg.poll_interval_ms);
+        }
+      } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
         setErrorMsg(body.error ?? t("detector.errStartFailed"));
       }
@@ -370,7 +389,8 @@ export function DetectorPanel({
   };
 
   const handleStop = async () => {
-    if (cfg.source_type.startsWith("browser")) stopCapture();
+    // Unregister from frame dispatch (does NOT stop the shared stream)
+    capture.unregisterSubmitter(pokemon.id);
     try { await fetch(`/api/detector/${pokemon.id}/stop`, { method: "POST" }); } catch {}
   };
 

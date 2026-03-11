@@ -2,6 +2,10 @@
 // connections and routes messages between the server and all browser tabs.
 // On every state mutation the hub broadcasts a "state_update" message so
 // all connected clients stay in sync without polling.
+//
+// Each connection has a dedicated write goroutine that serialises all
+// outgoing messages through a channel, preventing concurrent writes to
+// the same gorilla/websocket.Conn (which would panic).
 package server
 
 import (
@@ -26,22 +30,46 @@ type WSMessage struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
+// wsClient wraps a single WebSocket connection with a buffered send channel.
+// The writePump goroutine drains the channel and performs the actual writes,
+// ensuring only one goroutine writes to the connection at a time.
+type wsClient struct {
+	conn *websocket.Conn
+	send chan []byte
+}
+
+const sendBufSize = 64
+
+// writePump runs in its own goroutine and serialises all writes to conn.
+func (c *wsClient) writePump() {
+	defer c.conn.Close()
+	for msg := range c.send {
+		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+			slog.Debug("WebSocket write error", "error", err)
+			return
+		}
+	}
+	// Channel closed — send a close frame.
+	_ = c.conn.WriteMessage(websocket.CloseMessage,
+		websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"))
+}
+
 // Hub tracks all active WebSocket connections. A read/write mutex guards the
 // clients map so Broadcast can safely iterate while ServeWS may concurrently
 // add or remove connections.
 type Hub struct {
 	mu      sync.RWMutex
-	clients map[*websocket.Conn]bool
+	clients map[*wsClient]bool
 }
 
 // NewHub creates an empty Hub ready to accept connections.
 func NewHub() *Hub {
-	return &Hub{clients: make(map[*websocket.Conn]bool)}
+	return &Hub{clients: make(map[*wsClient]bool)}
 }
 
-// Broadcast serialises msg and sends it to every connected client.
-// Write errors are logged but do not remove the connection; the next
-// read from the client will detect the broken pipe and clean it up.
+// Broadcast serialises msg and sends it to every connected client via their
+// write channel. If a client's buffer is full the message is dropped to
+// avoid blocking the broadcaster.
 func (h *Hub) Broadcast(msg WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -49,9 +77,12 @@ func (h *Hub) Broadcast(msg WSMessage) {
 	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	for conn := range h.clients {
-		if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-			slog.Debug("WebSocket write error", "error", err)
+	for c := range h.clients {
+		select {
+		case c.send <- data:
+		default:
+			// Client too slow — drop message to avoid blocking.
+			slog.Debug("WebSocket send buffer full, dropping message")
 		}
 	}
 }
@@ -77,20 +108,28 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	c := &wsClient{
+		conn: conn,
+		send: make(chan []byte, sendBufSize),
+	}
+
 	h.mu.Lock()
-	h.clients[conn] = true
+	h.clients[c] = true
 	h.mu.Unlock()
 
-	// Send current state on connect
+	// Start the write goroutine.
+	go c.writePump()
+
+	// Send current state on connect.
 	state := srv.state.GetState()
 	p, _ := json.Marshal(state)
-	_ = conn.WriteMessage(websocket.TextMessage, mustMarshal(WSMessage{Type: "state_update", Payload: p}))
+	c.send <- mustMarshal(WSMessage{Type: "state_update", Payload: p})
 
 	defer func() {
 		h.mu.Lock()
-		delete(h.clients, conn)
+		delete(h.clients, c)
 		h.mu.Unlock()
-		conn.Close()
+		close(c.send)
 	}()
 
 	for {
@@ -106,18 +145,16 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// CloseAll sends a normal-closure frame to every client and removes them
-// from the hub. Called during graceful shutdown so http.Server.Shutdown
-// does not wait for idle WebSocket connections to time out.
+// CloseAll closes every client connection and removes them from the hub.
+// Called during graceful shutdown so http.Server.Shutdown does not wait
+// for idle WebSocket connections to time out.
 func (h *Hub) CloseAll() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	for conn := range h.clients {
-		_ = conn.WriteMessage(websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"))
-		conn.Close()
+	for c := range h.clients {
+		close(c.send) // triggers writePump to send close frame and exit
 	}
-	h.clients = make(map[*websocket.Conn]bool)
+	h.clients = make(map[*wsClient]bool)
 }
 
 func mustMarshal(v any) []byte {
