@@ -1,4 +1,4 @@
-.PHONY: dev build build-windows build-linux frontend clean
+.PHONY: dev build build-windows build-linux frontend clean licenses
 
 BINARY = encounty
 FRONTEND_DIR = frontend
@@ -20,6 +20,10 @@ dev:
 	@cd $(FRONTEND_DIR) && yarn dev &
 	@go run -ldflags="-X main.version=dev -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)" main.go --dev
 
+licenses:
+	@echo "Collecting third-party licenses..."
+	@bash scripts/collect_licenses.sh
+
 frontend:
 	@echo "Building frontend..."
 	@cd $(FRONTEND_DIR) && yarn build
@@ -31,7 +35,7 @@ icons:
 	@echo "Generating icons from frontend/public/app-icon.png..."
 	go run scripts/generate_icons.go
 
-build-linux: frontend icons
+build-linux: frontend icons licenses
 	@echo "Building Encounty $(VERSION) ($(COMMIT)) for Linux..."
 	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY)-linux main.go
 	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-linux || true
@@ -49,7 +53,7 @@ build-linux: frontend icons
 	@echo "Categories=Game;Utility;" >> $(LINUX_DIST)/$(BINARY).desktop
 	@echo "Done: ./$(LINUX_DIST)/ (Run ./$(BINARY) or use the .desktop file)"
 
-build-windows: frontend icons
+build-windows: frontend icons licenses
 	$(eval WINRES := $(shell go env GOPATH)/bin/go-winres)
 	@command -v $(WINRES) >/dev/null 2>&1 || (echo "Installing go-winres..." && go install github.com/tc-hib/go-winres@latest)
 	@# Extract numeric version for Windows (v1.2.3 -> 1.2.3.0, v0.3 -> 0.3.0)

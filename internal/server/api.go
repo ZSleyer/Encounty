@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/zsleyer/encounty/internal/licenses"
 	"github.com/zsleyer/encounty/internal/state"
 )
 
@@ -219,6 +220,12 @@ func (s *Server) handleVersion(w http.ResponseWriter, _ *http.Request) {
 		"build_date": s.buildDate,
 		"display":    display,
 	})
+}
+
+// handleLicenses returns all collected third-party license entries.
+// GET /api/licenses
+func (s *Server) handleLicenses(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, licenses.All())
 }
 
 // handleUpdateHotkeys replaces the full hotkey map and re-registers all
