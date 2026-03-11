@@ -24,6 +24,9 @@ import {
   Upload,
   Trash2,
   HelpCircle,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from "lucide-react";
 import { EditorTutorial } from "./EditorTutorial";
 import {
@@ -36,6 +39,13 @@ import { Overlay } from "../pages/Overlay";
 import type { Pokemon } from "../types";
 import { useHistory } from "../hooks/useHistory";
 import { useSnapping, Guide } from "../hooks/useSnapping";
+import { NumInput, NumSlider } from "./editor/NumSlider";
+import { ColorSwatch } from "./editor/ColorSwatch";
+import { ColorPickerModal } from "./editor/ColorPickerModal";
+import { GradientEditorModal } from "./editor/GradientEditorModal";
+import { ShadowEditorModal } from "./editor/ShadowEditorModal";
+import { OutlineEditorModal } from "./editor/OutlineEditorModal";
+import { TextColorEditorModal } from "./editor/TextColorEditorModal";
 
 interface Props {
   settings: OverlaySettings;
@@ -43,6 +53,7 @@ interface Props {
   activePokemon?: Pokemon;
   overlayTargetId?: string;
   readOnly?: boolean;
+  compact?: boolean;
 }
 
 type ElementKey = "sprite" | "name" | "counter";
@@ -69,8 +80,19 @@ const DEFAULT_TEXT_STYLE: TextStyle = {
   outline_type: "none",
   outline_width: 2,
   outline_color: "#000000",
+  outline_gradient_stops: [
+    { color: "#ffffff", position: 0 },
+    { color: "#000000", position: 100 },
+  ],
+  outline_gradient_angle: 180,
   text_shadow: false,
   text_shadow_color: "#000000",
+  text_shadow_color_type: "solid",
+  text_shadow_gradient_stops: [
+    { color: "#ffffff", position: 0 },
+    { color: "#000000", position: 100 },
+  ],
+  text_shadow_gradient_angle: 180,
   text_shadow_blur: 4,
   text_shadow_x: 1,
   text_shadow_y: 1,
@@ -151,202 +173,40 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   },
 };
 
-function NumInput({
-  value,
-  min,
-  max,
-  step = 1,
-  onChange,
-  className,
-}: {
-  value: number;
-  min?: number;
-  max?: number;
-  step?: number;
-  onChange: (v: number) => void;
-  className?: string;
-}) {
-  const clamp = (v: number) => {
-    let n = v;
-    if (min !== undefined) n = Math.max(min, n);
-    if (max !== undefined) n = Math.min(max, n);
-    return n;
-  };
-  return (
-    <div
-      className={`flex items-center border border-border-subtle rounded overflow-hidden bg-bg-primary ${className ?? ""}`}
-    >
-      <button
-        type="button"
-        onClick={() => onChange(clamp(value - step))}
-        className="px-1.5 2xl:px-2 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm 2xl:text-base leading-none shrink-0"
-      >
-        −
-      </button>
-      <input
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 min-w-0 bg-transparent text-[10px] 2xl:text-xs text-text-primary text-center outline-none py-0.5 2xl:py-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-      />
-      <button
-        type="button"
-        onClick={() => onChange(clamp(value + step))}
-        className="px-1.5 2xl:px-2 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm 2xl:text-base leading-none shrink-0"
-      >
-        +
-      </button>
-    </div>
-  );
-}
+const POPULAR_FONTS = [
+  "sans", "serif", "monospace", "pokemon",
+  "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Raleway",
+  "Poppins", "Nunito", "Ubuntu", "Merriweather", "Playfair Display",
+  "Bebas Neue", "Cinzel", "Exo 2", "Orbitron", "Press Start 2P",
+];
 
-function NumSlider({
-  label,
-  value,
-  min,
-  max,
-  step = 1,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-0.5">
-        <label className="text-[10px] 2xl:text-xs text-text-muted">{label}</label>
-        <NumInput
-          value={value}
-          min={min}
-          max={max}
-          step={step}
-          onChange={onChange}
-          className="w-20 2xl:w-24"
-        />
-      </div>
-      <input
-        type="range"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full h-1 accent-accent-blue cursor-pointer"
-      />
-    </div>
-  );
-}
-
-function FontPicker({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const POPULAR_FONTS = [
-    "sans",
-    "serif",
-    "monospace",
-    "pokemon",
-    "Roboto",
-    "Open Sans",
-    "Lato",
-    "Montserrat",
-    "Oswald",
-    "Raleway",
-    "Poppins",
-    "Nunito",
-    "Ubuntu",
-    "Merriweather",
-    "Playfair Display",
-    "Bebas Neue",
-    "Cinzel",
-    "Exo 2",
-    "Orbitron",
-    "Press Start 2P",
-  ];
-  return (
-    <select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
-    >
-      {POPULAR_FONTS.map((f) => (
-        <option key={f} value={f}>
-          {f}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function GradientEditor({
-  stops,
-  angle,
-  onChange,
-  onAngleChange,
-}: {
-  stops: GradientStop[];
-  angle: number;
-  onChange: (stops: GradientStop[]) => void;
-  onAngleChange: (a: number) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <NumSlider
-        label="Winkel (°)"
-        value={angle}
-        min={0}
-        max={360}
-        onChange={onAngleChange}
-      />
-      {stops.map((stop, i) => (
-        <div key={i} className="flex gap-2 items-center">
-          <input
-            type="color"
-            value={stop.color}
-            onChange={(e) => {
-              const newStops = [...stops];
-              newStops[i] = { ...stop, color: e.target.value };
-              onChange(newStops);
-            }}
-            className="w-8 h-6 2xl:w-10 2xl:h-7 rounded cursor-pointer border-0"
-          />
-          <input
-            type="range"
-            value={stop.position}
-            onChange={(e) => {
-              const newStops = [...stops];
-              newStops[i] = { ...stop, position: Number(e.target.value) };
-              onChange(newStops);
-            }}
-            min={0}
-            max={100}
-            className="flex-1 h-1 accent-accent-blue"
-          />
-          <span className="text-xs 2xl:text-sm text-text-muted w-8 2xl:w-10">{stop.position}%</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
+/** Compact text style editor with swatch-based rows that open modal editors. */
 function TextStyleEditor({
   style,
   onChange,
   label,
+  onOpenTextColorEditor,
+  onOpenOutlineEditor,
+  onOpenShadowEditor,
 }: {
   style: TextStyle;
   onChange: (s: TextStyle) => void;
   label: string;
+  onOpenTextColorEditor: (
+    colorType: "solid" | "gradient", color: string,
+    gradientStops: GradientStop[], gradientAngle: number,
+    onConfirm: (colorType: "solid" | "gradient", color: string, gradientStops: GradientStop[], gradientAngle: number) => void,
+  ) => void;
+  onOpenOutlineEditor: (
+    type: "none" | "solid", color: string, width: number,
+    onConfirm: (type: "none" | "solid", color: string, width: number) => void,
+  ) => void;
+  onOpenShadowEditor: (
+    enabled: boolean, color: string, colorType: "solid" | "gradient",
+    gradientStops: GradientStop[], gradientAngle: number,
+    blur: number, x: number, y: number,
+    onConfirm: (enabled: boolean, color: string, colorType: "solid" | "gradient", gradientStops: GradientStop[], gradientAngle: number, blur: number, x: number, y: number) => void,
+  ) => void;
 }) {
   const u = (field: keyof TextStyle, value: unknown) =>
     onChange({ ...style, [field]: value });
@@ -354,20 +214,24 @@ function TextStyleEditor({
     <div className="space-y-2 border border-border-subtle/50 rounded p-2">
       <p className="text-xs 2xl:text-sm text-text-secondary font-semibold">{label}</p>
 
+      {/* --- Font --- */}
       <div>
         <label className="text-[10px] 2xl:text-xs text-text-muted">Schriftart</label>
-        <FontPicker
+        <select
           value={style.font_family}
-          onChange={(v) => u("font_family", v)}
-        />
+          onChange={(e) => u("font_family", e.target.value)}
+          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
+        >
+          {POPULAR_FONTS.map((f) => (
+            <option key={f} value={f}>{f}</option>
+          ))}
+        </select>
       </div>
-      <NumSlider
-        label="Größe (px)"
-        value={style.font_size}
-        min={6}
-        max={200}
-        onChange={(v) => u("font_size", v)}
-      />
+
+      {/* --- Size --- */}
+      <NumSlider label="Größe (px)" value={style.font_size} min={6} max={200} onChange={(v) => u("font_size", v)} />
+
+      {/* --- Weight --- */}
       <div>
         <label className="text-[10px] 2xl:text-xs text-text-muted">Gewicht</label>
         <select
@@ -376,13 +240,12 @@ function TextStyleEditor({
           className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
         >
           {[100, 300, 400, 500, 700, 900].map((w) => (
-            <option key={w} value={w}>
-              {w}
-            </option>
+            <option key={w} value={w}>{w}</option>
           ))}
         </select>
       </div>
 
+      {/* --- Alignment --- */}
       <div className="flex items-center gap-1">
         <span className="text-[10px] 2xl:text-xs text-text-muted w-14 2xl:w-16">Ausrichtung</span>
         <div className="flex border border-border-subtle rounded overflow-hidden">
@@ -390,138 +253,116 @@ function TextStyleEditor({
             <button
               key={align}
               onClick={() => u("text_align", align)}
-              className={`px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-[10px] 2xl:text-xs ${
+              className={`px-2 py-1 2xl:px-2.5 2xl:py-1.5 flex items-center justify-center ${
                 (style.text_align || "left") === align
                   ? "bg-accent-blue/20 text-accent-blue"
                   : "text-text-muted hover:bg-bg-hover"
               }`}
               title={align === "left" ? "Links" : align === "center" ? "Mitte" : "Rechts"}
             >
-              {align === "left" ? "L" : align === "center" ? "C" : "R"}
+              {align === "left" && <AlignLeft size={12} />}
+              {align === "center" && <AlignCenter size={12} />}
+              {align === "right" && <AlignRight size={12} />}
             </button>
           ))}
         </div>
       </div>
 
-      <div>
-        <label className="text-[10px] 2xl:text-xs text-text-muted">Farb-Typ</label>
-        <select
-          value={style.color_type}
-          onChange={(e) =>
-            u("color_type", e.target.value as "solid" | "gradient")
+      {/* --- Color swatch row (opens TextColorEditorModal) --- */}
+      <div className="border-t border-border-subtle/50 pt-2">
+        <ColorSwatch
+          color={style.color_type === "solid" ? style.color : (style.gradient_stops?.[0]?.color ?? "#ffffff")}
+          gradient={style.color_type === "gradient" ? {
+            stops: style.gradient_stops || [],
+            angle: style.gradient_angle || 180,
+          } : undefined}
+          label={style.color_type === "solid" ? `Farbe ${style.color}` : "Farbe (Verlauf)"}
+          onClick={() =>
+            onOpenTextColorEditor(
+              style.color_type || "solid",
+              style.color,
+              style.gradient_stops || [{ color: "#ffffff", position: 0 }, { color: "#aaaaaa", position: 100 }],
+              style.gradient_angle || 180,
+              (colorType, color, gradientStops, gradientAngle) => {
+                onChange({
+                  ...style,
+                  color_type: colorType,
+                  color,
+                  gradient_stops: gradientStops,
+                  gradient_angle: gradientAngle,
+                });
+              },
+            )
           }
-          className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
-        >
-          <option value="solid">Einfarbig</option>
-          <option value="gradient">Verlauf</option>
-        </select>
-      </div>
-      {style.color_type === "solid" ? (
-        <div className="flex gap-2 items-center">
-          <label className="text-[10px] 2xl:text-xs text-text-muted">Farbe</label>
-          <input
-            type="color"
-            value={style.color}
-            onChange={(e) => u("color", e.target.value)}
-            className="w-8 h-6 2xl:w-10 2xl:h-7 rounded cursor-pointer border-0"
-          />
-          <span className="text-[10px] 2xl:text-xs text-text-secondary">{style.color}</span>
-        </div>
-      ) : (
-        <GradientEditor
-          stops={style.gradient_stops || []}
-          angle={style.gradient_angle || 180}
-          onChange={(s) => u("gradient_stops", s)}
-          onAngleChange={(a) => u("gradient_angle", a)}
         />
-      )}
-
-      <div className="space-y-1">
-        <div className="flex gap-2 items-center">
-          <label className="text-[10px] 2xl:text-xs text-text-muted w-14 2xl:w-16 shrink-0">
-            Umriss
-          </label>
-          <select
-            value={style.outline_type}
-            onChange={(e) =>
-              u("outline_type", e.target.value as "none" | "solid")
-            }
-            className="flex-1 bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
-          >
-            <option value="none">Kein</option>
-            <option value="solid">Einfarbig</option>
-          </select>
-        </div>
-        {style.outline_type === "solid" && (
-          <div className="pl-4 space-y-1">
-            <div className="flex gap-2 items-center">
-              <label className="text-[10px] 2xl:text-xs text-text-muted w-10 2xl:w-12 shrink-0">
-                Farbe
-              </label>
-              <input
-                type="color"
-                value={style.outline_color}
-                onChange={(e) => u("outline_color", e.target.value)}
-                className="w-8 h-6 2xl:w-10 2xl:h-7 rounded cursor-pointer border-0"
-              />
-            </div>
-            <NumSlider
-              label="Breite (px)"
-              value={style.outline_width}
-              min={1}
-              max={20}
-              onChange={(v) => u("outline_width", v)}
-            />
-          </div>
-        )}
       </div>
 
-      <div className="space-y-1">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={style.text_shadow}
-            onChange={(e) => u("text_shadow", e.target.checked)}
-            className="accent-accent-blue"
-          />
-          <span className="text-[10px] 2xl:text-xs text-text-secondary">Schatten</span>
-        </label>
-        {style.text_shadow && (
-          <div className="pl-4 space-y-1">
-            <div className="flex gap-2 items-center">
-              <label className="text-[10px] 2xl:text-xs text-text-muted w-10 2xl:w-12 shrink-0">
-                Farbe
-              </label>
-              <input
-                type="color"
-                value={style.text_shadow_color}
-                onChange={(e) => u("text_shadow_color", e.target.value)}
-                className="w-8 h-6 2xl:w-10 2xl:h-7 rounded cursor-pointer border-0"
-              />
-            </div>
-            <NumSlider
-              label="Blur (px)"
-              value={style.text_shadow_blur}
-              min={0}
-              max={40}
-              onChange={(v) => u("text_shadow_blur", v)}
-            />
-            <NumSlider
-              label="X (px)"
-              value={style.text_shadow_x}
-              min={-30}
-              max={30}
-              onChange={(v) => u("text_shadow_x", v)}
-            />
-            <NumSlider
-              label="Y (px)"
-              value={style.text_shadow_y}
-              min={-30}
-              max={30}
-              onChange={(v) => u("text_shadow_y", v)}
-            />
-          </div>
-        )}
+      {/* --- Outline swatch row --- */}
+      <div className="border-t border-border-subtle/50 pt-2">
+        <ColorSwatch
+          color={style.outline_type === "solid" ? style.outline_color : "#00000000"}
+          label={
+            style.outline_type === "solid"
+              ? `Kontur ${style.outline_width}px ${style.outline_color}`
+              : "Kontur (Kein)"
+          }
+          onClick={() =>
+            onOpenOutlineEditor(
+              style.outline_type === "solid" ? "solid" : "none",
+              style.outline_color,
+              style.outline_width,
+              (type, color, width) => {
+                onChange({
+                  ...style,
+                  outline_type: type, outline_color: color, outline_width: width,
+                });
+              },
+            )
+          }
+        />
+      </div>
+
+      {/* --- Shadow swatch row --- */}
+      <div className="border-t border-border-subtle/50 pt-2">
+        <ColorSwatch
+          color={style.text_shadow ? style.text_shadow_color : "#00000000"}
+          gradient={
+            style.text_shadow && (style.text_shadow_color_type === "gradient")
+              ? {
+                  stops: style.text_shadow_gradient_stops || [{ color: "#ffffff", position: 0 }, { color: "#000000", position: 100 }],
+                  angle: style.text_shadow_gradient_angle || 180,
+                }
+              : undefined
+          }
+          label={
+            style.text_shadow
+              ? `Schatten ${style.text_shadow_blur}px ${style.text_shadow_x},${style.text_shadow_y}`
+              : "Schatten (Aus)"
+          }
+          onClick={() =>
+            onOpenShadowEditor(
+              style.text_shadow,
+              style.text_shadow_color,
+              style.text_shadow_color_type || "solid",
+              style.text_shadow_gradient_stops || [{ color: "#ffffff", position: 0 }, { color: "#000000", position: 100 }],
+              style.text_shadow_gradient_angle || 180,
+              style.text_shadow_blur, style.text_shadow_x, style.text_shadow_y,
+              (enabled, color, colorType, gradientStops, gradientAngle, blur, x, y) => {
+                onChange({
+                  ...style,
+                  text_shadow: enabled,
+                  text_shadow_color: color,
+                  text_shadow_color_type: colorType,
+                  text_shadow_gradient_stops: gradientStops,
+                  text_shadow_gradient_angle: gradientAngle,
+                  text_shadow_blur: blur,
+                  text_shadow_x: x,
+                  text_shadow_y: y,
+                });
+              },
+            )
+          }
+        />
       </div>
     </div>
   );
@@ -808,7 +649,7 @@ function OBSSourceHint({ pokemonId }: { pokemonId?: string }) {
   );
 }
 
-export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId, readOnly }: Props) {
+export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId, readOnly, compact }: Props) {
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -888,6 +729,88 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   // History for undo/redo
   const history = useHistory<OverlaySettings>(settings, 400);
 
+  // --- Modal state management ---
+  const [colorPickerTarget, setColorPickerTarget] = useState<{
+    currentColor: string; opacity?: number; showOpacity?: boolean;
+    onConfirm: (color: string, opacity?: number) => void;
+  } | null>(null);
+  const [gradientEditorTarget, setGradientEditorTarget] = useState<{
+    stops: GradientStop[]; angle: number;
+    onConfirm: (stops: GradientStop[], angle: number) => void;
+  } | null>(null);
+  const [shadowEditorTarget, setShadowEditorTarget] = useState<{
+    enabled: boolean; color: string; colorType: "solid" | "gradient";
+    gradientStops: GradientStop[]; gradientAngle: number;
+    blur: number; x: number; y: number;
+    onConfirm: (enabled: boolean, color: string, colorType: "solid" | "gradient", gradientStops: GradientStop[], gradientAngle: number, blur: number, x: number, y: number) => void;
+  } | null>(null);
+  const [outlineEditorTarget, setOutlineEditorTarget] = useState<{
+    type: "none" | "solid"; color: string; width: number;
+    onConfirm: (type: "none" | "solid", color: string, width: number) => void;
+  } | null>(null);
+  const [textColorEditorTarget, setTextColorEditorTarget] = useState<{
+    colorType: "solid" | "gradient"; color: string;
+    gradientStops: GradientStop[]; gradientAngle: number;
+    onConfirm: (colorType: "solid" | "gradient", color: string, gradientStops: GradientStop[], gradientAngle: number) => void;
+  } | null>(null);
+
+  /** Open the shared ColorPickerModal bound to a specific property. */
+  const openColorPicker = useCallback(
+    (color: string, onPick: (c: string) => void, opts?: { opacity?: number; showOpacity?: boolean }) => {
+      setColorPickerTarget({
+        currentColor: color,
+        opacity: opts?.opacity,
+        showOpacity: opts?.showOpacity,
+        onConfirm: (c, o) => { onPick(c); if (opts?.showOpacity && o !== undefined) { /* handled by caller */ } },
+      });
+    },
+    [],
+  );
+
+  /** Open the shared GradientEditorModal. */
+  const openGradientEditor = useCallback(
+    (stops: GradientStop[], angle: number, onConfirm: (s: GradientStop[], a: number) => void) => {
+      setGradientEditorTarget({ stops, angle, onConfirm });
+    },
+    [],
+  );
+
+  /** Open the shared OutlineEditorModal. */
+  const openOutlineEditor = useCallback(
+    (
+      type: "none" | "solid", color: string, width: number,
+      onConfirm: (t: "none" | "solid", c: string, w: number) => void,
+    ) => {
+      setOutlineEditorTarget({ type, color, width, onConfirm });
+    },
+    [],
+  );
+
+  /** Open the shared ShadowEditorModal. */
+  const openShadowEditor = useCallback(
+    (
+      enabled: boolean, color: string, colorType: "solid" | "gradient",
+      gradientStops: GradientStop[], gradientAngle: number,
+      blur: number, x: number, y: number,
+      onConfirm: (e: boolean, c: string, ct: "solid" | "gradient", gs: GradientStop[], ga: number, b: number, x: number, y: number) => void,
+    ) => {
+      setShadowEditorTarget({ enabled, color, colorType, gradientStops, gradientAngle, blur, x, y, onConfirm });
+    },
+    [],
+  );
+
+  /** Open the shared TextColorEditorModal. */
+  const openTextColorEditor = useCallback(
+    (
+      colorType: "solid" | "gradient", color: string,
+      gradientStops: GradientStop[], gradientAngle: number,
+      onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
+    ) => {
+      setTextColorEditorTarget({ colorType, color, gradientStops, gradientAngle, onConfirm });
+    },
+    [],
+  );
+
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
@@ -905,14 +828,15 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       const scaleY = clientHeight / localSettings.canvas_height;
       const scale = Math.min(scaleX, scaleY, 1);
       setCanvasScale(scale);
-      // Center the canvas via scroll
+      // Center the canvas via pending scroll (applied after DOM update by useLayoutEffect)
       const pad = getPadding();
       const es = scale * zoom;
       const scaledW = localSettings.canvas_width * es;
       const scaledH = localSettings.canvas_height * es;
-      const container = canvasContainerRef.current;
-      container.scrollLeft = pad.x - (clientWidth - scaledW) / 2;
-      container.scrollTop = pad.y - (clientHeight - scaledH) / 2;
+      pendingScroll.current = {
+        left: pad.x - (clientWidth - scaledW) / 2,
+        top: pad.y - (clientHeight - scaledH) / 2,
+      };
     };
     if (!hasInitialCentered.current) {
       hasInitialCentered.current = true;
@@ -1223,7 +1147,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   };
 
   return (
-    <div className="flex gap-3 h-full pt-4 pb-8 px-4 min-h-0">
+    <div className={`flex gap-3 pt-4 px-4 min-h-0 h-full ${compact ? "pb-2" : "pb-8"}`}>
       {/* LEFT SIDEBAR: Layers & Canvas */}
       <div className={`w-56 2xl:w-64 shrink-0 flex flex-col gap-3 min-h-0 ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
         {/* Layers Panel */}
@@ -1258,6 +1182,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 </span>
                 <div className="flex items-center gap-1">
                   <button
+                    title="Ebene nach oben"
                     onClick={(e) => {
                       e.stopPropagation();
                       moveLayer(key, "up");
@@ -1267,6 +1192,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     <ChevronUp className="w-3 h-3" />
                   </button>
                   <button
+                    title="Ebene nach unten"
                     onClick={(e) => {
                       e.stopPropagation();
                       moveLayer(key, "down");
@@ -1276,6 +1202,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     <ChevronDown className="w-3 h-3" />
                   </button>
                   <button
+                    title={el.visible ? "Ausblenden" : "Einblenden"}
                     onClick={(e) => {
                       e.stopPropagation();
                       update({
@@ -1359,6 +1286,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             </label>
             <div className="flex items-center gap-1.5 mt-1">
               <button
+                title="Hintergrundbild hochladen"
                 onClick={handleBgUpload}
                 disabled={bgUploading}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
@@ -1368,6 +1296,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               </button>
               {localSettings.background_image && (
                 <button
+                  title="Hintergrundbild entfernen"
                   onClick={handleBgRemove}
                   className="flex items-center gap-1 px-2 py-1 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-colors"
                 >
@@ -1407,14 +1336,15 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             }
           >
             <div>
-              <label className="text-[10px] 2xl:text-xs text-text-muted">Hintergrund</label>
-              <input
-                type="color"
-                value={localSettings.background_color}
-                onChange={(e) =>
-                  updateField("background_color", e.target.value)
+              <label className="text-[10px] 2xl:text-xs text-text-muted mb-1 block">Hintergrund</label>
+              <ColorSwatch
+                color={localSettings.background_color}
+                label={localSettings.background_color}
+                onClick={() =>
+                  openColorPicker(localSettings.background_color, (c) =>
+                    updateField("background_color", c),
+                  )
                 }
-                className="w-full h-6 rounded cursor-pointer border-0"
               />
             </div>
             <div className="mt-2">
@@ -1480,18 +1410,26 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}
             >
               <div>
-                <label className="text-[10px] 2xl:text-xs text-text-muted">
+                <label className="text-[10px] 2xl:text-xs text-text-muted mb-1 block">
                   Kontur Farbe
                 </label>
-                <input
-                  type="color"
-                  value={(() => {
+                <ColorSwatch
+                  color={(() => {
                     const c = localSettings.border_color;
                     if (c && c.startsWith("#")) return c;
                     return "#ffffff";
                   })()}
-                  onChange={(e) => updateField("border_color", e.target.value)}
-                  className="w-full h-6 rounded cursor-pointer border-0"
+                  label={localSettings.border_color}
+                  onClick={() =>
+                    openColorPicker(
+                      (() => {
+                        const c = localSettings.border_color;
+                        if (c && c.startsWith("#")) return c;
+                        return "#ffffff";
+                      })(),
+                      (c) => updateField("border_color", c),
+                    )
+                  }
                 />
               </div>
               <div>
@@ -1977,22 +1915,20 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               {localSettings.sprite.show_glow && (
                 <div className="space-y-2">
                   <div className="flex gap-2 items-center">
-                    <label className="text-[10px] 2xl:text-xs text-text-muted w-12 2xl:w-14">
-                      Farbe
-                    </label>
-                    <input
-                      type="color"
-                      value={localSettings.sprite.glow_color || "#ffffff"}
-                      onChange={(e) =>
-                        update({
-                          ...localSettings,
-                          sprite: {
-                            ...localSettings.sprite,
-                            glow_color: e.target.value,
-                          },
-                        })
+                    <ColorSwatch
+                      color={localSettings.sprite.glow_color || "#ffffff"}
+                      label="Glow Farbe"
+                      onClick={() =>
+                        openColorPicker(
+                          localSettings.sprite.glow_color || "#ffffff",
+                          (c) =>
+                            update({
+                              ...localSettings,
+                              sprite: { ...localSettings.sprite, glow_color: c },
+                            }),
+                          { opacity: localSettings.sprite.glow_opacity ?? 0.2, showOpacity: true },
+                        )
                       }
-                      className="w-8 h-6 rounded cursor-pointer border-0"
                     />
                   </div>
                   <NumSlider
@@ -2101,6 +2037,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     name: { ...localSettings.name, style: s },
                   })
                 }
+                onOpenTextColorEditor={openTextColorEditor}
+                onOpenOutlineEditor={openOutlineEditor}
+                onOpenShadowEditor={openShadowEditor}
               />
               <div>
                 <label className="text-[10px] 2xl:text-xs text-text-muted">
@@ -2178,6 +2117,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     counter: { ...localSettings.counter, style: s },
                   })
                 }
+                onOpenTextColorEditor={openTextColorEditor}
+                onOpenOutlineEditor={openOutlineEditor}
+                onOpenShadowEditor={openShadowEditor}
               />
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -2224,6 +2166,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                         counter: { ...localSettings.counter, label_style: s },
                       })
                     }
+                    onOpenTextColorEditor={openTextColorEditor}
+                    onOpenOutlineEditor={openOutlineEditor}
+                    onOpenShadowEditor={openShadowEditor}
                   />
                 </>
               )}
@@ -2308,6 +2253,91 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             setShowTutorial(false);
             localStorage.setItem("encounty_editor_tutorial_seen", "true");
           }}
+        />
+      )}
+
+      {/* --- Shared modal instances --- */}
+      {colorPickerTarget && (
+        <ColorPickerModal
+          color={colorPickerTarget.currentColor}
+          opacity={colorPickerTarget.opacity}
+          showOpacity={colorPickerTarget.showOpacity}
+          onConfirm={(color, opacity) => {
+            colorPickerTarget.onConfirm(color, opacity);
+            setColorPickerTarget(null);
+          }}
+          onClose={() => setColorPickerTarget(null)}
+        />
+      )}
+      {gradientEditorTarget && (
+        <GradientEditorModal
+          stops={gradientEditorTarget.stops}
+          angle={gradientEditorTarget.angle}
+          onConfirm={(stops, angle) => {
+            gradientEditorTarget.onConfirm(stops, angle);
+            setGradientEditorTarget(null);
+          }}
+          onClose={() => setGradientEditorTarget(null)}
+          onOpenColorPicker={(color, onPick) =>
+            openColorPicker(color, onPick)
+          }
+        />
+      )}
+      {shadowEditorTarget && (
+        <ShadowEditorModal
+          enabled={shadowEditorTarget.enabled}
+          color={shadowEditorTarget.color}
+          colorType={shadowEditorTarget.colorType}
+          gradientStops={shadowEditorTarget.gradientStops}
+          gradientAngle={shadowEditorTarget.gradientAngle}
+          blur={shadowEditorTarget.blur}
+          x={shadowEditorTarget.x}
+          y={shadowEditorTarget.y}
+          onConfirm={(enabled, color, colorType, gradientStops, gradientAngle, blur, x, y) => {
+            shadowEditorTarget.onConfirm(enabled, color, colorType, gradientStops, gradientAngle, blur, x, y);
+            setShadowEditorTarget(null);
+          }}
+          onClose={() => setShadowEditorTarget(null)}
+          onOpenColorPicker={(color, onPick) =>
+            openColorPicker(color, onPick)
+          }
+          onOpenGradientEditor={(stops, angle, onConfirm) =>
+            setGradientEditorTarget({ stops, angle, onConfirm })
+          }
+        />
+      )}
+      {textColorEditorTarget && (
+        <TextColorEditorModal
+          colorType={textColorEditorTarget.colorType}
+          color={textColorEditorTarget.color}
+          gradientStops={textColorEditorTarget.gradientStops}
+          gradientAngle={textColorEditorTarget.gradientAngle}
+          onConfirm={(colorType, color, gradientStops, gradientAngle) => {
+            textColorEditorTarget.onConfirm(colorType, color, gradientStops, gradientAngle);
+            setTextColorEditorTarget(null);
+          }}
+          onClose={() => setTextColorEditorTarget(null)}
+          onOpenColorPicker={(color, onPick) =>
+            openColorPicker(color, onPick)
+          }
+          onOpenGradientEditor={(stops, angle, onConfirm) =>
+            setGradientEditorTarget({ stops, angle, onConfirm })
+          }
+        />
+      )}
+      {outlineEditorTarget && (
+        <OutlineEditorModal
+          type={outlineEditorTarget.type}
+          color={outlineEditorTarget.color}
+          width={outlineEditorTarget.width}
+          onConfirm={(type, color, width) => {
+            outlineEditorTarget.onConfirm(type, color, width);
+            setOutlineEditorTarget(null);
+          }}
+          onClose={() => setOutlineEditorTarget(null)}
+          onOpenColorPicker={(color, onPick) =>
+            openColorPicker(color, onPick)
+          }
         />
       )}
     </div>
