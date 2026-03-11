@@ -34,6 +34,7 @@ import { I18nProvider, useI18n } from "./contexts/I18nContext";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { ToastProvider, useToast } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
+import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
 import { LOCALES, Locale } from "./utils/i18n";
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
@@ -478,7 +479,7 @@ function AppShell() {
       <div className="glow-line-h shrink-0" />
 
       {/* ── Main content ─────────────────────────────────────── */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden flex flex-col">
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/hotkeys" element={<HotkeyPage />} />
@@ -629,8 +630,10 @@ export function App() {
     <ThemeProvider>
       <I18nProvider>
         <ToastProvider>
-          <AppShell />
-          <ToastContainer />
+          <CaptureServiceProvider>
+            <AppShell />
+            <ToastContainer />
+          </CaptureServiceProvider>
         </ToastProvider>
       </I18nProvider>
     </ThemeProvider>

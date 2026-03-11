@@ -13,6 +13,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -644,6 +645,13 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 
 	result := bd.SubmitFrame(frame)
 
+	if result.Confidence > 0.1 {
+		slog.Debug("match_frame result",
+			"pokemon", pokemon.Name, "id", id,
+			"state", result.State, "confidence", result.Confidence,
+			"incremented", result.Incremented)
+	}
+
 	// Broadcast status to all clients.
 	s.hub.BroadcastRaw("detector_status", map[string]any{
 		"pokemon_id": id,
@@ -653,6 +661,9 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 	})
 
 	if result.Incremented {
+		slog.Info("Detector match confirmed",
+			"pokemon", pokemon.Name, "id", id,
+			"confidence", result.Confidence)
 		s.state.Increment(id)
 		s.state.AppendDetectionLog(id, result.Confidence)
 		s.hub.BroadcastRaw("detector_match", map[string]any{
