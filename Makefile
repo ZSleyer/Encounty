@@ -1,6 +1,7 @@
 .PHONY: dev build build-windows build-linux frontend clean licenses test coverage
 
 BINARY = encounty
+BACKEND_DIR = backend
 FRONTEND_DIR = frontend
 LINUX_DIST = dist-linux
 
@@ -18,7 +19,7 @@ LDFLAGS_WINDOWS = -ldflags="$(_BASE_LDFLAGS) -H=windowsgui"
 dev:
 	@echo "Starting Encounty in dev mode (commit=$(COMMIT))..."
 	@cd $(FRONTEND_DIR) && yarn dev &
-	@go run -ldflags="-X main.version=dev -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)" main.go --dev
+	@cd $(BACKEND_DIR) && go run -ldflags="-X main.version=dev -X main.commit=$(COMMIT) -X main.buildDate=$(BUILD_DATE)" main.go --dev
 
 licenses:
 	@echo "Collecting third-party licenses..."
@@ -28,21 +29,28 @@ frontend:
 	@echo "Building frontend..."
 	@cd $(FRONTEND_DIR) && yarn build
 
+# Alias for consistency
+frontend-build: frontend
+
 build: build-linux build-windows
 all: build
 
 icons:
 	@echo "Generating icons from frontend/public/app-icon.png..."
-	go run scripts/generate_icons.go
+	cd $(BACKEND_DIR) && go run ../scripts/generate_icons.go
 
 build-linux: frontend icons licenses
 	@echo "Building Encounty $(VERSION) ($(COMMIT)) for Linux..."
-	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o $(BINARY)-linux main.go
+	@# Copy frontend dist to backend for embedding
+	@rm -rf $(BACKEND_DIR)/frontend
+	@cp -r $(FRONTEND_DIR) $(BACKEND_DIR)/frontend
+	@cd $(BACKEND_DIR) && GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o ../$(BINARY)-linux main.go
+	@rm -rf $(BACKEND_DIR)/frontend
 	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-linux || true
 	@# Prepare Linux distribution bundle
 	@mkdir -p $(LINUX_DIST)
 	@cp $(BINARY)-linux $(LINUX_DIST)/$(BINARY)
-	@cp winres/icon.png $(LINUX_DIST)/icon.png
+	@cp $(BACKEND_DIR)/winres/icon.png $(LINUX_DIST)/icon.png
 	@echo "[Desktop Entry]" > $(LINUX_DIST)/$(BINARY).desktop
 	@echo "Name=Encounty" >> $(LINUX_DIST)/$(BINARY).desktop
 	@echo "Comment=Pokémon Shiny Encounter Counter & Tracker" >> $(LINUX_DIST)/$(BINARY).desktop
@@ -59,12 +67,69 @@ build-windows: frontend icons licenses
 	@# Extract numeric version for Windows (v1.2.3 -> 1.2.3.0, v0.3 -> 0.3.0)
 	$(eval WIN_VER := $(shell echo $(VERSION) | sed 's/v//' | grep -oE '^[0-9]+\.[0-9]+(\.[0-9]+)?' | awk -F. '{if(NF==2) print $$0".0"; else print $$0}' || echo "0.3.0"))
 	@echo "Generating Windows resources (Version: $(WIN_VER).0)..."
-	@$(WINRES) make --product-version "$(WIN_VER).0" --file-version "$(WIN_VER).0"
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS_WINDOWS) -o $(BINARY)-windows.exe .
+	@cd $(BACKEND_DIR) && $(WINRES) make --product-version "$(WIN_VER).0" --file-version "$(WIN_VER).0"
+	@# Copy frontend dist to backend for embedding
+	@rm -rf $(BACKEND_DIR)/frontend
+	@cp -r $(FRONTEND_DIR) $(BACKEND_DIR)/frontend
+	@cd $(BACKEND_DIR) && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS_WINDOWS) -o ../$(BINARY)-windows.exe .
+	@rm -rf $(BACKEND_DIR)/frontend
 	@# Cleanup generated resource files
-	@rm -f *.syso
+	@rm -f $(BACKEND_DIR)/*.syso
 	@command -v upx >/dev/null 2>&1 && upx --best --compress-icons=0 $(BINARY)-windows.exe || true
 	@echo "Done: ./$(BINARY)-windows.exe"
+
+.PHONY: build-darwin
+build-darwin: frontend icons licenses
+	@echo "Building Encounty $(VERSION) ($(COMMIT)) for macOS..."
+	@# Copy frontend dist to backend for embedding
+	@rm -rf $(BACKEND_DIR)/frontend
+	@cp -r $(FRONTEND_DIR) $(BACKEND_DIR)/frontend
+	@cd $(BACKEND_DIR) && GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o ../$(BINARY)-darwin main.go
+	@rm -rf $(BACKEND_DIR)/frontend
+	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-darwin || true
+	@echo "Done: ./$(BINARY)-darwin (Note: Global hotkeys are not supported on macOS)"
+
+# ── ARM64 Build Targets ──────────────────────────────────────────────────────
+.PHONY: build-linux-arm64 build-windows-arm64 build-darwin-arm64
+
+build-linux-arm64: frontend icons licenses
+	@echo "Building Encounty $(VERSION) ($(COMMIT)) for Linux ARM64..."
+	@# Copy frontend dist to backend for embedding
+	@rm -rf $(BACKEND_DIR)/frontend
+	@cp -r $(FRONTEND_DIR) $(BACKEND_DIR)/frontend
+	@cd $(BACKEND_DIR) && GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o ../$(BINARY)-linux-arm64 main.go
+	@rm -rf $(BACKEND_DIR)/frontend
+	@echo "Compressing $(BINARY)-linux-arm64 with UPX..."
+	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-linux-arm64 || echo "UPX not found, skipping compression"
+	@echo "Done: ./$(BINARY)-linux-arm64"
+
+build-windows-arm64: frontend icons licenses
+	$(eval WINRES := $(shell go env GOPATH)/bin/go-winres)
+	@command -v $(WINRES) >/dev/null 2>&1 || (echo "Installing go-winres..." && go install github.com/tc-hib/go-winres@latest)
+	@# Extract numeric version for Windows (v1.2.3 -> 1.2.3.0, v0.3 -> 0.3.0)
+	$(eval WIN_VER := $(shell echo $(VERSION) | sed 's/v//' | grep -oE '^[0-9]+\.[0-9]+(\.[0-9]+)?' | awk -F. '{if(NF==2) print $$0".0"; else print $$0}' || echo "0.3.0"))
+	@echo "Generating Windows ARM64 resources (Version: $(WIN_VER).0)..."
+	@cd $(BACKEND_DIR) && $(WINRES) make --product-version "$(WIN_VER).0" --file-version "$(WIN_VER).0"
+	@# Copy frontend dist to backend for embedding
+	@rm -rf $(BACKEND_DIR)/frontend
+	@cp -r $(FRONTEND_DIR) $(BACKEND_DIR)/frontend
+	@cd $(BACKEND_DIR) && CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build $(LDFLAGS_WINDOWS) -o ../$(BINARY)-windows-arm64.exe .
+	@rm -rf $(BACKEND_DIR)/frontend
+	@# Cleanup generated resource files
+	@rm -f $(BACKEND_DIR)/*.syso
+	@echo "Compressing $(BINARY)-windows-arm64.exe with UPX..."
+	@command -v upx >/dev/null 2>&1 && upx --best --compress-icons=0 $(BINARY)-windows-arm64.exe || echo "UPX not found, skipping compression"
+	@echo "Done: ./$(BINARY)-windows-arm64.exe"
+
+build-darwin-arm64: frontend icons licenses
+	@echo "Building Encounty $(VERSION) ($(COMMIT)) for macOS ARM64 (Apple Silicon)..."
+	@# Copy frontend dist to backend for embedding
+	@rm -rf $(BACKEND_DIR)/frontend
+	@cp -r $(FRONTEND_DIR) $(BACKEND_DIR)/frontend
+	@cd $(BACKEND_DIR) && GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o ../$(BINARY)-darwin-arm64 main.go
+	@rm -rf $(BACKEND_DIR)/frontend
+	@echo "Note: UPX not available for macOS arm64"
+	@echo "Done: ./$(BINARY)-darwin-arm64 (Apple Silicon M1/M2/M3)"
 
 # ── Go files excluded from coverage (platform-specific / untestable) ──
 # Platform managers & keycodes  — OS-level evdev/HID/input API
@@ -86,24 +151,52 @@ main\.go|scripts/generate_icons\.go
 
 test:
 	@echo "=== Go Tests ==="
-	@go test ./... -count=1
+	@cd $(BACKEND_DIR) && go test ./internal/... -count=1
 	@echo ""
 	@echo "=== Frontend Tests ==="
 	@cd $(FRONTEND_DIR) && yarn test
 
 coverage:
 	@echo "=== Go Coverage (filtered) ==="
-	@go test ./... -coverprofile=coverage.out -count=1
-	@grep -vE '$(GO_COVERAGE_EXCLUDE)' coverage.out > coverage_filtered.out
-	@go tool cover -func=coverage_filtered.out | tail -1
+	@cd $(BACKEND_DIR) && go test ./internal/... -coverprofile=coverage.out -count=1
+	@cd $(BACKEND_DIR) && grep -vE '$(GO_COVERAGE_EXCLUDE)' coverage.out > coverage_filtered.out
+	@cd $(BACKEND_DIR) && go tool cover -func=coverage_filtered.out | tail -1
 	@echo ""
 	@echo "=== Go Coverage by package (filtered) ==="
-	@go tool cover -func=coverage_filtered.out | grep 'total\|^[^ ]' | grep -v '100.0%' || echo "All functions at 100%!"
+	@cd $(BACKEND_DIR) && go tool cover -func=coverage_filtered.out | grep 'total\|^[^ ]' | grep -v '100.0%' || echo "All functions at 100%!"
 	@echo ""
 	@echo "=== Frontend Coverage ==="
 	@cd $(FRONTEND_DIR) && yarn vitest run --coverage
-	@rm -f coverage.out coverage_filtered.out
+	@rm -f $(BACKEND_DIR)/coverage.out $(BACKEND_DIR)/coverage_filtered.out
 
 clean:
-	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-windows.exe *.syso
+	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-windows.exe $(BINARY)-darwin *.syso
+	rm -f $(BINARY)-linux-arm64 $(BINARY)-windows-arm64.exe $(BINARY)-darwin-arm64
 	rm -rf $(FRONTEND_DIR)/dist $(LINUX_DIST)
+
+# ── Electron Targets ─────────────────────────────────────────────────────────
+.PHONY: electron-deps electron-build electron-dev electron-package-linux electron-package-windows
+
+electron-deps:
+	cd electron && yarn install
+
+electron-build: electron-deps
+	cd electron && yarn build
+
+electron-dev: build-linux
+	cd electron && yarn dev
+
+electron-package-linux: build-linux frontend-build electron-build
+	cd electron && yarn package:linux
+
+electron-package-windows: build-windows frontend-build electron-build
+	cd electron && yarn package:win
+
+electron-package-darwin: build-darwin frontend-build electron-build
+	cd electron && yarn package:mac
+
+# Build all binaries for multi-arch packaging
+.PHONY: electron-package-all
+electron-package-all: build-linux build-linux-arm64 build-windows build-windows-arm64 build-darwin build-darwin-arm64 frontend-build electron-build
+	@echo "Building Electron packages for all platforms and architectures..."
+	cd electron && yarn package:linux && yarn package:win && yarn package:mac

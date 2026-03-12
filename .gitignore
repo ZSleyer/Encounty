@@ -1,8 +1,11 @@
 # Binaries
 encounty
 encounty-linux
+encounty-linux-arm64
 encounty-windows.exe
+encounty-windows-arm64.exe
 encounty-darwin
+encounty-darwin-arm64
 __debug_bin*
 *.exe
 
@@ -12,6 +15,7 @@ __debug_bin*
 # Frontend
 frontend/node_modules/
 frontend/dist/
+backend/frontend/
 
 # Config & state (user data)
 ~/.config/encounty/
@@ -38,13 +42,20 @@ Thumbs.db
 
 # Windows Resource Build Files
 *.syso
-winres/*.png
 dist-linux/
 encounty-windows*
 *.exe.bak
-# (winres/winres.json is now tracked)
+# (backend/winres/ files are now tracked)
 
 # Coverage Reports
 coverage.out
 coverage_filtered.out
 frontend/coverage/
+
+# Electron build artifacts
+electron/node_modules/
+electron/dist/
+electron/release/
+
+# Experimental implementations (not for main branch)
+project-native/

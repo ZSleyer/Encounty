@@ -27,16 +27,20 @@ describe("HotkeySettings", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders all hotkey action labels", () => {
+  it("renders all hotkey action labels", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
-    expect(screen.getByText("+1 Encounter")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("+1 Encounter")).toBeInTheDocument();
+    });
     expect(screen.getByText("-1 Encounter")).toBeInTheDocument();
     expect(screen.getByText("Reset")).toBeInTheDocument();
   });
 
-  it("displays the current key binding", () => {
+  it("displays the current key binding", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
-    expect(screen.getByText("Ctrl+Up")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Ctrl+Up")).toBeInTheDocument();
+    });
   });
 
   it("shows empty dash for unbound hotkeys", () => {
@@ -176,18 +180,20 @@ describe("HotkeySettings", () => {
     });
   });
 
-  it("shows delete button for bound hotkeys", () => {
+  it("shows delete button for bound hotkeys", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
     // Increment has a binding, so it should show a delete button
-    const deleteButton = screen.getByTitle("Bindung löschen");
-    expect(deleteButton).toBeInTheDocument();
+    await waitFor(() => {
+      const deleteButton = screen.getByTitle("Hotkey löschen");
+      expect(deleteButton).toBeInTheDocument();
+    });
   });
 
   it("deletes a key binding when delete button is clicked", async () => {
     const onUpdate = vi.fn();
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={onUpdate} />);
 
-    const deleteButton = screen.getByTitle("Bindung löschen");
+    const deleteButton = await screen.findByTitle("Hotkey löschen");
     await act(async () => {
       deleteButton.click();
     });

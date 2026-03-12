@@ -31,7 +31,7 @@ describe("PokemonCard", () => {
     const { userEvent } = await import("../test-utils");
     const user = userEvent.setup();
     render(<PokemonCard {...defaultProps} onIncrement={onIncrement} />);
-    await user.click(screen.getByTitle("+1"));
+    await user.click(screen.getByTitle("Encounter hinzufügen (+1)"));
     expect(onIncrement).toHaveBeenCalledWith("poke-1");
   });
 
@@ -40,7 +40,7 @@ describe("PokemonCard", () => {
     const { userEvent } = await import("../test-utils");
     const user = userEvent.setup();
     render(<PokemonCard {...defaultProps} onDecrement={onDecrement} />);
-    await user.click(screen.getByTitle("\u22121"));
+    await user.click(screen.getByTitle("Encounter entfernen (-1)"));
     expect(onDecrement).toHaveBeenCalledWith("poke-1");
   });
 
@@ -49,7 +49,7 @@ describe("PokemonCard", () => {
     const { userEvent } = await import("../test-utils");
     const user = userEvent.setup();
     render(<PokemonCard {...defaultProps} onReset={onReset} />);
-    await user.click(screen.getByTitle("Reset"));
+    await user.click(screen.getByTitle("Zähler zurücksetzen"));
     expect(onReset).toHaveBeenCalledWith("poke-1");
   });
 
@@ -58,7 +58,7 @@ describe("PokemonCard", () => {
     const { userEvent } = await import("../test-utils");
     const user = userEvent.setup();
     render(<PokemonCard {...defaultProps} onEdit={onEdit} />);
-    await user.click(screen.getByTitle("Bearbeiten"));
+    await user.click(screen.getByTitle("Pokémon bearbeiten"));
     expect(onEdit).toHaveBeenCalledWith(defaultProps.pokemon);
   });
 
@@ -99,13 +99,13 @@ describe("PokemonCard", () => {
   it("shows active star indicator when pokemon is active", () => {
     const activePokemon = makePokemon({ is_active: true });
     render(<PokemonCard {...defaultProps} pokemon={activePokemon} />);
-    expect(screen.getByTitle("Aktives Pokémon")).toBeInTheDocument();
+    expect(screen.getByTitle("Dieses Pokémon wird von Hotkeys gesteuert")).toBeInTheDocument();
   });
 
   it("does not show active star for inactive pokemon", () => {
     const inactivePokemon = makePokemon({ is_active: false });
     render(<PokemonCard {...defaultProps} pokemon={inactivePokemon} />);
-    expect(screen.queryByTitle("Aktives Pokémon")).not.toBeInTheDocument();
+    expect(screen.queryByTitle("Dieses Pokémon wird von Hotkeys gesteuert")).not.toBeInTheDocument();
   });
 
   it("shows fallback sprite when sprite_url is empty", () => {

@@ -7,7 +7,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-OUT_DIR="$ROOT_DIR/internal/licenses"
+OUT_DIR="$ROOT_DIR/backend/internal/licenses"
 OUT_FILE="$OUT_DIR/third_party.json"
 TMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -23,7 +23,7 @@ fi
 # --- Go dependencies ---------------------------------------------------------
 echo "Collecting Go licenses..."
 GO_SAVE_DIR="$TMP_DIR/go"
-cd "$ROOT_DIR"
+cd "$ROOT_DIR/backend"
 "$GO_LICENSES" save ./... --save_path="$GO_SAVE_DIR" --ignore github.com/zsleyer/encounty 2>/dev/null || true
 
 # Build Go entries using a Python-free jq-only approach:
