@@ -4,6 +4,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { X } from "lucide-react";
 import { NumSlider } from "./NumSlider";
 import { ColorSwatch } from "./ColorSwatch";
+import { useI18n } from "../../contexts/I18nContext";
 import type { GradientStop } from "../../types";
 
 interface GradientEditorModalProps {
@@ -47,6 +48,7 @@ export function GradientEditorModal({
   onClose,
   onOpenColorPicker,
 }: GradientEditorModalProps) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -144,7 +146,7 @@ export function GradientEditorModal({
         <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
           Gradient bearbeiten
         </h2>
-        <button title="Schließen" onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
+        <button title={t("tooltip.common.close")} onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
           <X size={16} />
         </button>
       </div>
@@ -205,7 +207,7 @@ export function GradientEditorModal({
             <span className="text-[10px] 2xl:text-xs text-text-muted">%</span>
             {stops.length > 2 && (
               <button
-                title="Stop entfernen"
+                title={t("modal.tooltipRemoveStop")}
                 onClick={(e) => {
                   e.stopPropagation();
                   deleteStop(idx);
@@ -227,14 +229,14 @@ export function GradientEditorModal({
       {/* --- Buttons --- */}
       <div className="flex gap-3">
         <button
-          title="Abbrechen"
+          title={t("tooltip.common.cancel")}
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
           onClick={onClose}
         >
           Abbrechen
         </button>
         <button
-          title="Übernehmen"
+          title={t("tooltip.common.apply")}
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
           onClick={() => onConfirm(stops, angle)}
         >

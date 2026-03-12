@@ -1,5 +1,7 @@
 /** Numeric input with +/- buttons and an optional labeled slider variant. */
 
+import { useI18n } from "../../contexts/I18nContext";
+
 /** Compact numeric input with decrement/increment buttons. */
 export function NumInput({
   value,
@@ -16,6 +18,7 @@ export function NumInput({
   onChange: (v: number) => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   const clamp = (v: number) => {
     let n = v;
     if (min !== undefined) n = Math.max(min, n);
@@ -28,7 +31,7 @@ export function NumInput({
     >
       <button
         type="button"
-        title="Verringern"
+        title={t("tooltip.common.decrement")}
         onClick={() => onChange(clamp(value - step))}
         className="px-1.5 2xl:px-2 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm 2xl:text-base leading-none shrink-0"
       >
@@ -45,7 +48,7 @@ export function NumInput({
       />
       <button
         type="button"
-        title="Erhöhen"
+        title={t("tooltip.common.increment")}
         onClick={() => onChange(clamp(value + step))}
         className="px-1.5 2xl:px-2 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm 2xl:text-base leading-none shrink-0"
       >

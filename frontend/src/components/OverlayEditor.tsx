@@ -39,6 +39,7 @@ import { Overlay } from "../pages/Overlay";
 import type { Pokemon } from "../types";
 import { useHistory } from "../hooks/useHistory";
 import { useSnapping, Guide } from "../hooks/useSnapping";
+import { useI18n } from "../contexts/I18nContext";
 import { NumInput, NumSlider } from "./editor/NumSlider";
 import { ColorSwatch } from "./editor/ColorSwatch";
 import { ColorPickerModal } from "./editor/ColorPickerModal";
@@ -208,6 +209,7 @@ function TextStyleEditor({
     onConfirm: (enabled: boolean, color: string, colorType: "solid" | "gradient", gradientStops: GradientStop[], gradientAngle: number, blur: number, x: number, y: number) => void,
   ) => void;
 }) {
+  const { t } = useI18n();
   const u = (field: keyof TextStyle, value: unknown) =>
     onChange({ ...style, [field]: value });
   return (
@@ -258,7 +260,7 @@ function TextStyleEditor({
                   ? "bg-accent-blue/20 text-accent-blue"
                   : "text-text-muted hover:bg-bg-hover"
               }`}
-              title={align === "left" ? "Links" : align === "center" ? "Mitte" : "Rechts"}
+              title={align === "left" ? t("tooltip.editor.alignLeft") : align === "center" ? t("tooltip.editor.alignCenter") : t("tooltip.editor.alignRight")}
             >
               {align === "left" && <AlignLeft size={12} />}
               {align === "center" && <AlignCenter size={12} />}
@@ -650,6 +652,7 @@ function OBSSourceHint({ pokemonId }: { pokemonId?: string }) {
 }
 
 export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId, readOnly, compact }: Props) {
+  const { t } = useI18n();
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -1158,7 +1161,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             </p>
             <button
               onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
-              title="Layout zurücksetzen"
+              title={t("tooltip.editor.resetLayout")}
               className="flex items-center gap-1 px-1.5 py-1 2xl:px-2 2xl:py-1.5 rounded text-[10px] 2xl:text-xs text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
             >
               <RotateCcw className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
@@ -1182,7 +1185,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 </span>
                 <div className="flex items-center gap-1">
                   <button
-                    title="Ebene nach oben"
+                    title={t("tooltip.editor.moveUp")}
                     onClick={(e) => {
                       e.stopPropagation();
                       moveLayer(key, "up");
@@ -1192,7 +1195,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     <ChevronUp className="w-3 h-3" />
                   </button>
                   <button
-                    title="Ebene nach unten"
+                    title={t("tooltip.editor.moveDown")}
                     onClick={(e) => {
                       e.stopPropagation();
                       moveLayer(key, "down");
@@ -1202,7 +1205,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     <ChevronDown className="w-3 h-3" />
                   </button>
                   <button
-                    title={el.visible ? "Ausblenden" : "Einblenden"}
+                    title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
                     onClick={(e) => {
                       e.stopPropagation();
                       update({
@@ -1286,7 +1289,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             </label>
             <div className="flex items-center gap-1.5 mt-1">
               <button
-                title="Hintergrundbild hochladen"
+                title={t("tooltip.editor.uploadBackground")}
                 onClick={handleBgUpload}
                 disabled={bgUploading}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
@@ -1296,7 +1299,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               </button>
               {localSettings.background_image && (
                 <button
-                  title="Hintergrundbild entfernen"
+                  title={t("tooltip.editor.removeBackground")}
                   onClick={handleBgRemove}
                   className="flex items-center gap-1 px-2 py-1 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-colors"
                 >
@@ -1475,7 +1478,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           <button
             onClick={testIncrement}
             disabled={!activePokemon}
-            title="+1 (nur Vorschau)"
+            title={t("tooltip.editor.previewIncrement")}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-green hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Plus className="w-3 h-3" /> 1
@@ -1483,7 +1486,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           <button
             onClick={testDecrement}
             disabled={!activePokemon}
-            title="-1 (nur Vorschau)"
+            title={t("tooltip.editor.previewDecrement")}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-yellow hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Minus className="w-3 h-3" /> 1
@@ -1491,7 +1494,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           <button
             onClick={testReset}
             disabled={!activePokemon}
-            title="Reset (nur Vorschau)"
+            title={t("tooltip.editor.previewReset")}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-text-secondary hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <RefreshCw className="w-3 h-3" /> 0
@@ -1502,7 +1505,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           {/* Grid toggle */}
           <button
             onClick={() => setShowGrid((v) => !v)}
-            title="Grid"
+            title={t("tooltip.editor.grid")}
             className={`p-1.5 rounded transition-colors ${showGrid ? "text-accent-blue bg-accent-blue/10" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
           >
             <Grid3X3 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
@@ -1511,7 +1514,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           {/* Snap toggle */}
           <button
             onClick={() => setSnapEnabled((v) => !v)}
-            title="Snap"
+            title={t("tooltip.editor.snap")}
             className={`p-1.5 rounded transition-colors ${snapEnabled ? "text-accent-blue bg-accent-blue/10" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
           >
             <Magnet className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
@@ -1542,7 +1545,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               }
             }}
             disabled={!history.canUndo}
-            title="Rückgängig (Ctrl+Z)"
+            title={t("tooltip.editor.undo")}
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Undo2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
@@ -1556,7 +1559,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               }
             }}
             disabled={!history.canRedo}
-            title="Wiederholen (Ctrl+Y)"
+            title={t("tooltip.editor.redo")}
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Redo2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
@@ -1567,21 +1570,21 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           {/* Pointer / Hand / Fit tools */}
           <button
             onClick={() => setActiveTool("pointer")}
-            title="Zeiger-Werkzeug"
+            title={t("tooltip.editor.pointer")}
             className={`p-1.5 rounded transition-colors ${activeTool === "pointer" ? "text-accent-blue bg-accent-blue/20" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
           >
             <MousePointer2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
           <button
             onClick={() => setActiveTool("hand")}
-            title="Hand-Werkzeug (oder Leertaste halten)"
+            title={t("tooltip.editor.hand")}
             className={`p-1.5 rounded transition-colors ${activeTool === "hand" ? "text-accent-blue bg-accent-blue/20" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
           >
             <Hand className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
           <button
             onClick={fitToView}
-            title="An Ansicht anpassen"
+            title={t("tooltip.editor.fitView")}
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <Maximize className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
@@ -1592,7 +1595,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           {/* Zoom */}
           <button
             onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
-            title="Reinzoomen"
+            title={t("tooltip.editor.zoomIn")}
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <ZoomIn className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
@@ -1602,7 +1605,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           </span>
           <button
             onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
-            title="Rauszoomen"
+            title={t("tooltip.editor.zoomOut")}
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <ZoomOut className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
@@ -1616,7 +1619,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               <button
                 key={bg}
                 onClick={() => setCanvasBg(bg)}
-                title={bg === "transparent" ? "Transparent" : bg === "white" ? "Weiß" : "Schwarz"}
+                title={bg === "transparent" ? t("tooltip.editor.bgTransparent") : bg === "white" ? t("tooltip.editor.bgWhite") : t("tooltip.editor.bgBlack")}
                 className={`px-1.5 py-1 text-[10px] 2xl:text-xs ${canvasBg === bg ? "bg-accent-blue/20 text-accent-blue" : "text-text-muted hover:bg-bg-hover"}`}
               >
                 <div
@@ -1647,7 +1650,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           )}
           <button
             onClick={() => setShowTutorial(true)}
-            title="Tutorial anzeigen"
+            title={t("tooltip.editor.showTutorial")}
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <HelpCircle className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />

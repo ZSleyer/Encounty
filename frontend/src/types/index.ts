@@ -201,6 +201,12 @@ export interface OverlaySettings {
   snap_grid_size?: number;
 }
 
+/** TutorialFlags tracks which tutorials the user has already completed. */
+export interface TutorialFlags {
+  overlay_editor?: boolean;
+  auto_detection?: boolean;
+}
+
 /** Settings holds all user-configurable application preferences. */
 export interface Settings {
   output_enabled: boolean;
@@ -210,6 +216,7 @@ export interface Settings {
   languages: string[]; // active language codes for game names
   crisp_sprites?: boolean;
   overlay: OverlaySettings;
+  tutorial_seen?: TutorialFlags;
 }
 
 /** AppState is the complete serialisable snapshot broadcast by the server. */

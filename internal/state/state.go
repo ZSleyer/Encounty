@@ -205,6 +205,12 @@ type OverlaySettings struct {
 	Counter           CounterElement `json:"counter"`
 }
 
+// TutorialFlags tracks which tutorials the user has already completed.
+type TutorialFlags struct {
+	OverlayEditor  bool `json:"overlay_editor"`
+	AutoDetection  bool `json:"auto_detection"`
+}
+
 // Settings holds user-configurable application preferences that are persisted
 // alongside the Pokémon list in state.json.
 type Settings struct {
@@ -215,6 +221,7 @@ type Settings struct {
 	Languages    []string        `json:"languages"` // active game-name languages; default ["de","en"]
 	CrispSprites bool            `json:"crisp_sprites"`
 	Overlay      OverlaySettings `json:"overlay"`
+	TutorialSeen TutorialFlags   `json:"tutorial_seen"`
 }
 
 // AppState is the complete serialisable snapshot of the application. It is

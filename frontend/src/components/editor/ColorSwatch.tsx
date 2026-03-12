@@ -1,5 +1,7 @@
 /** Clickable color or gradient preview swatch with checkerboard transparency background. */
 
+import { useI18n } from "../../contexts/I18nContext";
+
 interface GradientDef {
   stops: { color: string; position: number }[];
   angle: number;
@@ -28,6 +30,7 @@ export function ColorSwatch({
   onClick,
   className,
 }: ColorSwatchProps) {
+  const { t } = useI18n();
   const foreground = gradient
     ? `linear-gradient(${gradient.angle}deg, ${gradient.stops
         .map((s) => `${s.color} ${s.position}%`)
@@ -37,7 +40,7 @@ export function ColorSwatch({
   return (
     <button
       type="button"
-      title={label || "Farbe bearbeiten"}
+      title={label || t("modal.tooltipColorEdit")}
       onClick={onClick}
       className={`flex items-center gap-2 group ${className ?? ""}`}
     >

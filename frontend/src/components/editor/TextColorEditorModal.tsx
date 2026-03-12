@@ -3,6 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ColorSwatch } from "./ColorSwatch";
+import { useI18n } from "../../contexts/I18nContext";
 import type { GradientStop } from "../../types";
 
 interface TextColorEditorModalProps {
@@ -26,6 +27,7 @@ export function TextColorEditorModal({
   onOpenColorPicker,
   onOpenGradientEditor,
 }: TextColorEditorModalProps) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -56,7 +58,7 @@ export function TextColorEditorModal({
         <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
           Textfarbe bearbeiten
         </h2>
-        <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors" title="Schließen">
+        <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors" title={t("tooltip.common.close")}>
           <X size={16} />
         </button>
       </div>
@@ -126,14 +128,14 @@ export function TextColorEditorModal({
         <button
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
           onClick={onClose}
-          title="Abbrechen"
+          title={t("tooltip.common.cancel")}
         >
           Abbrechen
         </button>
         <button
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
           onClick={() => onConfirm(colorType, color, gradientStops, gradientAngle)}
-          title="Übernehmen"
+          title={t("tooltip.common.apply")}
         >
           Übernehmen
         </button>

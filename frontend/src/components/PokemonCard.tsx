@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Plus, Minus, RotateCcw, Star, Edit2, Gamepad2 } from "lucide-react";
 import { Pokemon } from "../types";
 import { useCounterStore, DetectorStatusEntry } from "../hooks/useCounterState";
+import { useI18n } from "../contexts/I18nContext";
 
 interface Props {
   readonly pokemon: Pokemon;
@@ -16,14 +17,14 @@ interface Props {
 const SPRITE_FALLBACK = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23333'/><text y='.9em' font-size='60' x='50%' text-anchor='middle' dominant-baseline='middle'>?</text></svg>`;
 
 /** Returns Tailwind dot colour + pulse flag based on detector status. */
-function detectorDotClass(entry: DetectorStatusEntry): { cls: string; pulse: boolean; title: string } {
+function detectorDotClass(entry: DetectorStatusEntry, t: (key: string) => string): { cls: string; pulse: boolean; title: string } {
   switch (entry.state) {
     case "match_active":
-      return { cls: "bg-green-400", pulse: false, title: "Detector: Match" };
+      return { cls: "bg-green-400", pulse: false, title: t("dash.tooltipDetectorMatch") };
     case "cooldown":
-      return { cls: "bg-amber-400", pulse: false, title: "Detector: Cooldown" };
+      return { cls: "bg-amber-400", pulse: false, title: t("dash.tooltipDetectorCooldown") };
     default:
-      return { cls: "bg-accent-blue", pulse: true, title: "Detector: Running" };
+      return { cls: "bg-accent-blue", pulse: true, title: t("dash.tooltipDetectorRunning") };
   }
 }
 
@@ -37,6 +38,7 @@ export function PokemonCard({
   onDelete,
   onEdit,
 }: Props) {
+  const { t } = useI18n();
   const { lastEncounterPokemonId, detectorStatus } = useCounterStore();
   const isFlashing = lastEncounterPokemonId === pokemon.id;
   const [imgError, setImgError] = useState(false);
@@ -73,7 +75,7 @@ export function PokemonCard({
 
       {/* Detector status indicator — only visible while a detector is active */}
       {statusEntry && (() => {
-        const { cls, pulse, title } = detectorDotClass(statusEntry);
+        const { cls, pulse, title } = detectorDotClass(statusEntry, t);
         return (
           <span
             className={`absolute top-2 left-2 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full ${cls} ${pulse ? "animate-pulse" : ""}`}
@@ -87,7 +89,7 @@ export function PokemonCard({
         {pokemon.is_active && (
           <div
             className="bg-accent-blue rounded-md p-1.5 shadow-sm"
-            title="Aktives Pokémon"
+            title={t("dash.tooltipSetActive")}
           >
             <Star className="w-3.5 h-3.5 text-white fill-white" />
           </div>
@@ -98,7 +100,7 @@ export function PokemonCard({
             onEdit(pokemon);
           }}
           className="p-1.5 rounded-md bg-bg-secondary/80 hover:bg-accent-blue hover:text-white text-text-secondary backdrop-blur-sm transition-colors"
-          title="Bearbeiten"
+          title={t("dash.tooltipEdit")}
         >
           <Edit2 className="w-3.5 h-3.5" />
         </button>
@@ -130,7 +132,7 @@ export function PokemonCard({
           {/* Game Badges */}
           <div
             className="flex items-center gap-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary"
-            title="Game"
+            title={t("dash.tooltipGameInfo")}
           >
             <Gamepad2 className="w-3 h-3" />
             {formatGame(pokemon.game)}
@@ -157,7 +159,7 @@ export function PokemonCard({
               onDecrement(pokemon.id);
             }}
             className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
-            title="−1"
+            title={t("dash.tooltipDecrement")}
           >
             <Minus className="w-4 h-4" />
           </button>
@@ -167,7 +169,7 @@ export function PokemonCard({
               onIncrement(pokemon.id);
             }}
             className="flex flex-col items-center justify-center rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
-            title="+1"
+            title={t("dash.tooltipIncrement")}
           >
             <Plus className="w-5 h-5 mb-0.5" />
           </button>
@@ -177,7 +179,7 @@ export function PokemonCard({
               onReset(pokemon.id);
             }}
             className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-red-400 transition-colors"
-            title="Reset"
+            title={t("dash.tooltipReset")}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -190,6 +192,7 @@ export function PokemonCard({
               e.stopPropagation();
               onDelete(pokemon.id);
             }}
+            title={t("dash.tooltipDelete")}
             className="flex-1 py-1.5 rounded-md text-xs font-medium text-text-muted hover:text-red-400 border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all"
           >
             Löschen
