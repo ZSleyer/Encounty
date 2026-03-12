@@ -509,6 +509,7 @@ export function Settings() {
                 <button
                   onClick={syncPokemonData}
                   disabled={syncing}
+                  title={t("settings.tooltipSyncPokemon")}
                   className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
@@ -538,6 +539,7 @@ export function Settings() {
                 <button
                   onClick={syncGamesData}
                   disabled={gamesSyncing}
+                  title={t("settings.tooltipSyncGames")}
                   className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <RefreshCw className={`w-4 h-4 ${gamesSyncing ? "animate-spin" : ""}`} />
@@ -580,6 +582,7 @@ export function Settings() {
                 <p className="text-xs text-text-muted mb-2">{t("settings.backupDesc")}</p>
                 <button
                   onClick={downloadBackup}
+                  title={t("settings.tooltipBackup")}
                   className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors"
                 >
                   <Download className="w-4 h-4" />
@@ -605,6 +608,7 @@ export function Settings() {
                 <button
                   onClick={() => restoreInputRef.current?.click()}
                   disabled={restoring}
+                  title={t("settings.tooltipRestore")}
                   className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {restoring ? (

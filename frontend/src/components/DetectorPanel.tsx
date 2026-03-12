@@ -9,13 +9,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Eye, X, Camera, Plus, Pencil, Sparkles, Loader2, Video, VideoOff,
-  ChevronDown, Settings, Save,
+  ChevronDown, Settings, Save, HelpCircle,
 } from "lucide-react";
-import { DetectorConfig, DetectorRect, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion } from "../types";
+import { DetectorConfig, DetectorRect, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion, Settings as SettingsType } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
 import { useCaptureService, useCaptureVersion } from "../contexts/CaptureServiceContext";
+import { useCounterStore } from "../hooks/useCounterState";
 import { TemplateEditor } from "./TemplateEditor";
+import { DetectorTutorial } from "./DetectorTutorial";
 import { getSpriteUrl } from "../utils/sprites";
 
 // ── Default config ───────────────────────────────────────────────────────────
@@ -82,10 +84,12 @@ export function DetectorPanel({
 }: DetectorPanelProps) {
   const { t } = useI18n();
   const { push: pushToast } = useToast();
+  const { appState } = useCounterStore();
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const [cfg, setCfg] = useState<DetectorConfig>(() => {
     const saved = pokemon.detector_config;
     if (!saved) return { ...DEFAULT_CONFIG };
@@ -176,6 +180,16 @@ export function DetectorPanel({
       .then((data) => setPokedex(data))
       .catch(() => {});
   }, []);
+
+  // Show tutorial on first visit
+  useEffect(() => {
+    const tutorialSeen = appState?.settings?.tutorial_seen?.auto_detection;
+    if (tutorialSeen === false || tutorialSeen === undefined) {
+      // Small delay to ensure DOM is ready with data-detector-tutorial attributes
+      const timer = setTimeout(() => setShowTutorial(true), 300);
+      return () => clearTimeout(timer);
+    }
+  }, [appState?.settings?.tutorial_seen?.auto_detection]);
 
   // Determine the game's generation for sprite availability.
   const pokemonGame = useMemo(
@@ -424,6 +438,34 @@ export function DetectorPanel({
     setSettingsDirty(true);
   };
 
+  // ── Tutorial ───────────────────────────────────────────────────────────────
+
+  const handleTutorialComplete = async () => {
+    setShowTutorial(false);
+    // Mark tutorial as seen in backend
+    if (!appState?.settings) return;
+    const updatedSettings: SettingsType = {
+      ...appState.settings,
+      tutorial_seen: {
+        ...appState.settings.tutorial_seen,
+        auto_detection: true,
+      },
+    };
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedSettings),
+      });
+    } catch (err) {
+      console.error("Failed to save tutorial state:", err);
+    }
+  };
+
+  const handleShowTutorial = () => {
+    setShowTutorial(true);
+  };
+
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const { dot: dotClass, pulse } = stateDotClass(detectorState, isRunning);
@@ -435,9 +477,25 @@ export function DetectorPanel({
   return (
     <>
       <div className="space-y-5">
+        {/* ── Header with Tutorial button ─────────────────────────────────── */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text-secondary">
+            {t("detector.title")}
+          </h2>
+          <button
+            onClick={handleShowTutorial}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+            title={t("tooltip.editor.showTutorial")}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            Tutorial
+          </button>
+        </div>
 
         {/* ── Control bar ─────────────────────────────────────────────────── */}
-        <div className={`flex items-center gap-3 rounded-xl px-4 py-3 shadow-sm transition-colors bg-bg-card border ${
+        <div
+          data-detector-tutorial="controls"
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 shadow-sm transition-colors bg-bg-card border ${
           showAsRunning
             ? detectorState === "match_active"
               ? "border-green-500/30"
@@ -463,9 +521,13 @@ export function DetectorPanel({
           <button
             onClick={isRunning ? handleStop : handleStart}
             disabled={isStarting || (!isRunning && !canStart)}
-            title={!isRunning && !canStart ? (
-              !isCapturing ? t("detector.errNoStream") : t("detector.errNoTemplates")
-            ) : undefined}
+            title={
+              !isRunning && !canStart
+                ? (!isCapturing ? t("detector.errNoStream") : t("detector.errNoTemplates"))
+                : isRunning
+                  ? t("detector.tooltipStop")
+                  : t("detector.tooltipStart")
+            }
             className={`px-5 py-1.5 2xl:px-6 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-bold transition-colors border shrink-0 flex items-center gap-1.5 ${
               isRunning
                 ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
@@ -494,7 +556,10 @@ export function DetectorPanel({
 
         {/* ── Source + Preview ─────────────────────────────────────────────── */}
         <div className="bg-bg-card border border-border-subtle rounded-xl overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle">
+          <div
+            data-detector-tutorial="source"
+            className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle"
+          >
             <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">
               {t("detector.source")}
             </span>
@@ -526,7 +591,10 @@ export function DetectorPanel({
               )}
             </div>
           </div>
-          <div className="relative w-full aspect-video bg-black">
+          <div
+            data-detector-tutorial="preview"
+            className="relative w-full aspect-video bg-black"
+          >
             {!stream ? (
               <div className="w-full h-full flex flex-col items-center justify-center">
                 <Camera className="w-10 h-10 2xl:w-12 2xl:h-12 text-white/20 mb-2" />
@@ -543,7 +611,10 @@ export function DetectorPanel({
         </div>
 
         {/* ── Templates ───────────────────────────────────────────────────── */}
-        <div className="bg-bg-card border border-border-subtle rounded-xl shadow-sm p-4">
+        <div
+          data-detector-tutorial="templates"
+          className="bg-bg-card border border-border-subtle rounded-xl shadow-sm p-4"
+        >
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">
               {t("detector.templates")}
@@ -559,6 +630,7 @@ export function DetectorPanel({
                   if (!stream) { setErrorMsg(t("detector.errNoStream")); return; }
                   setShowAddTemplate(true);
                 }}
+                title={t("detector.tooltipAddFromVideo")}
                 className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
               >
                 <Plus className="w-3 h-3" />
@@ -568,6 +640,7 @@ export function DetectorPanel({
                 <button
                   onClick={handleAddSpriteTemplate}
                   disabled={addingSprite}
+                  title={t("detector.tooltipAddFromSprite")}
                   className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors disabled:opacity-50"
                 >
                   {addingSprite ? (
@@ -624,7 +697,10 @@ export function DetectorPanel({
         </div>
 
         {/* ── Advanced Settings (collapsible) ─────────────────────────── */}
-        <div className="bg-bg-card border border-border-subtle rounded-xl shadow-sm overflow-hidden">
+        <div
+          data-detector-tutorial="settings"
+          className="bg-bg-card border border-border-subtle rounded-xl shadow-sm overflow-hidden"
+        >
           <button
             onClick={() => setShowSettings((v) => !v)}
             className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-bg-hover transition-colors"
@@ -720,6 +796,7 @@ export function DetectorPanel({
                     </span>
                     <button
                       onClick={() => { handleApplyDefaults(); setSettingsDirty(true); }}
+                      title={t("detector.tooltipApplyDefaults")}
                       className="px-2 py-0.5 rounded text-[11px] font-medium border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
                     >
                       {t("detector.applyDefaults")}
@@ -797,6 +874,11 @@ export function DetectorPanel({
           onClose={() => setEditingTemplate(null)}
           onUpdateRegions={handleUpdateRegions}
         />
+      )}
+
+      {/* ── Tutorial ────────────────────────────────────────────────────────── */}
+      {showTutorial && (
+        <DetectorTutorial onComplete={handleTutorialComplete} />
       )}
     </>
   );

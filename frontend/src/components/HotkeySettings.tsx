@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { HotkeyMap } from '../types'
+import { useI18n } from '../contexts/I18nContext'
 
 const API = '/api'
 
@@ -17,6 +18,7 @@ const ACTIONS: { key: keyof HotkeyMap; label: string }[] = [
 ]
 
 export function HotkeySettings({ hotkeys, onUpdate }: Props) {
+  const { t } = useI18n()
   const [local, setLocal] = useState<HotkeyMap>(hotkeys)
   const [recording, setRecording] = useState<keyof HotkeyMap | null>(null)
   const [liveModifiers, setLiveModifiers] = useState<string>('')
@@ -188,6 +190,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
                   onClick={() =>
                     isRecording ? cancelRecording() : startRecording(key)
                   }
+                  title={isRecording ? t("tooltip.common.cancel") : t("hotkeys.tooltipRecord")}
                   className={`px-3 py-1 2xl:px-4 2xl:py-1.5 rounded text-xs 2xl:text-sm transition-colors ${
                     isRecording
                       ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
@@ -201,7 +204,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Props) {
                   <button
                     onClick={() => deleteBinding(key)}
                     className="p-1 rounded text-text-faint hover:text-red-400 transition-colors"
-                    title="Bindung löschen"
+                    title={t("hotkeys.tooltipDelete")}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>

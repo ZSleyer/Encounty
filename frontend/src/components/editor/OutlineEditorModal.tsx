@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { NumSlider } from "./NumSlider";
 import { ColorSwatch } from "./ColorSwatch";
+import { useI18n } from "../../contexts/I18nContext";
 
 interface OutlineEditorModalProps {
   type: "none" | "solid";
@@ -22,6 +23,7 @@ export function OutlineEditorModal({
   onClose,
   onOpenColorPicker,
 }: OutlineEditorModalProps) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -49,7 +51,7 @@ export function OutlineEditorModal({
         <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
           Outline bearbeiten
         </h2>
-        <button title="Schließen" onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
+        <button title={t("tooltip.common.close")} onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
           <X size={16} />
         </button>
       </div>
@@ -109,14 +111,14 @@ export function OutlineEditorModal({
       {/* --- Buttons --- */}
       <div className="flex gap-3 mt-5">
         <button
-          title="Abbrechen"
+          title={t("tooltip.common.cancel")}
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
           onClick={onClose}
         >
           Abbrechen
         </button>
         <button
-          title="Übernehmen"
+          title={t("tooltip.common.apply")}
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
           onClick={() => onConfirm(type, color, width)}
         >

@@ -620,6 +620,7 @@ export function Dashboard() {
           <div className="p-3 border-t border-border-subtle">
             <button
               onClick={() => setShowAddModal(true)}
+              title={t("dash.tooltipAddPokemon")}
               className="w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs 2xl:text-sm font-semibold transition-colors hover-glow"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -885,7 +886,7 @@ export function Dashboard() {
                         {/* Mode toggle — two icon buttons */}
                         <button
                           onClick={() => handleModeChange("default")}
-                          title="Globales Layout"
+                          title={t("dash.tooltipOverlayGlobal")}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                             modeBase === "default"
                               ? "bg-accent-blue/15 text-accent-blue ring-1 ring-accent-blue/30"
@@ -897,7 +898,7 @@ export function Dashboard() {
                         </button>
                         <button
                           onClick={() => handleModeChange("custom")}
-                          title="Eigenes Layout"
+                          title={t("dash.tooltipOverlayCustom")}
                           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                             modeBase === "custom"
                               ? "bg-accent-blue/15 text-accent-blue ring-1 ring-accent-blue/30"

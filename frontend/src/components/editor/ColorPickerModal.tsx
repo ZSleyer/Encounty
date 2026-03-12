@@ -5,6 +5,7 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { X } from "lucide-react";
+import { useI18n } from "../../contexts/I18nContext";
 
 // --- HSV / RGB / Hex conversion utilities ---
 
@@ -116,6 +117,7 @@ export function ColorPickerModal({
   onConfirm,
   onClose,
 }: ColorPickerModalProps) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const satAreaRef = useRef<HTMLDivElement>(null);
   const hueBarRef = useRef<HTMLDivElement>(null);
@@ -256,7 +258,7 @@ export function ColorPickerModal({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold text-text-primary">Farbauswahl</h2>
         <button
-          title="Schließen"
+          title={t("tooltip.common.close")}
           onClick={handleCancel}
           className="text-text-muted hover:text-text-primary transition-colors"
         >
@@ -409,14 +411,14 @@ export function ColorPickerModal({
       {/* Action buttons */}
       <div className="flex gap-3 mt-4">
         <button
-          title="Abbrechen"
+          title={t("tooltip.common.cancel")}
           onClick={handleCancel}
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           Abbrechen
         </button>
         <button
-          title="Übernehmen"
+          title={t("tooltip.common.apply")}
           onClick={handleConfirm}
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors shadow-sm"
         >
