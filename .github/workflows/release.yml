@@ -9,14 +9,12 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build & Release
+  test:
+    name: Run Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -28,36 +26,226 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Test Backend
+        working-directory: backend
+        run: go test ./internal/... -count=1
+
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: yarn install
 
+      - name: Test Frontend
+        working-directory: frontend
+        run: yarn test --run
+
+  build:
+    name: Build Binaries
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            output: encounty-linux
+          - goos: linux
+            goarch: arm64
+            output: encounty-linux-arm64
+          - goos: windows
+            goarch: amd64
+            output: encounty-windows.exe
+          - goos: windows
+            goarch: arm64
+            output: encounty-windows-arm64.exe
+          - goos: darwin
+            goarch: amd64
+            output: encounty-darwin
+          - goos: darwin
+            goarch: arm64
+            output: encounty-darwin-arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Set version from tag
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/}
-          # Strip 'v' prefix for package.json (v0.2 -> 0.2.0)
           CLEAN_VERSION=$(echo "$TAG_VERSION" | sed 's/^v//')
-          # Ensure semver format (0.2 -> 0.2.0)
           if [[ "$CLEAN_VERSION" != *.*.* ]]; then
             CLEAN_VERSION="${CLEAN_VERSION}.0"
           fi
           echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
           echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
-          # Update frontend/package.json version
-          cd frontend
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          yarn install
           npm pkg set version="$CLEAN_VERSION"
-          echo "Set frontend version to $CLEAN_VERSION"
+          yarn build
 
       - name: Install go-winres
+        if: matrix.goos == 'windows'
         run: go install github.com/tc-hib/go-winres@latest
 
-      - name: Build Binaries
-        run: make build
+      - name: Generate Icons
+        run: |
+          cd backend
+          go run ../scripts/generate_icons.go
 
-      - name: Create Release
+      - name: Generate Windows Resources
+        if: matrix.goos == 'windows'
+        run: |
+          cd backend
+          WIN_VER=$(echo "$CLEAN_VERSION" | awk -F. '{if(NF==2) print $0".0"; else print $0}')
+          $(go env GOPATH)/bin/go-winres make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
+
+      - name: Build Binary
+        working-directory: backend
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 0
+        run: |
+          # Prepare embedded frontend
+          cp -r ../frontend/dist ./frontend
+
+          # Set ldflags based on OS
+          if [[ "$GOOS" == "windows" ]]; then
+            LDFLAGS="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui"
+          else
+            LDFLAGS="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u +%d.%m.%y)"
+          fi
+
+          # Build
+          go build -ldflags="$LDFLAGS" -o ../${{ matrix.output }} main.go
+
+          # Cleanup
+          rm -rf ./frontend
+          rm -f *.syso
+
+      - name: Compress with UPX
+        if: matrix.goos == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y upx
+          upx --best --lzma ${{ matrix.output }} || echo "UPX failed, continuing..."
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.output }}
+          path: ${{ matrix.output }}
+
+  package-electron:
+    name: Package Electron Apps
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux
+            arch: x64,arm64
+          - os: windows-latest
+            target: win
+            arch: x64,arm64
+          - os: macos-latest
+            target: mac
+            arch: x64,arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download Binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare Binaries
+        shell: bash
+        run: |
+          # Move all binaries to root
+          find artifacts -type f -exec mv {} . \;
+          ls -lah
+
+      - name: Set version from tag
+        shell: bash
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/}
+          CLEAN_VERSION=$(echo "$TAG_VERSION" | sed 's/^v//')
+          if [[ "$CLEAN_VERSION" != *.*.* ]]; then
+            CLEAN_VERSION="${CLEAN_VERSION}.0"
+          fi
+          echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          yarn install
+          npm pkg set version="$CLEAN_VERSION"
+          yarn build
+
+      - name: Build Electron
+        working-directory: electron
+        run: |
+          yarn install
+          npm pkg set version="$CLEAN_VERSION"
+          yarn build
+
+      - name: Package Electron
+        working-directory: electron
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" = "linux" ]; then
+            yarn package:linux
+          elif [ "${{ matrix.target }}" = "win" ]; then
+            yarn package:win
+          else
+            yarn package:mac
+          fi
+
+      - name: Upload Electron Packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-${{ matrix.target }}
+          path: electron/release/*
+
+  release:
+    name: Create Release
+    needs: [build, package-electron]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare Release Assets
+        run: |
+          mkdir release-assets
+          find artifacts -type f -exec cp {} release-assets/ \;
+          ls -lah release-assets/
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            encounty-linux
-            encounty-windows.exe
+          files: release-assets/*
           generate_release_notes: true
+          draft: false
+          prerelease: false

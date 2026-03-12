@@ -9,7 +9,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { WSMessage } from '../types'
 
-const WS_URL = `ws://${globalThis.location.host}/ws`
+const WS_URL = 'ws://localhost:8080/ws'
 const RECONNECT_DELAY = 2000
 
 /**

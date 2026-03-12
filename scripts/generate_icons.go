@@ -17,7 +17,7 @@ func main() {
 }
 
 func run() error {
-	srcPath := "frontend/public/app-icon.png"
+	srcPath := "../frontend/public/app-icon.png"
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
 		return fmt.Errorf("failed to open source icon %s: %w", srcPath, err)

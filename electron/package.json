@@ -1,0 +1,19 @@
+{
+  "name": "encounty-electron",
+  "version": "0.5.0",
+  "description": "Electron wrapper for Encounty",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && electron dist/main.js --dev",
+    "package:linux": "electron-builder --linux",
+    "package:win": "electron-builder --win",
+    "package:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.0.0"
+  }
+}
