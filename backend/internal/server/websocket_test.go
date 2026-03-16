@@ -186,7 +186,7 @@ func TestWSIntegration(t *testing.T) {
 	defer conn.Close()
 
 	// The server should send the current state immediately on connect.
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err := conn.ReadMessage()
 	if err != nil {
 		t.Fatalf("read initial state: %v", err)
@@ -263,7 +263,7 @@ func TestWSMultipleClients(t *testing.T) {
 		conns[i] = c
 
 		// Drain the initial state_update.
-		c.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = c.SetReadDeadline(time.Now().Add(2 * time.Second))
 		if _, _, err := c.ReadMessage(); err != nil {
 			t.Fatalf("client %d initial read: %v", i, err)
 		}
