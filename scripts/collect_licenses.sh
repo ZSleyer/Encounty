@@ -106,6 +106,61 @@ if [ -f "$TMP_DIR/npm_entry_parts.jsonl" ]; then
   jq -s '.' "$TMP_DIR/npm_entry_parts.jsonl" > "$TMP_DIR/npm_entries.json"
 fi
 
+# --- Shipped devDependencies --------------------------------------------------
+# These are devDependencies whose output ends up in the distributed app:
+#   - tailwindcss: CSS output is compiled into the frontend bundle
+#   - electron: the app runtime itself
+echo "Collecting shipped devDependency licenses..."
+
+SHIPPED_DEVDEPS="frontend:tailwindcss electron:electron"
+for entry in $SHIPPED_DEVDEPS; do
+  pkg_dir="${entry%%:*}"
+  pkg_name="${entry##*:}"
+  pkg_root="$ROOT_DIR/$pkg_dir/node_modules/$pkg_name"
+
+  if [ ! -d "$pkg_root" ]; then
+    echo "  WARN: $pkg_dir/node_modules/$pkg_name not found, skipping"
+    continue
+  fi
+
+  version=$(jq -r '.version // ""' "$pkg_root/package.json")
+  license_type=$(jq -r '.license // ""' "$pkg_root/package.json")
+
+  license_file=""
+  for candidate in LICENSE LICENSE.md LICENSE.txt LICENSE-MIT LICENSE-MIT.txt LICENCE; do
+    if [ -f "$pkg_root/$candidate" ]; then
+      license_file="$pkg_root/$candidate"
+      break
+    fi
+  done
+
+  if [ -n "$license_file" ]; then
+    jq -n \
+      --arg name "$pkg_name" \
+      --arg version "$version" \
+      --arg license "$license_type" \
+      --rawfile text "$license_file" \
+      --arg source "npm" \
+      '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
+      >> "$TMP_DIR/npm_entry_parts.jsonl"
+  else
+    jq -n \
+      --arg name "$pkg_name" \
+      --arg version "$version" \
+      --arg license "$license_type" \
+      --arg text "" \
+      --arg source "npm" \
+      '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
+      >> "$TMP_DIR/npm_entry_parts.jsonl"
+  fi
+  echo "  Added $pkg_name@$version ($license_type)"
+done
+
+# Re-aggregate npm entries (now includes shipped devDeps)
+if [ -f "$TMP_DIR/npm_entry_parts.jsonl" ]; then
+  jq -s '.' "$TMP_DIR/npm_entry_parts.jsonl" > "$TMP_DIR/npm_entries.json"
+fi
+
 cd "$ROOT_DIR"
 
 # --- Merge and write ----------------------------------------------------------

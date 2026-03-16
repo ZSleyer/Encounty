@@ -17,7 +17,7 @@ export class GoProcessManager extends EventEmitter {
 
     this.process = spawn(binaryPath, [], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env }
+      env: { ...process.env, ENCOUNTY_ELECTRON: '1' }
     });
 
     this.process.stdout?.on('data', (data) => {
@@ -32,7 +32,12 @@ export class GoProcessManager extends EventEmitter {
 
     this.process.stderr?.on('data', (data) => {
       const output = data.toString();
-      console.error('[Go Error]', output.trim());
+      console.error('[Go]', output.trim());
+
+      // slog writes to stderr; check for server ready signal
+      if (output.includes('Server listening')) {
+        this.emit('ready');
+      }
     });
 
     this.process.on('exit', (code, signal) => {
@@ -67,18 +72,10 @@ export class GoProcessManager extends EventEmitter {
   }
 
   private getBinaryPath(): string {
-    let binaryName: string;
-    const arch = process.arch; // 'x64' or 'arm64'
-
-    // Determine binary name based on platform and architecture
-    if (process.platform === 'win32') {
-      binaryName = arch === 'arm64' ? 'encounty-windows-arm64.exe' : 'encounty-windows.exe';
-    } else if (process.platform === 'darwin') {
-      binaryName = arch === 'arm64' ? 'encounty-darwin-arm64' : 'encounty-darwin';
-    } else {
-      // Linux and other Unix-like systems
-      binaryName = arch === 'arm64' ? 'encounty-linux-arm64' : 'encounty-linux';
-    }
+    // Linux x64 + Windows x64 only
+    const binaryName = process.platform === 'win32'
+      ? 'encounty-windows.exe'
+      : 'encounty-linux';
 
     if (app.isPackaged) {
       // Production mode: binary in resources

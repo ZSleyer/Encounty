@@ -44,6 +44,25 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const id = crypto.randomUUID();
       const duration = toast.duration ?? (toast.type === "encounter" ? 3000 : 2000);
 
+      // Show system notification when the page is hidden (minimized / background tab)
+      if (document.hidden && "Notification" in window) {
+        if (Notification.permission === "granted") {
+          new Notification(toast.title, {
+            body: toast.message,
+            icon: toast.spriteUrl,
+          });
+        } else if (Notification.permission !== "denied") {
+          Notification.requestPermission().then((perm) => {
+            if (perm === "granted") {
+              new Notification(toast.title, {
+                body: toast.message,
+                icon: toast.spriteUrl,
+              });
+            }
+          });
+        }
+      }
+
       setToasts((prev) => {
         // For encounter toasts: replace existing encounter toast for same sprite
         if (toast.type === "encounter") {
