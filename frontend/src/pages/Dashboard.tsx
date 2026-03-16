@@ -57,6 +57,7 @@ function useDuration(start: Date) {
   const [elapsed, setElapsed] = useState("");
   useEffect(() => {
     const update = () => {
+      if (document.hidden) return;
       const diff = Date.now() - start.getTime();
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
@@ -111,6 +112,7 @@ export function Dashboard() {
 
   const { send } = useWebSocket((msg) => {
     if (msg.type === "request_reset_confirm") {
+      window.electronAPI?.focusWindow();
       const payload = msg.payload as { pokemon_id: string };
       const pokemon = appState?.pokemon.find(
         (p) => p.id === payload.pokemon_id,

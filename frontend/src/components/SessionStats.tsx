@@ -12,6 +12,7 @@ export function SessionStats({ appState, sessionStart }: Props) {
 
   useEffect(() => {
     const update = () => {
+      if (document.hidden) return
       const diff = Date.now() - sessionStart.getTime()
       const h = Math.floor(diff / 3600000)
       const m = Math.floor((diff % 3600000) / 60000)

@@ -82,7 +82,7 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.025' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.015' /%3E%3Cpath d='M0,1000 L0,500 C166,600 333,400 500,500 C666,600 833,400 1000,500 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.01' /%3E%3C/svg%3E");
   background-size: 200% 100%;
   background-repeat: repeat-x;
-  /* Animate smooth horizontal translation */
+  /* Animate smooth horizontal scroll — background-position loops seamlessly with repeat-x */
   will-change: background-position;
   animation: wave-flow 30s linear infinite;
 }
@@ -93,7 +93,6 @@
 }
 
 @keyframes wave-flow {
-  /* 100% background-position smoothly shifts the pattern by exactly one tile, creating a mathematical infinite loop */
   0% { background-position: 0% 0; }
   100% { background-position: 100% 0; }
 }
@@ -221,6 +220,21 @@
   color: #fcd34d;               /* amber-300 */
   background-color: rgba(120, 53, 15, 0.50); /* amber-900/50 */
   border-color: rgba(180, 83, 9, 0.60);       /* amber-700/60 */
+}
+
+/* ── Pause animations when the app is not visible (CPU savings) ──── */
+.app-hidden .switch-waves,
+.app-hidden .footer-line,
+.app-hidden .glow-line-h,
+.app-hidden .glow-line-v,
+.app-hidden .pulse-border {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch-waves, .footer-line, .glow-line-h, .glow-line-v, .pulse-border {
+    animation: none !important;
+  }
 }
 
 /* Footer gradient line */
@@ -417,6 +431,12 @@
 
 [data-theme="light"] .glass-card button.border.border-border-subtle:not(.rounded-full):not([class*="bg-accent"]):hover {
   background-color: #dce4ee;
+}
+
+/* Buttons default to cursor:default in browsers; override to pointer for all
+   interactive buttons. Tailwind disabled:cursor-not-allowed still wins. */
+button:not(:disabled) {
+  cursor: pointer;
 }
 
 body {
