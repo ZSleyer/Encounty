@@ -284,6 +284,10 @@ if (isWayland) {
 
 console.log('[Electron] Platform detection:', { isWayland, platform: process.platform, WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY, XDG_SESSION_TYPE: process.env.XDG_SESSION_TYPE });
 
+// Move Electron/Chromium data into a subdirectory so it doesn't mix with
+// the Go backend's config files (state.json etc.) in the same folder.
+app.setPath('userData', path.join(app.getPath('userData'), 'electron'));
+
 // App lifecycle
 app.on('ready', async () => {
   Menu.setApplicationMenu(null);
