@@ -1,0 +1,33 @@
+appId: com.encounty.app
+productName: Encounty
+artifactName: "Encounty.${ext}"
+icon: ../frontend/public/app-icon.png
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+extraResources:
+  - from: ../frontend/public/app-icon.png
+    to: app-icon.png
+  - from: ../encounty-linux
+    to: encounty-linux
+    filter: encounty-linux
+  - from: ../encounty-windows.exe
+    to: encounty-windows.exe
+    filter: encounty-windows.exe
+publish:
+  provider: github
+  owner: ZSleyer
+  repo: Encounty
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  category: Utility
+win:
+  target:
+    - target: portable
+      arch:
+        - x64

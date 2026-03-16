@@ -28,17 +28,26 @@ interface CaptureEntry {
   pollMs: number | null;
   lastDispatch: number;
   loopTimer: ReturnType<typeof setTimeout> | null;
+  /** Display name of the selected source (e.g. "Screen 1", "OBS Virtual Camera"). */
+  sourceLabel: string;
 }
 
 interface CaptureServiceContextValue {
-  /** Start a capture for a specific pokemon. Prompts browser picker. */
-  startCapture: (pokemonId: string, sourceType: "browser_display" | "browser_camera") => Promise<void>;
+  /** Start a capture for a specific pokemon. Optional sourceId/sourceLabel for pre-selected sources. */
+  startCapture: (
+    pokemonId: string,
+    sourceType: "browser_display" | "browser_camera",
+    sourceId?: string,
+    sourceLabel?: string,
+  ) => Promise<void>;
   /** Stop and release the capture for a specific pokemon. */
   stopCapture: (pokemonId: string) => void;
   /** Get the active stream for a pokemon (for preview). */
   getStream: (pokemonId: string) => MediaStream | null;
   /** Check if a pokemon has an active capture. */
   isCapturing: (pokemonId: string) => boolean;
+  /** Get the display label of the connected source for a pokemon. */
+  getSourceLabel: (pokemonId: string) => string | null;
 
   /** Start submitting frames for a pokemon (begins dispatch loop). */
   registerSubmitter: (pokemonId: string, pollMs: number) => void;
@@ -150,6 +159,8 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
   const startCapture = useCallback(async (
     pokemonId: string,
     sourceType: "browser_display" | "browser_camera",
+    sourceId?: string,
+    sourceLabel?: string,
   ) => {
     // If already has a capture, stop it first
     if (entriesRef.current.has(pokemonId)) {
@@ -161,11 +172,17 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
 
     try {
       let stream: MediaStream;
+      let label = sourceLabel ?? "";
+
       if (sourceType === "browser_display") {
         if (!navigator.mediaDevices?.getDisplayMedia) {
           captureErrorRef.current = "getDisplayMedia not available. Ensure context is secure (HTTPS/localhost).";
           notify();
           return;
+        }
+        // In Electron with a pre-selected source, tell main process first
+        if (sourceId && window.electronAPI) {
+          await window.electronAPI.selectCaptureSource(sourceId);
         }
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: { displaySurface: "window" },
@@ -177,10 +194,17 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
           notify();
           return;
         }
+        const videoConstraints: MediaTrackConstraints | boolean = sourceId
+          ? { deviceId: { exact: sourceId } }
+          : true;
         stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: videoConstraints,
           audio: false,
         });
+        // Derive label from track if not provided
+        if (!label) {
+          label = stream.getVideoTracks()[0]?.label ?? "";
+        }
       }
 
       // Create hidden video element
@@ -202,6 +226,7 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
         pollMs: null,
         lastDispatch: 0,
         loopTimer: null,
+        sourceLabel: label,
       };
 
       entriesRef.current.set(pokemonId, entry);
@@ -229,6 +254,10 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
 
   const isCapturing = useCallback((pokemonId: string): boolean => {
     return entriesRef.current.has(pokemonId);
+  }, []);
+
+  const getSourceLabel = useCallback((pokemonId: string): string | null => {
+    return entriesRef.current.get(pokemonId)?.sourceLabel ?? null;
   }, []);
 
   const registerSubmitter = useCallback((pokemonId: string, pollMs: number) => {
@@ -288,6 +317,7 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
     stopCapture,
     getStream,
     isCapturing,
+    getSourceLabel,
     registerSubmitter,
     unregisterSubmitter,
     updateSubmitterInterval,
