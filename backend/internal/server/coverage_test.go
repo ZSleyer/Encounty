@@ -146,18 +146,18 @@ func TestRestoreWithBothFiles(t *testing.T) {
 	var zipBuf bytes.Buffer
 	zw := zip.NewWriter(&zipBuf)
 	fw, _ := zw.Create("state.json")
-	fw.Write([]byte(stateJSON))
+	_, _ = fw.Write([]byte(stateJSON))
 	fw2, _ := zw.Create("pokemon.json")
-	fw2.Write([]byte(pokemonJSON))
+	_, _ = fw2.Write([]byte(pokemonJSON))
 	// Add a file that should be skipped (not state.json or pokemon.json)
 	fw3, _ := zw.Create("other.txt")
-	fw3.Write([]byte("ignored"))
+	_, _ = fw3.Write([]byte("ignored"))
 	zw.Close()
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	formFile, _ := mw.CreateFormFile("backup", "backup.zip")
-	formFile.Write(zipBuf.Bytes())
+	_, _ = formFile.Write(zipBuf.Bytes())
 	mw.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/restore", &body)
@@ -271,7 +271,7 @@ func TestWritePump_ChannelClose(t *testing.T) {
 	defer conn.Close()
 
 	// Read initial state
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	if _, _, err := conn.ReadMessage(); err != nil {
 		t.Fatalf("read initial: %v", err)
 	}
@@ -283,7 +283,7 @@ func TestWritePump_ChannelClose(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Reading should now return a close message or error
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, _, err = conn.ReadMessage()
 	// We expect an error because the connection was closed
 	if err == nil {

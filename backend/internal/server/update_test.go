@@ -68,7 +68,7 @@ func TestVersionComparisonInFetchUpdateInfo(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(mockRelease)
+		_ = json.NewEncoder(w).Encode(mockRelease)
 	}))
 	defer ts.Close()
 
@@ -171,7 +171,7 @@ func TestUpdateApplyMissingURL(t *testing.T) {
 func TestDownloadFile(t *testing.T) {
 	content := "binary-content-here"
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(content))
+		_, _ = w.Write([]byte(content))
 	}))
 	defer ts.Close()
 

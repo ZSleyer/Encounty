@@ -34,15 +34,6 @@ const (
 	evValPress = 1    // key pressed
 )
 
-// inputEvent mirrors the Linux struct input_event (24 bytes on 64-bit).
-type inputEvent struct {
-	Sec   int64
-	Usec  int64
-	Type  uint16
-	Code  uint16
-	Value int32
-}
-
 type linuxManager struct {
 	stateMgr  *state.Manager
 	actions   chan Action

@@ -44,7 +44,10 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 			f.Close()
 			continue
 		}
-		io.Copy(fw, f)
+		if _, err := io.Copy(fw, f); err != nil {
+			f.Close()
+			continue
+		}
 		f.Close()
 	}
 
@@ -67,7 +70,9 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil
 		}
-		io.Copy(fw, f)
+		if _, err := io.Copy(fw, f); err != nil {
+			return nil
+		}
 		return nil
 	})
 }

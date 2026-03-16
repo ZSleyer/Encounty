@@ -187,7 +187,7 @@ func TestRestoreInvalidZIP(t *testing.T) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	fw, _ := mw.CreateFormFile("backup", "bad.zip")
-	fw.Write([]byte("not a zip"))
+	_, _ = fw.Write([]byte("not a zip"))
 	mw.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/restore", &body)
@@ -207,13 +207,13 @@ func TestRestoreZIPMissingState(t *testing.T) {
 	var zipBuf bytes.Buffer
 	zw := zip.NewWriter(&zipBuf)
 	fw, _ := zw.Create("pokemon.json")
-	fw.Write([]byte("[]"))
+	_, _ = fw.Write([]byte("[]"))
 	zw.Close()
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	formFile, _ := mw.CreateFormFile("backup", "backup.zip")
-	formFile.Write(zipBuf.Bytes())
+	_, _ = formFile.Write(zipBuf.Bytes())
 	mw.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/restore", &body)
@@ -226,7 +226,7 @@ func TestRestoreZIPMissingState(t *testing.T) {
 	}
 
 	var resp map[string]string
-	json.Unmarshal(w.Body.Bytes(), &resp)
+	_ = json.Unmarshal(w.Body.Bytes(), &resp)
 	// Response body should mention state.json
 	if w.Body.String() == "" {
 		t.Error("expected error message in response body")
