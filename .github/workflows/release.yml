@@ -177,6 +177,7 @@ jobs:
 
       - name: Build Frontend
         working-directory: frontend
+        shell: bash
         run: |
           yarn install
           npm pkg set version="$CLEAN_VERSION"
@@ -184,6 +185,7 @@ jobs:
 
       - name: Build Electron
         working-directory: electron
+        shell: bash
         run: |
           yarn install
           npm pkg set version="$CLEAN_VERSION"
