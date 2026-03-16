@@ -68,7 +68,7 @@ jobs:
         run: |
           mkdir -p ./frontend
           cp -r ../frontend/dist ./frontend/
-          go build -ldflags="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-linux main.go
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-linux main.go
           rm -rf ./frontend
 
       - name: Build Windows Binary
@@ -82,7 +82,7 @@ jobs:
           $(go env GOPATH)/bin/go-winres make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
           mkdir -p ./frontend
           cp -r ../frontend/dist ./frontend/
-          go build -ldflags="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows.exe main.go
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows.exe main.go
           rm -rf ./frontend
           rm -f *.syso
 
