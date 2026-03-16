@@ -74,8 +74,8 @@ export class GoProcessManager extends EventEmitter {
   private getBinaryPath(): string {
     // Linux x64 + Windows x64 only
     const binaryName = process.platform === 'win32'
-      ? 'encounty-windows.exe'
-      : 'encounty-linux';
+      ? 'encounty-backend-windows.exe'
+      : 'encounty-backend-linux';
 
     if (app.isPackaged) {
       // Production mode: binary in resources
