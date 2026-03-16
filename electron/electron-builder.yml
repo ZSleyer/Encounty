@@ -16,10 +16,7 @@ extraResources:
   - from: ../encounty-windows.exe
     to: encounty-windows.exe
     filter: encounty-windows.exe
-publish:
-  provider: github
-  owner: ZSleyer
-  repo: Encounty
+publish: null
 linux:
   target:
     - target: AppImage
