@@ -192,6 +192,8 @@ jobs:
       - name: Package Electron
         working-directory: electron
         shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ "${{ matrix.target }}" = "linux" ]; then
             yarn package:linux
