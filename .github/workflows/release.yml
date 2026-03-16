@@ -39,7 +39,7 @@ jobs:
         run: yarn test --run
 
   build:
-    name: Build Binaries
+    name: Build Go Binaries
     needs: test
     runs-on: ubuntu-latest
     strategy:
@@ -48,21 +48,9 @@ jobs:
           - goos: linux
             goarch: amd64
             output: encounty-linux
-          - goos: linux
-            goarch: arm64
-            output: encounty-linux-arm64
           - goos: windows
             goarch: amd64
             output: encounty-windows.exe
-          - goos: windows
-            goarch: arm64
-            output: encounty-windows-arm64.exe
-          - goos: darwin
-            goarch: amd64
-            output: encounty-darwin
-          - goos: darwin
-            goarch: arm64
-            output: encounty-darwin-arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -117,20 +105,16 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          # Prepare embedded frontend
           cp -r ../frontend/dist ./frontend
 
-          # Set ldflags based on OS
           if [[ "$GOOS" == "windows" ]]; then
             LDFLAGS="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui"
           else
             LDFLAGS="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u +%d.%m.%y)"
           fi
 
-          # Build
           go build -ldflags="$LDFLAGS" -o ../${{ matrix.output }} main.go
 
-          # Cleanup
           rm -rf ./frontend
           rm -f *.syso
 
@@ -156,13 +140,8 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux
-            arch: x64,arm64
           - os: windows-latest
             target: win
-            arch: x64,arm64
-          - os: macos-latest
-            target: mac
-            arch: x64,arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -180,7 +159,6 @@ jobs:
       - name: Prepare Binaries
         shell: bash
         run: |
-          # Move all binaries to root
           find artifacts -type f -exec mv {} . \;
           ls -lah
 
@@ -214,10 +192,8 @@ jobs:
         run: |
           if [ "${{ matrix.target }}" = "linux" ]; then
             yarn package:linux
-          elif [ "${{ matrix.target }}" = "win" ]; then
-            yarn package:win
           else
-            yarn package:mac
+            yarn package:win
           fi
 
       - name: Upload Electron Packages
@@ -240,6 +216,7 @@ jobs:
         run: |
           mkdir release-assets
           find artifacts -type f -exec cp {} release-assets/ \;
+          rm -f release-assets/*.blockmap
           ls -lah release-assets/
 
       - name: Create GitHub Release
