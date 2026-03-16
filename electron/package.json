@@ -1,7 +1,8 @@
 {
-  "name": "encounty-electron",
+  "name": "encounty",
   "version": "0.5.0",
-  "description": "Electron wrapper for Encounty",
+  "description": "Shiny hunt with ease",
+  "author": "ZSleyer",
   "license": "AGPL-3.0-only",
   "main": "dist/main.js",
   "scripts": {

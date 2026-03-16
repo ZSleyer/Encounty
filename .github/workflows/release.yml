@@ -113,13 +113,13 @@ jobs:
 
       - name: Rename release assets
         run: |
-          mv electron/release/Encounty.AppImage encounty-linux.AppImage
+          mv electron/release/Encounty.AppImage encounty-linux
           mv electron/release/Encounty.exe encounty-windows.exe
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            encounty-linux.AppImage
+            encounty-linux
             encounty-windows.exe
           generate_release_notes: true
