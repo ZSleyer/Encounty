@@ -107,7 +107,8 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 0
         run: |
-          cp -r ../frontend/dist ./frontend
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
 
           if [[ "$GOOS" == "windows" ]]; then
             LDFLAGS="-s -w -X main.version=$VERSION -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui"
