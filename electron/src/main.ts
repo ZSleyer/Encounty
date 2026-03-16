@@ -271,6 +271,10 @@ if (!gotTheLock) {
   });
 }
 
+// Prevent Chromium from throttling timers when the window is minimized,
+// so the screen capture detection loop keeps running at full speed.
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+
 // Wayland-specific Chromium flags
 if (isWayland) {
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto');

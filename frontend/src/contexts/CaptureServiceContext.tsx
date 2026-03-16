@@ -109,6 +109,13 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
     const ctx = canvas.getContext("2d");
     if (!ctx) return Promise.resolve(null);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Detect green frames (Windows GPU capture artifact: solid #00FF00)
+    const sample = ctx.getImageData(
+      Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1
+    ).data;
+    if (sample[0] === 0 && sample[1] === 255 && sample[2] === 0) {
+      return Promise.resolve(null);
+    }
     return new Promise((resolve) => {
       canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.7);
     });
