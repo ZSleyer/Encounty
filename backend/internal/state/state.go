@@ -260,7 +260,8 @@ func NewManager(configDir string) *Manager {
 				OutputDir:     filepath.Join(configDir, "output"),
 				AutoSave:      true,
 				BrowserPort:   8080,
-				Languages:   []string{"de", "en"},
+				Languages:    []string{"de", "en"},
+				CrispSprites: true,
 				Overlay: OverlaySettings{
 					CanvasWidth:       800,
 					CanvasHeight:      200,
