@@ -75,6 +75,9 @@ jobs:
         with:
           go-version: '1.24'
 
+      - name: Create frontend/dist stub for go:embed
+        run: mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
