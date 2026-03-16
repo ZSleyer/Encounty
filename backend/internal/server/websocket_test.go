@@ -210,7 +210,7 @@ func TestWSIntegration(t *testing.T) {
 	}
 
 	// Read the resulting state_update broadcast.
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, data, err = conn.ReadMessage()
 	if err != nil {
 		t.Fatalf("read broadcast: %v", err)
@@ -277,7 +277,7 @@ func TestWSMultipleClients(t *testing.T) {
 	for i, c := range conns {
 		go func(idx int, conn *websocket.Conn) {
 			defer wg.Done()
-			conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+			_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 			_, data, err := conn.ReadMessage()
 			if err != nil {
 				t.Errorf("client %d read: %v", idx, err)
@@ -315,7 +315,7 @@ func TestWSClientDisconnect(t *testing.T) {
 	}
 
 	// Wait for registration.
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	if _, _, err := conn.ReadMessage(); err != nil {
 		t.Fatalf("read initial: %v", err)
 	}
