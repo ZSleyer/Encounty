@@ -18,6 +18,7 @@ import { useCaptureService, useCaptureVersion } from "../contexts/CaptureService
 import { useCounterStore } from "../hooks/useCounterState";
 import { TemplateEditor } from "./TemplateEditor";
 import { DetectorTutorial } from "./DetectorTutorial";
+import { SourcePickerModal, SelectedSource } from "./SourcePickerModal";
 import { getSpriteUrl } from "../utils/sprites";
 
 // ── Default config ───────────────────────────────────────────────────────────
@@ -108,6 +109,9 @@ export function DetectorPanel({
     () => pokemon.detector_config?.templates ?? [],
   );
 
+  // Source picker state
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
+
   // Template editor state
   const [showAddTemplate, setShowAddTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<{
@@ -125,10 +129,31 @@ export function DetectorPanel({
 
   const startCapture = useCallback(() => {
     if (cfg.source_type === "browser_display" || cfg.source_type === "browser_camera") {
+      const isElectron = !!window.electronAPI;
+      const isWayland = !!window.electronAPI?.isWayland;
+
+      // On Wayland + Electron + display capture, skip the source picker and
+      // go straight to the native PipeWire/xdg-desktop-portal picker via getDisplayMedia.
+      if (cfg.source_type === "browser_display" && isElectron && isWayland) {
+        return capture.startCapture(pokemon.id, cfg.source_type);
+      }
+
+      // In Electron for display capture (non-Wayland), or always for camera, show the source picker
+      if ((cfg.source_type === "browser_display" && isElectron) || cfg.source_type === "browser_camera") {
+        setShowSourcePicker(true);
+        return Promise.resolve();
+      }
+      // Non-Electron display capture: fall through to browser-native picker
       return capture.startCapture(pokemon.id, cfg.source_type);
     }
     return Promise.resolve();
   }, [cfg.source_type, capture, pokemon.id]);
+
+  const handleSourceSelected = useCallback((source: SelectedSource) => {
+    setShowSourcePicker(false);
+    const st = cfg.source_type as "browser_display" | "browser_camera";
+    capture.startCapture(pokemon.id, st, source.sourceId, source.label);
+  }, [capture, pokemon.id, cfg.source_type]);
 
   const stopCapture = useCallback(() => {
     capture.stopCapture(pokemon.id);
@@ -581,13 +606,20 @@ export function DetectorPanel({
                   {t("detector.connect")}
                 </button>
               ) : (
-                <button
-                  onClick={stopCapture}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-red-400 hover:border-red-400/30 transition-colors"
-                >
-                  <VideoOff className="w-3.5 h-3.5" />
-                  {t("detector.disconnect")}
-                </button>
+                <>
+                  {capture.getSourceLabel(pokemon.id) && (
+                    <span className="text-[11px] text-text-muted truncate max-w-[140px]" title={capture.getSourceLabel(pokemon.id) ?? ""}>
+                      {capture.getSourceLabel(pokemon.id)}
+                    </span>
+                  )}
+                  <button
+                    onClick={stopCapture}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-red-400 hover:border-red-400/30 transition-colors"
+                  >
+                    <VideoOff className="w-3.5 h-3.5" />
+                    {t("detector.disconnect")}
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -879,6 +911,15 @@ export function DetectorPanel({
       {/* ── Tutorial ────────────────────────────────────────────────────────── */}
       {showTutorial && (
         <DetectorTutorial onComplete={handleTutorialComplete} />
+      )}
+
+      {/* ── Source Picker ──────────────────────────────────────────────────── */}
+      {showSourcePicker && (
+        <SourcePickerModal
+          sourceType={cfg.source_type as "browser_display" | "browser_camera"}
+          onSelect={handleSourceSelected}
+          onClose={() => setShowSourcePicker(false)}
+        />
       )}
     </>
   );

@@ -1,54 +1,33 @@
 appId: com.encounty.app
 productName: Encounty
+artifactName: "Encounty.${ext}"
+icon: ../frontend/public/app-icon.png
 directories:
   output: release
   buildResources: build
 files:
   - dist/**/*
 extraResources:
+  - from: ../frontend/public/app-icon.png
+    to: app-icon.png
   - from: ../encounty-linux
     to: encounty-linux
     filter: encounty-linux
-  - from: ../encounty-linux-arm64
-    to: encounty-linux-arm64
-    filter: encounty-linux-arm64
   - from: ../encounty-windows.exe
     to: encounty-windows.exe
     filter: encounty-windows.exe
-  - from: ../encounty-windows-arm64.exe
-    to: encounty-windows-arm64.exe
-    filter: encounty-windows-arm64.exe
-  - from: ../encounty-darwin
-    to: encounty-darwin
-    filter: encounty-darwin
-  - from: ../encounty-darwin-arm64
-    to: encounty-darwin-arm64
-    filter: encounty-darwin-arm64
+publish:
+  provider: github
+  owner: ZSleyer
+  repo: Encounty
 linux:
   target:
     - target: AppImage
       arch:
         - x64
-        - arm64
-    - target: deb
-      arch:
-        - x64
-        - arm64
   category: Utility
 win:
   target:
-    - target: nsis
+    - target: portable
       arch:
         - x64
-        - arm64
-mac:
-  target:
-    - target: dmg
-      arch:
-        - x64
-        - arm64
-    - target: zip
-      arch:
-        - x64
-        - arm64
-  category: public.app-category.utilities

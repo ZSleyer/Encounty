@@ -2,6 +2,7 @@
   "name": "encounty-electron",
   "version": "0.5.0",
   "description": "Electron wrapper for Encounty",
+  "license": "AGPL-3.0-only",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
@@ -12,8 +13,11 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "electron": "^33.0.0",
+    "electron": "^35.1.0",
     "electron-builder": "^25.1.8",
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
   }
 }

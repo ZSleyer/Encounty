@@ -41,6 +41,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "update.newVersion": "Neue Version verfügbar",
     "update.updateNow": "Jetzt aktualisieren",
     "update.later": "Später",
+    "update.changelog": "Änderungen ansehen",
     "nav.dashboard": "Dashboard",
     "nav.hotkeys": "Hotkeys",
     "nav.overlayEditor": "Overlay",
@@ -165,6 +166,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.saved": "Gespeichert",
     "settings.themeDark": "Dunkel",
     "settings.themeLight": "Hell",
+    "settings.uiLanguage": "Oberflächensprache",
     "settings.backupTitle": "Backup & Wiederherstellung",
     "settings.backupDesc":
       "Alle Pokémon, Zähler und Einstellungen als ZIP-Datei sichern.",
@@ -341,6 +343,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.stopCapture": "Aufnahme stoppen",
     "detector.openEditor": "Template-Editor öffnen",
     "detector.tesseractHint": "Tesseract installieren für Text-Erkennung",
+
+    // ── Source Picker ──
+    "sourcePicker.title": "Quelle auswählen",
+    "sourcePicker.screens": "Bildschirme",
+    "sourcePicker.windows": "Fenster",
+    "sourcePicker.cameras": "Kameras",
+    "sourcePicker.select": "Auswählen",
+    "sourcePicker.cancel": "Abbrechen",
+    "sourcePicker.noSources": "Keine Quellen gefunden",
+    "sourcePicker.obsHint": "OBS Virtual Camera",
+    "sourcePicker.connectedTo": "Verbunden: {name}",
+    "sourcePicker.refreshing": "Aktualisiere…",
 
     // ── Template Editor ──
     "templateEditor.title": "Template-Editor",
@@ -529,6 +543,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "update.newVersion": "New version available",
     "update.updateNow": "Update now",
     "update.later": "Later",
+    "update.changelog": "View changes",
     "nav.dashboard": "Dashboard",
     "nav.hotkeys": "Hotkeys",
     "nav.overlayEditor": "Overlay",
@@ -652,6 +667,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.saved": "Saved",
     "settings.themeDark": "Dark",
     "settings.themeLight": "Light",
+    "settings.uiLanguage": "UI Language",
     "settings.backupTitle": "Backup & Restore",
     "settings.backupDesc":
       "Save all Pokémon, counters and settings as a ZIP file.",
@@ -825,6 +841,18 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.stopCapture": "Stop Capture",
     "detector.openEditor": "Open Template Editor",
     "detector.tesseractHint": "Install Tesseract for text matching",
+
+    // ── Source Picker ──
+    "sourcePicker.title": "Select Source",
+    "sourcePicker.screens": "Screens",
+    "sourcePicker.windows": "Windows",
+    "sourcePicker.cameras": "Cameras",
+    "sourcePicker.select": "Select",
+    "sourcePicker.cancel": "Cancel",
+    "sourcePicker.noSources": "No sources found",
+    "sourcePicker.obsHint": "OBS Virtual Camera",
+    "sourcePicker.connectedTo": "Connected: {name}",
+    "sourcePicker.refreshing": "Refreshing…",
 
     // ── Template Editor ──
     "templateEditor.title": "Template Editor",

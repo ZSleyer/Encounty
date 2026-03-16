@@ -55,6 +55,15 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+	// When running inside Electron, the wrapper handles updates via
+	// electron-updater — the Go binary must not offer its own.
+	if os.Getenv("ENCOUNTY_ELECTRON") == "1" {
+		writeJSON(w, http.StatusOK, UpdateInfo{
+			Available:      false,
+			CurrentVersion: s.version,
+		})
+		return
+	}
 	info, err := fetchUpdateInfo(s.version)
 	if err != nil {
 		slog.Error("Update check error", "error", err)

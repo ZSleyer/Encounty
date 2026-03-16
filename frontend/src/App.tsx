@@ -11,11 +11,7 @@ import { Routes, Route, Link, useLocation } from "react-router";
 import {
   LayoutGrid,
   Settings as SettingsIcon,
-  Sun,
-  Moon,
-  Globe,
   Power,
-  RefreshCcw,
   Keyboard,
   Layers,
   Github,
@@ -31,11 +27,12 @@ import { useWebSocket } from "./hooks/useWebSocket";
 import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
 import { WSMessage, AppState } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
-import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider, useToast } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
+import { WindowControls } from "./components/WindowControls";
 import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
-import { LOCALES, Locale } from "./utils/i18n";
+import type { Locale } from "./utils/i18n";
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
 function UpdateOverlay({
@@ -90,6 +87,14 @@ function UpdateNotification({
           <p className="text-sm text-text-muted">
             {version}
           </p>
+          <a
+            href={`https://github.com/ZSleyer/Encounty/releases/tag/v${version}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-accent-blue hover:underline"
+          >
+            {t("update.changelog")}
+          </a>
         </div>
         <div className="flex gap-3 w-full">
           <button
@@ -115,8 +120,7 @@ function AppShell() {
   const isOverlay = location.pathname === "/overlay" || location.pathname.startsWith("/overlay/");
   const { setAppState, setConnected, flashPokemon, isConnected, appState, setDetectorStatus, clearDetectorStatus } =
     useCounterStore();
-  const { t, locale, setLocale } = useI18n();
-  const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
   const { push: pushToast } = useToast();
 
   const [restarting, setRestarting] = useState(false);
@@ -130,6 +134,7 @@ function AppShell() {
   const [updateState, setUpdateState] = useState<"idle" | "installing" | "restarting">("idle");
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [electronUpdateProgress, setElectronUpdateProgress] = useState<number>(0);
 
   const [buildDate, setBuildDate] = useState("");
 
@@ -144,6 +149,41 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
+    // In Electron, updates are handled via IPC from electron-updater
+    if (window.electronAPI) {
+      const cleanupAvailable = window.electronAPI.onUpdateAvailable((info) => {
+        setUpdateInfo({
+          available: true,
+          latest_version: info.version,
+          download_url: `https://github.com/ZSleyer/Encounty/releases/tag/v${info.version}`,
+        });
+        setShowUpdateNotification(true);
+      });
+
+      const cleanupProgress = window.electronAPI.onUpdateProgress((progress) => {
+        setElectronUpdateProgress(progress.percent);
+      });
+
+      const cleanupDownloaded = window.electronAPI.onUpdateDownloaded(() => {
+        // Auto-install once download completes
+        window.electronAPI!.installUpdate();
+        setUpdateState("restarting");
+      });
+
+      const cleanupError = window.electronAPI.onUpdateError((message) => {
+        console.error('[Update] Error:', message);
+        setUpdateState("idle");
+      });
+
+      return () => {
+        cleanupAvailable();
+        cleanupProgress();
+        cleanupDownloaded();
+        cleanupError();
+      };
+    }
+
+    // Non-Electron: poll REST API
     const timer = setTimeout(() => {
       fetch("/api/update/check")
         .then((r) => r.json())
@@ -161,6 +201,18 @@ function AppShell() {
   const applyUpdate = async () => {
     if (!updateInfo) return;
     setUpdateState("installing");
+
+    if (window.electronAPI) {
+      // Electron: download via electron-updater IPC
+      try {
+        await window.electronAPI.downloadUpdate();
+      } catch {
+        setUpdateState("idle");
+      }
+      return;
+    }
+
+    // Non-Electron: REST-based update
     try {
       await fetch("/api/update/apply", {
         method: "POST",
@@ -168,7 +220,6 @@ function AppShell() {
         body: JSON.stringify({ download_url: updateInfo.download_url }),
       });
       setUpdateState("restarting");
-      // Poll until the backend is back, then reload to pick up new frontend assets
       const pollBackend = () => {
         fetch("/api/version", { cache: "no-store" })
           .then(() => window.location.reload())
@@ -184,7 +235,7 @@ function AppShell() {
   // Shows the browser's native "Leave page?" dialog as a last resort.
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isConnected && !quitting && !restarting && updateState === "idle") {
+      if (isConnected && !quitting && !restarting && updateState === "idle" && !window.electronAPI) {
         e.preventDefault();
       }
     };
@@ -196,7 +247,7 @@ function AppShell() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "w") {
-        if (isConnected && !quitting && !restarting && updateState === "idle") {
+        if (isConnected && !quitting && !restarting && updateState === "idle" && !window.electronAPI) {
           e.preventDefault();
           setShowCloseWarning(true);
         }
@@ -214,6 +265,15 @@ function AppShell() {
       document.documentElement.removeAttribute("data-crisp-sprites");
     }
   }, [appState?.settings.crisp_sprites]);
+
+  // Pause CSS animations when the app tab/window is not visible (CPU savings)
+  useEffect(() => {
+    const handler = () => {
+      document.documentElement.classList.toggle('app-hidden', document.hidden);
+    };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, []);
 
   const quitApp = useCallback(async () => {
     if (!confirm(t("app.confirmQuit"))) return;
@@ -390,9 +450,15 @@ function AppShell() {
         <div className="switch-waves" />
       </div>
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
-      <header className="flex items-center h-12 2xl:h-14 px-4 bg-bg-secondary shrink-0 relative z-10">
+      <header
+        className="flex items-center h-12 2xl:h-14 px-4 bg-bg-secondary shrink-0 relative z-10"
+        style={{
+          WebkitAppRegion: "drag",
+        } as React.CSSProperties}
+        onDoubleClick={() => window.electronAPI?.maximize()}
+      >
         {/* Left: Logo + Nav tabs */}
-        <div className="flex items-center gap-1 mr-auto">
+        <div className="flex items-center gap-1 mr-auto" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
           {/* Logo */}
           <img
             src="/app-icon.png"
@@ -416,64 +482,9 @@ function AppShell() {
         </div>
 
 
-        {/* Right: Theme + Locale */}
-        <div className="flex items-center gap-1 ml-auto">
-          {/* App Controls */}
-          <div className="flex items-center gap-1.5 mr-2 border-r border-border-subtle pr-3">
-            <button
-              onClick={restartApp}
-              disabled={restarting || quitting}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 transition-colors disabled:opacity-50"
-              title={t("app.restart")}
-            >
-              <RefreshCcw
-                className={`w-4 h-4 ${restarting ? "animate-spin" : ""}`}
-              />
-            </button>
-            <button
-              onClick={quitApp}
-              disabled={quitting || restarting}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-red-500 hover:bg-red-500/10 hover:text-red-400 transition-colors disabled:opacity-50"
-              title={t("app.quit")}
-            >
-              <Power className={`w-4 h-4 ${quitting ? "animate-pulse" : ""}`} />
-            </button>
-          </div>
-
-          {/* Language toggle */}
-          <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden mr-1">
-            {LOCALES.map((l) => (
-              <button
-                key={l.code}
-                onClick={() => setLocale(l.code)}
-                className={`px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-[11px] 2xl:text-xs font-medium transition-colors ${
-                  locale === l.code
-                    ? "bg-accent-blue/15 text-accent-blue"
-                    : "text-text-muted hover:text-text-primary"
-                }`}
-                title={l.label}
-              >
-                {l.code.toUpperCase()}
-              </button>
-            ))}
-          </div>
-
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-            title={
-              theme === "dark"
-                ? t("settings.themeLight")
-                : t("settings.themeDark")
-            }
-          >
-            {theme === "dark" ? (
-              <Sun className="w-4 h-4" />
-            ) : (
-              <Moon className="w-4 h-4" />
-            )}
-          </button>
+        {/* Right: Window controls (Electron only) */}
+        <div className="flex items-center ml-auto h-full">
+          <WindowControls />
         </div>
       </header>
       <div className="glow-line-h shrink-0" />
@@ -608,7 +619,7 @@ function NavTab({ to, icon, children }: NavTabProps) {
   return (
     <Link
       to={to}
-      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs 2xl:text-sm font-medium transition-colors ${
+      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs 2xl:text-sm font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
         isActive
           ? "text-accent-blue"
           : "text-text-muted hover:text-text-primary hover:bg-bg-hover"

@@ -20,8 +20,11 @@ import { useCounterStore } from "../hooks/useCounterState";
 import { Settings as SettingsType } from "../types";
 import { ALL_LANGUAGES } from "../utils/games";
 import { useI18n } from "../contexts/I18nContext";
+import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import { CountryFlag } from "../components/CountryFlag";
+import { LOCALES } from "../utils/i18n";
+import { Sun, Moon } from "lucide-react";
 
 const API = "/api";
 
@@ -80,7 +83,7 @@ const SECTIONS: SectionDef[] = [
     id: "display",
     titleKey: "settings.sectionDisplay",
     icon: <Image className="w-4 h-4 text-accent-blue" />,
-    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache"],
+    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache", "theme", "dark", "light", "dunkel", "hell", "locale", "deutsch", "english"],
   },
   {
     id: "output",
@@ -111,7 +114,8 @@ const SECTIONS: SectionDef[] = [
 // --- Main component ----------------------------------------------------------
 
 export function Settings() {
-  const { t } = useI18n();
+  const { t, locale, setLocale } = useI18n();
+  const { theme, toggleTheme } = useTheme();
   const { push: pushToast } = useToast();
   const { appState } = useCounterStore();
   const [settings, setSettings] = useState<SettingsType | null>(null);
@@ -378,6 +382,68 @@ export function Settings() {
                 <Image className="w-4 h-4 text-accent-blue" />
                 {t("settings.sectionDisplay")}
               </h2>
+
+              {/* Theme */}
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-text-primary flex items-center gap-2">
+                    {theme === "dark" ? <Moon className="w-3.5 h-3.5 text-accent-blue" /> : <Sun className="w-3.5 h-3.5 text-accent-yellow" />}
+                    {t("settings.themeDark")} / {t("settings.themeLight")}
+                  </p>
+                </div>
+                <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => { if (theme !== "dark") toggleTheme(); }}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                      theme === "dark"
+                        ? "bg-accent-blue/15 text-accent-blue"
+                        : "text-text-muted hover:text-text-primary"
+                    }`}
+                  >
+                    <Moon className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => { if (theme !== "light") toggleTheme(); }}
+                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                      theme === "light"
+                        ? "bg-accent-blue/15 text-accent-blue"
+                        : "text-text-muted hover:text-text-primary"
+                    }`}
+                  >
+                    <Sun className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="border-t border-border-subtle/50" />
+
+              {/* UI Language */}
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-text-primary flex items-center gap-2">
+                    <Globe className="w-3.5 h-3.5 text-accent-blue" />
+                    {t("settings.uiLanguage") || "UI Language"}
+                  </p>
+                </div>
+                <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
+                  {LOCALES.map((l) => (
+                    <button
+                      key={l.code}
+                      onClick={() => setLocale(l.code)}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                        locale === l.code
+                          ? "bg-accent-blue/15 text-accent-blue"
+                          : "text-text-muted hover:text-text-primary"
+                      }`}
+                      title={l.label}
+                    >
+                      {l.code.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-border-subtle/50" />
 
               {/* Crisp sprites */}
               <div className="flex items-center justify-between gap-4">
