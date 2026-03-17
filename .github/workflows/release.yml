@@ -93,11 +93,16 @@ jobs:
           npm pkg set version="$CLEAN_VERSION"
           yarn build
 
-      - name: Package Electron Linux
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+      - name: Package & Publish Electron Linux
         working-directory: electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn package:linux
+        run: yarn package:linux --publish always
 
       - name: Install Wine for Windows cross-build
         run: |
@@ -105,21 +110,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wine64 wine32
 
-      - name: Package Electron Windows
+      - name: Package & Publish Electron Windows
         working-directory: electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn package:win
-
-      - name: Rename release assets
-        run: |
-          mv electron/release/Encounty.AppImage encounty-linux
-          mv electron/release/Encounty.exe encounty-windows.exe
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            encounty-linux
-            encounty-windows.exe
-          generate_release_notes: true
+        run: yarn package:win --publish always
