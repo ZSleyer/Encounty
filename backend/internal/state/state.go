@@ -227,12 +227,13 @@ type Settings struct {
 // AppState is the complete serialisable snapshot of the application. It is
 // sent to the frontend on every WebSocket connection and after every mutation.
 type AppState struct {
-	Pokemon        []Pokemon `json:"pokemon"`
-	Sessions       []Session `json:"sessions"`
-	ActiveID       string    `json:"active_id"`
-	Hotkeys        HotkeyMap `json:"hotkeys"`
-	Settings       Settings  `json:"settings"`
-	DataPath       string    `json:"data_path"`
+	Pokemon         []Pokemon `json:"pokemon"`
+	Sessions        []Session `json:"sessions"`
+	ActiveID        string    `json:"active_id"`
+	Hotkeys         HotkeyMap `json:"hotkeys"`
+	Settings        Settings  `json:"settings"`
+	DataPath        string    `json:"data_path"`
+	LicenseAccepted bool      `json:"license_accepted"`
 }
 
 // Manager holds all in-memory application state and coordinates safe
@@ -633,6 +634,15 @@ func (m *Manager) UpdateSingleHotkey(action, key string) bool {
 	m.mu.Unlock()
 	m.notify()
 	return true
+}
+
+// AcceptLicense records that the user has accepted the AGPLv3 license.
+// The flag is persisted so the dialog is not shown again on future launches.
+func (m *Manager) AcceptLicense() {
+	m.mu.Lock()
+	m.state.LicenseAccepted = true
+	m.mu.Unlock()
+	m.notify()
 }
 
 // AddSession appends a new session record. Sessions are informational only

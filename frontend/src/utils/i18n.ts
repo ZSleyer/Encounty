@@ -514,6 +514,13 @@ const translations: Record<Locale, Record<string, string>> = {
     "detectorTutorial.next": "Weiter",
     "detectorTutorial.finish": "Fertig",
 
+    // ── License ──
+    "license.subtitle": "Open-Source-Lizenzvereinbarung",
+    "license.summary": "Encounty ist freie Software, lizenziert unter der GNU Affero General Public License Version 3 (AGPLv3).",
+    "license.accept": "Ich akzeptiere die AGPLv3-Lizenz",
+    "license.hint": "Bitte scrolle den Lizenztext bis zum Ende, um fortzufahren.",
+    "license.showDialog": "Lizenz anzeigen",
+
     // ── Footer ──
     "footer.hunts": "Hunts",
     "footer.encounters": "Enc.",
@@ -1010,6 +1017,13 @@ const translations: Record<Locale, Record<string, string>> = {
     "detectorTutorial.skip": "Skip",
     "detectorTutorial.next": "Next",
     "detectorTutorial.finish": "Finish",
+
+    // ── License ──
+    "license.subtitle": "Open-Source License Agreement",
+    "license.summary": "Encounty is free software, licensed under the GNU Affero General Public License Version 3 (AGPLv3).",
+    "license.accept": "I accept the AGPLv3 license",
+    "license.hint": "Please scroll to the end of the license text to continue.",
+    "license.showDialog": "View License",
 
     // ── Footer ──
     "footer.hunts": "Hunts",

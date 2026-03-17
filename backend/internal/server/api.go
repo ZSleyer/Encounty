@@ -187,6 +187,19 @@ func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, st.Sessions)
 }
 
+// handleAcceptLicense records that the user has accepted the AGPLv3 license.
+// POST /api/license/accept
+func (s *Server) handleAcceptLicense(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	s.state.AcceptLicense()
+	s.state.ScheduleSave()
+	s.broadcastState()
+	writeJSON(w, http.StatusOK, map[string]bool{"license_accepted": true})
+}
+
 // handleUpdateSettings replaces the settings block, reconfigures the file
 // output writer with the new directory/enabled state, and broadcasts the
 // change. POST /api/settings

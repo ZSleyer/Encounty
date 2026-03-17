@@ -156,6 +156,7 @@ export function makeAppState(overrides?: Partial<AppState>): AppState {
       overlay: makeOverlaySettings(),
     },
     data_path: "/tmp/encounty",
+    license_accepted: true,
     ...overrides,
   };
 }

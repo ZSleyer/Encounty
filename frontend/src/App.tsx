@@ -32,6 +32,7 @@ import { ToastProvider, useToast } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/ToastContainer";
 import { WindowControls } from "./components/WindowControls";
 import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
+import { LicenseDialog } from "./components/LicenseDialog";
 import type { Locale } from "./utils/i18n";
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
@@ -636,14 +637,44 @@ function NavTab({ to, icon, children }: NavTabProps) {
 
 /* ── Root App — wraps providers ──────────────────────────────── */
 
+/** Gated shell that shows the license dialog on first launch. */
+function LicenseGate() {
+  const [status, setStatus] = useState<"loading" | "pending" | "accepted">("loading");
+
+  useEffect(() => {
+    fetch("/api/state")
+      .then((r) => r.json())
+      .then((s: AppState) => setStatus(s.license_accepted ? "accepted" : "pending"))
+      .catch(() => setStatus("pending"));
+  }, []);
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-screen bg-transparent">
+        <div className="w-10 h-10 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (status === "pending") {
+    return <LicenseDialog onAccept={() => setStatus("accepted")} />;
+  }
+
+  return (
+    <>
+      <AppShell />
+      <ToastContainer />
+    </>
+  );
+}
+
 export function App() {
   return (
     <ThemeProvider>
       <I18nProvider>
         <ToastProvider>
           <CaptureServiceProvider>
-            <AppShell />
-            <ToastContainer />
+            <LicenseGate />
           </CaptureServiceProvider>
         </ToastProvider>
       </I18nProvider>

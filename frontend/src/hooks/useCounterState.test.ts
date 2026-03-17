@@ -48,6 +48,7 @@ function makeAppState(activeId: string): AppState {
     hotkeys: { increment: "", decrement: "", reset: "", next_pokemon: "" },
     settings: {} as AppState["settings"],
     data_path: "/tmp/encounty",
+    license_accepted: true,
   };
 }
 
