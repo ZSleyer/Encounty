@@ -69,10 +69,12 @@ function UpdateNotification({
   version,
   onUpdate,
   onDismiss,
+  manualDownload,
 }: {
   version: string;
   onUpdate: () => void;
   onDismiss: () => void;
+  manualDownload?: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -108,7 +110,7 @@ function UpdateNotification({
             onClick={onUpdate}
             className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
           >
-            {t("update.updateNow")}
+            {manualDownload ? t("update.openDownload") : t("update.updateNow")}
           </button>
         </div>
       </div>
@@ -150,8 +152,10 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    // In Electron, updates are handled via IPC from electron-updater
-    if (window.electronAPI) {
+    // In Electron on Linux, updates are handled via IPC from electron-updater.
+    // On Windows the Electron build is portable, so electron-updater cannot
+    // apply updates — fall through to the REST API path instead.
+    if (window.electronAPI && window.electronAPI.platform !== "win32") {
       const cleanupAvailable = window.electronAPI.onUpdateAvailable((info) => {
         setUpdateInfo({
           available: true,
@@ -184,7 +188,7 @@ function AppShell() {
       };
     }
 
-    // Non-Electron: poll REST API
+    // Non-Electron (or Windows Electron portable): check via Go backend REST API
     const timer = setTimeout(() => {
       fetch("/api/update/check")
         .then((r) => r.json())
@@ -201,10 +205,22 @@ function AppShell() {
 
   const applyUpdate = async () => {
     if (!updateInfo) return;
+
+    // Windows Electron (portable): open the GitHub release page so the
+    // user can download the new version manually.
+    if (window.electronAPI?.platform === "win32") {
+      window.open(
+        `https://github.com/ZSleyer/Encounty/releases/tag/${updateInfo.latest_version}`,
+        "_blank",
+      );
+      setShowUpdateNotification(false);
+      return;
+    }
+
     setUpdateState("installing");
 
     if (window.electronAPI) {
-      // Electron: download via electron-updater IPC
+      // Electron Linux: download via electron-updater IPC
       try {
         await window.electronAPI.downloadUpdate();
       } catch {
@@ -440,6 +456,7 @@ function AppShell() {
       {showUpdateNotification && updateInfo && updateState === "idle" && (
         <UpdateNotification
           version={updateInfo.latest_version}
+          manualDownload={window.electronAPI?.platform === "win32"}
           onUpdate={() => {
             setShowUpdateNotification(false);
             applyUpdate();
