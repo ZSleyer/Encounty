@@ -71,6 +71,13 @@ jobs:
           go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-linux main.go
           rm -rf ./frontend
 
+      - name: Set Windows resource version
+        working-directory: backend
+        run: |
+          WIN_VER=$(echo "$CLEAN_VERSION" | awk -F. '{if(NF==2) print $0".0"; else print $0}')
+          echo "WIN_VER=$WIN_VER" >> $GITHUB_ENV
+          sed -i "s/0\.2\.0\.0/${WIN_VER}.0/g" winres/winres.json
+
       - name: Build Windows Binary
         working-directory: backend
         env:
@@ -78,7 +85,6 @@ jobs:
           GOARCH: amd64
           CGO_ENABLED: 0
         run: |
-          WIN_VER=$(echo "$CLEAN_VERSION" | awk -F. '{if(NF==2) print $0".0"; else print $0}')
           $(go env GOPATH)/bin/go-winres make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
           mkdir -p ./frontend
           cp -r ../frontend/dist ./frontend/
