@@ -227,6 +227,7 @@ export interface AppState {
   hotkeys: HotkeyMap;
   settings: Settings;
   data_path: string;
+  license_accepted: boolean;
 }
 
 /** WSMessage is the envelope for all WebSocket messages in both directions. */

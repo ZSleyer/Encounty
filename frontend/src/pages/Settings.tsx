@@ -23,6 +23,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import { CountryFlag } from "../components/CountryFlag";
+import { LicenseDialog } from "../components/LicenseDialog";
 import { LOCALES } from "../utils/i18n";
 import { Sun, Moon } from "lucide-react";
 
@@ -129,6 +130,7 @@ export function Settings() {
   const [licensesOpen, setLicensesOpen] = useState(false);
   const [licenses, setLicenses] = useState<LicenseEntry[]>([]);
   const [expandedLicense, setExpandedLicense] = useState<string | null>(null);
+  const [showLicenseDialog, setShowLicenseDialog] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const setCrispSprites = (v: boolean) => {
@@ -696,18 +698,31 @@ export function Settings() {
                 {t("settings.sectionAbout")}
               </h2>
 
-              <p className="text-xs text-text-muted">
-                {t("licenses.project")}{" "}
-                <a
-                  href="https://www.gnu.org/licenses/agpl-3.0.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent-blue hover:underline"
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-xs text-text-muted">
+                  {t("licenses.project")}{" "}
+                  <a
+                    href="https://www.gnu.org/licenses/agpl-3.0.html"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent-blue hover:underline"
+                  >
+                    GNU AGPL-3.0
+                  </a>
+                  .
+                </p>
+                <button
+                  onClick={() => setShowLicenseDialog(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-secondary hover:bg-bg-hover border border-border-subtle text-xs text-text-muted hover:text-text-primary transition-colors shrink-0"
                 >
-                  GNU AGPL-3.0
-                </a>
-                .
-              </p>
+                  <Scale className="w-3 h-3" />
+                  {t("license.showDialog")}
+                </button>
+              </div>
+
+              {showLicenseDialog && (
+                <LicenseDialog onAccept={() => setShowLicenseDialog(false)} />
+              )}
 
               {/* Collapsible licenses */}
               <button
