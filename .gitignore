@@ -6,6 +6,8 @@ encounty-windows.exe
 encounty-windows-arm64.exe
 encounty-darwin
 encounty-darwin-arm64
+encounty-backend-linux
+encounty-backend-windows.exe
 __debug_bin*
 *.exe
 

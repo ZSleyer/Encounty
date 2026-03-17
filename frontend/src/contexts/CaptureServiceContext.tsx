@@ -219,7 +219,7 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
       videoEl.autoplay = true;
       videoEl.playsInline = true;
       videoEl.muted = true;
-      videoEl.style.cssText = "position:absolute;width:0;height:0;opacity:0;pointer-events:none";
+      videoEl.style.cssText = "width:1px;height:1px;pointer-events:none";
       containerRef.current?.appendChild(videoEl);
       videoEl.srcObject = stream;
       videoEl.play().catch(() => {});
@@ -339,7 +339,7 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
       {/* Container for dynamically created hidden video elements */}
       <div
         ref={containerRef}
-        style={{ position: "absolute", width: 0, height: 0, overflow: "hidden", pointerEvents: "none" }}
+        style={{ position: "fixed", top: -9999, left: -9999, width: 1, height: 1, overflow: "hidden", pointerEvents: "none" }}
       />
     </CaptureServiceContext.Provider>
   );

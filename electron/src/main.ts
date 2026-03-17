@@ -331,14 +331,12 @@ app.on('ready', async () => {
         console.log('[Electron] Picking source:', picked.id, picked.name);
         callback({ video: picked });
       } else {
-        // On Wayland this is the portal-selected source; on X11 it's the first screen
         console.log('[Electron] Picking first source:', sources[0].id, sources[0].name);
         callback({ video: sources[0] });
       }
     } catch (err) {
       pendingSourceId = null;
       console.log('[Electron] Display media request failed:', err);
-      // Portal cancelled or no sources — deny gracefully
       // @ts-expect-error -- calling with no args denies the request
       callback();
     }

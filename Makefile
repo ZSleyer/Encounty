@@ -134,6 +134,7 @@ electron-build: electron-deps
 	cd electron && yarn build
 
 electron-dev: build-linux
+	@ln -sf $(BINARY)-linux $(BINARY)-backend-linux
 	cd electron && yarn dev
 
 electron-package-linux: build-linux frontend-build electron-build
