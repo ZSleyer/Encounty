@@ -55,9 +55,11 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	// When running inside Electron, the wrapper handles updates via
-	// electron-updater — the Go binary must not offer its own.
-	if os.Getenv("ENCOUNTY_ELECTRON") == "1" {
+	// When running inside Electron on Linux, the wrapper handles updates
+	// via electron-updater (AppImage). On Windows the Electron build is
+	// portable, so electron-updater cannot apply updates — the Go backend
+	// still provides the check so the frontend can show a notification.
+	if os.Getenv("ENCOUNTY_ELECTRON") == "1" && runtime.GOOS != "windows" {
 		writeJSON(w, http.StatusOK, UpdateInfo{
 			Available:      false,
 			CurrentVersion: s.version,
