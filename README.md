@@ -1,6 +1,16 @@
 # Encounty
 
-Encounty is a modern Pokémon Shiny Encounter Counter and Tracker. It provides a customizable dashboard and OBS overlays for shiny hunters.
+Encounty is a modern, open-source encounter tracker for Pokémon games. It uses text and image recognition to automatically detect and count encounters, enabling unlimited multi-hunts — limited only by your hardware. Manual tracking via global hotkeys is also supported.
+
+The application was developed on Arch Linux with Wayland but is also available for Windows.
+
+## Features
+
+- Automatic encounter tracking via text and image recognition
+- Unlimited simultaneous multi-hunts
+- Manual tracking with configurable global hotkeys
+- Customizable dashboard with real-time stats
+- OBS overlay editor with drag-and-drop and live preview
 
 <div>
   <img src="docs/images/dashboard.png" width="800" alt="Dashboard">
@@ -28,33 +38,54 @@ Encounty is a modern Pokémon Shiny Encounter Counter and Tracker. It provides a
 
 ## Download
 
-Ready-to-use binaries for Windows and Linux can be found on the [GitHub Releases](https://github.com/ZSleyer/Encounty/releases) page.
+**[⬇ Download the latest version here](https://github.com/ZSleyer/Encounty/releases/latest)**
+
+Choose the file matching your operating system:
+- **Windows**: `Encounty.exe`
+- **Linux**: `Encounty.AppImage`
+
+All releases can be found on the [Releases](https://github.com/ZSleyer/Encounty/releases) page.
+
+## Contributing
+
+Pull requests are welcome! Whether it's translations, new features, or bug fixes — feel free to contribute.
 
 ## Development
 
 ### Prerequisites
 
-- Go (1.22 or later)
-- Node.js & Yarn
+- Go 1.24+
+- Node.js 18+ & Yarn
+- Make
 
 ### Running in Development
 
 ```bash
-# Terminal 1: Frontend
-cd frontend && yarn install && yarn dev
-
-# Terminal 2: Backend
-go run main.go --dev
+make dev
 ```
+
+This starts both the Vite dev server (`:5173`) and the Go backend (`:8080`) with hot-reload.
 
 ### Building from Source
 
 ```bash
-make build
+make build              # Cross-compile for Linux and Windows
+make electron-package-linux    # Build Linux AppImage
+make electron-package-windows  # Build Windows portable exe
 ```
 
-This will generate binaries for both Linux and Windows.
+### Project Structure
+
+```
+backend/     Go backend (HTTP + WebSocket server, embeds frontend)
+frontend/    React + TypeScript SPA (Vite, Tailwind CSS, Zustand)
+electron/    Electron wrapper for desktop packaging
+```
+
+## Support
+
+Encounty is a hobby project provided free of charge. There is no official support.
 
 ## License
 
-This project is licensed under the GNU Affero General Public License Version 3 (AGPLv3). See the [LICENSE](LICENSE) file for details.
+This project is licensed under the [GNU Affero General Public License v3 (AGPLv3)](LICENSE).
