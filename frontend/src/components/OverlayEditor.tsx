@@ -1594,21 +1594,21 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
           {/* Zoom */}
           <button
-            onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
-            title={t("tooltip.editor.zoomIn")}
-            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-          >
-            <ZoomIn className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-          <span className="text-[10px] 2xl:text-xs text-text-muted w-8 2xl:w-10 text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
             onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
             title={t("tooltip.editor.zoomOut")}
             className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           >
             <ZoomOut className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
+          </button>
+          <span className="text-[10px] 2xl:text-xs text-text-muted w-8 2xl:w-10 text-center">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
+            title={t("tooltip.editor.zoomIn")}
+            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+          >
+            <ZoomIn className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
           </button>
 
           <div className="w-px h-4 bg-border-subtle mx-1" />
