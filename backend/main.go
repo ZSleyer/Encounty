@@ -199,11 +199,12 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *da
 
 		srv.Hub().CloseAll()
 		hotkeyMgr.Stop()
-		if db != nil {
-			_ = db.Close()
-		}
+		// Save state before closing the DB — Save needs the DB connection.
 		if err := stateMgr.Save(); err != nil {
 			slog.Error("Failed to save state", "error", err)
+		}
+		if db != nil {
+			_ = db.Close()
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
