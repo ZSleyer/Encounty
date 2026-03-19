@@ -755,6 +755,7 @@ export function Dashboard() {
              </p>
           </div>
           <DetectorPanel
+            key={pokemon.id}
             pokemon={pokemon}
             onConfigChange={(cfg) => handleDetectorConfigChange(pokemon.id, cfg)}
             isRunning={detectorStatus[pokemon.id] !== undefined}
