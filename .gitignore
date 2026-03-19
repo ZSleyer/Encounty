@@ -54,6 +54,9 @@ coverage.out
 coverage_filtered.out
 frontend/coverage/
 
+# Test caches
+node_modules/.vite/
+
 # Electron build artifacts
 electron/node_modules/
 electron/dist/
