@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/detector"
 	"github.com/zsleyer/encounty/backend/internal/fileoutput"
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
@@ -30,6 +31,7 @@ type Server struct {
 	commit      string
 	buildDate   string
 	detectorMgr *detector.Manager
+	db          *database.DB
 }
 
 // Config carries all dependencies needed to construct a Server.
@@ -44,6 +46,7 @@ type Config struct {
 	BuildDate   string
 	ConfigDir   string
 	DetectorMgr *detector.Manager
+	DB          *database.DB
 }
 
 // New creates a Server from cfg, registers all HTTP routes, and starts the
@@ -64,6 +67,7 @@ func New(cfg Config) *Server {
 		commit:      cfg.Commit,
 		buildDate:   cfg.BuildDate,
 		detectorMgr: cfg.DetectorMgr,
+		db:          cfg.DB,
 	}
 
 	// Wire hotkey actions to state changes
@@ -117,6 +121,11 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/update/apply", s.handleUpdateApply)
 	mux.HandleFunc("/api/licenses", s.handleLicenses)
 	mux.HandleFunc("/api/license/accept", s.handleAcceptLicense)
+	mux.HandleFunc("/api/settings/config-path", s.handleSetConfigPath)
+
+	// Statistics API
+	mux.HandleFunc("/api/stats/overview", s.handleStatsOverview)
+	mux.HandleFunc("/api/stats/pokemon/", s.handleStatsDispatch)
 
 	mux.HandleFunc("/api/pokemon", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -140,6 +149,18 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 			} else {
 				w.WriteHeader(http.StatusMethodNotAllowed)
 			}
+		case strings.HasSuffix(path, "/set_encounters"):
+			id := pokemonIDFromPath(path, "/api/pokemon/", "/set_encounters")
+			s.handleSetEncounters(w, r, id)
+		case strings.HasSuffix(path, "/timer/start"):
+			id := pokemonIDFromPath(path, "/api/pokemon/", "/timer/start")
+			s.handleTimerStart(w, r, id)
+		case strings.HasSuffix(path, "/timer/stop"):
+			id := pokemonIDFromPath(path, "/api/pokemon/", "/timer/stop")
+			s.handleTimerStop(w, r, id)
+		case strings.HasSuffix(path, "/timer/reset"):
+			id := pokemonIDFromPath(path, "/api/pokemon/", "/timer/reset")
+			s.handleTimerReset(w, r, id)
 		case strings.HasSuffix(path, "/increment"):
 			id := pokemonIDFromPath(path, "/api/pokemon/", "/increment")
 			s.handleIncrement(w, r, id)
@@ -183,6 +204,8 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
+
+	// Camera API
 
 	// Detector API
 	mux.HandleFunc("/api/detector/screenshot", s.handleDetectorScreenshot)
@@ -288,6 +311,7 @@ func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 			if id != "" {
 				count, ok := s.state.Increment(id)
 				if ok {
+					s.logEncounter(id, count, "hotkey")
 					s.state.ScheduleSave()
 					s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": id, "count": count})
 					s.broadcastState()
@@ -300,6 +324,7 @@ func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 			if id != "" {
 				count, ok := s.state.Decrement(id)
 				if ok {
+					s.logEncounter(id, count, "hotkey")
 					s.state.ScheduleSave()
 					s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
 					s.broadcastState()

@@ -12,7 +12,6 @@ import {
   Star,
   Minus,
   RotateCcw,
-  Clock,
   Zap,
   Edit2,
   Gamepad2,
@@ -24,6 +23,7 @@ import {
   PartyPopper,
   Trash2,
   Eye,
+  EyeOff,
   Layers,
   Save,
   RefreshCw,
@@ -33,44 +33,128 @@ import {
   ChevronDown,
   Globe,
   Pencil,
+  Play,
+  Pause,
+  Timer,
+  BarChart3,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/AddPokemonModal";
 import { EditPokemonModal } from "../components/EditPokemonModal";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { SetEncounterModal } from "../components/SetEncounterModal";
+import { StatisticsPanel } from "../components/StatisticsPanel";
 import { DetectorPanel } from "../components/DetectorPanel";
 import { OverlayEditor } from "../components/OverlayEditor";
-import { useCounterStore } from "../hooks/useCounterState";
-import { DetectorStatusEntry } from "../hooks/useCounterState";
+import { useCounterStore, DetectorStatusEntry } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { Pokemon, DetectorConfig, DetectorRect, OverlaySettings, OverlayMode } from "../types";
 import { useI18n } from "../contexts/I18nContext";
+import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
 
 const API = "/api";
 
-/**
- * useDuration returns a live HH:MM:SS string for the elapsed time since start.
- * Updates every second via setInterval.
- */
-function useDuration(start: Date) {
-  const [elapsed, setElapsed] = useState("");
+// --- Timer helpers ---
+
+/** Formats milliseconds as HH:MM:SS. */
+function formatTimer(ms: number): string {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/** Computes the current total timer value for a Pokemon (accumulated + running). */
+function computeTimerMs(pokemon: Pokemon): number {
+  const acc = pokemon.timer_accumulated_ms || 0;
+  if (!pokemon.timer_started_at) return acc;
+  return acc + (Date.now() - new Date(pokemon.timer_started_at).getTime());
+}
+
+/** PokemonTimer renders play/pause/reset controls and a live timer display for the main panel. */
+function PokemonTimer({ pokemon, send }: { readonly pokemon: Pokemon; readonly send: (type: string, payload: unknown) => void }) {
+  const { t } = useI18n();
+  const [, setTick] = useState(0);
+  const isRunning = !!pokemon.timer_started_at;
+
   useEffect(() => {
-    const update = () => {
-      if (document.hidden) return;
-      const diff = Date.now() - start.getTime();
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setElapsed(
-        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`,
-      );
-    };
-    update();
-    const t = setInterval(update, 1000);
-    return () => clearInterval(t);
-  }, [start]);
-  return elapsed;
+    if (!isRunning) return;
+    const id = setInterval(() => setTick(n => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [isRunning]);
+
+  return (
+    <div className="flex items-center gap-3 mt-6">
+      <Timer className="w-4 h-4 text-text-muted" />
+      <span className="text-lg font-mono tabular-nums text-text-primary">{formatTimer(computeTimerMs(pokemon))}</span>
+      <div className="flex gap-1.5">
+        {!isRunning ? (
+          <button
+            onClick={() => send("timer_start", { pokemon_id: pokemon.id })}
+            className="p-1.5 rounded-lg bg-accent-green/20 hover:bg-accent-green/30 text-accent-green transition-colors"
+            title={t("timer.start")}
+          >
+            <Play className="w-3.5 h-3.5" />
+          </button>
+        ) : (
+          <button
+            onClick={() => send("timer_stop", { pokemon_id: pokemon.id })}
+            className="p-1.5 rounded-lg bg-accent-yellow/20 hover:bg-accent-yellow/30 text-accent-yellow transition-colors"
+            title={t("timer.stop")}
+          >
+            <Pause className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button
+          onClick={() => send("timer_reset", { pokemon_id: pokemon.id })}
+          className="p-1.5 rounded-lg bg-bg-card hover:bg-bg-hover text-text-muted hover:text-text-primary border border-border-subtle transition-colors"
+          title={t("timer.reset")}
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** SidebarTimer shows a compact timer + play/pause in the sidebar Pokemon list. */
+function SidebarTimer({ pokemon, send }: { readonly pokemon: Pokemon; readonly send: (type: string, payload: unknown) => void }) {
+  const { t } = useI18n();
+  const [, setTick] = useState(0);
+  const isRunning = !!pokemon.timer_started_at;
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const id = setInterval(() => setTick(n => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [isRunning]);
+
+  const totalMs = computeTimerMs(pokemon);
+
+  return (
+    <div className="flex items-center gap-1 mt-0.5">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          send(isRunning ? "timer_stop" : "timer_start", { pokemon_id: pokemon.id });
+        }}
+        className={`p-0.5 rounded transition-colors ${
+          isRunning
+            ? "text-accent-green hover:text-accent-yellow"
+            : "text-text-faint hover:text-accent-green"
+        }`}
+        title={isRunning ? t("timer.stop") : t("timer.start")}
+      >
+        {isRunning ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
+      </button>
+      {(isRunning || totalMs > 0) && (
+        <span className={`text-[10px] font-mono tabular-nums ${isRunning ? "text-accent-green" : "text-text-faint"}`}>
+          {formatTimer(totalMs)}
+        </span>
+      )}
+    </div>
+  );
 }
 
 type SidebarTab = "active" | "archived";
@@ -78,18 +162,21 @@ type SidebarTab = "active" | "archived";
 export function Dashboard() {
   const { appState, isConnected, flashPokemon, detectorStatus } = useCounterStore();
   const { t } = useI18n();
+  const { push: pushToast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPokemon, setEditingPokemon] = useState<Pokemon | null>(null);
   const [imgError, setImgError] = useState<Record<string, boolean>>({});
-  const [sessionStart] = useState(new Date());
-  const elapsed = useDuration(sessionStart);
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("active");
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const lastSelectedIdx = useRef<number | null>(null);
 
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
-  const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector" | "overlay">("counter");
+  const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector" | "overlay" | "statistics">("counter");
+
+  const [setEncounterPokemon, setSetEncounterPokemon] = useState<Pokemon | null>(null);
 
   const [currentOverlay, setCurrentOverlay] = useState<OverlaySettings | null>(null);
   const [overlayDirty, setOverlayDirty] = useState(false);
@@ -218,7 +305,7 @@ export function Dashboard() {
   };
   const handleSavePokemon = async (id: string, data: NewPokemonData) => {
     const p = appState!.pokemon.find((x) => x.id === id);
-    const payload = { ...data, overlay: p?.overlay, overlay_mode: p?.overlay_mode };
+    const payload = { ...data, overlay: p?.overlay, overlay_mode: p?.overlay_mode, step: data.step };
     await fetch(`${API}/pokemon/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -387,17 +474,38 @@ export function Dashboard() {
       {/* LEFT: Pokemon sidebar */}
       <aside className="w-72 2xl:w-80 shrink-0 bg-bg-secondary flex flex-col">
         {/* Stats bar */}
-        <div className="flex items-center gap-3 px-4 py-2 2xl:py-2.5 border-b border-border-subtle text-[11px] 2xl:text-xs text-text-muted glass-card rounded-none border-x-0 border-t-0">
-          <div className="flex items-center gap-1.5">
-            <Clock className="w-3 h-3" />
-            <span className="tabular-nums">{elapsed}</span>
+        <div className="flex items-center justify-between px-4 py-2 2xl:py-2.5 border-b border-border-subtle text-[11px] 2xl:text-xs text-text-muted glass-card rounded-none border-x-0 border-t-0">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5">
+              <Zap className="w-3 h-3 text-accent-yellow" />
+              <span className="tabular-nums">{totalEncounters}</span>
+              <span>{t("dash.total")}</span>
+            </div>
           </div>
-          <div className="w-px h-3 bg-border-subtle" />
-          <div className="flex items-center gap-1.5">
-            <Zap className="w-3 h-3 text-accent-yellow" />
-            <span className="tabular-nums">{totalEncounters}</span>
-            <span>{t("dash.total")}</span>
-          </div>
+          {activeHunts.length > 0 && (() => {
+            const anyRunning = activeHunts.some(p => !!p.timer_started_at);
+            return (
+              <button
+                onClick={() => {
+                  const action = anyRunning ? "timer_stop" : "timer_start";
+                  for (const p of activeHunts) {
+                    if (anyRunning ? !!p.timer_started_at : !p.timer_started_at) {
+                      send(action, { pokemon_id: p.id });
+                    }
+                  }
+                }}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
+                  anyRunning
+                    ? "text-accent-green hover:text-accent-yellow hover:bg-accent-yellow/10"
+                    : "text-text-faint hover:text-accent-green hover:bg-accent-green/10"
+                }`}
+                title={anyRunning ? t("timer.stopAll") : t("timer.startAll")}
+              >
+                {anyRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                <Timer className="w-3 h-3" />
+              </button>
+            );
+          })()}
         </div>
 
         {/* Search bar */}
@@ -469,6 +577,85 @@ export function Dashboard() {
           </button>
         </div>
 
+        {/* Quick actions bar */}
+        {(() => {
+          const sel = selectedIds.size > 0
+            ? appState.pokemon.filter(p => selectedIds.has(p.id))
+            : activeHunts;
+          const hasRunningTimer = sel.some(p => !!p.timer_started_at);
+          const hasStoppedTimer = sel.some(p => !p.timer_started_at);
+          const withDetector = sel.filter(p => p.detector_config?.templates?.length);
+          const hasDetector = withDetector.length > 0;
+          const hasRunningDetector = sel.some(p => detectorStatus[p.id]);
+          const dis = "opacity-30 cursor-not-allowed";
+          return (
+            <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle">
+              {/* Timer start */}
+              <button
+                disabled={!hasStoppedTimer}
+                onClick={() => { for (const p of sel) if (!p.timer_started_at) send("timer_start", { pokemon_id: p.id }); }}
+                className={`p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors ${!hasStoppedTimer ? dis : ""}`}
+                title={t("timer.startAll")}
+              >
+                <Play className="w-3.5 h-3.5" />
+              </button>
+              {/* Timer stop */}
+              <button
+                disabled={!hasRunningTimer}
+                onClick={() => { for (const p of sel) if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id }); }}
+                className={`p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors ${!hasRunningTimer ? dis : ""}`}
+                title={t("timer.stopAll")}
+              >
+                <Pause className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="w-px h-4 bg-border-subtle mx-0.5" />
+
+              {/* Detector start */}
+              <button
+                disabled={!hasDetector}
+                onClick={() => {
+                  if (selectedIds.size > 0) {
+                    const uncfg = sel.filter(p => !p.detector_config?.templates?.length);
+                    if (uncfg.length > 0) {
+                      pushToast({ type: "info", title: t("detector.notConfigured"), message: uncfg.map(p => p.name).join(", ") });
+                    }
+                  }
+                  for (const p of withDetector) fetch(`/api/detector/${p.id}/start`, { method: "POST" }).catch(() => {});
+                }}
+                className={`p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors ${!hasDetector ? dis : ""}`}
+                title={t("detector.startSelected")}
+              >
+                <Eye className="w-3.5 h-3.5" />
+              </button>
+              {/* Detector stop */}
+              <button
+                disabled={!hasRunningDetector}
+                onClick={() => { for (const p of sel) fetch(`/api/detector/${p.id}/stop`, { method: "POST" }).catch(() => {}); }}
+                className={`p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors ${!hasRunningDetector ? dis : ""}`}
+                title={t("detector.stopSelected")}
+              >
+                <EyeOff className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Spacer + selection info */}
+              <div className="flex-1" />
+              {selectedIds.size > 0 && (
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] text-text-faint tabular-nums">{selectedIds.size}</span>
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors"
+                    title={t("timer.clearSelection")}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {/* Pokémon list */}
         <div className="flex-1 overflow-y-auto">
           {displayList.length === 0 ? (
@@ -516,21 +703,48 @@ export function Dashboard() {
               )}
             </div>
           ) : (
-            <ul className="py-1">
-              {displayList.map((p) => {
+            <ul className="py-1 select-none">
+              {displayList.map((p, idx) => {
                 const isViewed = p.id === (viewedPokemonId || appState.active_id);
                 const isHotkeyTarget = p.id === appState.active_id;
                 const isArchived = !!p.completed_at;
+                const isSelected = selectedIds.has(p.id);
                 const src =
                   imgError[p.id] || !p.sprite_url ? FALLBACK : p.sprite_url;
                 return (
                   <li
                     key={p.id}
-                    onClick={() => handleActivate(p.id)}
+                    onClick={(e) => {
+                      if (e.ctrlKey || e.metaKey) {
+                        // Ctrl+Click: toggle single item
+                        setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(p.id)) next.delete(p.id);
+                          else next.add(p.id);
+                          return next;
+                        });
+                        lastSelectedIdx.current = idx;
+                      } else if (e.shiftKey && lastSelectedIdx.current !== null) {
+                        // Shift+Click: range select
+                        const from = Math.min(lastSelectedIdx.current, idx);
+                        const to = Math.max(lastSelectedIdx.current, idx);
+                        setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          for (let i = from; i <= to; i++) next.add(displayList[i].id);
+                          return next;
+                        });
+                      } else {
+                        // Normal click: activate pokemon, clear selection
+                        if (selectedIds.size > 0) setSelectedIds(new Set());
+                        handleActivate(p.id);
+                      }
+                    }}
                     className={`flex items-center gap-3 px-4 py-2.5 2xl:px-5 2xl:py-3 cursor-pointer transition-colors group hover-glow ${
-                      isViewed
-                        ? "bg-accent-blue/10 border-l-2 border-accent-blue"
-                        : "hover:bg-bg-hover border-l-2 border-transparent"
+                      isSelected
+                        ? "bg-accent-blue/15 border-l-2 border-accent-blue"
+                        : isViewed
+                          ? "bg-accent-blue/10 border-l-2 border-accent-blue"
+                          : "hover:bg-bg-hover border-l-2 border-transparent"
                     } ${isArchived ? "opacity-70" : ""}`}
                   >
                     <div className="w-9 h-9 2xl:w-11 2xl:h-11 shrink-0 relative">
@@ -582,6 +796,7 @@ export function Dashboard() {
                           </span>
                         )}
                       </div>
+                      <SidebarTimer pokemon={p} send={send} />
                     </div>
                     <div className="flex gap-1 items-center">
                       {/* Hotkey target star — sets active_id (hotkey target) */}
@@ -692,6 +907,17 @@ export function Dashboard() {
                     <Layers className="w-3.5 h-3.5" />
                     {t("dash.tabOverlay")}
                   </button>
+                  <button
+                    onClick={() => setRightPanelTab("statistics")}
+                    className={`px-6 py-1.5 2xl:px-7 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold transition-all flex items-center gap-1.5 ${
+                      rightPanelTab === "statistics"
+                        ? "bg-accent-blue text-white shadow"
+                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                    }`}
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    {t("dash.tabStatistics")}
+                  </button>
                 </div>
               </div>
 
@@ -748,6 +974,7 @@ export function Dashboard() {
             {/* SCROLLABLE INNER WORK AREA — overlay tab uses full height without scroll */}
             <div className={`flex-1 flex flex-col items-center relative z-10 w-full ${rightPanelTab === "overlay" ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8"} ${rightPanelTab === "counter" ? "justify-center" : "justify-start"}`}>
 
+
               <div className={`flex flex-col items-center w-full ${rightPanelTab === "overlay" ? "h-full" : ""} ${rightPanelTab === "counter" ? "max-w-3xl mt-0" : rightPanelTab === "overlay" ? "max-w-full mt-0" : "max-w-2xl mt-0 pb-16"}`}>
               
               {rightPanelTab === "counter" ? (
@@ -800,18 +1027,31 @@ export function Dashboard() {
                       onClick={() => !viewedPokemon.completed_at && handleDecrement(viewedPokemon.id)}
                       disabled={!!viewedPokemon.completed_at}
                       className="flex items-center justify-center w-16 h-16 2xl:w-20 2xl:h-20 rounded-2xl bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="−1"
+                      title={`−${viewedPokemon.step && viewedPokemon.step > 1 ? viewedPokemon.step : 1}`}
                     >
-                      <Minus className="w-8 h-8" />
+                      {viewedPokemon.step && viewedPokemon.step > 1 ? (
+                        <span className="text-lg font-bold">−{viewedPokemon.step}</span>
+                      ) : (
+                        <Minus className="w-8 h-8" />
+                      )}
                     </button>
 
                     {/* Solid Counter Card */}
-                    <div className="bg-bg-card rounded-3xl px-16 py-8 2xl:px-20 2xl:py-10 text-center border border-border-subtle shadow-md min-w-[340px]">
-                      <div 
+                    <div className="bg-bg-card rounded-3xl px-16 py-8 2xl:px-20 2xl:py-10 text-center border border-border-subtle shadow-md min-w-[340px] relative group">
+                      <div
                         className="text-7xl 2xl:text-8xl font-black tabular-nums leading-none tracking-tight text-text-primary"
                       >
                         {viewedPokemon.encounters.toLocaleString()}
                       </div>
+                      {!viewedPokemon.completed_at && (
+                        <button
+                          onClick={() => setSetEncounterPokemon(viewedPokemon)}
+                          className="absolute top-3 right-3 p-1.5 rounded-lg bg-bg-hover/0 hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
+                          title={t("dash.setEncounters")}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
 
                     {/* Plus Button */}
@@ -819,9 +1059,13 @@ export function Dashboard() {
                       onClick={() => !viewedPokemon.completed_at && handleIncrement(viewedPokemon.id)}
                       disabled={!!viewedPokemon.completed_at}
                       className="flex items-center justify-center w-20 h-20 2xl:w-24 2xl:h-24 rounded-2xl bg-accent-green border border-transparent hover:bg-accent-green/90 text-white transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="+1"
+                      title={`+${viewedPokemon.step && viewedPokemon.step > 1 ? viewedPokemon.step : 1}`}
                     >
-                      <Plus className="w-10 h-10 stroke-[3px]" />
+                      {viewedPokemon.step && viewedPokemon.step > 1 ? (
+                        <span className="text-2xl font-bold">+{viewedPokemon.step}</span>
+                      ) : (
+                        <Plus className="w-10 h-10 stroke-[3px]" />
+                      )}
                     </button>
                   </div>
 
@@ -835,6 +1079,9 @@ export function Dashboard() {
                        Reset Counter
                      </button>
                   )}
+
+                  {/* Per-Pokemon Timer */}
+                  <PokemonTimer pokemon={viewedPokemon} send={send} />
 
                   {/* Bottom Statistics Cards */}
                   <div className="grid grid-cols-2 gap-6 mt-12 w-full max-w-xl mx-auto">
@@ -1013,6 +1260,10 @@ export function Dashboard() {
                     </div>
                   );
                 })()
+              ) : rightPanelTab === "statistics" ? (
+                <div className="w-full max-w-3xl mx-auto">
+                  <StatisticsPanel pokemonId={viewedPokemon.id} />
+                </div>
               ) : null}
             </div>
           </div>
@@ -1043,6 +1294,16 @@ export function Dashboard() {
           isDestructive={confirmConfig.isDestructive}
           onConfirm={confirmConfig.onConfirm}
           onClose={() => setConfirmConfig({ ...confirmConfig, isOpen: false })}
+        />
+      )}
+      {setEncounterPokemon && (
+        <SetEncounterModal
+          pokemon={setEncounterPokemon}
+          onSave={(count) => {
+            send("set_encounters", { pokemon_id: setEncounterPokemon.id, count });
+            setSetEncounterPokemon(null);
+          }}
+          onClose={() => setSetEncounterPokemon(null)}
         />
       )}
     </div>

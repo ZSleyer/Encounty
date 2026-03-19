@@ -7,11 +7,13 @@
 export interface Pokemon {
   id: string;
   name: string; // Display name (localized)
+  title?: string; // User-defined custom title
   canonical_name: string; // English PokéAPI slug
   sprite_url: string;
   sprite_type: "normal" | "shiny";
   sprite_style?: "classic" | "animated" | "3d" | "artwork";
   encounters: number;
+  step?: number; // Increment/decrement step size (default 1)
   is_active: boolean;
   created_at: string;
   language: Language; // "de" | "en"
@@ -21,6 +23,8 @@ export interface Pokemon {
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
   hunt_type?: string;
   detector_config?: DetectorConfig;
+  timer_started_at?: string; // ISO timestamp when timer was started
+  timer_accumulated_ms?: number; // Accumulated timer in milliseconds
 }
 
 /** GameEntry is one Pokémon game as returned by GET /api/games. */
@@ -157,6 +161,7 @@ export interface SpriteElement extends OverlayElementBase {
 
 export interface NameElement extends OverlayElementBase {
   style: TextStyle;
+  display_mode?: "name" | "title" | "both";
   idle_animation: string; // "none" | "shimmer"
   trigger_enter: string; // "none" | "slide-in" | "fade-in"
 }
@@ -217,6 +222,7 @@ export interface Settings {
   crisp_sprites?: boolean;
   overlay: OverlaySettings;
   tutorial_seen?: TutorialFlags;
+  config_path?: string; // Custom data directory override
 }
 
 /** AppState is the complete serialisable snapshot broadcast by the server. */
@@ -228,6 +234,39 @@ export interface AppState {
   settings: Settings;
   data_path: string;
   license_accepted: boolean;
+}
+
+/** EncounterEvent records one encounter count change in the database. */
+export interface EncounterEvent {
+  id: number;
+  pokemon_id: string;
+  pokemon_name: string;
+  timestamp: string;
+  delta: number;
+  count_after: number;
+  source: string;
+}
+
+/** EncounterStats holds aggregated encounter statistics for one Pokemon. */
+export interface EncounterStats {
+  total: number;
+  today: number;
+  rate_per_hour: number;
+  first_at?: string;
+  last_at?: string;
+}
+
+/** ChartPoint is one data point for the encounter chart. */
+export interface ChartPoint {
+  label: string;
+  count: number;
+}
+
+/** OverviewStats holds global statistics across all Pokemon. */
+export interface OverviewStats {
+  total_encounters: number;
+  total_pokemon: number;
+  today: number;
 }
 
 /** WSMessage is the envelope for all WebSocket messages in both directions. */

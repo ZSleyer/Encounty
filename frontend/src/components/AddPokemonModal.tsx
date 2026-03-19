@@ -20,6 +20,7 @@ interface Props {
 
 export interface NewPokemonData {
   name: string;
+  title?: string;
   canonical_name: string;
   sprite_url: string;
   sprite_type: SpriteType;
@@ -27,6 +28,7 @@ export interface NewPokemonData {
   language: Language;
   game: string;
   hunt_type: string;
+  step?: number;
 }
 
 interface PokemonForm {
@@ -88,6 +90,8 @@ export function AddPokemonModal({
   const [customSprite, setCustomSprite] = useState("");
   const [spriteType, setSpriteType] = useState<SpriteType>("shiny");
   const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>("classic");
+
+  const [title, setTitle] = useState("");
 
   const [games, setGames] = useState<GameEntry[]>([]);
   const [selectedGame, setSelectedGame] = useState("");
@@ -210,9 +214,10 @@ export function AddPokemonModal({
   }, [selectedGame, spriteType, spriteStyle, selected?.spriteId]);
 
   const handleAdd = () => {
-    if (!selected || !selectedGame) return;
+    if (!selected) return;
     onAdd({
       name: selected.name,
+      title: title || undefined,
       canonical_name: selected.canonical,
       sprite_url: customSprite || selected.sprite,
       sprite_type: spriteType,
@@ -463,6 +468,23 @@ export function AddPokemonModal({
             </optgroup>
           ))}
         </select>
+      </div>
+
+      <div className="mb-4">
+        <label
+          htmlFor="title-add"
+          className="block text-xs text-text-muted mb-1"
+        >
+          {t("modal.titleLabel")}
+        </label>
+        <input
+          id="title-add"
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={t("modal.titlePlaceholder")}
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
+        />
       </div>
 
       <div className="mb-5">

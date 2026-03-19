@@ -9,6 +9,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -97,6 +99,58 @@ func (w *Writer) Write(st state.AppState) {
 		allEncounters += p.Encounters
 	}
 	w.writeFile(dir, "encounters_today.txt", fmt.Sprintf("%d", allEncounters))
+
+	// Per-Pokemon subdirectories
+	validDirs := make(map[string]bool)
+	for _, p := range st.Pokemon {
+		subDir := sanitizeFilename(p.Name) + "_" + p.ID[:5]
+		validDirs[subDir] = true
+		pokemonDir := filepath.Join(dir, subDir)
+		if err := os.MkdirAll(pokemonDir, 0755); err != nil {
+			slog.Error("Per-pokemon dir error", "dir", subDir, "error", err)
+			continue
+		}
+		w.writeFile(pokemonDir, "encounters.txt", fmt.Sprintf("%d", p.Encounters))
+		w.writeFile(pokemonDir, "pokemon_name.txt", p.Name)
+		title := p.Title
+		if title == "" {
+			title = p.Name
+		}
+		w.writeFile(pokemonDir, "title.txt", title)
+		w.writeFile(pokemonDir, "encounters_label.txt", fmt.Sprintf("%s: %d Encounters", p.Name, p.Encounters))
+		// Timer file
+		totalMs := p.TimerAccumulatedMs
+		if p.TimerStartedAt != nil {
+			totalMs += time.Since(*p.TimerStartedAt).Milliseconds()
+		}
+		timerH := totalMs / 3600000
+		timerM := (totalMs % 3600000) / 60000
+		timerS := (totalMs % 60000) / 1000
+		w.writeFile(pokemonDir, "timer.txt", fmt.Sprintf("%02d:%02d:%02d", timerH, timerM, timerS))
+	}
+
+	// Clean up orphaned per-pokemon directories
+	dirEntries, _ := os.ReadDir(dir)
+	for _, e := range dirEntries {
+		if e.IsDir() && strings.Contains(e.Name(), "_") && !validDirs[e.Name()] {
+			_ = os.RemoveAll(filepath.Join(dir, e.Name()))
+		}
+	}
+}
+
+var unsafeChars = regexp.MustCompile(`[^a-zA-Z0-9_\-.]`)
+
+// sanitizeFilename replaces special characters and limits length for safe
+// use as a directory or file name on all major platforms.
+func sanitizeFilename(name string) string {
+	s := unsafeChars.ReplaceAllString(name, "_")
+	if len(s) > 60 {
+		s = s[:60]
+	}
+	if s == "" {
+		s = "unknown"
+	}
+	return s
 }
 
 func (w *Writer) writeFile(dir, name, content string) {

@@ -5,6 +5,8 @@
 package state
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,21 +18,25 @@ import (
 // and an optional per-Pokémon overlay configuration.
 type Pokemon struct {
 	ID            string           `json:"id"`
-	Name          string           `json:"name"`           // Display name (localized)
-	CanonicalName string           `json:"canonical_name"` // English PokéAPI slug
+	Name          string           `json:"name"`                   // Display name (localized)
+	Title         string           `json:"title,omitempty"`        // User-defined custom title
+	CanonicalName string           `json:"canonical_name"`         // English PokéAPI slug
 	SpriteURL     string           `json:"sprite_url"`
 	SpriteType    string           `json:"sprite_type"`            // "normal" | "shiny"
 	SpriteStyle   string           `json:"sprite_style,omitempty"` // "classic" | "animated" | "3d" | "artwork"
 	Encounters    int              `json:"encounters"`
+	Step          int              `json:"step,omitempty"`         // Increment/decrement step size (default 1)
 	IsActive      bool             `json:"is_active"`
 	CreatedAt     time.Time        `json:"created_at"`
-	Language      string           `json:"language"` // "de" | "en"
-	Game          string           `json:"game"`     // key from games.json
+	Language      string           `json:"language"`               // "de" | "en"
+	Game          string           `json:"game"`                   // key from games.json
 	CompletedAt   *time.Time       `json:"completed_at,omitempty"`
-	Overlay       *OverlaySettings `json:"overlay,omitempty"` // Pokemon-specific overlay settings
-	OverlayMode    string          `json:"overlay_mode"`      // "default" | "custom" | "linked:<pokemon-id>"
+	Overlay       *OverlaySettings `json:"overlay,omitempty"`      // Pokemon-specific overlay settings
+	OverlayMode    string          `json:"overlay_mode"`           // "default" | "custom" | "linked:<pokemon-id>"
 	HuntType       string          `json:"hunt_type,omitempty"`
 	DetectorConfig *DetectorConfig `json:"detector_config,omitempty"`
+	TimerStartedAt  *time.Time     `json:"timer_started_at,omitempty"`
+	TimerAccumulatedMs int64       `json:"timer_accumulated_ms"`
 }
 
 // Session records one time-boxed encounter run for a single Pokémon.
@@ -166,6 +172,7 @@ type SpriteElement struct {
 type NameElement struct {
 	OverlayElementBase
 	Style         TextStyle `json:"style"`
+	DisplayMode   string    `json:"display_mode,omitempty"` // "name" (default), "title", "both"
 	IdleAnimation string    `json:"idle_animation"`
 	TriggerEnter  string    `json:"trigger_enter"`
 }
@@ -218,10 +225,11 @@ type Settings struct {
 	OutputDir     string          `json:"output_dir"`
 	AutoSave      bool            `json:"auto_save"`
 	BrowserPort  int             `json:"browser_port"`
-	Languages    []string        `json:"languages"` // active game-name languages; default ["de","en"]
+	Languages    []string        `json:"languages"`                // active game-name languages; default ["de","en"]
 	CrispSprites bool            `json:"crisp_sprites"`
 	Overlay      OverlaySettings `json:"overlay"`
 	TutorialSeen TutorialFlags   `json:"tutorial_seen"`
+	ConfigPath   string          `json:"config_path,omitempty"`    // custom data directory override
 }
 
 // AppState is the complete serialisable snapshot of the application. It is
@@ -404,6 +412,8 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 			if update.Name != "" {
 				m.state.Pokemon[i].Name = update.Name
 			}
+			// Always update Title (allow clearing to "")
+			m.state.Pokemon[i].Title = update.Title
 			if update.CanonicalName != "" {
 				m.state.Pokemon[i].CanonicalName = update.CanonicalName
 			}
@@ -434,6 +444,9 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 					m.state.Pokemon[i].Overlay = nil
 				}
 			}
+
+			// Always update Step (0 means default of 1)
+			m.state.Pokemon[i].Step = update.Step
 
 			go m.notify()
 			return true
@@ -471,14 +484,19 @@ func (m *Manager) DeletePokemon(id string) bool {
 	return false
 }
 
-// Increment adds one encounter to the Pokémon with the given id.
+// Increment adds step encounters to the Pokémon with the given id.
+// Step defaults to 1 when not set.
 // Returns the new count and true, or (0, false) if not found.
 func (m *Manager) Increment(id string) (int, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
-			m.state.Pokemon[i].Encounters++
+			step := m.state.Pokemon[i].Step
+			if step <= 0 {
+				step = 1
+			}
+			m.state.Pokemon[i].Encounters += step
 			count := m.state.Pokemon[i].Encounters
 			go m.notify()
 			return count, true
@@ -487,7 +505,7 @@ func (m *Manager) Increment(id string) (int, bool) {
 	return 0, false
 }
 
-// Decrement subtracts one encounter from the Pokémon with the given id,
+// Decrement subtracts step encounters from the Pokémon with the given id,
 // flooring at zero to prevent negative counts.
 // Returns the new count and true, or (0, false) if not found.
 func (m *Manager) Decrement(id string) (int, bool) {
@@ -495,8 +513,14 @@ func (m *Manager) Decrement(id string) (int, bool) {
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
-			if m.state.Pokemon[i].Encounters > 0 {
-				m.state.Pokemon[i].Encounters--
+			step := m.state.Pokemon[i].Step
+			if step <= 0 {
+				step = 1
+			}
+			if m.state.Pokemon[i].Encounters >= step {
+				m.state.Pokemon[i].Encounters -= step
+			} else {
+				m.state.Pokemon[i].Encounters = 0
 			}
 			count := m.state.Pokemon[i].Encounters
 			go m.notify()
@@ -514,6 +538,77 @@ func (m *Manager) Reset(id string) bool {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].Encounters = 0
+			go m.notify()
+			return true
+		}
+	}
+	return false
+}
+
+// SetEncounters sets the encounter counter for the given Pokémon to an exact
+// value (floored at 0). Returns the new count and true, or (0, false) if not found.
+func (m *Manager) SetEncounters(id string, count int) (int, bool) {
+	if count < 0 {
+		count = 0
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			m.state.Pokemon[i].Encounters = count
+			go m.notify()
+			return count, true
+		}
+	}
+	return 0, false
+}
+
+// StartTimer sets TimerStartedAt for the Pokémon, beginning time accumulation.
+// No-ops if the timer is already running. Returns false if not found.
+func (m *Manager) StartTimer(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			if m.state.Pokemon[i].TimerStartedAt == nil {
+				now := time.Now()
+				m.state.Pokemon[i].TimerStartedAt = &now
+			}
+			go m.notify()
+			return true
+		}
+	}
+	return false
+}
+
+// StopTimer calculates elapsed time since TimerStartedAt, adds it to
+// TimerAccumulatedMs, and clears TimerStartedAt. Returns false if not found.
+func (m *Manager) StopTimer(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			if m.state.Pokemon[i].TimerStartedAt != nil {
+				elapsed := time.Since(*m.state.Pokemon[i].TimerStartedAt)
+				m.state.Pokemon[i].TimerAccumulatedMs += elapsed.Milliseconds()
+				m.state.Pokemon[i].TimerStartedAt = nil
+			}
+			go m.notify()
+			return true
+		}
+	}
+	return false
+}
+
+// ResetTimer clears both TimerStartedAt and TimerAccumulatedMs.
+// Returns false if not found.
+func (m *Manager) ResetTimer(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			m.state.Pokemon[i].TimerStartedAt = nil
+			m.state.Pokemon[i].TimerAccumulatedMs = 0
 			go m.notify()
 			return true
 		}
@@ -686,6 +781,81 @@ func (m *Manager) SetDetectorConfig(id string, cfg *DetectorConfig) bool {
 // (e.g. ~/.config/encounty on Linux).
 func (m *Manager) GetConfigDir() string {
 	return m.configDir
+}
+
+// SetConfigDir moves all data to a new directory and updates the internal
+// config path. The old directory is left intact as a backup.
+func (m *Manager) SetConfigDir(newDir string) error {
+	if err := os.MkdirAll(newDir, 0755); err != nil {
+		return fmt.Errorf("cannot create directory: %w", err)
+	}
+	// Test writability
+	testFile := filepath.Join(newDir, ".encounty_test")
+	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+		return fmt.Errorf("directory not writable: %w", err)
+	}
+	os.Remove(testFile)
+
+	oldDir := m.configDir
+
+	// Copy files from old to new
+	entries, _ := os.ReadDir(oldDir)
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		src := filepath.Join(oldDir, e.Name())
+		dst := filepath.Join(newDir, e.Name())
+		data, err := os.ReadFile(src)
+		if err != nil {
+			continue
+		}
+		_ = os.WriteFile(dst, data, 0644)
+	}
+	// Copy subdirectories (templates, etc.)
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		srcDir := filepath.Join(oldDir, e.Name())
+		dstDir := filepath.Join(newDir, e.Name())
+		copyDir(srcDir, dstDir)
+	}
+
+	m.mu.Lock()
+	m.configDir = newDir
+	m.state.DataPath = newDir
+	m.state.Settings.ConfigPath = newDir
+	m.mu.Unlock()
+
+	// Save to new location
+	if err := m.Save(); err != nil {
+		return fmt.Errorf("failed to save in new location: %w", err)
+	}
+
+	m.notify()
+	return nil
+}
+
+// copyDir recursively copies a directory tree.
+func copyDir(src, dst string) {
+	_ = os.MkdirAll(dst, 0755)
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		srcPath := filepath.Join(src, e.Name())
+		dstPath := filepath.Join(dst, e.Name())
+		if e.IsDir() {
+			copyDir(srcPath, dstPath)
+		} else {
+			data, err := os.ReadFile(srcPath)
+			if err == nil {
+				_ = os.WriteFile(dstPath, data, 0644)
+			}
+		}
+	}
 }
 
 // ResolveOverlay returns the effective OverlaySettings for a Pokemon,

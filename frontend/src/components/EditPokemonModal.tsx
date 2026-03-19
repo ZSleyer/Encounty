@@ -23,6 +23,7 @@ interface Props {
   readonly pokemon: {
     id: string;
     name: string;
+    title?: string;
     canonical_name: string;
     sprite_url: string;
     sprite_type: SpriteType;
@@ -30,6 +31,7 @@ interface Props {
     language: Language;
     game: string;
     hunt_type?: string;
+    step?: number;
   };
   readonly onSave: (id: string, data: NewPokemonData) => void;
   readonly onClose: () => void;
@@ -38,6 +40,7 @@ interface Props {
 
 export interface NewPokemonData {
   name: string;
+  title?: string;
   canonical_name: string;
   sprite_url: string;
   sprite_type: SpriteType;
@@ -45,6 +48,7 @@ export interface NewPokemonData {
   language: Language;
   game: string;
   hunt_type: string;
+  step?: number;
 }
 
 interface PokemonForm {
@@ -108,6 +112,9 @@ export function EditPokemonModal({
   const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>(
     pokemon.sprite_style || "classic",
   );
+
+  const [title, setTitle] = useState(pokemon.title || "");
+  const [step, setStep] = useState(pokemon.step || 1);
 
   const [games, setGames] = useState<GameEntry[]>([]);
   const [selectedGame, setSelectedGame] = useState(pokemon.game || "");
@@ -284,6 +291,7 @@ export function EditPokemonModal({
     if (!selected) return;
     onSave(pokemon.id, {
       name: selected.name,
+      title,
       canonical_name: selected.canonical,
       sprite_url: customSprite || selected.sprite,
       sprite_type: spriteType,
@@ -291,6 +299,7 @@ export function EditPokemonModal({
       language,
       game: selectedGame,
       hunt_type: huntType,
+      step: step > 1 ? step : undefined,
     });
   };
 
@@ -556,6 +565,40 @@ export function EditPokemonModal({
             </optgroup>
           ))}
         </select>
+      </div>
+
+      <div className="mb-4">
+        <label
+          htmlFor="title-edit"
+          className="block text-xs text-text-muted mb-1"
+        >
+          {t("modal.titleLabel")}
+        </label>
+        <input
+          id="title-edit"
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={t("modal.titlePlaceholder")}
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
+        />
+      </div>
+
+      <div className="mb-4">
+        <label
+          htmlFor="step-edit"
+          className="block text-xs text-text-muted mb-1"
+        >
+          {t("modal.stepLabel")}
+        </label>
+        <input
+          id="step-edit"
+          type="number"
+          min={1}
+          value={step}
+          onChange={(e) => setStep(Math.max(1, parseInt(e.target.value) || 1))}
+          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
+        />
       </div>
 
       <div className="mb-5">

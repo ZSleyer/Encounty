@@ -2046,6 +2046,28 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               />
               <div>
                 <label className="text-[10px] 2xl:text-xs text-text-muted">
+                  {t("overlay.displayMode")}
+                </label>
+                <select
+                  value={localSettings.name.display_mode || "name"}
+                  onChange={(e) =>
+                    update({
+                      ...localSettings,
+                      name: {
+                        ...localSettings.name,
+                        display_mode: e.target.value as "name" | "title" | "both",
+                      },
+                    })
+                  }
+                  className="w-full bg-bg-primary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none"
+                >
+                  <option value="name">{t("overlay.displayModeName")}</option>
+                  <option value="title">{t("overlay.displayModeTitle")}</option>
+                  <option value="both">{t("overlay.displayModeBoth")}</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] 2xl:text-xs text-text-muted">
                   Idle Animation
                 </label>
                 <select

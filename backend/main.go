@@ -20,6 +20,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/detector"
 	"github.com/zsleyer/encounty/backend/internal/fileoutput"
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
@@ -71,16 +72,32 @@ func main() {
 	configDir := getConfigDir()
 	slog.Info("Config directory", "path", configDir)
 
-	// State
+	// State — two-phase: load from default, then check for custom path redirect
 	stateMgr := state.NewManager(configDir)
 	if err := stateMgr.Load(); err != nil {
 		slog.Warn("Could not load state", "error", err)
+	}
+	if customPath := stateMgr.GetState().Settings.ConfigPath; customPath != "" && customPath != configDir {
+		slog.Info("Redirecting to custom config path", "path", customPath)
+		stateMgr = state.NewManager(customPath)
+		if err := stateMgr.Load(); err != nil {
+			slog.Warn("Could not load state from custom path, falling back", "error", err)
+			stateMgr = state.NewManager(configDir)
+			_ = stateMgr.Load()
+		}
 	}
 
 	st := stateMgr.GetState()
 	port := st.Settings.BrowserPort
 	if port == 0 {
 		port = 8080
+	}
+
+	// SQLite database
+	dbPath := filepath.Join(stateMgr.GetConfigDir(), "encounty.db")
+	db, err := database.Open(dbPath)
+	if err != nil {
+		slog.Warn("Could not open database", "error", err)
 	}
 
 	// File output writer
@@ -123,6 +140,7 @@ func main() {
 		BuildDate:   buildDate,
 		ConfigDir:   configDir,
 		DetectorMgr: detectorMgr,
+		DB:          db,
 	})
 
 	// Wire the real broadcast function now that the server (and hub) exist.
@@ -156,6 +174,9 @@ func main() {
 		srv.Hub().CloseAll()
 
 		hotkeyMgr.Stop()
+		if db != nil {
+			db.Close()
+		}
 		if err := stateMgr.Save(); err != nil {
 			slog.Error("Failed to save state", "error", err)
 		}

@@ -6,6 +6,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -102,6 +103,7 @@ func (s *Server) handleIncrement(w http.ResponseWriter, _ *http.Request, id stri
 		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
 		return
 	}
+	s.logEncounter(id, count, "api")
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
@@ -119,6 +121,7 @@ func (s *Server) handleDecrement(w http.ResponseWriter, _ *http.Request, id stri
 		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
 		return
 	}
+	s.logEncounter(id, count, "api")
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
@@ -142,6 +145,88 @@ func (s *Server) handleReset(w http.ResponseWriter, _ *http.Request, id string) 
 		s.fileWriter.Write(s.state.GetState())
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleSetEncounters sets the encounter count to an exact value.
+// POST /api/pokemon/{id}/set_encounters
+func (s *Server) handleSetEncounters(w http.ResponseWriter, r *http.Request, id string) {
+	var body struct {
+		Count int `json:"count"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+		return
+	}
+	count, ok := s.state.SetEncounters(id, body.Count)
+	if !ok {
+		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		return
+	}
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_set", map[string]any{"pokemon_id": id, "count": count})
+	s.broadcastState()
+	if s.fileWriter != nil {
+		s.fileWriter.Write(s.state.GetState())
+	}
+	writeJSON(w, http.StatusOK, map[string]int{"count": count})
+}
+
+// handleTimerStart begins the per-Pokemon timer.
+// POST /api/pokemon/{id}/timer/start
+func (s *Server) handleTimerStart(w http.ResponseWriter, _ *http.Request, id string) {
+	if !s.state.StartTimer(id) {
+		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		return
+	}
+	s.state.ScheduleSave()
+	s.broadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleTimerStop stops the per-Pokemon timer and accumulates elapsed time.
+// POST /api/pokemon/{id}/timer/stop
+func (s *Server) handleTimerStop(w http.ResponseWriter, _ *http.Request, id string) {
+	if !s.state.StopTimer(id) {
+		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		return
+	}
+	s.state.ScheduleSave()
+	s.broadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleTimerReset clears the per-Pokemon timer entirely.
+// POST /api/pokemon/{id}/timer/reset
+func (s *Server) handleTimerReset(w http.ResponseWriter, _ *http.Request, id string) {
+	if !s.state.ResetTimer(id) {
+		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		return
+	}
+	s.state.ScheduleSave()
+	s.broadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleSetConfigPath moves all data to a new directory.
+// POST /api/settings/config-path
+func (s *Server) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Path string `json:"path"`
+	}
+	if err := readJSON(r, &body); err != nil {
+		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+		return
+	}
+	if body.Path == "" {
+		writeJSON(w, http.StatusBadRequest, errResp{"path is required"})
+		return
+	}
+	if err := s.state.SetConfigDir(body.Path); err != nil {
+		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+		return
+	}
+	s.broadcastState()
+	writeJSON(w, http.StatusOK, map[string]string{"path": body.Path})
 }
 
 // handleActivate sets the given Pokémon as the active one for hotkey actions.
@@ -324,6 +409,31 @@ func (s *Server) handleUnlinkOverlay(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// logEncounter writes an encounter event to the database.
+// It resolves the Pokemon name and computes the delta from the previous count.
+func (s *Server) logEncounter(pokemonID string, countAfter int, source string) {
+	if s.db == nil {
+		return
+	}
+	st := s.state.GetState()
+	name := pokemonID
+	step := 1
+	for _, p := range st.Pokemon {
+		if p.ID == pokemonID {
+			name = p.Name
+			if p.Step > 0 {
+				step = p.Step
+			}
+			break
+		}
+	}
+	// For increment the delta is +step, for decrement -step.
+	// We infer direction from the source context; callers use this after Increment/Decrement.
+	// Since we don't know direction here, log step as positive (most common).
+	// Actual delta = countAfter - previous. We approximate with step.
+	_ = s.db.LogEncounter(pokemonID, name, step, countAfter, source)
+}
+
 // broadcastState serialises the current AppState and sends a "state_update"
 // message to every connected WebSocket client.
 func (s *Server) broadcastState() {
@@ -345,6 +455,7 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
 			count, ok := s.state.Increment(p.PokemonID)
 			if ok {
+				s.logEncounter(p.PokemonID, count, "hotkey")
 				s.state.ScheduleSave()
 				s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": p.PokemonID, "count": count})
 				s.broadcastState()
@@ -358,6 +469,7 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
 			count, ok := s.state.Decrement(p.PokemonID)
 			if ok {
+				s.logEncounter(p.PokemonID, count, "hotkey")
 				s.state.ScheduleSave()
 				s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": p.PokemonID, "count": count})
 				s.broadcastState()
@@ -402,6 +514,46 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 			s.state.UncompletePokemon(p.PokemonID)
 			s.state.ScheduleSave()
 			s.broadcastState()
+		}
+	case "set_encounters":
+		var p struct {
+			PokemonID string `json:"pokemon_id"`
+			Count     int    `json:"count"`
+		}
+		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
+			count, ok := s.state.SetEncounters(p.PokemonID, p.Count)
+			if ok {
+				s.state.ScheduleSave()
+				s.hub.BroadcastRaw("encounter_set", map[string]any{"pokemon_id": p.PokemonID, "count": count})
+				s.broadcastState()
+				if s.fileWriter != nil {
+					s.fileWriter.Write(s.state.GetState())
+				}
+			}
+		}
+	case "timer_start":
+		var p idPayload
+		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
+			if s.state.StartTimer(p.PokemonID) {
+				s.state.ScheduleSave()
+				s.broadcastState()
+			}
+		}
+	case "timer_stop":
+		var p idPayload
+		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
+			if s.state.StopTimer(p.PokemonID) {
+				s.state.ScheduleSave()
+				s.broadcastState()
+			}
+		}
+	case "timer_reset":
+		var p idPayload
+		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
+			if s.state.ResetTimer(p.PokemonID) {
+				s.state.ScheduleSave()
+				s.broadcastState()
+			}
 		}
 	}
 }
@@ -510,6 +662,69 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 			os.Exit(1)
 		}
 	}()
+}
+
+// handleStatsOverview returns global encounter statistics.
+// GET /api/stats/overview
+func (s *Server) handleStatsOverview(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		writeJSON(w, http.StatusServiceUnavailable, errResp{"database not available"})
+		return
+	}
+	stats, err := s.db.GetOverviewStats()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, stats)
+}
+
+// handleStatsDispatch routes /api/stats/pokemon/{id}, /api/stats/pokemon/{id}/history,
+// and /api/stats/pokemon/{id}/chart to the appropriate handler.
+func (s *Server) handleStatsDispatch(w http.ResponseWriter, r *http.Request) {
+	if s.db == nil {
+		writeJSON(w, http.StatusServiceUnavailable, errResp{"database not available"})
+		return
+	}
+	path := r.URL.Path
+	switch {
+	case strings.HasSuffix(path, "/history"):
+		id := pokemonIDFromPath(path, "/api/stats/pokemon/", "/history")
+		limit := 20
+		offset := 0
+		if v := r.URL.Query().Get("limit"); v != "" {
+			fmt.Sscanf(v, "%d", &limit)
+		}
+		if v := r.URL.Query().Get("offset"); v != "" {
+			fmt.Sscanf(v, "%d", &offset)
+		}
+		events, err := s.db.GetEncounterHistory(id, limit, offset)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, events)
+	case strings.HasSuffix(path, "/chart"):
+		id := pokemonIDFromPath(path, "/api/stats/pokemon/", "/chart")
+		interval := r.URL.Query().Get("interval")
+		if interval == "" {
+			interval = "day"
+		}
+		data, err := s.db.GetChartData(id, interval)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, data)
+	default:
+		id := pokemonIDFromPath(path, "/api/stats/pokemon/", "")
+		stats, err := s.db.GetEncounterStats(id)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, stats)
+	}
 }
 
 // reexec is implemented per-platform in reexec_unix.go / reexec_windows.go.

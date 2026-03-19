@@ -639,9 +639,42 @@ export function Settings() {
               {appState?.data_path && (
                 <div className="p-3 rounded-xl bg-bg-secondary/50 border border-border-subtle">
                   <p className="text-xs text-text-muted mb-1.5">{t("settings.dataPath")}</p>
-                  <p className="text-xs text-text-primary break-all select-all font-mono opacity-80">
+                  <p className="text-xs text-text-primary break-all select-all font-mono opacity-80 mb-3">
                     {appState.data_path}
                   </p>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      defaultValue={appState.data_path}
+                      id="config-path-input"
+                      placeholder={appState.data_path}
+                      className="flex-1 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
+                    />
+                    <button
+                      onClick={async () => {
+                        const input = document.getElementById("config-path-input") as HTMLInputElement;
+                        const newPath = input?.value?.trim();
+                        if (!newPath || newPath === appState.data_path) return;
+                        try {
+                          const res = await fetch(`${API}/settings/config-path`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ path: newPath }),
+                          });
+                          if (!res.ok) {
+                            const err = await res.json();
+                            alert(err.error || "Failed");
+                          }
+                        } catch {
+                          alert("Failed to change path");
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors"
+                    >
+                      {t("settings.dataLocationChange")}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-text-faint mt-1.5">{t("settings.dataLocationRestart")}</p>
                 </div>
               )}
 

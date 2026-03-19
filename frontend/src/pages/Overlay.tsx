@@ -549,7 +549,13 @@ export function Overlay({
                 animationDirection: nameAnimReverse ? "reverse" : undefined,
               }}
             >
-              {activePokemon.name}
+              {(() => {
+                const mode = settings.name.display_mode || "name";
+                const title = activePokemon.title || "";
+                if (mode === "title" && title) return title;
+                if (mode === "both" && title) return `${activePokemon.name} — ${title}`;
+                return activePokemon.name;
+              })()}
             </span>
           </div>
       )}

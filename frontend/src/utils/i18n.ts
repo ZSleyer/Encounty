@@ -116,6 +116,49 @@ const translations: Record<Locale, Record<string, string>> = {
       "Pokémon-Namen sind nicht lokalisiert. Bitte synchronisiere die Pokémon-Daten unter Einstellungen → Pokémon-Daten aktualisieren.",
     "modal.missingNamesShort":
       "Pokédex nicht synchronisiert — nur englische Namen verfügbar.",
+    "modal.titleLabel": "Titel (optional)",
+    "modal.titlePlaceholder": "z.B. \"Operation Shiny\"",
+    "modal.stepLabel": "Zähl-Schrittgröße",
+    "modal.setEncounterTitle": "Begegnungen setzen",
+    "modal.setEncounterLabel": "Anzahl Begegnungen",
+
+    // ── Timer ──
+    "timer.start": "Start",
+    "timer.stop": "Stopp",
+    "timer.reset": "Timer zurücksetzen",
+    "timer.startAll": "Alle Timer starten",
+    "timer.stopAll": "Alle Timer stoppen",
+    "timer.selected": "ausgewählt",
+    "timer.clearSelection": "Auswahl aufheben",
+
+    // ── Overlay Display Mode ──
+    "overlay.displayMode": "Anzeige-Modus",
+    "overlay.displayModeName": "Name",
+    "overlay.displayModeTitle": "Titel",
+    "overlay.displayModeBoth": "Name & Titel",
+
+    // ── Settings: Config Path ──
+    "settings.dataLocation": "Daten-Speicherort",
+    "settings.dataLocationHint": "Pfad zu dem Ordner, in dem Encounty alle Daten speichert.",
+    "settings.dataLocationChange": "Ändern",
+    "settings.dataLocationRestart": "Neustart empfohlen nach Änderung.",
+
+    // ── Dashboard: Set Encounters ──
+    "dash.setEncounters": "Begegnungen manuell setzen",
+    "dash.tabStatistics": "Statistik",
+
+    // ── Statistics ──
+    "stats.total": "Gesamt",
+    "stats.today": "Heute",
+    "stats.ratePerHour": "Pro Stunde",
+    "stats.firstEncounter": "Erste Begegnung",
+    "stats.chartTitle": "Begegnungen im Zeitverlauf",
+    "stats.interval.hour": "Stunde",
+    "stats.interval.day": "Tag",
+    "stats.interval.week": "Woche",
+    "stats.noData": "Noch keine Daten vorhanden",
+    "stats.recentHistory": "Letzte Ereignisse",
+    "stats.noHistory": "Noch keine Ereignisse aufgezeichnet",
 
     // ── Hunt Types ──
     "huntType.label": "Jagd-Methode",
@@ -279,6 +322,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.start": "Erkennung starten",
     "detector.stop": "Stoppen",
     "detector.starting": "Wird gestartet…",
+    "detector.startSelected": "Erkennung für Auswahl starten",
+    "detector.stopSelected": "Erkennung für Auswahl stoppen",
+    "detector.notConfigured": "Erkennung nicht konfiguriert für",
     "detector.stopped": "Gestoppt",
     "detector.stateIdle": "Suche…",
     "detector.stateMatch": "Treffer!",
@@ -625,6 +671,49 @@ const translations: Record<Locale, Record<string, string>> = {
       "Pokémon names are not localized. Please sync the Pokémon data under Settings → Update Pokémon data.",
     "modal.missingNamesShort":
       "Pokédex not synced — only English names available.",
+    "modal.titleLabel": "Title (optional)",
+    "modal.titlePlaceholder": "e.g. \"Operation Shiny\"",
+    "modal.stepLabel": "Counting Step Size",
+    "modal.setEncounterTitle": "Set Encounters",
+    "modal.setEncounterLabel": "Encounter Count",
+
+    // ── Timer ──
+    "timer.start": "Start",
+    "timer.stop": "Stop",
+    "timer.reset": "Reset Timer",
+    "timer.startAll": "Start All Timers",
+    "timer.stopAll": "Stop All Timers",
+    "timer.selected": "selected",
+    "timer.clearSelection": "Clear selection",
+
+    // ── Overlay Display Mode ──
+    "overlay.displayMode": "Display Mode",
+    "overlay.displayModeName": "Name",
+    "overlay.displayModeTitle": "Title",
+    "overlay.displayModeBoth": "Name & Title",
+
+    // ── Settings: Config Path ──
+    "settings.dataLocation": "Data Location",
+    "settings.dataLocationHint": "Path to the folder where Encounty stores all data.",
+    "settings.dataLocationChange": "Change",
+    "settings.dataLocationRestart": "Restart recommended after change.",
+
+    // ── Dashboard: Set Encounters ──
+    "dash.setEncounters": "Set encounters manually",
+    "dash.tabStatistics": "Statistics",
+
+    // ── Statistics ──
+    "stats.total": "Total",
+    "stats.today": "Today",
+    "stats.ratePerHour": "Per Hour",
+    "stats.firstEncounter": "First Encounter",
+    "stats.chartTitle": "Encounters Over Time",
+    "stats.interval.hour": "Hour",
+    "stats.interval.day": "Day",
+    "stats.interval.week": "Week",
+    "stats.noData": "No data recorded yet",
+    "stats.recentHistory": "Recent Events",
+    "stats.noHistory": "No events recorded yet",
 
     // ── Hunt Types ──
     "huntType.label": "Hunt Method",
@@ -786,6 +875,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.start": "Start Detection",
     "detector.stop": "Stop",
     "detector.starting": "Starting…",
+    "detector.startSelected": "Start detection for selection",
+    "detector.stopSelected": "Stop detection for selection",
+    "detector.notConfigured": "Detection not configured for",
     "detector.stopped": "Stopped",
     "detector.stateIdle": "Scanning…",
     "detector.stateMatch": "Match!",
