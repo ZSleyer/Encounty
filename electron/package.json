@@ -13,10 +13,10 @@
     "package:mac": "electron-builder --mac"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "electron": "^35.1.0",
-    "electron-builder": "^25.1.8",
-    "typescript": "^5.0.0"
+    "@types/node": "^22.0.0",
+    "electron": "^41.0.3",
+    "electron-builder": "26.8.2",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "electron-updater": "^6.8.3"
