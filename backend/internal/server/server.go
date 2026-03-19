@@ -56,6 +56,10 @@ func New(cfg Config) *Server {
 	if cfg.ConfigDir != "" {
 		gamesConfigDir = cfg.ConfigDir
 	}
+	// Wire DB-backed game storage
+	if cfg.DB != nil {
+		gamesDB = cfg.DB
+	}
 
 	s := &Server{
 		state:       cfg.State,

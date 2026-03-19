@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/licenses"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
@@ -221,10 +222,35 @@ func (s *Server) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errResp{"path is required"})
 		return
 	}
+
+	// Close the current database before copying files
+	if s.db != nil {
+		s.db.Close()
+	}
+
 	if err := s.state.SetConfigDir(body.Path); err != nil {
+		// Reopen old DB on failure
+		if s.db != nil {
+			oldDB, _ := database.Open(filepath.Join(s.state.GetConfigDir(), "encounty.db"))
+			s.db = oldDB
+			s.state.SetDB(oldDB)
+			gamesDB = oldDB
+		}
 		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
 		return
 	}
+
+	// Open the database at the new location
+	newDB, err := database.Open(filepath.Join(body.Path, "encounty.db"))
+	if err != nil {
+		slog.Warn("Could not open database at new path", "error", err)
+	}
+	s.db = newDB
+	s.state.SetDB(newDB)
+	if newDB != nil {
+		gamesDB = newDB
+	}
+
 	s.broadcastState()
 	writeJSON(w, http.StatusOK, map[string]string{"path": body.Path})
 }

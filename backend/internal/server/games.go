@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/zsleyer/encounty/backend/internal/database"
 )
 
 // defaultGamesJSON is set by main.go via SetDefaultGamesJSON so that the
@@ -25,6 +27,16 @@ func SetDefaultGamesJSON(data []byte) {
 // gamesConfigDir is set once by the server at startup so we know where to
 // read/write the user-editable games.json inside the config directory.
 var gamesConfigDir string
+
+// GamesStore abstracts database operations for the games catalogue.
+type GamesStore interface {
+	SaveGames(rows []database.GameRow) error
+	LoadGames() ([]database.GameRow, error)
+	HasGames() bool
+}
+
+// gamesDB is set by the server at startup to enable DB-backed game storage.
+var gamesDB GamesStore
 
 // GameEntry is the public representation of one Pokémon game returned by the
 // API. The Key field is the stable identifier used in Pokemon.Game.
@@ -48,20 +60,51 @@ func loadGames() []GameEntry {
 		return cachedGames
 	}
 
+	// Try loading from database first
+	if gamesDB != nil && gamesDB.HasGames() {
+		rows, err := gamesDB.LoadGames()
+		if err == nil && len(rows) > 0 {
+			entries := gameRowsToEntries(rows)
+			cachedGames = entries
+			return entries
+		}
+		if err != nil {
+			slog.Warn("Could not load games from DB", "error", err)
+		}
+	}
+
+	// Fall back to JSON files
 	data, err := readGamesJSON()
 	if err != nil {
 		slog.Warn("Could not load games.json", "error", err)
 		return nil
 	}
 
+	entries := parseGamesData(data)
+	if entries == nil {
+		return nil
+	}
+
+	// Persist loaded JSON games into DB for future loads
+	if gamesDB != nil {
+		rows := entriesToGameRows(entries)
+		if err := gamesDB.SaveGames(rows); err != nil {
+			slog.Warn("Could not persist games to DB", "error", err)
+		}
+	}
+
+	cachedGames = entries
+	return entries
+}
+
+// parseGamesData unmarshals raw games JSON data into a sorted, deduplicated slice.
+func parseGamesData(data []byte) []GameEntry {
 	var raw map[string]rawGameEntry
 	if err := json.Unmarshal(data, &raw); err != nil {
 		slog.Warn("Could not parse games.json", "error", err)
 		return nil
 	}
 
-	// Deduplicate entries that share the same English name within the same
-	// generation — the sync can produce alternate keys for one game.
 	seen := make(map[string]bool)
 	entries := make([]GameEntry, 0, len(raw))
 	for key, v := range raw {
@@ -83,9 +126,49 @@ func loadGames() []GameEntry {
 		}
 		return entries[i].Names["en"] < entries[j].Names["en"]
 	})
-
-	cachedGames = entries
 	return entries
+}
+
+// gameRowsToEntries converts database rows to GameEntry slices.
+func gameRowsToEntries(rows []database.GameRow) []GameEntry {
+	entries := make([]GameEntry, 0, len(rows))
+	for _, r := range rows {
+		var names map[string]string
+		if err := json.Unmarshal(r.NamesJSON, &names); err != nil {
+			continue
+		}
+		entries = append(entries, GameEntry{
+			Key:        r.Key,
+			Names:      names,
+			Generation: r.Generation,
+			Platform:   r.Platform,
+		})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].Generation != entries[j].Generation {
+			return entries[i].Generation < entries[j].Generation
+		}
+		return entries[i].Names["en"] < entries[j].Names["en"]
+	})
+	return entries
+}
+
+// entriesToGameRows converts GameEntry slices to database rows.
+func entriesToGameRows(entries []GameEntry) []database.GameRow {
+	rows := make([]database.GameRow, 0, len(entries))
+	for _, e := range entries {
+		namesJSON, err := json.Marshal(e.Names)
+		if err != nil {
+			continue
+		}
+		rows = append(rows, database.GameRow{
+			Key:        e.Key,
+			NamesJSON:  namesJSON,
+			Generation: e.Generation,
+			Platform:   e.Platform,
+		})
+	}
+	return rows
 }
 
 func readGamesJSON() ([]byte, error) {

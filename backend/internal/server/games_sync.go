@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/zsleyer/encounty/backend/internal/database"
 )
 
 const pokeAPIBase = "https://pokeapi.co/api/v2"
@@ -239,17 +241,38 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 		return result, nil
 	}
 
-	// 3. Persist the merged data next to the binary (highest-priority load path).
-	outPath := gamesSyncSavePath()
-	data, err := json.MarshalIndent(raw, "", "  ")
-	if err != nil {
-		return result, fmt.Errorf("marshal games: %w", err)
-	}
-	if err := os.WriteFile(outPath, data, 0644); err != nil {
-		return result, fmt.Errorf("write %s: %w", outPath, err)
+	// 3. Persist the merged data.
+	if gamesDB != nil {
+		// Convert raw map to GameRows and save to DB.
+		rows := make([]database.GameRow, 0, len(raw))
+		for key, v := range raw {
+			namesJSON, err := json.Marshal(v.Names)
+			if err != nil {
+				continue
+			}
+			rows = append(rows, database.GameRow{
+				Key:        key,
+				NamesJSON:  namesJSON,
+				Generation: v.Generation,
+				Platform:   v.Platform,
+			})
+		}
+		if err := gamesDB.SaveGames(rows); err != nil {
+			return result, fmt.Errorf("save games to DB: %w", err)
+		}
+	} else {
+		// Fallback: write JSON file.
+		outPath := gamesSyncSavePath()
+		data, err := json.MarshalIndent(raw, "", "  ")
+		if err != nil {
+			return result, fmt.Errorf("marshal games: %w", err)
+		}
+		if err := os.WriteFile(outPath, data, 0644); err != nil {
+			return result, fmt.Errorf("write %s: %w", outPath, err)
+		}
 	}
 	cachedGames = nil // invalidate in-memory cache
-	slog.Info("SyncGames: sync complete", "added", result.Added, "updated", result.Updated, "path", outPath)
+	slog.Info("SyncGames: sync complete", "added", result.Added, "updated", result.Updated)
 	return result, nil
 }
 

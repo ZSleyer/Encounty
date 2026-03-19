@@ -1,6 +1,7 @@
 package detector
 
 import (
+	"bytes"
 	"context"
 	"image"
 	"image/png"
@@ -95,31 +96,50 @@ func newDetector(pokemonID string, cfg state.DetectorConfig, mgr *state.Manager,
 	}
 }
 
-// loadTemplates opens and decodes the PNG template images listed in templates.
-// Relative paths are resolved against configDir/templates/pokemonID/.
+// loadTemplates decodes PNG template images from either in-memory BLOBs
+// (ImageData) or the filesystem (ImagePath). In-memory data takes priority;
+// relative filesystem paths are resolved against configDir/templates/pokemonID/.
 // Templates that cannot be opened or decoded are silently skipped; their region
 // metadata is preserved alongside the decoded image in a loadedTemplate.
 func loadTemplates(templates []state.DetectorTemplate, configDir, pokemonID string) []loadedTemplate {
 	var result []loadedTemplate
 	for _, t := range templates {
-		p := t.ImagePath
-		var absPath string
-		if filepath.IsAbs(p) {
-			absPath = p
+		var img image.Image
+		var err error
+
+		if len(t.ImageData) > 0 {
+			// Load from in-memory BLOB (DB-backed path).
+			img, err = png.Decode(bytes.NewReader(t.ImageData))
+			if err != nil {
+				slog.Warn("Detector failed to decode in-memory template", "pokemon_id", pokemonID, "error", err)
+				continue
+			}
+		} else if t.ImagePath != "" {
+			// Legacy filesystem path.
+			p := t.ImagePath
+			var absPath string
+			if filepath.IsAbs(p) {
+				absPath = p
+			} else {
+				absPath = filepath.Join(configDir, "templates", pokemonID, p)
+			}
+			var f *os.File
+			f, err = os.Open(absPath)
+			if err != nil {
+				slog.Warn("Detector skipping missing template", "pokemon_id", pokemonID, "path", absPath, "error", err)
+				continue
+			}
+			img, err = png.Decode(f)
+			f.Close()
+			if err != nil {
+				slog.Warn("Detector failed to decode template", "pokemon_id", pokemonID, "path", absPath, "error", err)
+				continue
+			}
 		} else {
-			absPath = filepath.Join(configDir, "templates", pokemonID, p)
-		}
-		f, err := os.Open(absPath)
-		if err != nil {
-			slog.Warn("Detector skipping missing template", "pokemon_id", pokemonID, "path", absPath, "error", err)
+			// No image source available; skip.
 			continue
 		}
-		img, err := png.Decode(f)
-		f.Close()
-		if err != nil {
-			slog.Warn("Detector failed to decode template", "pokemon_id", pokemonID, "path", absPath, "error", err)
-			continue
-		}
+
 		result = append(result, loadedTemplate{img: img, meta: t})
 	}
 	return result
