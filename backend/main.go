@@ -147,6 +147,13 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 	}
 	if db != nil {
 		migrateToNormalizedSchema(db, stateMgr)
+		// Remove legacy state.json when DB is active to prevent stale
+		// JSON from being loaded on subsequent startups.
+		jsonPath := filepath.Join(effectiveDir, "state.json")
+		if _, err := os.Stat(jsonPath); err == nil {
+			_ = os.Remove(jsonPath)
+			slog.Info("Removed legacy state.json (DB is active)")
+		}
 	}
 	return stateMgr, db
 }

@@ -293,17 +293,19 @@ export function DetectorPanel({
       body: JSON.stringify(payload),
     });
     if (res.ok) {
-      const data = (await res.json()) as { path?: string };
-      if (data.path) {
-        const tmpl: DetectorTemplate = { image_path: data.path, regions: payload.regions };
-        const newTemplates = [...templates, tmpl];
-        setTemplates(newTemplates);
-        const nextCfg = { ...cfg, templates: newTemplates };
-        setCfg(nextCfg);
-        onConfigChange(nextCfg);
-        setErrorMsg(null);
-        setShowAddTemplate(false);
-      }
+      const data = (await res.json()) as { index?: number; template_db_id?: number };
+      const tmpl: DetectorTemplate = {
+        image_path: "",
+        template_db_id: data.template_db_id ?? 0,
+        regions: payload.regions,
+      };
+      const newTemplates = [...templates, tmpl];
+      setTemplates(newTemplates);
+      const nextCfg = { ...cfg, templates: newTemplates };
+      setCfg(nextCfg);
+      onConfigChange(nextCfg);
+      setErrorMsg(null);
+      setShowAddTemplate(false);
     } else {
       const body = await res.json().catch(() => ({})) as { error?: string };
       throw new Error(body.error ?? t("detector.errCaptureFailed"));

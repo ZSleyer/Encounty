@@ -277,6 +277,11 @@ func (s *Server) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Ensure the detector_configs row exists before inserting the template,
+	// because detector_templates.pokemon_id has a FK → detector_configs.pokemon_id.
+	s.state.SetDetectorConfig(id, &cfg)
+	s.state.ScheduleSave()
+
 	tmpl := state.DetectorTemplate{Regions: regions}
 	sortOrder := len(cfg.Templates)
 	if err := s.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
@@ -407,6 +412,11 @@ func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Req
 		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
 		return
 	}
+
+	// Ensure the detector_configs row exists before inserting the template,
+	// because detector_templates.pokemon_id has a FK → detector_configs.pokemon_id.
+	s.state.SetDetectorConfig(id, &cfg)
+	s.state.ScheduleSave()
 
 	b := img.Bounds()
 	sortOrder := len(cfg.Templates)

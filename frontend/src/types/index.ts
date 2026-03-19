@@ -77,6 +77,7 @@ export interface MatchedRegion {
 
 /** DetectorTemplate bundles the saved screenshot and its defined regions. */
 export interface DetectorTemplate {
+  template_db_id?: number;
   image_path: string;
   regions: MatchedRegion[];
 }

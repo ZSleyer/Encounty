@@ -66,12 +66,38 @@ type GameRow struct {
 }
 
 // Open creates or opens a SQLite database at path and runs migrations.
+// If the initial connection or migration fails (e.g. due to a locked file
+// from another process), it retries up to 3 times with a short delay.
 func Open(path string) (*DB, error) {
-	sqlDB, err := sql.Open("sqlite", path+"?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)")
+	dsn := path + "?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)"
+
+	var lastErr error
+	for attempt := range 3 {
+		db, err := tryOpen(dsn)
+		if err == nil {
+			return db, nil
+		}
+		lastErr = err
+		if attempt < 2 {
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+	return nil, lastErr
+}
+
+// tryOpen performs a single attempt to open the database and run migrations.
+func tryOpen(dsn string) (*DB, error) {
+	sqlDB, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
 	}
 	sqlDB.SetMaxOpenConns(1)
+
+	// Force an actual connection to detect file-level errors early.
+	if err := sqlDB.Ping(); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("ping sqlite: %w", err)
+	}
 
 	d := &DB{db: sqlDB}
 	if err := d.migrate(); err != nil {
