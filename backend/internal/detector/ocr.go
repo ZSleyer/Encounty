@@ -45,13 +45,13 @@ func RecognizeText(img image.Image, lang string) (string, error) {
 		return "", err
 	}
 	tmpPath := f.Name()
-	defer os.Remove(tmpPath)
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	if err := png.Encode(f, upscaled); err != nil {
-		f.Close()
+		_ = f.Close()
 		return "", err
 	}
-	f.Close()
+	_ = f.Close()
 
 	// psm 6: assume a single uniform block of text — works well for dialog boxes.
 	out, err := exec.Command("tesseract", tmpPath, "stdout", "-l", lang, "--psm", "6").Output()

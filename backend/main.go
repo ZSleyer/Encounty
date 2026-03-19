@@ -190,7 +190,7 @@ func main() {
 
 		hotkeyMgr.Stop()
 		if db != nil {
-			db.Close()
+			_ = db.Close()
 		}
 		if err := stateMgr.Save(); err != nil {
 			slog.Error("Failed to save state", "error", err)
@@ -220,7 +220,7 @@ func migrateJSONToDB(configDir string, db *database.DB) {
 			if err := db.SaveAppState(data); err != nil {
 				slog.Warn("Failed to migrate state.json to DB", "error", err)
 			} else if db.HasAppState() {
-				os.Remove(stateJSON)
+				_ = os.Remove(stateJSON)
 				slog.Info("Migrated state.json into database")
 			}
 		}
@@ -235,7 +235,7 @@ func migrateJSONToDB(configDir string, db *database.DB) {
 				if err := db.SaveGames(rows); err != nil {
 					slog.Warn("Failed to migrate games.json to DB", "error", err)
 				} else if db.HasGames() {
-					os.Remove(gamesJSON)
+					_ = os.Remove(gamesJSON)
 					slog.Info("Migrated games.json into database")
 				}
 			}

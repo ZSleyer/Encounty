@@ -225,7 +225,7 @@ func (s *Server) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 
 	// Close the current database before copying files
 	if s.db != nil {
-		s.db.Close()
+		_ = s.db.Close()
 	}
 
 	if err := s.state.SetConfigDir(body.Path); err != nil {
@@ -719,10 +719,10 @@ func (s *Server) handleStatsDispatch(w http.ResponseWriter, r *http.Request) {
 		limit := 20
 		offset := 0
 		if v := r.URL.Query().Get("limit"); v != "" {
-			fmt.Sscanf(v, "%d", &limit)
+			_, _ = fmt.Sscanf(v, "%d", &limit)
 		}
 		if v := r.URL.Query().Get("offset"); v != "" {
-			fmt.Sscanf(v, "%d", &offset)
+			_, _ = fmt.Sscanf(v, "%d", &offset)
 		}
 		events, err := s.db.GetEncounterHistory(id, limit, offset)
 		if err != nil {

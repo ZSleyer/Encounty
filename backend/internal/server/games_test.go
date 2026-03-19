@@ -91,7 +91,7 @@ func TestGamesCaching(t *testing.T) {
 	}
 
 	// Remove the file; cached result should still be returned
-	os.Remove(filepath.Join(dir, "games.json"))
+	_ = os.Remove(filepath.Join(dir, "games.json"))
 
 	second := loadGames()
 	if second == nil {

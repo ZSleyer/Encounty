@@ -183,7 +183,7 @@ func TestWSIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// The server should send the current state immediately on connect.
 	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
@@ -259,7 +259,7 @@ func TestWSMultipleClients(t *testing.T) {
 		if err != nil {
 			t.Fatalf("client %d dial: %v", i, err)
 		}
-		defer c.Close()
+		defer func() { _ = c.Close() }()
 		conns[i] = c
 
 		// Drain the initial state_update.
@@ -327,7 +327,7 @@ func TestWSClientDisconnect(t *testing.T) {
 		t.Fatalf("before disconnect: %d clients, want 1", before)
 	}
 
-	conn.Close()
+	_ = conn.Close()
 
 	// Give the server time to detect the disconnect and clean up.
 	time.Sleep(100 * time.Millisecond)

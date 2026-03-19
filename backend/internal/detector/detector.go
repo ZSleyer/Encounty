@@ -130,7 +130,7 @@ func loadTemplates(templates []state.DetectorTemplate, configDir, pokemonID stri
 				continue
 			}
 			img, err = png.Decode(f)
-			f.Close()
+			_ = f.Close()
 			if err != nil {
 				slog.Warn("Detector failed to decode template", "pokemon_id", pokemonID, "path", absPath, "error", err)
 				continue

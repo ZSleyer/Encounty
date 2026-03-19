@@ -69,7 +69,7 @@ func TestBackupWithTemplateFiles(t *testing.T) {
 				t.Fatal(err)
 			}
 			content, _ := io.ReadAll(rc)
-			rc.Close()
+			_ = rc.Close()
 			if string(content) != "fake-png-data" {
 				t.Error("template content mismatch")
 			}
@@ -80,15 +80,27 @@ func TestBackupWithTemplateFiles(t *testing.T) {
 	}
 }
 
-// TestBackupWithBothFiles exercises the pokemon.json path in backup.
+// TestBackupWithBothFiles exercises the template-images path in backup.
 func TestBackupWithBothFiles(t *testing.T) {
-	srv := newTestServer(t)
+	srv := newTestServerWithDB(t)
 	configDir := srv.state.GetConfigDir()
 
-	if err := os.WriteFile(filepath.Join(configDir, "state.json"), []byte(`{"active_id":""}`), 0644); err != nil {
+	// Save state so DB has content
+	srv.state.AddPokemon(state.Pokemon{
+		ID:        "p1",
+		Name:      "Pikachu",
+		CreatedAt: time.Now(),
+	})
+	if err := srv.state.Save(); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(configDir, "pokemon.json"), []byte(`[]`), 0644); err != nil {
+
+	// Create a template image so both DB and templates are in the backup
+	tmplDir := filepath.Join(configDir, "templates", "p1")
+	if err := os.MkdirAll(tmplDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmplDir, "tmpl.png"), []byte("fake-png"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -109,11 +121,11 @@ func TestBackupWithBothFiles(t *testing.T) {
 	for _, f := range zr.File {
 		names[f.Name] = true
 	}
-	if !names["state.json"] {
-		t.Error("state.json missing from backup")
+	if !names["encounty.db"] {
+		t.Error("encounty.db missing from backup")
 	}
-	if !names["pokemon.json"] {
-		t.Error("pokemon.json missing from backup")
+	if !names["templates/p1/tmpl.png"] {
+		t.Error("templates/p1/tmpl.png missing from backup")
 	}
 }
 
@@ -134,31 +146,44 @@ func TestBackupNoFiles(t *testing.T) {
 // --- handleRestore coverage ---
 
 // TestRestoreWithBothFiles tests restoring a ZIP that contains both
-// state.json and pokemon.json.
+// encounty.db and template images.
 func TestRestoreWithBothFiles(t *testing.T) {
-	srv := newTestServer(t)
+	srv := newTestServerWithDB(t)
 	configDir := srv.state.GetConfigDir()
 
-	stateJSON := `{"pokemon":[{"id":"p1","name":"Bulbasaur","encounters":5}],"active_id":"p1"}`
-	pokemonJSON := `[{"id":1,"canonical":"bulbasaur"}]`
+	// Save state so the DB has content for backup
+	srv.state.AddPokemon(state.Pokemon{
+		ID:         "p1",
+		Name:       "Bulbasaur",
+		Encounters: 5,
+		CreatedAt:  time.Now(),
+	})
+	if err := srv.state.Save(); err != nil {
+		t.Fatal(err)
+	}
 
-	// Create a ZIP with both files
+	// Read the DB file to put into our ZIP
+	dbData, err := os.ReadFile(filepath.Join(configDir, "encounty.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a ZIP with encounty.db, a template file, and a file that should be skipped
 	var zipBuf bytes.Buffer
 	zw := zip.NewWriter(&zipBuf)
-	fw, _ := zw.Create("state.json")
-	_, _ = fw.Write([]byte(stateJSON))
-	fw2, _ := zw.Create("pokemon.json")
-	_, _ = fw2.Write([]byte(pokemonJSON))
-	// Add a file that should be skipped (not state.json or pokemon.json)
+	fw, _ := zw.Create("encounty.db")
+	_, _ = fw.Write(dbData)
+	fw2, _ := zw.Create("templates/p1/tmpl.png")
+	_, _ = fw2.Write([]byte("fake-png"))
 	fw3, _ := zw.Create("other.txt")
 	_, _ = fw3.Write([]byte("ignored"))
-	zw.Close()
+	_ = zw.Close()
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 	formFile, _ := mw.CreateFormFile("backup", "backup.zip")
 	_, _ = formFile.Write(zipBuf.Bytes())
-	mw.Close()
+	_ = mw.Close()
 
 	req := httptest.NewRequest(http.MethodPost, "/api/restore", &body)
 	req.Header.Set("Content-Type", mw.FormDataContentType())
@@ -169,13 +194,13 @@ func TestRestoreWithBothFiles(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
 
-	// Verify pokemon.json was written
-	data, err := os.ReadFile(filepath.Join(configDir, "pokemon.json"))
+	// Verify template file was written
+	data, err := os.ReadFile(filepath.Join(configDir, "templates", "p1", "tmpl.png"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != pokemonJSON {
-		t.Errorf("pokemon.json content = %q, want %q", string(data), pokemonJSON)
+	if string(data) != "fake-png" {
+		t.Errorf("template content = %q, want %q", string(data), "fake-png")
 	}
 }
 
@@ -268,7 +293,7 @@ func TestWritePump_ChannelClose(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Read initial state
 	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))

@@ -154,7 +154,7 @@ func findKeyboardDevices() ([]string, error) {
 		}
 		var evBits [1]byte
 		_, _, errno := syscall.Syscall(syscall.SYS_IOCTL, f.Fd(), eviocgbitTypes, uintptr(unsafe.Pointer(&evBits[0])))
-		f.Close()
+		_ = f.Close()
 		if errno != 0 {
 			continue
 		}
@@ -175,7 +175,7 @@ func (m *linuxManager) readDevice(path string) {
 	// Close the file when the context is done to unblock the blocking Read below.
 	go func() {
 		<-m.ctx.Done()
-		f.Close()
+		_ = f.Close()
 	}()
 
 	var (

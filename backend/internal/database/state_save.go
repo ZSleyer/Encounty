@@ -17,7 +17,7 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -81,7 +81,7 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err != nil {
 		return fmt.Errorf("prepare settings_languages: %w", err)
 	}
-	defer langStmt.Close()
+	defer func() { _ = langStmt.Close() }()
 	for i, lang := range st.Settings.Languages {
 		if _, err := langStmt.Exec(lang, i); err != nil {
 			return fmt.Errorf("insert language %q: %w", lang, err)
@@ -130,7 +130,7 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err != nil {
 		return fmt.Errorf("prepare pokemon upsert: %w", err)
 	}
-	defer pokemonStmt.Close()
+	defer func() { _ = pokemonStmt.Close() }()
 
 	for i, p := range st.Pokemon {
 		if _, err := pokemonStmt.Exec(
@@ -197,7 +197,7 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err != nil {
 		return fmt.Errorf("prepare detector_configs upsert: %w", err)
 	}
-	defer detCfgStmt.Close()
+	defer func() { _ = detCfgStmt.Close() }()
 
 	for _, p := range st.Pokemon {
 		if p.DetectorConfig == nil {
@@ -244,7 +244,7 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err != nil {
 		return fmt.Errorf("prepare sessions: %w", err)
 	}
-	defer sessStmt.Close()
+	defer func() { _ = sessStmt.Close() }()
 	for _, s := range st.Sessions {
 		if _, err := sessStmt.Exec(
 			s.ID, s.PokemonID,
@@ -453,7 +453,7 @@ func insertGradientStops(tx *sql.Tx, styleID int64, gradientType string, stops [
 	if err != nil {
 		return fmt.Errorf("prepare gradient_stops: %w", err)
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	for i, s := range stops {
 		if _, err := stmt.Exec(styleID, gradientType, s.Color, s.Position, i); err != nil {
 			return fmt.Errorf("insert gradient_stop: %w", err)
@@ -506,7 +506,7 @@ func saveDetectorTemplates(tx *sql.Tx, pokemon []state.Pokemon) error {
 	if err != nil {
 		return fmt.Errorf("query detector_templates: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var toDelete []int64
 	for rows.Next() {
 		var id int64

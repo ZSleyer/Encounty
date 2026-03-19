@@ -56,10 +56,10 @@ func writeTemplateFile(t *testing.T, tmpDir, pokemonID string) state.DetectorCon
 		}
 	}
 	if err := png.Encode(f, img); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	return state.DetectorConfig{
 		Enabled:    true,

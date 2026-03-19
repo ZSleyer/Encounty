@@ -15,7 +15,7 @@ import (
 // HasState reports whether the normalized schema contains an app_config row.
 func (d *DB) HasState() bool {
 	var n int
-	d.db.QueryRow(`SELECT 1 FROM app_config WHERE id = 1`).Scan(&n)
+	_ = d.db.QueryRow(`SELECT 1 FROM app_config WHERE id = 1`).Scan(&n)
 	return n == 1
 }
 
@@ -158,7 +158,7 @@ func loadLanguages(db *sql.DB) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var langs []string
 	for rows.Next() {
 		var lang string
@@ -182,7 +182,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var pokemon []state.Pokemon
 	for rows.Next() {
@@ -256,16 +256,16 @@ func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTempla
 		var t state.DetectorTemplate
 		var sortOrder int
 		if err := rows.Scan(&t.TemplateDBID, &sortOrder); err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, err
 		}
 		templates = append(templates, t)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	// Now that the cursor is closed, load regions for each template.
 	for i := range templates {
@@ -287,7 +287,7 @@ func loadTemplateRegions(db *sql.DB, templateID int64) ([]state.MatchedRegion, e
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var regions []state.MatchedRegion
 	for rows.Next() {
@@ -309,7 +309,7 @@ func loadDetectionLog(db *sql.DB, pokemonID string) ([]state.DetectionLogEntry, 
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var entries []state.DetectionLogEntry
 	for rows.Next() {
@@ -335,7 +335,7 @@ func loadSessions(db *sql.DB) ([]state.Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var sessions []state.Session
 	for rows.Next() {
@@ -415,17 +415,17 @@ func loadOverlay(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings,
 		if err := elemRows.Scan(&e.id, &e.elemType, &visible, &e.base.X, &e.base.Y, &e.base.Width,
 			&e.base.Height, &e.base.ZIndex, &e.showGlow, &e.glowColor, &e.glowOpacity, &e.glowBlur,
 			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.showLabel, &e.labelText); err != nil {
-			elemRows.Close()
+			_ = elemRows.Close()
 			return nil, fmt.Errorf("scan overlay_element: %w", err)
 		}
 		e.base.Visible = visible != 0
 		elems = append(elems, e)
 	}
 	if err := elemRows.Err(); err != nil {
-		elemRows.Close()
+		_ = elemRows.Close()
 		return nil, err
 	}
-	elemRows.Close()
+	_ = elemRows.Close()
 
 	// Now that the cursor is closed, we can safely query text_styles.
 	for _, e := range elems {
@@ -547,7 +547,7 @@ func loadGradientStops(db *sql.DB, textStyleID int64, gradientType string) ([]st
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	stops := []state.GradientStop{}
 	for rows.Next() {

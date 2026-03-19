@@ -22,7 +22,7 @@ func openTestDB(t *testing.T, dir string) *database.DB {
 	if err != nil {
 		t.Fatalf("database.Open: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 

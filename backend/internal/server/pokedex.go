@@ -87,7 +87,7 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusServiceUnavailable, errResp{"PokeAPI unavailable: " + err.Error()})
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -133,7 +133,7 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 	qNewForms := `{"query":"query{pokemon_v2_pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id}}"}`
 	respForms, errForms := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(qNewForms))
 	if errForms == nil {
-		defer respForms.Body.Close()
+		defer func() { _ = respForms.Body.Close() }()
 		var glForms struct {
 			Data struct {
 				Pokemon []struct {
@@ -178,7 +178,7 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 	respGL, errGL := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(q))
 	var namesUpdated int
 	if errGL == nil {
-		defer respGL.Body.Close()
+		defer func() { _ = respGL.Body.Close() }()
 		var glResp struct {
 			Data struct {
 				Names []struct {
@@ -240,7 +240,7 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 	qForms := `{"query":"query{pokemon_v2_pokemonformname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){pokemon_v2_pokemonform{name} pokemon_v2_language{name} pokemon_name name}}"}`
 	respGLForms, errGLForms := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(qForms))
 	if errGLForms == nil {
-		defer respGLForms.Body.Close()
+		defer func() { _ = respGLForms.Body.Close() }()
 		var glRespForms struct {
 			Data struct {
 				Names []struct {
@@ -366,7 +366,7 @@ func (s *Server) readPokedexJSON() ([]byte, error) {
 	if s.frontendFS != nil {
 		f, err := s.frontendFS.Open("frontend/dist/pokemon.json")
 		if err == nil {
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 			return io.ReadAll(f)
 		}
 	}

@@ -35,16 +35,16 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 
 	zw := zip.NewWriter(w)
-	defer zw.Close()
+	defer func() { _ = zw.Close() }()
 
 	// Include the SQLite database
 	dbPath := filepath.Join(configDir, "encounty.db")
 	if f, err := os.Open(dbPath); err == nil {
 		fw, err := zw.Create("encounty.db")
 		if err == nil {
-			io.Copy(fw, f)
+			_, _ = io.Copy(fw, f)
 		}
-		f.Close()
+		_ = f.Close()
 	}
 
 	// Recursively include all template images under templates/.
@@ -61,12 +61,12 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return nil
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 		fw, err := zw.Create(rel)
 		if err != nil {
 			return nil
 		}
-		io.Copy(fw, f)
+		_, _ = io.Copy(fw, f)
 		return nil
 	})
 }
@@ -90,7 +90,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no backup file provided", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
@@ -125,7 +125,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		content, err := io.ReadAll(rc)
-		rc.Close()
+		_ = rc.Close()
 		if err != nil {
 			continue
 		}
@@ -153,7 +153,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 
 	// Reopen the database and reload state
 	if s.db != nil {
-		s.db.Close()
+		_ = s.db.Close()
 	}
 	dbPath := filepath.Join(configDir, "encounty.db")
 	newDB, err := database.Open(dbPath)

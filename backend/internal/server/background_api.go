@@ -106,7 +106,7 @@ func (s *Server) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, "save failed", http.StatusInternalServerError)
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	switch ext {
 	case "png":

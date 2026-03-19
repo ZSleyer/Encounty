@@ -115,7 +115,7 @@ func fetchUpdateInfo(currentVersion string) (*UpdateInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
@@ -190,7 +190,7 @@ func (s *Server) performUpdate(downloadURL string) {
 	if runtime.GOOS != "windows" {
 		if err := os.Chmod(tmpPath, 0755); err != nil {
 			slog.Error("Update: chmod failed", "error", err)
-			os.Remove(tmpPath)
+			_ = os.Remove(tmpPath)
 			return
 		}
 	}
@@ -209,7 +209,7 @@ func (s *Server) performUpdate(downloadURL string) {
 	slog.Info("Update: replacing binary and restarting")
 	if err := replaceAndRestart(tmpPath, exe); err != nil {
 		slog.Error("Update: replace and restart failed", "error", err)
-		os.Remove(tmpPath)
+		_ = os.Remove(tmpPath)
 	}
 }
 
@@ -221,7 +221,7 @@ func downloadFile(url, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
@@ -229,7 +229,7 @@ func downloadFile(url, dest string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	_, err = io.Copy(f, resp.Body)
 	return err
 }

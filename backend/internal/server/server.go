@@ -253,7 +253,7 @@ func spaHandler(fsys fs.FS) http.Handler {
 		f, err := fsys.Open(p)
 		if err == nil {
 			info, statErr := f.Stat()
-			f.Close()
+			_ = f.Close()
 			// Only forward to the file server if it's a regular file (not a dir).
 			// Directories would trigger FileServer's index-redirect logic.
 			if statErr == nil && !info.IsDir() {

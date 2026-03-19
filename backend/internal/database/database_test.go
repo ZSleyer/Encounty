@@ -216,7 +216,7 @@ func openTestDB(t *testing.T) *database.DB {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
 
@@ -1254,10 +1254,10 @@ func TestGetOverviewStats(t *testing.T) {
 	db := openTestDB(t)
 
 	// Insert encounters for p1 and p2.
-	db.LogEncounter("p1", "Pikachu", 10, 10, "test")
-	db.LogEncounter("p1", "Pikachu", 5, 15, "test")
-	db.LogEncounter("p2", "Charmander", 20, 20, "test")
-	db.LogEncounter("p2", "Charmander", 3, 23, "test")
+	_ = db.LogEncounter("p1", "Pikachu", 10, 10, "test")
+	_ = db.LogEncounter("p1", "Pikachu", 5, 15, "test")
+	_ = db.LogEncounter("p2", "Charmander", 20, 20, "test")
+	_ = db.LogEncounter("p2", "Charmander", 3, 23, "test")
 
 	stats, err := db.GetOverviewStats()
 	if err != nil {
@@ -1381,11 +1381,11 @@ func TestGetTimerSessions(t *testing.T) {
 	id3, _ := db.StartTimerSession("p1")
 
 	// End session 1 and 3.
-	db.EndTimerSession(id1, 10)
-	db.EndTimerSession(id3, 30)
+	_ = db.EndTimerSession(id1, 10)
+	_ = db.EndTimerSession(id3, 30)
 
 	// Create 1 session for p2.
-	db.StartTimerSession("p2")
+	_, _ = db.StartTimerSession("p2")
 
 	sessions, err := db.GetTimerSessions("p1")
 	if err != nil {
@@ -1486,7 +1486,7 @@ func TestHasAppState(t *testing.T) {
 		t.Error("HasAppState should be false initially")
 	}
 
-	db.SaveAppState([]byte(`{"test":true}`))
+	_ = db.SaveAppState([]byte(`{"test":true}`))
 
 	if !db.HasAppState() {
 		t.Error("HasAppState should be true after save")
@@ -1584,7 +1584,7 @@ func TestHasGames(t *testing.T) {
 	rows := []database.GameRow{
 		{Key: "test", NamesJSON: []byte(`{}`), Generation: 1, Platform: "test"},
 	}
-	db.SaveGames(rows)
+	_ = db.SaveGames(rows)
 
 	if !db.HasGames() {
 		t.Error("HasGames should be true after save")

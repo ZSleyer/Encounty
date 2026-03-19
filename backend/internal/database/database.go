@@ -75,7 +75,7 @@ func Open(path string) (*DB, error) {
 
 	d := &DB{db: sqlDB}
 	if err := d.migrate(); err != nil {
-		sqlDB.Close()
+		_ = sqlDB.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	return d, nil
@@ -144,7 +144,7 @@ func (d *DB) migrate() error {
 // SchemaVersion returns the current schema version, or 0 if unset.
 func (d *DB) SchemaVersion() int {
 	var v int
-	d.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_version`).Scan(&v)
+	_ = d.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_version`).Scan(&v)
 	return v
 }
 
@@ -179,7 +179,7 @@ func (d *DB) GetEncounterHistory(pokemonID string, limit, offset int) ([]Encount
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var events []EncounterEvent
 	for rows.Next() {
 		var e EncounterEvent
@@ -218,7 +218,7 @@ func (d *DB) GetEncounterStats(pokemonID string) (*EncounterStats, error) {
 	}
 
 	// First and last timestamps
-	d.db.QueryRow(
+	_ = d.db.QueryRow(
 		`SELECT MIN(timestamp), MAX(timestamp) FROM encounter_events WHERE pokemon_id = ? AND delta > 0`,
 		pokemonID,
 	).Scan(&stats.FirstAt, &stats.LastAt)
@@ -263,7 +263,7 @@ func (d *DB) GetChartData(pokemonID, interval string) ([]ChartPoint, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var points []ChartPoint
 	for rows.Next() {
 		var p ChartPoint
@@ -281,10 +281,10 @@ func (d *DB) GetChartData(pokemonID, interval string) ([]ChartPoint, error) {
 // GetOverviewStats returns global statistics.
 func (d *DB) GetOverviewStats() (*OverviewStats, error) {
 	stats := &OverviewStats{}
-	d.db.QueryRow(`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE delta > 0`).Scan(&stats.TotalEncounters)
-	d.db.QueryRow(`SELECT COUNT(DISTINCT pokemon_id) FROM encounter_events`).Scan(&stats.TotalPokemon)
+	_ = d.db.QueryRow(`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE delta > 0`).Scan(&stats.TotalEncounters)
+	_ = d.db.QueryRow(`SELECT COUNT(DISTINCT pokemon_id) FROM encounter_events`).Scan(&stats.TotalPokemon)
 	todayStart := time.Now().UTC().Truncate(24 * time.Hour).Format(time.RFC3339)
-	d.db.QueryRow(`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE delta > 0 AND timestamp >= ?`, todayStart).Scan(&stats.Today)
+	_ = d.db.QueryRow(`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE delta > 0 AND timestamp >= ?`, todayStart).Scan(&stats.Today)
 	return stats, nil
 }
 
@@ -319,7 +319,7 @@ func (d *DB) GetTimerSessions(pokemonID string) ([]TimerSession, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var sessions []TimerSession
 	for rows.Next() {
 		var s TimerSession
@@ -360,7 +360,7 @@ func (d *DB) LoadAppState() ([]byte, error) {
 // HasAppState reports whether the app_state table contains a row.
 func (d *DB) HasAppState() bool {
 	var n int
-	d.db.QueryRow(`SELECT 1 FROM app_state WHERE id = 1`).Scan(&n)
+	_ = d.db.QueryRow(`SELECT 1 FROM app_state WHERE id = 1`).Scan(&n)
 	return n == 1
 }
 
@@ -370,7 +370,7 @@ func (d *DB) SaveGames(rows []GameRow) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.Exec(`DELETE FROM games`); err != nil {
 		return err
 	}
@@ -378,7 +378,7 @@ func (d *DB) SaveGames(rows []GameRow) error {
 	if err != nil {
 		return err
 	}
-	defer stmt.Close()
+	defer func() { _ = stmt.Close() }()
 	for _, r := range rows {
 		if _, err := stmt.Exec(r.Key, string(r.NamesJSON), r.Generation, r.Platform); err != nil {
 			return err
@@ -393,7 +393,7 @@ func (d *DB) LoadGames() ([]GameRow, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var result []GameRow
 	for rows.Next() {
 		var r GameRow
@@ -410,7 +410,7 @@ func (d *DB) LoadGames() ([]GameRow, error) {
 // HasGames reports whether the games table contains any rows.
 func (d *DB) HasGames() bool {
 	var n int
-	d.db.QueryRow(`SELECT 1 FROM games LIMIT 1`).Scan(&n)
+	_ = d.db.QueryRow(`SELECT 1 FROM games LIMIT 1`).Scan(&n)
 	return n == 1
 }
 

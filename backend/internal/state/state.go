@@ -849,7 +849,7 @@ func (m *Manager) SetConfigDir(newDir string) error {
 	if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 		return fmt.Errorf("directory not writable: %w", err)
 	}
-	os.Remove(testFile)
+	_ = os.Remove(testFile)
 
 	oldDir := m.configDir
 

@@ -31,10 +31,10 @@ func newTestBrowserDetector(t *testing.T, precision float64, consecutiveHits, co
 		t.Fatal(err)
 	}
 	if err := png.Encode(f, tmplImg); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	cfg := state.DetectorConfig{
 		Enabled:         true,
@@ -323,10 +323,10 @@ func TestLoadTemplates_ValidFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := png.Encode(f, img); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	templates := []state.DetectorTemplate{
 		{ImagePath: "test.png"},
@@ -351,10 +351,10 @@ func TestLoadTemplates_AbsolutePath(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := png.Encode(f, img); err != nil {
-		f.Close()
+		_ = f.Close()
 		t.Fatal(err)
 	}
-	f.Close()
+	_ = f.Close()
 
 	templates := []state.DetectorTemplate{
 		{ImagePath: absPath},

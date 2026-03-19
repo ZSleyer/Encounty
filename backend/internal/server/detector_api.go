@@ -398,7 +398,7 @@ func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Req
 		writeJSON(w, http.StatusBadGateway, errResp{fmt.Sprintf("failed to fetch sprite: %v", err)})
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// image.Decode auto-detects PNG, JPEG, GIF (registered via blank imports).
 	img, _, err := image.Decode(resp.Body)
