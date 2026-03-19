@@ -277,10 +277,15 @@ func (s *Server) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Ensure the detector_configs row exists before inserting the template,
-	// because detector_templates.pokemon_id has a FK → detector_configs.pokemon_id.
+	// Ensure the detector_configs row exists in the DB before inserting the
+	// template image, because detector_templates.pokemon_id has a FK →
+	// detector_configs.pokemon_id. Must use Save() (not ScheduleSave) so
+	// the row is written synchronously before the INSERT below.
 	s.state.SetDetectorConfig(id, &cfg)
-	s.state.ScheduleSave()
+	if err := s.state.Save(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+		return
+	}
 
 	tmpl := state.DetectorTemplate{Regions: regions}
 	sortOrder := len(cfg.Templates)
@@ -413,10 +418,13 @@ func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Ensure the detector_configs row exists before inserting the template,
-	// because detector_templates.pokemon_id has a FK → detector_configs.pokemon_id.
+	// Ensure the detector_configs row exists in the DB before inserting the
+	// template image (FK constraint). Must use Save() synchronously.
 	s.state.SetDetectorConfig(id, &cfg)
-	s.state.ScheduleSave()
+	if err := s.state.Save(); err != nil {
+		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+		return
+	}
 
 	b := img.Bounds()
 	sortOrder := len(cfg.Templates)
