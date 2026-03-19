@@ -57,6 +57,14 @@ type TimerSession struct {
 	EncountersDuring int    `json:"encounters_during"`
 }
 
+// GameRow represents a single game entry as stored in the database.
+type GameRow struct {
+	Key        string
+	NamesJSON  []byte
+	Generation int
+	Platform   string
+}
+
 // Open creates or opens a SQLite database at path and runs migrations.
 func Open(path string) (*DB, error) {
 	sqlDB, err := sql.Open("sqlite", path+"?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)")
@@ -79,7 +87,9 @@ func (d *DB) Close() error {
 }
 
 func (d *DB) migrate() error {
-	stmts := []string{
+	// Legacy tables (encounter_events, timer_sessions, app_state, games)
+	// are kept for backward compatibility and migration.
+	legacyStmts := []string{
 		`CREATE TABLE IF NOT EXISTS encounter_events (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			pokemon_id TEXT NOT NULL,
@@ -99,13 +109,50 @@ func (d *DB) migrate() error {
 			encounters_during INTEGER DEFAULT 0
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_timer_pokemon ON timer_sessions(pokemon_id)`,
+		`CREATE TABLE IF NOT EXISTS app_state (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			data TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS games (
+			key TEXT PRIMARY KEY,
+			names TEXT NOT NULL,
+			generation INTEGER NOT NULL,
+			platform TEXT NOT NULL
+		)`,
 	}
-	for _, s := range stmts {
+	for _, s := range legacyStmts {
 		if _, err := d.db.Exec(s); err != nil {
 			return fmt.Errorf("exec %q: %w", s[:40], err)
 		}
 	}
+
+	// Enable foreign key enforcement (off by default in SQLite).
+	if _, err := d.db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
+		return fmt.Errorf("enable foreign keys: %w", err)
+	}
+
+	// Normalized v2 schema tables.
+	for _, s := range schemaV2 {
+		if _, err := d.db.Exec(s); err != nil {
+			return fmt.Errorf("exec %q: %w", s[:min(40, len(s))], err)
+		}
+	}
 	return nil
+}
+
+// SchemaVersion returns the current schema version, or 0 if unset.
+func (d *DB) SchemaVersion() int {
+	var v int
+	d.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_version`).Scan(&v)
+	return v
+}
+
+// SetSchemaVersion records the schema version.
+func (d *DB) SetSchemaVersion(v int) error {
+	_, err := d.db.Exec(
+		`INSERT INTO schema_version (version) VALUES (?) ON CONFLICT(version) DO NOTHING`, v)
+	return err
 }
 
 // LogEncounter records an encounter event.
@@ -285,6 +332,86 @@ func (d *DB) GetTimerSessions(pokemonID string) ([]TimerSession, error) {
 		sessions = []TimerSession{}
 	}
 	return sessions, rows.Err()
+}
+
+// SaveAppState upserts the serialised application state into the single-row app_state table.
+func (d *DB) SaveAppState(data []byte) error {
+	_, err := d.db.Exec(
+		`INSERT INTO app_state (id, data, updated_at) VALUES (1, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`,
+		string(data), time.Now().UTC().Format(time.RFC3339),
+	)
+	return err
+}
+
+// LoadAppState returns the stored application state blob, or nil if no row exists.
+func (d *DB) LoadAppState() ([]byte, error) {
+	var data string
+	err := d.db.QueryRow(`SELECT data FROM app_state WHERE id = 1`).Scan(&data)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return []byte(data), nil
+}
+
+// HasAppState reports whether the app_state table contains a row.
+func (d *DB) HasAppState() bool {
+	var n int
+	d.db.QueryRow(`SELECT 1 FROM app_state WHERE id = 1`).Scan(&n)
+	return n == 1
+}
+
+// SaveGames replaces all rows in the games table within a transaction.
+func (d *DB) SaveGames(rows []GameRow) error {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM games`); err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare(`INSERT INTO games (key, names, generation, platform) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for _, r := range rows {
+		if _, err := stmt.Exec(r.Key, string(r.NamesJSON), r.Generation, r.Platform); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// LoadGames returns all game rows from the database, or nil if the table is empty.
+func (d *DB) LoadGames() ([]GameRow, error) {
+	rows, err := d.db.Query(`SELECT key, names, generation, platform FROM games ORDER BY generation, key`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []GameRow
+	for rows.Next() {
+		var r GameRow
+		var names string
+		if err := rows.Scan(&r.Key, &names, &r.Generation, &r.Platform); err != nil {
+			return nil, err
+		}
+		r.NamesJSON = []byte(names)
+		result = append(result, r)
+	}
+	return result, rows.Err()
+}
+
+// HasGames reports whether the games table contains any rows.
+func (d *DB) HasGames() bool {
+	var n int
+	d.db.QueryRow(`SELECT 1 FROM games LIMIT 1`).Scan(&n)
+	return n == 1
 }
 
 func mustAtoi(s string) int {

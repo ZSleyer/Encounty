@@ -1,0 +1,585 @@
+// state_load.go reconstructs a full AppState from the normalized v2 schema.
+// It reads every table (app_config, hotkeys, settings, pokemon, sessions, etc.)
+// and assembles them into a single state.AppState value. Overlay settings are
+// loaded via a shared helper that handles elements, text styles, and gradient stops.
+package database
+
+import (
+	"database/sql"
+	"fmt"
+	"time"
+
+	"github.com/zsleyer/encounty/backend/internal/state"
+)
+
+// HasState reports whether the normalized schema contains an app_config row.
+func (d *DB) HasState() bool {
+	var n int
+	d.db.QueryRow(`SELECT 1 FROM app_config WHERE id = 1`).Scan(&n)
+	return n == 1
+}
+
+// LoadFullState reads all normalized tables and assembles a complete AppState.
+// Returns nil (without error) when no app_config row exists yet.
+func (d *DB) LoadFullState() (*state.AppState, error) {
+	// 1. Check for app_config row
+	var activeID, dataPath string
+	var licenseAccepted int
+	err := d.db.QueryRow(`SELECT active_id, license_accepted, data_path FROM app_config WHERE id = 1`).
+		Scan(&activeID, &licenseAccepted, &dataPath)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("load app_config: %w", err)
+	}
+
+	st := &state.AppState{
+		ActiveID:        activeID,
+		LicenseAccepted: licenseAccepted != 0,
+		DataPath:        dataPath,
+		Pokemon:         []state.Pokemon{},
+		Sessions:        []state.Session{},
+	}
+
+	// 2. Load hotkeys
+	st.Hotkeys, err = loadHotkeys(d.db)
+	if err != nil {
+		return nil, fmt.Errorf("load hotkeys: %w", err)
+	}
+
+	// 3. Load settings
+	st.Settings, err = loadSettings(d.db)
+	if err != nil {
+		return nil, fmt.Errorf("load settings: %w", err)
+	}
+
+	// 4. Load settings languages
+	st.Settings.Languages, err = loadLanguages(d.db)
+	if err != nil {
+		return nil, fmt.Errorf("load languages: %w", err)
+	}
+
+	// 5. Load global overlay
+	globalOverlay, err := loadOverlay(d.db, "global", "default")
+	if err != nil {
+		return nil, fmt.Errorf("load global overlay: %w", err)
+	}
+	if globalOverlay != nil {
+		st.Settings.Overlay = *globalOverlay
+	}
+
+	// 6. Load all pokemon
+	st.Pokemon, err = loadPokemon(d.db)
+	if err != nil {
+		return nil, fmt.Errorf("load pokemon: %w", err)
+	}
+
+	// 7. For each pokemon: overlay, detector config, templates, detection log
+	for i := range st.Pokemon {
+		p := &st.Pokemon[i]
+
+		// Per-pokemon overlay (only when custom)
+		if p.OverlayMode == "custom" {
+			ov, err := loadOverlay(d.db, "pokemon", p.ID)
+			if err != nil {
+				return nil, fmt.Errorf("load overlay for pokemon %s: %w", p.ID, err)
+			}
+			p.Overlay = ov
+		}
+
+		// Detector config
+		dc, err := loadDetectorConfig(d.db, p.ID)
+		if err != nil {
+			return nil, fmt.Errorf("load detector config for %s: %w", p.ID, err)
+		}
+		if dc != nil {
+			// Templates (without image_data)
+			dc.Templates, err = loadDetectorTemplates(d.db, p.ID)
+			if err != nil {
+				return nil, fmt.Errorf("load templates for %s: %w", p.ID, err)
+			}
+
+			// Detection log
+			dc.DetectionLog, err = loadDetectionLog(d.db, p.ID)
+			if err != nil {
+				return nil, fmt.Errorf("load detection log for %s: %w", p.ID, err)
+			}
+		}
+		p.DetectorConfig = dc
+	}
+
+	// 8. Load sessions
+	st.Sessions, err = loadSessions(d.db)
+	if err != nil {
+		return nil, fmt.Errorf("load sessions: %w", err)
+	}
+
+	return st, nil
+}
+
+// loadHotkeys reads the singleton hotkeys row.
+func loadHotkeys(db *sql.DB) (state.HotkeyMap, error) {
+	var h state.HotkeyMap
+	err := db.QueryRow(`SELECT increment, decrement, reset, next_pokemon FROM hotkeys WHERE id = 1`).
+		Scan(&h.Increment, &h.Decrement, &h.Reset, &h.NextPokemon)
+	if err == sql.ErrNoRows {
+		return h, nil
+	}
+	return h, err
+}
+
+// loadSettings reads the singleton settings row including inline tutorial flags.
+func loadSettings(db *sql.DB) (state.Settings, error) {
+	var s state.Settings
+	var outputEnabled, autoSave, crispSprites, tutOverlay, tutDetection int
+	err := db.QueryRow(`SELECT output_enabled, output_dir, auto_save, browser_port,
+		crisp_sprites, config_path, tutorial_overlay_editor, tutorial_auto_detection
+		FROM settings WHERE id = 1`).
+		Scan(&outputEnabled, &s.OutputDir, &autoSave, &s.BrowserPort,
+			&crispSprites, &s.ConfigPath, &tutOverlay, &tutDetection)
+	if err == sql.ErrNoRows {
+		return s, nil
+	}
+	if err != nil {
+		return s, err
+	}
+	s.OutputEnabled = outputEnabled != 0
+	s.AutoSave = autoSave != 0
+	s.CrispSprites = crispSprites != 0
+	s.TutorialSeen.OverlayEditor = tutOverlay != 0
+	s.TutorialSeen.AutoDetection = tutDetection != 0
+	return s, nil
+}
+
+// loadLanguages reads all language entries ordered by sort_order.
+func loadLanguages(db *sql.DB) ([]string, error) {
+	rows, err := db.Query(`SELECT language FROM settings_languages ORDER BY sort_order`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var langs []string
+	for rows.Next() {
+		var lang string
+		if err := rows.Scan(&lang); err != nil {
+			return nil, err
+		}
+		langs = append(langs, lang)
+	}
+	if langs == nil {
+		langs = []string{}
+	}
+	return langs, rows.Err()
+}
+
+// loadPokemon reads all pokemon rows ordered by sort_order.
+func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
+	rows, err := db.Query(`SELECT id, name, title, canonical_name, sprite_url, sprite_type,
+		sprite_style, encounters, step, is_active, created_at, language, game,
+		completed_at, overlay_mode, hunt_type, timer_started_at, timer_accumulated_ms
+		FROM pokemon ORDER BY sort_order`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pokemon []state.Pokemon
+	for rows.Next() {
+		var p state.Pokemon
+		var isActive int
+		var createdAtStr string
+		var completedAt, timerStartedAt sql.NullString
+
+		if err := rows.Scan(&p.ID, &p.Name, &p.Title, &p.CanonicalName, &p.SpriteURL,
+			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
+			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
+			&p.HuntType, &timerStartedAt, &p.TimerAccumulatedMs); err != nil {
+			return nil, err
+		}
+		p.IsActive = isActive != 0
+		if t, err := time.Parse(time.RFC3339, createdAtStr); err == nil {
+			p.CreatedAt = t
+		}
+		if completedAt.Valid && completedAt.String != "" {
+			if t, err := time.Parse(time.RFC3339, completedAt.String); err == nil {
+				p.CompletedAt = &t
+			}
+		}
+		if timerStartedAt.Valid && timerStartedAt.String != "" {
+			if t, err := time.Parse(time.RFC3339, timerStartedAt.String); err == nil {
+				p.TimerStartedAt = &t
+			}
+		}
+		pokemon = append(pokemon, p)
+	}
+	if pokemon == nil {
+		pokemon = []state.Pokemon{}
+	}
+	return pokemon, rows.Err()
+}
+
+// loadDetectorConfig reads the optional detector_configs row for a pokemon.
+func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, error) {
+	var dc state.DetectorConfig
+	var enabled int
+	err := db.QueryRow(`SELECT enabled, source_type, region_x, region_y, region_w, region_h,
+		window_title, precision_val, consecutive_hits, cooldown_sec, change_threshold,
+		poll_interval_ms, min_poll_ms, max_poll_ms
+		FROM detector_configs WHERE pokemon_id = ?`, pokemonID).
+		Scan(&enabled, &dc.SourceType, &dc.Region.X, &dc.Region.Y, &dc.Region.W, &dc.Region.H,
+			&dc.WindowTitle, &dc.Precision, &dc.ConsecutiveHits, &dc.CooldownSec,
+			&dc.ChangeThreshold, &dc.PollIntervalMs, &dc.MinPollMs, &dc.MaxPollMs)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	dc.Enabled = enabled != 0
+	dc.Templates = []state.DetectorTemplate{}
+	dc.DetectionLog = []state.DetectionLogEntry{}
+	return &dc, nil
+}
+
+// loadDetectorTemplates reads templates for a pokemon without loading image_data BLOBs.
+// It collects all template rows first and closes the cursor before querying
+// regions, avoiding a deadlock with MaxOpenConns(1).
+func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTemplate, error) {
+	rows, err := db.Query(`SELECT id, sort_order FROM detector_templates WHERE pokemon_id = ? ORDER BY sort_order`, pokemonID)
+	if err != nil {
+		return nil, err
+	}
+
+	var templates []state.DetectorTemplate
+	for rows.Next() {
+		var t state.DetectorTemplate
+		var sortOrder int
+		if err := rows.Scan(&t.TemplateDBID, &sortOrder); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		templates = append(templates, t)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	// Now that the cursor is closed, load regions for each template.
+	for i := range templates {
+		templates[i].Regions, err = loadTemplateRegions(db, templates[i].TemplateDBID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if templates == nil {
+		templates = []state.DetectorTemplate{}
+	}
+	return templates, nil
+}
+
+// loadTemplateRegions reads matched regions for a single template.
+func loadTemplateRegions(db *sql.DB, templateID int64) ([]state.MatchedRegion, error) {
+	rows, err := db.Query(`SELECT type, expected_text, rect_x, rect_y, rect_w, rect_h
+		FROM template_regions WHERE template_id = ? ORDER BY sort_order`, templateID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var regions []state.MatchedRegion
+	for rows.Next() {
+		var r state.MatchedRegion
+		if err := rows.Scan(&r.Type, &r.ExpectedText, &r.Rect.X, &r.Rect.Y, &r.Rect.W, &r.Rect.H); err != nil {
+			return nil, err
+		}
+		regions = append(regions, r)
+	}
+	if regions == nil {
+		regions = []state.MatchedRegion{}
+	}
+	return regions, rows.Err()
+}
+
+// loadDetectionLog reads the most recent detection log entries for a pokemon.
+func loadDetectionLog(db *sql.DB, pokemonID string) ([]state.DetectionLogEntry, error) {
+	rows, err := db.Query(`SELECT at, confidence FROM detection_log WHERE pokemon_id = ? ORDER BY id DESC LIMIT 20`, pokemonID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []state.DetectionLogEntry
+	for rows.Next() {
+		var e state.DetectionLogEntry
+		var atStr string
+		if err := rows.Scan(&atStr, &e.Confidence); err != nil {
+			return nil, err
+		}
+		if t, err := time.Parse(time.RFC3339, atStr); err == nil {
+			e.At = t
+		}
+		entries = append(entries, e)
+	}
+	if entries == nil {
+		entries = []state.DetectionLogEntry{}
+	}
+	return entries, rows.Err()
+}
+
+// loadSessions reads all session records.
+func loadSessions(db *sql.DB) ([]state.Session, error) {
+	rows, err := db.Query(`SELECT id, pokemon_id, started_at, ended_at, encounters FROM sessions`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []state.Session
+	for rows.Next() {
+		var s state.Session
+		var startedAtStr string
+		var endedAt sql.NullString
+		if err := rows.Scan(&s.ID, &s.PokemonID, &startedAtStr, &endedAt, &s.Encounters); err != nil {
+			return nil, err
+		}
+		if t, err := time.Parse(time.RFC3339, startedAtStr); err == nil {
+			s.StartedAt = t
+		}
+		if endedAt.Valid && endedAt.String != "" {
+			if t, err := time.Parse(time.RFC3339, endedAt.String); err == nil {
+				s.EndedAt = &t
+			}
+		}
+		sessions = append(sessions, s)
+	}
+	if sessions == nil {
+		sessions = []state.Session{}
+	}
+	return sessions, rows.Err()
+}
+
+// loadOverlay reconstructs an OverlaySettings from the overlay_settings,
+// overlay_elements, text_styles, and gradient_stops tables.
+func loadOverlay(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings, error) {
+	var ov state.OverlaySettings
+	var overlayID int64
+	var hidden, showBorder int
+
+	err := db.QueryRow(`SELECT id, canvas_width, canvas_height, hidden, background_color,
+		background_opacity, background_animation, background_animation_speed,
+		background_image, background_image_fit, blur, show_border, border_color,
+		border_width, border_radius
+		FROM overlay_settings WHERE owner_type = ? AND owner_id = ?`, ownerType, ownerID).
+		Scan(&overlayID, &ov.CanvasWidth, &ov.CanvasHeight, &hidden, &ov.BackgroundColor,
+			&ov.BackgroundOpacity, &ov.BackgroundAnimation, &ov.BackgroundAnimationSpeed,
+			&ov.BackgroundImage, &ov.BackgroundImageFit, &ov.Blur, &showBorder,
+			&ov.BorderColor, &ov.BorderWidth, &ov.BorderRadius)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query overlay_settings: %w", err)
+	}
+	ov.Hidden = hidden != 0
+	ov.ShowBorder = showBorder != 0
+
+	// Load elements into a temporary slice first, then close the cursor
+	// before issuing further queries. With MaxOpenConns(1) the single
+	// connection is held by the open Rows; calling loadTextStyle while the
+	// cursor is still open would deadlock.
+	type elemRow struct {
+		id                                        int64
+		elemType                                  string
+		base                                      state.OverlayElementBase
+		showGlow, showLabel, glowBlur             sql.NullInt64
+		glowColor, idleAnim, triggerEnter         sql.NullString
+		triggerExit, labelText                     sql.NullString
+		glowOpacity                               sql.NullFloat64
+	}
+
+	elemRows, err := db.Query(`SELECT id, element_type, visible, x, y, width, height, z_index,
+		show_glow, glow_color, glow_opacity, glow_blur, idle_animation, trigger_enter, trigger_exit,
+		show_label, label_text
+		FROM overlay_elements WHERE overlay_id = ?`, overlayID)
+	if err != nil {
+		return nil, fmt.Errorf("query overlay_elements: %w", err)
+	}
+
+	var elems []elemRow
+	for elemRows.Next() {
+		var e elemRow
+		var visible int
+		if err := elemRows.Scan(&e.id, &e.elemType, &visible, &e.base.X, &e.base.Y, &e.base.Width,
+			&e.base.Height, &e.base.ZIndex, &e.showGlow, &e.glowColor, &e.glowOpacity, &e.glowBlur,
+			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.showLabel, &e.labelText); err != nil {
+			elemRows.Close()
+			return nil, fmt.Errorf("scan overlay_element: %w", err)
+		}
+		e.base.Visible = visible != 0
+		elems = append(elems, e)
+	}
+	if err := elemRows.Err(); err != nil {
+		elemRows.Close()
+		return nil, err
+	}
+	elemRows.Close()
+
+	// Now that the cursor is closed, we can safely query text_styles.
+	for _, e := range elems {
+		idleAnimStr := nullStr(e.idleAnim)
+		triggerEnterStr := nullStr(e.triggerEnter)
+		triggerExitStr := nullStr(e.triggerExit)
+
+		switch e.elemType {
+		case "sprite":
+			ov.Sprite = state.SpriteElement{
+				OverlayElementBase: e.base,
+				ShowGlow:           e.showGlow.Valid && e.showGlow.Int64 != 0,
+				GlowColor:          nullStr(e.glowColor),
+				GlowOpacity:        nullFloat(e.glowOpacity),
+				GlowBlur:           int(nullInt(e.glowBlur)),
+				IdleAnimation:      idleAnimStr,
+				TriggerEnter:       triggerEnterStr,
+				TriggerExit:        triggerExitStr,
+			}
+
+		case "name":
+			style, err := loadTextStyle(db, e.id, "main")
+			if err != nil {
+				return nil, fmt.Errorf("load name text style: %w", err)
+			}
+			ov.Name = state.NameElement{
+				OverlayElementBase: e.base,
+				Style:              style,
+				IdleAnimation:      idleAnimStr,
+				TriggerEnter:       triggerEnterStr,
+			}
+
+		case "title":
+			style, err := loadTextStyle(db, e.id, "main")
+			if err != nil {
+				return nil, fmt.Errorf("load title text style: %w", err)
+			}
+			ov.Title = state.TitleElement{
+				OverlayElementBase: e.base,
+				Style:              style,
+				IdleAnimation:      idleAnimStr,
+				TriggerEnter:       triggerEnterStr,
+			}
+
+		case "counter":
+			style, err := loadTextStyle(db, e.id, "main")
+			if err != nil {
+				return nil, fmt.Errorf("load counter text style: %w", err)
+			}
+			labelStyle, err := loadTextStyle(db, e.id, "label")
+			if err != nil {
+				return nil, fmt.Errorf("load counter label style: %w", err)
+			}
+			ov.Counter = state.CounterElement{
+				OverlayElementBase: e.base,
+				Style:              style,
+				ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
+				LabelText:          nullStr(e.labelText),
+				LabelStyle:         labelStyle,
+				IdleAnimation:      idleAnimStr,
+				TriggerEnter:       triggerEnterStr,
+			}
+		}
+	}
+
+	return &ov, nil
+}
+
+// loadTextStyle reads a single text_style row and its gradient stops.
+func loadTextStyle(db *sql.DB, elementID int64, role string) (state.TextStyle, error) {
+	var ts state.TextStyle
+	var styleID int64
+	var textShadow int
+
+	err := db.QueryRow(`SELECT id, font_family, font_size, font_weight, text_align,
+		color_type, color, gradient_angle, outline_type, outline_width, outline_color,
+		outline_gradient_angle, text_shadow, text_shadow_color, text_shadow_color_type,
+		text_shadow_gradient_angle, text_shadow_blur, text_shadow_x, text_shadow_y
+		FROM text_styles WHERE element_id = ? AND style_role = ?`, elementID, role).
+		Scan(&styleID, &ts.FontFamily, &ts.FontSize, &ts.FontWeight, &ts.TextAlign,
+			&ts.ColorType, &ts.Color, &ts.GradientAngle, &ts.OutlineType, &ts.OutlineWidth,
+			&ts.OutlineColor, &ts.OutlineGradientAngle, &textShadow, &ts.TextShadowColor,
+			&ts.TextShadowColorType, &ts.TextShadowGradientAngle, &ts.TextShadowBlur,
+			&ts.TextShadowX, &ts.TextShadowY)
+	if err == sql.ErrNoRows {
+		// Return zero-value style with non-nil slices
+		ts.GradientStops = []state.GradientStop{}
+		ts.OutlineGradientStops = []state.GradientStop{}
+		ts.TextShadowGradientStops = []state.GradientStop{}
+		return ts, nil
+	}
+	if err != nil {
+		return ts, err
+	}
+	ts.TextShadow = textShadow != 0
+
+	// Load gradient stops by type
+	var loadErr error
+	ts.GradientStops, loadErr = loadGradientStops(db, styleID, "color")
+	if loadErr != nil {
+		return ts, loadErr
+	}
+	ts.OutlineGradientStops, loadErr = loadGradientStops(db, styleID, "outline")
+	if loadErr != nil {
+		return ts, loadErr
+	}
+	ts.TextShadowGradientStops, loadErr = loadGradientStops(db, styleID, "shadow")
+	if loadErr != nil {
+		return ts, loadErr
+	}
+
+	return ts, nil
+}
+
+// loadGradientStops reads gradient stop entries for a text style and gradient type.
+func loadGradientStops(db *sql.DB, textStyleID int64, gradientType string) ([]state.GradientStop, error) {
+	rows, err := db.Query(`SELECT color, position FROM gradient_stops
+		WHERE text_style_id = ? AND gradient_type = ? ORDER BY sort_order`, textStyleID, gradientType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	stops := []state.GradientStop{}
+	for rows.Next() {
+		var gs state.GradientStop
+		if err := rows.Scan(&gs.Color, &gs.Position); err != nil {
+			return nil, err
+		}
+		stops = append(stops, gs)
+	}
+	return stops, rows.Err()
+}
+
+// nullStr extracts a string from a sql.NullString, returning "" if not valid.
+func nullStr(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
+}
+
+// nullFloat extracts a float64 from a sql.NullFloat64, returning 0 if not valid.
+func nullFloat(nf sql.NullFloat64) float64 {
+	if nf.Valid {
+		return nf.Float64
+	}
+	return 0
+}
+
+// nullInt extracts an int64 from a sql.NullInt64, returning 0 if not valid.
+func nullInt(ni sql.NullInt64) int64 {
+	if ni.Valid {
+		return ni.Int64
+	}
+	return 0
+}

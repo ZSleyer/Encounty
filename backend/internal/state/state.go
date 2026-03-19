@@ -65,10 +65,14 @@ type MatchedRegion struct {
 	Rect         DetectorRect `json:"rect"`
 }
 
-// DetectorTemplate bundles the saved screenshot and its defined regions.
+// DetectorTemplate bundles a saved screenshot and its defined regions.
+// ImageData holds the raw PNG bytes loaded from the database on demand;
+// it is excluded from JSON serialisation to avoid bloating WebSocket messages.
 type DetectorTemplate struct {
-	ImagePath string          `json:"image_path"`
-	Regions   []MatchedRegion `json:"regions"`
+	TemplateDBID int64           `json:"template_db_id,omitempty"` // DB primary key
+	ImagePath    string          `json:"image_path,omitempty"`     // legacy filesystem path
+	ImageData    []byte          `json:"-"`                        // PNG bytes, loaded on demand
+	Regions      []MatchedRegion `json:"regions"`
 }
 
 // DetectorRect defines a rectangular screen region in absolute pixel coordinates.
@@ -172,7 +176,15 @@ type SpriteElement struct {
 type NameElement struct {
 	OverlayElementBase
 	Style         TextStyle `json:"style"`
-	DisplayMode   string    `json:"display_mode,omitempty"` // "name" (default), "title", "both"
+	IdleAnimation string    `json:"idle_animation"`
+	TriggerEnter  string    `json:"trigger_enter"`
+}
+
+// TitleElement configures the custom title text layer of the overlay.
+// It only appears when the Pokémon has a user-defined title set.
+type TitleElement struct {
+	OverlayElementBase
+	Style         TextStyle `json:"style"`
 	IdleAnimation string    `json:"idle_animation"`
 	TriggerEnter  string    `json:"trigger_enter"`
 }
@@ -209,6 +221,7 @@ type OverlaySettings struct {
 	BorderRadius      int            `json:"border_radius"`
 	Sprite            SpriteElement  `json:"sprite"`
 	Name              NameElement    `json:"name"`
+	Title             TitleElement   `json:"title"`
 	Counter           CounterElement `json:"counter"`
 }
 
@@ -244,6 +257,24 @@ type AppState struct {
 	LicenseAccepted bool      `json:"license_accepted"`
 }
 
+// StateStore abstracts the database operations needed for state persistence.
+// The database.DB type satisfies this interface implicitly.
+type StateStore interface {
+	// Normalized state persistence (v2 schema).
+	SaveFullState(st *AppState) error
+	LoadFullState() (*AppState, error)
+	HasState() bool
+
+	// Template image BLOB operations (used by detector API).
+	SaveTemplateImage(pokemonID string, imageData []byte, sortOrder int) (int64, error)
+	LoadTemplateImage(templateDBID int64) ([]byte, error)
+	DeleteTemplateImage(templateDBID int64) error
+
+	// Legacy JSON blob methods (kept for migration from v1 schema).
+	LoadAppState() ([]byte, error)
+	HasAppState() bool
+}
+
 // Manager holds all in-memory application state and coordinates safe
 // concurrent access. All mutations go through Manager methods, which
 // hold the appropriate lock and then dispatch onChange callbacks so
@@ -252,6 +283,7 @@ type Manager struct {
 	mu        sync.RWMutex
 	state     AppState
 	configDir string
+	db        StateStore
 	onChange  []func(AppState)
 }
 
@@ -293,12 +325,28 @@ func NewManager(configDir string) *Manager {
 					Name: NameElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
 						Style: TextStyle{
-							FontFamily:   "sans",
-							FontSize:     20,
-							FontWeight:   400,
+							FontFamily:   "pokemon",
+							FontSize:     28,
+							FontWeight:   700,
 							ColorType:    "solid",
-							Color:        "#94a3b8",
-							OutlineType:  "none",
+							Color:        "#ffffff",
+							OutlineType:  "solid",
+							OutlineWidth: 4,
+							OutlineColor: "#000000",
+						},
+						IdleAnimation: "none",
+						TriggerEnter:  "fade-in",
+					},
+					Title: TitleElement{
+						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
+						Style: TextStyle{
+							FontFamily:   "pokemon",
+							FontSize:     20,
+							FontWeight:   700,
+							ColorType:    "solid",
+							Color:        "#ffffff",
+							OutlineType:  "solid",
+							OutlineWidth: 3,
 							OutlineColor: "#000000",
 						},
 						IdleAnimation: "none",
@@ -339,6 +387,13 @@ func NewManager(configDir string) *Manager {
 		},
 	}
 	return m
+}
+
+// SetDB injects the database-backed store used for state persistence.
+func (m *Manager) SetDB(store StateStore) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.db = store
 }
 
 // OnChange registers a callback that is invoked (in its own goroutine) after

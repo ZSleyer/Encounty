@@ -1,6 +1,8 @@
-// persist.go handles reading and writing AppState to disk.
+// persist.go handles reading and writing AppState to disk or database.
 // All disk I/O uses atomic writes (write to .tmp, then rename) to prevent
-// data corruption on unexpected process termination.
+// data corruption on unexpected process termination. When a database handle
+// is available, state is loaded from the normalized schema (v2); the legacy
+// JSON blob path is used only for migration bootstrapping.
 package state
 
 import (
@@ -18,11 +20,48 @@ var (
 	saveTimer *time.Timer
 )
 
-// Load reads state.json from the config directory and unmarshals it into the
-// Manager. If the file does not exist, Load returns nil and the in-memory
-// state keeps the defaults set by NewManager. Any migration of newly added
-// fields (e.g. default values for optional settings) is applied here.
+// Load reads state from the database when available, falling back to the
+// JSON file on disk. If neither source contains data, Load returns nil and
+// the in-memory state keeps the defaults set by NewManager.
 func (m *Manager) Load() error {
+	if m.db != nil && m.db.HasState() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		loaded, err := m.db.LoadFullState()
+		if err != nil {
+			return err
+		}
+		if loaded != nil {
+			m.state = *loaded
+			m.applyMigrations()
+			return nil
+		}
+	}
+
+	// Try legacy JSON blob in DB
+	if m.db != nil && m.db.HasAppState() {
+		data, err := m.db.LoadAppState()
+		if err != nil {
+			return err
+		}
+		if data != nil {
+			m.mu.Lock()
+			defer m.mu.Unlock()
+			if err := json.Unmarshal(data, &m.state); err != nil {
+				return err
+			}
+			m.applyMigrations()
+			return nil
+		}
+	}
+
+	// Fall back to JSON file
+	return m.loadFromJSON()
+}
+
+// loadFromJSON reads state from the JSON file on disk. Used as fallback
+// when the database has no state row (fresh install or pre-migration).
+func (m *Manager) loadFromJSON() error {
 	path := filepath.Join(m.configDir, stateFile)
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
@@ -33,19 +72,30 @@ func (m *Manager) Load() error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	err = json.Unmarshal(data, &m.state)
-	if err != nil {
+	if err := json.Unmarshal(data, &m.state); err != nil {
 		return err
 	}
+	m.applyMigrations()
+	return nil
+}
+
+// LoadFromJSON reads state exclusively from the JSON file, ignoring the
+// database. This is used during early startup to resolve the custom config
+// path before the database is opened.
+func (m *Manager) LoadFromJSON() error {
+	return m.loadFromJSON()
+}
+
+// applyMigrations applies default values for fields added after the initial
+// schema. Must be called with m.mu held.
+func (m *Manager) applyMigrations() {
 	m.state.DataPath = m.configDir
 	if m.state.Settings.OutputDir == "" {
 		m.state.Settings.OutputDir = filepath.Join(m.configDir, "output")
 	}
-	// Migration: field added later — default to "none" if not present in saved state
 	if m.state.Settings.Overlay.BackgroundAnimation == "" {
 		m.state.Settings.Overlay.BackgroundAnimation = "none"
 	}
-	// Migration: infer overlay_mode from presence of overlay field
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].OverlayMode == "" {
 			if m.state.Pokemon[i].Overlay != nil {
@@ -55,19 +105,57 @@ func (m *Manager) Load() error {
 			}
 		}
 	}
-	return nil
+	// Migrate overlay settings to include title element when loaded from
+	// state saved before TitleElement was added.
+	migrateTitleElement(&m.state.Settings.Overlay)
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].Overlay != nil {
+			migrateTitleElement(m.state.Pokemon[i].Overlay)
+		}
+	}
 }
 
-// Save writes the current state to state.json using an atomic
-// write-to-temp-then-rename pattern to prevent partial writes.
-func (m *Manager) Save() error {
-	if err := os.MkdirAll(m.configDir, 0755); err != nil {
-		return err
+// migrateTitleElement fills in default values for a TitleElement that was
+// zero-valued after loading state saved before the field existed.
+func migrateTitleElement(o *OverlaySettings) {
+	if o.Title.Width == 0 && o.Title.Height == 0 {
+		o.Title = TitleElement{
+			OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
+			Style: TextStyle{
+				FontFamily:   "pokemon",
+				FontSize:     20,
+				FontWeight:   700,
+				ColorType:    "solid",
+				Color:        "#ffffff",
+				OutlineType:  "solid",
+				OutlineWidth: 3,
+				OutlineColor: "#000000",
+			},
+			IdleAnimation: "none",
+			TriggerEnter:  "fade-in",
+		}
 	}
+}
+
+// Save writes the current state to the database when available, falling
+// back to an atomic JSON file write.
+func (m *Manager) Save() error {
+	if m.db != nil {
+		m.mu.RLock()
+		st := m.state
+		m.mu.RUnlock()
+		return m.db.SaveFullState(&st)
+	}
+
+	// Fallback: atomic JSON file write
 	m.mu.RLock()
 	data, err := json.MarshalIndent(m.state, "", "  ")
 	m.mu.RUnlock()
 	if err != nil {
+		return err
+	}
+
+	if err := os.MkdirAll(m.configDir, 0755); err != nil {
 		return err
 	}
 	path := filepath.Join(m.configDir, stateFile)
