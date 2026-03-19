@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, session, desktopCapturer, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, Menu, session, desktopCapturer, ipcMain, shell, systemPreferences } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { GoProcessManager } from './process-manager';
 import path from 'path';
@@ -258,6 +258,14 @@ ipcMain.handle('capture:select-source', (_e: Electron.IpcMainInvokeEvent, source
   pendingSourceId = sourceId;
 });
 
+// Request camera access — uses systemPreferences on macOS, no-op elsewhere
+ipcMain.handle('camera:request-access', async (): Promise<boolean> => {
+  if (process.platform === 'darwin') {
+    return systemPreferences.askForMediaAccess('camera');
+  }
+  return true;
+});
+
 // Single-instance lock — prevent multiple app windows
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
@@ -305,6 +313,13 @@ app.on('ready', async () => {
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
     console.log('[Electron] Permission check:', permission);
     if (permission === 'media' || (permission as string) === 'display-capture') return true;
+    return false;
+  });
+
+  // Auto-grant camera device permissions so re-selecting the same camera
+  // doesn't trigger repeated permission prompts.
+  session.defaultSession.setDevicePermissionHandler((details) => {
+    if ((details.deviceType as string) === 'videoinput') return true;
     return false;
   });
 

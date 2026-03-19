@@ -400,6 +400,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "sourcePicker.cancel": "Abbrechen",
     "sourcePicker.noSources": "Keine Quellen gefunden",
     "sourcePicker.obsHint": "OBS Virtual Camera",
+    "sourcePicker.captureCardHint": "Capture Card",
     "sourcePicker.connectedTo": "Verbunden: {name}",
     "sourcePicker.refreshing": "Aktualisiere…",
 
@@ -952,6 +953,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "sourcePicker.cancel": "Cancel",
     "sourcePicker.noSources": "No sources found",
     "sourcePicker.obsHint": "OBS Virtual Camera",
+    "sourcePicker.captureCardHint": "Capture Card",
     "sourcePicker.connectedTo": "Connected: {name}",
     "sourcePicker.refreshing": "Refreshing…",
 

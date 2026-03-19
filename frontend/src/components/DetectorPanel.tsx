@@ -112,6 +112,7 @@ export function DetectorPanel({
   // Source picker state
   const [showSourcePicker, setShowSourcePicker] = useState(false);
 
+
   // Template editor state
   const [showAddTemplate, setShowAddTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<{
@@ -152,7 +153,7 @@ export function DetectorPanel({
   const handleSourceSelected = useCallback((source: SelectedSource) => {
     setShowSourcePicker(false);
     const st = cfg.source_type as "browser_display" | "browser_camera";
-    capture.startCapture(pokemon.id, st, source.sourceId, source.label);
+    capture.startCapture(pokemon.id, st, source.sourceId, source.label, source.stream);
   }, [capture, pokemon.id, cfg.source_type]);
 
   const stopCapture = useCallback(() => {
@@ -281,6 +282,7 @@ export function DetectorPanel({
       capture.updateSubmitterInterval(pokemon.id, cfg.poll_interval_ms);
     }
   }, [cfg.poll_interval_ms, isRunning, pokemon.id, capture]);
+
 
   // ── Template operations ────────────────────────────────────────────────────
 

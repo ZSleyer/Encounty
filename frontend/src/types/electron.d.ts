@@ -19,6 +19,7 @@ interface ElectronAPI {
   onMaximizedChange(callback: (maximized: boolean) => void): () => void;
   getCaptureSources(): Promise<CaptureSource[]>;
   selectCaptureSource(sourceId: string): Promise<void>;
+  requestCameraAccess(): Promise<boolean>;
   onUpdateAvailable(callback: (info: { version: string; releaseDate: string }) => void): () => void;
   onUpdateProgress(callback: (progress: { percent: number; bytesPerSecond: number; transferred: number; total: number }) => void): () => void;
   onUpdateDownloaded(callback: () => void): () => void;

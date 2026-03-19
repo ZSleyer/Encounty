@@ -33,12 +33,13 @@ interface CaptureEntry {
 }
 
 interface CaptureServiceContextValue {
-  /** Start a capture for a specific pokemon. Optional sourceId/sourceLabel for pre-selected sources. */
+  /** Start a capture for a specific pokemon. Optional sourceId/sourceLabel for pre-selected sources, existingStream for reuse. */
   startCapture: (
     pokemonId: string,
     sourceType: "browser_display" | "browser_camera",
     sourceId?: string,
     sourceLabel?: string,
+    existingStream?: MediaStream,
   ) => Promise<void>;
   /** Stop and release the capture for a specific pokemon. */
   stopCapture: (pokemonId: string) => void;
@@ -168,6 +169,7 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
     sourceType: "browser_display" | "browser_camera",
     sourceId?: string,
     sourceLabel?: string,
+    existingStream?: MediaStream,
   ) => {
     // If already has a capture, stop it first
     if (entriesRef.current.has(pokemonId)) {
@@ -181,7 +183,13 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
       let stream: MediaStream;
       let label = sourceLabel ?? "";
 
-      if (sourceType === "browser_display") {
+      if (existingStream) {
+        // Reuse a pre-acquired stream (e.g. camera preview from SourcePickerModal)
+        stream = existingStream;
+        if (!label) {
+          label = stream.getVideoTracks()[0]?.label ?? "";
+        }
+      } else if (sourceType === "browser_display") {
         if (!navigator.mediaDevices?.getDisplayMedia) {
           captureErrorRef.current = "getDisplayMedia not available. Ensure context is secure (HTTPS/localhost).";
           notify();

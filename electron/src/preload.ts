@@ -57,6 +57,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('capture:select-source', sourceId);
   },
 
+  requestCameraAccess(): Promise<boolean> {
+    return ipcRenderer.invoke('camera:request-access');
+  },
+
   // --- Auto-update IPC ---
   onUpdateAvailable(callback: (info: { version: string; releaseDate: string }) => void): () => void {
     const handler = (_event: Electron.IpcRendererEvent, info: { version: string; releaseDate: string }) => {

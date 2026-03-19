@@ -2,7 +2,7 @@
  * SourcePickerModal.tsx — Discord-style source picker for screen/window/camera capture.
  *
  * Shows a tabbed modal with live thumbnails for screens and windows (via Electron
- * desktopCapturer) and camera devices (via navigator.mediaDevices.enumerateDevices).
+ * desktopCapturer) and live camera previews (via getUserMedia per device).
  * Thumbnails refresh every 3 seconds for screens/windows.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -15,6 +15,8 @@ export interface SelectedSource {
   type: "screen" | "window" | "camera";
   sourceId: string;
   label: string;
+  /** Pre-acquired camera stream for reuse — avoids double camera activation. */
+  stream?: MediaStream;
 }
 
 interface SourcePickerModalProps {
@@ -26,9 +28,25 @@ interface SourcePickerModalProps {
 interface CameraDevice {
   deviceId: string;
   label: string;
+  stream: MediaStream;
 }
 
 type Tab = "screens" | "windows" | "cameras";
+
+// Keywords that identify capture cards vs regular webcams
+const CAPTURE_CARD_KEYWORDS = [
+  "elgato", "cam link", "hd60", "hd 60", "4k60", "4k 60", "game capture",
+  "avermedia", "live gamer", "gc", "razer ripsaw", "ripsaw",
+  "magewell", "blackmagic", "decklink", "intensity",
+  "startech", "j5create", "pengo", "genki shadowcast", "shadowcast",
+  "hagibis", "capture card", "video capture",
+];
+
+/** Detect whether a device label indicates a capture card rather than a webcam. */
+function isCaptureCard(label: string): boolean {
+  const lower = label.toLowerCase();
+  return CAPTURE_CARD_KEYWORDS.some((kw) => lower.includes(kw));
+}
 
 // --- Component ---------------------------------------------------------------
 
@@ -57,6 +75,9 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Track refs for camera video elements
+  const videoRefsMap = useRef<Map<string, HTMLVideoElement>>(new Map());
+
   // Open dialog on mount
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -74,21 +95,52 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
     setLoading(false);
   }, [isElectron, sourceType, isWayland]);
 
-  // Fetch camera devices
+  // Cleanup all camera preview streams
+  const cleanupCameraStreams = useCallback(() => {
+    setCameras((prev) => {
+      for (const cam of prev) {
+        cam.stream.getTracks().forEach((t) => t.stop());
+      }
+      return [];
+    });
+  }, []);
+
+  // Fetch camera devices with live preview streams
   const fetchCameras = useCallback(async () => {
     if (sourceType !== "browser_camera") return;
     try {
-      // Request a temporary stream to get permission for device labels
-      const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      tempStream.getTracks().forEach(t => t.stop());
+      // Request camera permission once
+      if (window.electronAPI?.requestCameraAccess) {
+        await window.electronAPI.requestCameraAccess();
+      } else {
+        // Browser fallback: request a throwaway stream to unlock labels
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        tempStream.getTracks().forEach((t) => t.stop());
+      }
 
       const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices
-        .filter(d => d.kind === "videoinput")
-        .map(d => ({ deviceId: d.deviceId, label: d.label || `Camera ${d.deviceId.slice(0, 8)}` }));
-      setCameras(videoInputs);
+      const videoInputs = devices.filter((d) => d.kind === "videoinput");
+
+      // Create a live preview stream for each camera
+      const cameraEntries: CameraDevice[] = [];
+      for (const device of videoInputs) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: device.deviceId } },
+            audio: false,
+          });
+          cameraEntries.push({
+            deviceId: device.deviceId,
+            label: device.label || `Camera ${device.deviceId.slice(0, 8)}`,
+            stream,
+          });
+        } catch {
+          // Skip cameras that fail to open
+        }
+      }
+      setCameras(cameraEntries);
     } catch {
-      setCameras([]);
+      // Permission denied or no cameras
     }
     setLoading(false);
   }, [sourceType]);
@@ -101,6 +153,30 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
       fetchSources();
     }
   }, [sourceType, fetchSources, fetchCameras]);
+
+  // Cleanup camera streams on unmount or tab switch away from cameras
+  useEffect(() => {
+    return () => {
+      // On unmount, stop all camera streams that weren't passed to onSelect
+      setCameras((prev) => {
+        for (const cam of prev) {
+          cam.stream.getTracks().forEach((t) => t.stop());
+        }
+        return prev;
+      });
+    };
+  }, []);
+
+  // Attach streams to video elements when cameras change
+  useEffect(() => {
+    for (const cam of cameras) {
+      const videoEl = videoRefsMap.current.get(cam.deviceId);
+      if (videoEl && videoEl.srcObject !== cam.stream) {
+        videoEl.srcObject = cam.stream;
+        videoEl.play().catch(() => {});
+      }
+    }
+  }, [cameras]);
 
   // Refresh thumbnails every 3 seconds for screens/windows
   useEffect(() => {
@@ -117,6 +193,10 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   });
 
   const handleCancel = () => {
+    // Stop all camera preview streams on cancel
+    for (const cam of cameras) {
+      cam.stream.getTracks().forEach((t) => t.stop());
+    }
     dialogRef.current?.close();
     onClose();
   };
@@ -127,11 +207,18 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
     if (activeTab === "cameras") {
       const cam = cameras.find(c => c.deviceId === selectedId);
       if (cam) {
-        onSelect({ type: "camera", sourceId: cam.deviceId, label: cam.label });
+        // Stop all OTHER camera streams, keep the selected one for reuse
+        for (const other of cameras) {
+          if (other.deviceId !== selectedId) {
+            other.stream.getTracks().forEach((t) => t.stop());
+          }
+        }
+        onSelect({ type: "camera", sourceId: cam.deviceId, label: cam.label, stream: cam.stream });
       }
     } else {
       const src = captureSources.find(s => s.id === selectedId);
       if (src) {
+        cleanupCameraStreams();
         const type = src.id.startsWith("screen:") ? "screen" : "window";
         onSelect({ type, sourceId: src.id, label: src.name });
       }
@@ -140,14 +227,21 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
 
   const handleDoubleClick = (id: string) => {
     setSelectedId(id);
-    // Use setTimeout so state updates before handleSelect reads it
     setTimeout(() => {
       if (activeTab === "cameras") {
         const cam = cameras.find(c => c.deviceId === id);
-        if (cam) onSelect({ type: "camera", sourceId: cam.deviceId, label: cam.label });
+        if (cam) {
+          for (const other of cameras) {
+            if (other.deviceId !== id) {
+              other.stream.getTracks().forEach((t) => t.stop());
+            }
+          }
+          onSelect({ type: "camera", sourceId: cam.deviceId, label: cam.label, stream: cam.stream });
+        }
       } else {
         const src = captureSources.find(s => s.id === id);
         if (src) {
+          cleanupCameraStreams();
           onSelect({
             type: src.id.startsWith("screen:") ? "screen" : "window",
             sourceId: src.id,
@@ -219,20 +313,38 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
                   key={cam.deviceId}
                   onClick={() => setSelectedId(cam.deviceId)}
                   onDoubleClick={() => handleDoubleClick(cam.deviceId)}
-                  className={`relative flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                  className={`relative rounded-xl border-2 overflow-hidden transition-all text-left ${
                     selectedId === cam.deviceId
-                      ? "border-accent-blue ring-2 ring-accent-blue/30 bg-accent-blue/5"
-                      : "border-border-subtle hover:border-text-muted bg-bg-primary"
+                      ? "border-accent-blue ring-2 ring-accent-blue/30"
+                      : "border-border-subtle hover:border-text-muted"
                   }`}
                 >
-                  <Camera className="w-8 h-8 text-text-muted shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm text-text-primary font-medium truncate">{cam.label}</p>
-                    {cam.label.toLowerCase().includes("obs") && (
-                      <span className="inline-block mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-500/20 text-purple-400">
-                        {t("sourcePicker.obsHint")}
-                      </span>
-                    )}
+                  <video
+                    ref={(el) => {
+                      if (el) videoRefsMap.current.set(cam.deviceId, el);
+                      else videoRefsMap.current.delete(cam.deviceId);
+                    }}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full aspect-video object-cover bg-black"
+                  />
+                  <div className="px-2 py-1.5 bg-bg-primary">
+                    <p className="text-[11px] text-text-secondary font-medium truncate" title={cam.label}>
+                      {cam.label}
+                    </p>
+                    <div className="flex gap-1 mt-0.5 flex-wrap">
+                      {isCaptureCard(cam.label) && (
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
+                          {t("sourcePicker.captureCardHint")}
+                        </span>
+                      )}
+                      {cam.label.toLowerCase().includes("obs") && (
+                        <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-500/20 text-purple-400">
+                          {t("sourcePicker.obsHint")}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}
