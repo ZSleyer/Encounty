@@ -49,6 +49,8 @@ var syncGenPlatform = map[int]string{
 
 // Version groups that use a different platform than their generation default.
 var syncVGPlatform = map[string]string{
+	"colosseum":                           "GameCube",
+	"xd":                                  "GameCube",
 	"lets-go-pikachu-lets-go-eevee":       "Switch",
 	"sword-shield":                        "Switch",
 	"brilliant-diamond-and-shining-pearl": "Switch",
@@ -57,10 +59,8 @@ var syncVGPlatform = map[string]string{
 	"legends-za":                          "Switch 2",
 }
 
-// Versions to skip: DLCs, GameCube spinoffs, Japan-exclusive duplicates.
+// Versions to skip: DLCs, Japan-exclusive duplicates.
 var syncSkip = map[string]bool{
-	"colosseum":         true,
-	"xd":                true,
 	"the-isle-of-armor": true,
 	"the-crown-tundra":  true,
 	"the-teal-mask":     true,

@@ -29,6 +29,36 @@
     "generation": 8,
     "platform": "Switch"
   },
+  "pokemon-colosseum": {
+    "names": {
+      "de": "Pokémon Colosseum",
+      "en": "Pokémon Colosseum",
+      "es": "Pokémon Colosseum",
+      "fr": "Pokémon Colosseum",
+      "it": "Pokémon Colosseum",
+      "ja": "ポケモンコロシアム",
+      "ko": "포켓몬 콜로세움",
+      "zh-hans": "宝可梦 竞技场",
+      "zh-hant": "寶可夢 競技場"
+    },
+    "generation": 3,
+    "platform": "GameCube"
+  },
+  "pokemon-xd": {
+    "names": {
+      "de": "Pokémon XD: Der Dunkle Sturm",
+      "en": "Pokémon XD: Gale of Darkness",
+      "es": "Pokémon XD: Tempestad Oscura",
+      "fr": "Pokémon XD: Le Souffle des Ténèbres",
+      "it": "Pokémon XD: Tempesta Oscura",
+      "ja": "ポケモンXD 闇の旋風ダーク・ルギア",
+      "ko": "포켓몬 XD 어둠의 선풍 다크루기아",
+      "zh-hans": "宝可梦XD 暗之旋风 暗黑洛奇亚",
+      "zh-hant": "寶可夢XD 暗之旋風 暗黑洛奇亞"
+    },
+    "generation": 3,
+    "platform": "GameCube"
+  },
   "pokemon-black": {
     "names": {
       "de": "Pokémon Schwarze Edition",
