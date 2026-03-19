@@ -161,9 +161,14 @@ export interface SpriteElement extends OverlayElementBase {
 
 export interface NameElement extends OverlayElementBase {
   style: TextStyle;
-  display_mode?: "name" | "title" | "both";
   idle_animation: string; // "none" | "shimmer"
   trigger_enter: string; // "none" | "slide-in" | "fade-in"
+}
+
+export interface TitleElement extends OverlayElementBase {
+  style: TextStyle;
+  idle_animation: string;
+  trigger_enter: string;
 }
 
 export interface CounterElement extends OverlayElementBase {
@@ -199,6 +204,7 @@ export interface OverlaySettings {
   // Elements
   sprite: SpriteElement;
   name: NameElement;
+  title: TitleElement;
   counter: CounterElement;
 
   // Editor Tools

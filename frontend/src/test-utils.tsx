@@ -11,7 +11,7 @@ import { ToastProvider } from "./contexts/ToastContext";
 import type { AppState, Pokemon, OverlaySettings } from "./types";
 
 /** Wraps children with all application providers for component testing. */
-function AllProviders({ children }: { children: React.ReactNode }) {
+function AllProviders({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <BrowserRouter>
       <ThemeProvider>
@@ -63,6 +63,17 @@ export function makeOverlaySettings(
       width: 200,
       height: 30,
       z_index: 2,
+      style: makeTextStyle(),
+      idle_animation: "none",
+      trigger_enter: "none",
+    },
+    title: {
+      visible: true,
+      x: 100,
+      y: 50,
+      width: 200,
+      height: 30,
+      z_index: 4,
       style: makeTextStyle(),
       idle_animation: "none",
       trigger_enter: "none",

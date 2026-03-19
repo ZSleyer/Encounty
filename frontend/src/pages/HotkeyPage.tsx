@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { HotkeySettings } from "../components/HotkeySettings";
+import { HotkeySettings } from "../components/settings/HotkeySettings";
 import { useCounterStore } from "../hooks/useCounterState";
 import { HotkeyMap } from "../types";
 import { useI18n } from "../contexts/I18nContext";
@@ -8,14 +8,14 @@ export function HotkeyPage() {
   const { t } = useI18n();
   const { appState } = useCounterStore();
   const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(null);
-  const initialised = useState(false);
+  const [initialised, setInitialised] = useState(false);
 
   useEffect(() => {
-    if (appState && !initialised[0]) {
+    if (appState && !initialised) {
       setHotkeys(appState.hotkeys);
-      initialised[1](true);
+      setInitialised(true);
     }
-  }, [appState]);
+  }, [appState, initialised]);
 
   if (!hotkeys) {
     return <div className="p-6 text-text-muted">Lade…</div>;

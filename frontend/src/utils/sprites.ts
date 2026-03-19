@@ -59,7 +59,7 @@ function resolvePokeApiId(
   }
   return typeof pokemonId === "number"
     ? pokemonId
-    : parseInt(String(pokemonId), 10);
+    : Number.parseInt(String(pokemonId), 10);
 }
 
 /** Sprite style metadata for UI display and per-generation availability. */

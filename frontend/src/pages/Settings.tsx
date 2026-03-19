@@ -14,6 +14,8 @@ import {
   Search,
   Image,
   Info,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 import { useCounterStore } from "../hooks/useCounterState";
@@ -22,10 +24,9 @@ import { ALL_LANGUAGES } from "../utils/games";
 import { useI18n } from "../contexts/I18nContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
-import { CountryFlag } from "../components/CountryFlag";
-import { LicenseDialog } from "../components/LicenseDialog";
+import { CountryFlag } from "../components/shared/CountryFlag";
+import { LicenseDialog } from "../components/settings/LicenseDialog";
 import { LOCALES } from "../utils/i18n";
-import { Sun, Moon } from "lucide-react";
 
 const API = "/api";
 
@@ -45,11 +46,11 @@ function Toggle({
   enabled,
   onChange,
   color = "bg-accent-green/80",
-}: {
-  readonly enabled: boolean;
-  readonly onChange: () => void;
-  readonly color?: string;
-}) {
+}: Readonly<{
+  enabled: boolean;
+  onChange: () => void;
+  color?: string;
+}>) {
   return (
     <button
       onClick={onChange}
@@ -135,17 +136,20 @@ export function Settings() {
 
   const setCrispSprites = (v: boolean) => {
     setSettings((s) => (s ? { ...s, crisp_sprites: v } : s));
-    if (v) document.documentElement.setAttribute("data-crisp-sprites", "");
-    else document.documentElement.removeAttribute("data-crisp-sprites");
+    if (v) {
+      document.documentElement.dataset.crispSprites = "";
+    } else {
+      delete document.documentElement.dataset.crispSprites;
+    }
   };
 
-  const initialised = useState(false);
+  const [initialised, setInitialised] = useState(false);
   useEffect(() => {
-    if (appState && !initialised[0]) {
+    if (appState && !initialised) {
       setSettings(appState.settings);
-      initialised[1](true);
+      setInitialised(true);
     }
-  }, [appState]);
+  }, [appState, initialised]);
 
   // Fetch license data from API (lazy, on first expand)
   useEffect(() => {
@@ -165,8 +169,8 @@ export function Settings() {
         searchRef.current?.focus();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    globalThis.addEventListener("keydown", handler);
+    return () => globalThis.removeEventListener("keydown", handler);
   }, []);
 
   // Auto-save with debounce
@@ -266,7 +270,7 @@ export function Settings() {
     a.download = "encounty-backup.zip";
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
   };
 
   const handleRestoreFile = async (file: File) => {
@@ -517,7 +521,7 @@ export function Settings() {
               </div>
 
               <div
-                className={`space-y-4 transition-all duration-300 ${!settings.output_enabled ? "opacity-30 pointer-events-none grayscale" : ""}`}
+                className={`space-y-4 transition-all duration-300 ${settings.output_enabled ? "" : "opacity-30 pointer-events-none grayscale"}`}
               >
                 <div>
                   <label htmlFor="output-dir" className="block text-xs text-text-muted mb-1.5">
@@ -741,8 +745,7 @@ export function Settings() {
                     className="text-accent-blue hover:underline"
                   >
                     GNU AGPL-3.0
-                  </a>
-                  .
+                  </a>{"."}
                 </p>
                 <button
                   onClick={() => setShowLicenseDialog(true)}

@@ -12,6 +12,7 @@ import React, {
   useRef,
   useCallback,
   useEffect,
+  useMemo,
   useSyncExternalStore,
 } from "react";
 import { useCounterStore } from "../hooks/useCounterState";
@@ -69,7 +70,7 @@ const CaptureServiceContext = createContext<CaptureServiceContextValue | null>(n
 
 // --- Provider ----------------------------------------------------------------
 
-export function CaptureServiceProvider({ children }: { children: React.ReactNode }) {
+export function CaptureServiceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   // All capture entries keyed by pokemon ID
   const entriesRef = useRef<Map<string, CaptureEntry>>(new Map());
   // Container for hidden video elements
@@ -196,8 +197,8 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
           return;
         }
         // In Electron with a pre-selected source, tell main process first
-        if (sourceId && window.electronAPI) {
-          await window.electronAPI.selectCaptureSource(sourceId);
+        if (sourceId && globalThis.electronAPI) {
+          await globalThis.electronAPI.selectCaptureSource(sourceId);
         }
         stream = await navigator.mediaDevices.getDisplayMedia({
           video: { displaySurface: "window" },
@@ -327,7 +328,7 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
     };
   }, []);
 
-  const value: CaptureServiceContextValue = {
+  const value: CaptureServiceContextValue = useMemo(() => ({
     startCapture,
     stopCapture,
     getStream,
@@ -339,7 +340,7 @@ export function CaptureServiceProvider({ children }: { children: React.ReactNode
     get captureError() { return captureErrorRef.current; },
     getVersion,
     subscribe,
-  };
+  }), [startCapture, stopCapture, getStream, isCapturing, getSourceLabel, registerSubmitter, unregisterSubmitter, updateSubmitterInterval, getVersion, subscribe]);
 
   return (
     <CaptureServiceContext.Provider value={value}>

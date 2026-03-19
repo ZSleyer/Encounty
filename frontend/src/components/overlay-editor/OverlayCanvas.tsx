@@ -1,0 +1,526 @@
+import { useRef, useCallback } from "react";
+import { OverlaySettings, OverlayElementBase } from "../../types";
+import { Overlay } from "../../pages/Overlay";
+import type { Pokemon } from "../../types";
+import { Guide } from "../../hooks/useSnapping";
+import { useSnapping } from "../../hooks/useSnapping";
+
+type ElementKey = "sprite" | "name" | "title" | "counter";
+type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+
+interface OverlayCanvasProps {
+  localSettings: OverlaySettings;
+  selectedEl: ElementKey;
+  canvasScale: number;
+  zoom: number;
+  effectiveScale: number;
+  showGrid: boolean;
+  gridSize: number;
+  snapEnabled: boolean;
+  guides: Guide[];
+  isDragging: boolean;
+  effectiveTool: "pointer" | "hand";
+  isPanDragging: boolean;
+  canvasBg: "transparent" | "white" | "black";
+  testTrigger: { element: ElementKey; n: number; reverse?: boolean };
+  fakeCount: number | null;
+  activePokemon?: Pokemon;
+  overlayTargetId?: string;
+  readOnly?: boolean;
+  canvasContainerRef: React.RefObject<HTMLDivElement | null>;
+  getPadding: () => { x: number; y: number };
+  onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseUp: () => void;
+  onSelectElement: (key: ElementKey) => void;
+  onDragStateChange: (dragging: boolean) => void;
+  onGuidesChange: (guides: Guide[]) => void;
+  onUpdate: (settings: OverlaySettings) => void;
+}
+
+export function useElementDrag(
+  elementKey: ElementKey,
+  settings: OverlaySettings,
+  onUpdate: (s: OverlaySettings) => void,
+  canvasScale: number,
+  onDragStateChange?: (dragging: boolean) => void,
+  onGuidesChange?: (guides: Guide[]) => void,
+  snapEnabled?: boolean,
+  gridSize?: number,
+) {
+  const dragging = useRef<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  } | null>(null);
+  const resizing = useRef<{
+    dir: ResizeDir;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+    origW: number;
+    origH: number;
+  } | null>(null);
+
+  const snapping = useSnapping(settings, snapEnabled ?? false, gridSize ?? 8);
+
+  const getEl = useCallback(
+    () => settings[elementKey] as OverlayElementBase,
+    [settings, elementKey],
+  );
+  const setEl = useCallback(
+    (patch: Partial<OverlayElementBase>) => {
+      onUpdate({
+        ...settings,
+        [elementKey]: { ...settings[elementKey], ...patch },
+      });
+    },
+    [settings, elementKey, onUpdate],
+  );
+
+  const onDragStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = getEl();
+      dragging.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: el.x,
+        origY: el.y,
+      };
+      onDragStateChange?.(true);
+
+      const onMove = (me: MouseEvent) => {
+        if (!dragging.current) return;
+        const dx = (me.clientX - dragging.current.startX) / canvasScale;
+        const dy = (me.clientY - dragging.current.startY) / canvasScale;
+        const rawX = Math.round(dragging.current.origX + dx);
+        const rawY = Math.round(dragging.current.origY + dy);
+        const el2 = getEl();
+        const snapped = snapping.snap(
+          rawX,
+          rawY,
+          el2.width,
+          el2.height,
+          me.shiftKey,
+        );
+        const guides = snapping.getGuides(
+          elementKey,
+          snapped.x,
+          snapped.y,
+          el2.width,
+          el2.height,
+        );
+        onGuidesChange?.(guides);
+        setEl({ x: snapped.x, y: snapped.y });
+      };
+      const onUp = () => {
+        dragging.current = null;
+        onDragStateChange?.(false);
+        onGuidesChange?.([]);
+        globalThis.removeEventListener("mousemove", onMove);
+        globalThis.removeEventListener("mouseup", onUp);
+      };
+      globalThis.addEventListener("mousemove", onMove);
+      globalThis.addEventListener("mouseup", onUp);
+    },
+    [
+      getEl,
+      setEl,
+      canvasScale,
+      snapping,
+      elementKey,
+      onDragStateChange,
+      onGuidesChange,
+    ],
+  );
+
+  const onResizeStart = useCallback(
+    (dir: ResizeDir) => (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = getEl();
+      resizing.current = {
+        dir,
+        startX: e.clientX,
+        startY: e.clientY,
+        origX: el.x,
+        origY: el.y,
+        origW: el.width,
+        origH: el.height,
+      };
+      onDragStateChange?.(true);
+
+      const onMove = (me: MouseEvent) => {
+        if (!resizing.current) return;
+        const {
+          dir: d,
+          startX,
+          startY,
+          origX,
+          origY,
+          origW,
+          origH,
+        } = resizing.current;
+        const dx = (me.clientX - startX) / canvasScale;
+        const dy = (me.clientY - startY) / canvasScale;
+        let x = origX,
+          y = origY,
+          w = origW,
+          h = origH;
+
+        if (d.includes("e")) w = Math.max(20, origW + dx);
+        if (d.includes("s")) h = Math.max(20, origH + dy);
+        if (d.includes("w")) {
+          w = Math.max(20, origW - dx);
+          x = origX + origW - w;
+        }
+        if (d.includes("n")) {
+          h = Math.max(20, origH - dy);
+          y = origY + origH - h;
+        }
+
+        // Aspect-ratio lock with Shift
+        if (me.shiftKey && origW > 0 && origH > 0) {
+          const aspect = origW / origH;
+          if (d.includes("e") || d.includes("w")) {
+            h = w / aspect;
+          } else {
+            w = h * aspect;
+          }
+        }
+
+        setEl({
+          x: Math.round(x),
+          y: Math.round(y),
+          width: Math.round(w),
+          height: Math.round(h),
+        });
+      };
+      const onUp = () => {
+        resizing.current = null;
+        onDragStateChange?.(false);
+        globalThis.removeEventListener("mousemove", onMove);
+        globalThis.removeEventListener("mouseup", onUp);
+      };
+      globalThis.addEventListener("mousemove", onMove);
+      globalThis.addEventListener("mouseup", onUp);
+    },
+    [getEl, setEl, canvasScale, onDragStateChange],
+  );
+
+  return { onDragStart, onResizeStart };
+}
+
+export function ResizeHandle({
+  dir,
+  onResizeStart,
+}: Readonly<{
+  dir: ResizeDir;
+  onResizeStart: (dir: ResizeDir) => (e: React.MouseEvent) => void;
+}>) {
+  const posStyles: Record<ResizeDir, React.CSSProperties> = {
+    n: {
+      top: -4,
+      left: "50%",
+      transform: "translateX(-50%)",
+      cursor: "n-resize",
+    },
+    s: {
+      bottom: -4,
+      left: "50%",
+      transform: "translateX(-50%)",
+      cursor: "s-resize",
+    },
+    e: {
+      right: -4,
+      top: "50%",
+      transform: "translateY(-50%)",
+      cursor: "e-resize",
+    },
+    w: {
+      left: -4,
+      top: "50%",
+      transform: "translateY(-50%)",
+      cursor: "w-resize",
+    },
+    ne: { top: -4, right: -4, cursor: "ne-resize" },
+    nw: { top: -4, left: -4, cursor: "nw-resize" },
+    se: { bottom: -4, right: -4, cursor: "se-resize" },
+    sw: { bottom: -4, left: -4, cursor: "sw-resize" },
+  };
+  return (
+    <div
+      onMouseDown={onResizeStart(dir)}
+      style={{
+        position: "absolute",
+        width: 8,
+        height: 8,
+        background: "#3b82f6",
+        border: "1px solid white",
+        borderRadius: 2,
+        zIndex: 100,
+        ...posStyles[dir],
+      }}
+    />
+  );
+}
+
+export function OverlayCanvas({
+  localSettings,
+  selectedEl,
+  effectiveScale,
+  showGrid,
+  gridSize,
+  guides,
+  isDragging,
+  effectiveTool,
+  isPanDragging,
+  canvasBg,
+  testTrigger,
+  fakeCount,
+  activePokemon,
+  readOnly,
+  canvasContainerRef,
+  getPadding,
+  onMouseMove,
+  onMouseDown,
+  onMouseUp,
+  onSelectElement,
+  onDragStateChange,
+  onGuidesChange,
+  onUpdate,
+  snapEnabled,
+}: OverlayCanvasProps) {
+  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter"];
+
+  const spriteHandlers = useElementDrag(
+    "sprite",
+    localSettings,
+    onUpdate,
+    effectiveScale,
+    onDragStateChange,
+    onGuidesChange,
+    snapEnabled,
+    gridSize,
+  );
+  const nameHandlers = useElementDrag(
+    "name",
+    localSettings,
+    onUpdate,
+    effectiveScale,
+    onDragStateChange,
+    onGuidesChange,
+    snapEnabled,
+    gridSize,
+  );
+  const titleHandlers = useElementDrag(
+    "title",
+    localSettings,
+    onUpdate,
+    effectiveScale,
+    onDragStateChange,
+    onGuidesChange,
+    snapEnabled,
+    gridSize,
+  );
+  const counterHandlers = useElementDrag(
+    "counter",
+    localSettings,
+    onUpdate,
+    effectiveScale,
+    onDragStateChange,
+    onGuidesChange,
+    snapEnabled,
+    gridSize,
+  );
+
+  const handlers: Record<ElementKey, ReturnType<typeof useElementDrag>> = {
+    sprite: spriteHandlers,
+    name: nameHandlers,
+    title: titleHandlers,
+    counter: counterHandlers,
+  };
+
+  const fakePreviewPokemon: Pokemon | undefined = activePokemon
+    ? { ...activePokemon, encounters: fakeCount !== null ? fakeCount : (activePokemon.encounters ?? 0) }
+    : undefined;
+
+  return (
+    <div
+      ref={canvasContainerRef}
+      data-tutorial="canvas"
+      className={`flex-1 rounded-xl border border-border-subtle overflow-auto min-h-0 relative ${canvasBg === "transparent" ? "canvas-checkered" : ""}`}
+      style={{
+        cursor: effectiveTool === "hand" ? (isPanDragging ? "grabbing" : "grab") : "default",
+        backgroundColor: canvasBg === "white" ? "#ffffff" : (canvasBg === "black" ? "#000000" : undefined),
+      }}
+      onMouseMove={onMouseMove}
+      onMouseDown={onMouseDown}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseUp}
+    >
+      {/* Virtual space — defines the scrollable extent */}
+      <div
+        style={{
+          width: localSettings.canvas_width * effectiveScale + (canvasContainerRef.current?.clientWidth ?? 800) * 0.8,
+          height: localSettings.canvas_height * effectiveScale + (canvasContainerRef.current?.clientHeight ?? 600) * 0.8,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            transform: `scale(${effectiveScale})`,
+            transformOrigin: "0 0",
+            position: "absolute",
+            left: (canvasContainerRef.current?.clientWidth ?? 800) * 0.4,
+            top: (canvasContainerRef.current?.clientHeight ?? 600) * 0.4,
+            width: localSettings.canvas_width,
+            height: localSettings.canvas_height,
+          }}
+        >
+          {/* Actual overlay preview */}
+          <Overlay
+            previewSettings={localSettings}
+            previewPokemon={fakePreviewPokemon}
+            testTrigger={testTrigger}
+          />
+
+          {/* Grid overlay */}
+          {showGrid && (
+            <svg
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                width: localSettings.canvas_width,
+                height: localSettings.canvas_height,
+                opacity: 0.15,
+              }}
+            >
+              {Array.from(
+                {
+                  length: Math.floor(localSettings.canvas_width / gridSize),
+                },
+                (_, i) => (
+                  <line
+                    key={`v-${i}`}
+                    x1={(i + 1) * gridSize}
+                    y1={0}
+                    x2={(i + 1) * gridSize}
+                    y2={localSettings.canvas_height}
+                    stroke="#4a9eff"
+                    strokeWidth={0.5}
+                  />
+                ),
+              )}
+              {Array.from(
+                {
+                  length: Math.floor(localSettings.canvas_height / gridSize),
+                },
+                (_, i) => (
+                  <line
+                    key={`h-${i}`}
+                    x1={0}
+                    y1={(i + 1) * gridSize}
+                    x2={localSettings.canvas_width}
+                    y2={(i + 1) * gridSize}
+                    stroke="#4a9eff"
+                    strokeWidth={0.5}
+                  />
+                ),
+              )}
+            </svg>
+          )}
+
+          {/* Smart guidelines */}
+          {guides.map((g, i) =>
+            g.type === "v" ? (
+              <div
+                key={`guide-${g.type}-${g.position}-${i}`}
+                className="absolute top-0 bottom-0 pointer-events-none border-l border-dashed border-cyan-400"
+                style={{ left: g.position, opacity: 0.8 }}
+              />
+            ) : (
+              <div
+                key={`guide-${g.type}-${g.position}-${i}`}
+                className="absolute left-0 right-0 pointer-events-none border-t border-dashed border-cyan-400"
+                style={{ top: g.position, opacity: 0.8 }}
+              />
+            ),
+          )}
+
+          {/* Drag/resize overlays for each element */}
+          {!readOnly && LAYERS.filter(key => key !== "title" || (localSettings.title && activePokemon?.title)).map((key) => {
+            const el = localSettings[key] as OverlayElementBase;
+            if (!el.visible) return null;
+            const { onDragStart, onResizeStart } = handlers[key];
+            const isSelected = selectedEl === key;
+            return (
+              <div
+                key={key}
+                onMouseDown={(e) => {
+                  if (effectiveTool === "hand") return;
+                  onSelectElement(key);
+                  onDragStart(e);
+                }}
+                style={{
+                  position: "absolute",
+                  left: el.x,
+                  top: el.y,
+                  width: el.width,
+                  height: el.height,
+                  zIndex: 50 + el.z_index,
+                  cursor: effectiveTool === "hand" ? "inherit" : "move",
+                  border: isSelected
+                    ? "2px solid #3b82f6"
+                    : "2px solid transparent",
+                  boxSizing: "border-box",
+                }}
+              >
+                {isSelected && (
+                  <>
+                    {(
+                      [
+                        "n",
+                        "s",
+                        "e",
+                        "w",
+                        "ne",
+                        "nw",
+                        "se",
+                        "sw",
+                      ] as ResizeDir[]
+                    ).map((dir) => (
+                      <ResizeHandle
+                        key={dir}
+                        dir={dir}
+                        onResizeStart={onResizeStart}
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Drag tooltip showing dimensions */}
+          {isDragging && selectedEl && (
+            <div
+              className="absolute pointer-events-none bg-black/80 text-white text-[10px] px-2 py-0.5 rounded font-mono"
+              style={{
+                left: (localSettings[selectedEl] as OverlayElementBase).x + (localSettings[selectedEl] as OverlayElementBase).width / 2 - 20,
+                top: Math.max(0, (localSettings[selectedEl] as OverlayElementBase).y - 18),
+                zIndex: 200,
+              }}
+            >
+              {(localSettings[selectedEl] as OverlayElementBase).width} ×{" "}
+              {(localSettings[selectedEl] as OverlayElementBase).height}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

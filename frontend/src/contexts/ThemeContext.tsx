@@ -10,6 +10,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useMemo,
   ReactNode,
 } from "react";
 
@@ -28,7 +29,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 /** ThemeProvider wraps the app with theme state and toggle/set helpers. */
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [theme, setTheme] = useState<Theme>(() => {
     const saved = localStorage.getItem("encounty-theme");
     return (saved === "light" ? "light" : "dark") as Theme;
@@ -36,13 +37,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem("encounty-theme", theme);
-    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
 
+  const value = useMemo(() => ({ theme, toggleTheme, setTheme }), [theme]);
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

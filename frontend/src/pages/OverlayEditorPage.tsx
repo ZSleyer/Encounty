@@ -7,7 +7,7 @@
  */
 import { useState, useEffect } from "react";
 import { Save, RefreshCw, Keyboard, Layers } from "lucide-react";
-import { OverlayEditor } from "../components/OverlayEditor";
+import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { OverlaySettings, Pokemon } from "../types";
 import { useI18n } from "../contexts/I18nContext";

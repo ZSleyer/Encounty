@@ -14,7 +14,7 @@ import {
   Power,
   Keyboard,
   Layers,
-  Github,
+  GithubIcon,
   ArrowUpCircle,
   AlertTriangle,
 } from "lucide-react";
@@ -29,20 +29,19 @@ import { WSMessage, AppState } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider, useToast } from "./contexts/ToastContext";
-import { ToastContainer } from "./components/ToastContainer";
-import { WindowControls } from "./components/WindowControls";
+import { ToastContainer } from "./components/shared/ToastContainer";
+import { WindowControls } from "./components/settings/WindowControls";
 import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
-import { LicenseDialog } from "./components/LicenseDialog";
-import type { Locale } from "./utils/i18n";
+import { LicenseDialog } from "./components/settings/LicenseDialog";
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
 function UpdateOverlay({
   updateState,
   version,
-}: {
+}: Readonly<{
   updateState: "installing" | "restarting";
   version: string;
-}) {
+}>) {
   const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
@@ -70,12 +69,12 @@ function UpdateNotification({
   onUpdate,
   onDismiss,
   manualDownload,
-}: {
+}: Readonly<{
   version: string;
   onUpdate: () => void;
   onDismiss: () => void;
   manualDownload?: boolean;
-}) {
+}>) {
   const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
@@ -137,7 +136,6 @@ function AppShell() {
   const [updateState, setUpdateState] = useState<"idle" | "installing" | "restarting">("idle");
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
-  const [electronUpdateProgress, setElectronUpdateProgress] = useState<number>(0);
 
   const [buildDate, setBuildDate] = useState("");
 
@@ -155,8 +153,8 @@ function AppShell() {
     // In Electron on Linux, updates are handled via IPC from electron-updater.
     // On Windows the Electron build is portable, so electron-updater cannot
     // apply updates — fall through to the REST API path instead.
-    if (window.electronAPI && window.electronAPI.platform !== "win32") {
-      const cleanupAvailable = window.electronAPI.onUpdateAvailable((info) => {
+    if (globalThis.electronAPI && globalThis.electronAPI.platform !== "win32") {
+      const cleanupAvailable = globalThis.electronAPI.onUpdateAvailable((info) => {
         setUpdateInfo({
           available: true,
           latest_version: info.version,
@@ -165,17 +163,17 @@ function AppShell() {
         setShowUpdateNotification(true);
       });
 
-      const cleanupProgress = window.electronAPI.onUpdateProgress((progress) => {
-        setElectronUpdateProgress(progress.percent);
+      const cleanupProgress = globalThis.electronAPI.onUpdateProgress(() => {
+        // Progress updates received but not currently displayed
       });
 
-      const cleanupDownloaded = window.electronAPI.onUpdateDownloaded(() => {
+      const cleanupDownloaded = globalThis.electronAPI.onUpdateDownloaded(() => {
         // Auto-install once download completes
-        window.electronAPI!.installUpdate();
+        globalThis.electronAPI!.installUpdate();
         setUpdateState("restarting");
       });
 
-      const cleanupError = window.electronAPI.onUpdateError((message) => {
+      const cleanupError = globalThis.electronAPI.onUpdateError((message) => {
         console.error('[Update] Error:', message);
         setUpdateState("idle");
       });
@@ -208,8 +206,8 @@ function AppShell() {
 
     // Windows Electron (portable): open the GitHub release page so the
     // user can download the new version manually.
-    if (window.electronAPI?.platform === "win32") {
-      window.open(
+    if (globalThis.electronAPI?.platform === "win32") {
+      globalThis.open(
         `https://github.com/ZSleyer/Encounty/releases/tag/${updateInfo.latest_version}`,
         "_blank",
       );
@@ -219,10 +217,10 @@ function AppShell() {
 
     setUpdateState("installing");
 
-    if (window.electronAPI) {
+    if (globalThis.electronAPI) {
       // Electron Linux: download via electron-updater IPC
       try {
-        await window.electronAPI.downloadUpdate();
+        await globalThis.electronAPI.downloadUpdate();
       } catch {
         setUpdateState("idle");
       }
@@ -239,7 +237,7 @@ function AppShell() {
       setUpdateState("restarting");
       const pollBackend = () => {
         fetch("/api/version", { cache: "no-store" })
-          .then(() => window.location.reload())
+          .then(() => globalThis.location.reload())
           .catch(() => setTimeout(pollBackend, 1000));
       };
       setTimeout(pollBackend, 2000);
@@ -252,34 +250,34 @@ function AppShell() {
   // Shows the browser's native "Leave page?" dialog as a last resort.
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isConnected && !quitting && !restarting && updateState === "idle" && !window.electronAPI) {
+      if (isConnected && !quitting && !restarting && updateState === "idle" && !globalThis.electronAPI) {
         e.preventDefault();
       }
     };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    globalThis.addEventListener("beforeunload", handleBeforeUnload);
+    return () => globalThis.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isConnected, quitting, restarting, updateState]);
 
   // Intercept Ctrl+W / Cmd+W to show custom warning modal instead of closing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "w") {
-        if (isConnected && !quitting && !restarting && updateState === "idle" && !window.electronAPI) {
+        if (isConnected && !quitting && !restarting && updateState === "idle" && !globalThis.electronAPI) {
           e.preventDefault();
           setShowCloseWarning(true);
         }
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [isConnected, quitting, restarting, updateState]);
 
   // Sync crisp-sprites attribute from backend settings whenever state arrives
   useEffect(() => {
     if (appState?.settings.crisp_sprites) {
-      document.documentElement.setAttribute("data-crisp-sprites", "");
+      document.documentElement.dataset.crispSprites = "";
     } else if (appState) {
-      document.documentElement.removeAttribute("data-crisp-sprites");
+      delete document.documentElement.dataset.crispSprites;
     }
   }, [appState?.settings.crisp_sprites]);
 
@@ -297,16 +295,9 @@ function AppShell() {
     setQuitting(true);
     setShowCloseWarning(false);
     await fetch("/api/quit", { method: "POST" }).catch(() => {});
-    // Try to close the tab (works if opened via window.open)
-    window.close();
+    // Try to close the tab (works if opened via globalThis.open)
+    globalThis.close();
   }, [t]);
-
-  const restartApp = async () => {
-    if (!confirm(t("app.confirmRestart"))) return;
-    setRestarting(true);
-    await fetch("/api/restart", { method: "POST" }).catch(() => {});
-    setTimeout(() => window.location.reload(), 1500);
-  };
 
   useWebSocket(
     (msg: WSMessage) => {
@@ -456,7 +447,7 @@ function AppShell() {
       {showUpdateNotification && updateInfo && updateState === "idle" && (
         <UpdateNotification
           version={updateInfo.latest_version}
-          manualDownload={window.electronAPI?.platform === "win32"}
+          manualDownload={globalThis.electronAPI?.platform === "win32"}
           onUpdate={() => {
             setShowUpdateNotification(false);
             applyUpdate();
@@ -473,7 +464,7 @@ function AppShell() {
         style={{
           WebkitAppRegion: "drag",
         } as React.CSSProperties}
-        onDoubleClick={() => window.electronAPI?.maximize()}
+        onDoubleClick={() => globalThis.electronAPI?.maximize()}
       >
         {/* Left: Logo + Nav tabs */}
         <div className="flex items-center gap-1 mr-auto" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
@@ -596,7 +587,7 @@ function AppShell() {
               rel="noopener noreferrer"
               className="flex items-center gap-1 hover:text-text-muted transition-colors font-medium"
             >
-              <Github className="w-3 h-3" />
+              <GithubIcon className="w-3 h-3" />
               <span>GitHub</span>
             </a>
             <span className="text-text-faint/30">|</span>
@@ -625,12 +616,12 @@ function AppShell() {
 /* ── Nav Tab ──────────────────────────────────────────────────── */
 
 interface NavTabProps {
-  readonly to: string;
-  readonly icon: React.ReactNode;
-  readonly children: React.ReactNode;
+  to: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
 }
 
-function NavTab({ to, icon, children }: NavTabProps) {
+function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
   const location = useLocation();
   const isActive = location.pathname === to;
 

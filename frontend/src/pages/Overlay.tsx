@@ -15,7 +15,7 @@ function useGoogleFont(fontFamily: string) {
   useEffect(() => {
     const systemFonts = ["sans", "serif", "monospace", "pokemon"];
     if (!fontFamily || systemFonts.includes(fontFamily)) return;
-    const id = `gfont-${fontFamily.replace(/\s+/g, "-")}`;
+    const id = `gfont-${fontFamily.replaceAll(/\s+/g, "-")}`;
     if (document.getElementById(id)) return;
     const link = document.createElement("link");
     link.id = id;
@@ -79,11 +79,11 @@ function SlotCounter({
   value,
   counterStyle,
   reverse,
-}: {
+}: Readonly<{
   value: number;
   counterStyle: React.CSSProperties;
   reverse?: boolean;
-}) {
+}>) {
   const digits = String(value).split("");
   return (
     <span style={{ display: "inline-flex" }}>
@@ -114,11 +114,11 @@ function FlipCounter({
   value,
   counterStyle,
   reverse,
-}: {
+}: Readonly<{
   value: number;
   counterStyle: React.CSSProperties;
   reverse?: boolean;
-}) {
+}>) {
   const digits = String(value).split("");
   return (
     <span style={{ display: "inline-flex" }}>
@@ -222,7 +222,7 @@ export function Overlay({
   previewSettings,
   previewPokemon,
   testTrigger,
-}: Props) {
+}: Readonly<Props>) {
   const { appState } = useCounterStore();
 
   // Counter animation
@@ -237,12 +237,16 @@ export function Overlay({
   const [nameAnimClass, setNameAnimClass] = useState("");
   const [nameAnimReverse, setNameAnimReverse] = useState(false);
   const [nameTriggerId, setNameTriggerId] = useState(0);
+  // Title animation
+  const [titleAnimClass, setTitleAnimClass] = useState("");
+  const [titleAnimReverse, setTitleAnimReverse] = useState(false);
+  const [titleTriggerId, setTitleTriggerId] = useState(0);
 
   const prevCount = useRef<number | undefined>(undefined);
 
   // Path-based route param takes priority, query param as fallback
   const { pokemonId: routePokemonId } = useParams<{ pokemonId?: string }>();
-  const searchParams = new URLSearchParams(window.location.search);
+  const searchParams = new URLSearchParams(globalThis.location.search);
   const overlayPokemonId = routePokemonId || searchParams.get("id");
 
   const activePokemon: Pokemon | null = useMemo(
@@ -268,6 +272,7 @@ export function Overlay({
   // Inject fonts
   useGoogleFont(settings?.name.style.font_family || "sans");
   useGoogleFont(settings?.counter.style.font_family || "sans");
+  useGoogleFont(settings?.title?.style.font_family || "sans");
 
   // Trigger animations on counter change
   useEffect(() => {
@@ -283,7 +288,8 @@ export function Overlay({
       // Counter
       const counterKey = settings.counter.trigger_enter;
       if (counterKey !== "slot" && counterKey !== "flip-digit") {
-        const key = isReset ? "rubber" : isIncrement ? counterKey : "shake";
+        const keyForIncrement = isIncrement ? counterKey : "shake";
+        const key = isReset ? "rubber" : keyForIncrement;
         const cls = COUNTER_ANIMS[key] ?? "";
         if (cls) {
           setAnimReverse(isDecrement);
@@ -314,6 +320,19 @@ export function Overlay({
           setNameAnimReverse(isDecrement);
           setNameAnimClass(cls);
           setNameTriggerId(Date.now());
+        }
+      }
+
+      // Title
+      if (settings.title) {
+        const titleKey = settings.title.trigger_enter;
+        if (titleKey && titleKey !== "none") {
+          const cls = NAME_ANIMS[titleKey] ?? "";
+          if (cls) {
+            setTitleAnimReverse(isDecrement);
+            setTitleAnimClass(cls);
+            setTitleTriggerId(Date.now());
+          }
         }
       }
     }
@@ -351,8 +370,15 @@ export function Overlay({
         setNameAnimClass(cls);
         setNameTriggerId(Date.now());
       }
+    } else if (testTrigger.element === "title" && settings.title) {
+      const cls = NAME_ANIMS[settings.title.trigger_enter] ?? "";
+      if (cls) {
+        setTitleAnimReverse(rev);
+        setTitleAnimClass(cls);
+        setTitleTriggerId(Date.now());
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-docs
   }, [testTrigger?.n]);
 
   if (!activePokemon || !settings) {
@@ -398,6 +424,7 @@ export function Overlay({
   const nameStyle = buildTextStyle(settings.name.style);
   const counterStyle = buildTextStyle(settings.counter.style);
   const labelStyle = buildTextStyle(settings.counter.label_style);
+  const titleStyle = settings.title ? buildTextStyle(settings.title.style) : {};
 
   const counterMode = settings.counter.trigger_enter;
 
@@ -435,12 +462,14 @@ export function Overlay({
       };
 
   const bgImageFit = settings.background_image_fit ?? "cover";
+  const bgSizeMap: Record<string, string> = { tile: "auto", stretch: "100% 100%" };
+  const bgImageSize = bgSizeMap[bgImageFit] ?? bgImageFit;
   const bgImageStyle: React.CSSProperties | undefined = settings.background_image
     ? {
         position: "absolute",
         inset: 0,
         backgroundImage: `url(/api/backgrounds/${settings.background_image})`,
-        backgroundSize: bgImageFit === "tile" ? "auto" : bgImageFit === "stretch" ? "100% 100%" : bgImageFit,
+        backgroundSize: bgImageSize,
         backgroundRepeat: bgImageFit === "tile" ? "repeat" : "no-repeat",
         backgroundPosition: "center",
         borderRadius: `${settings.border_radius}px`,
@@ -522,7 +551,14 @@ export function Overlay({
       )}
 
       {/* Name — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
-      {settings.name.visible && (
+      {settings.name.visible && (() => {
+          const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
+          const nameJustifyContent = alignToJustify[settings.name.style.text_align] ?? "flex-start";
+          const outlinePadding = settings.name.style.outline_type === "solid" ? settings.name.style.outline_width * 2 + 1 : 0;
+          const shadowPadding = settings.name.style.text_shadow ? Math.abs(settings.name.style.text_shadow_x) + settings.name.style.text_shadow_blur : 0;
+          const namePadding = Math.max(2, outlinePadding, shadowPadding);
+
+          return (
           <div
             style={{
               position: "absolute",
@@ -533,8 +569,8 @@ export function Overlay({
               zIndex: settings.name.z_index,
               display: "flex",
               alignItems: "center",
-              justifyContent: settings.name.style.text_align === "center" ? "center" : settings.name.style.text_align === "right" ? "flex-end" : "flex-start",
-              padding: `0 ${Math.max(2, settings.name.style.outline_type === "solid" ? settings.name.style.outline_width * 2 + 1 : 0, settings.name.style.text_shadow ? Math.abs(settings.name.style.text_shadow_x) + settings.name.style.text_shadow_blur : 0)}px`,
+              justifyContent: nameJustifyContent,
+              padding: `0 ${namePadding}px`,
               overflow: "visible",
             }}
             className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
@@ -549,19 +585,59 @@ export function Overlay({
                 animationDirection: nameAnimReverse ? "reverse" : undefined,
               }}
             >
-              {(() => {
-                const mode = settings.name.display_mode || "name";
-                const title = activePokemon.title || "";
-                if (mode === "title" && title) return title;
-                if (mode === "both" && title) return `${activePokemon.name} — ${title}`;
-                return activePokemon.name;
-              })()}
+              {activePokemon.name}
             </span>
           </div>
-      )}
+          );
+      })()}
+
+      {/* Title — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
+      {settings.title?.visible && activePokemon.title && (() => {
+          const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
+          const titleJustifyContent = alignToJustify[settings.title.style.text_align] ?? "flex-start";
+          const outlinePadding = settings.title.style.outline_type === "solid" ? settings.title.style.outline_width * 2 + 1 : 0;
+          const shadowPadding = settings.title.style.text_shadow ? Math.abs(settings.title.style.text_shadow_x) + settings.title.style.text_shadow_blur : 0;
+          const titlePadding = Math.max(2, outlinePadding, shadowPadding);
+
+          return (
+          <div
+            style={{
+              position: "absolute",
+              left: settings.title.x,
+              top: settings.title.y,
+              width: settings.title.width,
+              height: settings.title.height,
+              zIndex: settings.title.z_index,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: titleJustifyContent,
+              padding: `0 ${titlePadding}px`,
+              overflow: "visible",
+            }}
+            className={TEXT_IDLE[settings.title.idle_animation] ?? ""}
+          >
+            <span
+              key={`title-${titleTriggerId}`}
+              className={`uppercase tracking-widest whitespace-nowrap ${titleAnimClass}`}
+              style={{
+                ...titleStyle,
+                display: "inline-block",
+                transformOrigin: "center",
+                animationDirection: titleAnimReverse ? "reverse" : undefined,
+              }}
+            >
+              {activePokemon.title}
+            </span>
+          </div>
+          );
+      })()}
 
       {/* Counter — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
-      {settings.counter.visible && (
+      {settings.counter.visible && (() => {
+          const counterAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
+          const counterAlignItems = counterAlignMap[settings.counter.style.text_align] ?? "flex-start";
+
+          return (
           <div
             style={{
               position: "absolute",
@@ -572,7 +648,7 @@ export function Overlay({
               zIndex: settings.counter.z_index,
               display: "flex",
               flexDirection: "column",
-              alignItems: settings.counter.style.text_align === "center" ? "center" : settings.counter.style.text_align === "right" ? "flex-end" : "flex-start",
+              alignItems: counterAlignItems,
               justifyContent: "center",
             }}
             className={
@@ -611,7 +687,8 @@ export function Overlay({
               <span style={labelStyle}>{settings.counter.label_text}</span>
             )}
           </div>
-      )}
+          );
+      })()}
     </div>
   );
 

@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "../test-utils";
+import { render, screen, makeAppState } from "../test-utils";
 import { OverlayEditorPage } from "./OverlayEditorPage";
 import { useCounterStore } from "../hooks/useCounterState";
-import { makeAppState } from "../test-utils";
 
 vi.stubGlobal(
   "fetch",

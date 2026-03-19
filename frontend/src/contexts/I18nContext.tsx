@@ -11,6 +11,8 @@ import {
   useContext,
   useState,
   useEffect,
+  useMemo,
+  useCallback,
   ReactNode,
 } from "react";
 import { Locale, t as translate } from "../utils/i18n";
@@ -28,7 +30,7 @@ const I18nContext = createContext<I18nContextValue>({
 });
 
 /** I18nProvider wraps the app with locale state and a translation function. */
-export function I18nProvider({ children }: { children: ReactNode }) {
+export function I18nProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [locale, setLocale] = useState<Locale>(() => {
     const saved = localStorage.getItem("encounty-locale");
     return (saved === "en" ? "en" : "de") as Locale;
@@ -39,10 +41,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const t = (key: string) => translate(locale, key);
+  const t = useCallback((key: string) => translate(locale, key), [locale]);
+
+  const value = useMemo(() => ({ locale, setLocale, t }), [locale, t]);
 
   return (
-    <I18nContext.Provider value={{ locale, setLocale, t }}>
+    <I18nContext.Provider value={value}>
       {children}
     </I18nContext.Provider>
   );

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { resolveOverlay, wouldCreateCircularLink } from "./overlay";
 import { makePokemon, makeOverlaySettings } from "../test-utils";
-import type { OverlaySettings } from "../types";
 
 const defaultOverlay = makeOverlaySettings();
 

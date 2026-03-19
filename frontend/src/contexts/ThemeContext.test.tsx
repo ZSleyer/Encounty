@@ -87,9 +87,9 @@ describe("ThemeContext", () => {
       </ThemeProvider>,
     );
 
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe("dark");
 
     fireEvent.click(screen.getByText("toggle"));
-    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    expect(document.documentElement.dataset.theme).toBe("light");
   });
 });

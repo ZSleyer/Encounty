@@ -6,7 +6,7 @@
  * exists it is replaced in-place rather than stacked, so rapid increments
  * only show one toast per Pokémon at a time. The stack is capped at 5.
  */
-import { createContext, useContext, useState, useCallback, useRef } from "react";
+import { createContext, useContext, useState, useCallback, useRef, useMemo } from "react";
 
 export type ToastType = "success" | "error" | "info" | "encounter";
 
@@ -29,7 +29,7 @@ interface ToastContextType {
 const ToastContext = createContext<ToastContextType | null>(null);
 
 /** ToastProvider supplies the toast queue and push/dismiss actions to the tree. */
-export function ToastProvider({ children }: { children: React.ReactNode }) {
+export function ToastProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -89,8 +89,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     [dismiss],
   );
 
+  const value = useMemo(() => ({ toasts, push, dismiss }), [toasts, push, dismiss]);
+
   return (
-    <ToastContext.Provider value={{ toasts, push, dismiss }}>
+    <ToastContext.Provider value={value}>
       {children}
     </ToastContext.Provider>
   );

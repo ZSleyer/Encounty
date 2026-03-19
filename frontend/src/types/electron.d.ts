@@ -32,3 +32,6 @@ interface ElectronAPI {
 interface Window {
   electronAPI?: ElectronAPI;
 }
+
+/* eslint-disable no-var */
+declare var electronAPI: ElectronAPI | undefined;

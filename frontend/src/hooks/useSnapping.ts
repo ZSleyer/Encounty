@@ -6,7 +6,7 @@
  */
 import { OverlaySettings } from "../types";
 
-type ElementKey = "sprite" | "name" | "counter";
+type ElementKey = "sprite" | "name" | "title" | "counter";
 
 export interface Guide {
   type: "h" | "v";
@@ -54,7 +54,7 @@ export function useSnapping(
     if (Math.abs(y + h - ch) < SNAP_THRESHOLD) guides.push({ type: "h", position: ch });
 
     // Other element alignment
-    for (const key of ["sprite", "name", "counter"] as ElementKey[]) {
+    for (const key of ["sprite", "name", "title", "counter"] as ElementKey[]) {
       if (key === activeKey) continue;
       const el = settings[key];
       const ex = el.x, ey = el.y, ew = el.width, eh = el.height;

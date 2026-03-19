@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "../test-utils";
+import { describe, it, expect, beforeEach } from "vitest";
+import { render, screen, makeAppState, makeOverlaySettings, makePokemon } from "../test-utils";
 import { Overlay } from "./Overlay";
 import { useCounterStore } from "../hooks/useCounterState";
-import { makeAppState, makeOverlaySettings, makePokemon } from "../test-utils";
 
 describe("Overlay", () => {
   beforeEach(() => {

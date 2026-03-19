@@ -6,7 +6,7 @@
  * the active Pokémon (increment, decrement, reset, complete/delete).
  * Counter actions are sent over WebSocket for immediate multi-tab sync.
  */
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Plus,
   Star,
@@ -27,7 +27,6 @@ import {
   Layers,
   Save,
   RefreshCw,
-  Keyboard,
   ExternalLink,
   Download,
   ChevronDown,
@@ -39,16 +38,16 @@ import {
   BarChart3,
 } from "lucide-react";
 import { Link } from "react-router";
-import { AddPokemonModal, NewPokemonData } from "../components/AddPokemonModal";
-import { EditPokemonModal } from "../components/EditPokemonModal";
-import { ConfirmModal } from "../components/ConfirmModal";
-import { SetEncounterModal } from "../components/SetEncounterModal";
-import { StatisticsPanel } from "../components/StatisticsPanel";
-import { DetectorPanel } from "../components/DetectorPanel";
-import { OverlayEditor } from "../components/OverlayEditor";
-import { useCounterStore, DetectorStatusEntry } from "../hooks/useCounterState";
+import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
+import { EditPokemonModal } from "../components/pokemon/EditPokemonModal";
+import { ConfirmModal } from "../components/shared/ConfirmModal";
+import { SetEncounterModal } from "../components/shared/SetEncounterModal";
+import { StatisticsPanel } from "../components/shared/StatisticsPanel";
+import { DetectorPanel } from "../components/detector/DetectorPanel";
+import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
+import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, DetectorRect, OverlaySettings, OverlayMode } from "../types";
+import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
@@ -73,7 +72,7 @@ function computeTimerMs(pokemon: Pokemon): number {
 }
 
 /** PokemonTimer renders play/pause/reset controls and a live timer display for the main panel. */
-function PokemonTimer({ pokemon, send }: { readonly pokemon: Pokemon; readonly send: (type: string, payload: unknown) => void }) {
+function PokemonTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void }>) {
   const { t } = useI18n();
   const [, setTick] = useState(0);
   const isRunning = !!pokemon.timer_started_at;
@@ -89,21 +88,21 @@ function PokemonTimer({ pokemon, send }: { readonly pokemon: Pokemon; readonly s
       <Timer className="w-4 h-4 text-text-muted" />
       <span className="text-lg font-mono tabular-nums text-text-primary">{formatTimer(computeTimerMs(pokemon))}</span>
       <div className="flex gap-1.5">
-        {!isRunning ? (
-          <button
-            onClick={() => send("timer_start", { pokemon_id: pokemon.id })}
-            className="p-1.5 rounded-lg bg-accent-green/20 hover:bg-accent-green/30 text-accent-green transition-colors"
-            title={t("timer.start")}
-          >
-            <Play className="w-3.5 h-3.5" />
-          </button>
-        ) : (
+        {isRunning ? (
           <button
             onClick={() => send("timer_stop", { pokemon_id: pokemon.id })}
             className="p-1.5 rounded-lg bg-accent-yellow/20 hover:bg-accent-yellow/30 text-accent-yellow transition-colors"
             title={t("timer.stop")}
           >
             <Pause className="w-3.5 h-3.5" />
+          </button>
+        ) : (
+          <button
+            onClick={() => send("timer_start", { pokemon_id: pokemon.id })}
+            className="p-1.5 rounded-lg bg-accent-green/20 hover:bg-accent-green/30 text-accent-green transition-colors"
+            title={t("timer.start")}
+          >
+            <Play className="w-3.5 h-3.5" />
           </button>
         )}
         <button
@@ -119,7 +118,7 @@ function PokemonTimer({ pokemon, send }: { readonly pokemon: Pokemon; readonly s
 }
 
 /** SidebarTimer shows a compact timer + play/pause in the sidebar Pokemon list. */
-function SidebarTimer({ pokemon, send }: { readonly pokemon: Pokemon; readonly send: (type: string, payload: unknown) => void }) {
+function SidebarTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void }>) {
   const { t } = useI18n();
   const [, setTick] = useState(0);
   const isRunning = !!pokemon.timer_started_at;
@@ -160,7 +159,7 @@ function SidebarTimer({ pokemon, send }: { readonly pokemon: Pokemon; readonly s
 type SidebarTab = "active" | "archived";
 
 export function Dashboard() {
-  const { appState, isConnected, flashPokemon, detectorStatus } = useCounterStore();
+  const { appState, flashPokemon, detectorStatus } = useCounterStore();
   const { t } = useI18n();
   const { push: pushToast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -199,7 +198,7 @@ export function Dashboard() {
 
   const { send } = useWebSocket((msg) => {
     if (msg.type === "request_reset_confirm") {
-      window.electronAPI?.focusWindow();
+      globalThis.electronAPI?.focusWindow();
       const payload = msg.payload as { pokemon_id: string };
       const pokemon = appState?.pokemon.find(
         (p) => p.id === payload.pokemon_id,
@@ -222,8 +221,8 @@ export function Dashboard() {
         searchRef.current?.focus();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    globalThis.addEventListener("keydown", handler);
+    return () => globalThis.removeEventListener("keydown", handler);
   }, []);
 
   // Sync overlay editor state when the viewed Pokemon changes
@@ -454,7 +453,7 @@ export function Dashboard() {
           (p) =>
             p.name.toLowerCase().includes(q) ||
             p.canonical_name.toLowerCase().includes(q) ||
-            (p.game && p.game.toLowerCase().includes(q)),
+            p.game?.toLowerCase().includes(q),
         )
       : list;
 
@@ -972,10 +971,15 @@ export function Dashboard() {
             </header>
 
             {/* SCROLLABLE INNER WORK AREA — overlay tab uses full height without scroll */}
+            {(() => {
+              const overlayOrDefault = rightPanelTab === "overlay" ? "max-w-full mt-0" : "max-w-2xl mt-0 pb-16";
+              const innerMaxWidth = rightPanelTab === "counter" ? "max-w-3xl mt-0" : overlayOrDefault;
+
+              return (
             <div className={`flex-1 flex flex-col items-center relative z-10 w-full ${rightPanelTab === "overlay" ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8"} ${rightPanelTab === "counter" ? "justify-center" : "justify-start"}`}>
 
 
-              <div className={`flex flex-col items-center w-full ${rightPanelTab === "overlay" ? "h-full" : ""} ${rightPanelTab === "counter" ? "max-w-3xl mt-0" : rightPanelTab === "overlay" ? "max-w-full mt-0" : "max-w-2xl mt-0 pb-16"}`}>
+              <div className={`flex flex-col items-center w-full ${rightPanelTab === "overlay" ? "h-full" : ""} ${innerMaxWidth}`}>
               
               {rightPanelTab === "counter" ? (
                 <>
@@ -1267,6 +1271,8 @@ export function Dashboard() {
               ) : null}
             </div>
           </div>
+            );
+            })()}
         </div>
         )}
       </main>
