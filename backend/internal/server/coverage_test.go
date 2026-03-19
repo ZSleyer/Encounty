@@ -25,6 +25,14 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	covTmplPNG     = "tmpl.png"
+	covPathBackup  = "/api/backup"
+	covFmtStatus   = "status = %d, want 200"
+	covFakePNG     = "fake-png"
+	covEncountyDB  = "encounty.db"
+)
+
 // --- handleBackup coverage ---
 
 // TestBackupWithTemplateFiles exercises the WalkDir path that includes template
@@ -43,16 +51,16 @@ func TestBackupWithTemplateFiles(t *testing.T) {
 	if err := os.MkdirAll(tmplDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(tmplDir, "tmpl.png"), []byte("fake-png-data"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmplDir, covTmplPNG), []byte("fake-png-data"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/backup", nil)
+	req := httptest.NewRequest(http.MethodGet, covPathBackup, nil)
 	w := httptest.NewRecorder()
 	srv.handleBackup(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
+		t.Fatalf(covFmtStatus, w.Code)
 	}
 
 	zr, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
@@ -62,7 +70,7 @@ func TestBackupWithTemplateFiles(t *testing.T) {
 
 	foundTemplate := false
 	for _, f := range zr.File {
-		if strings.Contains(f.Name, "tmpl.png") {
+		if strings.Contains(f.Name, covTmplPNG) {
 			foundTemplate = true
 			rc, err := f.Open()
 			if err != nil {
@@ -100,16 +108,16 @@ func TestBackupWithBothFiles(t *testing.T) {
 	if err := os.MkdirAll(tmplDir, 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(tmplDir, "tmpl.png"), []byte("fake-png"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmplDir, covTmplPNG), []byte(covFakePNG), 0644); err != nil {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/backup", nil)
+	req := httptest.NewRequest(http.MethodGet, covPathBackup, nil)
 	w := httptest.NewRecorder()
 	srv.handleBackup(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
+		t.Fatalf(covFmtStatus, w.Code)
 	}
 
 	zr, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
@@ -121,10 +129,10 @@ func TestBackupWithBothFiles(t *testing.T) {
 	for _, f := range zr.File {
 		names[f.Name] = true
 	}
-	if !names["encounty.db"] {
+	if !names[covEncountyDB] {
 		t.Error("encounty.db missing from backup")
 	}
-	if !names["templates/p1/tmpl.png"] {
+	if !names["templates/p1/"+covTmplPNG] {
 		t.Error("templates/p1/tmpl.png missing from backup")
 	}
 }
@@ -134,12 +142,12 @@ func TestBackupWithBothFiles(t *testing.T) {
 func TestBackupNoFiles(t *testing.T) {
 	srv := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/backup", nil)
+	req := httptest.NewRequest(http.MethodGet, covPathBackup, nil)
 	w := httptest.NewRecorder()
 	srv.handleBackup(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200", w.Code)
+		t.Fatalf(covFmtStatus, w.Code)
 	}
 }
 
@@ -163,7 +171,7 @@ func TestRestoreWithBothFiles(t *testing.T) {
 	}
 
 	// Read the DB file to put into our ZIP
-	dbData, err := os.ReadFile(filepath.Join(configDir, "encounty.db"))
+	dbData, err := os.ReadFile(filepath.Join(configDir, covEncountyDB))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,10 +179,10 @@ func TestRestoreWithBothFiles(t *testing.T) {
 	// Create a ZIP with encounty.db, a template file, and a file that should be skipped
 	var zipBuf bytes.Buffer
 	zw := zip.NewWriter(&zipBuf)
-	fw, _ := zw.Create("encounty.db")
+	fw, _ := zw.Create(covEncountyDB)
 	_, _ = fw.Write(dbData)
 	fw2, _ := zw.Create("templates/p1/tmpl.png")
-	_, _ = fw2.Write([]byte("fake-png"))
+	_, _ = fw2.Write([]byte(covFakePNG))
 	fw3, _ := zw.Create("other.txt")
 	_, _ = fw3.Write([]byte("ignored"))
 	_ = zw.Close()
@@ -195,12 +203,12 @@ func TestRestoreWithBothFiles(t *testing.T) {
 	}
 
 	// Verify template file was written
-	data, err := os.ReadFile(filepath.Join(configDir, "templates", "p1", "tmpl.png"))
+	data, err := os.ReadFile(filepath.Join(configDir, "templates", "p1", covTmplPNG))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(data) != "fake-png" {
-		t.Errorf("template content = %q, want %q", string(data), "fake-png")
+	if string(data) != covFakePNG {
+		t.Errorf("template content = %q, want %q", string(data), covFakePNG)
 	}
 }
 
@@ -399,7 +407,8 @@ func TestBroadcastRawMarshalError(t *testing.T) {
 	h.mu.Unlock()
 
 	// func() is not JSON-marshalable
-	h.BroadcastRaw("test", func() {})
+	h.BroadcastRaw("test", func() { // no-op for test
+	})
 
 	select {
 	case <-c.send:
@@ -535,7 +544,7 @@ func TestHandleUpdateHotkeysBindingError(t *testing.T) {
 
 	// Should still return 200 (the error is logged, not returned to client)
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want 200", w.Code)
+		t.Errorf(covFmtStatus, w.Code)
 	}
 }
 

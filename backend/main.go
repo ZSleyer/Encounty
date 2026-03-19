@@ -67,47 +67,12 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Inject embedded games.json as fallback for the server package
 	server.SetDefaultGamesJSON(embeddedGamesJSON)
 
 	configDir := getConfigDir()
 	slog.Info("Config directory", "path", configDir)
 
-	// State — lightweight JSON-only load to resolve custom config path redirect
-	stateMgr := state.NewManager(configDir)
-	if err := stateMgr.LoadFromJSON(); err != nil {
-		slog.Warn("Could not load state from JSON", "error", err)
-	}
-	if customPath := stateMgr.GetState().Settings.ConfigPath; customPath != "" && customPath != configDir {
-		slog.Info("Redirecting to custom config path", "path", customPath)
-		stateMgr = state.NewManager(customPath)
-	}
-
-	// SQLite database — opened at the effective config directory
-	effectiveDir := stateMgr.GetConfigDir()
-	dbPath := filepath.Join(effectiveDir, "encounty.db")
-	db, err := database.Open(dbPath)
-	if err != nil {
-		slog.Warn("Could not open database", "error", err)
-	}
-
-	// Migrate JSON files into the database (one-time)
-	if db != nil {
-		migrateJSONToDB(effectiveDir, db)
-	}
-
-	// Wire DB to state manager and perform authoritative load
-	if db != nil {
-		stateMgr.SetDB(db)
-	}
-	if err := stateMgr.Load(); err != nil {
-		slog.Warn("Could not load state", "error", err)
-	}
-
-	// Migrate from JSON blob to normalized schema (one-time)
-	if db != nil {
-		migrateToNormalizedSchema(db, stateMgr)
-	}
+	stateMgr, db := initStateAndDB(configDir)
 
 	st := stateMgr.GetState()
 	port := st.Settings.BrowserPort
@@ -115,37 +80,20 @@ func main() {
 		port = 8080
 	}
 
-	// File output writer
-	outputDir := st.Settings.OutputDir
-	outputEnabled := st.Settings.OutputEnabled
-	var fileWriter *fileoutput.Writer
-	if outputDir != "" {
-		fileWriter = fileoutput.New(outputDir, outputEnabled)
-	} else {
-		fileWriter = fileoutput.New(filepath.Join(configDir, "output"), outputEnabled)
-	}
-
-	// Hotkey manager
-	hotkeyMgr := hotkeys.New(stateMgr)
-	if err := hotkeyMgr.Start(); err != nil {
-		slog.Warn("Global hotkeys unavailable", "error", err)
-	}
+	fileWriter := initFileWriter(st, configDir)
+	hotkeyMgr := initHotkeys(stateMgr)
 
 	// Detector manager — broadcast function is wired after server creation.
-	var broadcastFn detector.BroadcastFunc = func(msgType string, payload any) {
-		// Placeholder — replaced with srv.Broadcast after server init.
-	}
+	var broadcastFn detector.BroadcastFunc = func(msgType string, payload any) { /* replaced after server init */ }
 	detectorMgr := detector.NewManager(stateMgr, func(msgType string, payload any) {
 		broadcastFn(msgType, payload)
 	}, configDir)
 
-	// Frontend FS
 	var frontFS fs.FS
 	if !*devMode {
 		frontFS = frontendFS
 	}
 
-	// Server
 	srv := server.New(server.Config{
 		Port:        port,
 		FrontendFS:  frontFS,
@@ -160,36 +108,89 @@ func main() {
 		DB:          db,
 	})
 
-	// Wire the real broadcast function now that the server (and hub) exist.
 	broadcastFn = srv.Broadcast
 
+	startGracefulShutdown(srv, hotkeyMgr, db, stateMgr)
 
-	// Graceful shutdown — buffer 2 so a second signal is never dropped.
+	if err := srv.Start(); err != nil && err != http.ErrServerClosed {
+		slog.Error("Server error", "error", err)
+		os.Exit(1)
+	}
+}
+
+// initStateAndDB creates the state manager, opens the database, runs
+// migrations, and loads the authoritative state. It returns the fully
+// initialised manager and the database handle (which may be nil).
+func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
+	stateMgr := state.NewManager(configDir)
+	if err := stateMgr.LoadFromJSON(); err != nil {
+		slog.Warn("Could not load state from JSON", "error", err)
+	}
+	if customPath := stateMgr.GetState().Settings.ConfigPath; customPath != "" && customPath != configDir {
+		slog.Info("Redirecting to custom config path", "path", customPath)
+		stateMgr = state.NewManager(customPath)
+	}
+
+	effectiveDir := stateMgr.GetConfigDir()
+	dbPath := filepath.Join(effectiveDir, "encounty.db")
+	db, err := database.Open(dbPath)
+	if err != nil {
+		slog.Warn("Could not open database", "error", err)
+	}
+
+	if db != nil {
+		migrateJSONToDB(effectiveDir, db)
+		stateMgr.SetDB(db)
+	}
+	if err := stateMgr.Load(); err != nil {
+		slog.Warn("Could not load state", "error", err)
+	}
+	if db != nil {
+		migrateToNormalizedSchema(db, stateMgr)
+	}
+	return stateMgr, db
+}
+
+// initFileWriter creates the file-output writer used for OBS text sources.
+func initFileWriter(st state.AppState, configDir string) *fileoutput.Writer {
+	outputDir := st.Settings.OutputDir
+	if outputDir == "" {
+		outputDir = filepath.Join(configDir, "output")
+	}
+	return fileoutput.New(outputDir, st.Settings.OutputEnabled)
+}
+
+// initHotkeys creates and starts the global hotkey manager.
+func initHotkeys(stateMgr *state.Manager) hotkeys.Manager {
+	hotkeyMgr := hotkeys.New(stateMgr)
+	if err := hotkeyMgr.Start(); err != nil {
+		slog.Warn("Global hotkeys unavailable", "error", err)
+	}
+	return hotkeyMgr
+}
+
+// startGracefulShutdown installs signal handlers that perform an orderly
+// shutdown of the server, hotkeys, database, and state persistence.
+func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *database.DB, stateMgr *state.Manager) {
 	quit := make(chan os.Signal, 2)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		<-quit // first signal → start graceful shutdown
+		<-quit
 		slog.Info("Shutting down...")
 
-		// Hard-kill safety net: if shutdown takes > 3 s, force-exit.
 		go func() {
 			time.Sleep(3 * time.Second)
 			slog.Warn("Shutdown timed out, forcing exit")
 			os.Exit(1)
 		}()
-
-		// Also force-exit immediately on a second signal.
 		go func() {
 			<-quit
 			slog.Warn("Second signal, forcing exit")
 			os.Exit(1)
 		}()
 
-		// Close all WebSocket connections first so http.Shutdown() returns
-		// immediately instead of waiting for persistent connections to time out.
 		srv.Hub().CloseAll()
-
 		hotkeyMgr.Stop()
 		if db != nil {
 			_ = db.Close()
@@ -205,11 +206,6 @@ func main() {
 		}
 		os.Exit(0)
 	}()
-
-	if err := srv.Start(); err != nil && err != http.ErrServerClosed {
-		slog.Error("Server error", "error", err)
-		os.Exit(1)
-	}
 }
 
 // migrateStateJSON migrates state.json into the SQLite database.

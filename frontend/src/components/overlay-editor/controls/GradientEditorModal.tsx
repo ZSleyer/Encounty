@@ -67,7 +67,7 @@ export function GradientEditorModal({
   const [angle, setAngle] = useState(initialAngle);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
-  const barRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLButtonElement>(null);
 
   // --- Drag handle logic ---
   const draggingIdx = useRef<number | null>(null);
@@ -98,7 +98,7 @@ export function GradientEditorModal({
   };
 
   // --- Add stop on bar click ---
-  const handleBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleBarClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!barRef.current) return;
     const rect = barRef.current.getBoundingClientRect();
     const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
@@ -152,9 +152,10 @@ export function GradientEditorModal({
       </div>
 
       {/* --- Preview bar --- */}
-      <div
+      <button
         ref={barRef}
-        className="w-full h-8 rounded-lg cursor-crosshair mb-1"
+        type="button"
+        className="w-full h-8 rounded-lg cursor-crosshair mb-1 border-0 p-0"
         style={{ background: buildGradientCSS(stops, angle) }}
         onClick={handleBarClick}
       />
@@ -164,6 +165,12 @@ export function GradientEditorModal({
         {stops.map((stop, idx) => (
           <div
             key={`handle-${stop.color}-${stop.position}-${idx}`}
+            role="slider"
+            tabIndex={0}
+            aria-label={`Stop ${idx + 1}`}
+            aria-valuenow={stop.position}
+            aria-valuemin={0}
+            aria-valuemax={100}
             className={`absolute -translate-x-1/2 top-0 w-3 h-3 rounded-full cursor-grab border-2 ${
               selectedIdx === idx ? "border-accent-blue" : "border-border-subtle"
             }`}

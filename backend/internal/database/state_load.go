@@ -391,6 +391,27 @@ type elemRow struct {
 // loadOverlay reconstructs an OverlaySettings from the overlay_settings,
 // overlay_elements, text_styles, and gradient_stops tables.
 func loadOverlay(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings, error) {
+	ov, overlayID, err := loadOverlayBase(db, ownerType, ownerID)
+	if err != nil || ov == nil {
+		return ov, err
+	}
+
+	elems, err := scanOverlayElements(db, overlayID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, e := range elems {
+		if err := applyOverlayElement(db, ov, e); err != nil {
+			return nil, err
+		}
+	}
+	return ov, nil
+}
+
+// loadOverlayBase reads the overlay_settings row and returns the base settings.
+// Returns (nil, 0, nil) when no row exists.
+func loadOverlayBase(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings, int64, error) {
 	var ov state.OverlaySettings
 	var overlayID int64
 	var hidden, showBorder int
@@ -405,19 +426,20 @@ func loadOverlay(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings,
 			&ov.BackgroundImage, &ov.BackgroundImageFit, &ov.Blur, &showBorder,
 			&ov.BorderColor, &ov.BorderWidth, &ov.BorderRadius)
 	if err == sql.ErrNoRows {
-		return nil, nil
+		return nil, 0, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("query overlay_settings: %w", err)
+		return nil, 0, fmt.Errorf("query overlay_settings: %w", err)
 	}
 	ov.Hidden = hidden != 0
 	ov.ShowBorder = showBorder != 0
+	return &ov, overlayID, nil
+}
 
-	// Load elements into a temporary slice first, then close the cursor
-	// before issuing further queries. With MaxOpenConns(1) the single
-	// connection is held by the open Rows; calling loadTextStyle while the
-	// cursor is still open would deadlock.
-	elemRows, err := db.Query(`SELECT id, element_type, visible, x, y, width, height, z_index,
+// scanOverlayElements loads all overlay_elements rows for the given overlay
+// ID and closes the cursor before returning.
+func scanOverlayElements(db *sql.DB, overlayID int64) ([]elemRow, error) {
+	rows, err := db.Query(`SELECT id, element_type, visible, x, y, width, height, z_index,
 		show_glow, glow_color, glow_opacity, glow_blur, idle_animation, trigger_enter, trigger_exit,
 		show_label, label_text
 		FROM overlay_elements WHERE overlay_id = ?`, overlayID)
@@ -426,32 +448,24 @@ func loadOverlay(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings,
 	}
 
 	var elems []elemRow
-	for elemRows.Next() {
+	for rows.Next() {
 		var e elemRow
 		var visible int
-		if err := elemRows.Scan(&e.id, &e.elemType, &visible, &e.base.X, &e.base.Y, &e.base.Width,
+		if err := rows.Scan(&e.id, &e.elemType, &visible, &e.base.X, &e.base.Y, &e.base.Width,
 			&e.base.Height, &e.base.ZIndex, &e.showGlow, &e.glowColor, &e.glowOpacity, &e.glowBlur,
 			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.showLabel, &e.labelText); err != nil {
-			_ = elemRows.Close()
+			_ = rows.Close()
 			return nil, fmt.Errorf("scan overlay_element: %w", err)
 		}
 		e.base.Visible = visible != 0
 		elems = append(elems, e)
 	}
-	if err := elemRows.Err(); err != nil {
-		_ = elemRows.Close()
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
 		return nil, err
 	}
-	_ = elemRows.Close()
-
-	// Now that the cursor is closed, we can safely query text_styles.
-	for _, e := range elems {
-		if err := applyOverlayElement(db, &ov, e); err != nil {
-			return nil, err
-		}
-	}
-
-	return &ov, nil
+	_ = rows.Close()
+	return elems, nil
 }
 
 // applyOverlayElement dispatches a single element row to the appropriate field

@@ -47,13 +47,13 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         body: JSON.stringify({ key: combo }),
       })
       await fetch(`${API}/hotkeys/resume`, { method: 'POST' }).catch(() => {})
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setError(data.error ?? 'Unbekannte Taste')
-      } else {
+      if (res.ok) {
         const updated = { ...local, [action]: combo }
         setLocal(updated)
         onUpdate(updated)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Unbekannte Taste')
       }
       setRecording(null)
       setLiveModifiers('')
@@ -161,9 +161,10 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
               <div className="flex items-center gap-3">
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
-                    isRecording
-                      ? 'bg-accent-blue animate-pulse'
-                      : (currentCombo ? 'bg-accent-green' : 'bg-border-subtle')
+                    (() => {
+                      if (isRecording) return 'bg-accent-blue animate-pulse';
+                      return currentCombo ? 'bg-accent-green' : 'bg-border-subtle';
+                    })()
                   }`}
                 />
                 <span className="text-sm 2xl:text-base text-text-secondary">{label}</span>

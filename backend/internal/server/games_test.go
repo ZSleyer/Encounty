@@ -8,6 +8,11 @@ import (
 	"testing"
 )
 
+const (
+	gamesJSONFile   = "games.json"
+	fmtExpect3      = "expected 3 entries, got %d"
+)
+
 // resetGamesCache clears the package-level cache so each test starts fresh.
 func resetGamesCache(t *testing.T) {
 	t.Helper()
@@ -30,7 +35,7 @@ func TestGamesLoadFromConfigDir(t *testing.T) {
 
 	dir := t.TempDir()
 	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, "games.json"), fixtureGamesJSON(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), fixtureGamesJSON(), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,7 +44,7 @@ func TestGamesLoadFromConfigDir(t *testing.T) {
 		t.Fatal("loadGames returned nil")
 	}
 	if len(entries) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(entries))
+		t.Fatalf(fmtExpect3, len(entries))
 	}
 
 	// Verify sorting by generation
@@ -63,11 +68,11 @@ func TestGamesLoadFromEmbeddedDefault(t *testing.T) {
 		t.Fatal("loadGames returned nil")
 	}
 	if len(entries) != 3 {
-		t.Fatalf("expected 3 entries, got %d", len(entries))
+		t.Fatalf(fmtExpect3, len(entries))
 	}
 
 	// Verify it wrote the default to config dir
-	written, err := os.ReadFile(filepath.Join(gamesConfigDir, "games.json"))
+	written, err := os.ReadFile(filepath.Join(gamesConfigDir, gamesJSONFile))
 	if err != nil {
 		t.Fatalf("expected games.json to be written to config dir: %v", err)
 	}
@@ -81,7 +86,7 @@ func TestGamesCaching(t *testing.T) {
 
 	dir := t.TempDir()
 	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, "games.json"), fixtureGamesJSON(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), fixtureGamesJSON(), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,7 +96,7 @@ func TestGamesCaching(t *testing.T) {
 	}
 
 	// Remove the file; cached result should still be returned
-	_ = os.Remove(filepath.Join(dir, "games.json"))
+	_ = os.Remove(filepath.Join(dir, gamesJSONFile))
 
 	second := loadGames()
 	if second == nil {
@@ -123,7 +128,7 @@ func TestGamesDeduplication(t *testing.T) {
 	}`)
 	dir := t.TempDir()
 	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, "games.json"), data, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), data, 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -138,7 +143,7 @@ func TestGamesInvalidJSON(t *testing.T) {
 
 	dir := t.TempDir()
 	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, "games.json"), []byte("{bad json}"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), []byte("{bad json}"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -153,7 +158,7 @@ func TestGamesHandleGetGames(t *testing.T) {
 
 	dir := t.TempDir()
 	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, "games.json"), fixtureGamesJSON(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), fixtureGamesJSON(), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -170,6 +175,6 @@ func TestGamesHandleGetGames(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 	if len(result) != 3 {
-		t.Errorf("expected 3 entries, got %d", len(result))
+		t.Errorf(fmtExpect3, len(result))
 	}
 }

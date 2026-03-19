@@ -147,7 +147,7 @@ export function CountryFlag({
   const Flag = FLAG_MAP[code];
   if (!Flag) return null;
   return (
-    <span className="inline-flex items-center shrink-0 rounded-[2px] overflow-hidden border border-white/10">
+    <span className="inline-flex items-center shrink-0 rounded-xs overflow-hidden border border-white/10">
       <Flag className={className} />
     </span>
   );

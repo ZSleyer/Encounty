@@ -232,6 +232,23 @@ func saveDetectorConfigs(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []strin
 	if err := deleteNotIn(tx, "detector_configs", "pokemon_id", pokemonIDs); err != nil {
 		return fmt.Errorf("delete orphan detector_configs: %w", err)
 	}
+	stmt, err := prepareDetectorConfigStmt(tx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = stmt.Close() }()
+
+	for _, p := range pokemon {
+		if err := upsertSingleDetectorConfig(tx, stmt, p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// prepareDetectorConfigStmt creates the prepared statement for upserting
+// detector_configs rows.
+func prepareDetectorConfigStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	stmt, err := tx.Prepare(`
 		INSERT INTO detector_configs (pokemon_id, enabled, source_type,
 			region_x, region_y, region_w, region_h, window_title,
@@ -254,27 +271,29 @@ func saveDetectorConfigs(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []strin
 			min_poll_ms      = excluded.min_poll_ms,
 			max_poll_ms      = excluded.max_poll_ms`)
 	if err != nil {
-		return fmt.Errorf("prepare detector_configs upsert: %w", err)
+		return nil, fmt.Errorf("prepare detector_configs upsert: %w", err)
 	}
-	defer func() { _ = stmt.Close() }()
+	return stmt, nil
+}
 
-	for _, p := range pokemon {
-		if p.DetectorConfig == nil {
-			if _, err := tx.Exec(`DELETE FROM detector_configs WHERE pokemon_id = ?`, p.ID); err != nil {
-				return fmt.Errorf("delete detector_config for %q: %w", p.ID, err)
-			}
-			continue
+// upsertSingleDetectorConfig handles one Pokémon's detector config: delete
+// if nil, upsert otherwise.
+func upsertSingleDetectorConfig(tx *sql.Tx, stmt *sql.Stmt, p state.Pokemon) error {
+	if p.DetectorConfig == nil {
+		if _, err := tx.Exec(`DELETE FROM detector_configs WHERE pokemon_id = ?`, p.ID); err != nil {
+			return fmt.Errorf("delete detector_config for %q: %w", p.ID, err)
 		}
-		cfg := p.DetectorConfig
-		if _, err := stmt.Exec(
-			p.ID, boolToInt(cfg.Enabled), cfg.SourceType,
-			cfg.Region.X, cfg.Region.Y, cfg.Region.W, cfg.Region.H,
-			cfg.WindowTitle, cfg.Precision, cfg.ConsecutiveHits,
-			cfg.CooldownSec, cfg.ChangeThreshold,
-			cfg.PollIntervalMs, cfg.MinPollMs, cfg.MaxPollMs,
-		); err != nil {
-			return fmt.Errorf("upsert detector_config for %q: %w", p.ID, err)
-		}
+		return nil
+	}
+	cfg := p.DetectorConfig
+	if _, err := stmt.Exec(
+		p.ID, boolToInt(cfg.Enabled), cfg.SourceType,
+		cfg.Region.X, cfg.Region.Y, cfg.Region.W, cfg.Region.H,
+		cfg.WindowTitle, cfg.Precision, cfg.ConsecutiveHits,
+		cfg.CooldownSec, cfg.ChangeThreshold,
+		cfg.PollIntervalMs, cfg.MinPollMs, cfg.MaxPollMs,
+	); err != nil {
+		return fmt.Errorf("upsert detector_config for %q: %w", p.ID, err)
 	}
 	return nil
 }

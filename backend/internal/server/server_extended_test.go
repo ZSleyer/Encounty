@@ -12,6 +12,11 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	testBuildDate = "2026-01-01"
+	extFmtStatus  = "status = %d, want %d"
+)
+
 // --- New constructor ---
 
 func TestNewServer(t *testing.T) {
@@ -24,7 +29,7 @@ func TestNewServer(t *testing.T) {
 		HotkeyMgr:  hkMgr,
 		Version:    "1.0.0",
 		Commit:     "abc1234",
-		BuildDate:  "2026-01-01",
+		BuildDate:  testBuildDate,
 		ConfigDir:  t.TempDir(),
 	})
 
@@ -43,8 +48,8 @@ func TestNewServer(t *testing.T) {
 	if srv.commit != "abc1234" {
 		t.Errorf("commit = %q, want %q", srv.commit, "abc1234")
 	}
-	if srv.buildDate != "2026-01-01" {
-		t.Errorf("buildDate = %q, want %q", srv.buildDate, "2026-01-01")
+	if srv.buildDate != testBuildDate {
+		t.Errorf("buildDate = %q, want %q", srv.buildDate, testBuildDate)
 	}
 	if srv.httpServer == nil {
 		t.Error("httpServer should not be nil")
@@ -184,7 +189,7 @@ func TestHandleSyncGamesWrongMethod(t *testing.T) {
 	srv.handleSyncGames(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusMethodNotAllowed)
+		t.Errorf(extFmtStatus, w.Code, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -198,7 +203,7 @@ func TestHandleUpdateApplyInvalidJSON(t *testing.T) {
 	srv.handleUpdateApply(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		t.Errorf(extFmtStatus, w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -212,7 +217,7 @@ func TestHandleQuitWrongMethod(t *testing.T) {
 	srv.handleQuit(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusMethodNotAllowed)
+		t.Errorf(extFmtStatus, w.Code, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -226,6 +231,6 @@ func TestHandleRestartWrongMethod(t *testing.T) {
 	srv.handleRestart(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusMethodNotAllowed)
+		t.Errorf(extFmtStatus, w.Code, http.StatusMethodNotAllowed)
 	}
 }

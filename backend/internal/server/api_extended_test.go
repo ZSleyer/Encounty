@@ -10,7 +10,10 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
-const fmtStatusWant = "status = %d, want %d"
+const (
+	fmtStatusWant = "status = %d, want %d"
+	fmtUnmarshal  = "unmarshal: %v"
+)
 
 // newGetRequest creates a GET request for the given path.
 func newGetRequest(path string) *http.Request {
@@ -175,7 +178,7 @@ func TestHandleGetSessionsEmpty(t *testing.T) {
 
 	var sessions []state.Session
 	if err := json.Unmarshal(w.Body.Bytes(), &sessions); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshal, err)
 	}
 	if len(sessions) != 0 {
 		t.Errorf("sessions length = %d, want 0", len(sessions))
@@ -196,7 +199,7 @@ func TestHandleGetSessionsWithData(t *testing.T) {
 
 	var sessions []state.Session
 	if err := json.Unmarshal(w.Body.Bytes(), &sessions); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshal, err)
 	}
 	if len(sessions) != 1 {
 		t.Fatalf("sessions length = %d, want 1", len(sessions))
@@ -257,7 +260,7 @@ func TestHandleUpdateSingleHotkeyValid(t *testing.T) {
 
 	var resp map[string]string
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshal, err)
 	}
 	if resp["action"] != "increment" {
 		t.Errorf("action = %q, want %q", resp["action"], "increment")
@@ -302,7 +305,7 @@ func TestHandleOverlayStateWithActivePokemon(t *testing.T) {
 
 	var resp map[string]json.RawMessage
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshal, err)
 	}
 
 	// active_id should be "p1"
@@ -333,7 +336,7 @@ func TestHandleOverlayStateNoActivePokemon(t *testing.T) {
 
 	var resp map[string]json.RawMessage
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshal, err)
 	}
 
 	if string(resp["active_pokemon"]) != "null" {
@@ -418,7 +421,7 @@ func TestHandleGetHuntTypes(t *testing.T) {
 
 	var presets []state.HuntTypePreset
 	if err := json.Unmarshal(w.Body.Bytes(), &presets); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshal, err)
 	}
 	if len(presets) == 0 {
 		t.Error("expected at least one hunt type preset")
@@ -513,7 +516,7 @@ func TestHandleStatusAvailable(t *testing.T) {
 
 	var resp map[string]any
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshal, err)
 	}
 	available, ok := resp["available"].(bool)
 	if !ok {

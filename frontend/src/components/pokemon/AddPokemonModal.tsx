@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Search, Globe, AlertTriangle, Sparkles } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import { GameEntry, Language } from "../../types";
+import { GameEntry } from "../../types";
 import {
   getSpriteUrl,
   SpriteType,
@@ -25,7 +25,7 @@ export interface NewPokemonData {
   sprite_url: string;
   sprite_type: SpriteType;
   sprite_style: SpriteStyle;
-  language: Language;
+  language: string;
   game: string;
   hunt_type: string;
   step?: number;
@@ -68,7 +68,7 @@ export function AddPokemonModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
 
-  const [language, setLanguage] = useState<Language>(
+  const [language, setstring] = useState<string>(
     activeLanguages.includes("de")
       ? "de"
       : activeLanguages[0] ?? "en",
@@ -273,7 +273,7 @@ export function AddPokemonModal({
           <button
             key={lang}
             onClick={() => {
-              setLanguage(lang);
+              setstring(lang);
               if (selected) {
                 const searchList = buildSearchList(allPokemon);
                 const fullP = searchList.find(

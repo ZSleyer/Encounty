@@ -13,15 +13,22 @@ import (
 	"testing"
 )
 
+const (
+	assetWindows  = "encounty-windows.exe"
+	assetLinux    = "encounty-linux"
+	urlLinux      = "https://example.com/linux"
+	urlWin        = "https://example.com/win"
+)
+
 func TestPlatformAssetName(t *testing.T) {
 	name := platformAssetName()
 	switch runtime.GOOS {
 	case "windows":
-		if name != "encounty-windows.exe" {
+		if name != assetWindows {
 			t.Errorf("got %q, want encounty-windows.exe", name)
 		}
 	default:
-		if name != "encounty-linux" {
+		if name != assetLinux {
 			t.Errorf("got %q, want encounty-linux", name)
 		}
 	}
@@ -29,17 +36,17 @@ func TestPlatformAssetName(t *testing.T) {
 
 func TestAssetDownloadURL(t *testing.T) {
 	assets := []githubAsset{
-		{Name: "encounty-linux", BrowserDownloadURL: "https://example.com/linux"},
-		{Name: "encounty-windows.exe", BrowserDownloadURL: "https://example.com/win"},
+		{Name: assetLinux, BrowserDownloadURL: urlLinux},
+		{Name: assetWindows, BrowserDownloadURL: urlWin},
 	}
 
 	url := assetDownloadURL(assets)
 	if runtime.GOOS == "windows" {
-		if url != "https://example.com/win" {
+		if url != urlWin {
 			t.Errorf("got %q, want windows URL", url)
 		}
 	} else {
-		if url != "https://example.com/linux" {
+		if url != urlLinux {
 			t.Errorf("got %q, want linux URL", url)
 		}
 	}
@@ -61,8 +68,8 @@ func TestVersionComparisonInFetchUpdateInfo(t *testing.T) {
 	mockRelease := githubRelease{
 		TagName: "2.0.0",
 		Assets: []githubAsset{
-			{Name: "encounty-linux", BrowserDownloadURL: "https://example.com/linux"},
-			{Name: "encounty-windows.exe", BrowserDownloadURL: "https://example.com/win"},
+			{Name: assetLinux, BrowserDownloadURL: urlLinux},
+			{Name: assetWindows, BrowserDownloadURL: urlWin},
 		},
 	}
 

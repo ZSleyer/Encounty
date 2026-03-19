@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const fmtStateWantIdle = "State = %q, want idle"
+
 // TestBrowserDetectorDefaultConsecutiveHitsAndCooldown exercises the SubmitFrame
 // path where consecutiveHits and cooldownSec are both zero, triggering the
 // default value assignments.
@@ -14,7 +16,7 @@ func TestBrowserDetectorDefaultConsecutiveHitsAndCooldown(t *testing.T) {
 	noMatch := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	r := bd.SubmitFrame(noMatch)
 	if r.State != "idle" {
-		t.Errorf("State = %q, want idle", r.State)
+		t.Errorf(fmtStateWantIdle, r.State)
 	}
 }
 
@@ -51,7 +53,7 @@ func TestBrowserDetectorFullCycleWithDefaults(t *testing.T) {
 	// idle
 	r := bd.SubmitFrame(noMatch)
 	if r.State != "idle" {
-		t.Errorf("State = %q, want idle", r.State)
+		t.Errorf(fmtStateWantIdle, r.State)
 	}
 
 	// idle -> match_active
@@ -81,7 +83,7 @@ func TestBrowserDetectorFullCycleWithDefaults(t *testing.T) {
 	// to transition prevAbove back to false.
 	r = bd.SubmitFrame(noMatch)
 	if r.State != "idle" {
-		t.Errorf("State = %q, want idle", r.State)
+		t.Errorf(fmtStateWantIdle, r.State)
 	}
 
 	// Now a matching frame should trigger again (low->high edge)

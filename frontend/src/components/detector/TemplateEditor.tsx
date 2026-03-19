@@ -23,6 +23,56 @@ export type TemplateEditorProps = Readonly<{
   ocrLang?: string;
 }>;
 
+/** Flow controls for creating a new template — video or snapshot phase. */
+function NewTemplateControls({
+  phase,
+  isSaving,
+  onTakeSnapshot,
+  onResetSnapshot,
+  onSave,
+  t,
+}: Readonly<{
+  phase: "video" | "snapshot";
+  isSaving: boolean;
+  onTakeSnapshot: () => void;
+  onResetSnapshot: () => void;
+  onSave: () => void;
+  t: (k: string) => string;
+}>) {
+  if (phase === "video") {
+    return (
+      <button
+        onClick={onTakeSnapshot}
+        className="flex items-center justify-center gap-2 w-full py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+      >
+        <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
+        {t("templateEditor.takeSnapshot")}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex w-full gap-3">
+      <button
+        onClick={onResetSnapshot}
+        disabled={isSaving}
+        className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
+      >
+        <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5" />
+        {t("templateEditor.retake")}
+      </button>
+      <button
+        onClick={onSave}
+        disabled={isSaving}
+        className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+      >
+        <Save className="w-5 h-5 2xl:w-6 2xl:h-6" />
+        {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
+      </button>
+    </div>
+  );
+}
+
 export function TemplateEditor({
   stream,
   onClose,
@@ -312,16 +362,20 @@ export function TemplateEditor({
 
       <div className="text-white text-center mb-4 mt-8 shrink-0">
         {(() => {
-          const heading = isEditMode
-            ? t("templateEditor.editTitle")
-            : phase === "video"
-            ? t("templateEditor.step1Title")
-            : t("templateEditor.step2Title");
-          const hint = isEditMode
-            ? t("templateEditor.editHint")
-            : phase === "video"
-            ? t("templateEditor.step1Hint")
-            : t("templateEditor.step2Hint");
+          let heading: string;
+          let hint: string;
+
+          if (isEditMode) {
+            heading = t("templateEditor.editTitle");
+            hint = t("templateEditor.editHint");
+          } else if (phase === "video") {
+            heading = t("templateEditor.step1Title");
+            hint = t("templateEditor.step1Hint");
+          } else {
+            heading = t("templateEditor.step2Title");
+            hint = t("templateEditor.step2Hint");
+          }
+
           return (
             <>
               <h2 className="text-xl 2xl:text-2xl font-bold mb-1">{heading}</h2>
@@ -508,35 +562,16 @@ export function TemplateEditor({
               {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
             </button>
           </div>
-        ) : phase === "video" ? (
-          // New template mode: take snapshot
-          <button
-            onClick={handleTakeSnapshot}
-            className="flex items-center justify-center gap-2 w-full py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
-          >
-            <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
-            {t("templateEditor.takeSnapshot")}
-          </button>
         ) : (
-          // New template mode: retake or save
-          <div className="flex w-full gap-3">
-            <button
-              onClick={resetSnapshot}
-              disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
-            >
-              <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5" />
-              {t("templateEditor.retake")}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
-            >
-              <Save className="w-5 h-5 2xl:w-6 2xl:h-6" />
-              {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
-            </button>
-          </div>
+          // New template mode
+          <NewTemplateControls
+            phase={phase}
+            isSaving={isSaving}
+            onTakeSnapshot={handleTakeSnapshot}
+            onResetSnapshot={resetSnapshot}
+            onSave={handleSave}
+            t={t}
+          />
         )}
 
         {errorMsg && (

@@ -77,7 +77,7 @@ describe("HotkeySettings", () => {
 
     // Press Escape
     await act(async () => {
-      fireEvent.keyDown(window, { key: "Escape" });
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "Escape" });
     });
 
     // Should return to non-recording state
@@ -113,7 +113,7 @@ describe("HotkeySettings", () => {
 
     // Press Ctrl (modifier only)
     await act(async () => {
-      fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "Control", ctrlKey: true });
     });
 
     // The modifier text appears in both the kbd and the prompt span
@@ -143,7 +143,7 @@ describe("HotkeySettings", () => {
 
     // Press Ctrl+A
     await act(async () => {
-      fireEvent.keyDown(window, { key: "a", ctrlKey: true });
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "a", ctrlKey: true });
     });
 
     await waitFor(() => {
@@ -244,7 +244,7 @@ describe("HotkeySettings", () => {
     });
 
     await act(async () => {
-      fireEvent.keyDown(window, { key: "F13" });
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "F13" });
     });
 
     await waitFor(() => {
@@ -262,12 +262,12 @@ describe("HotkeySettings", () => {
 
     // Press Ctrl+Shift down
     await act(async () => {
-      fireEvent.keyDown(window, { key: "Control", ctrlKey: true });
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "Control", ctrlKey: true });
     });
 
     // Release Ctrl but keep Shift
     await act(async () => {
-      fireEvent.keyUp(window, { key: "Control", shiftKey: true });
+      fireEvent.keyUp(globalThis as unknown as Window, { key: "Control", shiftKey: true });
     });
 
     const matches = screen.getAllByText("Shift+\u2026");

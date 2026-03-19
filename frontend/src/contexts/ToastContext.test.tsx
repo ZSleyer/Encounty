@@ -2,6 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { ToastProvider, useToast } from "./ToastContext";
 
+/** Component that uses useToast outside of ToastProvider, used to test error handling. */
+function Orphan() {
+  useToast();
+  return null;
+}
+
 /** Test component that exposes toast state and actions. */
 function ToastTester() {
   const { toasts, push, dismiss } = useToast();
@@ -140,11 +146,6 @@ describe("ToastContext", () => {
   });
 
   it("useToast throws when used outside ToastProvider", () => {
-    function Orphan() {
-      useToast();
-      return null;
-    }
-
     // Suppress React error boundary console noise
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<Orphan />)).toThrow("useToast must be used within ToastProvider");

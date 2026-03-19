@@ -65,15 +65,7 @@ export function DetectorPreview({
               <option value="browser_camera">{t("detector.sourceCamera")}</option>
               <option value="browser_display">{t("detector.sourceBrowser")}</option>
             </select>
-            {!stream ? (
-              <button
-                onClick={onStartCapture}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
-              >
-                <Video className="w-3.5 h-3.5" />
-                {t("detector.connect")}
-              </button>
-            ) : (
+            {stream ? (
               <>
                 {capture.getSourceLabel(pokemon.id) && (
                   <span className="text-[11px] text-text-muted truncate max-w-35" title={capture.getSourceLabel(pokemon.id) ?? ""}>
@@ -88,6 +80,14 @@ export function DetectorPreview({
                   {t("detector.disconnect")}
                 </button>
               </>
+            ) : (
+              <button
+                onClick={onStartCapture}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
+              >
+                <Video className="w-3.5 h-3.5" />
+                {t("detector.connect")}
+              </button>
             )}
           </div>
         </div>
@@ -95,17 +95,17 @@ export function DetectorPreview({
           data-detector-tutorial="preview"
           className="relative w-full aspect-video bg-black"
         >
-          {!stream ? (
-            <div className="w-full h-full flex flex-col items-center justify-center">
-              <Camera className="w-10 h-10 2xl:w-12 2xl:h-12 text-white/20 mb-2" />
-              <p className="text-xs text-white/30">{t("detector.noStream")}</p>
-            </div>
-          ) : (
+          {stream ? (
             <video
               ref={videoRef}
               autoPlay playsInline muted
               className="w-full h-full object-contain"
             />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center">
+              <Camera className="w-10 h-10 2xl:w-12 2xl:h-12 text-white/20 mb-2" />
+              <p className="text-xs text-white/30">{t("detector.noStream")}</p>
+            </div>
           )}
         </div>
       </div>

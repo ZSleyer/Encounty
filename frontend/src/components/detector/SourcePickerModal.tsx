@@ -421,29 +421,37 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
 
       {/* Content grid */}
       <div className="px-5 pb-3 min-h-65 max-h-100 overflow-y-auto">
-        {loading ? (
-          <div className="flex items-center justify-center h-48">
-            <RefreshCw className="w-5 h-5 text-text-muted animate-spin" />
-            <span className="ml-2 text-xs text-text-muted">{t("sourcePicker.refreshing")}</span>
-          </div>
-        ) : activeTab === "cameras" ? (
-          <CameraGrid
-            cameras={cameras}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onDoubleClick={handleDoubleClick}
-            videoRefsMap={videoRefsMap}
-            t={t}
-          />
-        ) : (
-          <SourceGrid
-            sources={filteredSources}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onDoubleClick={handleDoubleClick}
-            t={t}
-          />
-        )}
+        {(() => {
+          if (loading) {
+            return (
+              <div className="flex items-center justify-center h-48">
+                <RefreshCw className="w-5 h-5 text-text-muted animate-spin" />
+                <span className="ml-2 text-xs text-text-muted">{t("sourcePicker.refreshing")}</span>
+              </div>
+            );
+          }
+          if (activeTab === "cameras") {
+            return (
+              <CameraGrid
+                cameras={cameras}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onDoubleClick={handleDoubleClick}
+                videoRefsMap={videoRefsMap}
+                t={t}
+              />
+            );
+          }
+          return (
+            <SourceGrid
+              sources={filteredSources}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onDoubleClick={handleDoubleClick}
+              t={t}
+            />
+          );
+        })()}
       </div>
 
       {/* Footer buttons */}

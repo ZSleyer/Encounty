@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+const (
+	linkedP1       = "linked:p1"
+	linkedP2       = "linked:p2"
+	fmtOverlayMode = "OverlayMode = %q, want %q"
+	errUpdateFalse = "UpdatePokemon returned false"
+	extStateJSON   = "state.json"
+)
+
 // --- AddSession ---
 
 func TestAddSession(t *testing.T) {
@@ -126,7 +134,7 @@ func TestResolveOverlayLinked(t *testing.T) {
 	m.AddPokemon(p1)
 
 	p2 := makePokemon("p2", "Charmander")
-	p2.OverlayMode = "linked:p1"
+	p2.OverlayMode = linkedP1
 	m.AddPokemon(p2)
 
 	overlay := m.ResolveOverlay("p2")
@@ -139,11 +147,11 @@ func TestResolveOverlayLinkedCycle(t *testing.T) {
 	m := NewManager(t.TempDir())
 
 	p1 := makePokemon("p1", "Pikachu")
-	p1.OverlayMode = "linked:p2"
+	p1.OverlayMode = linkedP2
 	m.AddPokemon(p1)
 
 	p2 := makePokemon("p2", "Charmander")
-	p2.OverlayMode = "linked:p1"
+	p2.OverlayMode = linkedP1
 	m.AddPokemon(p2)
 
 	// Should not infinite-loop; returns default overlay
@@ -162,7 +170,7 @@ func TestResolveOverlayLinkedToDefault(t *testing.T) {
 	m.AddPokemon(p1)
 
 	p2 := makePokemon("p2", "Charmander")
-	p2.OverlayMode = "linked:p1"
+	p2.OverlayMode = linkedP1
 	m.AddPokemon(p2)
 
 	// p2 links to p1, which uses default
@@ -215,7 +223,7 @@ func TestUnlinkOverlayDefault(t *testing.T) {
 
 	st := m.GetState()
 	if st.Pokemon[0].OverlayMode != "custom" {
-		t.Errorf("OverlayMode = %q, want %q", st.Pokemon[0].OverlayMode, "custom")
+		t.Errorf(fmtOverlayMode, st.Pokemon[0].OverlayMode, "custom")
 	}
 	if st.Pokemon[0].Overlay == nil {
 		t.Error("Overlay should be set after unlink")
@@ -237,7 +245,7 @@ func TestUnlinkOverlayLinked(t *testing.T) {
 	m.AddPokemon(p1)
 
 	p2 := makePokemon("p2", "Charmander")
-	p2.OverlayMode = "linked:p1"
+	p2.OverlayMode = linkedP1
 	m.AddPokemon(p2)
 
 	ok := m.UnlinkOverlay("p2")
@@ -247,7 +255,7 @@ func TestUnlinkOverlayLinked(t *testing.T) {
 
 	st := m.GetState()
 	if st.Pokemon[1].OverlayMode != "custom" {
-		t.Errorf("OverlayMode = %q, want %q", st.Pokemon[1].OverlayMode, "custom")
+		t.Errorf(fmtOverlayMode, st.Pokemon[1].OverlayMode, "custom")
 	}
 	if st.Pokemon[1].Overlay == nil {
 		t.Fatal("Overlay should be set after unlink")
@@ -274,13 +282,13 @@ func TestUpdatePokemonOverlayMode(t *testing.T) {
 	m.AddPokemon(p)
 
 	// Switch to linked mode
-	ok := m.UpdatePokemon("p1", Pokemon{OverlayMode: "linked:p2"})
+	ok := m.UpdatePokemon("p1", Pokemon{OverlayMode: linkedP2})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdateFalse)
 	}
 	st := m.GetState()
-	if st.Pokemon[0].OverlayMode != "linked:p2" {
-		t.Errorf("OverlayMode = %q, want %q", st.Pokemon[0].OverlayMode, "linked:p2")
+	if st.Pokemon[0].OverlayMode != linkedP2 {
+		t.Errorf(fmtOverlayMode, st.Pokemon[0].OverlayMode, linkedP2)
 	}
 	// Non-custom mode should clear overlay
 	if st.Pokemon[0].Overlay != nil {
@@ -296,11 +304,11 @@ func TestUpdatePokemonOverlayModeCustom(t *testing.T) {
 	customOverlay := &OverlaySettings{CanvasWidth: 1000}
 	ok := m.UpdatePokemon("p1", Pokemon{OverlayMode: "custom", Overlay: customOverlay})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdateFalse)
 	}
 	st := m.GetState()
 	if st.Pokemon[0].OverlayMode != "custom" {
-		t.Errorf("OverlayMode = %q, want %q", st.Pokemon[0].OverlayMode, "custom")
+		t.Errorf(fmtOverlayMode, st.Pokemon[0].OverlayMode, "custom")
 	}
 	// Note: the code sets overlay first from update.Overlay, but then
 	// if OverlayMode != "custom", it clears. For "custom" it stays.
@@ -315,7 +323,7 @@ func TestUpdatePokemonOverlayField(t *testing.T) {
 	customOverlay := &OverlaySettings{CanvasWidth: 1234}
 	ok := m.UpdatePokemon("p1", Pokemon{Overlay: customOverlay})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdateFalse)
 	}
 	st := m.GetState()
 	if st.Pokemon[0].Overlay == nil {
@@ -335,7 +343,7 @@ func TestUpdatePokemonClearOverlay(t *testing.T) {
 	// Pass nil Overlay to clear it
 	ok := m.UpdatePokemon("p1", Pokemon{Name: "Raichu"})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdateFalse)
 	}
 	st := m.GetState()
 	if st.Pokemon[0].Overlay != nil {
@@ -349,7 +357,7 @@ func TestUpdatePokemonLanguageAndGame(t *testing.T) {
 
 	ok := m.UpdatePokemon("p1", Pokemon{Language: "en", Game: "red"})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdateFalse)
 	}
 	st := m.GetState()
 	if st.Pokemon[0].Language != "en" {
@@ -369,7 +377,7 @@ func TestUpdatePokemonSpriteStyle(t *testing.T) {
 	// Update SpriteStyle to empty (clearing it)
 	ok := m.UpdatePokemon("p1", Pokemon{Name: "Pikachu", SpriteStyle: ""})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdateFalse)
 	}
 	st := m.GetState()
 	if st.Pokemon[0].SpriteStyle != "" {
@@ -387,11 +395,11 @@ func TestDeletePokemonResetsLinkedOverlays(t *testing.T) {
 	m.AddPokemon(p1)
 
 	p2 := makePokemon("p2", "Charmander")
-	p2.OverlayMode = "linked:p1"
+	p2.OverlayMode = linkedP1
 	m.AddPokemon(p2)
 
 	p3 := makePokemon("p3", "Bulbasaur")
-	p3.OverlayMode = "linked:p1"
+	p3.OverlayMode = linkedP1
 	m.AddPokemon(p3)
 
 	ok := m.DeletePokemon("p1")
@@ -504,7 +512,7 @@ func TestScheduleSave(t *testing.T) {
 	// Wait for the debounce timer to fire (500ms + margin)
 	time.Sleep(700 * time.Millisecond)
 
-	path := filepath.Join(dir, "state.json")
+	path := filepath.Join(dir, extStateJSON)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("state.json should exist after ScheduleSave: %v", err)
@@ -532,7 +540,7 @@ func TestScheduleSaveDebounce(t *testing.T) {
 	// Wait for the debounce
 	time.Sleep(700 * time.Millisecond)
 
-	path := filepath.Join(dir, "state.json")
+	path := filepath.Join(dir, extStateJSON)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("state.json should exist: %v", err)
 	}
@@ -553,7 +561,7 @@ func TestSaveReadOnlyDir(t *testing.T) {
 
 func TestLoadMigrationOverlayMode(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "state.json")
+	path := filepath.Join(dir, extStateJSON)
 
 	// A pokemon with overlay set but no overlay_mode should get "custom"
 	// A pokemon without overlay should get "default"

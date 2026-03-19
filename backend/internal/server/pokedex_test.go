@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+const pokemonJSONFile = "pokemon.json"
+
 // fixturePokedexJSON returns a minimal valid pokemon.json for testing.
 func fixturePokedexJSON() []byte {
 	return []byte(`[
@@ -25,7 +27,7 @@ func TestPokedexLoadFromConfigDir(t *testing.T) {
 	srv := newTestServer(t)
 	configDir := srv.state.GetConfigDir()
 
-	if err := os.WriteFile(filepath.Join(configDir, "pokemon.json"), fixturePokedexJSON(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, pokemonJSONFile), fixturePokedexJSON(), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,7 +52,7 @@ func TestPokedexEntryWithForms(t *testing.T) {
 	srv := newTestServer(t)
 	configDir := srv.state.GetConfigDir()
 
-	if err := os.WriteFile(filepath.Join(configDir, "pokemon.json"), fixturePokedexJSON(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, pokemonJSONFile), fixturePokedexJSON(), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -101,7 +103,7 @@ func TestPokedexHandleGetPokedex(t *testing.T) {
 	srv := newTestServer(t)
 	configDir := srv.state.GetConfigDir()
 
-	if err := os.WriteFile(filepath.Join(configDir, "pokemon.json"), fixturePokedexJSON(), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, pokemonJSONFile), fixturePokedexJSON(), 0644); err != nil {
 		t.Fatal(err)
 	}
 

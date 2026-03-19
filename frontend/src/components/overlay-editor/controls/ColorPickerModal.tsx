@@ -269,6 +269,8 @@ export function ColorPickerModal({
       {/* Saturation / Brightness area */}
       <div
         ref={satAreaRef}
+        role="application"
+        tabIndex={0}
         onMouseDown={handleSatMouseDown}
         className="relative w-full rounded border border-border-subtle cursor-crosshair select-none"
         style={{
@@ -298,6 +300,12 @@ export function ColorPickerModal({
       {/* Hue slider */}
       <div
         ref={hueBarRef}
+        role="slider"
+        tabIndex={0}
+        aria-label="Hue"
+        aria-valuenow={Math.round(h)}
+        aria-valuemin={0}
+        aria-valuemax={360}
         onMouseDown={handleHueMouseDown}
         className="relative w-full rounded mt-3 cursor-pointer select-none border border-border-subtle"
         style={{
@@ -324,6 +332,12 @@ export function ColorPickerModal({
       {showOpacity && (
         <div
           ref={opacityBarRef}
+          role="slider"
+          tabIndex={0}
+          aria-label="Opacity"
+          aria-valuenow={Math.round(opacity * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
           onMouseDown={handleOpacityMouseDown}
           className="relative w-full rounded mt-2 cursor-pointer select-none border border-border-subtle overflow-hidden"
           style={{ height: 16 }}

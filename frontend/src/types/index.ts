@@ -16,7 +16,7 @@ export interface Pokemon {
   step?: number; // Increment/decrement step size (default 1)
   is_active: boolean;
   created_at: string;
-  language: Language; // "de" | "en"
+  language: string; // "de" | "en"
   game: string; // key from games.json
   completed_at?: string; // ISO timestamp when hunt completed
   overlay_mode: OverlayMode;
@@ -37,7 +37,6 @@ export interface GameEntry {
 
 export type OverlayMode = "default" | "custom" | `linked:${string}`;
 
-export type Language = string;
 
 export interface Session {
   id: string;

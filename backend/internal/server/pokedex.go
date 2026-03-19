@@ -38,7 +38,7 @@ type PokemonForm struct {
 // the local Pokédex Names maps. It is shared by species and form translation
 // helpers.
 var pokeAPILangMap = map[string]string{
-	"ja-Hrkt": "ja",
+	langJaHrkt: "ja",
 	"ja":      "ja",
 	"ko":      "ko",
 	"zh-Hant": "zh-hant",
@@ -63,7 +63,7 @@ func (s *Server) handleGetPokedex(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusInternalServerError, errResp{"could not load pokedex: " + err.Error()})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", contentTypeJSON)
 	w.Header().Set("Cache-Control", "public, max-age=3600")
 	_, _ = w.Write(data)
 }
@@ -203,7 +203,7 @@ func isIgnoredForm(name string) bool {
 // current. It returns the canonical names of newly added forms.
 func fetchAndMergeForms(current *[]PokedexEntry) []string {
 	q := `{"query":"query{pokemon_v2_pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id}}"}`
-	resp, err := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(q))
+	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
 	if err != nil {
 		return nil
 	}
@@ -259,7 +259,7 @@ func fetchAndMergeForms(current *[]PokedexEntry) []string {
 // number of individual name values that changed.
 func fetchAndApplySpeciesNames(current *[]PokedexEntry) int {
 	q := `{"query":"query{pokemon_v2_pokemonspeciesname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){name pokemon_species_id pokemon_v2_language{name}}}"}`
-	resp, err := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(q))
+	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
 	if err != nil {
 		return 0
 	}
@@ -318,8 +318,7 @@ func buildSpeciesTranslationMap(rows []speciesNameRow) map[int]map[string]string
 		if namesMap[n.SpeciesID] == nil {
 			namesMap[n.SpeciesID] = make(map[string]string)
 		}
-		// Prefer Kanji "ja" over Katakana "ja-Hrkt" if both exist.
-		if l == "ja" && n.Language.Name == "ja-Hrkt" && namesMap[n.SpeciesID]["ja"] != "" {
+		if shouldSkipJaKatakana(l, n.Language.Name, namesMap[n.SpeciesID]) {
 			continue
 		}
 		namesMap[n.SpeciesID][l] = n.Name
@@ -327,12 +326,18 @@ func buildSpeciesTranslationMap(rows []speciesNameRow) map[int]map[string]string
 	return namesMap
 }
 
+// shouldSkipJaKatakana returns true when a Katakana "ja-Hrkt" entry should
+// be skipped because a Kanji "ja" translation already exists.
+func shouldSkipJaKatakana(langKey, apiLang string, existing map[string]string) bool {
+	return langKey == "ja" && apiLang == langJaHrkt && existing["ja"] != ""
+}
+
 // fetchAndApplyFormNames fetches localized form names from the PokéAPI GraphQL
 // endpoint and applies them to the form entries in current. It returns the
 // number of individual name values that changed.
 func fetchAndApplyFormNames(current *[]PokedexEntry) int {
 	q := `{"query":"query{pokemon_v2_pokemonformname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){pokemon_v2_pokemonform{name} pokemon_v2_language{name} pokemon_name name}}"}`
-	resp, err := http.Post("https://beta.pokeapi.co/graphql/v1beta", "application/json", strings.NewReader(q))
+	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
 	if err != nil {
 		return 0
 	}
@@ -410,8 +415,7 @@ func buildFormTranslationMap(rows []formNameRow) map[string]map[string]string {
 		if formNamesMap[formNameKey] == nil {
 			formNamesMap[formNameKey] = make(map[string]string)
 		}
-		// Prefer Kanji "ja" over Katakana "ja-Hrkt" if both exist.
-		if l == "ja" && n.Language.Name == "ja-Hrkt" && formNamesMap[formNameKey]["ja"] != "" {
+		if shouldSkipJaKatakana(l, n.Language.Name, formNamesMap[formNameKey]) {
 			continue
 		}
 		formNamesMap[formNameKey][l] = val

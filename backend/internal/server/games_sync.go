@@ -29,11 +29,11 @@ var syncLangPrefix = map[string]struct {
 	"ko":      {"ko", "포켓몬스터 "},
 	"zh-hant": {"zh-hant", "寶可夢 "},
 	"zh-hans": {"zh-hans", "宝可梦 "},
-	"fr":      {"fr", "Pokémon "},
-	"de":      {"de", "Pokémon "},
-	"es":      {"es", "Pokémon "},
-	"it":      {"it", "Pokémon "},
-	"en":      {"en", "Pokémon "},
+	"fr":      {"fr", pokemonPrefix},
+	"de":      {"de", pokemonPrefix},
+	"es":      {"es", pokemonPrefix},
+	"it":      {"it", pokemonPrefix},
+	"en":      {"en", pokemonPrefix},
 }
 
 var syncGenNumber = map[string]int{

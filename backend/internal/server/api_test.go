@@ -12,6 +12,12 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	fmtUnmarshalErr   = "unmarshal: %v"
+	pathAPIPokemon    = "/api/pokemon/"
+	testPokemonIDPath = "abc-123"
+)
+
 // mockHotkeyMgr implements hotkeys.Manager for testing.
 type mockHotkeyMgr struct {
 	actions chan hotkeys.Action
@@ -71,7 +77,7 @@ func TestHandleGetState(t *testing.T) {
 
 	var st state.AppState
 	if err := json.Unmarshal(w.Body.Bytes(), &st); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshalErr, err)
 	}
 	if len(st.Pokemon) != 1 {
 		t.Errorf("Pokemon length = %d, want 1", len(st.Pokemon))
@@ -129,7 +135,7 @@ func TestHandleIncrementValid(t *testing.T) {
 
 	var resp map[string]int
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshalErr, err)
 	}
 	if resp["count"] != 1 {
 		t.Errorf("count = %d, want 1", resp["count"])
@@ -164,7 +170,7 @@ func TestHandleDecrementValid(t *testing.T) {
 
 	var resp map[string]int
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshalErr, err)
 	}
 	if resp["count"] != 1 {
 		t.Errorf("count = %d, want 1", resp["count"])
@@ -258,7 +264,7 @@ func TestHandleVersion(t *testing.T) {
 
 	var resp map[string]string
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshalErr, err)
 	}
 	if resp["version"] != "1.0.0" {
 		t.Errorf("version = %q, want %q", resp["version"], "1.0.0")
@@ -281,7 +287,7 @@ func TestHandleVersionDev(t *testing.T) {
 
 	var resp map[string]string
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+		t.Fatalf(fmtUnmarshalErr, err)
 	}
 	if resp["display"] != "dev-abc1234" {
 		t.Errorf("display = %q, want %q", resp["display"], "dev-abc1234")
@@ -328,9 +334,9 @@ func TestPokemonIDFromPath(t *testing.T) {
 		suffix string
 		want   string
 	}{
-		{"/api/pokemon/abc-123/increment", "/api/pokemon/", "/increment", "abc-123"},
-		{"/api/pokemon/abc-123", "/api/pokemon/", "", "abc-123"},
-		{"/api/pokemon/abc-123/", "/api/pokemon/", "", "abc-123"},
+		{"/api/pokemon/abc-123/increment", pathAPIPokemon, "/increment", testPokemonIDPath},
+		{"/api/pokemon/abc-123", pathAPIPokemon, "", testPokemonIDPath},
+		{"/api/pokemon/abc-123/", pathAPIPokemon, "", testPokemonIDPath},
 	}
 	for _, tt := range tests {
 		got := pokemonIDFromPath(tt.path, tt.prefix, tt.suffix)

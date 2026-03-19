@@ -58,15 +58,17 @@ export function PokemonCard({
 
   return (
     <div
-      onClick={() => {
-        if (!pokemon.is_active) onActivate(pokemon.id);
-      }}
       className={`relative rounded-xl border transition-all duration-300 overflow-hidden flex flex-col ${
         pokemon.is_active
           ? "border-accent-blue/50 bg-linear-to-b from-bg-card to-accent-blue/5 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-[1.02]"
-
           : "border-border-subtle bg-bg-card hover:border-border-active/40 hover:shadow-lg cursor-pointer"
       } ${isFlashing ? "animate-flash" : ""}`}
+      onClick={() => {
+        if (!pokemon.is_active) onActivate(pokemon.id);
+      }}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !pokemon.is_active) onActivate(pokemon.id);
+      }}
     >
       {/* Active Top Bar Indicator */}
       {pokemon.is_active && (

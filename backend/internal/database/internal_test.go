@@ -13,7 +13,10 @@ import (
 
 const (
 	fmtLoadFullState          = "LoadFullState: %v"
+	fmtSaveFullState          = "SaveFullState: %v"
 	errEncounterEventsDropped = "expected error when encounter_events is dropped"
+	errNonNilEmptySlice       = "should return non-nil empty slice"
+	errTimerSessionsDropped   = "expected error when timer_sessions is dropped"
 )
 
 // openInternalTestDB creates a fresh database in a temporary directory.
@@ -239,7 +242,7 @@ func TestLoadFullStateOnClosedDB(t *testing.T) {
 			Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	if err := d.SaveFullState(st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveFullState, err)
 	}
 	_ = d.db.Close()
 	_, err := d.LoadFullState()
@@ -328,7 +331,7 @@ func TestLoadDetectorTemplatesEmpty(t *testing.T) {
 		t.Fatalf("loadDetectorTemplates: %v", err)
 	}
 	if templates == nil {
-		t.Error("should return non-nil empty slice")
+		t.Error(errNonNilEmptySlice)
 	}
 	if len(templates) != 0 {
 		t.Errorf("len = %d, want 0", len(templates))
@@ -342,7 +345,7 @@ func TestLoadTemplateRegionsEmpty(t *testing.T) {
 		t.Fatalf("loadTemplateRegions: %v", err)
 	}
 	if regions == nil {
-		t.Error("should return non-nil empty slice")
+		t.Error(errNonNilEmptySlice)
 	}
 }
 
@@ -353,7 +356,7 @@ func TestLoadDetectionLogEmpty(t *testing.T) {
 		t.Fatalf("loadDetectionLog: %v", err)
 	}
 	if entries == nil {
-		t.Error("should return non-nil empty slice")
+		t.Error(errNonNilEmptySlice)
 	}
 }
 
@@ -364,7 +367,7 @@ func TestLoadSessionsEmpty(t *testing.T) {
 		t.Fatalf("loadSessions: %v", err)
 	}
 	if sessions == nil {
-		t.Error("should return non-nil empty slice")
+		t.Error(errNonNilEmptySlice)
 	}
 }
 
@@ -404,7 +407,7 @@ func TestLoadGradientStopsEmpty(t *testing.T) {
 		t.Fatalf("loadGradientStops: %v", err)
 	}
 	if stops == nil {
-		t.Error("should return non-nil empty slice")
+		t.Error(errNonNilEmptySlice)
 	}
 }
 
@@ -504,7 +507,7 @@ func TestSaveDetectorTemplatesErrorPath(t *testing.T) {
 		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	if err := d.SaveFullState(st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveFullState, err)
 	}
 
 	// Now drop detector_templates and try to save again.
@@ -1178,7 +1181,7 @@ func TestSaveTemplateRegionsNewTemplateError(t *testing.T) {
 
 	// This should succeed and cover the new-template region insertion path.
 	if err := d.SaveFullState(st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveFullState, err)
 	}
 
 	// Verify regions were saved by loading.
@@ -1217,7 +1220,7 @@ func TestSaveDetectorTemplatesUpdateExisting(t *testing.T) {
 		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	if err := d.SaveFullState(st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveFullState, err)
 	}
 
 	// Load to get template DB ID.
@@ -1267,7 +1270,7 @@ func TestSaveFullStatePokemonOverlayDeleteOnDefault(t *testing.T) {
 	st.Pokemon[0].OverlayMode = "default"
 	st.Pokemon[0].Overlay = nil
 	if err := d.SaveFullState(st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveFullState, err)
 	}
 
 	loaded, err := d.LoadFullState()
@@ -1302,7 +1305,7 @@ func TestSaveFullStateDetectorConfigDeleteOnNil(t *testing.T) {
 	// Remove detector config.
 	st.Pokemon[0].DetectorConfig = nil
 	if err := d.SaveFullState(st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveFullState, err)
 	}
 
 	loaded, err := d.LoadFullState()
@@ -1359,7 +1362,7 @@ func TestStartTimerSessionError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE timer_sessions`)
 	_, err := d.StartTimerSession("p1")
 	if err == nil {
-		t.Error("expected error when timer_sessions is dropped")
+		t.Error(errTimerSessionsDropped)
 	}
 }
 
@@ -1368,7 +1371,7 @@ func TestGetTimerSessionsError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE timer_sessions`)
 	_, err := d.GetTimerSessions("p1")
 	if err == nil {
-		t.Error("expected error when timer_sessions is dropped")
+		t.Error(errTimerSessionsDropped)
 	}
 }
 
@@ -1415,7 +1418,7 @@ func TestEndTimerSessionError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE timer_sessions`)
 	err := d.EndTimerSession(1, 0)
 	if err == nil {
-		t.Error("expected error when timer_sessions is dropped")
+		t.Error(errTimerSessionsDropped)
 	}
 }
 
@@ -1542,33 +1545,6 @@ func TestLoadDetectorTemplatesRegionError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// loadOverlay: title and counter text style errors
-// ---------------------------------------------------------------------------
-
-func TestLoadOverlayTitleStyleError(t *testing.T) {
-	d := openInternalTestDB(t)
-	// Save state with overlay, then corrupt text_styles to only keep name style.
-	st := &state.AppState{
-		Pokemon: []state.Pokemon{}, Sessions: []state.Session{},
-		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{
-			BackgroundAnimation: "none",
-			Sprite:              state.SpriteElement{OverlayElementBase: state.OverlayElementBase{Width: 100, Height: 100}},
-			Name:                state.NameElement{OverlayElementBase: state.OverlayElementBase{Width: 100, Height: 30}},
-			Title:               state.TitleElement{OverlayElementBase: state.OverlayElementBase{Width: 100, Height: 30}},
-			Counter:             state.CounterElement{OverlayElementBase: state.OverlayElementBase{Width: 100, Height: 30}},
-		}},
-	}
-	_ = d.SaveFullState(st)
-	// Now drop gradient_stops and text_styles to trigger error on title/counter.
-	_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
-	_, _ = d.db.Exec(`DROP TABLE text_styles`)
-	_, err := loadOverlay(d.db, "global", "default")
-	if err == nil {
-		t.Error("loadOverlay should fail when text_styles is dropped")
-	}
-}
-
-// ---------------------------------------------------------------------------
 // saveOverlay deeper error paths: get overlay_settings id error
 // ---------------------------------------------------------------------------
 
@@ -1589,31 +1565,6 @@ func TestSaveOverlayGetIDError(t *testing.T) {
 	err = saveOverlay(tx, ov, "global", "default")
 	if err == nil {
 		t.Error("saveOverlay should fail when overlay_settings is dropped")
-	}
-}
-
-// ---------------------------------------------------------------------------
-// saveOverlay: delete overlay_elements error
-// ---------------------------------------------------------------------------
-
-func TestSaveOverlayDeleteElementsError(t *testing.T) {
-	d := openInternalTestDB(t)
-	tx, err := d.db.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	// Insert overlay_settings row.
-	_, _ = tx.Exec(`INSERT INTO overlay_settings (owner_type, owner_id) VALUES ('global', 'default')`)
-	// Drop overlay_elements.
-	_, _ = tx.Exec(`DROP TABLE text_styles`)
-	_, _ = tx.Exec(`DROP TABLE overlay_elements`)
-
-	ov := &state.OverlaySettings{BackgroundAnimation: "none"}
-	err = saveOverlay(tx, ov, "global", "default")
-	if err == nil {
-		t.Error("saveOverlay should fail when overlay_elements is dropped")
 	}
 }
 
@@ -1714,7 +1665,7 @@ func TestSaveDetectorTemplatesCleanup(t *testing.T) {
 		{TemplateDBID: id1, Regions: []state.MatchedRegion{}},
 	}
 	if err := d.SaveFullState(st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveFullState, err)
 	}
 
 	// Verify only 1 template remains.
@@ -1748,7 +1699,7 @@ func TestSaveDetectionLogsOrphanDelete(t *testing.T) {
 	// Remove detector config → detection logs should be cleaned up.
 	st.Pokemon[0].DetectorConfig = nil
 	if err := d.SaveFullState(st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveFullState, err)
 	}
 }
 

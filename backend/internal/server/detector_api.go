@@ -180,69 +180,75 @@ func (s *Server) handleDetectorTemplateN(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
-	tmpl := cfg.Templates[n]
-
 	switch r.Method {
 	case http.MethodGet:
-		w.Header().Set("Cache-Control", "no-cache")
-		// Prefer DB BLOB; fall back to filesystem for legacy templates.
-		if tmpl.TemplateDBID > 0 && s.db != nil {
-			data, err := s.db.LoadTemplateImage(tmpl.TemplateDBID)
-			if err != nil {
-				writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-				return
-			}
-			w.Header().Set("Content-Type", "image/png")
-			w.Header().Set("Content-Length", strconv.Itoa(len(data)))
-			_, _ = w.Write(data)
-		} else if tmpl.ImagePath != "" {
-			absPath := filepath.Join(s.state.GetConfigDir(), "templates", id, tmpl.ImagePath)
-			http.ServeFile(w, r, absPath)
-		} else {
-			writeJSON(w, http.StatusNotFound, errResp{"no image data available"})
-		}
-		return
-
+		s.handleTemplateGet(w, r, id, cfg.Templates[n])
 	case http.MethodDelete:
-		// Remove from DB if stored there; otherwise remove from filesystem.
-		if tmpl.TemplateDBID > 0 && s.db != nil {
-			_ = s.db.DeleteTemplateImage(tmpl.TemplateDBID)
-		} else if tmpl.ImagePath != "" {
-			absPath := filepath.Join(s.state.GetConfigDir(), "templates", id, tmpl.ImagePath)
-			_ = os.Remove(absPath)
-		}
-
-		cfg.Templates = append(cfg.Templates[:n], cfg.Templates[n+1:]...)
-		s.state.SetDetectorConfig(id, &cfg)
-		s.state.ScheduleSave()
-		s.broadcastState()
-
-		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
-
+		s.handleTemplateDelete(w, id, n, cfg)
 	case http.MethodPatch:
-		// Update the regions for an existing template (image file stays the same).
-		type patchBody struct {
-			Regions []state.MatchedRegion `json:"regions"`
-		}
-		var body patchBody
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeJSON(w, http.StatusBadRequest, errResp{"invalid json body"})
-			return
-		}
-		cfg2 := state.DetectorConfig{}
-		if pokemon.DetectorConfig != nil {
-			cfg2 = *pokemon.DetectorConfig
-		}
-		if idx := n; idx >= len(cfg2.Templates) {
-			writeJSON(w, http.StatusBadRequest, errResp{"template index out of range"})
-			return
-		}
-		cfg2.Templates[n].Regions = body.Regions
-		s.state.SetDetectorConfig(id, &cfg2)
-		s.state.ScheduleSave()
-		s.broadcastState()
-		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		s.handleTemplatePatch(w, r, id, n, pokemon)
 	}
+}
+
+// handleTemplateGet serves a single template image from the DB or filesystem.
+func (s *Server) handleTemplateGet(w http.ResponseWriter, r *http.Request, id string, tmpl state.DetectorTemplate) {
+	w.Header().Set("Cache-Control", "no-cache")
+	if tmpl.TemplateDBID > 0 && s.db != nil {
+		data, err := s.db.LoadTemplateImage(tmpl.TemplateDBID)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+		_, _ = w.Write(data)
+	} else if tmpl.ImagePath != "" {
+		absPath := filepath.Join(s.state.GetConfigDir(), "templates", id, tmpl.ImagePath)
+		http.ServeFile(w, r, absPath)
+	} else {
+		writeJSON(w, http.StatusNotFound, errResp{"no image data available"})
+	}
+}
+
+// handleTemplateDelete removes a template from storage and the config.
+func (s *Server) handleTemplateDelete(w http.ResponseWriter, id string, n int, cfg state.DetectorConfig) {
+	tmpl := cfg.Templates[n]
+	if tmpl.TemplateDBID > 0 && s.db != nil {
+		_ = s.db.DeleteTemplateImage(tmpl.TemplateDBID)
+	} else if tmpl.ImagePath != "" {
+		absPath := filepath.Join(s.state.GetConfigDir(), "templates", id, tmpl.ImagePath)
+		_ = os.Remove(absPath)
+	}
+	cfg.Templates = append(cfg.Templates[:n], cfg.Templates[n+1:]...)
+	s.state.SetDetectorConfig(id, &cfg)
+	s.state.ScheduleSave()
+	s.broadcastState()
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
+// handleTemplatePatch updates the regions for an existing template.
+func (s *Server) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id string, n int, pokemon *state.Pokemon) {
+	type patchBody struct {
+		Regions []state.MatchedRegion `json:"regions"`
+	}
+	var body patchBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJSON(w, http.StatusBadRequest, errResp{"invalid json body"})
+		return
+	}
+	cfg2 := state.DetectorConfig{}
+	if pokemon.DetectorConfig != nil {
+		cfg2 = *pokemon.DetectorConfig
+	}
+	if n >= len(cfg2.Templates) {
+		writeJSON(w, http.StatusBadRequest, errResp{"template index out of range"})
+		return
+	}
+	cfg2.Templates[n].Regions = body.Regions
+	s.state.SetDetectorConfig(id, &cfg2)
+	s.state.ScheduleSave()
+	s.broadcastState()
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
 // handleDetectorTemplateUpload saves a new PNG template from an uploaded JPEG (Browser Source)
@@ -265,78 +271,17 @@ func (s *Server) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Req
 		cfg = *pokemon.DetectorConfig
 	}
 
-	type templateUploadRequest struct {
-		ImageBase64 string                `json:"imageBase64"`
-		Regions     []state.MatchedRegion `json:"regions"`
-	}
-
-	// 20 MB max
-	r.Body = http.MaxBytesReader(w, r.Body, 20<<20)
-	var req templateUploadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errResp{"failed to parse json body"})
-		return
-	}
-
-	b64data := req.ImageBase64
-	if idx := strings.Index(b64data, ","); idx != -1 {
-		b64data = b64data[idx+1:] // strip data:image/jpeg;base64,
-	}
-	imgData, err := base64.StdEncoding.DecodeString(b64data)
+	pngBytes, regions, err := parseTemplateUpload(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errResp{"invalid base64 image data"})
+		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
 		return
 	}
 
-	img, format, err := image.Decode(bytes.NewReader(imgData))
-	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errResp{fmt.Sprintf("invalid image format: %v", err)})
-		return
-	}
-	_ = format // e.g. "jpeg" or "png"
-
-	// Encode to PNG for storage.
-	var pngBuf bytes.Buffer
-	if err := png.Encode(&pngBuf, img); err != nil {
+	tmpl := state.DetectorTemplate{Regions: regions}
+	sortOrder := len(cfg.Templates)
+	if err := s.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
 		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
 		return
-	}
-	pngBytes := pngBuf.Bytes()
-
-	sortOrder := len(cfg.Templates)
-	tmpl := state.DetectorTemplate{
-		Regions: req.Regions,
-	}
-
-	// Save to DB if available; fall back to filesystem otherwise.
-	if s.db != nil {
-		dbID, err := s.db.SaveTemplateImage(id, pngBytes, sortOrder)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-			return
-		}
-		tmpl.TemplateDBID = dbID
-	} else {
-		templatesDir := filepath.Join(s.state.GetConfigDir(), "templates", id)
-		if err := os.MkdirAll(templatesDir, 0755); err != nil {
-			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-			return
-		}
-		n := 0
-		for {
-			candidate := filepath.Join(templatesDir, fmt.Sprintf("template_%d.png", n))
-			if _, err := os.Stat(candidate); os.IsNotExist(err) {
-				break
-			}
-			n++
-		}
-		relPath := fmt.Sprintf("template_%d.png", n)
-		absPath := filepath.Join(templatesDir, relPath)
-		if err := os.WriteFile(absPath, pngBytes, 0644); err != nil {
-			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-			return
-		}
-		tmpl.ImagePath = relPath
 	}
 
 	cfg.Templates = append(cfg.Templates, tmpl)
@@ -345,6 +290,82 @@ func (s *Server) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Req
 	s.broadcastState()
 
 	writeJSON(w, http.StatusOK, map[string]any{"index": sortOrder, "template_db_id": tmpl.TemplateDBID})
+}
+
+// parseTemplateUpload reads and validates the base64-encoded image from the
+// request body, returning the re-encoded PNG bytes and regions.
+func parseTemplateUpload(r *http.Request) ([]byte, []state.MatchedRegion, error) {
+	type templateUploadRequest struct {
+		ImageBase64 string                `json:"imageBase64"`
+		Regions     []state.MatchedRegion `json:"regions"`
+	}
+
+	r.Body = http.MaxBytesReader(nil, r.Body, 20<<20)
+	var req templateUploadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse json body")
+	}
+
+	b64data := req.ImageBase64
+	if idx := strings.Index(b64data, ","); idx != -1 {
+		b64data = b64data[idx+1:]
+	}
+	imgData, err := base64.StdEncoding.DecodeString(b64data)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid base64 image data")
+	}
+
+	img, _, err := image.Decode(bytes.NewReader(imgData))
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid image format: %v", err)
+	}
+
+	pngBytes, err := encodePNG(img)
+	if err != nil {
+		return nil, nil, err
+	}
+	return pngBytes, req.Regions, nil
+}
+
+// encodePNG encodes an image to PNG and returns the bytes.
+func encodePNG(img image.Image) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// storeTemplateImage persists PNG bytes to the DB or filesystem and populates
+// the template's TemplateDBID or ImagePath accordingly.
+func (s *Server) storeTemplateImage(pokemonID string, pngBytes []byte, sortOrder int, tmpl *state.DetectorTemplate) error {
+	if s.db != nil {
+		dbID, err := s.db.SaveTemplateImage(pokemonID, pngBytes, sortOrder)
+		if err != nil {
+			return err
+		}
+		tmpl.TemplateDBID = dbID
+		return nil
+	}
+	templatesDir := filepath.Join(s.state.GetConfigDir(), "templates", pokemonID)
+	if err := os.MkdirAll(templatesDir, 0755); err != nil {
+		return err
+	}
+	n := 0
+	for {
+		candidate := filepath.Join(templatesDir, fmt.Sprintf(templateFileFmt, n))
+		if _, err := os.Stat(candidate); os.IsNotExist(err) {
+			break
+		}
+		n++
+	}
+	relPath := fmt.Sprintf(templateFileFmt, n)
+	absPath := filepath.Join(templatesDir, relPath)
+	if err := os.WriteFile(absPath, pngBytes, 0644); err != nil {
+		return err
+	}
+	tmpl.ImagePath = relPath
+	return nil
 }
 
 // handleDetectorSpriteTemplate fetches the Pokémon's current sprite URL,
@@ -364,9 +385,53 @@ func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Accept an optional sprite_url override in the request body so the
-	// frontend can send the game-specific sprite URL instead of the
-	// user's custom sprite.
+	spriteURL := resolveSpriteURL(pokemon, r)
+	if spriteURL == "" {
+		writeJSON(w, http.StatusBadRequest, errResp{"pokemon has no sprite_url"})
+		return
+	}
+
+	img, err := fetchSpriteImage(spriteURL)
+	if err != nil {
+		writeJSON(w, http.StatusBadGateway, errResp{err.Error()})
+		return
+	}
+
+	cfg := state.DetectorConfig{}
+	if pokemon.DetectorConfig != nil {
+		cfg = *pokemon.DetectorConfig
+	}
+
+	pngBytes, err := encodePNG(img)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+		return
+	}
+
+	b := img.Bounds()
+	sortOrder := len(cfg.Templates)
+	tmpl := state.DetectorTemplate{
+		Regions: []state.MatchedRegion{
+			{Type: "image", Rect: state.DetectorRect{X: 0, Y: 0, W: b.Dx(), H: b.Dy()}},
+		},
+	}
+
+	if err := s.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
+		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+		return
+	}
+
+	cfg.Templates = append(cfg.Templates, tmpl)
+	s.state.SetDetectorConfig(id, &cfg)
+	s.state.ScheduleSave()
+	s.broadcastState()
+
+	writeJSON(w, http.StatusOK, map[string]any{"index": sortOrder, "template_db_id": tmpl.TemplateDBID})
+}
+
+// resolveSpriteURL returns the sprite URL from the request body override
+// or falls back to the Pokémon's stored SpriteURL.
+func resolveSpriteURL(pokemon *state.Pokemon, r *http.Request) string {
 	spriteURL := pokemon.SpriteURL
 	if r.Body != nil {
 		var body struct {
@@ -376,88 +441,22 @@ func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Req
 			spriteURL = body.SpriteURL
 		}
 	}
-	if spriteURL == "" {
-		writeJSON(w, http.StatusBadRequest, errResp{"pokemon has no sprite_url"})
-		return
-	}
+	return spriteURL
+}
 
-	// Fetch the sprite image from its URL.
+// fetchSpriteImage downloads and decodes a sprite from the given URL.
+func fetchSpriteImage(spriteURL string) (image.Image, error) {
 	resp, err := http.Get(spriteURL) //nolint:noctx
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, errResp{fmt.Sprintf("failed to fetch sprite: %v", err)})
-		return
+		return nil, fmt.Errorf("failed to fetch sprite: %v", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	// image.Decode auto-detects PNG, JPEG, GIF (registered via blank imports).
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {
-		writeJSON(w, http.StatusBadGateway, errResp{fmt.Sprintf("failed to decode sprite: %v", err)})
-		return
+		return nil, fmt.Errorf("failed to decode sprite: %v", err)
 	}
-
-	cfg := state.DetectorConfig{}
-	if pokemon.DetectorConfig != nil {
-		cfg = *pokemon.DetectorConfig
-	}
-
-	// Encode sprite to PNG for storage.
-	var pngBuf bytes.Buffer
-	if err := png.Encode(&pngBuf, img); err != nil {
-		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-		return
-	}
-	pngBytes := pngBuf.Bytes()
-
-	// Use the whole sprite as a single image region.
-	b := img.Bounds()
-	sortOrder := len(cfg.Templates)
-	tmpl := state.DetectorTemplate{
-		Regions: []state.MatchedRegion{
-			{
-				Type: "image",
-				Rect: state.DetectorRect{X: 0, Y: 0, W: b.Dx(), H: b.Dy()},
-			},
-		},
-	}
-
-	// Save to DB if available; fall back to filesystem otherwise.
-	if s.db != nil {
-		dbID, err := s.db.SaveTemplateImage(id, pngBytes, sortOrder)
-		if err != nil {
-			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-			return
-		}
-		tmpl.TemplateDBID = dbID
-	} else {
-		templatesDir := filepath.Join(s.state.GetConfigDir(), "templates", id)
-		if err := os.MkdirAll(templatesDir, 0755); err != nil {
-			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-			return
-		}
-		n := 0
-		for {
-			candidate := filepath.Join(templatesDir, fmt.Sprintf("template_%d.png", n))
-			if _, statErr := os.Stat(candidate); os.IsNotExist(statErr) {
-				break
-			}
-			n++
-		}
-		relPath := fmt.Sprintf("template_%d.png", n)
-		absPath := filepath.Join(templatesDir, relPath)
-		if err := os.WriteFile(absPath, pngBytes, 0644); err != nil {
-			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-			return
-		}
-		tmpl.ImagePath = relPath
-	}
-
-	cfg.Templates = append(cfg.Templates, tmpl)
-	s.state.SetDetectorConfig(id, &cfg)
-	s.state.ScheduleSave()
-	s.broadcastState()
-
-	writeJSON(w, http.StatusOK, map[string]any{"index": sortOrder, "template_db_id": tmpl.TemplateDBID})
+	return img, nil
 }
 
 // handleDetectorStart starts the detection goroutine for a single hunt.
@@ -474,7 +473,6 @@ func (s *Server) handleDetectorStart(w http.ResponseWriter, r *http.Request, id 
 		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
-
 	if pokemon.DetectorConfig == nil {
 		writeJSON(w, http.StatusBadRequest, errResp{"no detector config"})
 		return
@@ -485,43 +483,12 @@ func (s *Server) handleDetectorStart(w http.ResponseWriter, r *http.Request, id 
 	}
 
 	cfg := *pokemon.DetectorConfig
-
-	// Hydrate templates that are stored in the DB with their image BLOBs
-	// so the detector has the pixel data in memory when it starts matching.
-	if s.db != nil {
-		for i := range cfg.Templates {
-			if cfg.Templates[i].TemplateDBID > 0 {
-				data, err := s.db.LoadTemplateImage(cfg.Templates[i].TemplateDBID)
-				if err != nil {
-					slog.Warn("Failed to load template BLOB from DB",
-						"template_db_id", cfg.Templates[i].TemplateDBID, "error", err)
-					continue
-				}
-				cfg.Templates[i].ImageData = data
-			}
-		}
-	}
+	s.hydrateTemplates(&cfg)
 
 	if s.detectorMgr != nil {
-		isBrowser := cfg.SourceType == "browser_camera" || cfg.SourceType == "browser_display"
-		if isBrowser {
-			// For browser sources, detection is driven by the frontend frame
-			// submission loop (POST /match_frame). We only need to ensure a
-			// BrowserDetector exists and emit an initial status so the UI
-			// shows the detector as running.
-			s.detectorMgr.GetOrCreateBrowserDetector(id, cfg)
-			s.hub.BroadcastRaw("detector_status", map[string]any{
-				"pokemon_id": id,
-				"state":      "idle",
-				"confidence":  0,
-				"poll_ms":     0,
-			})
-		} else {
-			// Native screen capture: launch the goroutine-based detector.
-			if err := s.detectorMgr.Start(id, cfg); err != nil {
-				writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-				return
-			}
+		if err := s.launchDetector(id, cfg); err != nil {
+			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+			return
 		}
 	}
 
@@ -531,6 +498,41 @@ func (s *Server) handleDetectorStart(w http.ResponseWriter, r *http.Request, id 
 	s.broadcastState()
 
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "running": true})
+}
+
+// hydrateTemplates loads image BLOBs from the DB for templates that have a
+// TemplateDBID but no in-memory ImageData.
+func (s *Server) hydrateTemplates(cfg *state.DetectorConfig) {
+	if s.db == nil {
+		return
+	}
+	for i := range cfg.Templates {
+		if cfg.Templates[i].TemplateDBID > 0 && len(cfg.Templates[i].ImageData) == 0 {
+			data, err := s.db.LoadTemplateImage(cfg.Templates[i].TemplateDBID)
+			if err != nil {
+				slog.Warn("Failed to load template BLOB from DB",
+					"template_db_id", cfg.Templates[i].TemplateDBID, "error", err)
+				continue
+			}
+			cfg.Templates[i].ImageData = data
+		}
+	}
+}
+
+// launchDetector starts a browser or native detector depending on the source type.
+func (s *Server) launchDetector(id string, cfg state.DetectorConfig) error {
+	isBrowser := cfg.SourceType == "browser_camera" || cfg.SourceType == "browser_display"
+	if isBrowser {
+		s.detectorMgr.GetOrCreateBrowserDetector(id, cfg)
+		s.hub.BroadcastRaw("detector_status", map[string]any{
+			"pokemon_id": id,
+			"state":      "idle",
+			"confidence": 0,
+			"poll_ms":    0,
+		})
+		return nil
+	}
+	return s.detectorMgr.Start(id, cfg)
 }
 
 // handleDetectorStop stops the detection goroutine for a single hunt.
@@ -599,7 +601,6 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 		return
 	}
 
-	// Validate pokemon exists and has a detector config with templates.
 	st := s.state.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
@@ -611,44 +612,17 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 		return
 	}
 
-	// Read frame body (JPEG), cap at 20 MB.
-	const maxBodyBytes = 20 << 20
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
-	data, err := io.ReadAll(r.Body)
+	frame, err := readFrameFromBody(r, w)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errResp{"read body: " + err.Error()})
+		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
 		return
 	}
 
-	// Decode JPEG.
-	frame, _, err := image.Decode(bytes.NewReader(data))
-	if err != nil {
-		// Try again after seeking — use bytes.NewReader which is proper.
-		writeJSON(w, http.StatusBadRequest, errResp{"decode jpeg: " + err.Error()})
-		return
-	}
-
-	// Hydrate DB-backed templates with their image BLOBs so the
-	// BrowserDetector can decode them when first created.
 	detCfg := *pokemon.DetectorConfig
-	if s.db != nil {
-		for i := range detCfg.Templates {
-			if detCfg.Templates[i].TemplateDBID > 0 && len(detCfg.Templates[i].ImageData) == 0 {
-				data, err := s.db.LoadTemplateImage(detCfg.Templates[i].TemplateDBID)
-				if err != nil {
-					slog.Warn("Failed to load template BLOB for match_frame",
-						"template_db_id", detCfg.Templates[i].TemplateDBID, "error", err)
-					continue
-				}
-				detCfg.Templates[i].ImageData = data
-			}
-		}
-	}
+	s.hydrateTemplates(&detCfg)
 
-	// Get or create a BrowserDetector for this pokemon.
 	bd := s.detectorMgr.GetOrCreateBrowserDetector(id, detCfg)
 	if !bd.HasTemplates() {
-		// Templates may have changed — reset.
 		bd = s.detectorMgr.ResetBrowserDetector(id, detCfg)
 	}
 
@@ -661,7 +635,6 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 			"incremented", result.Incremented)
 	}
 
-	// Broadcast status to all clients.
 	s.hub.BroadcastRaw("detector_status", map[string]any{
 		"pokemon_id": id,
 		"state":      result.State,
@@ -670,16 +643,7 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 	})
 
 	if result.Incremented {
-		slog.Info("Detector match confirmed",
-			"pokemon", pokemon.Name, "id", id,
-			"confidence", result.Confidence)
-		s.state.Increment(id)
-		s.state.AppendDetectionLog(id, result.Confidence)
-		s.hub.BroadcastRaw("detector_match", map[string]any{
-			"pokemon_id": id,
-			"confidence": result.Confidence,
-		})
-		s.broadcastState()
+		s.handleMatchIncrement(id, pokemon.Name, result.Confidence)
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -687,4 +651,34 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 		"state":      result.State,
 		"confidence": result.Confidence,
 	})
+}
+
+// readFrameFromBody reads and decodes a JPEG frame from the request body.
+func readFrameFromBody(r *http.Request, w http.ResponseWriter) (image.Image, error) {
+	const maxBodyBytes = 20 << 20
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	data, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read body: %s", err.Error())
+	}
+	frame, _, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("decode jpeg: %s", err.Error())
+	}
+	return frame, nil
+}
+
+// handleMatchIncrement processes a confirmed detector match by incrementing
+// the counter, logging the detection, and broadcasting updates.
+func (s *Server) handleMatchIncrement(id, pokemonName string, confidence float64) {
+	slog.Info("Detector match confirmed",
+		"pokemon", pokemonName, "id", id,
+		"confidence", confidence)
+	s.state.Increment(id)
+	s.state.AppendDetectionLog(id, confidence)
+	s.hub.BroadcastRaw("detector_match", map[string]any{
+		"pokemon_id": id,
+		"confidence": confidence,
+	})
+	s.broadcastState()
 }

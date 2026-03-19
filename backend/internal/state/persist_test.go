@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+const stateJSONFile = "state.json"
+
 // TestSaveLoadRoundtrip exercises JSON-only persistence (no DB wired).
 func TestSaveLoadRoundtrip(t *testing.T) {
 	dir := t.TempDir()
@@ -70,7 +72,7 @@ func TestLoadNonexistentFile(t *testing.T) {
 // TestLoadInvalidJSON ensures Load returns an error for malformed JSON.
 func TestLoadInvalidJSON(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "state.json")
+	path := filepath.Join(dir, stateJSONFile)
 	if err := os.WriteFile(path, []byte("not valid json{{{"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +87,7 @@ func TestLoadInvalidJSON(t *testing.T) {
 // TestLoadMigrationDefaults verifies that migration fills in missing defaults.
 func TestLoadMigrationDefaults(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "state.json")
+	path := filepath.Join(dir, stateJSONFile)
 	data := []byte(`{"pokemon":[],"sessions":[],"hotkeys":{"increment":"F1","decrement":"F2","reset":"F3","next_pokemon":"F4"},"settings":{"output_dir":"","overlay":{"background_animation":""}}}`)
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		t.Fatal(err)
@@ -118,7 +120,7 @@ func TestSaveWithoutDBWritesJSON(t *testing.T) {
 		t.Fatalf("Save: %v", err)
 	}
 
-	path := filepath.Join(configDir, "state.json")
+	path := filepath.Join(configDir, stateJSONFile)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("state.json not found: %v", err)
@@ -162,7 +164,7 @@ func TestLoadFallsBackToJSONFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("json.Marshal: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(configDir, "state.json"), data, 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, stateJSONFile), data, 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 

@@ -657,32 +657,40 @@ export function Overlay({
                 : ""
             }
           >
-            {counterMode === "slot" ? (
-              <SlotCounter
-                value={activePokemon.encounters}
-                counterStyle={counterStyle}
-                reverse={animReverse}
-              />
-            ) : counterMode === "flip-digit" ? (
-              <FlipCounter
-                value={activePokemon.encounters}
-                counterStyle={counterStyle}
-                reverse={animReverse}
-              />
-            ) : (
-              <span
-                key={`counter-${triggerId}`}
-                className={`font-black tabular-nums leading-none ${animClass}`}
-                style={{
-                  ...counterStyle,
-                  display: "inline-block",
-                  transformOrigin: "center",
-                  animationDirection: animReverse ? "reverse" : undefined,
-                }}
-              >
-                {activePokemon.encounters}
-              </span>
-            )}
+            {(() => {
+              if (counterMode === "slot") {
+                return (
+                  <SlotCounter
+                    value={activePokemon.encounters}
+                    counterStyle={counterStyle}
+                    reverse={animReverse}
+                  />
+                );
+              }
+              if (counterMode === "flip-digit") {
+                return (
+                  <FlipCounter
+                    value={activePokemon.encounters}
+                    counterStyle={counterStyle}
+                    reverse={animReverse}
+                  />
+                );
+              }
+              return (
+                <span
+                  key={`counter-${triggerId}`}
+                  className={`font-black tabular-nums leading-none ${animClass}`}
+                  style={{
+                    ...counterStyle,
+                    display: "inline-block",
+                    transformOrigin: "center",
+                    animationDirection: animReverse ? "reverse" : undefined,
+                  }}
+                >
+                  {activePokemon.encounters}
+                </span>
+              );
+            })()}
             {settings.counter.show_label && (
               <span style={labelStyle}>{settings.counter.label_text}</span>
             )}

@@ -39,9 +39,10 @@ export function TextColorEditorModal({
   const [gradientAngle, setGradientAngle] = useState(initialGradientAngle);
 
   /** Preview style: gradient uses background-clip text, solid uses plain color. */
+  const gradientCssStops = gradientStops.map(s => `${s.color} ${s.position}%`).join(", ");
   const previewStyle: React.CSSProperties = colorType === "gradient" && gradientStops.length >= 2
     ? {
-        background: `linear-gradient(${gradientAngle}deg, ${gradientStops.map(s => `${s.color} ${s.position}%`).join(", ")})`,
+        background: `linear-gradient(${gradientAngle}deg, ${gradientCssStops})`,
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
       }

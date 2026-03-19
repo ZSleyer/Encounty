@@ -16,6 +16,21 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	edgeFmtSaveErr      = "SaveFullState: %v"
+	edgeFmtLoadErr      = "LoadFullState: %v"
+	edgeLoadNil         = "LoadFullState returned nil"
+	colorRed            = "#ff0000"
+	colorGreen          = "#00ff00"
+	colorBlue           = "#0000ff"
+	colorDarkGray1      = "#111111"
+	colorDarkGray2      = "#222222"
+	errDetectorNil      = "DetectorConfig should not be nil"
+	textJigglypuff      = "A wild Jigglypuff appeared!"
+	titlePokemonWindow  = "Pokemon Game Window"
+	titleSpookyHunt     = "Spooky Hunt"
+)
+
 // TestLoadFullStateEmptyDB verifies that LoadFullState returns nil (without error)
 // when called on a fresh database with no app_config row.
 func TestLoadFullStateEmptyDB(t *testing.T) {
@@ -57,15 +72,15 @@ func TestPokemonWithTimerStartedAt(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	p := got.Pokemon[0]
@@ -113,15 +128,15 @@ func TestSessionWithEndedAt(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	if len(got.Sessions) != 1 {
@@ -152,13 +167,13 @@ func TestOverlayWithOutlineAndShadowGradients(t *testing.T) {
 	// Create an overlay with outline gradient and shadow gradient on the name element.
 	overlay := makeTestOverlay()
 	overlay.Name.Style.OutlineGradientStops = []state.GradientStop{
-		{Color: "#ff0000", Position: 0},
-		{Color: "#00ff00", Position: 0.5},
-		{Color: "#0000ff", Position: 1},
+		{Color: colorRed, Position: 0},
+		{Color: colorGreen, Position: 0.5},
+		{Color: colorBlue, Position: 1},
 	}
 	overlay.Name.Style.TextShadowGradientStops = []state.GradientStop{
-		{Color: "#111111", Position: 0},
-		{Color: "#222222", Position: 1},
+		{Color: colorDarkGray1, Position: 0},
+		{Color: colorDarkGray2, Position: 1},
 	}
 
 	st := state.AppState{
@@ -179,15 +194,15 @@ func TestOverlayWithOutlineAndShadowGradients(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	// Check outline gradient stops.
@@ -195,14 +210,14 @@ func TestOverlayWithOutlineAndShadowGradients(t *testing.T) {
 	if len(outlineStops) != 3 {
 		t.Fatalf("OutlineGradientStops len = %d, want 3", len(outlineStops))
 	}
-	if outlineStops[0].Color != "#ff0000" {
-		t.Errorf("OutlineGradientStops[0].Color = %q, want %q", outlineStops[0].Color, "#ff0000")
+	if outlineStops[0].Color != colorRed {
+		t.Errorf("OutlineGradientStops[0].Color = %q, want %q", outlineStops[0].Color, colorRed)
 	}
-	if outlineStops[1].Color != "#00ff00" {
-		t.Errorf("OutlineGradientStops[1].Color = %q, want %q", outlineStops[1].Color, "#00ff00")
+	if outlineStops[1].Color != colorGreen {
+		t.Errorf("OutlineGradientStops[1].Color = %q, want %q", outlineStops[1].Color, colorGreen)
 	}
-	if outlineStops[2].Color != "#0000ff" {
-		t.Errorf("OutlineGradientStops[2].Color = %q, want %q", outlineStops[2].Color, "#0000ff")
+	if outlineStops[2].Color != colorBlue {
+		t.Errorf("OutlineGradientStops[2].Color = %q, want %q", outlineStops[2].Color, colorBlue)
 	}
 
 	// Check text shadow gradient stops.
@@ -210,11 +225,11 @@ func TestOverlayWithOutlineAndShadowGradients(t *testing.T) {
 	if len(shadowStops) != 2 {
 		t.Fatalf("TextShadowGradientStops len = %d, want 2", len(shadowStops))
 	}
-	if shadowStops[0].Color != "#111111" {
-		t.Errorf("TextShadowGradientStops[0].Color = %q, want %q", shadowStops[0].Color, "#111111")
+	if shadowStops[0].Color != colorDarkGray1 {
+		t.Errorf("TextShadowGradientStops[0].Color = %q, want %q", shadowStops[0].Color, colorDarkGray1)
 	}
-	if shadowStops[1].Color != "#222222" {
-		t.Errorf("TextShadowGradientStops[1].Color = %q, want %q", shadowStops[1].Color, "#222222")
+	if shadowStops[1].Color != colorDarkGray2 {
+		t.Errorf("TextShadowGradientStops[1].Color = %q, want %q", shadowStops[1].Color, colorDarkGray2)
 	}
 }
 
@@ -257,20 +272,20 @@ func TestDetectorConfigWithRegionFields(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	dc := got.Pokemon[0].DetectorConfig
 	if dc == nil {
-		t.Fatal("DetectorConfig should not be nil")
+		t.Fatal(errDetectorNil)
 	}
 
 	if dc.Region.X != 100 {
@@ -311,7 +326,7 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 							Regions: []state.MatchedRegion{
 								{
 									Type:         "text",
-									ExpectedText: "A wild Jigglypuff appeared!",
+									ExpectedText: textJigglypuff,
 									Rect:         state.DetectorRect{X: 10, Y: 20, W: 100, H: 30},
 								},
 								{
@@ -334,20 +349,20 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	dc := got.Pokemon[0].DetectorConfig
 	if dc == nil {
-		t.Fatal("DetectorConfig should not be nil")
+		t.Fatal(errDetectorNil)
 	}
 
 	if len(dc.Templates) != 1 {
@@ -364,8 +379,8 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 	if r0.Type != "text" {
 		t.Errorf("Regions[0].Type = %q, want %q", r0.Type, "text")
 	}
-	if r0.ExpectedText != "A wild Jigglypuff appeared!" {
-		t.Errorf("Regions[0].ExpectedText = %q, want %q", r0.ExpectedText, "A wild Jigglypuff appeared!")
+	if r0.ExpectedText != textJigglypuff {
+		t.Errorf("Regions[0].ExpectedText = %q, want %q", r0.ExpectedText, textJigglypuff)
 	}
 	if r0.Rect.X != 10 || r0.Rect.Y != 20 || r0.Rect.W != 100 || r0.Rect.H != 30 {
 		t.Errorf("Regions[0].Rect = %+v, want {X:10 Y:20 W:100 H:30}", r0.Rect)
@@ -424,15 +439,15 @@ func TestMultiplePokemonWithMixedOverlayModes(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	if len(got.Pokemon) != 3 {
@@ -474,7 +489,7 @@ func TestDetectorConfigWithWindowTitle(t *testing.T) {
 				DetectorConfig: &state.DetectorConfig{
 					Enabled:         true,
 					SourceType:      "window",
-					WindowTitle:     "Pokemon Game Window",
+					WindowTitle:     titlePokemonWindow,
 					Precision:       0.95,
 					ConsecutiveHits: 5,
 					Templates:       []state.DetectorTemplate{},
@@ -490,24 +505,24 @@ func TestDetectorConfigWithWindowTitle(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	dc := got.Pokemon[0].DetectorConfig
 	if dc == nil {
-		t.Fatal("DetectorConfig should not be nil")
+		t.Fatal(errDetectorNil)
 	}
 
-	if dc.WindowTitle != "Pokemon Game Window" {
-		t.Errorf("DetectorConfig.WindowTitle = %q, want %q", dc.WindowTitle, "Pokemon Game Window")
+	if dc.WindowTitle != titlePokemonWindow {
+		t.Errorf("DetectorConfig.WindowTitle = %q, want %q", dc.WindowTitle, titlePokemonWindow)
 	}
 }
 
@@ -534,15 +549,15 @@ func TestEmptyLanguages(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	if got.Settings.Languages == nil {
@@ -590,20 +605,20 @@ func TestDetectorConfigAllFields(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	dc := got.Pokemon[0].DetectorConfig
 	if dc == nil {
-		t.Fatal("DetectorConfig should not be nil")
+		t.Fatal(errDetectorNil)
 	}
 
 	if !floatClose(dc.ChangeThreshold, 0.25, 0.001) {
@@ -632,7 +647,7 @@ func TestPokemonAllStringFields(t *testing.T) {
 			{
 				ID:            "p1",
 				Name:          "Gengar",
-				Title:         "Spooky Hunt",
+				Title:         titleSpookyHunt,
 				CanonicalName: "gengar",
 				SpriteURL:     "https://example.com/gengar.png",
 				SpriteType:    "shiny",
@@ -652,23 +667,23 @@ func TestPokemonAllStringFields(t *testing.T) {
 	}
 
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(edgeFmtSaveErr, err)
 	}
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(edgeFmtLoadErr, err)
 	}
 	if got == nil {
-		t.Fatal("LoadFullState returned nil")
+		t.Fatal(edgeLoadNil)
 	}
 
 	p := got.Pokemon[0]
 	if p.SpriteStyle != "animated" {
 		t.Errorf("SpriteStyle = %q, want %q", p.SpriteStyle, "animated")
 	}
-	if p.Title != "Spooky Hunt" {
-		t.Errorf("Title = %q, want %q", p.Title, "Spooky Hunt")
+	if p.Title != titleSpookyHunt {
+		t.Errorf("Title = %q, want %q", p.Title, titleSpookyHunt)
 	}
 	if p.HuntType != "masuda" {
 		t.Errorf("HuntType = %q, want %q", p.HuntType, "masuda")

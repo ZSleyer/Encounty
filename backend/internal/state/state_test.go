@@ -6,12 +6,17 @@ import (
 	"time"
 )
 
+const (
+	testConfigDir  = "/tmp/test-config"
+	fmtActiveIDWant = "ActiveID = %q, want %q"
+)
+
 func TestNewManagerDefaults(t *testing.T) {
-	m := NewManager("/tmp/test-config")
+	m := NewManager(testConfigDir)
 	st := m.GetState()
 
-	if st.DataPath != "/tmp/test-config" {
-		t.Errorf("DataPath = %q, want %q", st.DataPath, "/tmp/test-config")
+	if st.DataPath != testConfigDir {
+		t.Errorf("DataPath = %q, want %q", st.DataPath, testConfigDir)
 	}
 	if len(st.Pokemon) != 0 {
 		t.Errorf("Pokemon length = %d, want 0", len(st.Pokemon))
@@ -60,7 +65,7 @@ func TestAddPokemonSingle(t *testing.T) {
 		t.Fatalf("Pokemon length = %d, want 1", len(st.Pokemon))
 	}
 	if st.ActiveID != "p1" {
-		t.Errorf("ActiveID = %q, want %q", st.ActiveID, "p1")
+		t.Errorf(fmtActiveIDWant, st.ActiveID, "p1")
 	}
 	if !st.Pokemon[0].IsActive {
 		t.Error("first pokemon should be active")
@@ -78,7 +83,7 @@ func TestAddPokemonMultiple(t *testing.T) {
 	}
 	// First added should remain active
 	if st.ActiveID != "p1" {
-		t.Errorf("ActiveID = %q, want %q", st.ActiveID, "p1")
+		t.Errorf(fmtActiveIDWant, st.ActiveID, "p1")
 	}
 }
 
@@ -238,7 +243,7 @@ func TestSetActiveValid(t *testing.T) {
 	}
 	st := m.GetState()
 	if st.ActiveID != "p2" {
-		t.Errorf("ActiveID = %q, want %q", st.ActiveID, "p2")
+		t.Errorf(fmtActiveIDWant, st.ActiveID, "p2")
 	}
 	if st.Pokemon[0].IsActive {
 		t.Error("p1 should not be active")
@@ -272,14 +277,14 @@ func TestNextPokemon(t *testing.T) {
 	m.NextPokemon()
 	st := m.GetState()
 	if st.ActiveID != "p2" {
-		t.Errorf("ActiveID = %q, want %q", st.ActiveID, "p2")
+		t.Errorf(fmtActiveIDWant, st.ActiveID, "p2")
 	}
 
 	// Next should be p3
 	m.NextPokemon()
 	st = m.GetState()
 	if st.ActiveID != "p3" {
-		t.Errorf("ActiveID = %q, want %q", st.ActiveID, "p3")
+		t.Errorf(fmtActiveIDWant, st.ActiveID, "p3")
 	}
 }
 

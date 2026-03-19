@@ -9,6 +9,12 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	fileEncounters     = "encounters.txt"
+	fmtReadEncounters  = "reading encounters.txt: %v"
+	fmtEncountersWant  = "encounters.txt = %q, want %q"
+)
+
 func TestWriteWithActivePokemon(t *testing.T) {
 	dir := t.TempDir()
 	w := New(dir, true)
@@ -28,12 +34,12 @@ func TestWriteWithActivePokemon(t *testing.T) {
 	w.Write(st)
 
 	// Check encounters.txt
-	data, err := os.ReadFile(filepath.Join(dir, "encounters.txt"))
+	data, err := os.ReadFile(filepath.Join(dir, fileEncounters))
 	if err != nil {
-		t.Fatalf("reading encounters.txt: %v", err)
+		t.Fatalf(fmtReadEncounters, err)
 	}
 	if string(data) != "42" {
-		t.Errorf("encounters.txt = %q, want %q", string(data), "42")
+		t.Errorf(fmtEncountersWant, string(data), "42")
 	}
 
 	// Check pokemon_name.txt
@@ -77,12 +83,12 @@ func TestWriteWithNoActivePokemon(t *testing.T) {
 
 	w.Write(st)
 
-	data, err := os.ReadFile(filepath.Join(dir, "encounters.txt"))
+	data, err := os.ReadFile(filepath.Join(dir, fileEncounters))
 	if err != nil {
-		t.Fatalf("reading encounters.txt: %v", err)
+		t.Fatalf(fmtReadEncounters, err)
 	}
 	if string(data) != "0" {
-		t.Errorf("encounters.txt = %q, want %q", string(data), "0")
+		t.Errorf(fmtEncountersWant, string(data), "0")
 	}
 
 	data, err = os.ReadFile(filepath.Join(dir, "pokemon_name.txt"))
@@ -108,7 +114,7 @@ func TestWriteWhenDisabled(t *testing.T) {
 	w.Write(st)
 
 	// Files should not be created
-	if _, err := os.Stat(filepath.Join(dir, "encounters.txt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dir, fileEncounters)); !os.IsNotExist(err) {
 		t.Error("encounters.txt should not exist when output is disabled")
 	}
 }
@@ -128,7 +134,7 @@ func TestSetConfig(t *testing.T) {
 
 	// Initially disabled, should not write
 	w.Write(st)
-	if _, err := os.Stat(filepath.Join(dir1, "encounters.txt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dir1, fileEncounters)); !os.IsNotExist(err) {
 		t.Error("should not write when disabled")
 	}
 
@@ -136,16 +142,16 @@ func TestSetConfig(t *testing.T) {
 	w.SetConfig(dir2, true)
 	w.Write(st)
 
-	data, err := os.ReadFile(filepath.Join(dir2, "encounters.txt"))
+	data, err := os.ReadFile(filepath.Join(dir2, fileEncounters))
 	if err != nil {
-		t.Fatalf("reading encounters.txt: %v", err)
+		t.Fatalf(fmtReadEncounters, err)
 	}
 	if string(data) != "5" {
-		t.Errorf("encounters.txt = %q, want %q", string(data), "5")
+		t.Errorf(fmtEncountersWant, string(data), "5")
 	}
 
 	// dir1 should still be empty
-	if _, err := os.Stat(filepath.Join(dir1, "encounters.txt")); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(dir1, fileEncounters)); !os.IsNotExist(err) {
 		t.Error("old directory should not have files")
 	}
 }

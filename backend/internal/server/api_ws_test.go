@@ -12,6 +12,12 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	fmtEncWant1  = "encounters = %d, want 1"
+	fmtEncWant0  = "encounters = %d, want 0"
+	fmtStatus    = "status = %d, want %d"
+)
+
 // makeWSMessage creates a WSMessage with the given type and JSON payload.
 func makeWSMessage(t *testing.T, msgType string, payload any) WSMessage {
 	t.Helper()
@@ -33,7 +39,7 @@ func TestHandleWSMessageIncrement(t *testing.T) {
 
 	st := srv.state.GetState()
 	if st.Pokemon[0].Encounters != 1 {
-		t.Errorf("encounters = %d, want 1", st.Pokemon[0].Encounters)
+		t.Errorf(fmtEncWant1, st.Pokemon[0].Encounters)
 	}
 }
 
@@ -72,7 +78,7 @@ func TestHandleWSMessageIncrementInvalidPayload(t *testing.T) {
 
 	st := srv.state.GetState()
 	if st.Pokemon[0].Encounters != 0 {
-		t.Errorf("encounters = %d, want 0", st.Pokemon[0].Encounters)
+		t.Errorf(fmtEncWant0, st.Pokemon[0].Encounters)
 	}
 }
 
@@ -89,7 +95,7 @@ func TestHandleWSMessageDecrement(t *testing.T) {
 
 	st := srv.state.GetState()
 	if st.Pokemon[0].Encounters != 1 {
-		t.Errorf("encounters = %d, want 1", st.Pokemon[0].Encounters)
+		t.Errorf(fmtEncWant1, st.Pokemon[0].Encounters)
 	}
 }
 
@@ -233,7 +239,7 @@ func TestHandleWSMessageIncrementWithFileWriter(t *testing.T) {
 
 	st := srv.state.GetState()
 	if st.Pokemon[0].Encounters != 1 {
-		t.Errorf("encounters = %d, want 1", st.Pokemon[0].Encounters)
+		t.Errorf(fmtEncWant1, st.Pokemon[0].Encounters)
 	}
 }
 
@@ -249,7 +255,7 @@ func TestHandleWSMessageDecrementWithFileWriter(t *testing.T) {
 
 	st := srv.state.GetState()
 	if st.Pokemon[0].Encounters != 0 {
-		t.Errorf("encounters = %d, want 0", st.Pokemon[0].Encounters)
+		t.Errorf(fmtEncWant0, st.Pokemon[0].Encounters)
 	}
 }
 
@@ -265,7 +271,7 @@ func TestHandleWSMessageResetWithFileWriter(t *testing.T) {
 
 	st := srv.state.GetState()
 	if st.Pokemon[0].Encounters != 0 {
-		t.Errorf("encounters = %d, want 0", st.Pokemon[0].Encounters)
+		t.Errorf(fmtEncWant0, st.Pokemon[0].Encounters)
 	}
 }
 
@@ -282,7 +288,7 @@ func TestHandleIncrementWithFileWriter(t *testing.T) {
 	srv.handleIncrement(w, req, "p1")
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatus, w.Code, http.StatusOK)
 	}
 }
 
@@ -298,7 +304,7 @@ func TestHandleDecrementWithFileWriter(t *testing.T) {
 	srv.handleDecrement(w, req, "p1")
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatus, w.Code, http.StatusOK)
 	}
 }
 
@@ -314,7 +320,7 @@ func TestHandleResetWithFileWriter(t *testing.T) {
 	srv.handleReset(w, req, "p1")
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(fmtStatus, w.Code, http.StatusNoContent)
 	}
 }
 
@@ -331,7 +337,7 @@ func TestHandleUpdateSettingsWithFileWriter(t *testing.T) {
 	srv.handleUpdateSettings(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatus, w.Code, http.StatusOK)
 	}
 }
 
@@ -345,7 +351,7 @@ func TestHandleUpdateSingleHotkeyInvalidJSON(t *testing.T) {
 	srv.handleUpdateSingleHotkey(w, req, "increment")
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		t.Errorf(fmtStatus, w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -359,6 +365,6 @@ func TestHandleUpdatePokemonInvalidJSON(t *testing.T) {
 	srv.handleUpdatePokemon(w, req, "p1")
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		t.Errorf(fmtStatus, w.Code, http.StatusBadRequest)
 	}
 }

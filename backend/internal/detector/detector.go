@@ -160,48 +160,40 @@ type resolvedConfig struct {
 // resolveConfig applies defaults for zero-valued configuration fields and returns
 // a resolvedConfig with all values ready for use in the detection loop.
 func (d *Detector) resolveConfig() resolvedConfig {
-	var basePollNs int64
-	if d.cfg.PollIntervalMs > 0 {
-		basePollNs = int64(time.Duration(d.cfg.PollIntervalMs) * time.Millisecond)
-	} else {
-		basePollNs = int64(defaultPollIntervalMs * time.Millisecond)
-	}
-
-	minPollMs := d.cfg.MinPollMs
-	if minPollMs == 0 {
-		minPollMs = defaultMinPollMs
-	}
-	maxPollMs := d.cfg.MaxPollMs
-	if maxPollMs == 0 {
-		maxPollMs = defaultMaxPollMs
-	}
-
-	precision := d.cfg.Precision
-	if precision == 0 {
-		precision = defaultPrecision
-	}
-	consecutiveHits := d.cfg.ConsecutiveHits
-	if consecutiveHits == 0 {
-		consecutiveHits = defaultConsecutiveHits
-	}
-	cooldownSec := d.cfg.CooldownSec
-	if cooldownSec == 0 {
-		cooldownSec = defaultCooldownSec
-	}
-	changeThreshold := d.cfg.ChangeThreshold
-	if changeThreshold == 0 {
-		changeThreshold = defaultChangeThreshold
-	}
+	basePollNs := msToNs(intOrDefault(d.cfg.PollIntervalMs, defaultPollIntervalMs))
+	minPollMs := intOrDefault(d.cfg.MinPollMs, defaultMinPollMs)
+	maxPollMs := intOrDefault(d.cfg.MaxPollMs, defaultMaxPollMs)
 
 	return resolvedConfig{
 		basePollNs:      basePollNs,
-		minPollNs:       int64(time.Duration(minPollMs) * time.Millisecond),
-		maxPollNs:       int64(time.Duration(maxPollMs) * time.Millisecond),
-		precision:       precision,
-		consecutiveHits: consecutiveHits,
-		cooldownSec:     cooldownSec,
-		changeThreshold: changeThreshold,
+		minPollNs:       msToNs(minPollMs),
+		maxPollNs:       msToNs(maxPollMs),
+		precision:       floatOrDefault(d.cfg.Precision, defaultPrecision),
+		consecutiveHits: intOrDefault(d.cfg.ConsecutiveHits, defaultConsecutiveHits),
+		cooldownSec:     intOrDefault(d.cfg.CooldownSec, defaultCooldownSec),
+		changeThreshold: floatOrDefault(d.cfg.ChangeThreshold, defaultChangeThreshold),
 	}
+}
+
+// intOrDefault returns v if non-zero, otherwise def.
+func intOrDefault(v, def int) int {
+	if v != 0 {
+		return v
+	}
+	return def
+}
+
+// floatOrDefault returns v if non-zero, otherwise def.
+func floatOrDefault(v, def float64) float64 {
+	if v != 0 {
+		return v
+	}
+	return def
+}
+
+// msToNs converts a millisecond int to nanoseconds as int64.
+func msToNs(ms int) int64 {
+	return int64(time.Duration(ms) * time.Millisecond)
 }
 
 // captureFrames grabs screen frames at the current adaptive poll interval and

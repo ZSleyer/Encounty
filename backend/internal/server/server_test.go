@@ -11,6 +11,11 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
 )
 
+const (
+	srvFmtStatus  = "status = %d, want %d"
+	fileIndexHTML  = "index.html"
+)
+
 // --- CORS Middleware Tests ---
 
 // TestCorsMiddlewareHeaders verifies that CORS headers are added to regular
@@ -26,7 +31,7 @@ func TestCorsMiddlewareHeaders(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
 	}
 	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "*" {
 		t.Errorf("Allow-Origin = %q, want %q", got, "*")
@@ -54,7 +59,7 @@ func TestCorsMiddlewarePreflight(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(srvFmtStatus, w.Code, http.StatusNoContent)
 	}
 	if called {
 		t.Error("inner handler should not be called for OPTIONS preflight")
@@ -70,7 +75,7 @@ func TestCorsMiddlewarePreflight(t *testing.T) {
 // file from the embedded FS when the path matches.
 func TestSPAHandlerServesStaticFile(t *testing.T) {
 	fsys := fstest.MapFS{
-		"index.html":        {Data: []byte("<html>SPA</html>")},
+		fileIndexHTML:        {Data: []byte("<html>SPA</html>")},
 		"assets/main.js":    {Data: []byte("console.log('app')")},
 		"assets/style.css":  {Data: []byte("body{}")},
 	}
@@ -82,7 +87,7 @@ func TestSPAHandlerServesStaticFile(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
 	}
 	if got := w.Body.String(); got != "console.log('app')" {
 		t.Errorf("body = %q, want JS content", got)
@@ -94,7 +99,7 @@ func TestSPAHandlerServesStaticFile(t *testing.T) {
 func TestSPAHandlerFallbackToIndex(t *testing.T) {
 	indexContent := "<html><body>Encounty SPA</body></html>"
 	fsys := fstest.MapFS{
-		"index.html": {Data: []byte(indexContent)},
+		fileIndexHTML: {Data: []byte(indexContent)},
 	}
 
 	handler := spaHandler(fsys)
@@ -122,7 +127,7 @@ func TestSPAHandlerFallbackToIndex(t *testing.T) {
 func TestSPAHandlerDirectoryFallback(t *testing.T) {
 	indexContent := "<html>app</html>"
 	fsys := fstest.MapFS{
-		"index.html":     {Data: []byte(indexContent)},
+		fileIndexHTML:     {Data: []byte(indexContent)},
 		"assets/main.js": {Data: []byte("js")},
 	}
 
@@ -134,7 +139,7 @@ func TestSPAHandlerDirectoryFallback(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
 	}
 	if got := w.Body.String(); got != indexContent {
 		t.Errorf("body = %q, want index.html content", got)
@@ -145,7 +150,7 @@ func TestSPAHandlerDirectoryFallback(t *testing.T) {
 func TestSPAHandlerRootPath(t *testing.T) {
 	indexContent := "<html>root</html>"
 	fsys := fstest.MapFS{
-		"index.html": {Data: []byte(indexContent)},
+		fileIndexHTML: {Data: []byte(indexContent)},
 	}
 
 	handler := spaHandler(fsys)
@@ -155,7 +160,7 @@ func TestSPAHandlerRootPath(t *testing.T) {
 	handler.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
 	}
 	if got := w.Body.String(); got != indexContent {
 		t.Errorf("body = %q, want index.html content", got)

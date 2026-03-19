@@ -15,6 +15,13 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	hotkeyCtrl1 = "Ctrl+1"
+	hotkeyCtrl4 = "Ctrl+4"
+	fmtSave     = "Save: %v"
+	fmtLoad     = "Load: %v"
+)
+
 // openTestDB creates a fresh SQLite database in dir and registers cleanup.
 func openTestDB(t *testing.T, dir string) *database.DB {
 	t.Helper()
@@ -59,21 +66,21 @@ func TestSaveAndLoadWithDB(t *testing.T) {
 		CrispSprites:  true,
 	})
 	m.UpdateHotkeys(state.HotkeyMap{
-		Increment:   "Ctrl+1",
+		Increment:   hotkeyCtrl1,
 		Decrement:   "Ctrl+2",
 		Reset:       "Ctrl+3",
-		NextPokemon: "Ctrl+4",
+		NextPokemon: hotkeyCtrl4,
 	})
 
 	if err := m.Save(); err != nil {
-		t.Fatalf("Save: %v", err)
+		t.Fatalf(fmtSave, err)
 	}
 
 	// Load into a completely new Manager wired to the same DB.
 	m2 := state.NewManager(t.TempDir())
 	m2.SetDB(db)
 	if err := m2.Load(); err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf(fmtLoad, err)
 	}
 
 	st := m2.GetState()
@@ -99,11 +106,11 @@ func TestSaveAndLoadWithDB(t *testing.T) {
 	if !st.Settings.OutputEnabled {
 		t.Error("OutputEnabled should be true")
 	}
-	if st.Hotkeys.Increment != "Ctrl+1" {
-		t.Errorf("Hotkeys.Increment = %q, want %q", st.Hotkeys.Increment, "Ctrl+1")
+	if st.Hotkeys.Increment != hotkeyCtrl1 {
+		t.Errorf("Hotkeys.Increment = %q, want %q", st.Hotkeys.Increment, hotkeyCtrl1)
 	}
-	if st.Hotkeys.NextPokemon != "Ctrl+4" {
-		t.Errorf("Hotkeys.NextPokemon = %q, want %q", st.Hotkeys.NextPokemon, "Ctrl+4")
+	if st.Hotkeys.NextPokemon != hotkeyCtrl4 {
+		t.Errorf("Hotkeys.NextPokemon = %q, want %q", st.Hotkeys.NextPokemon, hotkeyCtrl4)
 	}
 	if len(st.Settings.Languages) != 2 || st.Settings.Languages[0] != "en" || st.Settings.Languages[1] != "ja" {
 		t.Errorf("Languages = %v, want [en ja]", st.Settings.Languages)
@@ -135,7 +142,7 @@ func TestLoadPrefersDBOverJSON(t *testing.T) {
 	loadMgr := state.NewManager(configDir)
 	loadMgr.SetDB(db)
 	if err := loadMgr.Load(); err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf(fmtLoad, err)
 	}
 
 	st := loadMgr.GetState()
@@ -184,7 +191,7 @@ func TestLoadFallsBackToLegacyBlob(t *testing.T) {
 	m := state.NewManager(t.TempDir())
 	m.SetDB(db)
 	if err := m.Load(); err != nil {
-		t.Fatalf("Load: %v", err)
+		t.Fatalf(fmtLoad, err)
 	}
 
 	st := m.GetState()
@@ -212,7 +219,7 @@ func TestReloadNotifiesListeners(t *testing.T) {
 	m.AddPokemon(makePokemon("r1", "Gengar"))
 
 	if err := m.Save(); err != nil {
-		t.Fatalf("Save: %v", err)
+		t.Fatalf(fmtSave, err)
 	}
 
 	var called atomic.Int32
@@ -245,7 +252,7 @@ func TestSaveWithDBDoesNotWriteJSON(t *testing.T) {
 	m.AddPokemon(makePokemon("nj1", "Mudkip"))
 
 	if err := m.Save(); err != nil {
-		t.Fatalf("Save: %v", err)
+		t.Fatalf(fmtSave, err)
 	}
 
 	// The JSON file should NOT exist because the DB path was used.

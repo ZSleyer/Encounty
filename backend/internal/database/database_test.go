@@ -15,6 +15,14 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	fmtSaveErr         = "SaveFullState: %v"
+	fmtLoadErr         = "LoadFullState: %v"
+	testColorGray      = "#445566"
+	fmtLogEncounter    = "LogEncounter %d: %v"
+	fmtGetTimerSessErr = "GetTimerSessions: %v"
+)
+
 // ---------------------------------------------------------------------------
 // Helper builders
 // ---------------------------------------------------------------------------
@@ -142,7 +150,7 @@ func makeTestOverlayPtr() *state.OverlaySettings {
 	// Tweak a few values so it is distinguishable from the global overlay.
 	ov.CanvasWidth = 600
 	ov.CanvasHeight = 150
-	ov.BackgroundColor = "#445566"
+	ov.BackgroundColor = testColorGray
 	return &ov
 }
 
@@ -260,7 +268,7 @@ func TestHasState(t *testing.T) {
 	}
 	st := makeTestState()
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveErr, err)
 	}
 	if !db.HasState() {
 		t.Fatal("HasState should be true after SaveFullState")
@@ -278,11 +286,11 @@ func TestSaveAndLoadFullState(t *testing.T) {
 	want := makeTestState()
 
 	if err := db.SaveFullState(&want); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveErr, err)
 	}
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadErr, err)
 	}
 	if got == nil {
 		t.Fatal("LoadFullState returned nil")
@@ -439,7 +447,7 @@ func TestSaveAndLoadTemplateImage(t *testing.T) {
 	// We need a pokemon and detector_config row first (foreign key constraint).
 	st := makeTestState()
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveErr, err)
 	}
 
 	blob := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xDE, 0xAD}
@@ -466,7 +474,7 @@ func TestDeleteTemplateImage(t *testing.T) {
 
 	st := makeTestState()
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveErr, err)
 	}
 
 	blob := []byte{0x01, 0x02, 0x03}
@@ -498,7 +506,7 @@ func TestTemplateImageCascadeOnPokemonDelete(t *testing.T) {
 	// Load to get the template DB ID assigned by SaveFullState.
 	loaded, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadErr, err)
 	}
 	if loaded.Pokemon[1].DetectorConfig == nil || len(loaded.Pokemon[1].DetectorConfig.Templates) == 0 {
 		t.Fatal("expected at least one template after initial save")
@@ -528,11 +536,11 @@ func TestOverlayGradientStopsRoundtrip(t *testing.T) {
 	db := openTestDB(t)
 	st := makeTestState()
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveErr, err)
 	}
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadErr, err)
 	}
 
 	// Name gradient stops (3 stops)
@@ -581,11 +589,11 @@ func TestPerPokemonOverlay(t *testing.T) {
 	db := openTestDB(t)
 	st := makeTestState()
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveErr, err)
 	}
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadErr, err)
 	}
 
 	p2 := got.Pokemon[1]
@@ -603,8 +611,8 @@ func TestPerPokemonOverlay(t *testing.T) {
 	if p2.Overlay.CanvasHeight != 150 {
 		t.Errorf("p2 Overlay.CanvasHeight = %d, want 150", p2.Overlay.CanvasHeight)
 	}
-	if p2.Overlay.BackgroundColor != "#445566" {
-		t.Errorf("p2 Overlay.BackgroundColor = %q, want %q", p2.Overlay.BackgroundColor, "#445566")
+	if p2.Overlay.BackgroundColor != testColorGray {
+		t.Errorf("p2 Overlay.BackgroundColor = %q, want %q", p2.Overlay.BackgroundColor, testColorGray)
 	}
 }
 
@@ -663,7 +671,7 @@ func TestSaveFullStateTwice(t *testing.T) {
 
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadErr, err)
 	}
 	if got.ActiveID != "p2" {
 		t.Errorf("ActiveID = %q, want %q", got.ActiveID, "p2")
@@ -696,11 +704,11 @@ func TestDetectorConfigNilHandling(t *testing.T) {
 		},
 	}
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveErr, err)
 	}
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadErr, err)
 	}
 	if got.Pokemon[0].DetectorConfig != nil {
 		t.Error("Pokemon[0].DetectorConfig should be nil")
@@ -741,11 +749,11 @@ func TestDetectionLogCap(t *testing.T) {
 		},
 	}
 	if err := db.SaveFullState(&st); err != nil {
-		t.Fatalf("SaveFullState: %v", err)
+		t.Fatalf(fmtSaveErr, err)
 	}
 	got, err := db.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadErr, err)
 	}
 	dc := got.Pokemon[0].DetectorConfig
 	if dc == nil {
@@ -1055,7 +1063,7 @@ func TestGetEncounterHistory(t *testing.T) {
 	// Insert 5 events for p1.
 	for i := 1; i <= 5; i++ {
 		if err := db.LogEncounter("p1", "Pikachu", 1, i, "test"); err != nil {
-			t.Fatalf("LogEncounter %d: %v", i, err)
+			t.Fatalf(fmtLogEncounter, i, err)
 		}
 	}
 	// Insert 2 events for p2.
@@ -1129,10 +1137,10 @@ func TestGetEncounterStats(t *testing.T) {
 
 	// Insert events spread over time to test rate calculation.
 	// We'll insert events and let LogEncounter handle timestamps.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		err := db.LogEncounter("p1", "Pikachu", 10, 10*(i+1), "test")
 		if err != nil {
-			t.Fatalf("LogEncounter %d: %v", i, err)
+			t.Fatalf(fmtLogEncounter, i, err)
 		}
 	}
 
@@ -1184,10 +1192,10 @@ func TestGetChartData(t *testing.T) {
 
 	// Insert multiple encounters to generate chart data.
 	// LogEncounter uses current timestamp, so all will be in the same time period.
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		err := db.LogEncounter("p1", "Pikachu", 1, i+1, "test")
 		if err != nil {
-			t.Fatalf("LogEncounter %d: %v", i, err)
+			t.Fatalf(fmtLogEncounter, i, err)
 		}
 	}
 
@@ -1308,7 +1316,7 @@ func TestStartTimerSession(t *testing.T) {
 	// Verify session exists via GetTimerSessions.
 	sessions, err := db.GetTimerSessions("p1")
 	if err != nil {
-		t.Fatalf("GetTimerSessions: %v", err)
+		t.Fatalf(fmtGetTimerSessErr, err)
 	}
 	if len(sessions) != 1 {
 		t.Fatalf("len(sessions) = %d, want 1", len(sessions))
@@ -1349,7 +1357,7 @@ func TestEndTimerSession(t *testing.T) {
 	// Verify update via GetTimerSessions.
 	sessions, err := db.GetTimerSessions("p1")
 	if err != nil {
-		t.Fatalf("GetTimerSessions: %v", err)
+		t.Fatalf(fmtGetTimerSessErr, err)
 	}
 	if len(sessions) != 1 {
 		t.Fatalf("len(sessions) = %d, want 1", len(sessions))
@@ -1389,7 +1397,7 @@ func TestGetTimerSessions(t *testing.T) {
 
 	sessions, err := db.GetTimerSessions("p1")
 	if err != nil {
-		t.Fatalf("GetTimerSessions: %v", err)
+		t.Fatalf(fmtGetTimerSessErr, err)
 	}
 	if len(sessions) != 3 {
 		t.Fatalf("len(sessions) = %d, want 3", len(sessions))

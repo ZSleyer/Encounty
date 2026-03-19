@@ -5,9 +5,9 @@
  */
 import { useState, useEffect, useRef } from "react";
 
-interface Props {
+type Props = Readonly<{
   onComplete: () => void;
-}
+}>;
 
 interface TutorialStep {
   target: string;

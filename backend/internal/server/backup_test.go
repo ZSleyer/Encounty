@@ -15,6 +15,12 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	pathAPIBackup  = "/api/backup"
+	pathAPIRestore = "/api/restore"
+	hdrContentType = "Content-Type"
+)
+
 // newTestServerWithDB creates a test server backed by a real SQLite database.
 func newTestServerWithDB(t *testing.T) *Server {
 	t.Helper()
@@ -52,7 +58,7 @@ func TestBackupCreatesZIP(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/backup", nil)
+	req := httptest.NewRequest(http.MethodGet, pathAPIBackup, nil)
 	w := httptest.NewRecorder()
 	srv.handleBackup(w, req)
 
@@ -60,7 +66,7 @@ func TestBackupCreatesZIP(t *testing.T) {
 		t.Fatalf("status = %d, want 200", w.Code)
 	}
 
-	ct := w.Header().Get("Content-Type")
+	ct := w.Header().Get(hdrContentType)
 	if ct != "application/zip" {
 		t.Errorf("Content-Type = %q, want application/zip", ct)
 	}
@@ -89,7 +95,7 @@ func TestBackupCreatesZIP(t *testing.T) {
 func TestBackupMethodNotAllowed(t *testing.T) {
 	srv := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/backup", nil)
+	req := httptest.NewRequest(http.MethodPost, pathAPIBackup, nil)
 	w := httptest.NewRecorder()
 	srv.handleBackup(w, req)
 
@@ -113,7 +119,7 @@ func TestRestoreRoundTrip(t *testing.T) {
 	}
 
 	// Create backup
-	backupReq := httptest.NewRequest(http.MethodGet, "/api/backup", nil)
+	backupReq := httptest.NewRequest(http.MethodGet, pathAPIBackup, nil)
 	backupW := httptest.NewRecorder()
 	srv.handleBackup(backupW, backupReq)
 
@@ -135,8 +141,8 @@ func TestRestoreRoundTrip(t *testing.T) {
 	}
 	_ = mw.Close()
 
-	restoreReq := httptest.NewRequest(http.MethodPost, "/api/restore", &body)
-	restoreReq.Header.Set("Content-Type", mw.FormDataContentType())
+	restoreReq := httptest.NewRequest(http.MethodPost, pathAPIRestore, &body)
+	restoreReq.Header.Set(hdrContentType, mw.FormDataContentType())
 	restoreW := httptest.NewRecorder()
 	srv.handleRestore(restoreW, restoreReq)
 
@@ -160,7 +166,7 @@ func TestRestoreRoundTrip(t *testing.T) {
 func TestRestoreMethodNotAllowed(t *testing.T) {
 	srv := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/restore", nil)
+	req := httptest.NewRequest(http.MethodGet, pathAPIRestore, nil)
 	w := httptest.NewRecorder()
 	srv.handleRestore(w, req)
 
@@ -172,8 +178,8 @@ func TestRestoreMethodNotAllowed(t *testing.T) {
 func TestRestoreNoFile(t *testing.T) {
 	srv := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/restore", bytes.NewBufferString(""))
-	req.Header.Set("Content-Type", "multipart/form-data; boundary=xxx")
+	req := httptest.NewRequest(http.MethodPost, pathAPIRestore, bytes.NewBufferString(""))
+	req.Header.Set(hdrContentType, "multipart/form-data; boundary=xxx")
 	w := httptest.NewRecorder()
 	srv.handleRestore(w, req)
 
@@ -191,8 +197,8 @@ func TestRestoreInvalidZIP(t *testing.T) {
 	_, _ = fw.Write([]byte("not a zip"))
 	_ = mw.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/restore", &body)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req := httptest.NewRequest(http.MethodPost, pathAPIRestore, &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
 	w := httptest.NewRecorder()
 	srv.handleRestore(w, req)
 
@@ -217,8 +223,8 @@ func TestRestoreZIPMissingDB(t *testing.T) {
 	_, _ = formFile.Write(zipBuf.Bytes())
 	_ = mw.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/restore", &body)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req := httptest.NewRequest(http.MethodPost, pathAPIRestore, &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
 	w := httptest.NewRecorder()
 	srv.handleRestore(w, req)
 

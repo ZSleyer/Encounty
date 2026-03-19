@@ -2,6 +2,11 @@ package hotkeys
 
 import "testing"
 
+const (
+	fmtUnexpectedErr = "unexpected error: %v"
+	fmtKeyWant       = "Key = %q, want %q"
+)
+
 func TestParseKeyComboSimpleKeys(t *testing.T) {
 	tests := []struct {
 		input   string
@@ -17,10 +22,10 @@ func TestParseKeyComboSimpleKeys(t *testing.T) {
 		t.Run(tt.input, func(t *testing.T) {
 			combo, err := ParseKeyCombo(tt.input)
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf(fmtUnexpectedErr, err)
 			}
 			if combo.Key != tt.wantKey {
-				t.Errorf("Key = %q, want %q", combo.Key, tt.wantKey)
+				t.Errorf(fmtKeyWant, combo.Key, tt.wantKey)
 			}
 			if combo.Ctrl || combo.Shift || combo.Alt {
 				t.Error("no modifiers expected")
@@ -47,10 +52,10 @@ func TestParseKeyComboModifiers(t *testing.T) {
 		t.Run(tt.input, func(t *testing.T) {
 			combo, err := ParseKeyCombo(tt.input)
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf(fmtUnexpectedErr, err)
 			}
 			if combo.Key != tt.wantKey {
-				t.Errorf("Key = %q, want %q", combo.Key, tt.wantKey)
+				t.Errorf(fmtKeyWant, combo.Key, tt.wantKey)
 			}
 			if combo.Ctrl != tt.wantCtrl {
 				t.Errorf("Ctrl = %v, want %v", combo.Ctrl, tt.wantCtrl)
@@ -69,10 +74,10 @@ func TestParseKeyComboPlus(t *testing.T) {
 	// "+" alone should parse as key="+"
 	combo, err := ParseKeyCombo("+")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(fmtUnexpectedErr, err)
 	}
 	if combo.Key != "+" {
-		t.Errorf("Key = %q, want %q", combo.Key, "+")
+		t.Errorf(fmtKeyWant, combo.Key, "+")
 	}
 	if combo.Ctrl || combo.Shift || combo.Alt {
 		t.Error("no modifiers expected for bare +")
@@ -83,10 +88,10 @@ func TestParseKeyComboCtrlPlus(t *testing.T) {
 	// "Ctrl++" should parse as Ctrl=true, key="+"
 	combo, err := ParseKeyCombo("Ctrl++")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(fmtUnexpectedErr, err)
 	}
 	if combo.Key != "+" {
-		t.Errorf("Key = %q, want %q", combo.Key, "+")
+		t.Errorf(fmtKeyWant, combo.Key, "+")
 	}
 	if !combo.Ctrl {
 		t.Error("Ctrl should be true")
@@ -116,10 +121,10 @@ func TestParseKeyComboCase(t *testing.T) {
 		t.Run(tt.input, func(t *testing.T) {
 			combo, err := ParseKeyCombo(tt.input)
 			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
+				t.Fatalf(fmtUnexpectedErr, err)
 			}
 			if combo.Key != tt.wantKey {
-				t.Errorf("Key = %q, want %q", combo.Key, tt.wantKey)
+				t.Errorf(fmtKeyWant, combo.Key, tt.wantKey)
 			}
 			if combo.Ctrl != tt.wantCtrl {
 				t.Errorf("Ctrl = %v, want %v", combo.Ctrl, tt.wantCtrl)
@@ -134,10 +139,10 @@ func TestParseKeyComboCase(t *testing.T) {
 func TestValidateKeyComboKnownKey(t *testing.T) {
 	combo, err := ValidateKeyCombo("F1")
 	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+		t.Fatalf(fmtUnexpectedErr, err)
 	}
 	if combo.Key != "f1" {
-		t.Errorf("Key = %q, want %q", combo.Key, "f1")
+		t.Errorf(fmtKeyWant, combo.Key, "f1")
 	}
 }
 

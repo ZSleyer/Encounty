@@ -89,12 +89,19 @@ func New(cfg Config) *Server {
 }
 
 func (s *Server) registerRoutes(mux *http.ServeMux) {
-	// WebSocket
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		s.hub.ServeWS(s, w, r)
 	})
+	s.registerCoreRoutes(mux)
+	s.registerPokemonRoutes(mux)
+	s.registerBackgroundRoutes(mux)
+	s.registerDetectorRoutes(mux)
+	s.registerFrontend(mux)
+}
 
-	// REST API
+// registerCoreRoutes wires state, settings, hotkeys, stats, and other
+// top-level REST endpoints.
+func (s *Server) registerCoreRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/state", s.handleGetState)
 	mux.HandleFunc("/api/sessions", s.handleGetSessions)
 	mux.HandleFunc("/api/settings", s.handleUpdateSettings)
@@ -126,11 +133,12 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/licenses", s.handleLicenses)
 	mux.HandleFunc("/api/license/accept", s.handleAcceptLicense)
 	mux.HandleFunc("/api/settings/config-path", s.handleSetConfigPath)
-
-	// Statistics API
 	mux.HandleFunc("/api/stats/overview", s.handleStatsOverview)
 	mux.HandleFunc("/api/stats/pokemon/", s.handleStatsDispatch)
+}
 
+// registerPokemonRoutes wires the /api/pokemon and /api/pokemon/{id}/* routes.
+func (s *Server) registerPokemonRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/pokemon", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -143,60 +151,58 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 		}
 	})
 
-	mux.HandleFunc("/api/pokemon/", func(w http.ResponseWriter, r *http.Request) {
-		path := r.URL.Path
-
-		switch {
-		case strings.HasSuffix(path, "/overlay/unlink"):
-			if r.Method == http.MethodPost {
-				s.handleUnlinkOverlay(w, r)
-			} else {
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		case strings.HasSuffix(path, "/set_encounters"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/set_encounters")
-			s.handleSetEncounters(w, r, id)
-		case strings.HasSuffix(path, "/timer/start"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/timer/start")
-			s.handleTimerStart(w, r, id)
-		case strings.HasSuffix(path, "/timer/stop"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/timer/stop")
-			s.handleTimerStop(w, r, id)
-		case strings.HasSuffix(path, "/timer/reset"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/timer/reset")
-			s.handleTimerReset(w, r, id)
-		case strings.HasSuffix(path, "/increment"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/increment")
-			s.handleIncrement(w, r, id)
-		case strings.HasSuffix(path, "/decrement"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/decrement")
-			s.handleDecrement(w, r, id)
-		case strings.HasSuffix(path, "/reset"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/reset")
-			s.handleReset(w, r, id)
-		case strings.HasSuffix(path, "/activate"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/activate")
-			s.handleActivate(w, r, id)
-		case strings.HasSuffix(path, "/complete"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/complete")
-			s.handleCompletePokemon(w, r, id)
-		case strings.HasSuffix(path, "/uncomplete"):
-			id := pokemonIDFromPath(path, "/api/pokemon/", "/uncomplete")
-			s.handleUncompletePokemon(w, r, id)
-		default:
-			id := pokemonIDFromPath(path, "/api/pokemon/", "")
-			switch r.Method {
-			case http.MethodPut:
-				s.handleUpdatePokemon(w, r, id)
-			case http.MethodDelete:
-				s.handleDeletePokemon(w, r, id)
-			default:
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		}
+	mux.HandleFunc(pokemonAPIPrefix, func(w http.ResponseWriter, r *http.Request) {
+		s.dispatchPokemonAction(w, r)
 	})
+}
 
-	// Background image API
+// dispatchPokemonAction routes a /api/pokemon/{id}/... request to the
+// appropriate handler based on the URL suffix.
+func (s *Server) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+
+	switch {
+	case strings.HasSuffix(path, "/overlay/unlink"):
+		if r.Method == http.MethodPost {
+			s.handleUnlinkOverlay(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	case strings.HasSuffix(path, "/set_encounters"):
+		s.handleSetEncounters(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/set_encounters"))
+	case strings.HasSuffix(path, "/timer/start"):
+		s.handleTimerStart(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/timer/start"))
+	case strings.HasSuffix(path, "/timer/stop"):
+		s.handleTimerStop(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/timer/stop"))
+	case strings.HasSuffix(path, "/timer/reset"):
+		s.handleTimerReset(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/timer/reset"))
+	case strings.HasSuffix(path, "/increment"):
+		s.handleIncrement(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/increment"))
+	case strings.HasSuffix(path, "/decrement"):
+		s.handleDecrement(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/decrement"))
+	case strings.HasSuffix(path, "/reset"):
+		s.handleReset(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/reset"))
+	case strings.HasSuffix(path, "/activate"):
+		s.handleActivate(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/activate"))
+	case strings.HasSuffix(path, "/complete"):
+		s.handleCompletePokemon(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/complete"))
+	case strings.HasSuffix(path, "/uncomplete"):
+		s.handleUncompletePokemon(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
+	default:
+		id := pokemonIDFromPath(path, pokemonAPIPrefix, "")
+		switch r.Method {
+		case http.MethodPut:
+			s.handleUpdatePokemon(w, r, id)
+		case http.MethodDelete:
+			s.handleDeletePokemon(w, r, id)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// registerBackgroundRoutes wires the /api/backgrounds/* routes.
+func (s *Server) registerBackgroundRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/backgrounds/upload", s.handleBackgroundUpload)
 	mux.HandleFunc("/api/backgrounds/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -208,15 +214,17 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	})
+}
 
-	// Camera API
-
-	// Detector API
+// registerDetectorRoutes wires the /api/detector/* routes.
+func (s *Server) registerDetectorRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/detector/screenshot", s.handleDetectorScreenshot)
-mux.HandleFunc("/api/detector/status", s.handleDetectorStatus)
+	mux.HandleFunc("/api/detector/status", s.handleDetectorStatus)
 	mux.HandleFunc("/api/detector/", s.handleDetectorDispatch)
+}
 
-	// Frontend static files / SPA fallback
+// registerFrontend mounts the embedded SPA filesystem as a fallback handler.
+func (s *Server) registerFrontend(mux *http.ServeMux) {
 	if s.frontendFS != nil {
 		subFS, err := fs.Sub(s.frontendFS, "frontend/dist")
 		if err != nil {

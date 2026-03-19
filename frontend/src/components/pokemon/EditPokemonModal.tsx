@@ -8,7 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import { GameEntry, Language } from "../../types";
+import { GameEntry } from "../../types";
 import {
   getSpriteUrl,
   SpriteType,
@@ -28,7 +28,7 @@ type Props = Readonly<{
     sprite_url: string;
     sprite_type: SpriteType;
     sprite_style?: SpriteStyle;
-    language: Language;
+    language: string;
     game: string;
     hunt_type?: string;
     step?: number;
@@ -45,7 +45,7 @@ export interface NewPokemonData {
   sprite_url: string;
   sprite_type: SpriteType;
   sprite_style: SpriteStyle;
-  language: Language;
+  language: string;
   game: string;
   hunt_type: string;
   step?: number;
@@ -89,7 +89,7 @@ export function EditPokemonModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
 
-  const [language, setLanguage] = useState<Language>(pokemon.language || "de");
+  const [language, setstring] = useState<string>(pokemon.language || "de");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [allPokemon, setAllPokemon] = useState<PokemonData[]>([]);
@@ -347,7 +347,7 @@ export function EditPokemonModal({
           <button
             key={lang}
             onClick={() => {
-              setLanguage(lang);
+              setstring(lang);
               if (selected) {
                 const searchList = buildSearchList(allPokemon);
                 const fullP = searchList.find(
@@ -479,11 +479,11 @@ export function EditPokemonModal({
                     : `${t("modal.notAvailable")} ${selectedGameGen}`
                 }
                 className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border ${
-                  available
-                    ? spriteStyle === s.key
-                      ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                      : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
-                    : "bg-bg-primary/50 text-text-faint border-border-subtle/50 cursor-not-allowed opacity-40"
+                  (() => {
+                    if (!available) return "bg-bg-primary/50 text-text-faint border-border-subtle/50 cursor-not-allowed opacity-40";
+                    if (spriteStyle === s.key) return "bg-accent-blue/10 text-accent-blue border-accent-blue/30";
+                    return "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary";
+                  })()
                 }`}
               >
                 <span className="text-sm">{s.label}</span>

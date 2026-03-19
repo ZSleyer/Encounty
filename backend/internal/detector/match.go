@@ -140,25 +140,23 @@ func Match(frame, tmpl image.Image, maxDim int) float64 {
 func matchMultiScale(frameGray *image.Gray, tmpl image.Image, fw, fh int) float64 {
 	best := 0.0
 	minDim := 12
-	maxDim := fw
-	if fh < maxDim {
-		maxDim = fh
-	}
-	// Step through template sizes from minDim to ~half the frame.
-	// Coarse steps keep it fast (roughly 8-12 iterations).
-	step := (maxDim - minDim) / 12
-	if step < 4 {
-		step = 4
-	}
+	maxDim := minInt(fw, fh)
+	step := multiScaleStep(minDim, maxDim)
 	for targetDim := minDim; targetDim <= maxDim; targetDim += step {
 		tmplGray := toGray(downscale(tmpl, targetDim))
-		s := ncc(frameGray, tmplGray)
-		if s > best {
+		if s := ncc(frameGray, tmplGray); s > best {
 			best = s
 		}
 	}
 	return best
 }
+
+// multiScaleStep computes the step size for multi-scale matching, ensuring
+// roughly 8-12 iterations between minDim and maxDim.
+func multiScaleStep(minDim, maxDim int) int {
+	return max((maxDim-minDim)/12, 4)
+}
+
 
 // tmplStats holds precomputed template pixel values and statistics for NCC.
 type tmplStats struct {
@@ -275,13 +273,20 @@ func ncc(frameGray, tmplGray *image.Gray) float64 {
 	}
 
 	tables := buildIntegralImages(frameGray)
-	n := float64(ts.n)
-	bestNCC := 0.0
+	bestNCC := scanNCCPositions(frameGray, ts, tables, fw, fh)
+	return clamp01(bestNCC)
+}
 
-	for fy := 0; fy <= fh-th; fy++ {
-		for fx := 0; fx <= fw-tw; fx++ {
-			pSum := tables.rectSum(tables.ii, fx, fy, fx+tw, fy+th)
-			pSum2 := tables.rectSum(tables.ii2, fx, fy, fx+tw, fy+th)
+// scanNCCPositions slides the template across every valid frame position and
+// returns the highest NCC score found.
+func scanNCCPositions(frameGray *image.Gray, ts *tmplStats, tables integralImages, fw, fh int) float64 {
+	n := float64(ts.n)
+	best := 0.0
+
+	for fy := 0; fy <= fh-ts.th; fy++ {
+		for fx := 0; fx <= fw-ts.tw; fx++ {
+			pSum := tables.rectSum(tables.ii, fx, fy, fx+ts.tw, fy+ts.th)
+			pSum2 := tables.rectSum(tables.ii2, fx, fy, fx+ts.tw, fy+ts.th)
 			pMean := pSum / n
 			pVar := pSum2/n - pMean*pMean
 			if pVar < 0 {
@@ -293,19 +298,23 @@ func ncc(frameGray, tmplGray *image.Gray) float64 {
 			}
 
 			val := slidingNCC(frameGray, fx, fy, ts, pMean, pStd)
-			if val > bestNCC {
-				bestNCC = val
+			if val > best {
+				best = val
 			}
 		}
 	}
+	return best
+}
 
-	if bestNCC > 1.0 {
-		bestNCC = 1.0
+// clamp01 constrains v to the [0.0, 1.0] range.
+func clamp01(v float64) float64 {
+	if v > 1.0 {
+		return 1.0
 	}
-	if bestNCC < 0.0 {
-		bestNCC = 0.0
+	if v < 0.0 {
+		return 0.0
 	}
-	return bestNCC
+	return v
 }
 
 // downscale resizes img so that its longest dimension is at most maxDim,

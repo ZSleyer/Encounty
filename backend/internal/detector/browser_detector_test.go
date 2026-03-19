@@ -12,6 +12,8 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const testPokemonID = "pokemon-1"
+
 // newTestBrowserDetector creates a BrowserDetector with a single template
 // loaded from a synthetic checkerboard PNG written to tmpDir.
 func newTestBrowserDetector(t *testing.T, precision float64, consecutiveHits, cooldownSec int) *BrowserDetector {
@@ -303,7 +305,7 @@ func TestLoadTemplatesMissingFile(t *testing.T) {
 	templates := []state.DetectorTemplate{
 		{ImagePath: "nonexistent.png"},
 	}
-	loaded := loadTemplates(templates, tmpDir, "pokemon-1")
+	loaded := loadTemplates(templates, tmpDir, testPokemonID)
 	if len(loaded) != 0 {
 		t.Errorf("loadTemplates with missing file returned %d templates, want 0", len(loaded))
 	}
@@ -311,7 +313,7 @@ func TestLoadTemplatesMissingFile(t *testing.T) {
 
 func TestLoadTemplatesValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	pokemonID := "pokemon-1"
+	pokemonID := testPokemonID
 	tmplDir := filepath.Join(tmpDir, "templates", pokemonID)
 	if err := os.MkdirAll(tmplDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -367,7 +369,7 @@ func TestLoadTemplatesAbsolutePath(t *testing.T) {
 
 func TestLoadTemplatesInvalidPNG(t *testing.T) {
 	tmpDir := t.TempDir()
-	pokemonID := "pokemon-1"
+	pokemonID := testPokemonID
 	tmplDir := filepath.Join(tmpDir, "templates", pokemonID)
 	if err := os.MkdirAll(tmplDir, 0o755); err != nil {
 		t.Fatal(err)

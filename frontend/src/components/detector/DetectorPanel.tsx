@@ -45,7 +45,7 @@ export type DetectorPanelProps = Readonly<{
   onConfigChange: (cfg: DetectorConfig | null) => Promise<void> | void;
   isRunning: boolean;
   confidence: number;
-  detectorState: "idle" | "match_active" | "cooldown" | string;
+  detectorState: string;
 }>;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -518,15 +518,15 @@ export function DetectorPanel({
           {/* Status indicator */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <span className={`inline-block w-2.5 h-2.5 2xl:w-3 2xl:h-3 rounded-full shrink-0 ${dotClass} ${pulse || isStarting ? "animate-pulse" : ""}`} />
-            <span className={`text-xs 2xl:text-sm font-semibold truncate ${
-              detectorState === "match_active" ? "text-green-400" :
-              showAsRunning ? "text-accent-blue" : "text-text-muted"
-            }`}>
-              {isStarting
-                ? t("detector.starting")
-                : isRunning
-                ? stateLabel(detectorState, isRunning, t)
-                : t("detector.stopped")}
+            <span className={`text-xs 2xl:text-sm font-semibold truncate ${(() => {
+              if (detectorState === "match_active") return "text-green-400";
+              return showAsRunning ? "text-accent-blue" : "text-text-muted";
+            })()}`}>
+              {(() => {
+                if (isStarting) return t("detector.starting");
+                if (isRunning) return stateLabel(detectorState, isRunning, t);
+                return t("detector.stopped");
+              })()}
             </span>
           </div>
 
@@ -553,13 +553,14 @@ export function DetectorPanel({
 
         {/* ── Error banner ────────────────────────────────────────────────── */}
         {errorMsg && (
-          <div
-            className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 cursor-pointer"
+          <button
+            type="button"
+            className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 cursor-pointer w-full text-left"
             onClick={() => setErrorMsg(null)}
           >
             <span className="flex-1">{errorMsg}</span>
             <span className="shrink-0 opacity-60">✕</span>
-          </div>
+          </button>
         )}
 
         {/* ── Preview Component ───────────────────────────────────────────────── */}
