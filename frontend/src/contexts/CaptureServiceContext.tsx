@@ -104,7 +104,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     if (video.videoWidth === 0 || video.videoHeight === 0) {
       return Promise.resolve(null);
     }
-    if (!entry.canvas) entry.canvas = document.createElement("canvas");
+    entry.canvas ??= document.createElement("canvas");
     const canvas = entry.canvas;
     if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
     if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;

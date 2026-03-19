@@ -21,8 +21,10 @@ func New(_ *state.Manager) Manager {
 }
 
 func (m *darwinManager) Start() error                           { return nil }
-func (m *darwinManager) Stop()                                  {}
-func (m *darwinManager) SetPaused(_ bool)                       {}
+func (m *darwinManager) Stop() { // No-op: macOS hotkeys not implemented.
+}
+func (m *darwinManager) SetPaused(_ bool) { // No-op: macOS hotkeys not implemented.
+}
 func (m *darwinManager) UpdateBinding(_, _ string) error        { return nil }
 func (m *darwinManager) UpdateAllBindings(_ state.HotkeyMap) error { return nil }
 func (m *darwinManager) Actions() <-chan Action                  { return m.actions }

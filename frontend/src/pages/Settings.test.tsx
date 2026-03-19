@@ -105,7 +105,7 @@ describe("Settings", () => {
   });
 
   it("toggles output enabled setting", async () => {
-    const user = userEvent.setup();
+    userEvent.setup();
     render(<Settings />);
 
     // Find toggle buttons (output toggle should be one of them)

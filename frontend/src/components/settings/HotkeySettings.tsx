@@ -171,7 +171,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
 
               <div className="flex items-center gap-2">
                 <kbd
-                  className={`px-2 py-1 border rounded text-xs 2xl:text-sm font-mono min-w-[72px] 2xl:min-w-[84px] text-center ${
+                  className={`px-2 py-1 border rounded text-xs 2xl:text-sm font-mono min-w-18 2xl:min-w-21 text-center ${
                     isRecording
                       ? 'bg-accent-blue/10 border-accent-blue/30 text-accent-blue'
                       : 'bg-bg-primary border-border-subtle text-text-secondary'

@@ -10,6 +10,8 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const fmtStatusWant = "status = %d, want %d"
+
 // newGetRequest creates a GET request for the given path.
 func newGetRequest(path string) *http.Request {
 	return httptest.NewRequest(http.MethodGet, path, nil)
@@ -34,7 +36,7 @@ func TestHandleUpdatePokemonValid(t *testing.T) {
 	srv.handleUpdatePokemon(w, req, "p1")
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	st := srv.state.GetState()
@@ -55,7 +57,7 @@ func TestHandleUpdatePokemonNotFound(t *testing.T) {
 	srv.handleUpdatePokemon(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -70,7 +72,7 @@ func TestHandleDeletePokemonValid(t *testing.T) {
 	srv.handleDeletePokemon(w, req, "p1")
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
 	}
 
 	st := srv.state.GetState()
@@ -87,7 +89,7 @@ func TestHandleDeletePokemonNotFound(t *testing.T) {
 	srv.handleDeletePokemon(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -102,7 +104,7 @@ func TestHandleCompletePokemonValid(t *testing.T) {
 	srv.handleCompletePokemon(w, req, "p1")
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
 	}
 
 	st := srv.state.GetState()
@@ -119,7 +121,7 @@ func TestHandleCompletePokemonNotFound(t *testing.T) {
 	srv.handleCompletePokemon(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -137,7 +139,7 @@ func TestHandleUncompletePokemonValid(t *testing.T) {
 	srv.handleUncompletePokemon(w, req, "p1")
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
 	}
 
 	st := srv.state.GetState()
@@ -154,7 +156,7 @@ func TestHandleUncompletePokemonNotFound(t *testing.T) {
 	srv.handleUncompletePokemon(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -168,7 +170,7 @@ func TestHandleGetSessionsEmpty(t *testing.T) {
 	srv.handleGetSessions(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var sessions []state.Session
@@ -189,7 +191,7 @@ func TestHandleGetSessionsWithData(t *testing.T) {
 	srv.handleGetSessions(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var sessions []state.Session
@@ -215,7 +217,7 @@ func TestHandleUpdateHotkeysValid(t *testing.T) {
 	srv.handleUpdateHotkeys(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	st := srv.state.GetState()
@@ -235,7 +237,7 @@ func TestHandleUpdateHotkeysInvalidJSON(t *testing.T) {
 	srv.handleUpdateHotkeys(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -250,7 +252,7 @@ func TestHandleUpdateSingleHotkeyValid(t *testing.T) {
 	srv.handleUpdateSingleHotkey(w, req, "increment")
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var resp map[string]string
@@ -279,7 +281,7 @@ func TestHandleUpdateSingleHotkeyUnknownAction(t *testing.T) {
 	srv.handleUpdateSingleHotkey(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -295,7 +297,7 @@ func TestHandleOverlayStateWithActivePokemon(t *testing.T) {
 	srv.handleOverlayState(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var resp map[string]json.RawMessage
@@ -326,7 +328,7 @@ func TestHandleOverlayStateNoActivePokemon(t *testing.T) {
 	srv.handleOverlayState(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var resp map[string]json.RawMessage
@@ -353,7 +355,7 @@ func TestHandleUnlinkOverlayValid(t *testing.T) {
 	srv.handleUnlinkOverlay(w, req)
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
 	}
 
 	st := srv.state.GetState()
@@ -374,7 +376,7 @@ func TestHandleUnlinkOverlayNotFound(t *testing.T) {
 	srv.handleUnlinkOverlay(w, req)
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -391,7 +393,7 @@ func TestHandleGetGames(t *testing.T) {
 	srv.handleGetGames(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	// The response should be valid JSON (either a list or null)
@@ -411,7 +413,7 @@ func TestHandleGetHuntTypes(t *testing.T) {
 	srv.handleGetHuntTypes(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var presets []state.HuntTypePreset
@@ -482,7 +484,7 @@ func TestHandlePauseWrongMethod(t *testing.T) {
 	srv.handleHotkeysPause(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusMethodNotAllowed)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -494,7 +496,7 @@ func TestHandleResumeWrongMethod(t *testing.T) {
 	srv.handleHotkeysResume(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusMethodNotAllowed)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusMethodNotAllowed)
 	}
 }
 
@@ -506,7 +508,7 @@ func TestHandleStatusAvailable(t *testing.T) {
 	srv.handleHotkeysStatus(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var resp map[string]any
@@ -532,7 +534,7 @@ func TestHandleLicenses(t *testing.T) {
 	srv.handleLicenses(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	// The response should be valid JSON (a list of license entries)

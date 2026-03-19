@@ -49,13 +49,13 @@ export function OverlayEditorPage() {
   const [overlaySaving, setOverlaySaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const previewPokemon = useState(() => makePreviewPokemon())[0];
+  const [previewPokemon] = useState(() => makePreviewPokemon());
 
-  const initialised = useState(false);
+  const [isInitialised, setInitialised] = useState(false);
   useEffect(() => {
-    if (appState && !initialised[0]) {
+    if (appState && !isInitialised) {
       setCurrentOverlay(appState.settings.overlay);
-      initialised[1](true);
+      setInitialised(true);
     }
   }, [appState]);
 

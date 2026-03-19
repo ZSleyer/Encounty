@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-// TestBrowserDetector_DefaultConsecutiveHitsAndCooldown exercises the SubmitFrame
+// TestBrowserDetectorDefaultConsecutiveHitsAndCooldown exercises the SubmitFrame
 // path where consecutiveHits and cooldownSec are both zero, triggering the
 // default value assignments.
-func TestBrowserDetector_DefaultConsecutiveHitsAndCooldown(t *testing.T) {
+func TestBrowserDetectorDefaultConsecutiveHitsAndCooldown(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0, 0, 0) // all defaults
 	noMatch := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	r := bd.SubmitFrame(noMatch)
@@ -18,9 +18,9 @@ func TestBrowserDetector_DefaultConsecutiveHitsAndCooldown(t *testing.T) {
 	}
 }
 
-// TestBrowserDetector_CooldownStaysInCooldown exercises the cooldown path
+// TestBrowserDetectorCooldownStaysInCooldown exercises the cooldown path
 // where time has NOT expired yet (stays in cooldown).
-func TestBrowserDetector_CooldownStaysInCooldown(t *testing.T) {
+func TestBrowserDetectorCooldownStaysInCooldown(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 10) // long cooldown
 
 	noMatch := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
@@ -40,9 +40,9 @@ func TestBrowserDetector_CooldownStaysInCooldown(t *testing.T) {
 	}
 }
 
-// TestBrowserDetector_FullCycleWithDefaults runs through
+// TestBrowserDetectorFullCycleWithDefaults runs through
 // idle -> match_active -> cooldown -> idle using default config values.
-func TestBrowserDetector_FullCycleWithDefaults(t *testing.T) {
+func TestBrowserDetectorFullCycleWithDefaults(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 1)
 
 	noMatch := solidImage(200, 200, color.RGBA{128, 128, 128, 255})

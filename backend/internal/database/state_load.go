@@ -22,7 +22,7 @@ func (d *DB) HasState() bool {
 // LoadFullState reads all normalized tables and assembles a complete AppState.
 // Returns nil (without error) when no app_config row exists yet.
 func (d *DB) LoadFullState() (*state.AppState, error) {
-	// 1. Check for app_config row
+	// 1. Check for app_config row.
 	var activeID, dataPath string
 	var licenseAccepted int
 	err := d.db.QueryRow(`SELECT active_id, license_accepted, data_path FROM app_config WHERE id = 1`).
@@ -42,80 +42,95 @@ func (d *DB) LoadFullState() (*state.AppState, error) {
 		Sessions:        []state.Session{},
 	}
 
-	// 2. Load hotkeys
-	st.Hotkeys, err = loadHotkeys(d.db)
+	// 2. Load singleton rows (hotkeys, settings, languages, global overlay).
+	if err := loadSingletonRows(d.db, st); err != nil {
+		return nil, err
+	}
+
+	// 3. Load all pokemon with their associated data.
+	st.Pokemon, err = loadPokemonWithDetails(d.db)
 	if err != nil {
-		return nil, fmt.Errorf("load hotkeys: %w", err)
+		return nil, err
 	}
 
-	// 3. Load settings
-	st.Settings, err = loadSettings(d.db)
-	if err != nil {
-		return nil, fmt.Errorf("load settings: %w", err)
-	}
-
-	// 4. Load settings languages
-	st.Settings.Languages, err = loadLanguages(d.db)
-	if err != nil {
-		return nil, fmt.Errorf("load languages: %w", err)
-	}
-
-	// 5. Load global overlay
-	globalOverlay, err := loadOverlay(d.db, "global", "default")
-	if err != nil {
-		return nil, fmt.Errorf("load global overlay: %w", err)
-	}
-	if globalOverlay != nil {
-		st.Settings.Overlay = *globalOverlay
-	}
-
-	// 6. Load all pokemon
-	st.Pokemon, err = loadPokemon(d.db)
-	if err != nil {
-		return nil, fmt.Errorf("load pokemon: %w", err)
-	}
-
-	// 7. For each pokemon: overlay, detector config, templates, detection log
-	for i := range st.Pokemon {
-		p := &st.Pokemon[i]
-
-		// Per-pokemon overlay (only when custom)
-		if p.OverlayMode == "custom" {
-			ov, err := loadOverlay(d.db, "pokemon", p.ID)
-			if err != nil {
-				return nil, fmt.Errorf("load overlay for pokemon %s: %w", p.ID, err)
-			}
-			p.Overlay = ov
-		}
-
-		// Detector config
-		dc, err := loadDetectorConfig(d.db, p.ID)
-		if err != nil {
-			return nil, fmt.Errorf("load detector config for %s: %w", p.ID, err)
-		}
-		if dc != nil {
-			// Templates (without image_data)
-			dc.Templates, err = loadDetectorTemplates(d.db, p.ID)
-			if err != nil {
-				return nil, fmt.Errorf("load templates for %s: %w", p.ID, err)
-			}
-
-			// Detection log
-			dc.DetectionLog, err = loadDetectionLog(d.db, p.ID)
-			if err != nil {
-				return nil, fmt.Errorf("load detection log for %s: %w", p.ID, err)
-			}
-		}
-		p.DetectorConfig = dc
-	}
-
-	// 8. Load sessions
+	// 4. Load sessions.
 	st.Sessions, err = loadSessions(d.db)
 	if err != nil {
 		return nil, fmt.Errorf("load sessions: %w", err)
 	}
 
 	return st, nil
+}
+
+// loadSingletonRows populates hotkeys, settings, languages, and the global
+// overlay on the given AppState.
+func loadSingletonRows(db *sql.DB, st *state.AppState) error {
+	var err error
+	st.Hotkeys, err = loadHotkeys(db)
+	if err != nil {
+		return fmt.Errorf("load hotkeys: %w", err)
+	}
+	st.Settings, err = loadSettings(db)
+	if err != nil {
+		return fmt.Errorf("load settings: %w", err)
+	}
+	st.Settings.Languages, err = loadLanguages(db)
+	if err != nil {
+		return fmt.Errorf("load languages: %w", err)
+	}
+	globalOverlay, err := loadOverlay(db, "global", "default")
+	if err != nil {
+		return fmt.Errorf("load global overlay: %w", err)
+	}
+	if globalOverlay != nil {
+		st.Settings.Overlay = *globalOverlay
+	}
+	return nil
+}
+
+// loadPokemonWithDetails loads all pokemon rows and enriches each one with its
+// optional overlay, detector config (including templates and detection log).
+func loadPokemonWithDetails(db *sql.DB) ([]state.Pokemon, error) {
+	pokemon, err := loadPokemon(db)
+	if err != nil {
+		return nil, fmt.Errorf("load pokemon: %w", err)
+	}
+	for i := range pokemon {
+		p := &pokemon[i]
+		if err := loadPokemonExtras(db, p); err != nil {
+			return nil, err
+		}
+	}
+	return pokemon, nil
+}
+
+// loadPokemonExtras attaches the per-pokemon overlay and detector config
+// (with templates and detection log) to a single Pokemon value.
+func loadPokemonExtras(db *sql.DB, p *state.Pokemon) error {
+	if p.OverlayMode == "custom" {
+		ov, err := loadOverlay(db, "pokemon", p.ID)
+		if err != nil {
+			return fmt.Errorf("load overlay for pokemon %s: %w", p.ID, err)
+		}
+		p.Overlay = ov
+	}
+
+	dc, err := loadDetectorConfig(db, p.ID)
+	if err != nil {
+		return fmt.Errorf("load detector config for %s: %w", p.ID, err)
+	}
+	if dc != nil {
+		dc.Templates, err = loadDetectorTemplates(db, p.ID)
+		if err != nil {
+			return fmt.Errorf("load templates for %s: %w", p.ID, err)
+		}
+		dc.DetectionLog, err = loadDetectionLog(db, p.ID)
+		if err != nil {
+			return fmt.Errorf("load detection log for %s: %w", p.ID, err)
+		}
+	}
+	p.DetectorConfig = dc
+	return nil
 }
 
 // loadHotkeys reads the singleton hotkeys row.
@@ -361,6 +376,18 @@ func loadSessions(db *sql.DB) ([]state.Session, error) {
 	return sessions, rows.Err()
 }
 
+// elemRow holds the raw column values for a single overlay_elements row,
+// used as an intermediate representation before dispatching to typed fields.
+type elemRow struct {
+	id                                    int64
+	elemType                              string
+	base                                  state.OverlayElementBase
+	showGlow, showLabel, glowBlur         sql.NullInt64
+	glowColor, idleAnim, triggerEnter     sql.NullString
+	triggerExit, labelText                sql.NullString
+	glowOpacity                           sql.NullFloat64
+}
+
 // loadOverlay reconstructs an OverlaySettings from the overlay_settings,
 // overlay_elements, text_styles, and gradient_stops tables.
 func loadOverlay(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings, error) {
@@ -390,16 +417,6 @@ func loadOverlay(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings,
 	// before issuing further queries. With MaxOpenConns(1) the single
 	// connection is held by the open Rows; calling loadTextStyle while the
 	// cursor is still open would deadlock.
-	type elemRow struct {
-		id                                        int64
-		elemType                                  string
-		base                                      state.OverlayElementBase
-		showGlow, showLabel, glowBlur             sql.NullInt64
-		glowColor, idleAnim, triggerEnter         sql.NullString
-		triggerExit, labelText                     sql.NullString
-		glowOpacity                               sql.NullFloat64
-	}
-
 	elemRows, err := db.Query(`SELECT id, element_type, visible, x, y, width, height, z_index,
 		show_glow, glow_color, glow_opacity, glow_blur, idle_animation, trigger_enter, trigger_exit,
 		show_label, label_text
@@ -429,69 +446,78 @@ func loadOverlay(db *sql.DB, ownerType, ownerID string) (*state.OverlaySettings,
 
 	// Now that the cursor is closed, we can safely query text_styles.
 	for _, e := range elems {
-		idleAnimStr := nullStr(e.idleAnim)
-		triggerEnterStr := nullStr(e.triggerEnter)
-		triggerExitStr := nullStr(e.triggerExit)
-
-		switch e.elemType {
-		case "sprite":
-			ov.Sprite = state.SpriteElement{
-				OverlayElementBase: e.base,
-				ShowGlow:           e.showGlow.Valid && e.showGlow.Int64 != 0,
-				GlowColor:          nullStr(e.glowColor),
-				GlowOpacity:        nullFloat(e.glowOpacity),
-				GlowBlur:           int(nullInt(e.glowBlur)),
-				IdleAnimation:      idleAnimStr,
-				TriggerEnter:       triggerEnterStr,
-				TriggerExit:        triggerExitStr,
-			}
-
-		case "name":
-			style, err := loadTextStyle(db, e.id, "main")
-			if err != nil {
-				return nil, fmt.Errorf("load name text style: %w", err)
-			}
-			ov.Name = state.NameElement{
-				OverlayElementBase: e.base,
-				Style:              style,
-				IdleAnimation:      idleAnimStr,
-				TriggerEnter:       triggerEnterStr,
-			}
-
-		case "title":
-			style, err := loadTextStyle(db, e.id, "main")
-			if err != nil {
-				return nil, fmt.Errorf("load title text style: %w", err)
-			}
-			ov.Title = state.TitleElement{
-				OverlayElementBase: e.base,
-				Style:              style,
-				IdleAnimation:      idleAnimStr,
-				TriggerEnter:       triggerEnterStr,
-			}
-
-		case "counter":
-			style, err := loadTextStyle(db, e.id, "main")
-			if err != nil {
-				return nil, fmt.Errorf("load counter text style: %w", err)
-			}
-			labelStyle, err := loadTextStyle(db, e.id, "label")
-			if err != nil {
-				return nil, fmt.Errorf("load counter label style: %w", err)
-			}
-			ov.Counter = state.CounterElement{
-				OverlayElementBase: e.base,
-				Style:              style,
-				ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
-				LabelText:          nullStr(e.labelText),
-				LabelStyle:         labelStyle,
-				IdleAnimation:      idleAnimStr,
-				TriggerEnter:       triggerEnterStr,
-			}
+		if err := applyOverlayElement(db, &ov, e); err != nil {
+			return nil, err
 		}
 	}
 
 	return &ov, nil
+}
+
+// applyOverlayElement dispatches a single element row to the appropriate field
+// on the OverlaySettings, loading text styles as needed.
+func applyOverlayElement(db *sql.DB, ov *state.OverlaySettings, e elemRow) error {
+	idleAnimStr := nullStr(e.idleAnim)
+	triggerEnterStr := nullStr(e.triggerEnter)
+	triggerExitStr := nullStr(e.triggerExit)
+
+	switch e.elemType {
+	case "sprite":
+		ov.Sprite = state.SpriteElement{
+			OverlayElementBase: e.base,
+			ShowGlow:           e.showGlow.Valid && e.showGlow.Int64 != 0,
+			GlowColor:          nullStr(e.glowColor),
+			GlowOpacity:        nullFloat(e.glowOpacity),
+			GlowBlur:           int(nullInt(e.glowBlur)),
+			IdleAnimation:      idleAnimStr,
+			TriggerEnter:       triggerEnterStr,
+			TriggerExit:        triggerExitStr,
+		}
+
+	case "name":
+		style, err := loadTextStyle(db, e.id, "main")
+		if err != nil {
+			return fmt.Errorf("load name text style: %w", err)
+		}
+		ov.Name = state.NameElement{
+			OverlayElementBase: e.base,
+			Style:              style,
+			IdleAnimation:      idleAnimStr,
+			TriggerEnter:       triggerEnterStr,
+		}
+
+	case "title":
+		style, err := loadTextStyle(db, e.id, "main")
+		if err != nil {
+			return fmt.Errorf("load title text style: %w", err)
+		}
+		ov.Title = state.TitleElement{
+			OverlayElementBase: e.base,
+			Style:              style,
+			IdleAnimation:      idleAnimStr,
+			TriggerEnter:       triggerEnterStr,
+		}
+
+	case "counter":
+		style, err := loadTextStyle(db, e.id, "main")
+		if err != nil {
+			return fmt.Errorf("load counter text style: %w", err)
+		}
+		labelStyle, err := loadTextStyle(db, e.id, "label")
+		if err != nil {
+			return fmt.Errorf("load counter label style: %w", err)
+		}
+		ov.Counter = state.CounterElement{
+			OverlayElementBase: e.base,
+			Style:              style,
+			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
+			LabelText:          nullStr(e.labelText),
+			LabelStyle:         labelStyle,
+			IdleAnimation:      idleAnimStr,
+			TriggerEnter:       triggerEnterStr,
+		}
+	}
+	return nil
 }
 
 // loadTextStyle reads a single text_style row and its gradient stops.

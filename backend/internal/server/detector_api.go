@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/kbinani/screenshot"
-	"github.com/zsleyer/encounty/backend/internal/detector"
 	"github.com/zsleyer/encounty/backend/internal/state"
 	"golang.org/x/image/draw"
 )
@@ -46,13 +45,6 @@ func (s *Server) handleDetectorScreenshot(w http.ResponseWriter, r *http.Request
 	}
 }
 
-// handleDetectorWindows returns the list of visible top-level windows as JSON.
-// GET /api/detector/windows
-func (s *Server) handleDetectorWindows(w http.ResponseWriter, r *http.Request) {
-	windows := detector.ListWindows()
-	writeJSON(w, http.StatusOK, windows)
-}
-
 // detectorStatusEntry reports whether a single detector is running.
 type detectorStatusEntry struct {
 	PokemonID string `json:"pokemon_id"`
@@ -75,11 +67,12 @@ func (s *Server) handleDetectorStatus(w http.ResponseWriter, r *http.Request) {
 // per-Pokémon sub-handler. Expected path shapes:
 //
 //	/api/detector/{id}/config
-//	/api/detector/{id}/template
 //	/api/detector/{id}/template/{n}
-//	/api/detector/{id}/preview
+//	/api/detector/{id}/template_upload
+//	/api/detector/{id}/sprite_template
 //	/api/detector/{id}/start
 //	/api/detector/{id}/stop
+//	/api/detector/{id}/match_frame
 func (s *Server) handleDetectorDispatch(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/api/detector/")
 	parts := strings.SplitN(rest, "/", 3)
@@ -101,8 +94,6 @@ func (s *Server) handleDetectorDispatch(w http.ResponseWriter, r *http.Request) 
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 		}
-	case "preview":
-		s.handleDetectorPreview(w, r, id)
 	case "template_upload":
 		s.handleDetectorTemplateUpload(w, r, id)
 	case "sprite_template":
@@ -111,8 +102,6 @@ func (s *Server) handleDetectorDispatch(w http.ResponseWriter, r *http.Request) 
 		s.handleDetectorStart(w, r, id)
 	case "stop":
 		s.handleDetectorStop(w, r, id)
-	case "log":
-		s.handleGetDetectionLog(w, r, id)
 	case "match_frame":
 		s.handleMatchFrame(w, r, id)
 	default:
@@ -127,7 +116,7 @@ func (s *Server) handleDetectorConfig(w http.ResponseWriter, r *http.Request, id
 	st := s.state.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 
@@ -146,7 +135,7 @@ func (s *Server) handleDetectorConfig(w http.ResponseWriter, r *http.Request, id
 			return
 		}
 		if !s.state.SetDetectorConfig(id, &cfg) {
-			writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+			writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 			return
 		}
 		s.state.ScheduleSave()
@@ -181,7 +170,7 @@ func (s *Server) handleDetectorTemplateN(w http.ResponseWriter, r *http.Request,
 	st := s.state.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil || pokemon.DetectorConfig == nil {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 
@@ -267,7 +256,7 @@ func (s *Server) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Req
 	st := s.state.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 
@@ -371,7 +360,7 @@ func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Req
 	st := s.state.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 
@@ -471,38 +460,6 @@ func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, map[string]any{"index": sortOrder, "template_db_id": tmpl.TemplateDBID})
 }
 
-// handleDetectorPreview captures the configured region and returns it as a
-// JPEG image suitable for a live preview in the settings UI.
-// GET /api/detector/{id}/preview
-func (s *Server) handleDetectorPreview(w http.ResponseWriter, r *http.Request, id string) {
-	st := s.state.GetState()
-	pokemon := findPokemon(st, id)
-	if pokemon == nil {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
-		return
-	}
-
-	cfg := state.DetectorConfig{}
-	if pokemon.DetectorConfig != nil {
-		cfg = *pokemon.DetectorConfig
-	}
-
-	if cfg.Region.W == 0 {
-		writeJSON(w, http.StatusBadRequest, errResp{"no region configured"})
-		return
-	}
-
-	img, err := detector.CaptureRegion(cfg.Region.X, cfg.Region.Y, cfg.Region.W, cfg.Region.H)
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/jpeg")
-	w.Header().Set("Cache-Control", "no-store")
-	_ = jpeg.Encode(w, img, &jpeg.Options{Quality: 70})
-}
-
 // handleDetectorStart starts the detection goroutine for a single hunt.
 // POST /api/detector/{id}/start
 func (s *Server) handleDetectorStart(w http.ResponseWriter, r *http.Request, id string) {
@@ -514,7 +471,7 @@ func (s *Server) handleDetectorStart(w http.ResponseWriter, r *http.Request, id 
 	st := s.state.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 
@@ -630,25 +587,6 @@ func downscaleImage(img image.Image, maxWidth int) image.Image {
 	return dst
 }
 
-// handleGetDetectionLog returns the last N auto-detection matches for a hunt.
-// Returns an empty JSON array when no log entries exist yet.
-// GET /api/detector/{id}/log
-func (s *Server) handleGetDetectionLog(w http.ResponseWriter, _ *http.Request, id string) {
-	st := s.state.GetState()
-	for _, p := range st.Pokemon {
-		if p.ID != id {
-			continue
-		}
-		if p.DetectorConfig == nil || len(p.DetectorConfig.DetectionLog) == 0 {
-			writeJSON(w, http.StatusOK, []struct{}{})
-			return
-		}
-		writeJSON(w, http.StatusOK, p.DetectorConfig.DetectionLog)
-		return
-	}
-	writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
-}
-
 // handleMatchFrame accepts a browser-captured JPEG frame (via POST body), runs
 // NCC matching against the Pokémon's templates, advances the state machine, and
 // broadcasts detector_status. On a confirmed match it also calls Increment and
@@ -665,7 +603,7 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 	st := s.state.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	if pokemon.DetectorConfig == nil || len(pokemon.DetectorConfig.Templates) == 0 {

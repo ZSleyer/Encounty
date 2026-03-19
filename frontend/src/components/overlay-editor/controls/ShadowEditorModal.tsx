@@ -7,6 +7,17 @@ import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
 import type { GradientStop } from "../../../types";
 
+export interface ShadowConfirmParams {
+  readonly enabled: boolean;
+  readonly color: string;
+  readonly colorType: "solid" | "gradient";
+  readonly gradientStops: GradientStop[];
+  readonly gradientAngle: number;
+  readonly blur: number;
+  readonly x: number;
+  readonly y: number;
+}
+
 interface ShadowEditorModalProps {
   readonly enabled: boolean;
   readonly color: string;
@@ -16,7 +27,7 @@ interface ShadowEditorModalProps {
   readonly blur: number;
   readonly x: number;
   readonly y: number;
-  readonly onConfirm: (enabled: boolean, color: string, colorType: "solid" | "gradient", gradientStops: GradientStop[], gradientAngle: number, blur: number, x: number, y: number) => void;
+  readonly onConfirm: (params: ShadowConfirmParams) => void;
   readonly onClose: () => void;
   readonly onOpenColorPicker: (currentColor: string, onPick: (color: string) => void) => void;
   readonly onOpenGradientEditor: (stops: GradientStop[], angle: number, onConfirm: (stops: GradientStop[], angle: number) => void) => void;
@@ -233,7 +244,7 @@ export function ShadowEditorModal({
         <button
           title={t("tooltip.common.apply")}
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
-          onClick={() => onConfirm(enabled, color, colorType, gradientStops, gradientAngle, blur, sx, sy)}
+          onClick={() => onConfirm({ enabled, color, colorType, gradientStops, gradientAngle, blur, x: sx, y: sy })}
         >
           Übernehmen
         </button>

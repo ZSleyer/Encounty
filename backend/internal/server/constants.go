@@ -1,0 +1,10 @@
+// constants.go — shared string literals used across server handlers.
+package server
+
+const (
+	errPokemonNotFound   = "pokemon not found"
+	dbFilename           = "encounty.db"
+	gamesFilename        = "games.json"
+	pokemonFilename      = "pokemon.json"
+	statsPokemonPrefix   = "/api/stats/pokemon/"
+)

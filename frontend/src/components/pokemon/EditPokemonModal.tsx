@@ -347,7 +347,7 @@ export function EditPokemonModal({
           <button
             key={lang}
             onClick={() => {
-              setLanguage(lang as Language);
+              setLanguage(lang);
               if (selected) {
                 const searchList = buildSearchList(allPokemon);
                 const fullP = searchList.find(

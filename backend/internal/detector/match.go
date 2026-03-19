@@ -160,6 +160,102 @@ func matchMultiScale(frameGray *image.Gray, tmpl image.Image, fw, fh int) float6
 	return best
 }
 
+// tmplStats holds precomputed template pixel values and statistics for NCC.
+type tmplStats struct {
+	pix  []float64
+	mean float64
+	std  float64
+	tw   int
+	th   int
+	n    int
+}
+
+// computeTmplStats extracts pixel values and computes mean and standard
+// deviation for the template image. Returns nil if the template is degenerate
+// (zero standard deviation).
+func computeTmplStats(tmplGray *image.Gray) *tmplStats {
+	tw := tmplGray.Bounds().Dx()
+	th := tmplGray.Bounds().Dy()
+	n := tw * th
+
+	var sum float64
+	pix := make([]float64, n)
+	for y := range th {
+		for x := range tw {
+			v := float64(tmplGray.GrayAt(x, y).Y)
+			pix[y*tw+x] = v
+			sum += v
+		}
+	}
+	mean := sum / float64(n)
+
+	var variance float64
+	for _, v := range pix {
+		d := v - mean
+		variance += d * d
+	}
+	std := math.Sqrt(variance / float64(n))
+	if std < 1e-9 {
+		return nil
+	}
+	return &tmplStats{pix: pix, mean: mean, std: std, tw: tw, th: th, n: n}
+}
+
+// integralImages holds summed-area tables for efficient rectangular region
+// sum queries over the frame's pixel values and squared pixel values.
+type integralImages struct {
+	ii     []float64
+	ii2    []float64
+	stride int
+}
+
+// buildIntegralImages constructs the integral image and integral-squared image
+// from frameGray for efficient sliding-window mean/variance computation.
+func buildIntegralImages(frameGray *image.Gray) integralImages {
+	fw := frameGray.Bounds().Dx()
+	fh := frameGray.Bounds().Dy()
+	stride := fw + 1
+	ii := make([]float64, (fw+1)*(fh+1))
+	ii2 := make([]float64, (fw+1)*(fh+1))
+
+	for y := 1; y <= fh; y++ {
+		for x := 1; x <= fw; x++ {
+			v := float64(frameGray.GrayAt(x-1, y-1).Y)
+			ii[y*stride+x] = v + ii[(y-1)*stride+x] + ii[y*stride+(x-1)] - ii[(y-1)*stride+(x-1)]
+			ii2[y*stride+x] = v*v + ii2[(y-1)*stride+x] + ii2[y*stride+(x-1)] - ii2[(y-1)*stride+(x-1)]
+		}
+	}
+
+	return integralImages{ii: ii, ii2: ii2, stride: stride}
+}
+
+// rectSum computes the sum of values in the integral table for the rectangle
+// defined by (x1,y1) to (x2,y2) using the summed-area table identity.
+func (t *integralImages) rectSum(table []float64, x1, y1, x2, y2 int) float64 {
+	return table[y2*t.stride+x2] - table[y1*t.stride+x2] - table[y2*t.stride+x1] + table[y1*t.stride+x1]
+}
+
+// slidingNCC computes the cross-correlation at a single frame position and
+// returns the NCC value. The caller provides precomputed patch statistics.
+func slidingNCC(frameGray *image.Gray, fx, fy int, ts *tmplStats, pMean float64, pStd float64) float64 {
+	cc := computeCrossCorrelation(frameGray, fx, fy, ts, pMean)
+	return cc / (float64(ts.n) * pStd * ts.std)
+}
+
+// computeCrossCorrelation sums the pixel-wise product of mean-centred frame
+// and template values over the template window.
+func computeCrossCorrelation(frameGray *image.Gray, fx, fy int, ts *tmplStats, pMean float64) float64 {
+	var cc float64
+	for ty := range ts.th {
+		for tx := range ts.tw {
+			fv := float64(frameGray.GrayAt(fx+tx, fy+ty).Y) - pMean
+			tv := ts.pix[ty*ts.tw+tx] - ts.mean
+			cc += fv * tv
+		}
+	}
+	return cc
+}
+
 // ncc computes the best normalized cross-correlation score of tmplGray sliding
 // over frameGray. Returns 0.0 if the template is larger than the frame or if
 // either image is degenerate.
@@ -173,54 +269,21 @@ func ncc(frameGray, tmplGray *image.Gray) float64 {
 		return 0.0
 	}
 
-	// Compute template mean and std-dev.
-	var tmplSum float64
-	n := tw * th
-	tmplPix := make([]float64, n)
-	for y := 0; y < th; y++ {
-		for x := 0; x < tw; x++ {
-			v := float64(tmplGray.GrayAt(x, y).Y)
-			tmplPix[y*tw+x] = v
-			tmplSum += v
-		}
-	}
-	tmplMean := tmplSum / float64(n)
-
-	var tmplVar float64
-	for _, v := range tmplPix {
-		d := v - tmplMean
-		tmplVar += d * d
-	}
-	tmplStd := math.Sqrt(tmplVar / float64(n))
-	if tmplStd < 1e-9 {
+	ts := computeTmplStats(tmplGray)
+	if ts == nil {
 		return 0.0
 	}
 
-	// Build integral image (II) and integral-squared image (II2) for frame.
-	ii := make([]float64, (fw+1)*(fh+1))
-	ii2 := make([]float64, (fw+1)*(fh+1))
-	stride := fw + 1
-
-	for y := 1; y <= fh; y++ {
-		for x := 1; x <= fw; x++ {
-			v := float64(frameGray.GrayAt(x-1, y-1).Y)
-			ii[y*stride+x] = v + ii[(y-1)*stride+x] + ii[y*stride+(x-1)] - ii[(y-1)*stride+(x-1)]
-			ii2[y*stride+x] = v*v + ii2[(y-1)*stride+x] + ii2[y*stride+(x-1)] - ii2[(y-1)*stride+(x-1)]
-		}
-	}
-
-	rectSum := func(table []float64, x1, y1, x2, y2 int) float64 {
-		return table[y2*stride+x2] - table[y1*stride+x2] - table[y2*stride+x1] + table[y1*stride+x1]
-	}
-
+	tables := buildIntegralImages(frameGray)
+	n := float64(ts.n)
 	bestNCC := 0.0
 
 	for fy := 0; fy <= fh-th; fy++ {
 		for fx := 0; fx <= fw-tw; fx++ {
-			pSum := rectSum(ii, fx, fy, fx+tw, fy+th)
-			pSum2 := rectSum(ii2, fx, fy, fx+tw, fy+th)
-			pMean := pSum / float64(n)
-			pVar := pSum2/float64(n) - pMean*pMean
+			pSum := tables.rectSum(tables.ii, fx, fy, fx+tw, fy+th)
+			pSum2 := tables.rectSum(tables.ii2, fx, fy, fx+tw, fy+th)
+			pMean := pSum / n
+			pVar := pSum2/n - pMean*pMean
 			if pVar < 0 {
 				pVar = 0
 			}
@@ -229,16 +292,7 @@ func ncc(frameGray, tmplGray *image.Gray) float64 {
 				continue
 			}
 
-			var cc float64
-			for ty := 0; ty < th; ty++ {
-				for tx := 0; tx < tw; tx++ {
-					fv := float64(frameGray.GrayAt(fx+tx, fy+ty).Y) - pMean
-					tv := tmplPix[ty*tw+tx] - tmplMean
-					cc += fv * tv
-				}
-			}
-
-			val := cc / (float64(n) * pStd * tmplStd)
+			val := slidingNCC(frameGray, fx, fy, ts, pMean, pStd)
 			if val > bestNCC {
 				bestNCC = val
 			}

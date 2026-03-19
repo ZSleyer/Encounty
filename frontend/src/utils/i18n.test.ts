@@ -24,8 +24,8 @@ describe("i18n", () => {
   // --- Translation completeness ---
 
   describe("completeness", () => {
-    const deKeys = Object.keys(translations.de).sort();
-    const enKeys = Object.keys(translations.en).sort();
+    const deKeys = Object.keys(translations.de).sort((a, b) => a.localeCompare(b));
+    const enKeys = Object.keys(translations.en).sort((a, b) => a.localeCompare(b));
 
     it("has the same keys in both languages", () => {
       const missingInEn = deKeys.filter((k) => !(k in translations.en));

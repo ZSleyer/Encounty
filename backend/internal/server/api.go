@@ -69,7 +69,7 @@ func (s *Server) handleUpdatePokemon(w http.ResponseWriter, r *http.Request, id 
 		return
 	}
 	if !s.state.UpdatePokemon(id, p) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -86,7 +86,7 @@ func (s *Server) handleDeletePokemon(w http.ResponseWriter, _ *http.Request, id 
 	}
 	_ = os.RemoveAll(filepath.Join(s.state.GetConfigDir(), "templates", id))
 	if !s.state.DeletePokemon(id) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -101,7 +101,7 @@ func (s *Server) handleDeletePokemon(w http.ResponseWriter, _ *http.Request, id 
 func (s *Server) handleIncrement(w http.ResponseWriter, _ *http.Request, id string) {
 	count, ok := s.state.Increment(id)
 	if !ok {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.logEncounter(id, count, "api")
@@ -119,7 +119,7 @@ func (s *Server) handleIncrement(w http.ResponseWriter, _ *http.Request, id stri
 func (s *Server) handleDecrement(w http.ResponseWriter, _ *http.Request, id string) {
 	count, ok := s.state.Decrement(id)
 	if !ok {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.logEncounter(id, count, "api")
@@ -136,7 +136,7 @@ func (s *Server) handleDecrement(w http.ResponseWriter, _ *http.Request, id stri
 // POST /api/pokemon/{id}/reset
 func (s *Server) handleReset(w http.ResponseWriter, _ *http.Request, id string) {
 	if !s.state.Reset(id) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -160,7 +160,7 @@ func (s *Server) handleSetEncounters(w http.ResponseWriter, r *http.Request, id 
 	}
 	count, ok := s.state.SetEncounters(id, body.Count)
 	if !ok {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -176,7 +176,7 @@ func (s *Server) handleSetEncounters(w http.ResponseWriter, r *http.Request, id 
 // POST /api/pokemon/{id}/timer/start
 func (s *Server) handleTimerStart(w http.ResponseWriter, _ *http.Request, id string) {
 	if !s.state.StartTimer(id) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -188,7 +188,7 @@ func (s *Server) handleTimerStart(w http.ResponseWriter, _ *http.Request, id str
 // POST /api/pokemon/{id}/timer/stop
 func (s *Server) handleTimerStop(w http.ResponseWriter, _ *http.Request, id string) {
 	if !s.state.StopTimer(id) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -200,7 +200,7 @@ func (s *Server) handleTimerStop(w http.ResponseWriter, _ *http.Request, id stri
 // POST /api/pokemon/{id}/timer/reset
 func (s *Server) handleTimerReset(w http.ResponseWriter, _ *http.Request, id string) {
 	if !s.state.ResetTimer(id) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -231,7 +231,7 @@ func (s *Server) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 	if err := s.state.SetConfigDir(body.Path); err != nil {
 		// Reopen old DB on failure
 		if s.db != nil {
-			oldDB, _ := database.Open(filepath.Join(s.state.GetConfigDir(), "encounty.db"))
+			oldDB, _ := database.Open(filepath.Join(s.state.GetConfigDir(), dbFilename))
 			s.db = oldDB
 			s.state.SetDB(oldDB)
 			gamesDB = oldDB
@@ -241,7 +241,7 @@ func (s *Server) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Open the database at the new location
-	newDB, err := database.Open(filepath.Join(body.Path, "encounty.db"))
+	newDB, err := database.Open(filepath.Join(body.Path, dbFilename))
 	if err != nil {
 		slog.Warn("Could not open database at new path", "error", err)
 	}
@@ -259,7 +259,7 @@ func (s *Server) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 // POST /api/pokemon/{id}/activate
 func (s *Server) handleActivate(w http.ResponseWriter, _ *http.Request, id string) {
 	if !s.state.SetActive(id) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -271,7 +271,7 @@ func (s *Server) handleActivate(w http.ResponseWriter, _ *http.Request, id strin
 // POST /api/pokemon/{id}/complete
 func (s *Server) handleCompletePokemon(w http.ResponseWriter, _ *http.Request, id string) {
 	if !s.state.CompletePokemon(id) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -284,7 +284,7 @@ func (s *Server) handleCompletePokemon(w http.ResponseWriter, _ *http.Request, i
 // active-hunt status. POST /api/pokemon/{id}/uncomplete
 func (s *Server) handleUncompletePokemon(w http.ResponseWriter, _ *http.Request, id string) {
 	if !s.state.UncompletePokemon(id) {
-		writeJSON(w, http.StatusNotFound, errResp{"pokemon not found"})
+		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
 		return
 	}
 	s.state.ScheduleSave()
@@ -467,121 +467,213 @@ func (s *Server) broadcastState() {
 	s.hub.BroadcastRaw("state_update", st)
 }
 
-// handleWSMessage dispatches action messages sent by the frontend over
-// WebSocket (increment, decrement, reset, set_active, complete, uncomplete).
-// Each case mirrors the equivalent REST endpoint but without an HTTP response.
-func (s *Server) handleWSMessage(msg WSMessage) {
-	type idPayload struct {
-		PokemonID string `json:"pokemon_id"`
-	}
+// wsIDPayload is the common payload shape for WebSocket actions that only
+// need a pokemon_id field.
+type wsIDPayload struct {
+	PokemonID string `json:"pokemon_id"`
+}
 
+// handleWSMessage dispatches action messages sent by the frontend over
+// WebSocket. Each case delegates to a dedicated wsHandle* method that mirrors
+// the equivalent REST endpoint but without an HTTP response.
+func (s *Server) handleWSMessage(msg WSMessage) {
 	switch msg.Type {
 	case "increment":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			count, ok := s.state.Increment(p.PokemonID)
-			if ok {
-				s.logEncounter(p.PokemonID, count, "hotkey")
-				s.state.ScheduleSave()
-				s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": p.PokemonID, "count": count})
-				s.broadcastState()
-				if s.fileWriter != nil {
-					s.fileWriter.Write(s.state.GetState())
-				}
-			}
-		}
+		s.wsHandleIncrement(msg.Payload)
 	case "decrement":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			count, ok := s.state.Decrement(p.PokemonID)
-			if ok {
-				s.logEncounter(p.PokemonID, count, "hotkey")
-				s.state.ScheduleSave()
-				s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": p.PokemonID, "count": count})
-				s.broadcastState()
-				if s.fileWriter != nil {
-					s.fileWriter.Write(s.state.GetState())
-				}
-			}
-		}
+		s.wsHandleDecrement(msg.Payload)
 	case "reset":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			ok := s.state.Reset(p.PokemonID)
-			if ok {
-				s.state.ScheduleSave()
-				s.hub.BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": p.PokemonID})
-				s.broadcastState()
-				if s.fileWriter != nil {
-					s.fileWriter.Write(s.state.GetState())
-				}
-			}
-		}
+		s.wsHandleReset(msg.Payload)
 	case "set_active":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			s.state.SetActive(p.PokemonID)
-			s.state.ScheduleSave()
-			s.broadcastState()
-		}
-	case "complete":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			ok := s.state.CompletePokemon(p.PokemonID)
-			if ok {
-				s.state.ScheduleSave()
-				s.hub.BroadcastRaw("pokemon_completed", map[string]any{"pokemon_id": p.PokemonID})
-				s.broadcastState()
-			}
-		}
-	case "uncomplete":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			s.state.UncompletePokemon(p.PokemonID)
-			s.state.ScheduleSave()
-			s.broadcastState()
-		}
+		s.wsHandleSetActive(msg.Payload)
 	case "set_encounters":
-		var p struct {
-			PokemonID string `json:"pokemon_id"`
-			Count     int    `json:"count"`
-		}
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			count, ok := s.state.SetEncounters(p.PokemonID, p.Count)
-			if ok {
-				s.state.ScheduleSave()
-				s.hub.BroadcastRaw("encounter_set", map[string]any{"pokemon_id": p.PokemonID, "count": count})
-				s.broadcastState()
-				if s.fileWriter != nil {
-					s.fileWriter.Write(s.state.GetState())
-				}
-			}
-		}
+		s.wsHandleSetEncounters(msg.Payload)
+	case "complete":
+		s.wsHandleComplete(msg.Payload)
+	case "uncomplete":
+		s.wsHandleUncomplete(msg.Payload)
 	case "timer_start":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			if s.state.StartTimer(p.PokemonID) {
-				s.state.ScheduleSave()
-				s.broadcastState()
-			}
-		}
+		s.wsHandleTimerStart(msg.Payload)
 	case "timer_stop":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			if s.state.StopTimer(p.PokemonID) {
-				s.state.ScheduleSave()
-				s.broadcastState()
-			}
-		}
+		s.wsHandleTimerStop(msg.Payload)
 	case "timer_reset":
-		var p idPayload
-		if json.Unmarshal(msg.Payload, &p) == nil && p.PokemonID != "" {
-			if s.state.ResetTimer(p.PokemonID) {
-				s.state.ScheduleSave()
-				s.broadcastState()
-			}
-		}
+		s.wsHandleTimerReset(msg.Payload)
+	case "update_hotkeys":
+		s.wsHandleUpdateHotkeys(msg.Payload)
 	}
+}
+
+// wsHandleIncrement adds one encounter to the Pokémon identified in the
+// payload and broadcasts the updated state.
+func (s *Server) wsHandleIncrement(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	count, ok := s.state.Increment(p.PokemonID)
+	if !ok {
+		return
+	}
+	s.logEncounter(p.PokemonID, count, "hotkey")
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": p.PokemonID, "count": count})
+	s.broadcastState()
+	if s.fileWriter != nil {
+		s.fileWriter.Write(s.state.GetState())
+	}
+}
+
+// wsHandleDecrement subtracts one encounter from the Pokémon identified in
+// the payload and broadcasts the updated state.
+func (s *Server) wsHandleDecrement(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	count, ok := s.state.Decrement(p.PokemonID)
+	if !ok {
+		return
+	}
+	s.logEncounter(p.PokemonID, count, "hotkey")
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": p.PokemonID, "count": count})
+	s.broadcastState()
+	if s.fileWriter != nil {
+		s.fileWriter.Write(s.state.GetState())
+	}
+}
+
+// wsHandleReset zeroes out the encounter counter for the Pokémon identified
+// in the payload and broadcasts the updated state.
+func (s *Server) wsHandleReset(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	if !s.state.Reset(p.PokemonID) {
+		return
+	}
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": p.PokemonID})
+	s.broadcastState()
+	if s.fileWriter != nil {
+		s.fileWriter.Write(s.state.GetState())
+	}
+}
+
+// wsHandleSetActive sets the given Pokémon as the active one for hotkey
+// actions and broadcasts the updated state.
+func (s *Server) wsHandleSetActive(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	s.state.SetActive(p.PokemonID)
+	s.state.ScheduleSave()
+	s.broadcastState()
+}
+
+// wsHandleSetEncounters sets the encounter count to an exact value for the
+// Pokémon identified in the payload and broadcasts the updated state.
+func (s *Server) wsHandleSetEncounters(payload json.RawMessage) {
+	var p struct {
+		PokemonID string `json:"pokemon_id"`
+		Count     int    `json:"count"`
+	}
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	count, ok := s.state.SetEncounters(p.PokemonID, p.Count)
+	if !ok {
+		return
+	}
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_set", map[string]any{"pokemon_id": p.PokemonID, "count": count})
+	s.broadcastState()
+	if s.fileWriter != nil {
+		s.fileWriter.Write(s.state.GetState())
+	}
+}
+
+// wsHandleComplete marks the hunt as finished for the Pokémon identified in
+// the payload and broadcasts the updated state.
+func (s *Server) wsHandleComplete(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	if !s.state.CompletePokemon(p.PokemonID) {
+		return
+	}
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("pokemon_completed", map[string]any{"pokemon_id": p.PokemonID})
+	s.broadcastState()
+}
+
+// wsHandleUncomplete clears CompletedAt for the Pokémon identified in the
+// payload, returning it to active-hunt status.
+func (s *Server) wsHandleUncomplete(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	s.state.UncompletePokemon(p.PokemonID)
+	s.state.ScheduleSave()
+	s.broadcastState()
+}
+
+// wsHandleTimerStart begins the per-Pokemon timer for the Pokémon identified
+// in the payload and broadcasts the updated state.
+func (s *Server) wsHandleTimerStart(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	if s.state.StartTimer(p.PokemonID) {
+		s.state.ScheduleSave()
+		s.broadcastState()
+	}
+}
+
+// wsHandleTimerStop stops the per-Pokemon timer and accumulates elapsed time
+// for the Pokémon identified in the payload.
+func (s *Server) wsHandleTimerStop(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	if s.state.StopTimer(p.PokemonID) {
+		s.state.ScheduleSave()
+		s.broadcastState()
+	}
+}
+
+// wsHandleTimerReset clears the per-Pokemon timer entirely for the Pokémon
+// identified in the payload and broadcasts the updated state.
+func (s *Server) wsHandleTimerReset(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	if s.state.ResetTimer(p.PokemonID) {
+		s.state.ScheduleSave()
+		s.broadcastState()
+	}
+}
+
+// wsHandleUpdateHotkeys replaces the full hotkey map and re-registers all
+// bindings via the WebSocket action, mirroring the REST endpoint.
+func (s *Server) wsHandleUpdateHotkeys(payload json.RawMessage) {
+	var hk state.HotkeyMap
+	if json.Unmarshal(payload, &hk) != nil {
+		return
+	}
+	s.state.UpdateHotkeys(hk)
+	s.state.ScheduleSave()
+	if err := s.hotkeyMgr.UpdateAllBindings(hk); err != nil {
+		slog.Error("Failed to update hotkey bindings via WebSocket", "error", err)
+	}
+	s.broadcastState()
 }
 
 // pokemonIDFromPath extracts the id segment from paths like /api/pokemon/{id}/action
@@ -715,7 +807,7 @@ func (s *Server) handleStatsDispatch(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	switch {
 	case strings.HasSuffix(path, "/history"):
-		id := pokemonIDFromPath(path, "/api/stats/pokemon/", "/history")
+		id := pokemonIDFromPath(path, statsPokemonPrefix, "/history")
 		limit := 20
 		offset := 0
 		if v := r.URL.Query().Get("limit"); v != "" {
@@ -731,7 +823,7 @@ func (s *Server) handleStatsDispatch(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, events)
 	case strings.HasSuffix(path, "/chart"):
-		id := pokemonIDFromPath(path, "/api/stats/pokemon/", "/chart")
+		id := pokemonIDFromPath(path, statsPokemonPrefix, "/chart")
 		interval := r.URL.Query().Get("interval")
 		if interval == "" {
 			interval = "day"
@@ -743,7 +835,7 @@ func (s *Server) handleStatsDispatch(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, data)
 	default:
-		id := pokemonIDFromPath(path, "/api/stats/pokemon/", "")
+		id := pokemonIDFromPath(path, statsPokemonPrefix, "")
 		stats, err := s.db.GetEncounterStats(id)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})

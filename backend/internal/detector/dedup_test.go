@@ -62,7 +62,7 @@ func TestPixelDelta(t *testing.T) {
 	}
 }
 
-func TestPixelDelta_EmptyImages(t *testing.T) {
+func TestPixelDeltaEmptyImages(t *testing.T) {
 	// An image with zero area should return 0.0 (n == 0 guard)
 	a := image.NewRGBA(image.Rect(0, 0, 0, 0))
 	b := image.NewRGBA(image.Rect(0, 0, 0, 0))
@@ -72,7 +72,7 @@ func TestPixelDelta_EmptyImages(t *testing.T) {
 	}
 }
 
-func TestPixelDelta_Symmetry(t *testing.T) {
+func TestPixelDeltaSymmetry(t *testing.T) {
 	a := gradientImage(100, 100)
 	b := solidImage(100, 100, color.RGBA{128, 128, 128, 255})
 	dAB := PixelDelta(a, b)

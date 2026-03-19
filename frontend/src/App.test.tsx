@@ -103,7 +103,7 @@ describe("App", () => {
 
     // Theme attribute should be set (default is dark)
     await waitFor(() => {
-      expect(document.documentElement.getAttribute("data-theme")).toBeTruthy();
+      expect(document.documentElement.dataset.theme).toBeTruthy();
     });
   });
 

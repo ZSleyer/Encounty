@@ -2,52 +2,58 @@ import { useRef, useCallback } from "react";
 import { OverlaySettings, OverlayElementBase } from "../../types";
 import { Overlay } from "../../pages/Overlay";
 import type { Pokemon } from "../../types";
-import { Guide } from "../../hooks/useSnapping";
-import { useSnapping } from "../../hooks/useSnapping";
+import { Guide, useSnapping } from "../../hooks/useSnapping";
 
 type ElementKey = "sprite" | "name" | "title" | "counter";
 type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 interface OverlayCanvasProps {
-  localSettings: OverlaySettings;
-  selectedEl: ElementKey;
-  canvasScale: number;
-  zoom: number;
-  effectiveScale: number;
-  showGrid: boolean;
-  gridSize: number;
-  snapEnabled: boolean;
-  guides: Guide[];
-  isDragging: boolean;
-  effectiveTool: "pointer" | "hand";
-  isPanDragging: boolean;
-  canvasBg: "transparent" | "white" | "black";
-  testTrigger: { element: ElementKey; n: number; reverse?: boolean };
-  fakeCount: number | null;
-  activePokemon?: Pokemon;
-  overlayTargetId?: string;
-  readOnly?: boolean;
-  canvasContainerRef: React.RefObject<HTMLDivElement | null>;
-  getPadding: () => { x: number; y: number };
-  onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
-  onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
-  onMouseUp: () => void;
-  onSelectElement: (key: ElementKey) => void;
-  onDragStateChange: (dragging: boolean) => void;
-  onGuidesChange: (guides: Guide[]) => void;
-  onUpdate: (settings: OverlaySettings) => void;
+  readonly localSettings: OverlaySettings;
+  readonly selectedEl: ElementKey;
+  readonly effectiveScale: number;
+  readonly showGrid: boolean;
+  readonly gridSize: number;
+  readonly snapEnabled: boolean;
+  readonly guides: Guide[];
+  readonly isDragging: boolean;
+  readonly effectiveTool: "pointer" | "hand";
+  readonly isPanDragging: boolean;
+  readonly canvasBg: "transparent" | "white" | "black";
+  readonly testTrigger: { element: ElementKey; n: number; reverse?: boolean };
+  readonly fakeCount: number | null;
+  readonly activePokemon?: Pokemon;
+  readonly readOnly?: boolean;
+  readonly canvasContainerRef: React.RefObject<HTMLDivElement | null>;
+  readonly onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
+  readonly onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
+  readonly onMouseUp: () => void;
+  readonly onSelectElement: (key: ElementKey) => void;
+  readonly onDragStateChange: (dragging: boolean) => void;
+  readonly onGuidesChange: (guides: Guide[]) => void;
+  readonly onUpdate: (settings: OverlaySettings) => void;
 }
 
-export function useElementDrag(
-  elementKey: ElementKey,
-  settings: OverlaySettings,
-  onUpdate: (s: OverlaySettings) => void,
-  canvasScale: number,
-  onDragStateChange?: (dragging: boolean) => void,
-  onGuidesChange?: (guides: Guide[]) => void,
-  snapEnabled?: boolean,
-  gridSize?: number,
-) {
+interface UseElementDragOptions {
+  readonly elementKey: ElementKey;
+  readonly settings: OverlaySettings;
+  readonly onUpdate: (s: OverlaySettings) => void;
+  readonly canvasScale: number;
+  readonly onDragStateChange?: (dragging: boolean) => void;
+  readonly onGuidesChange?: (guides: Guide[]) => void;
+  readonly snapEnabled?: boolean;
+  readonly gridSize?: number;
+}
+
+export function useElementDrag({
+  elementKey,
+  settings,
+  onUpdate,
+  canvasScale,
+  onDragStateChange,
+  onGuidesChange,
+  snapEnabled,
+  gridSize,
+}: UseElementDragOptions) {
   const dragging = useRef<{
     startX: number;
     startY: number;
@@ -253,7 +259,10 @@ export function ResizeHandle({
     sw: { bottom: -4, left: -4, cursor: "sw-resize" },
   };
   return (
+    // Resize handles are mouse-only canvas controls; aria-hidden suppresses S6848
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
+      aria-hidden="true"
       onMouseDown={onResizeStart(dir)}
       style={{
         position: "absolute",
@@ -285,7 +294,6 @@ export function OverlayCanvas({
   activePokemon,
   readOnly,
   canvasContainerRef,
-  getPadding,
   onMouseMove,
   onMouseDown,
   onMouseUp,
@@ -297,46 +305,11 @@ export function OverlayCanvas({
 }: OverlayCanvasProps) {
   const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter"];
 
-  const spriteHandlers = useElementDrag(
-    "sprite",
-    localSettings,
-    onUpdate,
-    effectiveScale,
-    onDragStateChange,
-    onGuidesChange,
-    snapEnabled,
-    gridSize,
-  );
-  const nameHandlers = useElementDrag(
-    "name",
-    localSettings,
-    onUpdate,
-    effectiveScale,
-    onDragStateChange,
-    onGuidesChange,
-    snapEnabled,
-    gridSize,
-  );
-  const titleHandlers = useElementDrag(
-    "title",
-    localSettings,
-    onUpdate,
-    effectiveScale,
-    onDragStateChange,
-    onGuidesChange,
-    snapEnabled,
-    gridSize,
-  );
-  const counterHandlers = useElementDrag(
-    "counter",
-    localSettings,
-    onUpdate,
-    effectiveScale,
-    onDragStateChange,
-    onGuidesChange,
-    snapEnabled,
-    gridSize,
-  );
+  const dragOpts = { settings: localSettings, onUpdate, canvasScale: effectiveScale, onDragStateChange, onGuidesChange, snapEnabled, gridSize };
+  const spriteHandlers = useElementDrag({ elementKey: "sprite", ...dragOpts });
+  const nameHandlers = useElementDrag({ elementKey: "name", ...dragOpts });
+  const titleHandlers = useElementDrag({ elementKey: "title", ...dragOpts });
+  const counterHandlers = useElementDrag({ elementKey: "counter", ...dragOpts });
 
   const handlers: Record<ElementKey, ReturnType<typeof useElementDrag>> = {
     sprite: spriteHandlers,
@@ -346,17 +319,24 @@ export function OverlayCanvas({
   };
 
   const fakePreviewPokemon: Pokemon | undefined = activePokemon
-    ? { ...activePokemon, encounters: fakeCount !== null ? fakeCount : (activePokemon.encounters ?? 0) }
+    ? { ...activePokemon, encounters: fakeCount ?? activePokemon.encounters ?? 0 }
     : undefined;
+
+  const handCursor = isPanDragging ? "grabbing" : "grab";
+  const canvasCursor = effectiveTool === "hand" ? handCursor : "default";
+  const bgColorMap: Record<string, string | undefined> = { white: "#ffffff", black: "#000000" };
+  const canvasBgColor = bgColorMap[canvasBg];
 
   return (
     <div
+      role="application"
       ref={canvasContainerRef}
       data-tutorial="canvas"
+      aria-label="Overlay canvas"
       className={`flex-1 rounded-xl border border-border-subtle overflow-auto min-h-0 relative ${canvasBg === "transparent" ? "canvas-checkered" : ""}`}
       style={{
-        cursor: effectiveTool === "hand" ? (isPanDragging ? "grabbing" : "grab") : "default",
-        backgroundColor: canvasBg === "white" ? "#ffffff" : (canvasBg === "black" ? "#000000" : undefined),
+        cursor: canvasCursor,
+        backgroundColor: canvasBgColor,
       }}
       onMouseMove={onMouseMove}
       onMouseDown={onMouseDown}
@@ -458,8 +438,11 @@ export function OverlayCanvas({
             const { onDragStart, onResizeStart } = handlers[key];
             const isSelected = selectedEl === key;
             return (
-              <div
+              <button
+                type="button"
                 key={key}
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectElement(key); } }}
                 onMouseDown={(e) => {
                   if (effectiveTool === "hand") return;
                   onSelectElement(key);
@@ -477,6 +460,9 @@ export function OverlayCanvas({
                     ? "2px solid #3b82f6"
                     : "2px solid transparent",
                   boxSizing: "border-box",
+                  background: "transparent",
+                  padding: 0,
+                  display: "block",
                 }}
               >
                 {isSelected && (
@@ -501,7 +487,7 @@ export function OverlayCanvas({
                     ))}
                   </>
                 )}
-              </div>
+              </button>
             );
           })}
 

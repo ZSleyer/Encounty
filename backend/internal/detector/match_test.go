@@ -11,8 +11,8 @@ import (
 // solidImage creates a uniform RGBA image filled with the given color.
 func solidImage(w, h int, c color.RGBA) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			img.SetRGBA(x, y, c)
 		}
 	}
@@ -23,8 +23,8 @@ func solidImage(w, h int, c color.RGBA) *image.RGBA {
 // The tile size determines the size of each square.
 func checkerImage(w, h, tileSize int, c1, c2 color.RGBA) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			if ((x/tileSize)+(y/tileSize))%2 == 0 {
 				img.SetRGBA(x, y, c1)
 			} else {
@@ -38,8 +38,8 @@ func checkerImage(w, h, tileSize int, c1, c2 color.RGBA) *image.RGBA {
 // gradientImage creates a horizontal gradient from black to white.
 func gradientImage(w, h int) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
+	for y := range h {
+		for x := range w {
 			v := uint8(x * 255 / w)
 			img.SetRGBA(x, y, color.RGBA{v, v, v, 255})
 		}
@@ -143,7 +143,7 @@ func TestDownscale(t *testing.T) {
 	}
 }
 
-func TestNCC_IdenticalImages(t *testing.T) {
+func TestNCCIdenticalImages(t *testing.T) {
 	// NCC of an image with itself should be very close to 1.0
 	img := checkerImage(64, 64, 8, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 	gray := toGray(img)
@@ -153,7 +153,7 @@ func TestNCC_IdenticalImages(t *testing.T) {
 	}
 }
 
-func TestNCC_DifferentImages(t *testing.T) {
+func TestNCCDifferentImages(t *testing.T) {
 	// NCC of very different patterns should be low
 	frame := toGray(checkerImage(64, 64, 8, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255}))
 	tmpl := toGray(gradientImage(32, 32))
@@ -163,7 +163,7 @@ func TestNCC_DifferentImages(t *testing.T) {
 	}
 }
 
-func TestNCC_TemplateLargerThanFrame(t *testing.T) {
+func TestNCCTemplateLargerThanFrame(t *testing.T) {
 	frame := toGray(solidImage(10, 10, color.RGBA{128, 128, 128, 255}))
 	tmpl := toGray(solidImage(20, 20, color.RGBA{128, 128, 128, 255}))
 	score := ncc(frame, tmpl)
@@ -172,7 +172,7 @@ func TestNCC_TemplateLargerThanFrame(t *testing.T) {
 	}
 }
 
-func TestNCC_UniformTemplate(t *testing.T) {
+func TestNCCUniformTemplate(t *testing.T) {
 	// Uniform template has zero std dev, NCC should return 0
 	frame := toGray(gradientImage(64, 64))
 	tmpl := toGray(solidImage(10, 10, color.RGBA{128, 128, 128, 255}))
@@ -182,7 +182,7 @@ func TestNCC_UniformTemplate(t *testing.T) {
 	}
 }
 
-func TestNCC_TinyTemplate(t *testing.T) {
+func TestNCCTinyTemplate(t *testing.T) {
 	// Templates smaller than 4×4 should return 0
 	frame := toGray(gradientImage(64, 64))
 	tmpl := toGray(solidImage(3, 3, color.RGBA{100, 100, 100, 255}))
@@ -192,13 +192,13 @@ func TestNCC_TinyTemplate(t *testing.T) {
 	}
 }
 
-func TestNCC_TemplateInFrame(t *testing.T) {
+func TestNCCTemplateInFrame(t *testing.T) {
 	// Embed a recognizable pattern inside a larger frame.
 	// The template should be found with a high score.
 	frame := image.NewRGBA(image.Rect(0, 0, 80, 80))
 	// Fill with gray background
-	for y := 0; y < 80; y++ {
-		for x := 0; x < 80; x++ {
+	for y := range 80 {
+		for x := range 80 {
 			frame.SetRGBA(x, y, color.RGBA{128, 128, 128, 255})
 		}
 	}
@@ -223,7 +223,7 @@ func TestNCC_TemplateInFrame(t *testing.T) {
 	}
 }
 
-func TestMatch_LargeTemplate(t *testing.T) {
+func TestMatchLargeTemplate(t *testing.T) {
 	// Large template path (> 128px): both are downscaled
 	frame := gradientImage(640, 480)
 	score := Match(frame, frame, 320)
@@ -232,7 +232,7 @@ func TestMatch_LargeTemplate(t *testing.T) {
 	}
 }
 
-func TestMatch_SmallTemplate(t *testing.T) {
+func TestMatchSmallTemplate(t *testing.T) {
 	// Small template (≤128px): multi-scale matching is used
 	frame := checkerImage(200, 200, 10, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 	tmpl := checkerImage(64, 64, 10, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
@@ -308,7 +308,7 @@ func TestCropImage(t *testing.T) {
 	}
 }
 
-func TestMatchWithRegions_NoRegions(t *testing.T) {
+func TestMatchWithRegionsNoRegions(t *testing.T) {
 	// When there are no regions, it should fall back to whole-image Match
 	frame := checkerImage(200, 200, 10, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 	lt := loadedTemplate{
@@ -321,7 +321,7 @@ func TestMatchWithRegions_NoRegions(t *testing.T) {
 	}
 }
 
-func TestMatchWithRegions_ImageRegion(t *testing.T) {
+func TestMatchWithRegionsImageRegion(t *testing.T) {
 	// Create frame and template that are identical, with a single image region.
 	// The region crop is 100×100 which is under 128px, triggering multi-scale
 	// matching. The score may be lower than 1.0 due to downscale artifacts,
@@ -344,7 +344,7 @@ func TestMatchWithRegions_ImageRegion(t *testing.T) {
 	}
 }
 
-func TestMatchWithRegions_EarlyExit(t *testing.T) {
+func TestMatchWithRegionsEarlyExit(t *testing.T) {
 	// First region should fail, causing early exit with score below precision
 	frame := gradientImage(200, 200)
 	tmpl := checkerImage(200, 200, 10, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
@@ -369,7 +369,7 @@ func TestMatchWithRegions_EarlyExit(t *testing.T) {
 	}
 }
 
-func TestMatchWithRegions_UnknownType(t *testing.T) {
+func TestMatchWithRegionsUnknownType(t *testing.T) {
 	// Regions with unknown type should be skipped, falling back to whole-image
 	frame := checkerImage(200, 200, 10, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 	lt := loadedTemplate{

@@ -13,6 +13,17 @@ import (
 	"time"
 )
 
+// Shared string literals used in default overlay settings and overlay resolution.
+const (
+	colorBlack         = "#000000"
+	colorWhite         = "#ffffff"
+	colorTypeSolid     = "solid"
+	outlineTypeSolid   = "solid"
+	animationNone      = "none"
+	fontPokemon        = "pokemon"
+	overlayLinkedPrefix = "linked:"
+)
+
 // Pokemon represents a single shiny-hunt session for one Pokémon species.
 // It stores display metadata (name, sprite), the running encounter count,
 // and an optional per-Pokémon overlay configuration.
@@ -306,9 +317,9 @@ func NewManager(configDir string) *Manager {
 				Overlay: OverlaySettings{
 					CanvasWidth:       800,
 					CanvasHeight:      200,
-					BackgroundColor:   "#000000",
+					BackgroundColor:   colorBlack,
 					BackgroundOpacity: 0.6,
-					BackgroundAnimation: "none",
+					BackgroundAnimation: animationNone,
 					Blur:              8,
 					ShowBorder:        true,
 					BorderColor:       "rgba(255,255,255,0.1)",
@@ -316,7 +327,7 @@ func NewManager(configDir string) *Manager {
 					Sprite: SpriteElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 10, Y: 10, Width: 180, Height: 180, ZIndex: 1},
 						ShowGlow:           true,
-						GlowColor:          "#ffffff",
+						GlowColor:          colorWhite,
 						GlowOpacity:        0.2,
 						GlowBlur:           20,
 						IdleAnimation:      "float",
@@ -325,44 +336,44 @@ func NewManager(configDir string) *Manager {
 					Name: NameElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
 						Style: TextStyle{
-							FontFamily:   "pokemon",
+							FontFamily:   fontPokemon,
 							FontSize:     28,
 							FontWeight:   700,
-							ColorType:    "solid",
-							Color:        "#ffffff",
-							OutlineType:  "solid",
+							ColorType:    colorTypeSolid,
+							Color:        colorWhite,
+							OutlineType:  outlineTypeSolid,
 							OutlineWidth: 4,
-							OutlineColor: "#000000",
+							OutlineColor: colorBlack,
 						},
-						IdleAnimation: "none",
+						IdleAnimation: animationNone,
 						TriggerEnter:  "fade-in",
 					},
 					Title: TitleElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
 						Style: TextStyle{
-							FontFamily:   "pokemon",
+							FontFamily:   fontPokemon,
 							FontSize:     20,
 							FontWeight:   700,
-							ColorType:    "solid",
-							Color:        "#ffffff",
-							OutlineType:  "solid",
+							ColorType:    colorTypeSolid,
+							Color:        colorWhite,
+							OutlineType:  outlineTypeSolid,
 							OutlineWidth: 3,
-							OutlineColor: "#000000",
+							OutlineColor: colorBlack,
 						},
-						IdleAnimation: "none",
+						IdleAnimation: animationNone,
 						TriggerEnter:  "fade-in",
 					},
 					Counter: CounterElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 80, Width: 300, Height: 100, ZIndex: 3},
 						Style: TextStyle{
-							FontFamily:   "pokemon",
+							FontFamily:   fontPokemon,
 							FontSize:     80,
 							FontWeight:   700,
-							ColorType:    "solid",
-							Color:        "#ffffff",
-							OutlineType:  "solid",
+							ColorType:    colorTypeSolid,
+							Color:        colorWhite,
+							OutlineType:  outlineTypeSolid,
 							OutlineWidth: 6,
-							OutlineColor: "#000000",
+							OutlineColor: colorBlack,
 						},
 						ShowLabel: false,
 						LabelText: "Begegnungen",
@@ -370,10 +381,10 @@ func NewManager(configDir string) *Manager {
 							FontFamily: "sans",
 							FontSize:   14,
 							FontWeight: 400,
-							ColorType:  "solid",
+							ColorType:  colorTypeSolid,
 							Color:      "#94a3b8",
 						},
-						IdleAnimation: "none",
+						IdleAnimation: animationNone,
 						TriggerEnter:  "pop",
 					},
 				},
@@ -454,6 +465,54 @@ func (m *Manager) AddPokemon(p Pokemon) {
 	m.notify()
 }
 
+// applyPokemonUpdate merges non-zero fields from update into dst. Only
+// user-editable fields are touched; immutable fields like ID and CreatedAt
+// are preserved.
+func applyPokemonUpdate(dst *Pokemon, update Pokemon) {
+	applyBasicFields(dst, update)
+	applyOverlayUpdate(dst, update)
+	// Always update Step (0 means default of 1)
+	dst.Step = update.Step
+}
+
+// applyBasicFields copies non-zero basic fields from update to dst.
+func applyBasicFields(dst *Pokemon, update Pokemon) {
+	if update.Name != "" {
+		dst.Name = update.Name
+	}
+	// Always update Title (allow clearing to "")
+	dst.Title = update.Title
+	if update.CanonicalName != "" {
+		dst.CanonicalName = update.CanonicalName
+	}
+	if update.SpriteURL != "" {
+		dst.SpriteURL = update.SpriteURL
+	}
+	if update.SpriteType != "" {
+		dst.SpriteType = update.SpriteType
+	}
+	// Always update SpriteStyle (allow clearing to "" which means "classic")
+	dst.SpriteStyle = update.SpriteStyle
+	if update.Language != "" {
+		dst.Language = update.Language
+	}
+	if update.Game != "" {
+		dst.Game = update.Game
+	}
+}
+
+// applyOverlayUpdate handles overlay and overlay-mode changes, clearing the
+// per-pokemon overlay when switching away from "custom" mode.
+func applyOverlayUpdate(dst *Pokemon, update Pokemon) {
+	dst.Overlay = update.Overlay
+	if update.OverlayMode != "" {
+		dst.OverlayMode = update.OverlayMode
+		if update.OverlayMode != "custom" {
+			dst.Overlay = nil
+		}
+	}
+}
+
 // UpdatePokemon applies non-zero fields from update to the Pokémon with the
 // given id. Returns false if no matching Pokémon was found.
 // Only user-editable fields are updated; immutable fields like ID and
@@ -463,46 +522,7 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
-			// Update only user-editable fields
-			if update.Name != "" {
-				m.state.Pokemon[i].Name = update.Name
-			}
-			// Always update Title (allow clearing to "")
-			m.state.Pokemon[i].Title = update.Title
-			if update.CanonicalName != "" {
-				m.state.Pokemon[i].CanonicalName = update.CanonicalName
-			}
-			if update.SpriteURL != "" {
-				m.state.Pokemon[i].SpriteURL = update.SpriteURL
-			}
-			if update.SpriteType != "" {
-				m.state.Pokemon[i].SpriteType = update.SpriteType
-			}
-			// Always update SpriteStyle (allow clearing to "" which means "classic")
-			m.state.Pokemon[i].SpriteStyle = update.SpriteStyle
-			if update.Language != "" {
-				m.state.Pokemon[i].Language = update.Language
-			}
-			if update.Game != "" {
-				m.state.Pokemon[i].Game = update.Game
-			}
-
-			// Empty string check won't work for struct pointers. We either allow clearing via special means
-			// or replace if provided. But since we send the whole Pokemon back, we just replace it:
-			m.state.Pokemon[i].Overlay = update.Overlay
-
-			// Handle overlay_mode changes
-			if update.OverlayMode != "" {
-				m.state.Pokemon[i].OverlayMode = update.OverlayMode
-				// When switching away from "custom", clear the per-pokemon overlay
-				if update.OverlayMode != "custom" {
-					m.state.Pokemon[i].Overlay = nil
-				}
-			}
-
-			// Always update Step (0 means default of 1)
-			m.state.Pokemon[i].Step = update.Step
-
+			applyPokemonUpdate(&m.state.Pokemon[i], update)
 			go m.notify()
 			return true
 		}
@@ -526,7 +546,7 @@ func (m *Manager) DeletePokemon(id string) bool {
 				}
 			}
 			// Reset any Pokemon linked to the deleted one
-			linkedPrefix := "linked:" + id
+			linkedPrefix := overlayLinkedPrefix + id
 			for j := range m.state.Pokemon {
 				if m.state.Pokemon[j].OverlayMode == linkedPrefix {
 					m.state.Pokemon[j].OverlayMode = "default"
@@ -931,8 +951,8 @@ func (m *Manager) resolveOverlayLocked(pokemonID string, visited map[string]bool
 	for _, p := range m.state.Pokemon {
 		if p.ID == pokemonID {
 			switch {
-			case strings.HasPrefix(p.OverlayMode, "linked:"):
-				targetID := strings.TrimPrefix(p.OverlayMode, "linked:")
+			case strings.HasPrefix(p.OverlayMode, overlayLinkedPrefix):
+				targetID := strings.TrimPrefix(p.OverlayMode, overlayLinkedPrefix)
 				return m.resolveOverlayLocked(targetID, visited)
 			case p.OverlayMode == "custom" && p.Overlay != nil:
 				return *p.Overlay

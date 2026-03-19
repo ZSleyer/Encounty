@@ -39,7 +39,7 @@ import { NumSlider } from "./controls/NumSlider";
 import { ColorSwatch } from "./controls/ColorSwatch";
 import { ColorPickerModal } from "./controls/ColorPickerModal";
 import { GradientEditorModal } from "./controls/GradientEditorModal";
-import { ShadowEditorModal } from "./controls/ShadowEditorModal";
+import { ShadowEditorModal, type ShadowConfirmParams } from "./controls/ShadowEditorModal";
 import { OutlineEditorModal } from "./controls/OutlineEditorModal";
 import { TextColorEditorModal } from "./controls/TextColorEditorModal";
 import { OverlayCanvas } from "./OverlayCanvas";
@@ -300,7 +300,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     setFakeCount(null);
   }, [activePokemon?.id]);
   const currentCount =
-    fakeCount !== null ? fakeCount : (activePokemon?.encounters ?? 0);
+    fakeCount ?? activePokemon?.encounters ?? 0;
 
   const testIncrement = () => {
     setFakeCount(currentCount + 1);
@@ -339,7 +339,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     enabled: boolean; color: string; colorType: "solid" | "gradient";
     gradientStops: GradientStop[]; gradientAngle: number;
     blur: number; x: number; y: number;
-    onConfirm: (enabled: boolean, color: string, colorType: "solid" | "gradient", gradientStops: GradientStop[], gradientAngle: number, blur: number, x: number, y: number) => void;
+    onConfirm: (params: ShadowConfirmParams) => void;
   } | null>(null);
   const [outlineEditorTarget, setOutlineEditorTarget] = useState<{
     type: "none" | "solid"; color: string; width: number;
@@ -378,13 +378,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   /** Open the shared ShadowEditorModal. */
   const openShadowEditor = useCallback(
-    (
-      enabled: boolean, color: string, colorType: "solid" | "gradient",
-      gradientStops: GradientStop[], gradientAngle: number,
-      blur: number, x: number, y: number,
-      onConfirm: (e: boolean, c: string, ct: "solid" | "gradient", gs: GradientStop[], ga: number, b: number, x: number, y: number) => void,
-    ) => {
-      setShadowEditorTarget({ enabled, color, colorType, gradientStops, gradientAngle, blur, x, y, onConfirm });
+    (params: ShadowConfirmParams & { onConfirm: (p: ShadowConfirmParams) => void }) => {
+      setShadowEditorTarget(params);
     },
     [],
   );
@@ -432,11 +427,11 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         top: pad.y - (clientHeight - scaledH) / 2,
       };
     };
-    if (!hasInitialCentered.current) {
+    if (hasInitialCentered.current) {
+      updateScale();
+    } else {
       hasInitialCentered.current = true;
       requestAnimationFrame(updateScale);
-    } else {
-      updateScale();
     }
     globalThis.addEventListener("resize", updateScale);
     return () => globalThis.removeEventListener("resize", updateScale);
@@ -524,6 +519,63 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     });
   };
 
+  /** Handles undo/redo keyboard shortcuts. Returns true if the event was handled. */
+  const handleUndoRedo = useCallback((e: KeyboardEvent): boolean => {
+    if (e.ctrlKey && e.key === "z") {
+      e.preventDefault();
+      if (history.canUndo) {
+        history.undo();
+        const prev = history.current;
+        setLocalSettings(prev);
+        onUpdate(prev);
+      }
+      return true;
+    }
+    if (e.ctrlKey && e.key === "y") {
+      e.preventDefault();
+      if (history.canRedo) {
+        history.redo();
+        const next = history.current;
+        setLocalSettings(next);
+        onUpdate(next);
+      }
+      return true;
+    }
+    return false;
+  }, [history, onUpdate]);
+
+  /** Handles arrow-key nudging and element selection shortcuts. Returns true if the event was handled. */
+  const handleElementKeys = useCallback((e: KeyboardEvent): boolean => {
+    if (!selectedEl) return false;
+    const el = localSettings[selectedEl] as OverlayElementBase;
+    const step = e.shiftKey ? 10 : 1;
+
+    const arrowActions: Record<string, () => void> = {
+      ArrowLeft: () => updateSelectedEl({ x: el.x - step }),
+      ArrowRight: () => updateSelectedEl({ x: el.x + step }),
+      ArrowUp: () => updateSelectedEl({ y: el.y - step }),
+      ArrowDown: () => updateSelectedEl({ y: el.y + step }),
+    };
+
+    const arrowAction = arrowActions[e.key];
+    if (arrowAction) {
+      e.preventDefault();
+      arrowAction();
+      return true;
+    }
+    if (e.key === "Escape") {
+      setSelectedEl("sprite");
+      return true;
+    }
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const idx = LAYERS.indexOf(selectedEl);
+      setSelectedEl(LAYERS[(idx + 1) % LAYERS.length]);
+      return true;
+    }
+    return false;
+  }, [selectedEl, localSettings, updateSelectedEl, LAYERS]);
+
   // Keyboard navigation + spacebar for hand tool
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -533,52 +585,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         setSpaceHeld(true);
         return;
       }
-
-      // Undo/Redo
-      if (e.ctrlKey && e.key === "z") {
-        e.preventDefault();
-        if (history.canUndo) {
-          history.undo();
-          const prev = history.current;
-          setLocalSettings(prev);
-          onUpdate(prev);
-        }
-        return;
-      }
-      if (e.ctrlKey && e.key === "y") {
-        e.preventDefault();
-        if (history.canRedo) {
-          history.redo();
-          const next = history.current;
-          setLocalSettings(next);
-          onUpdate(next);
-        }
-        return;
-      }
-
-      if (!selectedEl) return;
-      const el = localSettings[selectedEl] as OverlayElementBase;
-      const step = e.shiftKey ? 10 : 1;
-
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        updateSelectedEl({ x: el.x - step });
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        updateSelectedEl({ x: el.x + step });
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        updateSelectedEl({ y: el.y - step });
-      } else if (e.key === "ArrowDown") {
-        e.preventDefault();
-        updateSelectedEl({ y: el.y + step });
-      } else if (e.key === "Escape") {
-        setSelectedEl("sprite");
-      } else if (e.key === "Tab") {
-        e.preventDefault();
-        const idx = LAYERS.indexOf(selectedEl);
-        setSelectedEl(LAYERS[(idx + 1) % LAYERS.length]);
-      }
+      if (handleUndoRedo(e)) return;
+      handleElementKeys(e);
     };
     const upHandler = (e: KeyboardEvent) => {
       if (e.code === "Space") {
@@ -591,7 +599,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       globalThis.removeEventListener("keydown", handler);
       globalThis.removeEventListener("keyup", upHandler);
     };
-  }, [selectedEl, localSettings, history, updateSelectedEl, onUpdate, LAYERS]);
+  }, [handleUndoRedo, handleElementKeys]);
 
   // Show tutorial on first visit
   useEffect(() => {
@@ -657,34 +665,43 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     };
   };
 
+  /** Reads a File as a base64 data URL. */
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    const reader = new FileReader();
+    return new Promise<string>((resolve) => {
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  /** Uploads a background image file and applies it to the overlay settings. */
+  const processBackgroundFile = async (file: File) => {
+    setBgUploading(true);
+    try {
+      const base64 = await readFileAsBase64(file);
+      const res = await fetch("/api/backgrounds/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_base64: base64 }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        update({ ...localSettings, background_image: data.filename, background_image_fit: localSettings.background_image_fit || "cover" });
+      }
+    } catch (err) {
+      console.error("Background upload failed:", err);
+    }
+    setBgUploading(false);
+  };
+
   // Background image upload handler
   const handleBgUpload = () => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = "image/png,image/jpeg,image/webp";
-    input.onchange = async () => {
+    input.onchange = () => {
       const file = input.files?.[0];
-      if (!file) return;
-      setBgUploading(true);
-      try {
-        const reader = new FileReader();
-        const base64 = await new Promise<string>((resolve) => {
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        });
-        const res = await fetch("/api/backgrounds/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image_base64: base64 }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          update({ ...localSettings, background_image: data.filename, background_image_fit: localSettings.background_image_fit || "cover" });
-        }
-      } catch (err) {
-        console.error("Background upload failed:", err);
-      }
-      setBgUploading(false);
+      if (file) processBackgroundFile(file);
     };
     input.click();
   };
@@ -721,6 +738,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               <div
                 key={key}
                 onClick={() => setSelectedEl(key)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedEl(key); } }}
                 className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors ${
                   selectedEl === key
                     ? "bg-accent-blue/20 border border-accent-blue/40"
@@ -732,6 +750,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 </span>
                 <div className="flex items-center gap-1">
                   <button
+                    type="button"
                     title={t("tooltip.editor.moveUp")}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -742,6 +761,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     <ChevronUp className="w-3 h-3" />
                   </button>
                   <button
+                    type="button"
                     title={t("tooltip.editor.moveDown")}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -752,6 +772,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     <ChevronDown className="w-3 h-3" />
                   </button>
                   <button
+                    type="button"
                     title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1217,8 +1238,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         <OverlayCanvas
           localSettings={localSettings}
           selectedEl={selectedEl}
-          canvasScale={canvasScale}
-          zoom={zoom}
           effectiveScale={effectiveScale}
           showGrid={showGrid}
           gridSize={gridSize}
@@ -1231,10 +1250,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           testTrigger={testTrigger}
           fakeCount={fakeCount}
           activePokemon={activePokemon}
-          overlayTargetId={overlayTargetId}
           readOnly={readOnly}
           canvasContainerRef={canvasContainerRef}
-          getPadding={getPadding}
           onMouseMove={handleCanvasMouseMove}
           onMouseDown={handleCanvasMouseDown}
           onMouseUp={handleCanvasMouseUp}
@@ -1251,10 +1268,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         <OverlayPropertyPanel
           localSettings={localSettings}
           selectedEl={selectedEl}
-          updateField={updateField}
           updateSelectedEl={updateSelectedEl}
           readOnly={readOnly}
-          compact={compact}
           onUpdate={update}
           openColorPicker={openColorPicker}
           openOutlineEditor={openOutlineEditor}
@@ -1316,8 +1331,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           blur={shadowEditorTarget.blur}
           x={shadowEditorTarget.x}
           y={shadowEditorTarget.y}
-          onConfirm={(enabled, color, colorType, gradientStops, gradientAngle, blur, x, y) => {
-            shadowEditorTarget.onConfirm(enabled, color, colorType, gradientStops, gradientAngle, blur, x, y);
+          onConfirm={(params) => {
+            shadowEditorTarget.onConfirm(params);
             setShadowEditorTarget(null);
           }}
           onClose={() => setShadowEditorTarget(null)}

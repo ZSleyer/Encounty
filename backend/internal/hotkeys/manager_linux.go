@@ -165,6 +165,55 @@ func findKeyboardDevices() ([]string, error) {
 	return keyboards, nil
 }
 
+// modifierState tracks which modifier keys are currently held down on an evdev device.
+type modifierState struct {
+	ctrl  bool
+	shift bool
+	alt   bool
+}
+
+// updateModifier updates the modifier state for the given key code and returns
+// true if the code was a modifier key (meaning the event should not be
+// processed further as a hotkey trigger).
+func (ms *modifierState) updateModifier(code uint16, value int32) bool {
+	switch code {
+	case evKeyLeftCtrl, evKeyRightCtrl:
+		ms.ctrl = value != 0
+		return true
+	case evKeyLeftShift, evKeyRightShift:
+		ms.shift = value != 0
+		return true
+	case evKeyLeftAlt, evKeyRightAlt:
+		ms.alt = value != 0
+		return true
+	}
+	return false
+}
+
+// matchAndDispatch checks the pressed key code against all bindings and
+// dispatches a non-blocking action for the first matching combo.
+func (m *linuxManager) matchAndDispatch(code uint16, mods modifierState) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for action, combo := range m.bindings {
+		evCode, ok := keyNameToEvKey[combo.Key]
+		if !ok || evCode != code {
+			continue
+		}
+		if combo.Ctrl != mods.ctrl || combo.Shift != mods.shift || combo.Alt != mods.alt {
+			continue
+		}
+		var pid string
+		if active := m.stateMgr.GetActivePokemon(); active != nil {
+			pid = active.ID
+		}
+		select {
+		case m.actions <- Action{Type: action, PokemonID: pid}:
+		default:
+		}
+	}
+}
+
 // readDevice reads input events from a single evdev device until the context is cancelled.
 func (m *linuxManager) readDevice(path string) {
 	f, err := os.OpenFile(path, os.O_RDONLY, 0)
@@ -178,17 +227,12 @@ func (m *linuxManager) readDevice(path string) {
 		_ = f.Close()
 	}()
 
-	var (
-		ctrlHeld  bool
-		shiftHeld bool
-		altHeld   bool
-	)
-
+	var mods modifierState
 	buf := make([]byte, 24)
 	for {
 		_, err := io.ReadFull(f, buf)
 		if err != nil {
-			return // file closed or error
+			return
 		}
 
 		typ := binary.LittleEndian.Uint16(buf[16:18])
@@ -198,48 +242,13 @@ func (m *linuxManager) readDevice(path string) {
 		if typ != evTypKey {
 			continue
 		}
-
-		// Track modifier state
-		switch code {
-		case evKeyLeftCtrl, evKeyRightCtrl:
-			ctrlHeld = value != 0
+		if mods.updateModifier(code, value) {
 			continue
-		case evKeyLeftShift, evKeyRightShift:
-			shiftHeld = value != 0
-			continue
-		case evKeyLeftAlt, evKeyRightAlt:
-			altHeld = value != 0
+		}
+		if value != evValPress || m.paused.Load() {
 			continue
 		}
 
-		// Only act on key-press events
-		if value != evValPress {
-			continue
-		}
-
-		if m.paused.Load() {
-			continue
-		}
-
-		m.mu.RLock()
-		for action, combo := range m.bindings {
-			evCode, ok := keyNameToEvKey[combo.Key]
-			if !ok || evCode != code {
-				continue
-			}
-			if combo.Ctrl != ctrlHeld || combo.Shift != shiftHeld || combo.Alt != altHeld {
-				continue
-			}
-			// Match — deliver action non-blocking
-			var pid string
-			if active := m.stateMgr.GetActivePokemon(); active != nil {
-				pid = active.ID
-			}
-			select {
-			case m.actions <- Action{Type: action, PokemonID: pid}:
-			default:
-			}
-		}
-		m.mu.RUnlock()
+		m.matchAndDispatch(code, mods)
 	}
 }

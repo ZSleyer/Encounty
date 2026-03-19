@@ -161,7 +161,7 @@ func TestUpscale3x(t *testing.T) {
 	}
 }
 
-func TestUpscale3x_PreservesContent(t *testing.T) {
+func TestUpscale3xPreservesContent(t *testing.T) {
 	// A single-color image should remain uniform after upscaling
 	c := color.RGBA{42, 42, 42, 255}
 	src := solidImage(5, 5, c)

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent, waitFor } from "../test-utils";
+import { render, screen, makeAppState, makePokemon, userEvent } from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -113,7 +113,7 @@ describe("Dashboard", () => {
   });
 
   it("switches between tabs when clicked", async () => {
-    const user = userEvent.setup();
+    userEvent.setup();
     render(<Dashboard />);
 
     // Get all buttons
@@ -125,7 +125,7 @@ describe("Dashboard", () => {
   });
 
   it("allows clicking on pokemon cards to select them", async () => {
-    const user = userEvent.setup();
+    userEvent.setup();
     const pokemon1 = makePokemon({ id: "p1", name: "TestMon1", is_active: true });
     const pokemon2 = makePokemon({ id: "p2", name: "TestMon2", is_active: false });
 

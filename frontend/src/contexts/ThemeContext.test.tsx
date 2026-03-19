@@ -17,7 +17,7 @@ function ThemeTester() {
 describe("ThemeContext", () => {
   beforeEach(() => {
     localStorage.clear();
-    document.documentElement.removeAttribute("data-theme");
+    delete document.documentElement.dataset.theme;
   });
 
   it("defaults to dark when localStorage is empty", () => {

@@ -76,6 +76,39 @@ func (bd *BrowserDetector) HasTemplates() bool {
 	return len(bd.templates) > 0
 }
 
+// processIdleFrame evaluates templates against a captured frame and updates
+// the consecutive-hit counter. Returns the best score and whether the counter
+// was incremented (match confirmed).
+func (bd *BrowserDetector) processIdleFrame(frame image.Image, precision float64, consecutiveHits, cooldownSec int) (float64, bool) {
+	var bestScore float64
+	for _, lt := range bd.templates {
+		if s := MatchWithRegions(frame, lt, precision, bd.lang); s > bestScore {
+			bestScore = s
+		}
+	}
+
+	above := bestScore >= precision
+
+	if above && !bd.prevAbove {
+		bd.consecCount = 1
+	} else if above && bd.prevAbove {
+		bd.consecCount++
+	} else {
+		bd.consecCount = 0
+	}
+	bd.prevAbove = above
+
+	if bd.consecCount >= consecutiveHits {
+		bd.consecCount = 0
+		bd.prevAbove = false
+		bd.cooldownEnd = time.Now().Add(time.Duration(cooldownSec) * time.Second)
+		bd.phase = stateMatchActive
+		slog.Debug("Detector match confirmed", "cooldown_sec", cooldownSec)
+		return bestScore, true
+	}
+	return bestScore, false
+}
+
 // SubmitFrame runs one iteration of the detection state machine against frame.
 // It is safe to call from multiple goroutines.
 func (bd *BrowserDetector) SubmitFrame(frame image.Image) BrowserMatchResult {
@@ -88,9 +121,6 @@ func (bd *BrowserDetector) SubmitFrame(frame image.Image) BrowserMatchResult {
 	}
 	consecutiveHits := bd.cfg.ConsecutiveHits
 	if consecutiveHits == 0 {
-		// The browser detector uses edge detection (prevAbove tracking) which
-		// prevents re-triggers on sustained high scores, making a single
-		// consecutive hit sufficient for reliable match confirmation.
 		consecutiveHits = 1
 	}
 	cooldownSec := bd.cfg.CooldownSec
@@ -103,32 +133,7 @@ func (bd *BrowserDetector) SubmitFrame(frame image.Image) BrowserMatchResult {
 
 	switch bd.phase {
 	case stateIdle:
-		for _, lt := range bd.templates {
-			if s := MatchWithRegions(frame, lt, precision, bd.lang); s > bestScore {
-				bestScore = s
-			}
-		}
-
-		above := bestScore >= precision
-
-		if above && !bd.prevAbove {
-			bd.consecCount = 1
-		} else if above && bd.prevAbove {
-			bd.consecCount++
-		} else {
-			bd.consecCount = 0
-		}
-
-		bd.prevAbove = above
-
-		if bd.consecCount >= consecutiveHits {
-			bd.consecCount = 0
-			bd.prevAbove = false
-			bd.cooldownEnd = time.Now().Add(time.Duration(cooldownSec) * time.Second)
-			bd.phase = stateMatchActive
-			incremented = true
-			slog.Debug("Detector match confirmed", "cooldown_sec", cooldownSec)
-		}
+		bestScore, incremented = bd.processIdleFrame(frame, precision, consecutiveHits, cooldownSec)
 
 	case stateMatchActive:
 		bd.phase = stateCooldown
@@ -136,7 +141,7 @@ func (bd *BrowserDetector) SubmitFrame(frame image.Image) BrowserMatchResult {
 	case stateCooldown:
 		if time.Now().After(bd.cooldownEnd) {
 			bd.phase = stateIdle
-			bd.prevAbove = true // assume still matching after cooldown to prevent re-trigger
+			bd.prevAbove = true
 			bd.consecCount = 0
 		}
 	}

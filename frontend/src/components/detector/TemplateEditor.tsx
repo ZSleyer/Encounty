@@ -242,7 +242,7 @@ export function TemplateEditor({
 
   const handleRunOCR = async (regionIndex: number) => {
     const region = regions[regionIndex];
-    if (!region || region.type !== "text" || !canvasRef.current) return;
+    if (region?.type !== "text" || !canvasRef.current) return;
 
     // Crop the canvas to the region rect.
     const cropCanvas = document.createElement("canvas");
@@ -311,20 +311,24 @@ export function TemplateEditor({
       </button>
 
       <div className="text-white text-center mb-4 mt-8 shrink-0">
-        <h2 className="text-xl 2xl:text-2xl font-bold mb-1">
-          {isEditMode
+        {(() => {
+          const heading = isEditMode
             ? t("templateEditor.editTitle")
             : phase === "video"
             ? t("templateEditor.step1Title")
-            : t("templateEditor.step2Title")}
-        </h2>
-        <p className="text-sm 2xl:text-base text-gray-400">
-          {isEditMode
+            : t("templateEditor.step2Title");
+          const hint = isEditMode
             ? t("templateEditor.editHint")
             : phase === "video"
             ? t("templateEditor.step1Hint")
-            : t("templateEditor.step2Hint")}
-        </p>
+            : t("templateEditor.step2Hint");
+          return (
+            <>
+              <h2 className="text-xl 2xl:text-2xl font-bold mb-1">{heading}</h2>
+              <p className="text-sm 2xl:text-base text-gray-400">{hint}</p>
+            </>
+          );
+        })()}
       </div>
 
       <div
@@ -388,7 +392,7 @@ export function TemplateEditor({
                   <strong className={r.type === 'text' ? 'text-purple-400' : 'text-accent-blue'}>#{i + 1}</strong>
                   {r.type === 'text' ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" /> : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />}
                   {r.type === 'text' && r.expected_text ? (
-                    <span className="opacity-80 ml-1 truncate max-w-[60px]">"{r.expected_text}"</span>
+                    <span className="opacity-80 ml-1 truncate max-w-15">"{r.expected_text}"</span>
                   ) : null}
                 </div>
               </div>
@@ -419,7 +423,7 @@ export function TemplateEditor({
                 #{i + 1}
               </span>
               <select
-                className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-[100px] 2xl:min-w-[120px]"
+                className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
                 value={r.type}
                 onChange={(e) => updateRegion(i, { type: e.target.value as "image" | "text" })}
               >
@@ -433,7 +437,7 @@ export function TemplateEditor({
                     placeholder={t("templateEditor.expectedText")}
                     value={r.expected_text}
                     onChange={(e) => updateRegion(i, { expected_text: e.target.value })}
-                    className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-[120px] 2xl:min-w-[140px] focus:border-purple-400"
+                    className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-30 2xl:min-w-35 focus:border-purple-400"
                   />
                   <button
                     title="Auto-recognize text (OCR)"

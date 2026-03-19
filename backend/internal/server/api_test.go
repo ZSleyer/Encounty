@@ -23,7 +23,8 @@ func newMockHotkeyMgr() *mockHotkeyMgr {
 }
 
 func (m *mockHotkeyMgr) Start() error                               { return nil }
-func (m *mockHotkeyMgr) Stop()                                      {}
+func (m *mockHotkeyMgr) Stop() { // no-op for test
+}
 func (m *mockHotkeyMgr) SetPaused(paused bool)                      { m.paused = paused }
 func (m *mockHotkeyMgr) UpdateBinding(action, keyCombo string) error { return nil }
 func (m *mockHotkeyMgr) UpdateAllBindings(hm state.HotkeyMap) error  { return nil }
@@ -65,7 +66,7 @@ func TestHandleGetState(t *testing.T) {
 	srv.handleGetState(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var st state.AppState
@@ -86,7 +87,7 @@ func TestHandleAddPokemonValid(t *testing.T) {
 	srv.handleAddPokemon(w, req)
 
 	if w.Code != http.StatusCreated {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusCreated)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusCreated)
 	}
 
 	st := srv.state.GetState()
@@ -110,7 +111,7 @@ func TestHandleAddPokemonInvalidJSON(t *testing.T) {
 	srv.handleAddPokemon(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusBadRequest)
 	}
 }
 
@@ -123,7 +124,7 @@ func TestHandleIncrementValid(t *testing.T) {
 	srv.handleIncrement(w, req, "p1")
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var resp map[string]int
@@ -143,7 +144,7 @@ func TestHandleIncrementNotFound(t *testing.T) {
 	srv.handleIncrement(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -158,7 +159,7 @@ func TestHandleDecrementValid(t *testing.T) {
 	srv.handleDecrement(w, req, "p1")
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var resp map[string]int
@@ -178,7 +179,7 @@ func TestHandleDecrementNotFound(t *testing.T) {
 	srv.handleDecrement(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -192,7 +193,7 @@ func TestHandleResetValid(t *testing.T) {
 	srv.handleReset(w, req, "p1")
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
 	}
 
 	st := srv.state.GetState()
@@ -209,7 +210,7 @@ func TestHandleResetNotFound(t *testing.T) {
 	srv.handleReset(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -223,7 +224,7 @@ func TestHandleActivateValid(t *testing.T) {
 	srv.handleActivate(w, req, "p2")
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
 	}
 
 	st := srv.state.GetState()
@@ -240,7 +241,7 @@ func TestHandleActivateNotFound(t *testing.T) {
 	srv.handleActivate(w, req, "nonexistent")
 
 	if w.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNotFound)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
@@ -252,7 +253,7 @@ func TestHandleVersion(t *testing.T) {
 	srv.handleVersion(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var resp map[string]string
@@ -296,7 +297,7 @@ func TestHandleUpdateSettings(t *testing.T) {
 	srv.handleUpdateSettings(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	st := srv.state.GetState()
@@ -316,7 +317,7 @@ func TestHandleUpdateSettingsInvalidJSON(t *testing.T) {
 	srv.handleUpdateSettings(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusBadRequest)
 	}
 }
 

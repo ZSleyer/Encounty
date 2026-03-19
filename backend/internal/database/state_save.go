@@ -5,6 +5,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/state"
@@ -35,7 +36,64 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 		return fmt.Errorf("upsert app_config: %w", err)
 	}
 
-	// ── 2. hotkeys (singleton) ──────────────────────────────────────────
+	// ── 2. hotkeys ──────────────────────────────────────────────────────
+	if err := saveHotkeyRow(tx, &st.Hotkeys); err != nil {
+		return err
+	}
+
+	// ── 3. settings + languages ─────────────────────────────────────────
+	if err := saveSettingsRow(tx, &st.Settings); err != nil {
+		return err
+	}
+	if err := saveLanguages(tx, st.Settings.Languages); err != nil {
+		return err
+	}
+
+	// ── 4. Global overlay ───────────────────────────────────────────────
+	if err := saveOverlay(tx, &st.Settings.Overlay, "global", "default"); err != nil {
+		return fmt.Errorf("save global overlay: %w", err)
+	}
+
+	// ── 5. pokemon rows + per-pokemon overlays + detector configs ───────
+	pokemonIDs := make([]string, len(st.Pokemon))
+	for i, p := range st.Pokemon {
+		pokemonIDs[i] = p.ID
+	}
+	if err := savePokemonRows(tx, st.Pokemon, pokemonIDs); err != nil {
+		return err
+	}
+	if err := savePokemonOverlays(tx, st.Pokemon, pokemonIDs); err != nil {
+		return err
+	}
+	if err := saveDetectorConfigs(tx, st.Pokemon, pokemonIDs); err != nil {
+		return err
+	}
+
+	// ── 6. detector_templates, template_regions, detection_log ──────────
+	if err := saveDetectorTemplates(tx, st.Pokemon); err != nil {
+		return fmt.Errorf("save detector_templates: %w", err)
+	}
+	if err := saveTemplateRegions(tx, st.Pokemon); err != nil {
+		return fmt.Errorf("save template_regions: %w", err)
+	}
+	if err := saveDetectionLogs(tx, st.Pokemon); err != nil {
+		return fmt.Errorf("save detection_log: %w", err)
+	}
+
+	// ── 7. sessions ─────────────────────────────────────────────────────
+	if err := saveSessions(tx, st.Sessions); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// ---------------------------------------------------------------------------
+// SaveFullState extracted helpers
+// ---------------------------------------------------------------------------
+
+// saveHotkeyRow upserts the singleton hotkeys row.
+func saveHotkeyRow(tx *sql.Tx, h *state.HotkeyMap) error {
 	if _, err := tx.Exec(`
 		INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon)
 		VALUES (1, ?, ?, ?, ?)
@@ -44,13 +102,15 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 			decrement    = excluded.decrement,
 			reset        = excluded.reset,
 			next_pokemon = excluded.next_pokemon`,
-		st.Hotkeys.Increment, st.Hotkeys.Decrement,
-		st.Hotkeys.Reset, st.Hotkeys.NextPokemon,
+		h.Increment, h.Decrement, h.Reset, h.NextPokemon,
 	); err != nil {
 		return fmt.Errorf("upsert hotkeys: %w", err)
 	}
+	return nil
+}
 
-	// ── 3. settings (singleton, TutorialFlags flattened inline) ─────────
+// saveSettingsRow upserts the singleton settings row including tutorial flags.
+func saveSettingsRow(tx *sql.Tx, s *state.Settings) error {
 	if _, err := tx.Exec(`
 		INSERT INTO settings (id, output_enabled, output_dir, auto_save, browser_port,
 			crisp_sprites, config_path, tutorial_overlay_editor, tutorial_auto_detection)
@@ -64,46 +124,42 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 			config_path             = excluded.config_path,
 			tutorial_overlay_editor = excluded.tutorial_overlay_editor,
 			tutorial_auto_detection = excluded.tutorial_auto_detection`,
-		boolToInt(st.Settings.OutputEnabled), st.Settings.OutputDir,
-		boolToInt(st.Settings.AutoSave), st.Settings.BrowserPort,
-		boolToInt(st.Settings.CrispSprites), st.Settings.ConfigPath,
-		boolToInt(st.Settings.TutorialSeen.OverlayEditor),
-		boolToInt(st.Settings.TutorialSeen.AutoDetection),
+		boolToInt(s.OutputEnabled), s.OutputDir,
+		boolToInt(s.AutoSave), s.BrowserPort,
+		boolToInt(s.CrispSprites), s.ConfigPath,
+		boolToInt(s.TutorialSeen.OverlayEditor),
+		boolToInt(s.TutorialSeen.AutoDetection),
 	); err != nil {
 		return fmt.Errorf("upsert settings: %w", err)
 	}
+	return nil
+}
 
-	// ── 4. settings_languages ───────────────────────────────────────────
+// saveLanguages replaces all settings_languages rows with the given ordered list.
+func saveLanguages(tx *sql.Tx, languages []string) error {
 	if _, err := tx.Exec(`DELETE FROM settings_languages`); err != nil {
 		return fmt.Errorf("delete settings_languages: %w", err)
 	}
-	langStmt, err := tx.Prepare(`INSERT INTO settings_languages (language, sort_order) VALUES (?, ?)`)
+	stmt, err := tx.Prepare(`INSERT INTO settings_languages (language, sort_order) VALUES (?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare settings_languages: %w", err)
 	}
-	defer func() { _ = langStmt.Close() }()
-	for i, lang := range st.Settings.Languages {
-		if _, err := langStmt.Exec(lang, i); err != nil {
+	defer func() { _ = stmt.Close() }()
+	for i, lang := range languages {
+		if _, err := stmt.Exec(lang, i); err != nil {
 			return fmt.Errorf("insert language %q: %w", lang, err)
 		}
 	}
+	return nil
+}
 
-	// ── 5. Global overlay ───────────────────────────────────────────────
-	if err := saveOverlay(tx, &st.Settings.Overlay, "global", "default"); err != nil {
-		return fmt.Errorf("save global overlay: %w", err)
-	}
-
-	// ── 6. pokemon — delete removed, upsert existing ────────────────────
-	// Build set of current IDs for cleanup queries.
-	pokemonIDs := make([]string, len(st.Pokemon))
-	for i, p := range st.Pokemon {
-		pokemonIDs[i] = p.ID
-	}
+// savePokemonRows deletes removed pokemon and upserts all current ones.
+func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) error {
 	if err := deleteNotIn(tx, "pokemon", "id", pokemonIDs); err != nil {
 		return fmt.Errorf("delete removed pokemon: %w", err)
 	}
 
-	pokemonStmt, err := tx.Prepare(`
+	stmt, err := tx.Prepare(`
 		INSERT INTO pokemon (id, name, title, canonical_name, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
 			completed_at, overlay_mode, hunt_type, timer_started_at, timer_accumulated_ms, sort_order)
@@ -130,10 +186,10 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err != nil {
 		return fmt.Errorf("prepare pokemon upsert: %w", err)
 	}
-	defer func() { _ = pokemonStmt.Close() }()
+	defer func() { _ = stmt.Close() }()
 
-	for i, p := range st.Pokemon {
-		if _, err := pokemonStmt.Exec(
+	for i, p := range pokemon {
+		if _, err := stmt.Exec(
 			p.ID, p.Name, p.Title, p.CanonicalName, p.SpriteURL, p.SpriteType,
 			p.SpriteStyle, p.Encounters, p.Step, boolToInt(p.IsActive),
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
@@ -143,10 +199,13 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 			return fmt.Errorf("upsert pokemon %q: %w", p.ID, err)
 		}
 	}
+	return nil
+}
 
-	// ── 7. Per-pokemon overlays ─────────────────────────────────────────
-	// Delete overlay_settings for pokemon that no longer have custom overlays.
-	for _, p := range st.Pokemon {
+// savePokemonOverlays syncs per-pokemon overlay_settings, removing stale entries
+// and persisting custom overlays.
+func savePokemonOverlays(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) error {
+	for _, p := range pokemon {
 		if p.Overlay == nil {
 			if _, err := tx.Exec(
 				`DELETE FROM overlay_settings WHERE owner_type = 'pokemon' AND owner_id = ?`, p.ID,
@@ -155,25 +214,25 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 			}
 		}
 	}
-	// Delete overlay_settings for pokemon that were removed entirely.
 	if err := deleteOverlayNotIn(tx, "pokemon", pokemonIDs); err != nil {
 		return fmt.Errorf("delete orphan pokemon overlays: %w", err)
 	}
-	// Save overlays for pokemon that have them.
-	for _, p := range st.Pokemon {
+	for _, p := range pokemon {
 		if p.Overlay != nil {
 			if err := saveOverlay(tx, p.Overlay, "pokemon", p.ID); err != nil {
 				return fmt.Errorf("save overlay for pokemon %q: %w", p.ID, err)
 			}
 		}
 	}
+	return nil
+}
 
-	// ── 8. detector_configs ─────────────────────────────────────────────
-	// Delete configs for removed pokemon.
+// saveDetectorConfigs upserts or deletes detector_configs rows for each pokemon.
+func saveDetectorConfigs(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) error {
 	if err := deleteNotIn(tx, "detector_configs", "pokemon_id", pokemonIDs); err != nil {
 		return fmt.Errorf("delete orphan detector_configs: %w", err)
 	}
-	detCfgStmt, err := tx.Prepare(`
+	stmt, err := tx.Prepare(`
 		INSERT INTO detector_configs (pokemon_id, enabled, source_type,
 			region_x, region_y, region_w, region_h, window_title,
 			precision_val, consecutive_hits, cooldown_sec, change_threshold,
@@ -197,18 +256,17 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err != nil {
 		return fmt.Errorf("prepare detector_configs upsert: %w", err)
 	}
-	defer func() { _ = detCfgStmt.Close() }()
+	defer func() { _ = stmt.Close() }()
 
-	for _, p := range st.Pokemon {
+	for _, p := range pokemon {
 		if p.DetectorConfig == nil {
-			// Delete config row if it existed.
 			if _, err := tx.Exec(`DELETE FROM detector_configs WHERE pokemon_id = ?`, p.ID); err != nil {
 				return fmt.Errorf("delete detector_config for %q: %w", p.ID, err)
 			}
 			continue
 		}
 		cfg := p.DetectorConfig
-		if _, err := detCfgStmt.Exec(
+		if _, err := stmt.Exec(
 			p.ID, boolToInt(cfg.Enabled), cfg.SourceType,
 			cfg.Region.X, cfg.Region.Y, cfg.Region.W, cfg.Region.H,
 			cfg.WindowTitle, cfg.Precision, cfg.ConsecutiveHits,
@@ -218,35 +276,23 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 			return fmt.Errorf("upsert detector_config for %q: %w", p.ID, err)
 		}
 	}
+	return nil
+}
 
-	// ── 9. detector_templates ───────────────────────────────────────────
-	if err := saveDetectorTemplates(tx, st.Pokemon); err != nil {
-		return fmt.Errorf("save detector_templates: %w", err)
-	}
-
-	// ── 10. template_regions ────────────────────────────────────────────
-	if err := saveTemplateRegions(tx, st.Pokemon); err != nil {
-		return fmt.Errorf("save template_regions: %w", err)
-	}
-
-	// ── 11. detection_log ───────────────────────────────────────────────
-	if err := saveDetectionLogs(tx, st.Pokemon); err != nil {
-		return fmt.Errorf("save detection_log: %w", err)
-	}
-
-	// ── 12. sessions ────────────────────────────────────────────────────
+// saveSessions replaces all session rows.
+func saveSessions(tx *sql.Tx, sessions []state.Session) error {
 	if _, err := tx.Exec(`DELETE FROM sessions`); err != nil {
 		return fmt.Errorf("delete sessions: %w", err)
 	}
-	sessStmt, err := tx.Prepare(`
+	stmt, err := tx.Prepare(`
 		INSERT INTO sessions (id, pokemon_id, started_at, ended_at, encounters)
 		VALUES (?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare sessions: %w", err)
 	}
-	defer func() { _ = sessStmt.Close() }()
-	for _, s := range st.Sessions {
-		if _, err := sessStmt.Exec(
+	defer func() { _ = stmt.Close() }()
+	for _, s := range sessions {
+		if _, err := stmt.Exec(
 			s.ID, s.PokemonID,
 			s.StartedAt.UTC().Format(time.RFC3339),
 			nullTimeStr(s.EndedAt),
@@ -255,8 +301,7 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 			return fmt.Errorf("insert session %q: %w", s.ID, err)
 		}
 	}
-
-	return tx.Commit()
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -314,10 +359,18 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 	}
 
 	// Insert sprite element.
-	spriteID, err := insertElement(tx, overlayID, "sprite", &ov.Sprite.OverlayElementBase,
-		boolToInt(ov.Sprite.ShowGlow), ov.Sprite.GlowColor, ov.Sprite.GlowOpacity, ov.Sprite.GlowBlur,
-		ov.Sprite.IdleAnimation, ov.Sprite.TriggerEnter, ov.Sprite.TriggerExit,
-		false, "")
+	spriteID, err := insertElement(tx, elementInsertParams{
+		overlayID:    overlayID,
+		elemType:     "sprite",
+		base:         &ov.Sprite.OverlayElementBase,
+		showGlow:     boolToInt(ov.Sprite.ShowGlow),
+		glowColor:    ov.Sprite.GlowColor,
+		glowOpacity:  ov.Sprite.GlowOpacity,
+		glowBlur:     ov.Sprite.GlowBlur,
+		idleAnim:     ov.Sprite.IdleAnimation,
+		triggerEnter: ov.Sprite.TriggerEnter,
+		triggerExit:  ov.Sprite.TriggerExit,
+	})
 	if err != nil {
 		return fmt.Errorf("insert sprite element: %w", err)
 	}
@@ -325,10 +378,13 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 	_ = spriteID
 
 	// Insert name element with main text style.
-	nameID, err := insertElement(tx, overlayID, "name", &ov.Name.OverlayElementBase,
-		0, "", 0, 0,
-		ov.Name.IdleAnimation, ov.Name.TriggerEnter, "",
-		false, "")
+	nameID, err := insertElement(tx, elementInsertParams{
+		overlayID:    overlayID,
+		elemType:     "name",
+		base:         &ov.Name.OverlayElementBase,
+		idleAnim:     ov.Name.IdleAnimation,
+		triggerEnter: ov.Name.TriggerEnter,
+	})
 	if err != nil {
 		return fmt.Errorf("insert name element: %w", err)
 	}
@@ -337,10 +393,13 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 	}
 
 	// Insert title element with main text style.
-	titleID, err := insertElement(tx, overlayID, "title", &ov.Title.OverlayElementBase,
-		0, "", 0, 0,
-		ov.Title.IdleAnimation, ov.Title.TriggerEnter, "",
-		false, "")
+	titleID, err := insertElement(tx, elementInsertParams{
+		overlayID:    overlayID,
+		elemType:     "title",
+		base:         &ov.Title.OverlayElementBase,
+		idleAnim:     ov.Title.IdleAnimation,
+		triggerEnter: ov.Title.TriggerEnter,
+	})
 	if err != nil {
 		return fmt.Errorf("insert title element: %w", err)
 	}
@@ -349,10 +408,15 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 	}
 
 	// Insert counter element with main + label text styles.
-	counterID, err := insertElement(tx, overlayID, "counter", &ov.Counter.OverlayElementBase,
-		0, "", 0, 0,
-		ov.Counter.IdleAnimation, ov.Counter.TriggerEnter, "",
-		ov.Counter.ShowLabel, ov.Counter.LabelText)
+	counterID, err := insertElement(tx, elementInsertParams{
+		overlayID:    overlayID,
+		elemType:     "counter",
+		base:         &ov.Counter.OverlayElementBase,
+		idleAnim:     ov.Counter.IdleAnimation,
+		triggerEnter: ov.Counter.TriggerEnter,
+		showLabel:    ov.Counter.ShowLabel,
+		labelText:    ov.Counter.LabelText,
+	})
 	if err != nil {
 		return fmt.Errorf("insert counter element: %w", err)
 	}
@@ -366,13 +430,26 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 	return nil
 }
 
+// elementInsertParams groups all columns for an overlay_elements row,
+// keeping the call sites readable and avoiding a 13-parameter function.
+type elementInsertParams struct {
+	overlayID    int64
+	elemType     string
+	base         *state.OverlayElementBase
+	showGlow     int
+	glowColor    string
+	glowOpacity  float64
+	glowBlur     int
+	idleAnim     string
+	triggerEnter string
+	triggerExit  string
+	showLabel    bool
+	labelText    string
+}
+
 // insertElement inserts one overlay_elements row and returns its auto-increment ID.
 // showGlow/glowColor/glowOpacity/glowBlur are nullable and only meaningful for sprite.
-func insertElement(tx *sql.Tx, overlayID int64, elemType string, base *state.OverlayElementBase,
-	showGlow int, glowColor string, glowOpacity float64, glowBlur int,
-	idleAnim, triggerEnter, triggerExit string,
-	showLabel bool, labelText string,
-) (int64, error) {
+func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 	// Use sql.NullInt64/NullString for sprite-only and counter-only fields.
 	var glowShowVal, glowBlurVal sql.NullInt64
 	var glowColorVal sql.NullString
@@ -380,15 +457,15 @@ func insertElement(tx *sql.Tx, overlayID int64, elemType string, base *state.Ove
 	var showLabelVal sql.NullInt64
 	var labelTextVal sql.NullString
 
-	if elemType == "sprite" {
-		glowShowVal = sql.NullInt64{Int64: int64(showGlow), Valid: true}
-		glowColorVal = sql.NullString{String: glowColor, Valid: true}
-		glowOpacityVal = sql.NullFloat64{Float64: glowOpacity, Valid: true}
-		glowBlurVal = sql.NullInt64{Int64: int64(glowBlur), Valid: true}
+	if p.elemType == "sprite" {
+		glowShowVal = sql.NullInt64{Int64: int64(p.showGlow), Valid: true}
+		glowColorVal = sql.NullString{String: p.glowColor, Valid: true}
+		glowOpacityVal = sql.NullFloat64{Float64: p.glowOpacity, Valid: true}
+		glowBlurVal = sql.NullInt64{Int64: int64(p.glowBlur), Valid: true}
 	}
-	if elemType == "counter" {
-		showLabelVal = sql.NullInt64{Int64: int64(boolToInt(showLabel)), Valid: true}
-		labelTextVal = sql.NullString{String: labelText, Valid: true}
+	if p.elemType == "counter" {
+		showLabelVal = sql.NullInt64{Int64: int64(boolToInt(p.showLabel)), Valid: true}
+		labelTextVal = sql.NullString{String: p.labelText, Valid: true}
 	}
 
 	res, err := tx.Exec(`
@@ -396,9 +473,9 @@ func insertElement(tx *sql.Tx, overlayID int64, elemType string, base *state.Ove
 			z_index, show_glow, glow_color, glow_opacity, glow_blur,
 			idle_animation, trigger_enter, trigger_exit, show_label, label_text)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		overlayID, elemType, boolToInt(base.Visible), base.X, base.Y, base.Width, base.Height,
-		base.ZIndex, glowShowVal, glowColorVal, glowOpacityVal, glowBlurVal,
-		idleAnim, triggerEnter, triggerExit, showLabelVal, labelTextVal,
+		p.overlayID, p.elemType, boolToInt(p.base.Visible), p.base.X, p.base.Y, p.base.Width, p.base.Height,
+		p.base.ZIndex, glowShowVal, glowColorVal, glowOpacityVal, glowBlurVal,
+		p.idleAnim, p.triggerEnter, p.triggerExit, showLabelVal, labelTextVal,
 	)
 	if err != nil {
 		return 0, err
@@ -468,40 +545,49 @@ func insertGradientStops(tx *sql.Tx, styleID int64, gradientType string, stops [
 
 // saveDetectorTemplates handles upsert/insert/delete logic for detector_templates.
 func saveDetectorTemplates(tx *sql.Tx, pokemon []state.Pokemon) error {
-	// Collect all referenced template DB IDs to know which to keep.
-	referencedIDs := map[int64]bool{}
+	referencedIDs, err := upsertDetectorTemplates(tx, pokemon)
+	if err != nil {
+		return err
+	}
+	return deleteUnreferencedTemplates(tx, referencedIDs)
+}
 
+// upsertDetectorTemplates updates existing templates and inserts new ones,
+// returning the set of DB IDs that are still in use.
+func upsertDetectorTemplates(tx *sql.Tx, pokemon []state.Pokemon) (map[int64]bool, error) {
+	referencedIDs := map[int64]bool{}
 	for _, p := range pokemon {
 		if p.DetectorConfig == nil {
 			continue
 		}
 		for sortOrder, tmpl := range p.DetectorConfig.Templates {
 			if tmpl.TemplateDBID > 0 {
-				// Existing template: update sort_order only (image_data managed separately).
 				if _, err := tx.Exec(
 					`UPDATE detector_templates SET sort_order = ? WHERE id = ?`,
 					sortOrder, tmpl.TemplateDBID,
 				); err != nil {
-					return fmt.Errorf("update template sort_order %d: %w", tmpl.TemplateDBID, err)
+					return nil, fmt.Errorf("update template sort_order %d: %w", tmpl.TemplateDBID, err)
 				}
 				referencedIDs[tmpl.TemplateDBID] = true
 			} else if tmpl.ImageData != nil {
-				// New template with image data: insert with BLOB.
 				res, err := tx.Exec(
 					`INSERT INTO detector_templates (pokemon_id, image_data, sort_order) VALUES (?, ?, ?)`,
 					p.ID, tmpl.ImageData, sortOrder,
 				)
 				if err != nil {
-					return fmt.Errorf("insert new template for %q: %w", p.ID, err)
+					return nil, fmt.Errorf("insert new template for %q: %w", p.ID, err)
 				}
 				newID, _ := res.LastInsertId()
 				referencedIDs[newID] = true
 			}
-			// If TemplateDBID == 0 && ImagePath != "": legacy, skip (handled by migration).
 		}
 	}
+	return referencedIDs, nil
+}
 
-	// Delete templates no longer referenced. Query all existing IDs and remove unreferenced ones.
+// deleteUnreferencedTemplates removes detector_templates rows whose IDs are
+// not in the referencedIDs set.
+func deleteUnreferencedTemplates(tx *sql.Tx, referencedIDs map[int64]bool) error {
 	rows, err := tx.Query(`SELECT id FROM detector_templates`)
 	if err != nil {
 		return fmt.Errorf("query detector_templates: %w", err)
@@ -530,48 +616,45 @@ func saveDetectorTemplates(tx *sql.Tx, pokemon []state.Pokemon) error {
 
 // saveTemplateRegions replaces all template_regions for every template.
 func saveTemplateRegions(tx *sql.Tx, pokemon []state.Pokemon) error {
+	if err := saveExistingTemplateRegions(tx, pokemon); err != nil {
+		return err
+	}
+	return saveNewTemplateRegions(tx, pokemon)
+}
+
+// saveExistingTemplateRegions replaces regions for templates that already
+// have a database ID (TemplateDBID > 0).
+func saveExistingTemplateRegions(tx *sql.Tx, pokemon []state.Pokemon) error {
 	for _, p := range pokemon {
 		if p.DetectorConfig == nil {
 			continue
 		}
 		for _, tmpl := range p.DetectorConfig.Templates {
 			if tmpl.TemplateDBID <= 0 {
-				// New templates were just inserted; we need their IDs.
-				// Since new templates got inserted in saveDetectorTemplates, we cannot
-				// easily link back without the returned ID. For new templates the regions
-				// are saved by looking up templates by (pokemon_id, sort_order).
 				continue
 			}
-			// Delete old regions for this template.
 			if _, err := tx.Exec(`DELETE FROM template_regions WHERE template_id = ?`, tmpl.TemplateDBID); err != nil {
 				return fmt.Errorf("delete regions for template %d: %w", tmpl.TemplateDBID, err)
 			}
-			// Insert new regions.
-			for i, r := range tmpl.Regions {
-				if _, err := tx.Exec(`
-					INSERT INTO template_regions (template_id, type, expected_text,
-						rect_x, rect_y, rect_w, rect_h, sort_order)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-					tmpl.TemplateDBID, r.Type, r.ExpectedText,
-					r.Rect.X, r.Rect.Y, r.Rect.W, r.Rect.H, i,
-				); err != nil {
-					return fmt.Errorf("insert region for template %d: %w", tmpl.TemplateDBID, err)
-				}
+			if err := insertRegions(tx, tmpl.TemplateDBID, tmpl.Regions); err != nil {
+				return err
 			}
 		}
 	}
+	return nil
+}
 
-	// Also handle regions for newly inserted templates (TemplateDBID was 0).
-	// Look them up by pokemon_id and sort_order.
+// saveNewTemplateRegions handles regions for newly inserted templates
+// (TemplateDBID was 0) by looking them up via pokemon_id + sort_order.
+func saveNewTemplateRegions(tx *sql.Tx, pokemon []state.Pokemon) error {
 	for _, p := range pokemon {
 		if p.DetectorConfig == nil {
 			continue
 		}
 		for sortOrder, tmpl := range p.DetectorConfig.Templates {
 			if tmpl.TemplateDBID > 0 || tmpl.ImageData == nil {
-				continue // Already handled above, or legacy path.
+				continue
 			}
-			// Find the newly inserted template by pokemon_id + sort_order.
 			var newID int64
 			err := tx.QueryRow(
 				`SELECT id FROM detector_templates WHERE pokemon_id = ? AND sort_order = ?`,
@@ -580,17 +663,25 @@ func saveTemplateRegions(tx *sql.Tx, pokemon []state.Pokemon) error {
 			if err != nil {
 				return fmt.Errorf("find new template for %q sort %d: %w", p.ID, sortOrder, err)
 			}
-			for i, r := range tmpl.Regions {
-				if _, err := tx.Exec(`
-					INSERT INTO template_regions (template_id, type, expected_text,
-						rect_x, rect_y, rect_w, rect_h, sort_order)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-					newID, r.Type, r.ExpectedText,
-					r.Rect.X, r.Rect.Y, r.Rect.W, r.Rect.H, i,
-				); err != nil {
-					return fmt.Errorf("insert region for new template %d: %w", newID, err)
-				}
+			if err := insertRegions(tx, newID, tmpl.Regions); err != nil {
+				return err
 			}
+		}
+	}
+	return nil
+}
+
+// insertRegions inserts a slice of MatchedRegion rows for a given template ID.
+func insertRegions(tx *sql.Tx, templateID int64, regions []state.MatchedRegion) error {
+	for i, r := range regions {
+		if _, err := tx.Exec(`
+			INSERT INTO template_regions (template_id, type, expected_text,
+				rect_x, rect_y, rect_w, rect_h, sort_order)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			templateID, r.Type, r.ExpectedText,
+			r.Rect.X, r.Rect.Y, r.Rect.W, r.Rect.H, i,
+		); err != nil {
+			return fmt.Errorf("insert region for template %d: %w", templateID, err)
 		}
 	}
 	return nil
@@ -599,39 +690,48 @@ func saveTemplateRegions(tx *sql.Tx, pokemon []state.Pokemon) error {
 // saveDetectionLogs syncs detection_log entries for each pokemon with a detector config.
 // Entries are capped at 20 per pokemon.
 func saveDetectionLogs(tx *sql.Tx, pokemon []state.Pokemon) error {
-	// Collect pokemon IDs that have detector configs.
-	cfgIDs := make([]string, 0, len(pokemon))
-	for _, p := range pokemon {
-		if p.DetectorConfig != nil {
-			cfgIDs = append(cfgIDs, p.ID)
-		}
-	}
-
-	// Delete all detection_log for pokemon that no longer have configs.
+	cfgIDs := collectDetectorPokemonIDs(pokemon)
 	if err := deleteNotIn(tx, "detection_log", "pokemon_id", cfgIDs); err != nil {
 		return fmt.Errorf("delete orphan detection_log: %w", err)
 	}
-
 	for _, p := range pokemon {
 		if p.DetectorConfig == nil {
 			continue
 		}
-		// Delete existing log entries for this pokemon and re-insert.
-		if _, err := tx.Exec(`DELETE FROM detection_log WHERE pokemon_id = ?`, p.ID); err != nil {
-			return fmt.Errorf("delete detection_log for %q: %w", p.ID, err)
+		if err := replacePokemonDetectionLog(tx, p); err != nil {
+			return err
 		}
-		// Cap at 20 entries (take last 20).
-		entries := p.DetectorConfig.DetectionLog
-		if len(entries) > 20 {
-			entries = entries[len(entries)-20:]
+	}
+	return nil
+}
+
+// collectDetectorPokemonIDs returns the IDs of Pokemon that have a DetectorConfig.
+func collectDetectorPokemonIDs(pokemon []state.Pokemon) []string {
+	ids := make([]string, 0, len(pokemon))
+	for _, p := range pokemon {
+		if p.DetectorConfig != nil {
+			ids = append(ids, p.ID)
 		}
-		for _, e := range entries {
-			if _, err := tx.Exec(
-				`INSERT INTO detection_log (pokemon_id, at, confidence) VALUES (?, ?, ?)`,
-				p.ID, e.At.UTC().Format(time.RFC3339), e.Confidence,
-			); err != nil {
-				return fmt.Errorf("insert detection_log for %q: %w", p.ID, err)
-			}
+	}
+	return ids
+}
+
+// replacePokemonDetectionLog deletes and re-inserts detection_log entries
+// for a single Pokemon, capped at 20 entries.
+func replacePokemonDetectionLog(tx *sql.Tx, p state.Pokemon) error {
+	if _, err := tx.Exec(`DELETE FROM detection_log WHERE pokemon_id = ?`, p.ID); err != nil {
+		return fmt.Errorf("delete detection_log for %q: %w", p.ID, err)
+	}
+	entries := p.DetectorConfig.DetectionLog
+	if len(entries) > 20 {
+		entries = entries[len(entries)-20:]
+	}
+	for _, e := range entries {
+		if _, err := tx.Exec(
+			`INSERT INTO detection_log (pokemon_id, at, confidence) VALUES (?, ?, ?)`,
+			p.ID, e.At.UTC().Format(time.RFC3339), e.Confidence,
+		); err != nil {
+			return fmt.Errorf("insert detection_log for %q: %w", p.ID, err)
 		}
 	}
 	return nil
@@ -665,16 +765,7 @@ func deleteNotIn(tx *sql.Tx, table, column string, values []string) error {
 		_, err := tx.Exec(fmt.Sprintf("DELETE FROM %s", table))
 		return err
 	}
-	// Build placeholder list and args.
-	placeholders := ""
-	args := make([]interface{}, len(values))
-	for i, v := range values {
-		if i > 0 {
-			placeholders += ", "
-		}
-		placeholders += "?"
-		args[i] = v
-	}
+	placeholders, args := buildPlaceholders(values)
 	query := fmt.Sprintf("DELETE FROM %s WHERE %s NOT IN (%s)", table, column, placeholders)
 	_, err := tx.Exec(query, args...)
 	return err
@@ -687,19 +778,29 @@ func deleteOverlayNotIn(tx *sql.Tx, ownerType string, allowedIDs []string) error
 		_, err := tx.Exec(`DELETE FROM overlay_settings WHERE owner_type = ?`, ownerType)
 		return err
 	}
-	placeholders := ""
-	args := []interface{}{ownerType}
-	for i, id := range allowedIDs {
-		if i > 0 {
-			placeholders += ", "
-		}
-		placeholders += "?"
-		args = append(args, id)
-	}
+	placeholders, idArgs := buildPlaceholders(allowedIDs)
+	args := make([]any, 0, 1+len(idArgs))
+	args = append(args, ownerType)
+	args = append(args, idArgs...)
 	query := fmt.Sprintf(
 		"DELETE FROM overlay_settings WHERE owner_type = ? AND owner_id NOT IN (%s)",
 		placeholders,
 	)
 	_, err := tx.Exec(query, args...)
 	return err
+}
+
+// buildPlaceholders constructs a comma-separated "?, ?, ?" placeholder string
+// and a corresponding []any argument slice from string values.
+func buildPlaceholders(values []string) (string, []any) {
+	var b strings.Builder
+	args := make([]any, len(values))
+	for i, v := range values {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteByte('?')
+		args[i] = v
+	}
+	return b.String(), args
 }

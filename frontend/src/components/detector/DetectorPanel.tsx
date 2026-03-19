@@ -29,7 +29,7 @@ const DEFAULT_CONFIG: DetectorConfig = {
   region: { x: 0, y: 0, w: 0, h: 0 },
   window_title: "",
   templates: [],
-  precision: 0.80,
+  precision: 0.8,
   consecutive_hits: 1,
   cooldown_sec: 8,
   change_threshold: 0.15,
@@ -511,10 +511,8 @@ export function DetectorPanel({
         <div
           data-detector-tutorial="controls"
           className={`flex items-center gap-3 rounded-xl px-4 py-3 shadow-sm transition-colors bg-bg-card border ${
-          showAsRunning
-            ? detectorState === "match_active"
-              ? "border-green-500/30"
-              : "border-border-subtle"
+          showAsRunning && detectorState === "match_active"
+            ? "border-green-500/30"
             : "border-border-subtle"
         }`}>
           {/* Status indicator */}
@@ -527,8 +525,8 @@ export function DetectorPanel({
               {isStarting
                 ? t("detector.starting")
                 : isRunning
-                  ? stateLabel(detectorState, isRunning, t)
-                  : t("detector.stopped")}
+                ? stateLabel(detectorState, isRunning, t)
+                : t("detector.stopped")}
             </span>
           </div>
 
@@ -540,15 +538,13 @@ export function DetectorPanel({
               if (!isRunning && !canStart) return isCapturing ? t("detector.errNoTemplates") : t("detector.errNoStream");
               return isRunning ? t("detector.tooltipStop") : t("detector.tooltipStart");
             })()}
-            className={`px-5 py-1.5 2xl:px-6 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-bold transition-colors border shrink-0 flex items-center gap-1.5 ${
-              isRunning
-                ? "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"
-                : isStarting
-                  ? "bg-accent-blue/50 border-accent-blue/50 text-white cursor-wait"
-                  : canStart
-                    ? "bg-accent-blue border-accent-blue text-white hover:bg-accent-blue/90"
-                    : "bg-bg-hover border-border-subtle text-text-muted cursor-not-allowed opacity-60"
-            }`}
+            className={(() => {
+              const base = "px-5 py-1.5 2xl:px-6 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-bold transition-colors border shrink-0 flex items-center gap-1.5";
+              if (isRunning) return `${base} bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20`;
+              if (isStarting) return `${base} bg-accent-blue/50 border-accent-blue/50 text-white cursor-wait`;
+              if (canStart) return `${base} bg-accent-blue border-accent-blue text-white hover:bg-accent-blue/90`;
+              return `${base} bg-bg-hover border-border-subtle text-text-muted cursor-not-allowed opacity-60`;
+            })()}
           >
             {isStarting && <Loader2 className="w-3 h-3 animate-spin" />}
             {isRunning ? t("detector.stop") : t("detector.start")}

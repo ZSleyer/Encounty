@@ -49,7 +49,7 @@ export function wouldCreateCircularLink(
     if (seen.has(current)) return true;
     seen.add(current);
     const p = allPokemon.find((x) => x.id === current);
-    if (!p || !p.overlay_mode?.startsWith("linked:")) break;
+    if (!p?.overlay_mode?.startsWith("linked:")) break;
     current = p.overlay_mode.slice(7);
   }
   return false;

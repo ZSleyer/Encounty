@@ -125,7 +125,7 @@ function AppShell() {
   const { t } = useI18n();
   const { push: pushToast } = useToast();
 
-  const [restarting, setRestarting] = useState(false);
+  const [restarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
   const [buildInfo, setBuildInfo] = useState("Encounty");
   const [updateInfo, setUpdateInfo] = useState<{
@@ -411,7 +411,7 @@ function AppShell() {
     <div className="flex flex-col h-screen bg-transparent text-text-primary overflow-hidden relative">
       {/* Close-tab warning modal */}
       {showCloseWarning && (
-        <div className="fixed inset-0 z-[95] bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+        <div className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
           <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
             <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />
@@ -440,7 +440,7 @@ function AppShell() {
 
       {updateState !== "idle" && updateInfo && (
         <UpdateOverlay
-          updateState={updateState as "installing" | "restarting"}
+          updateState={updateState}
           version={updateInfo.latest_version}
         />
       )}
@@ -536,39 +536,38 @@ function AppShell() {
 
           {/* Center: WS connection + Stats */}
           <div className="flex items-center justify-center gap-3">
+            {(() => {
+              const isConnecting = !isConnected && appState === null;
+              const statusColorClass = isConnected
+                ? "text-text-faint"
+                : isConnecting
+                  ? "text-amber-400/70"
+                  : "text-accent-red/70";
+              const statusTitle = isConnected
+                ? t("nav.connected")
+                : isConnecting
+                  ? t("nav.connecting")
+                  : t("nav.disconnected");
+              const dotClass = isConnected
+                ? "bg-accent-green/60"
+                : isConnecting
+                  ? "bg-amber-400/70"
+                  : "bg-accent-red/70";
+
+              return (
             <div
-              className={`flex items-center gap-1.5 transition-colors duration-300 ${
-                isConnected
-                  ? "text-text-faint"
-                  : !isConnected && appState === null
-                    ? "text-amber-400/70"
-                    : "text-accent-red/70"
-              }`}
-              title={
-                isConnected
-                  ? t("nav.connected")
-                  : appState === null
-                    ? t("nav.connecting")
-                    : t("nav.disconnected")
-              }
+              className={`flex items-center gap-1.5 transition-colors duration-300 ${statusColorClass}`}
+              title={statusTitle}
             >
               <div
-                className={`w-1.5 h-1.5 2xl:w-2 2xl:h-2 rounded-full shrink-0 ${
-                  isConnected
-                    ? "bg-accent-green/60"
-                    : appState === null
-                      ? "bg-amber-400/70"
-                      : "bg-accent-red/70"
-                }`}
+                className={`w-1.5 h-1.5 2xl:w-2 2xl:h-2 rounded-full shrink-0 ${dotClass}`}
               />
               <span className="font-medium tracking-wide">
-                {isConnected
-                  ? t("nav.connected")
-                  : appState === null
-                    ? t("nav.connecting")
-                    : t("nav.disconnected")}
+                {statusTitle}
               </span>
             </div>
+              );
+            })()}
             {appState && appState.pokemon.length > 0 && (
               <>
                 <span className="text-text-faint/30">|</span>

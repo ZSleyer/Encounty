@@ -214,7 +214,7 @@ export function ColorPickerModal({
 
   // Hex input handler
   const handleHexChange = (val: string) => {
-    const cleaned = val.replace(/[^0-9a-fA-F]/g, "").slice(0, 6);
+    const cleaned = val.replaceAll(/[^0-9a-fA-F]/g, "").slice(0, 6);
     setHexInput(cleaned.toUpperCase());
     if (cleaned.length === 6) {
       const [nh, ns, nv] = hexToHsv("#" + cleaned);

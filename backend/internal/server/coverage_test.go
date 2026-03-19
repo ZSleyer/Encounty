@@ -206,11 +206,11 @@ func TestRestoreWithBothFiles(t *testing.T) {
 
 // --- readPokedexJSON coverage ---
 
-// TestReadPokedexJSON_EmbeddedFS exercises the frontendFS fallback path.
+// TestReadPokedexJSONEmbeddedFS exercises the frontendFS fallback path.
 // Note: The source-dir fallback (via runtime.Caller) may succeed before
 // the embedded FS is checked, depending on the test environment. We verify
 // that the function returns valid JSON without panicking.
-func TestReadPokedexJSON_EmbeddedFS(t *testing.T) {
+func TestReadPokedexJSONEmbeddedFS(t *testing.T) {
 	srv := newTestServer(t)
 	// Set a frontendFS with a pokemon.json file
 	srv.frontendFS = fstest.MapFS{
@@ -231,9 +231,9 @@ func TestReadPokedexJSON_EmbeddedFS(t *testing.T) {
 	}
 }
 
-// TestReadPokedexJSON_AllFallbacksFail exercises the error return when
+// TestReadPokedexJSONAllFallbacksFail exercises the error return when
 // no pokemon.json is found anywhere.
-func TestReadPokedexJSON_AllFallbacksFail(t *testing.T) {
+func TestReadPokedexJSONAllFallbacksFail(t *testing.T) {
 	// Use a completely empty server with no frontendFS and a temp config dir
 	// that has no pokemon.json. The source-dir and cwd fallbacks may or may
 	// not succeed depending on the test environment, but we verify no panic.
@@ -250,9 +250,9 @@ func TestReadPokedexJSON_AllFallbacksFail(t *testing.T) {
 	_ = err
 }
 
-// TestHandleGetPokedex_Error exercises the error path where readPokedexJSON
+// TestHandleGetPokedexError exercises the error path where readPokedexJSON
 // returns an error.
-func TestHandleGetPokedex_Error(t *testing.T) {
+func TestHandleGetPokedexError(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 	srv := &Server{
@@ -276,10 +276,10 @@ func TestHandleGetPokedex_Error(t *testing.T) {
 
 // --- writePump coverage: channel close path ---
 
-// TestWritePump_ChannelClose exercises the channel-close path in writePump
+// TestWritePumpChannelClose exercises the channel-close path in writePump
 // where the send channel is closed, causing the range loop to end and a
 // close frame to be sent.
-func TestWritePump_ChannelClose(t *testing.T) {
+func TestWritePumpChannelClose(t *testing.T) {
 	srv := newTestServer(t)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
@@ -345,7 +345,8 @@ func TestHandleDeletePokemonWithDetectorMgr(t *testing.T) {
 
 	// Create a real detector manager
 	stateMgr := srv.state
-	broadcast := func(msgType string, payload any) {}
+	broadcast := func(msgType string, payload any) { // no-op for test
+	}
 	tmpDir := stateMgr.GetConfigDir()
 	srv.detectorMgr = detector.NewManager(stateMgr, broadcast, tmpDir)
 
@@ -354,7 +355,7 @@ func TestHandleDeletePokemonWithDetectorMgr(t *testing.T) {
 	srv.handleDeletePokemon(w, req, "p1")
 
 	if w.Code != http.StatusNoContent {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusNoContent)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
 	}
 
 	st := srv.state.GetState()
@@ -374,7 +375,7 @@ func TestHandleUpdateApplyWithURL(t *testing.T) {
 	srv.handleUpdateApply(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 
 	var resp map[string]string
@@ -388,9 +389,9 @@ func TestHandleUpdateApplyWithURL(t *testing.T) {
 
 // --- BroadcastRaw error path ---
 
-// TestBroadcastRaw_MarshalError exercises the BroadcastRaw error path where
+// TestBroadcastRawMarshalError exercises the BroadcastRaw error path where
 // the payload cannot be marshalled.
-func TestBroadcastRaw_MarshalError(t *testing.T) {
+func TestBroadcastRawMarshalError(t *testing.T) {
 	h := NewHub()
 	c := &wsClient{send: make(chan []byte, sendBufSize)}
 	h.mu.Lock()
@@ -410,7 +411,7 @@ func TestBroadcastRaw_MarshalError(t *testing.T) {
 
 // --- readPokedexJSON embedded FS with error ---
 
-func TestReadPokedexJSON_EmbeddedFSOpenError(t *testing.T) {
+func TestReadPokedexJSONEmbeddedFSOpenError(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 	srv := &Server{
@@ -431,7 +432,7 @@ func TestReadPokedexJSON_EmbeddedFSOpenError(t *testing.T) {
 
 // --- Broadcast error path (marshal error in Broadcast) ---
 
-func TestBroadcast_MarshalError(t *testing.T) {
+func TestBroadcastMarshalError(t *testing.T) {
 	h := NewHub()
 	// Invalid payload that cannot be marshalled
 	h.Broadcast(WSMessage{Type: "test", Payload: json.RawMessage(`invalid`)})
@@ -451,7 +452,7 @@ func TestHandleUpdateSettingsFileWriterConfig(t *testing.T) {
 	srv.handleUpdateSettings(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 	st := srv.state.GetState()
 	if st.Settings.BrowserPort != 8888 {
@@ -461,8 +462,8 @@ func TestHandleUpdateSettingsFileWriterConfig(t *testing.T) {
 
 // --- SPA handler with frontendFS in registerRoutes ---
 
-// TestRegisterRoutes_WithFrontendFS exercises the path where frontendFS is set.
-func TestRegisterRoutes_WithFrontendFS(t *testing.T) {
+// TestRegisterRoutesWithFrontendFS exercises the path where frontendFS is set.
+func TestRegisterRoutesWithFrontendFS(t *testing.T) {
 	srv := newTestServer(t)
 	srv.frontendFS = fstest.MapFS{
 		"frontend/dist/index.html":   &fstest.MapFile{Data: []byte("<html>SPA</html>")},
@@ -481,7 +482,7 @@ func TestRegisterRoutes_WithFrontendFS(t *testing.T) {
 
 // --- handleGetPokedex with frontendFS containing embedded FS ---
 
-func TestReadPokedexJSON_EmbeddedFSIOError(t *testing.T) {
+func TestReadPokedexJSONEmbeddedFSIOError(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 
@@ -559,7 +560,8 @@ func TestHandleUpdateSingleHotkeyBindingError(t *testing.T) {
 func TestShutdownWithDetectorMgr(t *testing.T) {
 	stateMgr := state.NewManager(t.TempDir())
 	hkMgr := newMockHotkeyMgr()
-	detMgr := detector.NewManager(stateMgr, func(string, any) {}, t.TempDir())
+	detMgr := detector.NewManager(stateMgr, func(string, any) { // no-op for test
+	}, t.TempDir())
 
 	srv := New(Config{
 		Port:        0,

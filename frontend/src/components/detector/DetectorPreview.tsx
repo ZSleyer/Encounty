@@ -76,7 +76,7 @@ export function DetectorPreview({
             ) : (
               <>
                 {capture.getSourceLabel(pokemon.id) && (
-                  <span className="text-[11px] text-text-muted truncate max-w-[140px]" title={capture.getSourceLabel(pokemon.id) ?? ""}>
+                  <span className="text-[11px] text-text-muted truncate max-w-35" title={capture.getSourceLabel(pokemon.id) ?? ""}>
                     {capture.getSourceLabel(pokemon.id)}
                   </span>
                 )}

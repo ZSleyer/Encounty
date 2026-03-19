@@ -69,9 +69,9 @@ export function AddPokemonModal({
   const { t } = useI18n();
 
   const [language, setLanguage] = useState<Language>(
-    (activeLanguages.includes("de")
+    activeLanguages.includes("de")
       ? "de"
-      : (activeLanguages[0] ?? "en")) as Language,
+      : activeLanguages[0] ?? "en",
   );
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
@@ -273,7 +273,7 @@ export function AddPokemonModal({
           <button
             key={lang}
             onClick={() => {
-              setLanguage(lang as Language);
+              setLanguage(lang);
               if (selected) {
                 const searchList = buildSearchList(allPokemon);
                 const fullP = searchList.find(
@@ -381,13 +381,14 @@ export function AddPokemonModal({
                     ? s.desc
                     : `${t("modal.notAvailable")} ${selectedGameGen}`
                 }
-                className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border ${
-                  available
-                    ? spriteStyle === s.key
-                      ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                      : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
-                    : "bg-bg-primary/50 text-text-faint border-border-subtle/50 cursor-not-allowed opacity-40"
-                }`}
+                className={(() => {
+                  const base = "flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border";
+                  if (!available) return `${base} bg-bg-primary/50 text-text-faint border-border-subtle/50 cursor-not-allowed opacity-40`;
+                  const isActive = spriteStyle === s.key;
+                  return isActive
+                    ? `${base} bg-accent-blue/10 text-accent-blue border-accent-blue/30`
+                    : `${base} bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary`;
+                })()}
               >
                 <span className="text-sm">{s.label}</span>
                 <span className="text-[10px] text-text-faint leading-tight text-center">

@@ -1,8 +1,8 @@
 import { app, BrowserWindow, Menu, session, desktopCapturer, ipcMain, shell, systemPreferences } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { GoProcessManager } from './process-manager';
-import path from 'path';
-import fs from 'fs';
+import path from 'node:path';
+import fs from 'node:fs';
 
 const isWayland = process.platform === 'linux' &&
   (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
@@ -41,7 +41,7 @@ function saveBounds(): void {
   const maximized = mainWindow.isMaximized();
   // Store the restored (non-maximized) bounds so the window doesn't
   // permanently stick to full-screen dimensions after a restart.
-  const bounds = maximized ? (mainWindow as BrowserWindow).getNormalBounds() : mainWindow.getBounds();
+  const bounds = maximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
   const data: WindowBounds = { ...bounds, maximized };
   try {
     fs.writeFileSync(boundsFile, JSON.stringify(data));
@@ -268,15 +268,15 @@ ipcMain.handle('camera:request-access', async (): Promise<boolean> => {
 
 // Single-instance lock — prevent multiple app windows
 const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
-  app.quit();
-} else {
+if (gotTheLock) {
   app.on('second-instance', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
     }
   });
+} else {
+  app.quit();
 }
 
 // Prevent Chromium from throttling timers when the window is minimized,

@@ -121,6 +121,12 @@ func fetchAPIJSON(url string, v any) error {
 	return json.Unmarshal(body, v)
 }
 
+// vgInfo caches the generation number and platform for a version-group.
+type vgInfo struct {
+	gen      int
+	platform string
+}
+
 // SyncGamesFromPokeAPI fetches all game versions from the PokéAPI and merges
 // new or missing-language entries into the on-disk games.json.
 func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
@@ -142,97 +148,14 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 		return result, fmt.Errorf("fetch version list: %w", err)
 	}
 
-	// Version-group cache (generation + platform).
-	type vgInfo struct {
-		gen      int
-		platform string
-	}
+	// 3. Process each version, resolving generation info and localised names.
 	vgCache := map[string]vgInfo{}
-
 	for _, v := range vList.Results {
 		if syncSkip[v.Name] {
 			continue
 		}
-		ourKey := "pokemon-" + v.Name
-
-		// Fetch version detail (names + version-group reference).
-		var detail apiVersion
-		if err := fetchAPIJSON(v.URL, &detail); err != nil {
+		if err := processVersion(v.Name, v.URL, raw, vgCache, &result); err != nil {
 			slog.Debug("SyncGames: skipping version", "name", v.Name, "error", err)
-			continue
-		}
-		time.Sleep(60 * time.Millisecond) // be polite to PokeAPI
-
-		// Resolve version-group → generation + platform (cached).
-		vgName := detail.VersionGroup.Name
-		if _, ok := vgCache[vgName]; !ok {
-			var vg apiVersionGroup
-			if err := fetchAPIJSON(pokeAPIBase+"/version-group/"+vgName+"/", &vg); err == nil {
-				gen := syncGenNumber[vg.Generation.Name]
-				platform := syncGenPlatform[gen]
-				if ov, ok := syncVGPlatform[vgName]; ok {
-					platform = ov
-				}
-				if platform == "" {
-					platform = "Switch"
-				}
-				vgCache[vgName] = vgInfo{gen, platform}
-			}
-			time.Sleep(60 * time.Millisecond)
-		}
-		info := vgCache[vgName]
-
-		// Build localised name map from API data.
-		apiNames := make(map[string]string)
-		for _, n := range detail.Names {
-			lp, ok := syncLangPrefix[n.Language.Name]
-			if !ok || n.Name == "" {
-				continue
-			}
-			name := n.Name
-			// Only add the prefix when the name doesn't already start with a
-			// known franchise brand (some newer entries include it already).
-			franchisePrefixes := []string{
-				"Pokémon", "ポケットモンスター", "宝可梦", "寶可夢", "포켓몬스터",
-			}
-			needsPrefix := true
-			for _, fp := range franchisePrefixes {
-				if strings.HasPrefix(name, fp) {
-					needsPrefix = false
-					break
-				}
-			}
-			if needsPrefix {
-				name = lp.prefix + name
-			}
-			apiNames[lp.code] = name
-		}
-
-		if existing, exists := raw[ourKey]; exists {
-			// Existing game – only fill in missing language entries.
-			changed := false
-			for lang, name := range apiNames {
-				if _, has := existing.Names[lang]; !has {
-					if existing.Names == nil {
-						existing.Names = make(map[string]string)
-					}
-					existing.Names[lang] = name
-					changed = true
-				}
-			}
-			if changed {
-				raw[ourKey] = existing
-				result.Updated++
-			}
-		} else {
-			// Brand-new game not yet in our list.
-			raw[ourKey] = rawGameEntry{
-				Names:      apiNames,
-				Generation: info.gen,
-				Platform:   info.platform,
-			}
-			result.Added++
-			slog.Info("SyncGames: new game discovered", "key", ourKey, "gen", info.gen, "platform", info.platform)
 		}
 	}
 
@@ -241,9 +164,117 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 		return result, nil
 	}
 
-	// 3. Persist the merged data.
+	// 4. Persist the merged data.
+	if err := persistGames(raw); err != nil {
+		return result, err
+	}
+	cachedGames = nil // invalidate in-memory cache
+	slog.Info("SyncGames: sync complete", "added", result.Added, "updated", result.Updated)
+	return result, nil
+}
+
+// processVersion fetches a single version from the PokéAPI and merges it into
+// the raw game map, updating the result counters.
+func processVersion(name, url string, raw map[string]rawGameEntry, vgCache map[string]vgInfo, result *GamesSyncResult) error {
+	ourKey := "pokemon-" + name
+
+	var detail apiVersion
+	if err := fetchAPIJSON(url, &detail); err != nil {
+		return err
+	}
+	time.Sleep(60 * time.Millisecond) // be polite to PokeAPI
+
+	info := fetchGeneration(detail.VersionGroup.Name, vgCache)
+	apiNames := buildLocalisedNames(detail)
+	mergeGameEntry(raw, ourKey, apiNames, info, result)
+	return nil
+}
+
+// fetchGeneration resolves the generation number and platform for a version-group,
+// using vgCache to avoid redundant API calls.
+func fetchGeneration(vgName string, vgCache map[string]vgInfo) vgInfo {
+	if cached, ok := vgCache[vgName]; ok {
+		return cached
+	}
+	var vg apiVersionGroup
+	if err := fetchAPIJSON(pokeAPIBase+"/version-group/"+vgName+"/", &vg); err == nil {
+		gen := syncGenNumber[vg.Generation.Name]
+		platform := syncGenPlatform[gen]
+		if ov, ok := syncVGPlatform[vgName]; ok {
+			platform = ov
+		}
+		if platform == "" {
+			platform = "Switch"
+		}
+		vgCache[vgName] = vgInfo{gen, platform}
+	}
+	time.Sleep(60 * time.Millisecond)
+	return vgCache[vgName]
+}
+
+// franchisePrefixes lists known franchise brand prefixes used to decide whether
+// to prepend the language-specific prefix to a game name.
+var franchisePrefixes = []string{
+	"Pokémon", "ポケットモンスター", "宝可梦", "寶可夢", "포켓몬스터",
+}
+
+// buildLocalisedNames extracts a language-code → localised-name map from API
+// version data, prepending franchise prefixes where needed.
+func buildLocalisedNames(detail apiVersion) map[string]string {
+	names := make(map[string]string)
+	for _, n := range detail.Names {
+		lp, ok := syncLangPrefix[n.Language.Name]
+		if !ok || n.Name == "" {
+			continue
+		}
+		localName := n.Name
+		needsPrefix := true
+		for _, fp := range franchisePrefixes {
+			if strings.HasPrefix(localName, fp) {
+				needsPrefix = false
+				break
+			}
+		}
+		if needsPrefix {
+			localName = lp.prefix + localName
+		}
+		names[lp.code] = localName
+	}
+	return names
+}
+
+// mergeGameEntry adds or updates a single game entry in the raw map, filling in
+// missing language translations for existing entries or inserting new ones.
+func mergeGameEntry(raw map[string]rawGameEntry, key string, apiNames map[string]string, info vgInfo, result *GamesSyncResult) {
+	if existing, exists := raw[key]; exists {
+		changed := false
+		for lang, name := range apiNames {
+			if _, has := existing.Names[lang]; !has {
+				if existing.Names == nil {
+					existing.Names = make(map[string]string)
+				}
+				existing.Names[lang] = name
+				changed = true
+			}
+		}
+		if changed {
+			raw[key] = existing
+			result.Updated++
+		}
+	} else {
+		raw[key] = rawGameEntry{
+			Names:      apiNames,
+			Generation: info.gen,
+			Platform:   info.platform,
+		}
+		result.Added++
+		slog.Info("SyncGames: new game discovered", "key", key, "gen", info.gen, "platform", info.platform)
+	}
+}
+
+// persistGames writes the merged game data to either the database or a JSON file.
+func persistGames(raw map[string]rawGameEntry) error {
 	if gamesDB != nil {
-		// Convert raw map to GameRows and save to DB.
 		rows := make([]database.GameRow, 0, len(raw))
 		for key, v := range raw {
 			namesJSON, err := json.Marshal(v.Names)
@@ -258,32 +289,29 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 			})
 		}
 		if err := gamesDB.SaveGames(rows); err != nil {
-			return result, fmt.Errorf("save games to DB: %w", err)
+			return fmt.Errorf("save games to DB: %w", err)
 		}
-	} else {
-		// Fallback: write JSON file.
-		outPath := gamesSyncSavePath()
-		data, err := json.MarshalIndent(raw, "", "  ")
-		if err != nil {
-			return result, fmt.Errorf("marshal games: %w", err)
-		}
-		if err := os.WriteFile(outPath, data, 0644); err != nil {
-			return result, fmt.Errorf("write %s: %w", outPath, err)
-		}
+		return nil
 	}
-	cachedGames = nil // invalidate in-memory cache
-	slog.Info("SyncGames: sync complete", "added", result.Added, "updated", result.Updated)
-	return result, nil
+	outPath := gamesSyncSavePath()
+	data, err := json.MarshalIndent(raw, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal games: %w", err)
+	}
+	if err := os.WriteFile(outPath, data, 0644); err != nil {
+		return fmt.Errorf("write %s: %w", outPath, err)
+	}
+	return nil
 }
 
 // gamesSyncSavePath returns the path where the synced games.json is written.
 // It matches the highest-priority load path used by readGamesJSON.
 func gamesSyncSavePath() string {
 	if gamesConfigDir != "" {
-		return filepath.Join(gamesConfigDir, "games.json")
+		return filepath.Join(gamesConfigDir, gamesFilename)
 	}
 	if exePath, err := os.Executable(); err == nil {
-		return filepath.Join(filepath.Dir(exePath), "games.json")
+		return filepath.Join(filepath.Dir(exePath), gamesFilename)
 	}
-	return "games.json"
+	return gamesFilename
 }

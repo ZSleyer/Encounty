@@ -38,9 +38,9 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = zw.Close() }()
 
 	// Include the SQLite database
-	dbPath := filepath.Join(configDir, "encounty.db")
+	dbPath := filepath.Join(configDir, dbFilename)
 	if f, err := os.Open(dbPath); err == nil {
-		fw, err := zw.Create("encounty.db")
+		fw, err := zw.Create(dbFilename)
 		if err == nil {
 			_, _ = io.Copy(fw, f)
 		}
@@ -69,6 +69,41 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(fw, f)
 		return nil
 	})
+}
+
+// isRestorableFile reports whether a ZIP entry name should be extracted during
+// backup restoration (the database, template images, or legacy state.json).
+func isRestorableFile(name string) bool {
+	return name == dbFilename ||
+		strings.HasPrefix(name, "templates/") ||
+		name == "state.json"
+}
+
+// extractZipEntry writes a single ZIP file entry to disk under configDir using
+// atomic rename via a temporary file. Returns true if the entry was the database.
+func extractZipEntry(f *zip.File, configDir string) bool {
+	rc, err := f.Open()
+	if err != nil {
+		return false
+	}
+	content, err := io.ReadAll(rc)
+	_ = rc.Close()
+	if err != nil {
+		return false
+	}
+
+	dest := filepath.Join(configDir, f.Name)
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return false
+	}
+	tmp := dest + ".tmp"
+	if err := os.WriteFile(tmp, content, 0644); err != nil {
+		return false
+	}
+	if err := os.Rename(tmp, dest); err != nil {
+		return false
+	}
+	return f.Name == dbFilename
 }
 
 // handleRestore accepts a multipart form upload of a backup ZIP, extracts the
@@ -112,36 +147,10 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 
 	restoredDB := false
 	for _, f := range zr.File {
-		// Accept encounty.db and template files
-		if f.Name != "encounty.db" && !strings.HasPrefix(f.Name, "templates/") {
-			// Also accept legacy state.json for backward compatibility
-			if f.Name != "state.json" {
-				continue
-			}
-		}
-
-		rc, err := f.Open()
-		if err != nil {
+		if !isRestorableFile(f.Name) {
 			continue
 		}
-		content, err := io.ReadAll(rc)
-		_ = rc.Close()
-		if err != nil {
-			continue
-		}
-
-		dest := filepath.Join(configDir, f.Name)
-		if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
-			continue
-		}
-		tmp := dest + ".tmp"
-		if err := os.WriteFile(tmp, content, 0644); err != nil {
-			continue
-		}
-		if err := os.Rename(tmp, dest); err != nil {
-			continue
-		}
-		if f.Name == "encounty.db" {
+		if extractZipEntry(f, configDir) {
 			restoredDB = true
 		}
 	}
@@ -155,7 +164,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	if s.db != nil {
 		_ = s.db.Close()
 	}
-	dbPath := filepath.Join(configDir, "encounty.db")
+	dbPath := filepath.Join(configDir, dbFilename)
 	newDB, err := database.Open(dbPath)
 	if err != nil {
 		http.Error(w, "failed to reopen database: "+err.Error(), http.StatusInternalServerError)

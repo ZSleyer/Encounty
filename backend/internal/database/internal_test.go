@@ -11,6 +11,11 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+const (
+	fmtLoadFullState          = "LoadFullState: %v"
+	errEncounterEventsDropped = "expected error when encounter_events is dropped"
+)
+
 // openInternalTestDB creates a fresh database in a temporary directory.
 func openInternalTestDB(t *testing.T) *DB {
 	t.Helper()
@@ -468,7 +473,13 @@ func TestInsertElementErrorPath(t *testing.T) {
 
 	_, _ = tx.Exec(`DROP TABLE overlay_elements`)
 	base := &state.OverlayElementBase{Visible: true, X: 0, Y: 0}
-	_, err = insertElement(tx, 1, "sprite", base, 0, "", 0, 0, "none", "none", "", false, "")
+	_, err = insertElement(tx, elementInsertParams{
+		overlayID:    1,
+		elemType:     "sprite",
+		base:         base,
+		idleAnim:     "none",
+		triggerEnter: "none",
+	})
 	if err == nil {
 		t.Error("insertElement with dropped table should fail")
 	}
@@ -1173,7 +1184,7 @@ func TestSaveTemplateRegionsNewTemplateError(t *testing.T) {
 	// Verify regions were saved by loading.
 	loaded, err := d.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadFullState, err)
 	}
 	dc := loaded.Pokemon[0].DetectorConfig
 	if dc == nil || len(dc.Templates) == 0 {
@@ -1212,7 +1223,7 @@ func TestSaveDetectorTemplatesUpdateExisting(t *testing.T) {
 	// Load to get template DB ID.
 	loaded, err := d.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadFullState, err)
 	}
 	tmplID := loaded.Pokemon[0].DetectorConfig.Templates[0].TemplateDBID
 
@@ -1227,7 +1238,7 @@ func TestSaveDetectorTemplatesUpdateExisting(t *testing.T) {
 	// Verify regions updated.
 	loaded2, err := d.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadFullState, err)
 	}
 	regions := loaded2.Pokemon[0].DetectorConfig.Templates[0].Regions
 	if len(regions) != 1 || regions[0].Rect.X != 5 {
@@ -1261,7 +1272,7 @@ func TestSaveFullStatePokemonOverlayDeleteOnDefault(t *testing.T) {
 
 	loaded, err := d.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadFullState, err)
 	}
 	if loaded.Pokemon[0].Overlay != nil {
 		t.Error("overlay should be nil after switching to default")
@@ -1296,7 +1307,7 @@ func TestSaveFullStateDetectorConfigDeleteOnNil(t *testing.T) {
 
 	loaded, err := d.LoadFullState()
 	if err != nil {
-		t.Fatalf("LoadFullState: %v", err)
+		t.Fatalf(fmtLoadFullState, err)
 	}
 	if loaded.Pokemon[0].DetectorConfig != nil {
 		t.Error("DetectorConfig should be nil after removal")
@@ -1312,7 +1323,7 @@ func TestLogEncounterError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE encounter_events`)
 	err := d.LogEncounter("p1", "Test", 1, 1, "manual")
 	if err == nil {
-		t.Error("expected error when encounter_events is dropped")
+		t.Error(errEncounterEventsDropped)
 	}
 }
 
@@ -1321,7 +1332,7 @@ func TestGetEncounterHistoryError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE encounter_events`)
 	_, err := d.GetEncounterHistory("p1", 10, 0)
 	if err == nil {
-		t.Error("expected error when encounter_events is dropped")
+		t.Error(errEncounterEventsDropped)
 	}
 }
 
@@ -1330,7 +1341,7 @@ func TestGetEncounterStatsError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE encounter_events`)
 	_, err := d.GetEncounterStats("p1")
 	if err == nil {
-		t.Error("expected error when encounter_events is dropped")
+		t.Error(errEncounterEventsDropped)
 	}
 }
 
@@ -1339,7 +1350,7 @@ func TestGetChartDataError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE encounter_events`)
 	_, err := d.GetChartData("p1", "day")
 	if err == nil {
-		t.Error("expected error when encounter_events is dropped")
+		t.Error(errEncounterEventsDropped)
 	}
 }
 

@@ -49,14 +49,14 @@ func newTestBrowserDetector(t *testing.T, precision float64, consecutiveHits, co
 	return newBrowserDetector(cfg, tmpDir, pokemonID, "eng")
 }
 
-func TestBrowserDetector_HasTemplates(t *testing.T) {
+func TestBrowserDetectorHasTemplates(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.85, 1, 1)
 	if !bd.HasTemplates() {
 		t.Error("HasTemplates() = false, want true")
 	}
 }
 
-func TestBrowserDetector_NoTemplates(t *testing.T) {
+func TestBrowserDetectorNoTemplates(t *testing.T) {
 	cfg := state.DetectorConfig{Enabled: true}
 	bd := newBrowserDetector(cfg, t.TempDir(), "nonexistent", "eng")
 	if bd.HasTemplates() {
@@ -64,7 +64,7 @@ func TestBrowserDetector_NoTemplates(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_IdleWithNoMatch(t *testing.T) {
+func TestBrowserDetectorIdleWithNoMatch(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.85, 1, 1)
 
 	// Submit a blank frame that should not match the checkerboard template
@@ -79,7 +79,7 @@ func TestBrowserDetector_IdleWithNoMatch(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_MatchTransition(t *testing.T) {
+func TestBrowserDetectorMatchTransition(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 1)
 
 	// The template is a checkerboard; submitting a matching frame should trigger
@@ -99,7 +99,7 @@ func TestBrowserDetector_MatchTransition(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_CooldownTransition(t *testing.T) {
+func TestBrowserDetectorCooldownTransition(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 1)
 
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
@@ -124,7 +124,7 @@ func TestBrowserDetector_CooldownTransition(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_CooldownToIdle(t *testing.T) {
+func TestBrowserDetectorCooldownToIdle(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 0) // cooldownSec=0, uses default (8)
 
 	// Override to a very short cooldown for testing
@@ -152,7 +152,7 @@ func TestBrowserDetector_CooldownToIdle(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_EdgeDetectionPreventsRetrigger(t *testing.T) {
+func TestBrowserDetectorEdgeDetectionPreventsRetrigger(t *testing.T) {
 	// With consecutiveHits=3, the edge detection mechanism prevents re-triggers
 	// on sustained matches. After cooldown, prevAbove is set to true, so the
 	// first matching frame after cooldown increments consecCount (high→high),
@@ -206,7 +206,7 @@ func TestBrowserDetector_EdgeDetectionPreventsRetrigger(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_ConsecutiveHitsRequired(t *testing.T) {
+func TestBrowserDetectorConsecutiveHitsRequired(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 3, 1)
 
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
@@ -237,7 +237,7 @@ func TestBrowserDetector_ConsecutiveHitsRequired(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_ConsecutiveHitsResetOnMiss(t *testing.T) {
+func TestBrowserDetectorConsecutiveHitsResetOnMiss(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 3, 1)
 
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
@@ -261,7 +261,7 @@ func TestBrowserDetector_ConsecutiveHitsResetOnMiss(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_DefaultLanguage(t *testing.T) {
+func TestBrowserDetectorDefaultLanguage(t *testing.T) {
 	cfg := state.DetectorConfig{Enabled: true}
 	bd := newBrowserDetector(cfg, t.TempDir(), "test", "")
 	if bd.lang != "eng" {
@@ -269,7 +269,7 @@ func TestBrowserDetector_DefaultLanguage(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_InitialState(t *testing.T) {
+func TestBrowserDetectorInitialState(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.85, 1, 1)
 
 	// Verify initial state without submitting any frames
@@ -287,7 +287,7 @@ func TestBrowserDetector_InitialState(t *testing.T) {
 	}
 }
 
-func TestBrowserDetector_ConfidenceReturned(t *testing.T) {
+func TestBrowserDetectorConfidenceReturned(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 1)
 
 	// Non-matching frame should return low confidence
@@ -298,7 +298,7 @@ func TestBrowserDetector_ConfidenceReturned(t *testing.T) {
 	}
 }
 
-func TestLoadTemplates_MissingFile(t *testing.T) {
+func TestLoadTemplatesMissingFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	templates := []state.DetectorTemplate{
 		{ImagePath: "nonexistent.png"},
@@ -309,7 +309,7 @@ func TestLoadTemplates_MissingFile(t *testing.T) {
 	}
 }
 
-func TestLoadTemplates_ValidFile(t *testing.T) {
+func TestLoadTemplatesValidFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	pokemonID := "pokemon-1"
 	tmplDir := filepath.Join(tmpDir, "templates", pokemonID)
@@ -341,7 +341,7 @@ func TestLoadTemplates_ValidFile(t *testing.T) {
 	}
 }
 
-func TestLoadTemplates_AbsolutePath(t *testing.T) {
+func TestLoadTemplatesAbsolutePath(t *testing.T) {
 	tmpDir := t.TempDir()
 	absPath := filepath.Join(tmpDir, "absolute.png")
 
@@ -365,7 +365,7 @@ func TestLoadTemplates_AbsolutePath(t *testing.T) {
 	}
 }
 
-func TestLoadTemplates_InvalidPNG(t *testing.T) {
+func TestLoadTemplatesInvalidPNG(t *testing.T) {
 	tmpDir := t.TempDir()
 	pokemonID := "pokemon-1"
 	tmplDir := filepath.Join(tmpDir, "templates", pokemonID)

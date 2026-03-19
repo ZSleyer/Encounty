@@ -6,14 +6,15 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
-// TestPokemonLang_Found tests pokemonLang when the pokemon exists with a
+// TestPokemonLangFound tests pokemonLang when the pokemon exists with a
 // known language code.
-func TestPokemonLang_Found(t *testing.T) {
+func TestPokemonLangFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 	stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "Pikachu", Language: "de"})
 
-	broadcast := func(msgType string, payload any) {}
+	broadcast := func(msgType string, payload any) { // no-op broadcast for test
+	}
 	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	lang := mgr.pokemonLang("p1")
@@ -22,14 +23,15 @@ func TestPokemonLang_Found(t *testing.T) {
 	}
 }
 
-// TestPokemonLang_NotFound tests pokemonLang when the pokemon ID does not
+// TestPokemonLangNotFound tests pokemonLang when the pokemon ID does not
 // exist, which should fall back to "eng".
-func TestPokemonLang_NotFound(t *testing.T) {
+func TestPokemonLangNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 	stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "Pikachu", Language: "de"})
 
-	broadcast := func(msgType string, payload any) {}
+	broadcast := func(msgType string, payload any) { // no-op broadcast for test
+	}
 	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	lang := mgr.pokemonLang("nonexistent")
@@ -38,15 +40,16 @@ func TestPokemonLang_NotFound(t *testing.T) {
 	}
 }
 
-// TestStopAll_WithBrowserDetectors tests StopAll when both running detectors
+// TestStopAllWithBrowserDetectors tests StopAll when both running detectors
 // and browser detectors are present.
-func TestStopAll_WithBrowserDetectors(t *testing.T) {
+func TestStopAllWithBrowserDetectors(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 	stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "A", Language: "en"})
 	stateMgr.AddPokemon(state.Pokemon{ID: "p2", Name: "B", Language: "en"})
 
-	broadcast := func(msgType string, payload any) {}
+	broadcast := func(msgType string, payload any) { // no-op broadcast for test
+	}
 	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	// Start goroutine detectors

@@ -8,6 +8,12 @@ import {
 import { useI18n } from "../../contexts/I18nContext";
 import { NumInput, NumSlider } from "./controls/NumSlider";
 import { ColorSwatch } from "./controls/ColorSwatch";
+import type { ShadowConfirmParams } from "./controls/ShadowEditorModal";
+
+/** Parameters for opening the shadow editor modal. */
+interface OpenShadowEditorParams extends ShadowConfirmParams {
+  readonly onConfirm: (params: ShadowConfirmParams) => void;
+}
 
 type ElementKey = "sprite" | "name" | "title" | "counter";
 
@@ -79,12 +85,7 @@ function TextStyleEditor({
     type: "none" | "solid", color: string, width: number,
     onConfirm: (type: "none" | "solid", color: string, width: number) => void,
   ) => void;
-  onOpenShadowEditor: (
-    enabled: boolean, color: string, colorType: "solid" | "gradient",
-    gradientStops: GradientStop[], gradientAngle: number,
-    blur: number, x: number, y: number,
-    onConfirm: (enabled: boolean, color: string, colorType: "solid" | "gradient", gradientStops: GradientStop[], gradientAngle: number, blur: number, x: number, y: number) => void,
-  ) => void;
+  onOpenShadowEditor: (params: OpenShadowEditorParams) => void;
 }>) {
   const { t } = useI18n();
   const u = (field: keyof TextStyle, value: unknown) =>
@@ -224,27 +225,29 @@ function TextStyleEditor({
               : "Schatten (Aus)"
           }
           onClick={() =>
-            onOpenShadowEditor(
-              style.text_shadow,
-              style.text_shadow_color,
-              style.text_shadow_color_type || "solid",
-              style.text_shadow_gradient_stops || [{ color: "#ffffff", position: 0 }, { color: "#000000", position: 100 }],
-              style.text_shadow_gradient_angle || 180,
-              style.text_shadow_blur, style.text_shadow_x, style.text_shadow_y,
-              (enabled, color, colorType, gradientStops, gradientAngle, blur, x, y) => {
+            onOpenShadowEditor({
+              enabled: style.text_shadow,
+              color: style.text_shadow_color,
+              colorType: style.text_shadow_color_type || "solid",
+              gradientStops: style.text_shadow_gradient_stops || [{ color: "#ffffff", position: 0 }, { color: "#000000", position: 100 }],
+              gradientAngle: style.text_shadow_gradient_angle || 180,
+              blur: style.text_shadow_blur,
+              x: style.text_shadow_x,
+              y: style.text_shadow_y,
+              onConfirm: (p) => {
                 onChange({
                   ...style,
-                  text_shadow: enabled,
-                  text_shadow_color: color,
-                  text_shadow_color_type: colorType,
-                  text_shadow_gradient_stops: gradientStops,
-                  text_shadow_gradient_angle: gradientAngle,
-                  text_shadow_blur: blur,
-                  text_shadow_x: x,
-                  text_shadow_y: y,
+                  text_shadow: p.enabled,
+                  text_shadow_color: p.color,
+                  text_shadow_color_type: p.colorType,
+                  text_shadow_gradient_stops: p.gradientStops,
+                  text_shadow_gradient_angle: p.gradientAngle,
+                  text_shadow_blur: p.blur,
+                  text_shadow_x: p.x,
+                  text_shadow_y: p.y,
                 });
               },
-            )
+            })
           }
         />
       </div>
@@ -253,37 +256,30 @@ function TextStyleEditor({
 }
 
 interface OverlayPropertyPanelProps {
-  localSettings: OverlaySettings;
-  selectedEl: ElementKey;
-  updateField: <K extends keyof OverlaySettings>(field: K, value: OverlaySettings[K]) => void;
-  updateSelectedEl: (patch: Partial<OverlayElementBase>) => void;
-  readOnly?: boolean;
-  compact?: boolean;
-  onUpdate: (settings: OverlaySettings) => void;
-  openColorPicker: (color: string, onPick: (c: string) => void, opts?: { opacity?: number; showOpacity?: boolean }) => void;
-  openOutlineEditor: (
+  readonly localSettings: OverlaySettings;
+  readonly selectedEl: ElementKey;
+  readonly updateSelectedEl: (patch: Partial<OverlayElementBase>) => void;
+  readonly readOnly?: boolean;
+  readonly onUpdate: (settings: OverlaySettings) => void;
+  readonly openColorPicker: (color: string, onPick: (c: string) => void, opts?: { opacity?: number; showOpacity?: boolean }) => void;
+  readonly openOutlineEditor: (
     type: "none" | "solid", color: string, width: number,
     onConfirm: (t: "none" | "solid", c: string, w: number) => void,
   ) => void;
-  openShadowEditor: (
-    enabled: boolean, color: string, colorType: "solid" | "gradient",
-    gradientStops: GradientStop[], gradientAngle: number,
-    blur: number, x: number, y: number,
-    onConfirm: (e: boolean, c: string, ct: "solid" | "gradient", gs: GradientStop[], ga: number, b: number, x: number, y: number) => void,
-  ) => void;
-  openTextColorEditor: (
+  readonly openShadowEditor: (params: OpenShadowEditorParams) => void;
+  readonly openTextColorEditor: (
     colorType: "solid" | "gradient", color: string,
     gradientStops: GradientStop[], gradientAngle: number,
     onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
   ) => void;
-  fireTest: (element: ElementKey, reverse?: boolean) => void;
+  readonly fireTest: (element: ElementKey, reverse?: boolean) => void;
 }
 
 export function OverlayPropertyPanel({
   localSettings,
   selectedEl,
   updateSelectedEl,
-  readOnly,
+  readOnly: _readOnly,
   onUpdate,
   openTextColorEditor,
   openOutlineEditor,
@@ -291,8 +287,6 @@ export function OverlayPropertyPanel({
   openColorPicker,
   fireTest,
 }: OverlayPropertyPanelProps) {
-  const { t } = useI18n();
-
   const update = (s: OverlaySettings) => {
     onUpdate(s);
   };
@@ -584,7 +578,7 @@ export function OverlayPropertyPanel({
             onChange={(s) =>
               update({
                 ...localSettings,
-                title: { ...localSettings.title!, style: s },
+                title: { ...localSettings.title, style: s },
               })
             }
             onOpenTextColorEditor={openTextColorEditor}
@@ -602,7 +596,7 @@ export function OverlayPropertyPanel({
                 update({
                   ...localSettings,
                   title: {
-                    ...localSettings.title!,
+                    ...localSettings.title,
                     idle_animation: e.target.value,
                   },
                 })
@@ -635,7 +629,7 @@ export function OverlayPropertyPanel({
                 update({
                   ...localSettings,
                   title: {
-                    ...localSettings.title!,
+                    ...localSettings.title,
                     trigger_enter: e.target.value,
                   },
                 })

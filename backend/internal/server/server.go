@@ -213,8 +213,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 	// Detector API
 	mux.HandleFunc("/api/detector/screenshot", s.handleDetectorScreenshot)
-	mux.HandleFunc("/api/detector/windows", s.handleDetectorWindows)
-	mux.HandleFunc("/api/detector/status", s.handleDetectorStatus)
+mux.HandleFunc("/api/detector/status", s.handleDetectorStatus)
 	mux.HandleFunc("/api/detector/", s.handleDetectorDispatch)
 
 	// Frontend static files / SPA fallback
@@ -298,56 +297,77 @@ func (s *Server) Hub() *Hub {
 	return s.hub
 }
 
+// handleHotkeyIncrement processes the "increment" hotkey action for the given Pokémon.
+func (s *Server) handleHotkeyIncrement(id string) {
+	count, ok := s.state.Increment(id)
+	if !ok {
+		return
+	}
+	s.logEncounter(id, count, "hotkey")
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": id, "count": count})
+	s.broadcastState()
+	if s.fileWriter != nil {
+		s.fileWriter.Write(s.state.GetState())
+	}
+}
+
+// handleHotkeyDecrement processes the "decrement" hotkey action for the given Pokémon.
+func (s *Server) handleHotkeyDecrement(id string) {
+	count, ok := s.state.Decrement(id)
+	if !ok {
+		return
+	}
+	s.logEncounter(id, count, "hotkey")
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
+	s.broadcastState()
+	if s.fileWriter != nil {
+		s.fileWriter.Write(s.state.GetState())
+	}
+}
+
 // processHotkeyActions consumes the hotkey action channel and translates each
 // action into the appropriate state mutation + broadcast. For "reset" the
 // frontend is asked to confirm instead of acting immediately, to avoid
 // accidental data loss when the reset hotkey is pressed unintentionally.
 func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 	for action := range ch {
-		id := action.PokemonID
-		if id == "" {
-			if active := s.state.GetActivePokemon(); active != nil {
-				id = active.ID
-			}
-		}
-		switch action.Type {
-		case "increment":
-			if id != "" {
-				count, ok := s.state.Increment(id)
-				if ok {
-					s.logEncounter(id, count, "hotkey")
-					s.state.ScheduleSave()
-					s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": id, "count": count})
-					s.broadcastState()
-					if s.fileWriter != nil {
-						s.fileWriter.Write(s.state.GetState())
-					}
-				}
-			}
-		case "decrement":
-			if id != "" {
-				count, ok := s.state.Decrement(id)
-				if ok {
-					s.logEncounter(id, count, "hotkey")
-					s.state.ScheduleSave()
-					s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
-					s.broadcastState()
-					if s.fileWriter != nil {
-						s.fileWriter.Write(s.state.GetState())
-					}
-				}
-			}
-		case "reset":
-			if id != "" {
-				// Don't reset directly — ask the frontend to confirm first.
-				s.hub.BroadcastRaw("request_reset_confirm", map[string]any{"pokemon_id": id})
-			}
-		case "next":
-			s.state.NextPokemon()
-			s.state.ScheduleSave()
-			s.broadcastState()
+		s.dispatchHotkeyAction(action)
+	}
+}
+
+// dispatchHotkeyAction routes a single hotkey action to the appropriate handler.
+func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
+	id := action.PokemonID
+	if id == "" {
+		if active := s.state.GetActivePokemon(); active != nil {
+			id = active.ID
 		}
 	}
+	switch action.Type {
+	case "increment":
+		if id != "" {
+			s.handleHotkeyIncrement(id)
+		}
+	case "decrement":
+		if id != "" {
+			s.handleHotkeyDecrement(id)
+		}
+	case "reset":
+		if id != "" {
+			s.hub.BroadcastRaw("request_reset_confirm", map[string]any{"pokemon_id": id})
+		}
+	case "next":
+		s.handleHotkeyNext()
+	}
+}
+
+// handleHotkeyNext advances to the next Pokémon in the list.
+func (s *Server) handleHotkeyNext() {
+	s.state.NextPokemon()
+	s.state.ScheduleSave()
+	s.broadcastState()
 }
 
 // corsMiddleware adds permissive CORS headers so the Vite dev server (port

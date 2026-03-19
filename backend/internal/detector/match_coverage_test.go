@@ -19,9 +19,9 @@ func (s *simpleImage) ColorModel() color.Model { return color.RGBAModel }
 func (s *simpleImage) Bounds() image.Rectangle  { return image.Rect(0, 0, s.w, s.h) }
 func (s *simpleImage) At(x, y int) color.Color  { return s.c }
 
-// TestCropImage_FallbackWithoutSubImage exercises the CropImage fallback path
+// TestCropImageFallbackWithoutSubImage exercises the CropImage fallback path
 // where the image does not implement the SubImage interface.
-func TestCropImage_FallbackWithoutSubImage(t *testing.T) {
+func TestCropImageFallbackWithoutSubImage(t *testing.T) {
 	img := &simpleImage{w: 100, h: 100, c: color.RGBA{200, 100, 50, 255}}
 	cropped := CropImage(img, state.DetectorRect{X: 10, Y: 10, W: 50, H: 50})
 	b := cropped.Bounds()
@@ -30,8 +30,8 @@ func TestCropImage_FallbackWithoutSubImage(t *testing.T) {
 	}
 }
 
-// TestCropImage_NegativeHeight tests the W>0 but H<=0 branch.
-func TestCropImage_NegativeHeight(t *testing.T) {
+// TestCropImageNegativeHeight tests the W>0 but H<=0 branch.
+func TestCropImageNegativeHeight(t *testing.T) {
 	src := solidImage(100, 100, color.RGBA{100, 100, 100, 255})
 	cropped := CropImage(src, state.DetectorRect{X: 10, Y: 10, W: 50, H: -1})
 	b := cropped.Bounds()
@@ -40,9 +40,9 @@ func TestCropImage_NegativeHeight(t *testing.T) {
 	}
 }
 
-// TestMatchWithRegions_TextRegionFallbackOnError exercises the text region path
+// TestMatchWithRegionsTextRegionFallbackOnError exercises the text region path
 // where RecognizeText fails (tesseract not found) and falls back to visual NCC.
-func TestMatchWithRegions_TextRegionFallbackOnError(t *testing.T) {
+func TestMatchWithRegionsTextRegionFallbackOnError(t *testing.T) {
 	img := checkerImage(200, 200, 10, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 	lt := loadedTemplate{
 		img: img,
@@ -67,9 +67,9 @@ func TestMatchWithRegions_TextRegionFallbackOnError(t *testing.T) {
 	}
 }
 
-// TestMatchWithRegions_MultipleRegionsWithMinScore tests AND-logic where
+// TestMatchWithRegionsMultipleRegionsWithMinScore tests AND-logic where
 // one image region scores lower than another, returning the min.
-func TestMatchWithRegions_MultipleRegionsWithMinScore(t *testing.T) {
+func TestMatchWithRegionsMultipleRegionsWithMinScore(t *testing.T) {
 	frame := gradientImage(200, 200)
 	tmpl := gradientImage(200, 200)
 	lt := loadedTemplate{
@@ -93,17 +93,17 @@ func TestMatchWithRegions_MultipleRegionsWithMinScore(t *testing.T) {
 	}
 }
 
-// TestNCC_ClampAboveOne covers the ncc bestNCC > 1.0 clamping line.
+// TestNCCClampBelowZero covers the ncc bestNCC > 1.0 clamping line.
 // This is hard to trigger naturally, but we verify the boundary with
 // a uniform frame patch (pStd < 1e-9 → continue) and pattern that
 // cannot exceed 1.0.
-func TestNCC_ClampBelowZero(t *testing.T) {
+func TestNCCClampBelowZero(t *testing.T) {
 	// Craft images where NCC might approach 0; verify clamping works.
 	frame := toGray(gradientImage(64, 64))
 	// Inverted gradient
 	inv := image.NewRGBA(image.Rect(0, 0, 32, 32))
-	for y := 0; y < 32; y++ {
-		for x := 0; x < 32; x++ {
+	for y := range 32 {
+		for x := range 32 {
 			v := uint8(255 - x*255/32)
 			inv.SetRGBA(x, y, color.RGBA{v, v, v, 255})
 		}
@@ -115,9 +115,9 @@ func TestNCC_ClampBelowZero(t *testing.T) {
 	}
 }
 
-// TestDownscale_TallNarrow exercises the h > w branch (portrait downscale
+// TestDownscaleTallNarrowExtreme exercises the h > w branch (portrait downscale
 // where newW must be clamped to >= 1).
-func TestDownscale_TallNarrowExtreme(t *testing.T) {
+func TestDownscaleTallNarrowExtreme(t *testing.T) {
 	// Very tall narrow image: w=2, h=500 → downscale to maxDim=10
 	// h > w → newH=10, newW = round(2 * 10 / 500) = round(0.04) = 0
 	// clamped to 1
@@ -129,8 +129,8 @@ func TestDownscale_TallNarrowExtreme(t *testing.T) {
 	}
 }
 
-// TestDownscale_WideShortExtreme exercises the w > h path with newH clamped to 1.
-func TestDownscale_WideShortExtreme(t *testing.T) {
+// TestDownscaleWideShortExtreme exercises the w > h path with newH clamped to 1.
+func TestDownscaleWideShortExtreme(t *testing.T) {
 	src := solidImage(500, 2, color.RGBA{128, 128, 128, 255})
 	result := downscale(src, 10)
 	b := result.Bounds()
@@ -139,8 +139,8 @@ func TestDownscale_WideShortExtreme(t *testing.T) {
 	}
 }
 
-// TestMatchMultiScale_StepClamping exercises the step < 4 clamping in matchMultiScale.
-func TestMatchMultiScale_StepClamping(t *testing.T) {
+// TestMatchMultiScaleStepClamping exercises the step < 4 clamping in matchMultiScale.
+func TestMatchMultiScaleStepClamping(t *testing.T) {
 	// Small frame forces step calculation to be < 4, clamped to 4
 	frame := toGray(checkerImage(20, 20, 4, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255}))
 	tmpl := checkerImage(10, 10, 4, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
@@ -150,8 +150,8 @@ func TestMatchMultiScale_StepClamping(t *testing.T) {
 	}
 }
 
-// TestMatchMultiScale_HeightSmallerThanWidth exercises maxDim = fh < fw path.
-func TestMatchMultiScale_HeightSmallerThanWidth(t *testing.T) {
+// TestMatchMultiScaleHeightSmallerThanWidth exercises maxDim = fh < fw path.
+func TestMatchMultiScaleHeightSmallerThanWidth(t *testing.T) {
 	frame := toGray(checkerImage(100, 30, 4, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255}))
 	tmpl := checkerImage(10, 10, 4, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 	score := matchMultiScale(frame, tmpl, 100, 30)

@@ -17,6 +17,13 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+// File name constants used for OBS text source integration.
+const (
+	encountersFile      = "encounters.txt"
+	pokemonNameFile     = "pokemon_name.txt"
+	encountersLabelFile = "encounters_label.txt"
+)
+
 // Writer manages file output to a directory. All public methods are safe
 // for concurrent use; a mutex protects the mutable dir/enabled fields.
 type Writer struct {
@@ -41,6 +48,81 @@ func (w *Writer) SetConfig(dir string, enabled bool) {
 	w.mu.Unlock()
 }
 
+// writeRootFiles writes the top-level text files for the active Pokémon
+// (encounters, name, label) and session-wide metrics (duration, daily total).
+func (w *Writer) writeRootFiles(dir string, st state.AppState) {
+	var active *state.Pokemon
+	for i := range st.Pokemon {
+		if st.Pokemon[i].ID == st.ActiveID {
+			active = &st.Pokemon[i]
+			break
+		}
+	}
+
+	if active == nil {
+		w.writeFile(dir, encountersFile, "0")
+		w.writeFile(dir, pokemonNameFile, "—")
+		w.writeFile(dir, encountersLabelFile, "Kein Pokémon aktiv")
+	} else {
+		w.writeFile(dir, encountersFile, fmt.Sprintf("%d", active.Encounters))
+		w.writeFile(dir, pokemonNameFile, active.Name)
+		w.writeFile(dir, encountersLabelFile, fmt.Sprintf("%s: %d Encounters", active.Name, active.Encounters))
+	}
+
+	elapsed := time.Since(w.startedAt)
+	hours := int(elapsed.Hours())
+	minutes := int(elapsed.Minutes()) % 60
+	seconds := int(elapsed.Seconds()) % 60
+	w.writeFile(dir, "session_duration.txt", fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds))
+
+	allEncounters := 0
+	for _, p := range st.Pokemon {
+		allEncounters += p.Encounters
+	}
+	w.writeFile(dir, "encounters_today.txt", fmt.Sprintf("%d", allEncounters))
+}
+
+// writePokemonDir creates and populates the per-Pokémon subdirectory with
+// encounter count, name, title, label, and timer text files for OBS sources.
+func (w *Writer) writePokemonDir(dir string, p state.Pokemon) {
+	idPrefix := p.ID
+	if len(idPrefix) > 5 {
+		idPrefix = idPrefix[:5]
+	}
+	subDir := sanitizeFilename(p.Name) + "_" + idPrefix
+	pokemonDir := filepath.Join(dir, subDir)
+	if err := os.MkdirAll(pokemonDir, 0755); err != nil {
+		slog.Error("Per-pokemon dir error", "dir", subDir, "error", err)
+		return
+	}
+	w.writeFile(pokemonDir, encountersFile, fmt.Sprintf("%d", p.Encounters))
+	w.writeFile(pokemonDir, pokemonNameFile, p.Name)
+	title := p.Title
+	if title == "" {
+		title = p.Name
+	}
+	w.writeFile(pokemonDir, "title.txt", title)
+	w.writeFile(pokemonDir, encountersLabelFile, fmt.Sprintf("%s: %d Encounters", p.Name, p.Encounters))
+
+	totalMs := p.TimerAccumulatedMs
+	if p.TimerStartedAt != nil {
+		totalMs += time.Since(*p.TimerStartedAt).Milliseconds()
+	}
+	timerH := totalMs / 3600000
+	timerM := (totalMs % 3600000) / 60000
+	timerS := (totalMs % 60000) / 1000
+	w.writeFile(pokemonDir, "timer.txt", fmt.Sprintf("%02d:%02d:%02d", timerH, timerM, timerS))
+}
+
+// pokemonSubDirName returns the sanitized directory name for a Pokémon.
+func pokemonSubDirName(p state.Pokemon) string {
+	idPrefix := p.ID
+	if len(idPrefix) > 5 {
+		idPrefix = idPrefix[:5]
+	}
+	return sanitizeFilename(p.Name) + "_" + idPrefix
+}
+
 // Write updates all output text files from the given state snapshot.
 // It is a no-op when output is disabled or no output directory is configured.
 // Files written: encounters.txt, pokemon_name.txt, encounters_label.txt,
@@ -60,77 +142,14 @@ func (w *Writer) Write(st state.AppState) {
 		return
 	}
 
-	var active *state.Pokemon
-	for i := range st.Pokemon {
-		if st.Pokemon[i].ID == st.ActiveID {
-			active = &st.Pokemon[i]
-			break
-		}
-	}
-
-	if active == nil {
-		w.writeFile(dir, "encounters.txt", "0")
-		w.writeFile(dir, "pokemon_name.txt", "—")
-		w.writeFile(dir, "encounters_label.txt", "Kein Pokémon aktiv")
-	} else {
-		w.writeFile(dir, "encounters.txt", fmt.Sprintf("%d", active.Encounters))
-		w.writeFile(dir, "pokemon_name.txt", active.Name)
-		w.writeFile(dir, "encounters_label.txt", fmt.Sprintf("%s: %d Encounters", active.Name, active.Encounters))
-	}
-
-	// Session duration
-	elapsed := time.Since(w.startedAt)
-	hours := int(elapsed.Hours())
-	minutes := int(elapsed.Minutes()) % 60
-	seconds := int(elapsed.Seconds()) % 60
-	w.writeFile(dir, "session_duration.txt", fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds))
-
-	// Today's total encounters
-	today := 0
-	todayStart := time.Now().Truncate(24 * time.Hour)
-	for _, p := range st.Pokemon {
-		if p.CreatedAt.After(todayStart) || p.CreatedAt.Equal(todayStart) {
-			today += p.Encounters
-		}
-	}
-	// Sum all encounters as approximation for "today" (sessions would be more accurate)
-	allEncounters := 0
-	for _, p := range st.Pokemon {
-		allEncounters += p.Encounters
-	}
-	w.writeFile(dir, "encounters_today.txt", fmt.Sprintf("%d", allEncounters))
+	w.writeRootFiles(dir, st)
 
 	// Per-Pokemon subdirectories
 	validDirs := make(map[string]bool)
 	for _, p := range st.Pokemon {
-		idPrefix := p.ID
-		if len(idPrefix) > 5 {
-			idPrefix = idPrefix[:5]
-		}
-		subDir := sanitizeFilename(p.Name) + "_" + idPrefix
+		subDir := pokemonSubDirName(p)
 		validDirs[subDir] = true
-		pokemonDir := filepath.Join(dir, subDir)
-		if err := os.MkdirAll(pokemonDir, 0755); err != nil {
-			slog.Error("Per-pokemon dir error", "dir", subDir, "error", err)
-			continue
-		}
-		w.writeFile(pokemonDir, "encounters.txt", fmt.Sprintf("%d", p.Encounters))
-		w.writeFile(pokemonDir, "pokemon_name.txt", p.Name)
-		title := p.Title
-		if title == "" {
-			title = p.Name
-		}
-		w.writeFile(pokemonDir, "title.txt", title)
-		w.writeFile(pokemonDir, "encounters_label.txt", fmt.Sprintf("%s: %d Encounters", p.Name, p.Encounters))
-		// Timer file
-		totalMs := p.TimerAccumulatedMs
-		if p.TimerStartedAt != nil {
-			totalMs += time.Since(*p.TimerStartedAt).Milliseconds()
-		}
-		timerH := totalMs / 3600000
-		timerM := (totalMs % 3600000) / 60000
-		timerS := (totalMs % 60000) / 1000
-		w.writeFile(pokemonDir, "timer.txt", fmt.Sprintf("%02d:%02d:%02d", timerH, timerM, timerS))
+		w.writePokemonDir(dir, p)
 	}
 
 	// Clean up orphaned per-pokemon directories

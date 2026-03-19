@@ -1,6 +1,6 @@
-import { spawn, ChildProcess } from 'child_process';
-import { EventEmitter } from 'events';
-import path from 'path';
+import { spawn, ChildProcess } from 'node:child_process';
+import { EventEmitter } from 'node:events';
+import path from 'node:path';
 import { app } from 'electron';
 
 export class GoProcessManager extends EventEmitter {

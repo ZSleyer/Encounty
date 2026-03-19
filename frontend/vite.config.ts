@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
@@ -15,9 +15,9 @@ export default defineConfig({
         target: "ws://localhost:8080",
         ws: true,
         configure: (proxy) => {
-          proxy.on("error", (err) => {
+          proxy.on("error", (err: Error) => {
             // ECONNRESET is expected on page reload (browser kills WebSocket)
-            if ((err as NodeJS.ErrnoException).code === "ECONNRESET") return;
+            if ((err as Error & { code?: string }).code === "ECONNRESET") return;
             console.error("[ws proxy]", err);
           });
         },

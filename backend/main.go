@@ -132,7 +132,9 @@ func main() {
 	}
 
 	// Detector manager — broadcast function is wired after server creation.
-	var broadcastFn detector.BroadcastFunc = func(msgType string, payload any) {}
+	var broadcastFn detector.BroadcastFunc = func(msgType string, payload any) {
+		// Placeholder — replaced with srv.Broadcast after server init.
+	}
 	detectorMgr := detector.NewManager(stateMgr, func(msgType string, payload any) {
 		broadcastFn(msgType, payload)
 	}, configDir)
@@ -210,47 +212,68 @@ func main() {
 	}
 }
 
+// migrateStateJSON migrates state.json into the SQLite database.
+// The JSON file is deleted after successful migration.
+func migrateStateJSON(configDir string, db *database.DB) {
+	if db.HasAppState() {
+		return
+	}
+	stateJSON := filepath.Join(configDir, "state.json")
+	data, err := os.ReadFile(stateJSON)
+	if err != nil {
+		return
+	}
+	if err := db.SaveAppState(data); err != nil {
+		slog.Warn("Failed to migrate state.json to DB", "error", err)
+		return
+	}
+	if db.HasAppState() {
+		_ = os.Remove(stateJSON)
+		slog.Info("Migrated state.json into database")
+	}
+}
+
+// migrateGamesJSON migrates games.json into the SQLite database, falling back
+// to the embedded default when no file exists on disk. The JSON file is deleted
+// after successful migration.
+func migrateGamesJSON(configDir string, db *database.DB) {
+	if db.HasGames() {
+		return
+	}
+	gamesJSON := filepath.Join(configDir, "games.json")
+	data, err := os.ReadFile(gamesJSON)
+	if err == nil {
+		rows, parseErr := parseGamesJSONToRows(data)
+		if parseErr == nil && len(rows) > 0 {
+			if err := db.SaveGames(rows); err != nil {
+				slog.Warn("Failed to migrate games.json to DB", "error", err)
+			} else if db.HasGames() {
+				_ = os.Remove(gamesJSON)
+				slog.Info("Migrated games.json into database")
+			}
+		}
+		return
+	}
+
+	// No games.json on disk — seed from embedded default.
+	if len(embeddedGamesJSON) == 0 {
+		return
+	}
+	rows, parseErr := parseGamesJSONToRows(embeddedGamesJSON)
+	if parseErr == nil && len(rows) > 0 {
+		if err := db.SaveGames(rows); err != nil {
+			slog.Warn("Failed to seed games from embedded default", "error", err)
+		} else {
+			slog.Info("Seeded games database from embedded default")
+		}
+	}
+}
+
 // migrateJSONToDB migrates state.json and games.json into the SQLite database
 // on first run after the migration. Files are deleted after successful migration.
 func migrateJSONToDB(configDir string, db *database.DB) {
-	// Migrate state.json
-	if !db.HasAppState() {
-		stateJSON := filepath.Join(configDir, "state.json")
-		if data, err := os.ReadFile(stateJSON); err == nil {
-			if err := db.SaveAppState(data); err != nil {
-				slog.Warn("Failed to migrate state.json to DB", "error", err)
-			} else if db.HasAppState() {
-				_ = os.Remove(stateJSON)
-				slog.Info("Migrated state.json into database")
-			}
-		}
-	}
-
-	// Migrate games.json
-	if !db.HasGames() {
-		gamesJSON := filepath.Join(configDir, "games.json")
-		if data, err := os.ReadFile(gamesJSON); err == nil {
-			rows, parseErr := parseGamesJSONToRows(data)
-			if parseErr == nil && len(rows) > 0 {
-				if err := db.SaveGames(rows); err != nil {
-					slog.Warn("Failed to migrate games.json to DB", "error", err)
-				} else if db.HasGames() {
-					_ = os.Remove(gamesJSON)
-					slog.Info("Migrated games.json into database")
-				}
-			}
-		} else if len(embeddedGamesJSON) > 0 {
-			// No games.json on disk and no DB games — seed from embedded default
-			rows, parseErr := parseGamesJSONToRows(embeddedGamesJSON)
-			if parseErr == nil && len(rows) > 0 {
-				if err := db.SaveGames(rows); err != nil {
-					slog.Warn("Failed to seed games from embedded default", "error", err)
-				} else {
-					slog.Info("Seeded games database from embedded default")
-				}
-			}
-		}
-	}
+	migrateStateJSON(configDir, db)
+	migrateGamesJSON(configDir, db)
 }
 
 // parseGamesJSONToRows parses the raw games JSON map into database rows.
@@ -279,31 +302,11 @@ func parseGamesJSONToRows(data []byte) ([]database.GameRow, error) {
 	return rows, nil
 }
 
-// migrateToNormalizedSchema writes the in-memory state (loaded from the legacy
-// JSON blob) into the normalized v2 database tables. Template images are read
-// from disk and embedded as BLOBs so that the filesystem copies are no longer
-// required. The migration is idempotent: it checks SchemaVersion and skips if
-// the database has already been upgraded.
-func migrateToNormalizedSchema(db *database.DB, stateMgr *state.Manager) {
-	if db.SchemaVersion() >= 2 {
-		return
-	}
-
-	// Get the state that was already loaded from the JSON blob by stateMgr.Load().
-	st := stateMgr.GetState()
-	if len(st.Pokemon) == 0 && st.ActiveID == "" && !st.LicenseAccepted {
-		// Empty/fresh state — nothing to migrate, just mark as v2.
-		if err := db.SetSchemaVersion(2); err != nil {
-			slog.Error("Failed to set schema version on fresh install", "error", err)
-		}
-		return
-	}
-
-	configDir := stateMgr.GetConfigDir()
-
-	// Load template images from disk into ImageData so SaveFullState persists them as BLOBs.
-	for i := range st.Pokemon {
-		p := &st.Pokemon[i]
+// loadTemplateImagesFromDisk reads template images from the filesystem into
+// their ImageData fields so they can be persisted as BLOBs during migration.
+func loadTemplateImagesFromDisk(pokemon []state.Pokemon, configDir string) {
+	for i := range pokemon {
+		p := &pokemon[i]
 		if p.DetectorConfig == nil {
 			continue
 		}
@@ -321,17 +324,36 @@ func migrateToNormalizedSchema(db *database.DB, stateMgr *state.Manager) {
 			t.ImageData = imgData
 		}
 	}
+}
+
+// migrateToNormalizedSchema writes the in-memory state (loaded from the legacy
+// JSON blob) into the normalized v2 database tables. Template images are read
+// from disk and embedded as BLOBs so that the filesystem copies are no longer
+// required. The migration is idempotent: it checks SchemaVersion and skips if
+// the database has already been upgraded.
+func migrateToNormalizedSchema(db *database.DB, stateMgr *state.Manager) {
+	if db.SchemaVersion() >= 2 {
+		return
+	}
+
+	st := stateMgr.GetState()
+	if len(st.Pokemon) == 0 && st.ActiveID == "" && !st.LicenseAccepted {
+		if err := db.SetSchemaVersion(2); err != nil {
+			slog.Error("Failed to set schema version on fresh install", "error", err)
+		}
+		return
+	}
+
+	loadTemplateImagesFromDisk(st.Pokemon, stateMgr.GetConfigDir())
 
 	if err := db.SaveFullState(&st); err != nil {
 		slog.Error("Failed to migrate to normalized schema", "error", err)
 		return
 	}
-
 	if err := db.SetSchemaVersion(2); err != nil {
 		slog.Error("Failed to set schema version after migration", "error", err)
 		return
 	}
-
 	slog.Info("Migrated state to normalized database schema (v2)")
 }
 

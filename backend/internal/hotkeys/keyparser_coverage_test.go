@@ -2,17 +2,17 @@ package hotkeys
 
 import "testing"
 
-// TestValidateKeyCombo_EmptyString exercises the error return from
+// TestValidateKeyComboEmptyString exercises the error return from
 // ParseKeyCombo that ValidateKeyCombo propagates.
-func TestValidateKeyCombo_EmptyString(t *testing.T) {
+func TestValidateKeyComboEmptyString(t *testing.T) {
 	_, err := ValidateKeyCombo("")
 	if err == nil {
 		t.Error("expected error for empty string")
 	}
 }
 
-// TestParseKeyCombo_TrailingPlusModifiers exercises "Ctrl+Shift++" parsing.
-func TestParseKeyCombo_ShiftPlus(t *testing.T) {
+// TestParseKeyComboShiftPlus exercises "Ctrl+Shift++" parsing.
+func TestParseKeyComboShiftPlus(t *testing.T) {
 	combo, err := ParseKeyCombo("Ctrl+Shift++")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -28,9 +28,9 @@ func TestParseKeyCombo_ShiftPlus(t *testing.T) {
 	}
 }
 
-// TestParseKeyCombo_NoKeyAfterSeparator exercises the error path where
+// TestParseKeyComboEmptyKeyAfterModifiers exercises the error path where
 // the key part is empty after modifiers.
-func TestParseKeyCombo_EmptyKeyAfterModifiers(t *testing.T) {
+func TestParseKeyComboEmptyKeyAfterModifiers(t *testing.T) {
 	_, err := ParseKeyCombo("Ctrl+ ")
 	// After trimming, key becomes "" which should error
 	if err == nil {

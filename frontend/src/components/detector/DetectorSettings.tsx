@@ -25,7 +25,7 @@ export type DetectorSettingsProps = Readonly<{
 // ── Default config ───────────────────────────────────────────────────────────
 
 const DEFAULT_CONFIG = {
-  precision: 0.80,
+  precision: 0.8,
   consecutive_hits: 1,
   cooldown_sec: 8,
   change_threshold: 0.15,
@@ -75,7 +75,7 @@ export function DetectorSettings({
             <input
               id="det-precision" type="range" min={0.5} max={1} step={0.01}
               value={cfg.precision}
-              onChange={(e) => onUpdate({ precision: parseFloat(e.target.value) })}
+              onChange={(e) => onUpdate({ precision: Number.parseFloat(e.target.value) })}
               className="w-full accent-accent-blue"
             />
             <p className="text-[10px] text-text-faint mt-0.5">{t("detector.precisionDesc")}</p>

@@ -54,9 +54,9 @@ class MockWebSocket {
     this.onerror?.(new Event("error"));
   }
 
-  static instances: MockWebSocket[] = [];
+  static readonly instances: MockWebSocket[] = [];
   static clear() {
-    MockWebSocket.instances = [];
+    MockWebSocket.instances.length = 0;
   }
   static latest(): MockWebSocket {
     return MockWebSocket.instances[MockWebSocket.instances.length - 1];

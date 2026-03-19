@@ -11,15 +11,13 @@ const workerCache: Partial<Record<string, TesseractWorker>> = {};
 const initPromise: Partial<Record<string, Promise<TesseractWorker>>> = {};
 
 async function getWorker(lang: string): Promise<TesseractWorker> {
-  if (workerCache[lang]) return workerCache[lang]!;
-  if (!initPromise[lang]) {
-    initPromise[lang] = createWorker(lang).then((w) => {
+  if (workerCache[lang]) return workerCache[lang];
+  initPromise[lang] ??= createWorker(lang).then((w) => {
       workerCache[lang] = w;
       delete initPromise[lang];
       return w;
     });
-  }
-  return initPromise[lang]!;
+  return initPromise[lang];
 }
 
 export interface UseOCRResult {
@@ -59,7 +57,7 @@ export function useOCR(defaultLang = "eng"): UseOCRResult {
         const { data } = await worker.recognize(source);
         return data.text.trim();
       } catch (e: any) {
-        const msg = e?.message ?? String(e) ?? "OCR failed";
+        const msg = e?.message ?? (String(e) || "OCR failed");
         if (isMounted.current) setOcrError(msg);
         return "";
       } finally {

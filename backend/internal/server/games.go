@@ -171,42 +171,51 @@ func entriesToGameRows(entries []GameEntry) []database.GameRow {
 	return rows
 }
 
-func readGamesJSON() ([]byte, error) {
-	// 1. Config directory — primary location, user can edit it here.
+// readGamesJSONFromDisk tries to load games.json from the config directory,
+// next to the binary, and then the working directory, in that order.
+// Returns the raw bytes and true on success, or nil and false if not found.
+func readGamesJSONFromDisk() ([]byte, bool) {
 	if gamesConfigDir != "" {
-		p := filepath.Join(gamesConfigDir, "games.json")
+		p := filepath.Join(gamesConfigDir, gamesFilename)
 		if data, err := os.ReadFile(p); err == nil {
-			return data, nil
+			return data, true
 		}
 	}
-
-	// 2. Next to the binary — legacy / portable installs.
 	if exe, err := os.Executable(); err == nil {
-		p := filepath.Join(filepath.Dir(exe), "games.json")
+		p := filepath.Join(filepath.Dir(exe), gamesFilename)
 		if data, err := os.ReadFile(p); err == nil {
-			return data, nil
+			return data, true
 		}
 	}
+	if data, err := os.ReadFile(gamesFilename); err == nil {
+		return data, true
+	}
+	return nil, false
+}
 
-	// 3. Working directory (dev mode convenience).
-	if data, err := os.ReadFile("games.json"); err == nil {
+// writeEmbeddedDefault writes the embedded games.json into the config directory
+// so the user can find and edit it in the future.
+func writeEmbeddedDefault() {
+	if gamesConfigDir == "" {
+		slog.Info("games.json not found, using embedded default (no config dir set)")
+		return
+	}
+	p := filepath.Join(gamesConfigDir, gamesFilename)
+	slog.Info("games.json not found, writing default", "path", p)
+	if werr := os.MkdirAll(gamesConfigDir, 0755); werr == nil {
+		if werr := os.WriteFile(p, defaultGamesJSON, 0644); werr != nil {
+			slog.Warn("Could not write default games.json", "error", werr)
+		}
+	}
+}
+
+func readGamesJSON() ([]byte, error) {
+	if data, ok := readGamesJSONFromDisk(); ok {
 		return data, nil
 	}
 
-	// 4. Fall back to the embedded default and write it into the config dir
-	//    so the user can find and edit it in the future.
 	if len(defaultGamesJSON) > 0 {
-		if gamesConfigDir != "" {
-			p := filepath.Join(gamesConfigDir, "games.json")
-			slog.Info("games.json not found, writing default", "path", p)
-			if werr := os.MkdirAll(gamesConfigDir, 0755); werr == nil {
-				if werr := os.WriteFile(p, defaultGamesJSON, 0644); werr != nil {
-					slog.Warn("Could not write default games.json", "error", werr)
-				}
-			}
-		} else {
-			slog.Info("games.json not found, using embedded default (no config dir set)")
-		}
+		writeEmbeddedDefault()
 		return defaultGamesJSON, nil
 	}
 

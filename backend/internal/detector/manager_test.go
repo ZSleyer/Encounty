@@ -27,7 +27,8 @@ func setupTestManager(t *testing.T) (*Manager, string) {
 		Language: "en",
 	})
 
-	broadcast := func(msgType string, payload any) {}
+	broadcast := func(msgType string, payload any) { // no-op broadcast for test
+	}
 	mgr := NewManager(stateMgr, broadcast, tmpDir)
 	return mgr, pokemonID
 }
@@ -46,8 +47,8 @@ func writeTemplateFile(t *testing.T, tmpDir, pokemonID string) state.DetectorCon
 		t.Fatal(err)
 	}
 	img := image.NewRGBA(image.Rect(0, 0, 32, 32))
-	for y := 0; y < 32; y++ {
-		for x := 0; x < 32; x++ {
+	for y := range 32 {
+		for x := range 32 {
 			if (x/4+y/4)%2 == 0 {
 				img.SetRGBA(x, y, color.RGBA{0, 0, 0, 255})
 			} else {
@@ -73,7 +74,7 @@ func writeTemplateFile(t *testing.T, tmpDir, pokemonID string) state.DetectorCon
 	}
 }
 
-func TestManager_StartStop(t *testing.T) {
+func TestManagerStartStop(t *testing.T) {
 	mgr, pokemonID := setupTestManager(t)
 
 	cfg := state.DetectorConfig{
@@ -95,7 +96,7 @@ func TestManager_StartStop(t *testing.T) {
 	}
 }
 
-func TestManager_StopIdempotent(t *testing.T) {
+func TestManagerStopIdempotent(t *testing.T) {
 	mgr, pokemonID := setupTestManager(t)
 
 	// Stopping a detector that was never started should not panic
@@ -106,7 +107,7 @@ func TestManager_StopIdempotent(t *testing.T) {
 	}
 }
 
-func TestManager_StartReplacesExisting(t *testing.T) {
+func TestManagerStartReplacesExisting(t *testing.T) {
 	mgr, pokemonID := setupTestManager(t)
 	cfg := state.DetectorConfig{Enabled: true}
 
@@ -123,14 +124,15 @@ func TestManager_StartReplacesExisting(t *testing.T) {
 	}
 }
 
-func TestManager_StopAll(t *testing.T) {
+func TestManagerStopAll(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 
 	stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "A", Language: "en"})
 	stateMgr.AddPokemon(state.Pokemon{ID: "p2", Name: "B", Language: "en"})
 
-	broadcast := func(msgType string, payload any) {}
+	broadcast := func(msgType string, payload any) { // no-op broadcast for test
+	}
 	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	_ = mgr.Start("p1", state.DetectorConfig{Enabled: true})
@@ -146,14 +148,15 @@ func TestManager_StopAll(t *testing.T) {
 	}
 }
 
-func TestManager_RunningIDs(t *testing.T) {
+func TestManagerRunningIDs(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 
 	stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "A", Language: "en"})
 	stateMgr.AddPokemon(state.Pokemon{ID: "p2", Name: "B", Language: "en"})
 
-	broadcast := func(msgType string, payload any) {}
+	broadcast := func(msgType string, payload any) { // no-op broadcast for test
+	}
 	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	ids := mgr.RunningIDs()
@@ -170,7 +173,7 @@ func TestManager_RunningIDs(t *testing.T) {
 	}
 }
 
-func TestManager_GetOrCreateBrowserDetector(t *testing.T) {
+func TestManagerGetOrCreateBrowserDetector(t *testing.T) {
 	mgr, pokemonID := setupTestManager(t)
 	tmpDir := mgr.configDir
 
@@ -192,7 +195,7 @@ func TestManager_GetOrCreateBrowserDetector(t *testing.T) {
 	}
 }
 
-func TestManager_ResetBrowserDetector(t *testing.T) {
+func TestManagerResetBrowserDetector(t *testing.T) {
 	mgr, pokemonID := setupTestManager(t)
 	tmpDir := mgr.configDir
 
@@ -209,7 +212,7 @@ func TestManager_ResetBrowserDetector(t *testing.T) {
 	}
 }
 
-func TestManager_StopRemovesBrowserDetector(t *testing.T) {
+func TestManagerStopRemovesBrowserDetector(t *testing.T) {
 	mgr, pokemonID := setupTestManager(t)
 	cfg := state.DetectorConfig{Enabled: true}
 
@@ -224,7 +227,7 @@ func TestManager_StopRemovesBrowserDetector(t *testing.T) {
 	}
 }
 
-func TestManager_SetBroadcast(t *testing.T) {
+func TestManagerSetBroadcast(t *testing.T) {
 	mgr, _ := setupTestManager(t)
 	called := false
 	mgr.SetBroadcast(func(msgType string, payload any) {

@@ -45,7 +45,7 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
       const duration = toast.duration ?? (toast.type === "encounter" ? 3000 : 2000);
 
       // Show system notification when the page is hidden (minimized / background tab)
-      if (document.hidden && "Notification" in window) {
+      if (document.hidden && "Notification" in globalThis) {
         if (Notification.permission === "granted") {
           new Notification(toast.title, {
             body: toast.message,

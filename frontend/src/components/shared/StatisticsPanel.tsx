@@ -136,7 +136,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex items-center justify-center h-[200px] text-text-faint text-sm">
+          <div className="flex items-center justify-center h-50 text-text-faint text-sm">
             {t("stats.noData")}
           </div>
         )}
