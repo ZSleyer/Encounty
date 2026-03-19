@@ -42,7 +42,7 @@ const sendBufSize = 64
 
 // writePump runs in its own goroutine and serialises all writes to conn.
 func (c *wsClient) writePump() {
-	defer c.conn.Close()
+	defer func() { _ = c.conn.Close() }()
 	for msg := range c.send {
 		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
 			slog.Debug("WebSocket write error", "error", err)
@@ -127,9 +127,12 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		h.mu.Lock()
-		delete(h.clients, c)
+		// Only close the channel if we're still tracked (CloseAll may have already done it).
+		if h.clients[c] {
+			delete(h.clients, c)
+			close(c.send)
+		}
 		h.mu.Unlock()
-		close(c.send)
 	}()
 
 	for {

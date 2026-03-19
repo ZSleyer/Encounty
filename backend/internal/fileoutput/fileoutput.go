@@ -103,7 +103,11 @@ func (w *Writer) Write(st state.AppState) {
 	// Per-Pokemon subdirectories
 	validDirs := make(map[string]bool)
 	for _, p := range st.Pokemon {
-		subDir := sanitizeFilename(p.Name) + "_" + p.ID[:5]
+		idPrefix := p.ID
+		if len(idPrefix) > 5 {
+			idPrefix = idPrefix[:5]
+		}
+		subDir := sanitizeFilename(p.Name) + "_" + idPrefix
 		validDirs[subDir] = true
 		pokemonDir := filepath.Join(dir, subDir)
 		if err := os.MkdirAll(pokemonDir, 0755); err != nil {
