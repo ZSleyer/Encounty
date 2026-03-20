@@ -81,6 +81,11 @@ func main() {
 	}
 
 	fileWriter := initFileWriter(st, configDir)
+	if fileWriter != nil {
+		stateMgr.OnChange(func(st state.AppState) {
+			fileWriter.Write(st)
+		})
+	}
 	hotkeyMgr := initHotkeys(stateMgr)
 
 	// Detector manager — broadcast function is wired after server creation.

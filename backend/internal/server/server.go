@@ -326,9 +326,6 @@ func (s *Server) handleHotkeyIncrement(id string) {
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 }
 
 // handleHotkeyDecrement processes the "decrement" hotkey action for the given Pokémon.
@@ -341,9 +338,6 @@ func (s *Server) handleHotkeyDecrement(id string) {
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 }
 
 // processHotkeyActions consumes the hotkey action channel and translates each

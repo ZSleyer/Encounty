@@ -108,9 +108,6 @@ func (s *Server) handleIncrement(w http.ResponseWriter, _ *http.Request, id stri
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 	writeJSON(w, http.StatusOK, map[string]int{"count": count})
 }
 
@@ -126,9 +123,6 @@ func (s *Server) handleDecrement(w http.ResponseWriter, _ *http.Request, id stri
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 	writeJSON(w, http.StatusOK, map[string]int{"count": count})
 }
 
@@ -142,9 +136,6 @@ func (s *Server) handleReset(w http.ResponseWriter, _ *http.Request, id string) 
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": id})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -166,9 +157,6 @@ func (s *Server) handleSetEncounters(w http.ResponseWriter, r *http.Request, id 
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_set", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 	writeJSON(w, http.StatusOK, map[string]int{"count": count})
 }
 
@@ -518,9 +506,6 @@ func (s *Server) wsHandleIncrement(payload json.RawMessage) {
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": p.PokemonID, "count": count})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 }
 
 // wsHandleDecrement subtracts one encounter from the Pokémon identified in
@@ -538,9 +523,6 @@ func (s *Server) wsHandleDecrement(payload json.RawMessage) {
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": p.PokemonID, "count": count})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 }
 
 // wsHandleReset zeroes out the encounter counter for the Pokémon identified
@@ -556,9 +538,6 @@ func (s *Server) wsHandleReset(payload json.RawMessage) {
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": p.PokemonID})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 }
 
 // wsHandleSetActive sets the given Pokémon as the active one for hotkey
@@ -590,9 +569,6 @@ func (s *Server) wsHandleSetEncounters(payload json.RawMessage) {
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_set", map[string]any{"pokemon_id": p.PokemonID, "count": count})
 	s.broadcastState()
-	if s.fileWriter != nil {
-		s.fileWriter.Write(s.state.GetState())
-	}
 }
 
 // wsHandleComplete marks the hunt as finished for the Pokémon identified in
