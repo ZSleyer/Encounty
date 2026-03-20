@@ -84,6 +84,7 @@ type DetectorTemplate struct {
 	ImagePath    string          `json:"image_path,omitempty"`     // legacy filesystem path
 	ImageData    []byte          `json:"-"`                        // PNG bytes, loaded on demand
 	Regions      []MatchedRegion `json:"regions"`
+	Enabled      *bool           `json:"enabled,omitempty"`        // nil = true (backward compat)
 }
 
 // DetectorRect defines a rectangular screen region in absolute pixel coordinates.
@@ -110,6 +111,8 @@ type DetectorConfig struct {
 	PollIntervalMs  int                `json:"poll_interval_ms"`       // base milliseconds between capture polls (adaptive centre point)
 	MinPollMs       int                `json:"min_poll_ms"`            // fastest adaptive poll interval (high activity), default 30
 	MaxPollMs       int                `json:"max_poll_ms"`            // slowest adaptive poll interval (static screen), default 500
+	AdaptiveCooldown    bool           `json:"adaptive_cooldown"`
+	AdaptiveCooldownMin int            `json:"adaptive_cooldown_min"` // Minimum seconds, default 3
 	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 
@@ -251,6 +254,7 @@ type Settings struct {
 	BrowserPort  int             `json:"browser_port"`
 	Languages    []string        `json:"languages"`                // active game-name languages; default ["de","en"]
 	CrispSprites bool            `json:"crisp_sprites"`
+	UIAnimations bool            `json:"ui_animations"`
 	Overlay      OverlaySettings `json:"overlay"`
 	TutorialSeen TutorialFlags   `json:"tutorial_seen"`
 	ConfigPath   string          `json:"config_path,omitempty"`    // custom data directory override
@@ -314,6 +318,7 @@ func NewManager(configDir string) *Manager {
 				BrowserPort:   8080,
 				Languages:    []string{"de", "en"},
 				CrispSprites: true,
+				UIAnimations: true,
 				Overlay: OverlaySettings{
 					CanvasWidth:       800,
 					CanvasHeight:      200,
@@ -530,6 +535,16 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 	return false
 }
 
+// resetLinkedOverlays resets any Pokemon whose overlay is linked to the given id back to "default".
+func (m *Manager) resetLinkedOverlays(id string) {
+	linked := overlayLinkedPrefix + id
+	for j := range m.state.Pokemon {
+		if m.state.Pokemon[j].OverlayMode == linked {
+			m.state.Pokemon[j].OverlayMode = "default"
+		}
+	}
+}
+
 // DeletePokemon removes the Pokémon with the given id. If it was the active
 // Pokémon, the first remaining entry becomes active. Returns false if not found.
 func (m *Manager) DeletePokemon(id string) bool {
@@ -545,13 +560,7 @@ func (m *Manager) DeletePokemon(id string) bool {
 					m.state.Pokemon[0].IsActive = true
 				}
 			}
-			// Reset any Pokemon linked to the deleted one
-			linkedPrefix := overlayLinkedPrefix + id
-			for j := range m.state.Pokemon {
-				if m.state.Pokemon[j].OverlayMode == linkedPrefix {
-					m.state.Pokemon[j].OverlayMode = "default"
-				}
-			}
+			m.resetLinkedOverlays(id)
 			go m.notify()
 			return true
 		}
@@ -673,6 +682,20 @@ func (m *Manager) StopTimer(id string) bool {
 		}
 	}
 	return false
+}
+
+// StopAllTimers folds elapsed time into accumulated for every running timer
+// and clears TimerStartedAt. Used during graceful shutdown.
+func (m *Manager) StopAllTimers() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].TimerStartedAt != nil {
+			elapsed := time.Since(*m.state.Pokemon[i].TimerStartedAt)
+			m.state.Pokemon[i].TimerAccumulatedMs += elapsed.Milliseconds()
+			m.state.Pokemon[i].TimerStartedAt = nil
+		}
+	}
 }
 
 // ResetTimer clears both TimerStartedAt and TimerAccumulatedMs.

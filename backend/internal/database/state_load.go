@@ -147,12 +147,12 @@ func loadHotkeys(db *sql.DB) (state.HotkeyMap, error) {
 // loadSettings reads the singleton settings row including inline tutorial flags.
 func loadSettings(db *sql.DB) (state.Settings, error) {
 	var s state.Settings
-	var outputEnabled, autoSave, crispSprites, tutOverlay, tutDetection int
+	var outputEnabled, autoSave, crispSprites, uiAnimations, tutOverlay, tutDetection int
 	err := db.QueryRow(`SELECT output_enabled, output_dir, auto_save, browser_port,
-		crisp_sprites, config_path, tutorial_overlay_editor, tutorial_auto_detection
+		crisp_sprites, ui_animations, config_path, tutorial_overlay_editor, tutorial_auto_detection
 		FROM settings WHERE id = 1`).
 		Scan(&outputEnabled, &s.OutputDir, &autoSave, &s.BrowserPort,
-			&crispSprites, &s.ConfigPath, &tutOverlay, &tutDetection)
+			&crispSprites, &uiAnimations, &s.ConfigPath, &tutOverlay, &tutDetection)
 	if err == sql.ErrNoRows {
 		return s, nil
 	}
@@ -162,6 +162,7 @@ func loadSettings(db *sql.DB) (state.Settings, error) {
 	s.OutputEnabled = outputEnabled != 0
 	s.AutoSave = autoSave != 0
 	s.CrispSprites = crispSprites != 0
+	s.UIAnimations = uiAnimations != 0
 	s.TutorialSeen.OverlayEditor = tutOverlay != 0
 	s.TutorialSeen.AutoDetection = tutDetection != 0
 	return s, nil
@@ -216,16 +217,8 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		if t, err := time.Parse(time.RFC3339, createdAtStr); err == nil {
 			p.CreatedAt = t
 		}
-		if completedAt.Valid && completedAt.String != "" {
-			if t, err := time.Parse(time.RFC3339, completedAt.String); err == nil {
-				p.CompletedAt = &t
-			}
-		}
-		if timerStartedAt.Valid && timerStartedAt.String != "" {
-			if t, err := time.Parse(time.RFC3339, timerStartedAt.String); err == nil {
-				p.TimerStartedAt = &t
-			}
-		}
+		p.CompletedAt = parseOptionalTime(completedAt)
+		p.TimerStartedAt = parseOptionalTime(timerStartedAt)
 		pokemon = append(pokemon, p)
 	}
 	if pokemon == nil {
@@ -234,17 +227,28 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	return pokemon, rows.Err()
 }
 
+// parseOptionalTime parses a nullable RFC3339 string into a *time.Time.
+func parseOptionalTime(ns sql.NullString) *time.Time {
+	if ns.Valid && ns.String != "" {
+		if t, err := time.Parse(time.RFC3339, ns.String); err == nil {
+			return &t
+		}
+	}
+	return nil
+}
+
 // loadDetectorConfig reads the optional detector_configs row for a pokemon.
 func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, error) {
 	var dc state.DetectorConfig
-	var enabled int
+	var enabled, adaptiveCooldown int
 	err := db.QueryRow(`SELECT enabled, source_type, region_x, region_y, region_w, region_h,
 		window_title, precision_val, consecutive_hits, cooldown_sec, change_threshold,
-		poll_interval_ms, min_poll_ms, max_poll_ms
+		poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min
 		FROM detector_configs WHERE pokemon_id = ?`, pokemonID).
 		Scan(&enabled, &dc.SourceType, &dc.Region.X, &dc.Region.Y, &dc.Region.W, &dc.Region.H,
 			&dc.WindowTitle, &dc.Precision, &dc.ConsecutiveHits, &dc.CooldownSec,
-			&dc.ChangeThreshold, &dc.PollIntervalMs, &dc.MinPollMs, &dc.MaxPollMs)
+			&dc.ChangeThreshold, &dc.PollIntervalMs, &dc.MinPollMs, &dc.MaxPollMs,
+			&adaptiveCooldown, &dc.AdaptiveCooldownMin)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -252,6 +256,7 @@ func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, er
 		return nil, err
 	}
 	dc.Enabled = enabled != 0
+	dc.AdaptiveCooldown = adaptiveCooldown != 0
 	dc.Templates = []state.DetectorTemplate{}
 	dc.DetectionLog = []state.DetectionLogEntry{}
 	return &dc, nil
@@ -261,7 +266,7 @@ func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, er
 // It collects all template rows first and closes the cursor before querying
 // regions, avoiding a deadlock with MaxOpenConns(1).
 func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTemplate, error) {
-	rows, err := db.Query(`SELECT id, sort_order FROM detector_templates WHERE pokemon_id = ? ORDER BY sort_order`, pokemonID)
+	rows, err := db.Query(`SELECT id, sort_order, enabled FROM detector_templates WHERE pokemon_id = ? ORDER BY sort_order`, pokemonID)
 	if err != nil {
 		return nil, err
 	}
@@ -270,10 +275,13 @@ func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTempla
 	for rows.Next() {
 		var t state.DetectorTemplate
 		var sortOrder int
-		if err := rows.Scan(&t.TemplateDBID, &sortOrder); err != nil {
+		var enabledInt int
+		if err := rows.Scan(&t.TemplateDBID, &sortOrder, &enabledInt); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
+		enabled := enabledInt != 0
+		t.Enabled = &enabled
 		templates = append(templates, t)
 	}
 	if err := rows.Err(); err != nil {

@@ -5,9 +5,10 @@
  * Uses DetectorPreview for live video display and DetectorSettings for
  * configuration options.
  */
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  X, Plus, Pencil, Sparkles, Loader2, HelpCircle,
+  X, Plus, Pencil, Sparkles, Loader2, HelpCircle, Eye, EyeOff,
+  MoreHorizontal, Download, Upload, FileDown,
 } from "lucide-react";
 import { DetectorConfig, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
@@ -19,6 +20,7 @@ import { DetectorTutorial } from "./DetectorTutorial";
 import { SourcePickerModal, SelectedSource } from "./SourcePickerModal";
 import { DetectorPreview } from "./DetectorPreview";
 import { DetectorSettings } from "./DetectorSettings";
+import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { getSpriteUrl } from "../../utils/sprites";
 
 // ── Default config ───────────────────────────────────────────────────────────
@@ -36,6 +38,8 @@ const DEFAULT_CONFIG: DetectorConfig = {
   poll_interval_ms: 50,
   min_poll_ms: 30,
   max_poll_ms: 500,
+  adaptive_cooldown: false,
+  adaptive_cooldown_min: 3,
 };
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -118,6 +122,9 @@ export function DetectorPanel({
     index: number; url: string; regions: MatchedRegion[];
   } | null>(null);
   const [addingSprite, setAddingSprite] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const capture = useCaptureService();
   // Subscribe to capture version changes so we re-render when streams start/stop
@@ -286,6 +293,28 @@ export function DetectorPanel({
     } catch { setErrorMsg(t("detector.errDeleteTemplate")); }
   };
 
+  const handleToggleTemplate = async (index: number) => {
+    const tmpl = templates[index];
+    if (!tmpl) return;
+    const newEnabled = tmpl.enabled === false;
+    try {
+      const res = await fetch(`/api/detector/${pokemon.id}/template/${index}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: newEnabled }),
+      });
+      if (res.ok) {
+        const newTemplates = templates.map((t, i) =>
+          i === index ? { ...t, enabled: newEnabled } : t,
+        );
+        setTemplates(newTemplates);
+        const nextCfg = { ...cfg, templates: newTemplates };
+        setCfg(nextCfg);
+        onConfigChange(nextCfg);
+      }
+    } catch { /* ignore */ }
+  };
+
   const handleSaveNewTemplate = async (payload: { imageBase64: string; regions: MatchedRegion[] }) => {
     const res = await fetch(`/api/detector/${pokemon.id}/template_upload`, {
       method: "POST",
@@ -382,6 +411,65 @@ export function DetectorPanel({
       }
     } catch { setErrorMsg(t("detector.errCaptureFailed")); }
     finally { setAddingSprite(false); }
+  };
+
+  const handleImportFromPokemon = async (sourcePokemonId: string) => {
+    try {
+      const res = await fetch(`/api/detector/${pokemon.id}/import_templates`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source_pokemon_id: sourcePokemonId }),
+      });
+      if (res.ok) {
+        const data = await res.json() as { imported: number };
+        pushToast({ type: "success", title: t("detector.importSuccess").replace("{count}", String(data.imported)) });
+        // Refresh templates from the server state
+        const stateRes = await fetch(`/api/detector/${pokemon.id}/config`);
+        if (stateRes.ok) {
+          const config = await stateRes.json() as DetectorConfig;
+          setTemplates(config.templates || []);
+          setCfg((prev) => ({ ...prev, templates: config.templates || [] }));
+        }
+      } else {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        pushToast({ type: "error", title: body.error ?? "Import failed" });
+      }
+    } catch { pushToast({ type: "error", title: "Import failed" }); }
+    setShowImportModal(false);
+  };
+
+  const handleExportTemplates = () => {
+    window.open(`/api/detector/${pokemon.id}/export_templates`, "_blank");
+    setShowMoreMenu(false);
+  };
+
+  const handleImportFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset so the same file can be re-selected
+    e.target.value = "";
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(`/api/detector/${pokemon.id}/import_templates_file`, {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json() as { imported: number };
+        pushToast({ type: "success", title: t("detector.importFileSuccess").replace("{count}", String(data.imported)) });
+        const stateRes = await fetch(`/api/detector/${pokemon.id}/config`);
+        if (stateRes.ok) {
+          const config = await stateRes.json() as DetectorConfig;
+          setTemplates(config.templates || []);
+          setCfg((prev) => ({ ...prev, templates: config.templates || [] }));
+        }
+      } else {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        pushToast({ type: "error", title: body.error ?? t("detector.errInvalidFile") });
+      }
+    } catch { pushToast({ type: "error", title: t("detector.errInvalidFile") }); }
+    setShowMoreMenu(false);
   };
 
   // ── Start / Stop ───────────────────────────────────────────────────────────
@@ -532,6 +620,23 @@ export function DetectorPanel({
             </span>
           </div>
 
+          {/* Confidence indicator */}
+          {isRunning && (
+            <div className="flex items-center gap-2 flex-1">
+              <div className="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-150 ${
+                    confidence >= cfg.precision ? 'bg-green-400' : 'bg-accent-blue/50'
+                  }`}
+                  style={{ width: `${Math.min(confidence * 100, 100)}%` }}
+                />
+              </div>
+              <span className="text-[11px] font-mono text-text-muted shrink-0 w-10 text-right">
+                {(confidence * 100).toFixed(1)}%
+              </span>
+            </div>
+          )}
+
           {/* Start / Stop button */}
           <button
             onClick={isRunning ? handleStop : handleStart}
@@ -572,6 +677,8 @@ export function DetectorPanel({
           onSourceTypeChange={(sourceType) => setCfg({ ...cfg, source_type: sourceType as any })}
           onStartCapture={startCapture}
           onStopCapture={stopCapture}
+          isRunning={isRunning}
+          confidence={confidence}
         />
 
         {/* ── Templates ───────────────────────────────────────────────────── */}
@@ -615,6 +722,53 @@ export function DetectorPanel({
                   {t("detector.addFromSprite")}
                 </button>
               )}
+              {/* More menu (import/export) */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowMoreMenu((v) => !v)}
+                  className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
+                  title={t("detector.more")}
+                >
+                  <MoreHorizontal className="w-3.5 h-3.5" />
+                </button>
+                {showMoreMenu && (
+                  <>
+                    <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMoreMenu(false)} aria-label="Close menu" />
+                    <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-45">
+                      {templates.length > 0 && (
+                        <button
+                          onClick={handleExportTemplates}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          {t("detector.exportTemplates")}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setShowImportModal(true); setShowMoreMenu(false); }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        {t("detector.importFromPokemon")}
+                      </button>
+                      <button
+                        onClick={() => { fileInputRef.current?.click(); setShowMoreMenu(false); }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                      >
+                        <FileDown className="w-3.5 h-3.5" />
+                        {t("detector.importFromFile")}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".encounty-templates,.zip"
+                className="hidden"
+                onChange={handleImportFromFile}
+              />
             </div>
           </div>
 
@@ -625,7 +779,9 @@ export function DetectorPanel({
                   <img
                     src={`/api/detector/${pokemon.id}/template/${index}`}
                     alt={`Template ${index + 1}`}
-                    className="w-full aspect-square object-contain rounded-lg border border-border-subtle bg-bg-primary"
+                    className={`w-full aspect-square object-contain rounded-lg border border-border-subtle bg-bg-primary transition-all ${
+                      tmpl.enabled === false ? 'opacity-40 grayscale' : ''
+                    }`}
                   />
                   {/* Region count badge */}
                   {(tmpl.regions?.length ?? 0) > 0 && (
@@ -635,6 +791,13 @@ export function DetectorPanel({
                   )}
                   {/* Overlay buttons on hover */}
                   <div className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => handleToggleTemplate(index)}
+                      className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-amber-500 transition-colors"
+                      title={tmpl.enabled === false ? t("detector.enableTemplate") : t("detector.disableTemplate")}
+                    >
+                      {tmpl.enabled === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
                     <button
                       onClick={() => handleEditTemplate(index)}
                       className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-accent-blue transition-colors"
@@ -706,6 +869,15 @@ export function DetectorPanel({
           sourceType={cfg.source_type as "browser_display" | "browser_camera"}
           onSelect={handleSourceSelected}
           onClose={() => setShowSourcePicker(false)}
+        />
+      )}
+
+      {/* ── Import Templates Modal ───────────────────────────────────────── */}
+      {showImportModal && (
+        <ImportTemplatesModal
+          currentPokemonId={pokemon.id}
+          onImport={handleImportFromPokemon}
+          onClose={() => setShowImportModal(false)}
         />
       )}
     </>

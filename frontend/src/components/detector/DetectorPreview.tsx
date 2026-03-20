@@ -18,7 +18,17 @@ export type DetectorPreviewProps = Readonly<{
   onSourceTypeChange: (sourceType: string) => void;
   onStartCapture: () => void;
   onStopCapture: () => void;
+  isRunning?: boolean;
+  confidence?: number;
 }>;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function confidenceBadgeClass(confidence: number, precision: number): string {
+  if (confidence >= precision) return 'bg-green-500/80 text-white';
+  if (confidence >= 0.5) return 'bg-amber-500/80 text-white';
+  return 'bg-black/60 text-white/70';
+}
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -28,6 +38,8 @@ export function DetectorPreview({
   onSourceTypeChange,
   onStartCapture,
   onStopCapture,
+  isRunning,
+  confidence,
 }: DetectorPreviewProps) {
   const { t } = useI18n();
   const capture = useCaptureService();
@@ -105,6 +117,14 @@ export function DetectorPreview({
             <div className="w-full h-full flex flex-col items-center justify-center">
               <Camera className="w-10 h-10 2xl:w-12 2xl:h-12 text-white/20 mb-2" />
               <p className="text-xs text-white/30">{t("detector.noStream")}</p>
+            </div>
+          )}
+          {/* Confidence overlay badge */}
+          {isRunning && confidence != null && stream && (
+            <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold backdrop-blur-sm ${
+              confidenceBadgeClass(confidence, cfg.precision || 0.8)
+            }`}>
+              {(confidence * 100).toFixed(1)}%
             </div>
           )}
         </div>

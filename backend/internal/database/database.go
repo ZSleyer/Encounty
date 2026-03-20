@@ -164,6 +164,19 @@ func (d *DB) migrate() error {
 			return fmt.Errorf("exec %q: %w", s[:min(40, len(s))], err)
 		}
 	}
+
+	// Idempotent schema upgrades (ALTER TABLE is not IF NOT EXISTS).
+	// Ignore "duplicate column" errors for existing databases.
+	alterStmts := []string{
+		`ALTER TABLE detector_templates ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`,
+		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3`,
+		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
+	}
+	for _, s := range alterStmts {
+		_, _ = d.db.Exec(s) // Ignore "duplicate column" errors
+	}
+
 	return nil
 }
 

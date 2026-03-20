@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon, Type, Loader2, ScanText } from "lucide-react";
+import { X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon, Type, Loader2, ScanText, Play } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { MatchedRegion } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
+import { useReplayBuffer } from "../../hooks/useReplayBuffer";
 
 export type TemplateEditorProps = Readonly<{
   /** Live video stream for new-template mode. If omitted, edit mode is assumed. */
@@ -23,20 +24,24 @@ export type TemplateEditorProps = Readonly<{
   ocrLang?: string;
 }>;
 
-/** Flow controls for creating a new template — video or snapshot phase. */
+/** Flow controls for creating a new template. */
 function NewTemplateControls({
   phase,
   isSaving,
   onTakeSnapshot,
   onResetSnapshot,
   onSave,
+  onUseFrame,
+  onBackToLive,
   t,
 }: Readonly<{
-  phase: "video" | "snapshot";
+  phase: "video" | "replay" | "snapshot";
   isSaving: boolean;
   onTakeSnapshot: () => void;
   onResetSnapshot: () => void;
   onSave: () => void;
+  onUseFrame: () => void;
+  onBackToLive: () => void;
   t: (k: string) => string;
 }>) {
   if (phase === "video") {
@@ -48,6 +53,27 @@ function NewTemplateControls({
         <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
         {t("templateEditor.takeSnapshot")}
       </button>
+    );
+  }
+
+  if (phase === "replay") {
+    return (
+      <div className="flex w-full gap-3">
+        <button
+          onClick={onBackToLive}
+          className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all"
+        >
+          <Play className="w-4 h-4 2xl:w-5 2xl:h-5" />
+          {t("templateEditor.backToLive")}
+        </button>
+        <button
+          onClick={onUseFrame}
+          className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+        >
+          <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
+          {t("templateEditor.useFrame")}
+        </button>
+      </div>
     );
   }
 
@@ -88,7 +114,10 @@ export function TemplateEditor({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [phase, setPhase] = useState<"video" | "snapshot">("video");
+  const [phase, setPhase] = useState<"video" | "replay" | "snapshot">("video");
+  const [selectedFrameIndex, setSelectedFrameIndex] = useState(0);
+
+  const replayBuffer = useReplayBuffer(stream, 30, 5);
   const [snapshotWidth, setSnapshotWidth] = useState(0);
   const [snapshotHeight, setSnapshotHeight] = useState(0);
 
@@ -130,7 +159,7 @@ export function TemplateEditor({
   }, [snapshotWidth, snapshotHeight]);
 
   useEffect(() => {
-    if (phase !== "snapshot" || snapshotWidth === 0 || snapshotHeight === 0) {
+    if ((phase !== "snapshot" && phase !== "replay") || snapshotWidth === 0 || snapshotHeight === 0) {
       setImageBounds(null);
       return;
     }
@@ -169,32 +198,106 @@ export function TemplateEditor({
     }
   }, [stream, phase]);
 
-  const handleTakeSnapshot = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-    const video = videoRef.current;
-    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+  useEffect(() => {
+    if (phase !== "replay") return;
 
-    setSnapshotWidth(video.videoWidth);
-    setSnapshotHeight(video.videoHeight);
+    const frame = replayBuffer.getFrame(selectedFrameIndex);
+    if (!frame || !canvasRef.current) return;
 
-    canvasRef.current.width = video.videoWidth;
-    canvasRef.current.height = video.videoHeight;
+    if (canvasRef.current.width !== frame.width) {
+      canvasRef.current.width = frame.width;
+      setSnapshotWidth(frame.width);
+    }
+    if (canvasRef.current.height !== frame.height) {
+      canvasRef.current.height = frame.height;
+      setSnapshotHeight(frame.height);
+    }
+
     const ctx = canvasRef.current.getContext("2d");
     if (ctx) {
-      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      ctx.putImageData(frame, 0, 0);
     }
+  }, [phase, selectedFrameIndex, replayBuffer]);
+
+  useEffect(() => {
+    if (phase !== "replay") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        setSelectedFrameIndex((prev) => Math.max(0, prev - step));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        setSelectedFrameIndex((prev) => Math.min(replayBuffer.frameCount - 1, prev + step));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [phase, replayBuffer.frameCount]);
+
+  const handleTakeSnapshot = () => {
+    // Stop the replay buffer and enter replay phase to browse frames
+    replayBuffer.stop();
+    if (replayBuffer.frameCount > 0) {
+      setSelectedFrameIndex(replayBuffer.frameCount - 1);
+      setPhase("replay");
+    } else {
+      // Fallback: no frames buffered, capture current video frame directly
+      if (!videoRef.current || !canvasRef.current) return;
+      const video = videoRef.current;
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+      setSnapshotWidth(video.videoWidth);
+      setSnapshotHeight(video.videoHeight);
+
+      canvasRef.current.width = video.videoWidth;
+      canvasRef.current.height = video.videoHeight;
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      }
+      setPhase("snapshot");
+      setRegions([]);
+      setCurrentBox(null);
+      setErrorMsg(null);
+    }
+  };
+
+  const handleUseFrame = () => {
+    if (!canvasRef.current) return;
+    const frame = replayBuffer.getFrame(selectedFrameIndex);
+    if (!frame) return;
+
+    setSnapshotWidth(frame.width);
+    setSnapshotHeight(frame.height);
+
+    canvasRef.current.width = frame.width;
+    canvasRef.current.height = frame.height;
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.putImageData(frame, 0, 0);
+    }
+
     setPhase("snapshot");
-
-    // Start with no pre-drawn regions — the game layout varies too much
-    // to guess useful coordinates automatically.
     setRegions([]);
-
     setCurrentBox(null);
+    setErrorMsg(null);
+  };
+
+  const handleBackToLive = () => {
+    setPhase("video");
+    setSelectedFrameIndex(0);
+    setCurrentBox(null);
+    setRegions([]);
     setErrorMsg(null);
   };
 
   const resetSnapshot = () => {
     setPhase("video");
+    setSelectedFrameIndex(0);
     setCurrentBox(null);
     setRegions([]);
     setErrorMsg(null);
@@ -231,7 +334,8 @@ export function TemplateEditor({
   };
 
   const onPointerDown = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (phase !== "snapshot") return;
+    if (phase !== "snapshot" && phase !== "replay") return;
+    if (phase === "replay") return;
     setIsDrawing(true);
     const pos = getRelativeMousePos(e);
     setStartPos(pos);
@@ -239,7 +343,8 @@ export function TemplateEditor({
   };
 
   const onPointerMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (!isDrawing || phase !== "snapshot") return;
+    if (!isDrawing || (phase !== "snapshot" && phase !== "replay")) return;
+    if (phase === "replay") return;
     const pos = getRelativeMousePos(e);
     setCurrentBox({
       x: Math.min(startPos.x, pos.x),
@@ -371,6 +476,9 @@ export function TemplateEditor({
           } else if (phase === "video") {
             heading = t("templateEditor.step1Title");
             hint = t("templateEditor.step1Hint");
+          } else if (phase === "replay") {
+            heading = t("templateEditor.replayTitle");
+            hint = t("templateEditor.replayHint");
           } else {
             heading = t("templateEditor.step2Title");
             hint = t("templateEditor.step2Hint");
@@ -387,36 +495,46 @@ export function TemplateEditor({
 
       <div
         ref={containerRef}
-        className="relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[60vh] 2xl:max-h-[65vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-6 flex items-center justify-center cursor-crosshair select-none touch-none"
-        onMouseDown={onPointerDown}
-        onMouseMove={onPointerMove}
-        onMouseUp={onPointerUp}
-        onMouseLeave={onPointerUp}
-        onTouchStart={onPointerDown}
-        onTouchMove={onPointerMove}
-        onTouchEnd={onPointerUp}
+        className={`relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[60vh] 2xl:max-h-[65vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-6 flex items-center justify-center select-none touch-none ${
+          phase === "snapshot" ? "cursor-crosshair" : "cursor-default"
+        }`}
+        onMouseDown={phase === "snapshot" ? onPointerDown : undefined}
+        onMouseMove={phase === "snapshot" ? onPointerMove : undefined}
+        onMouseUp={phase === "snapshot" ? onPointerUp : undefined}
+        onMouseLeave={phase === "snapshot" ? onPointerUp : undefined}
+        onTouchStart={phase === "snapshot" ? onPointerDown : undefined}
+        onTouchMove={phase === "snapshot" ? onPointerMove : undefined}
+        onTouchEnd={phase === "snapshot" ? onPointerUp : undefined}
       >
         {/* Video feed layer — hidden in edit mode */}
         {!isEditMode && (
-          <video
-            ref={videoRef}
-            className={`w-full h-full object-contain pointer-events-none ${phase === "video" ? "" : "hidden"}`}
-            autoPlay
-            playsInline
-            muted
-          />
+          <>
+            <video
+              ref={videoRef}
+              className={`w-full h-full object-contain pointer-events-none ${phase === "video" ? "" : "hidden"}`}
+              autoPlay
+              playsInline
+              muted
+            />
+            {phase === "video" && replayBuffer.isBuffering && (
+              <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-mono text-white">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                {Math.floor(replayBuffer.bufferedSeconds)}s / 30s
+              </div>
+            )}
+          </>
         )}
 
         {/* Snapshot canvas layer */}
         <canvas
           ref={canvasRef}
-          className={`w-full h-full object-contain pointer-events-none ${phase === "snapshot" ? "" : "hidden"}`}
+          className={`w-full h-full object-contain pointer-events-none ${phase === "snapshot" || phase === "replay" ? "" : "hidden"}`}
         />
 
         {/* Overlay wrapper — positioned to match the rendered image area
             within the object-contain container, so percentage-based region
             positioning is correct even with letterboxing. */}
-        {phase === "snapshot" && imageBounds && (
+        {(phase === "snapshot" || phase === "replay") && imageBounds && (
           <div
             className="absolute pointer-events-none"
             style={{
@@ -432,8 +550,8 @@ export function TemplateEditor({
                 key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
                 className={`absolute border-[3px] pointer-events-none transition-colors ${
                   r.type === 'text'
-                    ? 'border-purple-500 bg-purple-500/20'
-                    : 'border-accent-blue bg-accent-blue/20'
+                    ? 'border-purple-500 bg-purple-500/30'
+                    : 'border-accent-blue bg-accent-blue/30'
                 }`}
                 style={{
                   left: `${(r.rect.x / snapshotWidth) * 100}%`,
@@ -442,7 +560,7 @@ export function TemplateEditor({
                   height: `${(r.rect.h / snapshotHeight) * 100}%`,
                 }}
               >
-                <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-md">
+                <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
                   <strong className={r.type === 'text' ? 'text-purple-400' : 'text-accent-blue'}>#{i + 1}</strong>
                   {r.type === 'text' ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" /> : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />}
                   {r.type === 'text' && r.expected_text ? (
@@ -455,7 +573,7 @@ export function TemplateEditor({
             {/* Current drawing box */}
             {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
               <div
-                className="absolute border-2 border-white border-dashed bg-white/10 pointer-events-none"
+                className="absolute border-2 border-yellow-400 border-dashed bg-yellow-400/15 pointer-events-none"
                 style={{
                   left: `${currentBox.x * 100}%`,
                   top: `${currentBox.y * 100}%`,
@@ -467,6 +585,39 @@ export function TemplateEditor({
           </div>
         )}
       </div>
+
+      {/* Replay Timeline */}
+      {phase === "replay" && replayBuffer.frameCount > 0 && (
+        <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-4 px-8">
+          <div className="flex items-center gap-4">
+            <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
+              {(() => {
+                const totalSec = replayBuffer.bufferedSeconds;
+                const secPerFrame = totalSec / replayBuffer.frameCount;
+                const currentSec = selectedFrameIndex * secPerFrame;
+                const relative = currentSec - totalSec;
+                return Math.abs(relative) < 0.1 ? "now" : `${Math.round(relative)}s`;
+              })()}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={replayBuffer.frameCount - 1}
+              value={selectedFrameIndex}
+              onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
+              className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
+                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
+            />
+            <span className="text-white/60 text-xs 2xl:text-sm shrink-0">
+              {selectedFrameIndex + 1} / {replayBuffer.frameCount}
+            </span>
+          </div>
+          <p className="text-xs 2xl:text-sm text-text-muted text-center mt-2">
+            Arrow keys: ±1 frame, Shift+Arrow keys: ±5 frames
+          </p>
+        </div>
+      )}
 
       {/* Region List Editor */}
       {phase === "snapshot" && regions.length > 0 && (
@@ -570,6 +721,8 @@ export function TemplateEditor({
             onTakeSnapshot={handleTakeSnapshot}
             onResetSnapshot={resetSnapshot}
             onSave={handleSave}
+            onUseFrame={handleUseFrame}
+            onBackToLive={handleBackToLive}
             t={t}
           />
         )}

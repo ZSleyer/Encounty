@@ -52,12 +52,13 @@ type Detector struct {
 	configDir string
 
 	// internal state machine
-	phase       detectorPhase
-	consecCount int
-	prevAbove   bool // edge detection: only count on low→high transition
-	prevFrame   image.Image // previous frame for delta-based adaptive polling
-	lastFrame   image.Image // frame at match confirmation for change detection
-	cooldownEnd time.Time
+	phase              detectorPhase
+	consecCount        int
+	prevAbove          bool // edge detection: only count on low→high transition
+	prevFrame          image.Image // previous frame for delta-based adaptive polling
+	lastFrame          image.Image // frame at match confirmation for change detection
+	cooldownEnd        time.Time
+	cooldownStartTime  time.Time   // used for adaptive cooldown minimum elapsed check
 
 	// pollIntervalNs stores the current poll interval in nanoseconds.
 	// Read and written atomically so the capture goroutine can observe
@@ -71,7 +72,7 @@ type Detector struct {
 	// lang is the tesseract language code derived from the Pokémon's language field.
 	lang string
 
-	// lastBestScore tracks the most recent idle-phase confidence value
+	// lastBestScore tracks the most recent confidence value
 	lastBestScore float64
 }
 
@@ -104,57 +105,61 @@ func newDetector(pokemonID string, cfg state.DetectorConfig, mgr *state.Manager,
 func loadTemplates(templates []state.DetectorTemplate, configDir, pokemonID string) []loadedTemplate {
 	var result []loadedTemplate
 	for _, t := range templates {
-		var img image.Image
-		var err error
-
-		if len(t.ImageData) > 0 {
-			// Load from in-memory BLOB (DB-backed path).
-			img, err = png.Decode(bytes.NewReader(t.ImageData))
-			if err != nil {
-				slog.Warn("Detector failed to decode in-memory template", "pokemon_id", pokemonID, "error", err)
-				continue
-			}
-		} else if t.ImagePath != "" {
-			// Legacy filesystem path.
-			p := t.ImagePath
-			var absPath string
-			if filepath.IsAbs(p) {
-				absPath = p
-			} else {
-				absPath = filepath.Join(configDir, "templates", pokemonID, p)
-			}
-			var f *os.File
-			f, err = os.Open(absPath)
-			if err != nil {
-				slog.Warn("Detector skipping missing template", "pokemon_id", pokemonID, "path", absPath, "error", err)
-				continue
-			}
-			img, err = png.Decode(f)
-			_ = f.Close()
-			if err != nil {
-				slog.Warn("Detector failed to decode template", "pokemon_id", pokemonID, "path", absPath, "error", err)
-				continue
-			}
-		} else {
-			// No image source available; skip.
+		if t.Enabled != nil && !*t.Enabled {
 			continue
 		}
-
-		result = append(result, loadedTemplate{img: img, meta: t})
+		img := decodeTemplateImage(t, configDir, pokemonID)
+		if img != nil {
+			result = append(result, loadedTemplate{img: img, meta: t})
+		}
 	}
 	return result
+}
+
+// decodeTemplateImage decodes a single template's PNG image from either
+// in-memory BLOBs or the filesystem. Returns nil if the image cannot be loaded.
+func decodeTemplateImage(t state.DetectorTemplate, configDir, pokemonID string) image.Image {
+	if len(t.ImageData) > 0 {
+		img, err := png.Decode(bytes.NewReader(t.ImageData))
+		if err != nil {
+			slog.Warn("Detector failed to decode in-memory template", "pokemon_id", pokemonID, "error", err)
+			return nil
+		}
+		return img
+	}
+	if t.ImagePath == "" {
+		return nil
+	}
+	absPath := t.ImagePath
+	if !filepath.IsAbs(absPath) {
+		absPath = filepath.Join(configDir, "templates", pokemonID, t.ImagePath)
+	}
+	f, err := os.Open(absPath)
+	if err != nil {
+		slog.Warn("Detector skipping missing template", "pokemon_id", pokemonID, "path", absPath, "error", err)
+		return nil
+	}
+	img, err := png.Decode(f)
+	_ = f.Close()
+	if err != nil {
+		slog.Warn("Detector failed to decode template", "pokemon_id", pokemonID, "path", absPath, "error", err)
+		return nil
+	}
+	return img
 }
 
 // resolvedConfig holds resolved (defaulted) detection configuration values
 // so they can be passed between helper methods without repeating zero-value checks.
 type resolvedConfig struct {
-	basePollNs      int64
-	minPollNs       int64
-	maxPollNs       int64
-	precision       float64
-	consecutiveHits int
-	cooldownSec     int
-	changeThreshold float64
+	basePollNs          int64
+	minPollNs           int64
+	maxPollNs           int64
+	precision           float64
+	consecutiveHits     int
+	cooldownSec         int
+	changeThreshold     float64
+	adaptiveCooldown    bool
+	adaptiveCooldownMin int
 }
 
 // resolveConfig applies defaults for zero-valued configuration fields and returns
@@ -163,15 +168,18 @@ func (d *Detector) resolveConfig() resolvedConfig {
 	basePollNs := msToNs(intOrDefault(d.cfg.PollIntervalMs, defaultPollIntervalMs))
 	minPollMs := intOrDefault(d.cfg.MinPollMs, defaultMinPollMs)
 	maxPollMs := intOrDefault(d.cfg.MaxPollMs, defaultMaxPollMs)
+	adaptiveCooldownMin := intOrDefault(d.cfg.AdaptiveCooldownMin, 3)
 
 	return resolvedConfig{
-		basePollNs:      basePollNs,
-		minPollNs:       msToNs(minPollMs),
-		maxPollNs:       msToNs(maxPollMs),
-		precision:       floatOrDefault(d.cfg.Precision, defaultPrecision),
-		consecutiveHits: intOrDefault(d.cfg.ConsecutiveHits, defaultConsecutiveHits),
-		cooldownSec:     intOrDefault(d.cfg.CooldownSec, defaultCooldownSec),
-		changeThreshold: floatOrDefault(d.cfg.ChangeThreshold, defaultChangeThreshold),
+		basePollNs:          basePollNs,
+		minPollNs:           msToNs(minPollMs),
+		maxPollNs:           msToNs(maxPollMs),
+		precision:           floatOrDefault(d.cfg.Precision, defaultPrecision),
+		consecutiveHits:     intOrDefault(d.cfg.ConsecutiveHits, defaultConsecutiveHits),
+		cooldownSec:         intOrDefault(d.cfg.CooldownSec, defaultCooldownSec),
+		changeThreshold:     floatOrDefault(d.cfg.ChangeThreshold, defaultChangeThreshold),
+		adaptiveCooldown:    d.cfg.AdaptiveCooldown,
+		adaptiveCooldownMin: adaptiveCooldownMin,
 	}
 }
 
@@ -281,6 +289,31 @@ func (d *Detector) processIdleFrame(frame image.Image, rc resolvedConfig, frameD
 	return time.Time{}
 }
 
+func (d *Detector) processCooldownFrame(frame image.Image, rc resolvedConfig) {
+	if rc.adaptiveCooldown {
+		var bestScore float64
+		for _, lt := range d.templates {
+			score := MatchWithRegions(frame, lt, rc.precision, d.lang)
+			if score > bestScore {
+				bestScore = score
+			}
+		}
+		d.lastBestScore = bestScore
+		minElapsed := time.Since(d.cooldownStartTime) >= time.Duration(rc.adaptiveCooldownMin)*time.Second
+		if minElapsed && bestScore < rc.precision {
+			d.phase = stateIdle
+			d.prevAbove = true
+			d.pollIntervalNs.Store(rc.basePollNs)
+		}
+		return
+	}
+	if time.Now().After(d.cooldownEnd) {
+		d.phase = stateIdle
+		d.prevAbove = true
+		d.pollIntervalNs.Store(rc.basePollNs)
+	}
+}
+
 // processFrame runs one iteration of the idle/match/cooldown state machine on
 // a captured frame and broadcasts the resulting status to all clients.
 func (d *Detector) processFrame(frame image.Image, rc resolvedConfig, matchConfirmedAt time.Time) time.Time {
@@ -301,15 +334,12 @@ func (d *Detector) processFrame(frame image.Image, rc resolvedConfig, matchConfi
 		elapsed := time.Since(matchConfirmedAt)
 		if delta >= rc.changeThreshold || elapsed >= time.Duration(rc.cooldownSec)*time.Second {
 			d.cooldownEnd = time.Now().Add(time.Duration(rc.cooldownSec) * time.Second)
+			d.cooldownStartTime = time.Now()
 			d.phase = stateCooldown
 		}
 
 	case stateCooldown:
-		if time.Now().After(d.cooldownEnd) {
-			d.phase = stateIdle
-			d.prevAbove = true
-			d.pollIntervalNs.Store(rc.basePollNs)
-		}
+		d.processCooldownFrame(frame, rc)
 	}
 
 	pollMs := time.Duration(d.pollIntervalNs.Load()).Milliseconds()

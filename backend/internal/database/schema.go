@@ -39,6 +39,7 @@ var schemaV2 = []string{
 		auto_save               INTEGER NOT NULL DEFAULT 1,
 		browser_port            INTEGER NOT NULL DEFAULT 8080,
 		crisp_sprites           INTEGER NOT NULL DEFAULT 1,
+		ui_animations           INTEGER NOT NULL DEFAULT 1,
 		config_path             TEXT    NOT NULL DEFAULT '',
 		tutorial_overlay_editor INTEGER NOT NULL DEFAULT 0,
 		tutorial_auto_detection INTEGER NOT NULL DEFAULT 0
@@ -173,21 +174,23 @@ var schemaV2 = []string{
 
 	// ── Detector configs (1:1 optional per pokemon) ──────────────────────
 	`CREATE TABLE IF NOT EXISTS detector_configs (
-		pokemon_id       TEXT    PRIMARY KEY,
-		enabled          INTEGER NOT NULL DEFAULT 0,
-		source_type      TEXT    NOT NULL DEFAULT '',
-		region_x         INTEGER NOT NULL DEFAULT 0,
-		region_y         INTEGER NOT NULL DEFAULT 0,
-		region_w         INTEGER NOT NULL DEFAULT 0,
-		region_h         INTEGER NOT NULL DEFAULT 0,
-		window_title     TEXT    NOT NULL DEFAULT '',
-		precision_val    REAL    NOT NULL DEFAULT 0.85,
-		consecutive_hits INTEGER NOT NULL DEFAULT 1,
-		cooldown_sec     INTEGER NOT NULL DEFAULT 8,
-		change_threshold REAL    NOT NULL DEFAULT 0.15,
-		poll_interval_ms INTEGER NOT NULL DEFAULT 50,
-		min_poll_ms      INTEGER NOT NULL DEFAULT 30,
-		max_poll_ms      INTEGER NOT NULL DEFAULT 500,
+		pokemon_id          TEXT    PRIMARY KEY,
+		enabled             INTEGER NOT NULL DEFAULT 0,
+		source_type         TEXT    NOT NULL DEFAULT '',
+		region_x            INTEGER NOT NULL DEFAULT 0,
+		region_y            INTEGER NOT NULL DEFAULT 0,
+		region_w            INTEGER NOT NULL DEFAULT 0,
+		region_h            INTEGER NOT NULL DEFAULT 0,
+		window_title        TEXT    NOT NULL DEFAULT '',
+		precision_val       REAL    NOT NULL DEFAULT 0.85,
+		consecutive_hits    INTEGER NOT NULL DEFAULT 1,
+		cooldown_sec        INTEGER NOT NULL DEFAULT 8,
+		change_threshold    REAL    NOT NULL DEFAULT 0.15,
+		poll_interval_ms    INTEGER NOT NULL DEFAULT 50,
+		min_poll_ms         INTEGER NOT NULL DEFAULT 30,
+		max_poll_ms         INTEGER NOT NULL DEFAULT 500,
+		adaptive_cooldown     INTEGER NOT NULL DEFAULT 0,
+		adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3,
 		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
 	)`,
 
@@ -197,6 +200,7 @@ var schemaV2 = []string{
 		pokemon_id TEXT    NOT NULL,
 		image_data BLOB   NOT NULL,
 		sort_order INTEGER NOT NULL DEFAULT 0,
+		enabled    INTEGER NOT NULL DEFAULT 1,
 		FOREIGN KEY (pokemon_id) REFERENCES detector_configs(pokemon_id) ON DELETE CASCADE
 	)`,
 

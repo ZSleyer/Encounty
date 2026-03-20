@@ -113,20 +113,21 @@ func saveHotkeyRow(tx *sql.Tx, h *state.HotkeyMap) error {
 func saveSettingsRow(tx *sql.Tx, s *state.Settings) error {
 	if _, err := tx.Exec(`
 		INSERT INTO settings (id, output_enabled, output_dir, auto_save, browser_port,
-			crisp_sprites, config_path, tutorial_overlay_editor, tutorial_auto_detection)
-		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+			crisp_sprites, ui_animations, config_path, tutorial_overlay_editor, tutorial_auto_detection)
+		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			output_enabled          = excluded.output_enabled,
 			output_dir              = excluded.output_dir,
 			auto_save               = excluded.auto_save,
 			browser_port            = excluded.browser_port,
 			crisp_sprites           = excluded.crisp_sprites,
+			ui_animations           = excluded.ui_animations,
 			config_path             = excluded.config_path,
 			tutorial_overlay_editor = excluded.tutorial_overlay_editor,
 			tutorial_auto_detection = excluded.tutorial_auto_detection`,
 		boolToInt(s.OutputEnabled), s.OutputDir,
 		boolToInt(s.AutoSave), s.BrowserPort,
-		boolToInt(s.CrispSprites), s.ConfigPath,
+		boolToInt(s.CrispSprites), boolToInt(s.UIAnimations), s.ConfigPath,
 		boolToInt(s.TutorialSeen.OverlayEditor),
 		boolToInt(s.TutorialSeen.AutoDetection),
 	); err != nil {
@@ -253,23 +254,25 @@ func prepareDetectorConfigStmt(tx *sql.Tx) (*sql.Stmt, error) {
 		INSERT INTO detector_configs (pokemon_id, enabled, source_type,
 			region_x, region_y, region_w, region_h, window_title,
 			precision_val, consecutive_hits, cooldown_sec, change_threshold,
-			poll_interval_ms, min_poll_ms, max_poll_ms)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(pokemon_id) DO UPDATE SET
-			enabled          = excluded.enabled,
-			source_type      = excluded.source_type,
-			region_x         = excluded.region_x,
-			region_y         = excluded.region_y,
-			region_w         = excluded.region_w,
-			region_h         = excluded.region_h,
-			window_title     = excluded.window_title,
-			precision_val    = excluded.precision_val,
-			consecutive_hits = excluded.consecutive_hits,
-			cooldown_sec     = excluded.cooldown_sec,
-			change_threshold = excluded.change_threshold,
-			poll_interval_ms = excluded.poll_interval_ms,
-			min_poll_ms      = excluded.min_poll_ms,
-			max_poll_ms      = excluded.max_poll_ms`)
+			enabled               = excluded.enabled,
+			source_type           = excluded.source_type,
+			region_x              = excluded.region_x,
+			region_y              = excluded.region_y,
+			region_w              = excluded.region_w,
+			region_h              = excluded.region_h,
+			window_title          = excluded.window_title,
+			precision_val         = excluded.precision_val,
+			consecutive_hits      = excluded.consecutive_hits,
+			cooldown_sec          = excluded.cooldown_sec,
+			change_threshold      = excluded.change_threshold,
+			poll_interval_ms      = excluded.poll_interval_ms,
+			min_poll_ms           = excluded.min_poll_ms,
+			max_poll_ms           = excluded.max_poll_ms,
+			adaptive_cooldown     = excluded.adaptive_cooldown,
+			adaptive_cooldown_min = excluded.adaptive_cooldown_min`)
 	if err != nil {
 		return nil, fmt.Errorf("prepare detector_configs upsert: %w", err)
 	}
@@ -292,6 +295,7 @@ func upsertSingleDetectorConfig(tx *sql.Tx, stmt *sql.Stmt, p state.Pokemon) err
 		cfg.WindowTitle, cfg.Precision, cfg.ConsecutiveHits,
 		cfg.CooldownSec, cfg.ChangeThreshold,
 		cfg.PollIntervalMs, cfg.MinPollMs, cfg.MaxPollMs,
+		boolToInt(cfg.AdaptiveCooldown), cfg.AdaptiveCooldownMin,
 	); err != nil {
 		return fmt.Errorf("upsert detector_config for %q: %w", p.ID, err)
 	}
@@ -579,29 +583,39 @@ func upsertDetectorTemplates(tx *sql.Tx, pokemon []state.Pokemon) (map[int64]boo
 		if p.DetectorConfig == nil {
 			continue
 		}
-		for sortOrder, tmpl := range p.DetectorConfig.Templates {
-			if tmpl.TemplateDBID > 0 {
-				if _, err := tx.Exec(
-					`UPDATE detector_templates SET sort_order = ? WHERE id = ?`,
-					sortOrder, tmpl.TemplateDBID,
-				); err != nil {
-					return nil, fmt.Errorf("update template sort_order %d: %w", tmpl.TemplateDBID, err)
-				}
-				referencedIDs[tmpl.TemplateDBID] = true
-			} else if tmpl.ImageData != nil {
-				res, err := tx.Exec(
-					`INSERT INTO detector_templates (pokemon_id, image_data, sort_order) VALUES (?, ?, ?)`,
-					p.ID, tmpl.ImageData, sortOrder,
-				)
-				if err != nil {
-					return nil, fmt.Errorf("insert new template for %q: %w", p.ID, err)
-				}
-				newID, _ := res.LastInsertId()
-				referencedIDs[newID] = true
-			}
+		if err := upsertPokemonTemplates(tx, p.ID, p.DetectorConfig.Templates, referencedIDs); err != nil {
+			return nil, err
 		}
 	}
 	return referencedIDs, nil
+}
+
+// upsertPokemonTemplates processes all templates for a single pokemon,
+// updating existing ones and inserting new ones.
+func upsertPokemonTemplates(tx *sql.Tx, pokemonID string, templates []state.DetectorTemplate, referencedIDs map[int64]bool) error {
+	for sortOrder, tmpl := range templates {
+		enabledVal := boolToInt(tmpl.Enabled == nil || *tmpl.Enabled)
+		if tmpl.TemplateDBID > 0 {
+			if _, err := tx.Exec(
+				`UPDATE detector_templates SET sort_order = ?, enabled = ? WHERE id = ?`,
+				sortOrder, enabledVal, tmpl.TemplateDBID,
+			); err != nil {
+				return fmt.Errorf("update template sort_order %d: %w", tmpl.TemplateDBID, err)
+			}
+			referencedIDs[tmpl.TemplateDBID] = true
+		} else if tmpl.ImageData != nil {
+			res, err := tx.Exec(
+				`INSERT INTO detector_templates (pokemon_id, image_data, sort_order, enabled) VALUES (?, ?, ?, ?)`,
+				pokemonID, tmpl.ImageData, sortOrder, enabledVal,
+			)
+			if err != nil {
+				return fmt.Errorf("insert new template for %q: %w", pokemonID, err)
+			}
+			newID, _ := res.LastInsertId()
+			referencedIDs[newID] = true
+		}
+	}
+	return nil
 }
 
 // deleteUnreferencedTemplates removes detector_templates rows whose IDs are

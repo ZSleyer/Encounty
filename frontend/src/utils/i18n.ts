@@ -224,6 +224,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.crispSprites": "Sprites scharf skalieren",
     "settings.crispSpritesDesc":
       "Pixel-Art Sprites (Classic, Animated) mit Nearest-Neighbour skalieren – verhindert Unschärfe.",
+    "settings.uiAnimations": "UI-Animationen",
+    "settings.uiAnimationsDesc":
+      "Dekorative Animationen in der Benutzeroberfläche (Welleneffekte, Leuchtlinien). Deaktivieren für bessere Leistung auf schwächerer Hardware.",
 
     // ── Overlay Editor ──
     "overlay.pokemonUrl": "Pokémon Overlay-URL",
@@ -329,6 +332,12 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.stateIdle": "Suche…",
     "detector.stateMatch": "Treffer!",
     "detector.stateCooldown": "Cooldown",
+    "sidebar.timerOnly": "Nur Timer",
+    "sidebar.detectorOnly": "Nur Erkennung",
+    "sidebar.both": "Beides",
+    "sidebar.startHunt": "Jagd starten",
+    "sidebar.stopHunt": "Jagd stoppen",
+    "sidebar.detectorNotReady": "Keine Templates konfiguriert",
     "detector.sourceClassic": "Screen Region (Classic)",
     "detector.sourceCamera": "Kamera / OBS Virtual Camera",
     "detector.sourceBrowser": "Screen Capture (Browser)",
@@ -444,6 +453,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "licenses.desc":
       "Encounty nutzt folgende Open-Source-Bibliotheken:",
     "licenses.project": "Encounty steht unter der",
+    "licenses.dataSources": "Datenquellen & APIs",
+    "licenses.dataSourcesDesc": "Encounty verwendet folgende externe Datenquellen für Pokémon-Sprites und -Daten:",
 
     // ── Settings search & sections ──
     "settings.search": "Einstellungen durchsuchen…",
@@ -568,6 +579,36 @@ const translations: Record<Locale, Record<string, string>> = {
     "license.accept": "Ich akzeptiere die AGPLv3-Lizenz",
     "license.hint": "Bitte scrolle den Lizenztext bis zum Ende, um fortzufahren.",
     "license.showDialog": "Lizenz anzeigen",
+
+    // ── Detector: Template toggle ──
+    "detector.enableTemplate": "Template aktivieren",
+    "detector.disableTemplate": "Template deaktivieren",
+
+    // ── Detector: Import/Export ──
+    "detector.importTemplates": "Importieren",
+    "detector.importFromPokemon": "Templates von Pokemon importieren",
+    "detector.noImportSources": "Kein anderes Pokemon hat Templates",
+    "detector.importSuccess": "{count} Template(s) importiert",
+    "detector.exportTemplates": "Templates exportieren",
+    "detector.importFromFile": "Aus Datei importieren",
+    "detector.importFileSuccess": "{count} Template(s) aus Datei importiert",
+    "detector.errInvalidFile": "Ungültige Template-Datei",
+    "detector.more": "Mehr",
+
+    // ── Detector: Confidence ──
+    "detector.confidence": "Konfidenz",
+
+    // ── Template Editor: Replay ──
+    "templateEditor.replayTitle": "Frame aus Aufnahme wählen",
+    "templateEditor.replayHint": "Durch die letzten 30 Sekunden scrubben, um den besten Frame zu finden",
+    "templateEditor.useFrame": "Diesen Frame verwenden",
+    "templateEditor.backToLive": "Zurück zu Live",
+
+    // ── Detector: Experimental ──
+    "detector.experimental": "Experimentell",
+    "detector.adaptiveCooldown": "Adaptiver Cooldown",
+    "detector.adaptiveCooldownDesc": "Cooldown beenden wenn der Treffer verschwindet statt fester Timer",
+    "detector.adaptiveCooldownMin": "Min. Cooldown (s)",
 
     // ── Footer ──
     "footer.hunts": "Hunts",
@@ -780,6 +821,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "settings.crispSprites": "Crisp sprite scaling",
     "settings.crispSpritesDesc":
       "Scale pixel-art sprites (Classic, Animated) with nearest-neighbour — prevents blurriness on small sprites.",
+    "settings.uiAnimations": "UI Animations",
+    "settings.uiAnimationsDesc":
+      "Decorative animations in the interface (wave effects, glow lines). Disable for better performance on weaker hardware.",
 
     // ── Overlay Editor ──
     "overlay.pokemonUrl": "Pokémon Overlay URL",
@@ -883,6 +927,12 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.stateIdle": "Scanning…",
     "detector.stateMatch": "Match!",
     "detector.stateCooldown": "Cooldown",
+    "sidebar.timerOnly": "Timer only",
+    "sidebar.detectorOnly": "Detection only",
+    "sidebar.both": "Both",
+    "sidebar.startHunt": "Start hunt",
+    "sidebar.stopHunt": "Stop hunt",
+    "sidebar.detectorNotReady": "No templates configured",
     "detector.sourceClassic": "Screen Region (Classic)",
     "detector.sourceCamera": "Camera / OBS Virtual Camera",
     "detector.sourceBrowser": "Screen Capture (Browser)",
@@ -996,6 +1046,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "licenses.desc":
       "Encounty uses the following open-source libraries:",
     "licenses.project": "Encounty is licensed under the",
+    "licenses.dataSources": "Data Sources & APIs",
+    "licenses.dataSourcesDesc": "Encounty uses the following external data sources for Pokémon sprites and data:",
 
     // ── Settings search & sections ──
     "settings.search": "Search settings…",
@@ -1120,6 +1172,36 @@ const translations: Record<Locale, Record<string, string>> = {
     "license.accept": "I accept the AGPLv3 license",
     "license.hint": "Please scroll to the end of the license text to continue.",
     "license.showDialog": "View License",
+
+    // ── Detector: Template toggle ──
+    "detector.enableTemplate": "Enable template",
+    "detector.disableTemplate": "Disable template",
+
+    // ── Detector: Import/Export ──
+    "detector.importTemplates": "Import",
+    "detector.importFromPokemon": "Import Templates from Pokemon",
+    "detector.noImportSources": "No other Pokemon have templates",
+    "detector.importSuccess": "Imported {count} template(s)",
+    "detector.exportTemplates": "Export Templates",
+    "detector.importFromFile": "Import from File",
+    "detector.importFileSuccess": "Imported {count} template(s) from file",
+    "detector.errInvalidFile": "Invalid template file",
+    "detector.more": "More",
+
+    // ── Detector: Confidence ──
+    "detector.confidence": "Confidence",
+
+    // ── Template Editor: Replay ──
+    "templateEditor.replayTitle": "Select Frame from Replay",
+    "templateEditor.replayHint": "Scrub through the last 30 seconds to find the best frame",
+    "templateEditor.useFrame": "Use This Frame",
+    "templateEditor.backToLive": "Back to Live",
+
+    // ── Detector: Experimental ──
+    "detector.experimental": "Experimental",
+    "detector.adaptiveCooldown": "Adaptive Cooldown",
+    "detector.adaptiveCooldownDesc": "Exit cooldown when the match disappears instead of a fixed timer",
+    "detector.adaptiveCooldownMin": "Min. cooldown (s)",
 
     // ── Footer ──
     "footer.hunts": "Hunts",

@@ -23,7 +23,6 @@ import {
   PartyPopper,
   Trash2,
   Eye,
-  EyeOff,
   Layers,
   Save,
   RefreshCw,
@@ -49,7 +48,6 @@ import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode } from "../types";
 import { useI18n } from "../contexts/I18nContext";
-import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
 
 const API = "/api";
@@ -117,6 +115,13 @@ function PokemonTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
   );
 }
 
+/** Returns true if the Pokemon has at least one enabled detector template. */
+function hasDetectorReady(pokemon: Pokemon): boolean {
+  const tmpls = pokemon.detector_config?.templates;
+  if (!tmpls || tmpls.length === 0) return false;
+  return tmpls.some((t) => t.enabled !== false);
+}
+
 /** SidebarTimer shows a compact timer + play/pause in the sidebar Pokemon list. */
 function SidebarTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void }>) {
   const { t } = useI18n();
@@ -156,12 +161,17 @@ function SidebarTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
   );
 }
 
+function huntButtonClass(anyRunning: boolean, canStart: boolean): string {
+  if (anyRunning) return "text-accent-green hover:text-accent-yellow hover:bg-accent-yellow/10";
+  if (canStart) return "text-text-muted hover:text-accent-green hover:bg-accent-green/10";
+  return "opacity-30 cursor-not-allowed text-text-muted";
+}
+
 type SidebarTab = "active" | "archived";
 
 export function Dashboard() {
   const { appState, flashPokemon, detectorStatus } = useCounterStore();
   const { t } = useI18n();
-  const { push: pushToast } = useToast();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPokemon, setEditingPokemon] = useState<Pokemon | null>(null);
   const [imgError, setImgError] = useState<Record<string, boolean>>({});
@@ -171,6 +181,7 @@ export function Dashboard() {
   const searchRef = useRef<HTMLInputElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const lastSelectedIdx = useRef<number | null>(null);
+  const [showHuntMenu, setShowHuntMenu] = useState(false);
 
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector" | "overlay" | "statistics">("counter");
@@ -802,41 +813,6 @@ export function Dashboard() {
     <div className="flex h-full">
       {/* LEFT: Pokemon sidebar */}
       <aside className="w-72 2xl:w-80 shrink-0 bg-bg-secondary flex flex-col">
-        {/* Stats bar */}
-        <div className="flex items-center justify-between px-4 py-2 2xl:py-2.5 border-b border-border-subtle text-[11px] 2xl:text-xs text-text-muted glass-card rounded-none border-x-0 border-t-0">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5">
-              <Zap className="w-3 h-3 text-accent-yellow" />
-              <span className="tabular-nums">{totalEncounters}</span>
-              <span>{t("dash.total")}</span>
-            </div>
-          </div>
-          {activeHunts.length > 0 && (() => {
-            const anyRunning = activeHunts.some(p => !!p.timer_started_at);
-            return (
-              <button
-                onClick={() => {
-                  const action = anyRunning ? "timer_stop" : "timer_start";
-                  for (const p of activeHunts) {
-                    if (anyRunning ? !!p.timer_started_at : !p.timer_started_at) {
-                      send(action, { pokemon_id: p.id });
-                    }
-                  }
-                }}
-                className={`flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
-                  anyRunning
-                    ? "text-accent-green hover:text-accent-yellow hover:bg-accent-yellow/10"
-                    : "text-text-faint hover:text-accent-green hover:bg-accent-green/10"
-                }`}
-                title={anyRunning ? t("timer.stopAll") : t("timer.startAll")}
-              >
-                {anyRunning ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                <Timer className="w-3 h-3" />
-              </button>
-            );
-          })()}
-        </div>
-
         {/* Search bar */}
         <div className="p-3 border-b border-border-subtle">
           <div className="flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5">
@@ -912,65 +888,106 @@ export function Dashboard() {
             ? appState.pokemon.filter(p => selectedIds.has(p.id))
             : activeHunts;
           const hasRunningTimer = sel.some(p => !!p.timer_started_at);
-          const hasStoppedTimer = sel.some(p => !p.timer_started_at);
-          const withDetector = sel.filter(p => p.detector_config?.templates?.length);
+          const withDetector = sel.filter(p => hasDetectorReady(p));
           const hasDetector = withDetector.length > 0;
-          const hasRunningDetector = sel.some(p => detectorStatus[p.id]);
-          const dis = "opacity-30 cursor-not-allowed";
+          const hasRunningDetector = sel.some(p => !!detectorStatus[p.id]);
+          const anyRunning = hasRunningTimer || hasRunningDetector;
+          const canStart = sel.length > 0;
+
+          const startAll = () => {
+            for (const p of sel) {
+              if (!p.timer_started_at) send("timer_start", { pokemon_id: p.id });
+            }
+            for (const p of withDetector) {
+              if (!detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/start`, { method: "POST" }).catch(() => {});
+            }
+          };
+          const stopAll = () => {
+            for (const p of sel) {
+              if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id });
+              if (detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/stop`, { method: "POST" }).catch(() => {});
+            }
+          };
+          const toggleTimerOnly = () => {
+            const action = hasRunningTimer ? "timer_stop" : "timer_start";
+            for (const p of sel) {
+              if (hasRunningTimer ? !!p.timer_started_at : !p.timer_started_at) send(action, { pokemon_id: p.id });
+            }
+            setShowHuntMenu(false);
+          };
+          const toggleDetectorOnly = () => {
+            if (hasRunningDetector) {
+              for (const p of sel) if (detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/stop`, { method: "POST" }).catch(() => {});
+            } else {
+              for (const p of withDetector) if (!detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/start`, { method: "POST" }).catch(() => {});
+            }
+            setShowHuntMenu(false);
+          };
+
           return (
             <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle">
-              {/* Timer start */}
-              <button
-                disabled={!hasStoppedTimer}
-                onClick={() => { for (const p of sel) if (!p.timer_started_at) send("timer_start", { pokemon_id: p.id }); }}
-                className={`p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors ${hasStoppedTimer ? "" : dis}`}
-                title={t("timer.startAll")}
-              >
-                <Play className="w-3.5 h-3.5" />
-              </button>
-              {/* Timer stop */}
-              <button
-                disabled={!hasRunningTimer}
-                onClick={() => { for (const p of sel) if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id }); }}
-                className={`p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors ${hasRunningTimer ? "" : dis}`}
-                title={t("timer.stopAll")}
-              >
-                <Pause className="w-3.5 h-3.5" />
-              </button>
+              {/* Combined Play / Pause */}
+              <div className="relative flex items-center">
+                <button
+                  disabled={!canStart && !anyRunning}
+                  onClick={() => { if (anyRunning) stopAll(); else startAll(); }}
+                  className={`p-1.5 rounded-lg transition-colors ${
+                    huntButtonClass(anyRunning, canStart)
+                  }`}
+                  title={anyRunning ? t("sidebar.stopHunt") : t("sidebar.startHunt")}
+                >
+                  {anyRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  onClick={() => setShowHuntMenu((v) => !v)}
+                  className="p-0.5 -ml-0.5 text-text-faint hover:text-text-muted transition-colors"
+                  title={t("sidebar.both")}
+                >
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {showHuntMenu && (
+                  <>
+                    <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHuntMenu(false)} aria-label="Close" />
+                    <div className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
+                      <button
+                        onClick={toggleTimerOnly}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                      >
+                        <Timer className="w-3.5 h-3.5" />
+                        {t("sidebar.timerOnly")}
+                        {hasRunningTimer && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-green" />}
+                      </button>
+                      <button
+                        onClick={toggleDetectorOnly}
+                        disabled={!hasDetector && !hasRunningDetector}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={hasDetector ? undefined : t("sidebar.detectorNotReady")}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        {t("sidebar.detectorOnly")}
+                        {hasRunningDetector && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-green" />}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
 
-              <div className="w-px h-4 bg-border-subtle mx-0.5" />
+              {/* Status indicators */}
+              {hasRunningTimer && (
+                <span className="flex items-center gap-1 text-[10px] text-accent-green">
+                  <Timer className="w-3 h-3" />
+                </span>
+              )}
+              {hasRunningDetector && (
+                <span className="flex items-center gap-1 text-[10px] text-accent-blue">
+                  <Eye className="w-3 h-3" />
+                </span>
+              )}
 
-              {/* Detector start */}
-              <button
-                disabled={!hasDetector}
-                onClick={() => {
-                  if (selectedIds.size > 0) {
-                    const uncfg = sel.filter(p => !p.detector_config?.templates?.length);
-                    if (uncfg.length > 0) {
-                      pushToast({ type: "info", title: t("detector.notConfigured"), message: uncfg.map(p => p.name).join(", ") });
-                    }
-                  }
-                  for (const p of withDetector) void fetch(`/api/detector/${p.id}/start`, { method: "POST" }).catch(() => {});
-                }}
-                className={`p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors ${hasDetector ? "" : dis}`}
-                title={t("detector.startSelected")}
-              >
-                <Eye className="w-3.5 h-3.5" />
-              </button>
-              {/* Detector stop */}
-              <button
-                disabled={!hasRunningDetector}
-                onClick={() => { for (const p of sel) void fetch(`/api/detector/${p.id}/stop`, { method: "POST" }).catch(() => {}); }}
-                className={`p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors ${hasRunningDetector ? "" : dis}`}
-                title={t("detector.stopSelected")}
-              >
-                <EyeOff className="w-3.5 h-3.5" />
-              </button>
-
-              {/* Spacer + selection info */}
+              {/* Spacer + selection info + total */}
               <div className="flex-1" />
               {selectedIds.size > 0 && (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 mr-2">
                   <span className="text-[10px] text-text-faint tabular-nums">{selectedIds.size}</span>
                   <button
                     onClick={() => setSelectedIds(new Set())}
@@ -981,6 +998,10 @@ export function Dashboard() {
                   </button>
                 </div>
               )}
+              <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
+                <Zap className="w-3 h-3 text-accent-yellow" />
+                <span className="tabular-nums">{totalEncounters}</span>
+              </div>
             </div>
           );
         })()}
@@ -1111,9 +1132,9 @@ export function Dashboard() {
                           <Trophy className="w-2.5 h-2.5 text-text-primary" />
                         </div>
                       )}
-                      {p.detector_config && (() => {
+                      {hasDetectorReady(p) && (() => {
                         const isMatch = detectorStatus[p.id]?.state === "match_active";
-                        const isRunning = p.detector_config.enabled && !!detectorStatus[p.id];
+                        const isRunning = !!detectorStatus[p.id];
                         let detectorDotClass: string;
                         if (isMatch) {
                           detectorDotClass = "bg-accent-green";

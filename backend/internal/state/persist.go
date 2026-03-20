@@ -96,6 +96,12 @@ func (m *Manager) applyMigrations() {
 	if m.state.Settings.Overlay.BackgroundAnimation == "" {
 		m.state.Settings.Overlay.BackgroundAnimation = "none"
 	}
+	// Ensure all timers are paused on startup. Graceful shutdown folds
+	// elapsed time into accumulated_ms before saving; this is a safety net
+	// for crashes where the save may have stale timer_started_at values.
+	for i := range m.state.Pokemon {
+		m.state.Pokemon[i].TimerStartedAt = nil
+	}
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].OverlayMode == "" {
 			if m.state.Pokemon[i].Overlay != nil {

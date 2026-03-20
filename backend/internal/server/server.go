@@ -271,6 +271,17 @@ func spaHandler(fsys fs.FS) http.Handler {
 
 		// Not a real file (or it's a directory) → serve index.html directly.
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Security-Policy",
+			"default-src 'self'; "+
+				"script-src 'self' blob:; "+
+				"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "+
+				"img-src 'self' data: blob: https:; "+
+				"font-src 'self' data: https://fonts.gstatic.com; "+
+				"connect-src 'self' ws://localhost:* http://localhost:* blob:; "+
+				"media-src 'self' blob: mediastream:; "+
+				"worker-src 'self' blob:; "+
+				"child-src 'self' blob:",
+		)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(indexHTML)
 	})

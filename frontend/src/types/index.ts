@@ -80,6 +80,7 @@ export interface DetectorTemplate {
   template_db_id?: number;
   image_path: string;
   regions: MatchedRegion[];
+  enabled?: boolean;
 }
 
 /** DetectorConfig holds all auto-detection settings for a single Pokémon hunt. */
@@ -96,6 +97,8 @@ export interface DetectorConfig {
   poll_interval_ms: number;  // base interval (adaptive centre point)
   min_poll_ms: number;       // fastest adaptive interval (high activity)
   max_poll_ms: number;       // slowest adaptive interval (static screen)
+  adaptive_cooldown?: boolean;
+  adaptive_cooldown_min?: number;
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
 }
 
@@ -226,6 +229,7 @@ export interface Settings {
   browser_port: number;
   languages: string[]; // active language codes for game names
   crisp_sprites?: boolean;
+  ui_animations?: boolean;
   overlay: OverlaySettings;
   tutorial_seen?: TutorialFlags;
   config_path?: string; // Custom data directory override

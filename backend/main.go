@@ -199,6 +199,9 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *da
 
 		srv.Hub().CloseAll()
 		hotkeyMgr.Stop()
+		// Stop all running timers so elapsed time is folded into accumulated_ms
+		// before the state is persisted. This ensures timers start paused on restart.
+		stateMgr.StopAllTimers()
 		// Save state before closing the DB — Save needs the DB connection.
 		if err := stateMgr.Save(); err != nil {
 			slog.Error("Failed to save state", "error", err)

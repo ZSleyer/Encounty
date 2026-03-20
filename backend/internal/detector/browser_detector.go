@@ -34,10 +34,12 @@ type BrowserMatchResult struct {
 // when frames are delivered from a browser source (camera or display capture).
 // It is safe for concurrent use.
 type BrowserDetector struct {
-	mu          sync.Mutex
-	phase       detectorPhase
-	consecCount int
-	cooldownEnd time.Time
+	mu                sync.Mutex
+	phase             detectorPhase
+	consecCount       int
+	cooldownEnd       time.Time
+	cooldownStartTime time.Time
+	lastBestScore     float64
 
 	// prevAbove tracks whether the previous frame scored above precision.
 	// Used for edge detection: we only start counting consecutive hits after
@@ -102,11 +104,36 @@ func (bd *BrowserDetector) processIdleFrame(frame image.Image, precision float64
 		bd.consecCount = 0
 		bd.prevAbove = false
 		bd.cooldownEnd = time.Now().Add(time.Duration(cooldownSec) * time.Second)
+		bd.cooldownStartTime = time.Now()
 		bd.phase = stateMatchActive
 		slog.Debug("Detector match confirmed", "cooldown_sec", cooldownSec)
 		return bestScore, true
 	}
 	return bestScore, false
+}
+
+func (bd *BrowserDetector) processCooldownFrame(frame image.Image, precision float64, adaptiveCooldownMin int) float64 {
+	var bestScore float64
+	if bd.cfg.AdaptiveCooldown {
+		for _, lt := range bd.templates {
+			score := MatchWithRegions(frame, lt, precision, bd.lang)
+			if score > bestScore {
+				bestScore = score
+			}
+		}
+		bd.lastBestScore = bestScore
+		minElapsed := time.Since(bd.cooldownStartTime) >= time.Duration(adaptiveCooldownMin)*time.Second
+		if minElapsed && bestScore < precision {
+			bd.phase = stateIdle
+			bd.prevAbove = true
+			bd.consecCount = 0
+		}
+	} else if time.Now().After(bd.cooldownEnd) {
+		bd.phase = stateIdle
+		bd.prevAbove = true
+		bd.consecCount = 0
+	}
+	return bestScore
 }
 
 // SubmitFrame runs one iteration of the detection state machine against frame.
@@ -127,6 +154,10 @@ func (bd *BrowserDetector) SubmitFrame(frame image.Image) BrowserMatchResult {
 	if cooldownSec == 0 {
 		cooldownSec = defaultCooldownSec
 	}
+	adaptiveCooldownMin := bd.cfg.AdaptiveCooldownMin
+	if adaptiveCooldownMin == 0 {
+		adaptiveCooldownMin = 3
+	}
 
 	var bestScore float64
 	incremented := false
@@ -139,11 +170,7 @@ func (bd *BrowserDetector) SubmitFrame(frame image.Image) BrowserMatchResult {
 		bd.phase = stateCooldown
 
 	case stateCooldown:
-		if time.Now().After(bd.cooldownEnd) {
-			bd.phase = stateIdle
-			bd.prevAbove = true
-			bd.consecCount = 0
-		}
+		bestScore = bd.processCooldownFrame(frame, precision, adaptiveCooldownMin)
 	}
 
 	return BrowserMatchResult{
