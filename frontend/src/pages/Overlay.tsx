@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { Pokemon, OverlaySettings, TextStyle } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 import { resolveOverlay } from "../utils/overlay";
+import { SPRITE_FALLBACK } from "../utils/sprites";
 
 interface Props {
   previewSettings?: OverlaySettings;
@@ -534,7 +535,7 @@ export function Overlay({
               />
             )}
             <img
-              src={activePokemon.sprite_url}
+              src={activePokemon.sprite_url || SPRITE_FALLBACK}
               alt=""
               className="pokemon-sprite"
               style={{

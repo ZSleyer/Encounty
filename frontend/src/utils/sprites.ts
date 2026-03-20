@@ -5,6 +5,9 @@ const POKEAPI_BASE =
   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
 
+/** Placeholder sprite (PokeAPI's "unknown Pokémon" silhouette) used when a sprite fails to load. */
+export const SPRITE_FALLBACK = `${POKEAPI_BASE}/0.png`;
+
 /**
  * Canonical name to correct PokeAPI numeric ID for regional forms.
  * Used as a safety net so sprite URLs resolve correctly even when

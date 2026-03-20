@@ -3,6 +3,7 @@ import { Plus, Minus, RotateCcw, Star, Edit2, Gamepad2 } from "lucide-react";
 import { Pokemon } from "../../types";
 import { useCounterStore, DetectorStatusEntry } from "../../hooks/useCounterState";
 import { useI18n } from "../../contexts/I18nContext";
+import { SPRITE_FALLBACK } from "../../utils/sprites";
 
 type Props = Readonly<{
   pokemon: Pokemon;
@@ -14,7 +15,6 @@ type Props = Readonly<{
   onEdit: (pokemon: Pokemon) => void;
 }>;
 
-const SPRITE_FALLBACK = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23333'/><text y='.9em' font-size='60' x='50%' text-anchor='middle' dominant-baseline='middle'>?</text></svg>`;
 
 /** Returns Tailwind dot colour + pulse flag based on detector status. */
 function detectorDotClass(entry: DetectorStatusEntry, t: (key: string) => string): { cls: string; pulse: boolean; title: string } {

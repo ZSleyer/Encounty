@@ -49,6 +49,7 @@ import { useWebSocket } from "../hooks/useWebSocket";
 import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { resolveOverlay } from "../utils/overlay";
+import { SPRITE_FALLBACK } from "../utils/sprites";
 
 const API = "/api";
 
@@ -478,7 +479,7 @@ export function Dashboard() {
       ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase()
       : "—";
 
-  const FALLBACK = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23333'/><text y='.9em' font-size='60' x='50%' text-anchor='middle' dominant-baseline='middle'>?</text></svg>`;
+  const FALLBACK = SPRITE_FALLBACK;
 
   /** Renders a single import-dropdown item for copying overlays from other Pokemon. */
   const renderImportItem = (p: Pokemon) => {
