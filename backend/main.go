@@ -14,11 +14,9 @@ package main
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -50,9 +48,6 @@ var (
 //go:embed games.json
 var embeddedGamesJSON []byte
 
-//go:embed all:frontend/dist
-var frontendFS embed.FS
-
 // formatVersionDisplay builds the display string in the format "v0.3-abc1234".
 func formatVersionDisplay(ver, cmt string) string {
 	if ver == "dev" {
@@ -62,7 +57,9 @@ func formatVersionDisplay(ver, cmt string) string {
 }
 
 func main() {
-	devMode := flag.Bool("dev", false, "Development mode (proxy to Vite dev server)")
+	// --dev is accepted for backward compatibility but no longer changes behaviour
+	// now that the Go binary is a pure API server.
+	flag.Bool("dev", false, "Development mode (no-op, kept for compatibility)")
 	logLevel := flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	showVersion := flag.Bool("version", false, "Show version information")
 	flag.BoolVar(showVersion, "v", false, "Show version information")
@@ -103,14 +100,8 @@ func main() {
 		broadcastFn(msgType, payload)
 	}, configDir)
 
-	var frontFS fs.FS
-	if !*devMode {
-		frontFS = frontendFS
-	}
-
 	srv := server.New(server.Config{
 		Port:        port,
-		FrontendFS:  frontFS,
 		State:       stateMgr,
 		HotkeyMgr:   hotkeyMgr,
 		FileWriter:  fileWriter,

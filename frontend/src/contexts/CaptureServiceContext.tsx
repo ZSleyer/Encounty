@@ -6,6 +6,7 @@
  * Streams, hidden video elements, and frame dispatch loops are stored
  * per pokemon ID in a map that persists across sidebar navigation.
  */
+import { apiUrl } from "../utils/api";
 import React, {
   createContext,
   useContext,
@@ -184,7 +185,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
         entry.lastDispatch = now;
         canvas.toBlob((blob) => {
           if (blob) {
-            fetch(`/api/detector/${entry.pokemonId}/match_frame`, {
+            fetch(apiUrl(`/api/detector/${entry.pokemonId}/match_frame`), {
               method: "POST",
               body: blob,
             }).catch(() => {});
@@ -243,7 +244,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
       const blob = await captureFrame(entry);
       if (blob) {
         entry.lastDispatch = Date.now();
-        fetch(`/api/detector/${entry.pokemonId}/match_frame`, {
+        fetch(apiUrl(`/api/detector/${entry.pokemonId}/match_frame`), {
           method: "POST",
           body: blob,
         }).catch(() => {});
@@ -361,7 +362,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
       // Handle user clicking "Stop sharing" in browser chrome
       stream.getVideoTracks()[0].onended = () => {
         cleanupEntry(pokemonId);
-        fetch(`/api/detector/${pokemonId}/stop`, { method: "POST" }).catch(() => {});
+        fetch(apiUrl(`/api/detector/${pokemonId}/stop`), { method: "POST" }).catch(() => {});
       };
 
       notify();
@@ -425,7 +426,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     }
     for (const id of toRemove) {
       cleanupEntry(id);
-      fetch(`/api/detector/${id}/stop`, { method: "POST" }).catch(() => {});
+      fetch(apiUrl(`/api/detector/${id}/stop`), { method: "POST" }).catch(() => {});
     }
   }, [appState, cleanupEntry]);
 

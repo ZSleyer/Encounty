@@ -18,8 +18,14 @@ interface CaptureSource {
 const isWayland = process.platform === 'linux' &&
   (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
 
+// Inject the API base URL so the frontend can reach the Go backend.
+// The protocol handler serves the SPA from encounty://, but API calls
+// must go to http://localhost:{port}.
+(globalThis as any).__ENCOUNTY_API_BASE__ = 'http://localhost:8080';
+
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
+  apiBaseUrl: 'http://localhost:8080',
   isWayland,
   platform: process.platform as 'win32' | 'linux',
 

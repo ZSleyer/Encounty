@@ -13,6 +13,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Check, RefreshCw } from "lucide-react";
 import { DetectorRect } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
+import { apiUrl } from "../../utils/api";
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -72,7 +73,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
     setSelection(null);
     setDragStart(null);
     try {
-      const res = await fetch("/api/detector/screenshot");
+      const res = await fetch(apiUrl("/api/detector/screenshot"));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       setScreenshotUrl(URL.createObjectURL(blob));

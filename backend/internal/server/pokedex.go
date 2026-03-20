@@ -471,16 +471,7 @@ func (s *Server) readPokedexJSON() ([]byte, error) {
 		}
 	}
 
-	// 3. Embedded frontend FS
-	if s.frontendFS != nil {
-		f, err := s.frontendFS.Open("frontend/dist/" + pokemonFilename)
-		if err == nil {
-			defer func() { _ = f.Close() }()
-			return io.ReadAll(f)
-		}
-	}
-
-	// 4. Working directory fallback
+	// 3. Working directory fallback
 	if data, err := os.ReadFile("frontend/public/" + pokemonFilename); err == nil {
 		return data, nil
 	}

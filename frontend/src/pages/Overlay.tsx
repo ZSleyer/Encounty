@@ -4,6 +4,7 @@ import { Pokemon, OverlaySettings, TextStyle } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
+import { apiUrl } from "../utils/api";
 
 interface Props {
   previewSettings?: OverlaySettings;
@@ -469,7 +470,7 @@ export function Overlay({
     ? {
         position: "absolute",
         inset: 0,
-        backgroundImage: `url(/api/backgrounds/${settings.background_image})`,
+        backgroundImage: `url(${apiUrl(`/api/backgrounds/${settings.background_image}`)})`,
         backgroundSize: bgImageSize,
         backgroundRepeat: bgImageFit === "tile" ? "repeat" : "no-repeat",
         backgroundPosition: "center",

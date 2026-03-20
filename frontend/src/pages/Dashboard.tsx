@@ -51,8 +51,7 @@ import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry } from
 import { useI18n } from "../contexts/I18nContext";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
-
-const API = "/api";
+import { apiUrl } from "../utils/api";
 
 // --- Timer helpers ---
 
@@ -243,7 +242,7 @@ export function Dashboard() {
 
   // Fetch games list for generation-aware odds display
   useEffect(() => {
-    fetch(`${API}/games`)
+    fetch(apiUrl("/api/games"))
       .then((r) => r.json())
       .then((data: GameEntry[]) => { if (Array.isArray(data)) setGames(data); })
       .catch(() => {});
@@ -270,9 +269,9 @@ export function Dashboard() {
   // Pause/resume hotkeys when switching to/from overlay tab
   useEffect(() => {
     if (rightPanelTab === "overlay") {
-      void fetch("/api/hotkeys/pause", { method: "POST" }).catch(() => {});
+      void fetch(apiUrl("/api/hotkeys/pause"), { method: "POST" }).catch(() => {});
     } else {
-      void fetch("/api/hotkeys/resume", { method: "POST" }).catch(() => {});
+      void fetch(apiUrl("/api/hotkeys/resume"), { method: "POST" }).catch(() => {});
     }
   }, [rightPanelTab]);
 
@@ -308,18 +307,18 @@ export function Dashboard() {
       message: t("confirm.deleteMsg"),
       isDestructive: true,
       onConfirm: () => {
-        void fetch(`${API}/pokemon/${id}`, { method: "DELETE" });
+        void fetch(apiUrl(`/api/pokemon/${id}`), { method: "DELETE" });
       },
     });
   };
   const handleComplete = async (id: string) => {
-    await fetch(`${API}/pokemon/${id}/complete`, { method: "POST" });
+    await fetch(apiUrl(`/api/pokemon/${id}/complete`), { method: "POST" });
   };
   const handleUncomplete = async (id: string) => {
-    await fetch(`${API}/pokemon/${id}/uncomplete`, { method: "POST" });
+    await fetch(apiUrl(`/api/pokemon/${id}/uncomplete`), { method: "POST" });
   };
   const handleAddPokemon = async (data: NewPokemonData) => {
-    await fetch(`${API}/pokemon`, {
+    await fetch(apiUrl("/api/pokemon"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -329,7 +328,7 @@ export function Dashboard() {
   const handleSavePokemon = async (id: string, data: NewPokemonData) => {
     const p = appState!.pokemon.find((x) => x.id === id);
     const payload = { ...data, overlay: p?.overlay, overlay_mode: p?.overlay_mode, step: data.step };
-    await fetch(`${API}/pokemon/${id}`, {
+    await fetch(apiUrl(`/api/pokemon/${id}`), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -338,7 +337,7 @@ export function Dashboard() {
   };
 
   const handleDetectorConfigChange = async (pokemonId: string, cfg: DetectorConfig | null) => {
-    await fetch(`${API}/detector/${pokemonId}/config`, {
+    await fetch(apiUrl(`/api/detector/${pokemonId}/config`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cfg ?? {}),
@@ -367,7 +366,7 @@ export function Dashboard() {
         overlay_mode: mode,
         overlay,
       };
-      await fetch(`/api/pokemon/${p.id}`, {
+      await fetch(apiUrl(`/api/pokemon/${p.id}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -926,20 +925,20 @@ export function Dashboard() {
               const mode = p.hunt_mode || "both";
               if (mode !== "detector" && !p.timer_started_at) send("timer_start", { pokemon_id: p.id });
               if (mode !== "timer" && hasDetectorReady(p) && !detectorStatus[p.id]) {
-                void fetch(`/api/detector/${p.id}/start`, { method: "POST" }).catch(() => {});
+                void fetch(apiUrl(`/api/detector/${p.id}/start`), { method: "POST" }).catch(() => {});
               }
             }
           };
           const stopAll = () => {
             for (const p of sel) {
               if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id });
-              if (detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/stop`, { method: "POST" }).catch(() => {});
+              if (detectorStatus[p.id]) void fetch(apiUrl(`/api/detector/${p.id}/stop`), { method: "POST" }).catch(() => {});
             }
           };
           const setHuntMode = (mode: "both" | "timer" | "detector") => {
             for (const p of sel) {
               if (p.hunt_mode !== mode) {
-                void fetch(`/api/pokemon/${p.id}`, {
+                void fetch(apiUrl(`/api/pokemon/${p.id}`), {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ ...p, hunt_mode: mode }),

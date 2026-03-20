@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/fs"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +14,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -214,37 +212,12 @@ func TestRestoreWithBothFiles(t *testing.T) {
 
 // --- readPokedexJSON coverage ---
 
-// TestReadPokedexJSONEmbeddedFS exercises the frontendFS fallback path.
-// Note: The source-dir fallback (via runtime.Caller) may succeed before
-// the embedded FS is checked, depending on the test environment. We verify
-// that the function returns valid JSON without panicking.
-func TestReadPokedexJSONEmbeddedFS(t *testing.T) {
-	srv := newTestServer(t)
-	// Set a frontendFS with a pokemon.json file
-	srv.frontendFS = fstest.MapFS{
-		"frontend/dist/pokemon.json": &fstest.MapFile{Data: []byte(`[{"id":1,"canonical":"test"}]`)},
-	}
-
-	data, err := srv.readPokedexJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The function may find data from source-dir or embedded FS; either is valid.
-	var entries []PokedexEntry
-	if err := json.Unmarshal(data, &entries); err != nil {
-		t.Fatalf("returned invalid JSON: %v", err)
-	}
-	if len(entries) == 0 {
-		t.Error("expected at least one entry")
-	}
-}
-
 // TestReadPokedexJSONAllFallbacksFail exercises the error return when
 // no pokemon.json is found anywhere.
 func TestReadPokedexJSONAllFallbacksFail(t *testing.T) {
-	// Use a completely empty server with no frontendFS and a temp config dir
-	// that has no pokemon.json. The source-dir and cwd fallbacks may or may
-	// not succeed depending on the test environment, but we verify no panic.
+	// Use a completely empty server with a temp config dir that has no
+	// pokemon.json. The source-dir and cwd fallbacks may or may not succeed
+	// depending on the test environment, but we verify no panic.
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 	srv := &Server{
@@ -268,9 +241,6 @@ func TestHandleGetPokedexError(t *testing.T) {
 		hub:       NewHub(),
 		hotkeyMgr: newMockHotkeyMgr(),
 	}
-	// Set frontendFS to nil and work in a directory without pokemon.json
-	srv.frontendFS = nil
-
 	req := httptest.NewRequest(http.MethodGet, "/api/pokedex", nil)
 	w := httptest.NewRecorder()
 	srv.handleGetPokedex(w, req)
@@ -418,27 +388,6 @@ func TestBroadcastRawMarshalError(t *testing.T) {
 	}
 }
 
-// --- readPokedexJSON embedded FS with error ---
-
-func TestReadPokedexJSONEmbeddedFSOpenError(t *testing.T) {
-	tmpDir := t.TempDir()
-	stateMgr := state.NewManager(tmpDir)
-	srv := &Server{
-		state:     stateMgr,
-		hub:       NewHub(),
-		hotkeyMgr: newMockHotkeyMgr(),
-		// Set frontendFS to an FS that does NOT contain pokemon.json
-		frontendFS: fstest.MapFS{
-			"frontend/dist/other.txt": &fstest.MapFile{Data: []byte("not pokemon")},
-		},
-	}
-
-	// This exercises the frontendFS != nil but Open fails path
-	_, err := srv.readPokedexJSON()
-	// May succeed via source-dir fallback or return error
-	_ = err
-}
-
 // --- Broadcast error path (marshal error in Broadcast) ---
 
 func TestBroadcastMarshalError(t *testing.T) {
@@ -467,52 +416,6 @@ func TestHandleUpdateSettingsFileWriterConfig(t *testing.T) {
 	if st.Settings.BrowserPort != 8888 {
 		t.Errorf("BrowserPort = %d, want 8888", st.Settings.BrowserPort)
 	}
-}
-
-// --- SPA handler with frontendFS in registerRoutes ---
-
-// TestRegisterRoutesWithFrontendFS exercises the path where frontendFS is set.
-func TestRegisterRoutesWithFrontendFS(t *testing.T) {
-	srv := newTestServer(t)
-	srv.frontendFS = fstest.MapFS{
-		"frontend/dist/index.html":   &fstest.MapFile{Data: []byte("<html>SPA</html>")},
-		"frontend/dist/test.js":      &fstest.MapFile{Data: []byte("js")},
-	}
-	mux := http.NewServeMux()
-	srv.registerRoutes(mux)
-
-	req := httptest.NewRequest(http.MethodGet, "/test.js", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("status = %d for static file, want 200", w.Code)
-	}
-}
-
-// --- handleGetPokedex with frontendFS containing embedded FS ---
-
-func TestReadPokedexJSONEmbeddedFSIOError(t *testing.T) {
-	tmpDir := t.TempDir()
-	stateMgr := state.NewManager(tmpDir)
-
-	// Create an FS that has a pokemon.json but it's a directory-like entry
-	srv := &Server{
-		state:     stateMgr,
-		hub:       NewHub(),
-		hotkeyMgr: newMockHotkeyMgr(),
-		frontendFS: &errorFS{},
-	}
-
-	_, err := srv.readPokedexJSON()
-	// May succeed via source-dir fallback or return error
-	_ = err
-}
-
-// errorFS is a test fs.FS that returns an error on Open for pokemon.json
-type errorFS struct{}
-
-func (e *errorFS) Open(name string) (fs.File, error) {
-	return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 }
 
 // --- handleUpdateHotkeys with UpdateAllBindings error ---

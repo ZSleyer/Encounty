@@ -3,6 +3,7 @@
  * Fetches data from the /api/stats endpoints and renders using recharts.
  */
 import { useState, useEffect } from "react";
+import { apiUrl } from "../../utils/api";
 import {
   AreaChart,
   Area,
@@ -34,9 +35,9 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetch(`/api/stats/pokemon/${pokemonId}`).then((r) => r.json()),
-      fetch(`/api/stats/pokemon/${pokemonId}/chart?interval=${interval}`).then((r) => r.json()),
-      fetch(`/api/stats/pokemon/${pokemonId}/history?limit=20`).then((r) => r.json()),
+      fetch(apiUrl(`/api/stats/pokemon/${pokemonId}`)).then((r) => r.json()),
+      fetch(apiUrl(`/api/stats/pokemon/${pokemonId}/chart?interval=${interval}`)).then((r) => r.json()),
+      fetch(apiUrl(`/api/stats/pokemon/${pokemonId}/history?limit=20`)).then((r) => r.json()),
     ])
       .then(([s, c, h]) => {
         setStats(s);

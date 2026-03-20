@@ -44,6 +44,7 @@ import { OutlineEditorModal } from "./controls/OutlineEditorModal";
 import { TextColorEditorModal } from "./controls/TextColorEditorModal";
 import { OverlayCanvas } from "./OverlayCanvas";
 import { OverlayPropertyPanel } from "./OverlayPropertyPanel";
+import { apiUrl } from "../../utils/api";
 
 interface Props {
   settings: OverlaySettings;
@@ -679,7 +680,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     setBgUploading(true);
     try {
       const base64 = await readFileAsBase64(file);
-      const res = await fetch("/api/backgrounds/upload", {
+      const res = await fetch(apiUrl("/api/backgrounds/upload"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image_base64: base64 }),
@@ -708,7 +709,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   const handleBgRemove = async () => {
     if (localSettings.background_image) {
-      await fetch(`/api/backgrounds/${localSettings.background_image}`, { method: "DELETE" }).catch(() => {});
+      await fetch(apiUrl(`/api/backgrounds/${localSettings.background_image}`), { method: "DELETE" }).catch(() => {});
       update({ ...localSettings, background_image: "", background_image_fit: "cover" });
     }
   };
@@ -881,7 +882,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 <div
                   className="mt-1.5 w-full h-12 rounded border border-border-subtle bg-bg-primary overflow-hidden"
                   style={{
-                    backgroundImage: `url(/api/backgrounds/${localSettings.background_image})`,
+                    backgroundImage: `url(${apiUrl(`/api/backgrounds/${localSettings.background_image}`)})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}

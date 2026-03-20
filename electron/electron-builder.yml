@@ -10,6 +10,8 @@ files:
 extraResources:
   - from: ../frontend/public/app-icon.png
     to: app-icon.png
+  - from: ../frontend/dist
+    to: frontend-dist
   - from: ../encounty-backend-linux
     to: encounty-backend-linux
     filter: encounty-backend-linux

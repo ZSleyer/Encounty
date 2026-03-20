@@ -48,13 +48,9 @@ icons:
 	@echo "Generating icons from frontend/public/app-icon.png..."
 	cd $(BACKEND_DIR) && go run ../scripts/generate_icons.go
 
-build-linux: frontend icons
+build-linux: icons
 	@echo "Building Encounty $(VERSION) ($(COMMIT)) for Linux..."
-	@# Copy frontend dist to backend for embedding
-	@rm -rf $(BACKEND_DIR)/frontend
-	@cp -r $(FRONTEND_DIR) $(BACKEND_DIR)/frontend
 	@cd $(BACKEND_DIR) && GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o ../$(BINARY)-linux main.go
-	@rm -rf $(BACKEND_DIR)/frontend
 	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-linux || true
 	@# Prepare Linux distribution bundle
 	@mkdir -p $(LINUX_DIST)
@@ -70,18 +66,14 @@ build-linux: frontend icons
 	@echo "Categories=Game;Utility;" >> $(LINUX_DIST)/$(BINARY).desktop
 	@echo "Done: ./$(LINUX_DIST)/ (Run ./$(BINARY) or use the .desktop file)"
 
-build-windows: frontend icons
+build-windows: icons
 	$(eval WINRES := $(shell go env GOPATH)/bin/go-winres)
 	@command -v $(WINRES) >/dev/null 2>&1 || (echo "Installing go-winres..." && go install github.com/tc-hib/go-winres@latest)
 	@# Extract numeric version for Windows (v1.2.3 -> 1.2.3.0, v0.3 -> 0.3.0)
 	$(eval WIN_VER := $(shell echo $(VERSION) | sed 's/v//' | grep -oE '^[0-9]+\.[0-9]+(\.[0-9]+)?' | awk -F. '{if(NF==2) print $$0".0"; else print $$0}' || echo "0.3.0"))
 	@echo "Generating Windows resources (Version: $(WIN_VER).0)..."
 	@cd $(BACKEND_DIR) && $(WINRES) make --product-version "$(WIN_VER).0" --file-version "$(WIN_VER).0"
-	@# Copy frontend dist to backend for embedding
-	@rm -rf $(BACKEND_DIR)/frontend
-	@cp -r $(FRONTEND_DIR) $(BACKEND_DIR)/frontend
 	@cd $(BACKEND_DIR) && CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build $(LDFLAGS_WINDOWS) -o ../$(BINARY)-windows.exe .
-	@rm -rf $(BACKEND_DIR)/frontend
 	@# Cleanup generated resource files
 	@rm -f $(BACKEND_DIR)/*.syso
 	@command -v upx >/dev/null 2>&1 && upx --best --compress-icons=0 $(BINARY)-windows.exe || true

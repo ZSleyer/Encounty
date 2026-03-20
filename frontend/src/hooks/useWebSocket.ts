@@ -8,8 +8,9 @@
  */
 import { useEffect, useRef, useCallback } from 'react'
 import { WSMessage } from '../types'
+import { wsUrl } from '../utils/api'
 
-const WS_URL = 'ws://localhost:8080/ws'
+const WS_URL = wsUrl()
 const RECONNECT_DELAY = 2000
 
 /**

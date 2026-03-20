@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { HotkeyMap } from '../../types'
 import { useI18n } from '../../contexts/I18nContext'
-
-const API = '/api'
+import { apiUrl } from '../../utils/api'
 
 interface HotkeySettingsProps {
   hotkeys: HotkeyMap
@@ -26,14 +25,14 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
   const [hotkeyAvailable, setHotkeyAvailable] = useState<boolean | null>(null)
 
   useEffect(() => {
-    fetch(`${API}/hotkeys/status`)
+    fetch(apiUrl("/api/hotkeys/status"))
       .then((r) => r.json())
       .then((d) => setHotkeyAvailable(d.available))
       .catch(() => setHotkeyAvailable(false))
   }, [])
 
   const cancelRecording = useCallback(() => {
-    fetch(`${API}/hotkeys/resume`, { method: 'POST' }).catch(() => {})
+    fetch(apiUrl("/api/hotkeys/resume"), { method: 'POST' }).catch(() => {})
     setRecording(null)
     setLiveModifiers('')
   }, [])
@@ -41,12 +40,12 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
   const commitRecording = useCallback(
     async (action: keyof HotkeyMap, combo: string) => {
       setError(null)
-      const res = await fetch(`${API}/hotkeys/${action}`, {
+      const res = await fetch(apiUrl(`/api/hotkeys/${action}`), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: combo }),
       })
-      await fetch(`${API}/hotkeys/resume`, { method: 'POST' }).catch(() => {})
+      await fetch(apiUrl("/api/hotkeys/resume"), { method: 'POST' }).catch(() => {})
       if (res.ok) {
         const updated = { ...local, [action]: combo }
         setLocal(updated)
@@ -63,7 +62,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
 
   const deleteBinding = async (action: keyof HotkeyMap) => {
     setError(null)
-    const res = await fetch(`${API}/hotkeys/${action}`, {
+    const res = await fetch(apiUrl(`/api/hotkeys/${action}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: '' }),
@@ -79,7 +78,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
     setRecording(action)
     setLiveModifiers('')
     setError(null)
-    fetch(`${API}/hotkeys/pause`, { method: 'POST' }).catch(() => {})
+    fetch(apiUrl("/api/hotkeys/pause"), { method: 'POST' }).catch(() => {})
   }
 
   useEffect(() => {

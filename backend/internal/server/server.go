@@ -1,12 +1,11 @@
-// Package server provides the HTTP server that serves the embedded React
-// frontend, exposes a REST API, and maintains the WebSocket hub for real-time
-// state synchronisation with the browser.
+// Package server provides the HTTP server that exposes a REST API and
+// maintains the WebSocket hub for real-time state synchronisation with
+// the browser.
 package server
 
 import (
 	"context"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -28,7 +27,6 @@ type Server struct {
 	hotkeyMgr   hotkeys.Manager
 	fileWriter  *fileoutput.Writer
 	httpServer  *http.Server
-	frontendFS  fs.FS
 	version     string
 	commit      string
 	buildDate   string
@@ -39,7 +37,6 @@ type Server struct {
 // Config carries all dependencies needed to construct a Server.
 type Config struct {
 	Port        int
-	FrontendFS  fs.FS
 	State       *state.Manager
 	HotkeyMgr   hotkeys.Manager
 	FileWriter  *fileoutput.Writer
@@ -68,7 +65,6 @@ func New(cfg Config) *Server {
 		hub:         NewHub(),
 		hotkeyMgr:   cfg.HotkeyMgr,
 		fileWriter:  cfg.FileWriter,
-		frontendFS:  cfg.FrontendFS,
 		version:     cfg.Version,
 		commit:      cfg.Commit,
 		buildDate:   cfg.BuildDate,
@@ -99,7 +95,6 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	s.registerBackgroundRoutes(mux)
 	s.registerDetectorRoutes(mux)
 	mux.Handle("/swagger/", httpSwagger.WrapHandler)
-	s.registerFrontend(mux)
 }
 
 // registerCoreRoutes wires state, settings, hotkeys, stats, and other
@@ -227,70 +222,6 @@ func (s *Server) registerDetectorRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/detector/cameras", s.handleListCameras)
 	mux.HandleFunc("GET /api/detector/capabilities", s.handleDetectorCapabilities)
 	mux.HandleFunc("/api/detector/", s.handleDetectorDispatch)
-}
-
-// registerFrontend mounts the embedded SPA filesystem as a fallback handler.
-func (s *Server) registerFrontend(mux *http.ServeMux) {
-	if s.frontendFS != nil {
-		subFS, err := fs.Sub(s.frontendFS, "frontend/dist")
-		if err != nil {
-			slog.Error("Frontend embed error", "error", err)
-		} else {
-			mux.Handle("/", spaHandler(subFS))
-		}
-	}
-}
-
-// spaHandler serves static assets from the embedded FS for requests that
-// match a real file (JS, CSS, fonts, images, …). All other paths – including
-// React-Router paths like /overlay and /settings – receive index.html so the
-// client-side router can handle them.
-//
-// IMPORTANT: we must NOT rewrite r.URL.Path to "/index.html" and forward to
-// http.FileServer, because FileServer redirects explicit index.html URLs back
-// to the directory (e.g. /index.html → /), causing an infinite redirect loop.
-// Instead we read and write index.html content directly.
-func spaHandler(fsys fs.FS) http.Handler {
-	fileServer := http.FileServer(http.FS(fsys))
-
-	indexHTML, err := fs.ReadFile(fsys, "index.html")
-	if err != nil {
-		slog.Error("spaHandler: could not read index.html", "error", err)
-	}
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Strip leading slash; root "/" becomes "" which maps to the FS root dir.
-		p := strings.TrimPrefix(r.URL.Path, "/")
-
-		// Check whether the path maps to a real file in the embedded FS.
-		f, err := fsys.Open(p)
-		if err == nil {
-			info, statErr := f.Stat()
-			_ = f.Close()
-			// Only forward to the file server if it's a regular file (not a dir).
-			// Directories would trigger FileServer's index-redirect logic.
-			if statErr == nil && !info.IsDir() {
-				fileServer.ServeHTTP(w, r)
-				return
-			}
-		}
-
-		// Not a real file (or it's a directory) → serve index.html directly.
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Header().Set("Content-Security-Policy",
-			"default-src 'self'; "+
-				"script-src 'self' blob:; "+
-				"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "+
-				"img-src 'self' data: blob: https:; "+
-				"font-src 'self' data: https://fonts.gstatic.com; "+
-				"connect-src 'self' ws://localhost:* http://localhost:* blob:; "+
-				"media-src 'self' blob: mediastream:; "+
-				"worker-src 'self' blob:; "+
-				"child-src 'self' blob:",
-		)
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(indexHTML)
-	})
 }
 
 // Start begins accepting HTTP connections. Blocks until the server is shut

@@ -32,6 +32,7 @@ import { ToastContainer } from "./components/shared/ToastContainer";
 import { WindowControls } from "./components/settings/WindowControls";
 import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
 import { LicenseDialog } from "./components/settings/LicenseDialog";
+import { apiUrl } from "./utils/api";
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
 function UpdateOverlay({
@@ -139,7 +140,7 @@ function AppShell() {
   const [buildDate, setBuildDate] = useState("");
 
   useEffect(() => {
-    fetch("/api/version")
+    fetch(apiUrl("/api/version"))
       .then((r) => r.json())
       .then((d: { display: string; build_date: string }) => {
         setBuildInfo(`Encounty ${d.display}`);
@@ -187,7 +188,7 @@ function AppShell() {
 
     // Non-Electron (or Windows Electron portable): check via Go backend REST API
     const timer = setTimeout(() => {
-      fetch("/api/update/check")
+      fetch(apiUrl("/api/update/check"))
         .then((r) => r.json())
         .then((d: { available: boolean; latest_version: string; download_url: string }) => {
           if (d.available) {
@@ -228,14 +229,14 @@ function AppShell() {
 
     // Non-Electron: REST-based update
     try {
-      await fetch("/api/update/apply", {
+      await fetch(apiUrl("/api/update/apply"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ download_url: updateInfo.download_url }),
       });
       setUpdateState("restarting");
       const pollBackend = () => {
-        fetch("/api/version", { cache: "no-store" })
+        fetch(apiUrl("/api/version"), { cache: "no-store" })
           .then(() => globalThis.location.reload())
           .catch(() => setTimeout(pollBackend, 1000));
       };
@@ -302,7 +303,7 @@ function AppShell() {
     if (!confirm(t("app.confirmQuit"))) return;
     setQuitting(true);
     setShowCloseWarning(false);
-    await fetch("/api/quit", { method: "POST" }).catch(() => {});
+    await fetch(apiUrl("/api/quit"), { method: "POST" }).catch(() => {});
     // Try to close the tab (works if opened via globalThis.open)
     globalThis.close();
   }, [t]);
@@ -634,7 +635,7 @@ function LicenseGate() {
   const [status, setStatus] = useState<"loading" | "pending" | "accepted">("loading");
 
   useEffect(() => {
-    fetch("/api/state")
+    fetch(apiUrl("/api/state"))
       .then((r) => r.json())
       .then((s: AppState) => setStatus(s.license_accepted ? "accepted" : "pending"))
       .catch(() => setStatus("pending"));

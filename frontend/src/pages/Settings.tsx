@@ -27,8 +27,7 @@ import { useToast } from "../contexts/ToastContext";
 import { CountryFlag } from "../components/shared/CountryFlag";
 import { LicenseDialog } from "../components/settings/LicenseDialog";
 import { LOCALES } from "../utils/i18n";
-
-const API = "/api";
+import { apiUrl } from "../utils/api";
 
 // --- Licenses types ----------------------------------------------------------
 
@@ -164,7 +163,7 @@ export function Settings() {
   // Fetch license data from API (lazy, on first expand)
   useEffect(() => {
     if (licensesOpen && licenses.length === 0) {
-      fetch(`${API}/licenses`)
+      fetch(apiUrl("/api/licenses"))
         .then((r) => r.json())
         .then((data: LicenseEntry[]) => setLicenses(data))
         .catch(() => {});
@@ -187,7 +186,7 @@ export function Settings() {
   useEffect(() => {
     if (!settings) return;
     const timer = setTimeout(() => {
-      fetch(`${API}/settings`, {
+      fetch(apiUrl("/api/settings"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
@@ -234,7 +233,7 @@ export function Settings() {
     setSyncing(true);
     setSyncResult(null);
     try {
-      const res = await fetch(`${API}/sync/pokemon`, { method: "POST" });
+      const res = await fetch(apiUrl("/api/sync/pokemon"), { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         setSyncResult(
@@ -254,7 +253,7 @@ export function Settings() {
     setGamesSyncing(true);
     setGamesSyncResult(null);
     try {
-      const res = await fetch(`${API}/games/sync`, { method: "POST" });
+      const res = await fetch(apiUrl("/api/games/sync"), { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         const { added, updated } = data;
@@ -277,7 +276,7 @@ export function Settings() {
 
   const downloadBackup = () => {
     const a = document.createElement("a");
-    a.href = `${API}/backup`;
+    a.href = apiUrl("/api/backup");
     a.download = "encounty-backup.zip";
     document.body.appendChild(a);
     a.click();
@@ -289,7 +288,7 @@ export function Settings() {
     const form = new FormData();
     form.append("backup", file);
     try {
-      const res = await fetch(`${API}/restore`, { method: "POST", body: form });
+      const res = await fetch(apiUrl("/api/restore"), { method: "POST", body: form });
       if (res.ok) {
         pushToast({ type: "success", title: t("settings.restoreSuccess") });
       } else {
@@ -690,7 +689,7 @@ export function Settings() {
                         const newPath = input?.value?.trim();
                         if (!newPath || newPath === appState.data_path) return;
                         try {
-                          const res = await fetch(`${API}/settings/config-path`, {
+                          const res = await fetch(apiUrl("/api/settings/config-path"), {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ path: newPath }),

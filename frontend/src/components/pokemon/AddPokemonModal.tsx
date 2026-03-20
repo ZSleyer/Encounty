@@ -13,6 +13,7 @@ import {
   getPokemonGeneration,
 } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
+import { apiUrl } from "../../utils/api";
 
 type Props = Readonly<{
   onAdd: (data: NewPokemonData) => void;
@@ -108,7 +109,7 @@ export function AddPokemonModal({
     dialogRef.current?.showModal();
     inputRef.current?.focus();
 
-    fetch("/api/pokedex")
+    fetch(apiUrl("/api/pokedex"))
       .then((r) => r.json())
       .then((data: PokemonData[]) => {
         setAllPokemon(data);
@@ -119,7 +120,7 @@ export function AddPokemonModal({
       })
       .catch(() => {});
 
-    fetch("/api/games")
+    fetch(apiUrl("/api/games"))
       .then((r) => r.json())
       .then((data: GameEntry[]) => setGames(data))
       .catch(() => {});

@@ -22,6 +22,7 @@ import { DetectorPreview } from "./DetectorPreview";
 import { DetectorSettings } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { getSpriteUrl } from "../../utils/sprites";
+import { apiUrl } from "../../utils/api";
 
 // ── Default config ───────────────────────────────────────────────────────────
 
@@ -120,7 +121,7 @@ export function DetectorPanel({
   // Detector capabilities
   const [capabilities, setCapabilities] = useState<DetectorCapabilities | null>(null);
   useEffect(() => {
-    fetch("/api/detector/capabilities")
+    fetch(apiUrl("/api/detector/capabilities"))
       .then(res => res.ok ? res.json() : null)
       .then(data => { if (data) setCapabilities(data as DetectorCapabilities); })
       .catch(() => {});
@@ -231,15 +232,15 @@ export function DetectorPanel({
   const [games, setGames] = useState<GameEntry[]>([]);
   const [pokedex, setPokedex] = useState<{ id: number; canonical: string; forms?: { canonical: string; sprite_id: number }[] }[]>([]);
   useEffect(() => {
-    fetch("/api/hunt-types")
+    fetch(apiUrl("/api/hunt-types"))
       .then((r) => r.json())
       .then((data) => setHuntTypePresets(data as HuntTypePreset[]))
       .catch(() => {});
-    fetch("/api/games")
+    fetch(apiUrl("/api/games"))
       .then((r) => r.json())
       .then((data) => setGames(data as GameEntry[]))
       .catch(() => {});
-    fetch("/api/pokedex")
+    fetch(apiUrl("/api/pokedex"))
       .then((r) => r.json())
       .then((data) => setPokedex(data))
       .catch(() => {});
@@ -315,7 +316,7 @@ export function DetectorPanel({
 
   const handleDeleteTemplate = async (index: number) => {
     try {
-      const res = await fetch(`/api/detector/${pokemon.id}/template/${index}`, { method: "DELETE" });
+      const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/template/${index}`), { method: "DELETE" });
       if (res.ok) {
         const newTemplates = templates.filter((_, i) => i !== index);
         setTemplates(newTemplates);
@@ -333,7 +334,7 @@ export function DetectorPanel({
     if (!tmpl) return;
     const newEnabled = tmpl.enabled === false;
     try {
-      const res = await fetch(`/api/detector/${pokemon.id}/template/${index}`, {
+      const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/template/${index}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: newEnabled }),
@@ -351,7 +352,7 @@ export function DetectorPanel({
   };
 
   const handleSaveNewTemplate = async (payload: { imageBase64: string; regions: MatchedRegion[] }) => {
-    const res = await fetch(`/api/detector/${pokemon.id}/template_upload`, {
+    const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/template_upload`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -381,7 +382,7 @@ export function DetectorPanel({
     if (!tmpl) return;
     setEditingTemplate({
       index,
-      url: `/api/detector/${pokemon.id}/template/${index}`,
+      url: apiUrl(`/api/detector/${pokemon.id}/template/${index}`),
       regions: tmpl.regions || [],
     });
   };
@@ -389,7 +390,7 @@ export function DetectorPanel({
   const handleUpdateRegions = async (regions: MatchedRegion[]) => {
     if (!editingTemplate) return;
     const res = await fetch(
-      `/api/detector/${pokemon.id}/template/${editingTemplate.index}`,
+      apiUrl(`/api/detector/${pokemon.id}/template/${editingTemplate.index}`),
       { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regions }) },
     );
     if (!res.ok) {
@@ -421,7 +422,7 @@ export function DetectorPanel({
       let addedCount = 0;
       let newTemplates = [...templates];
       for (const variant of variants) {
-        const res = await fetch(`/api/detector/${pokemon.id}/sprite_template`, {
+        const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/sprite_template`), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sprite_url: variant.url }),
@@ -450,7 +451,7 @@ export function DetectorPanel({
 
   const handleImportFromPokemon = async (sourcePokemonId: string) => {
     try {
-      const res = await fetch(`/api/detector/${pokemon.id}/import_templates`, {
+      const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/import_templates`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source_pokemon_id: sourcePokemonId }),
@@ -459,7 +460,7 @@ export function DetectorPanel({
         const data = await res.json() as { imported: number };
         pushToast({ type: "success", title: t("detector.importSuccess").replace("{count}", String(data.imported)) });
         // Refresh templates from the server state
-        const stateRes = await fetch(`/api/detector/${pokemon.id}/config`);
+        const stateRes = await fetch(apiUrl(`/api/detector/${pokemon.id}/config`));
         if (stateRes.ok) {
           const config = await stateRes.json() as DetectorConfig;
           setTemplates(config.templates || []);
@@ -474,7 +475,7 @@ export function DetectorPanel({
   };
 
   const handleExportTemplates = () => {
-    window.open(`/api/detector/${pokemon.id}/export_templates`, "_blank");
+    window.open(apiUrl(`/api/detector/${pokemon.id}/export_templates`), "_blank");
     setShowMoreMenu(false);
   };
 
@@ -486,14 +487,14 @@ export function DetectorPanel({
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch(`/api/detector/${pokemon.id}/import_templates_file`, {
+      const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/import_templates_file`), {
         method: "POST",
         body: formData,
       });
       if (res.ok) {
         const data = await res.json() as { imported: number };
         pushToast({ type: "success", title: t("detector.importFileSuccess").replace("{count}", String(data.imported)) });
-        const stateRes = await fetch(`/api/detector/${pokemon.id}/config`);
+        const stateRes = await fetch(apiUrl(`/api/detector/${pokemon.id}/config`));
         if (stateRes.ok) {
           const config = await stateRes.json() as DetectorConfig;
           setTemplates(config.templates || []);
@@ -545,7 +546,7 @@ export function DetectorPanel({
       // Save config first and wait for it to persist, so the backend
       // sees the latest templates and settings when /start is called.
       await onConfigChange({ ...cfg, templates });
-      const res = await fetch(`/api/detector/${pokemon.id}/start`, { method: "POST" });
+      const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/start`), { method: "POST" });
       if (res.ok) {
         setErrorMsg(null);
         // Register this pokemon for frame dispatch via the capture service
@@ -564,7 +565,7 @@ export function DetectorPanel({
   const handleStop = async () => {
     // Unregister from frame dispatch (does NOT stop the shared stream)
     capture.unregisterSubmitter(pokemon.id);
-    try { await fetch(`/api/detector/${pokemon.id}/stop`, { method: "POST" }); } catch {}
+    try { await fetch(apiUrl(`/api/detector/${pokemon.id}/stop`), { method: "POST" }); } catch {}
   };
 
   // ── Settings handlers ──────────────────────────────────────────────────────
@@ -614,7 +615,7 @@ export function DetectorPanel({
       },
     };
     try {
-      await fetch("/api/settings", {
+      await fetch(apiUrl("/api/settings"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedSettings),
@@ -841,7 +842,7 @@ export function DetectorPanel({
               {templates.map((tmpl, index) => (
                 <div key={`template-${tmpl.image_path}-${index}`} className="relative group">
                   <img
-                    src={`/api/detector/${pokemon.id}/template/${index}`}
+                    src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
                     alt={`Template ${index + 1}`}
                     className={`w-full aspect-square object-contain rounded-lg border border-border-subtle bg-bg-primary transition-all ${
                       tmpl.enabled === false ? 'opacity-40 grayscale' : ''

@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { apiUrl } from "../../utils/api";
 import { GameEntry } from "../../types";
 import {
   getSpriteUrl,
@@ -131,7 +132,7 @@ export function EditPokemonModal({
     dialogRef.current?.showModal();
     inputRef.current?.focus();
 
-    fetch("/api/pokedex")
+    fetch(apiUrl("/api/pokedex"))
       .then((r) => r.json())
       .then((data: PokemonData[]) => {
         setAllPokemon(data);
@@ -187,7 +188,7 @@ export function EditPokemonModal({
       })
       .catch(() => {});
 
-    fetch("/api/games")
+    fetch(apiUrl("/api/games"))
       .then((r) => r.json())
       .then((data: GameEntry[]) => setGames(data))
       .catch(() => {});

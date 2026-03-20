@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Monitor, AppWindow, Camera, RefreshCw, Zap, Globe } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { apiUrl } from "../../utils/api";
 import { WindowInfo, CameraInfo, DetectorCapabilities } from "../../types";
 
 // --- Types -------------------------------------------------------------------
@@ -369,8 +370,8 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
     setNativeLoading(true);
     try {
       const [winRes, camRes] = await Promise.all([
-        fetch("/api/detector/windows"),
-        fetch("/api/detector/cameras"),
+        fetch(apiUrl("/api/detector/windows")),
+        fetch(apiUrl("/api/detector/cameras")),
       ]);
       if (winRes.ok) {
         const data = await winRes.json() as WindowInfo[];

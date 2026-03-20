@@ -10,10 +10,11 @@ import { Scale, ChevronDown } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { LOCALES, type Locale } from "../../utils/i18n";
 import { AGPLV3_LICENSE } from "../../utils/agplv3";
+import { apiUrl } from "../../utils/api";
 
 /** Accept the license via the backend API. */
 async function acceptLicenseAPI(): Promise<void> {
-  await fetch("/api/license/accept", { method: "POST" });
+  await fetch(apiUrl("/api/license/accept"), { method: "POST" });
 }
 
 interface LicenseDialogProps {

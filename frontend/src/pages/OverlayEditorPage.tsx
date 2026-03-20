@@ -12,8 +12,7 @@ import { useCounterStore } from "../hooks/useCounterState";
 import { OverlaySettings, Pokemon } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { getSpriteUrl } from "../utils/sprites";
-
-const API = "/api";
+import { apiUrl } from "../utils/api";
 
 /** Hardcoded preview Pokemon for the default layout editor. */
 function makePreviewPokemon(): Pokemon {
@@ -61,9 +60,9 @@ export function OverlayEditorPage() {
 
   // Pause hotkeys on mount, resume on unmount
   useEffect(() => {
-    fetch(`${API}/hotkeys/pause`, { method: "POST" }).catch(() => {});
+    fetch(apiUrl("/api/hotkeys/pause"), { method: "POST" }).catch(() => {});
     return () => {
-      fetch(`${API}/hotkeys/resume`, { method: "POST" }).catch(() => {});
+      fetch(apiUrl("/api/hotkeys/resume"), { method: "POST" }).catch(() => {});
     };
   }, []);
 
@@ -76,7 +75,7 @@ export function OverlayEditorPage() {
     setOverlaySaving(true);
     try {
       const newSettings = { ...appState.settings, overlay: currentOverlay };
-      await fetch(`${API}/settings`, {
+      await fetch(apiUrl("/api/settings"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newSettings),

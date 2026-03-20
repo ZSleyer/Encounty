@@ -5,16 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"testing/fstest"
 	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
 )
 
-const (
-	srvFmtStatus  = "status = %d, want %d"
-	fileIndexHTML  = "index.html"
-)
+const srvFmtStatus = "status = %d, want %d"
 
 // --- CORS Middleware Tests ---
 
@@ -66,104 +62,6 @@ func TestCorsMiddlewarePreflight(t *testing.T) {
 	}
 	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "*" {
 		t.Errorf("Allow-Origin = %q, want %q", got, "*")
-	}
-}
-
-// --- SPA Handler Tests ---
-
-// TestSPAHandlerServesStaticFile verifies that the SPA handler serves a real
-// file from the embedded FS when the path matches.
-func TestSPAHandlerServesStaticFile(t *testing.T) {
-	fsys := fstest.MapFS{
-		fileIndexHTML:        {Data: []byte("<html>SPA</html>")},
-		"assets/main.js":    {Data: []byte("console.log('app')")},
-		"assets/style.css":  {Data: []byte("body{}")},
-	}
-
-	handler := spaHandler(fsys)
-
-	req := httptest.NewRequest(http.MethodGet, "/assets/main.js", nil)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
-	}
-	if got := w.Body.String(); got != "console.log('app')" {
-		t.Errorf("body = %q, want JS content", got)
-	}
-}
-
-// TestSPAHandlerFallbackToIndex verifies that unknown paths return
-// index.html for client-side routing.
-func TestSPAHandlerFallbackToIndex(t *testing.T) {
-	indexContent := "<html><body>Encounty SPA</body></html>"
-	fsys := fstest.MapFS{
-		fileIndexHTML: {Data: []byte(indexContent)},
-	}
-
-	handler := spaHandler(fsys)
-
-	paths := []string{"/overlay", "/settings", "/nonexistent/path"}
-	for _, p := range paths {
-		req := httptest.NewRequest(http.MethodGet, p, nil)
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, req)
-
-		if w.Code != http.StatusOK {
-			t.Errorf("path %q: status = %d, want %d", p, w.Code, http.StatusOK)
-		}
-		if got := w.Body.String(); got != indexContent {
-			t.Errorf("path %q: body = %q, want index.html content", p, got)
-		}
-		if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
-			t.Errorf("path %q: Content-Type = %q, want text/html", p, ct)
-		}
-	}
-}
-
-// TestSPAHandlerDirectoryFallback verifies that directory paths fall back to
-// index.html instead of triggering FileServer's directory listing or redirect.
-func TestSPAHandlerDirectoryFallback(t *testing.T) {
-	indexContent := "<html>app</html>"
-	fsys := fstest.MapFS{
-		fileIndexHTML:     {Data: []byte(indexContent)},
-		"assets/main.js": {Data: []byte("js")},
-	}
-
-	handler := spaHandler(fsys)
-
-	// Requesting "/assets/" (a directory) should fall back to index.html.
-	req := httptest.NewRequest(http.MethodGet, "/assets/", nil)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
-	}
-	if got := w.Body.String(); got != indexContent {
-		t.Errorf("body = %q, want index.html content", got)
-	}
-}
-
-// TestSPAHandlerRootPath verifies that "/" serves index.html.
-func TestSPAHandlerRootPath(t *testing.T) {
-	indexContent := "<html>root</html>"
-	fsys := fstest.MapFS{
-		fileIndexHTML: {Data: []byte(indexContent)},
-	}
-
-	handler := spaHandler(fsys)
-
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	w := httptest.NewRecorder()
-	handler.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
-	}
-	if got := w.Body.String(); got != indexContent {
-		t.Errorf("body = %q, want index.html content", got)
 	}
 }
 
