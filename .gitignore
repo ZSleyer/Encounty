@@ -62,5 +62,8 @@ electron/node_modules/
 electron/dist/
 electron/release/
 
+# Rust sidecar
+capture-sidecar/target/
+
 # Experimental implementations (not for main branch)
 project-native/

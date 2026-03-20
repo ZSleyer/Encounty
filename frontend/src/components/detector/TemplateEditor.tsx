@@ -117,7 +117,7 @@ export function TemplateEditor({
   const [phase, setPhase] = useState<"video" | "replay" | "snapshot">("video");
   const [selectedFrameIndex, setSelectedFrameIndex] = useState(0);
 
-  const replayBuffer = useReplayBuffer(stream, 30, 5);
+  const replayBuffer = useReplayBuffer(stream, 30);
   const [snapshotWidth, setSnapshotWidth] = useState(0);
   const [snapshotHeight, setSnapshotHeight] = useState(0);
 
@@ -215,7 +215,7 @@ export function TemplateEditor({
 
     const ctx = canvasRef.current.getContext("2d");
     if (ctx) {
-      ctx.putImageData(frame, 0, 0);
+      ctx.drawImage(frame, 0, 0);
     }
   }, [phase, selectedFrameIndex, replayBuffer]);
 
@@ -278,7 +278,7 @@ export function TemplateEditor({
     canvasRef.current.height = frame.height;
     const ctx = canvasRef.current.getContext("2d");
     if (ctx) {
-      ctx.putImageData(frame, 0, 0);
+      ctx.drawImage(frame, 0, 0);
     }
 
     setPhase("snapshot");
@@ -287,21 +287,18 @@ export function TemplateEditor({
     setErrorMsg(null);
   };
 
-  const handleBackToLive = () => {
+  const returnToLiveVideo = () => {
     setPhase("video");
     setSelectedFrameIndex(0);
     setCurrentBox(null);
     setRegions([]);
     setErrorMsg(null);
+    replayBuffer.clear();
+    replayBuffer.resume();
   };
 
-  const resetSnapshot = () => {
-    setPhase("video");
-    setSelectedFrameIndex(0);
-    setCurrentBox(null);
-    setRegions([]);
-    setErrorMsg(null);
-  };
+  const handleBackToLive = returnToLiveVideo;
+  const resetSnapshot = returnToLiveVideo;
 
   const getRelativeMousePos = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (!containerRef.current) return { x: 0, y: 0 };

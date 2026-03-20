@@ -285,6 +285,12 @@ if (gotTheLock) {
 // so the screen capture detection loop keeps running at full speed.
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 
+// GPU acceleration: ensure hardware rendering is used for compositing,
+// canvas operations, and video decode on all supported platforms.
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+
 // Wayland-specific Chromium flags
 if (isWayland) {
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto');

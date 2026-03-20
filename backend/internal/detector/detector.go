@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -211,6 +212,12 @@ func msToNs(ms int) int64 {
 // goroutine falls behind. The channel is closed when ctx is cancelled.
 func (d *Detector) captureFrames(ctx context.Context, ch chan<- image.Image) {
 	defer close(ch)
+
+	// For window source type, resolve and cache the target HWND.
+	var cachedHWND uintptr
+	var lastLookup time.Time
+	const hwndRefreshInterval = 30 * time.Second
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -218,10 +225,33 @@ func (d *Detector) captureFrames(ctx context.Context, ch chan<- image.Image) {
 		default:
 		}
 
-		frame, err := CaptureRegion(d.cfg.Region.X, d.cfg.Region.Y, d.cfg.Region.W, d.cfg.Region.H)
-		if err != nil {
-			slog.Debug("Detector capture failed", "pokemon_id", d.pokemonID, "error", err)
+		var frame image.Image
+		var err error
+
+		if d.cfg.SourceType == "window" && d.cfg.WindowTitle != "" {
+			// Re-lookup HWND periodically in case the window was reopened.
+			if cachedHWND == 0 || time.Since(lastLookup) > hwndRefreshInterval {
+				cachedHWND = findWindowByTitle(d.cfg.WindowTitle)
+				lastLookup = time.Now()
+			}
+			if cachedHWND == 0 {
+				slog.Debug("Detector window not found", "pokemon_id", d.pokemonID, "title", d.cfg.WindowTitle)
+			} else {
+				frame, err = CaptureWindow(cachedHWND)
+				if err != nil {
+					slog.Debug("Detector window capture failed", "pokemon_id", d.pokemonID, "error", err)
+					// Window may have closed; force re-lookup next iteration.
+					cachedHWND = 0
+				}
+			}
 		} else {
+			frame, err = CaptureRegion(d.cfg.Region.X, d.cfg.Region.Y, d.cfg.Region.W, d.cfg.Region.H)
+			if err != nil {
+				slog.Debug("Detector capture failed", "pokemon_id", d.pokemonID, "error", err)
+			}
+		}
+
+		if frame != nil {
 			select {
 			case ch <- frame:
 			default:
@@ -235,6 +265,18 @@ func (d *Detector) captureFrames(ctx context.Context, ch chan<- image.Image) {
 		case <-time.After(interval):
 		}
 	}
+}
+
+// findWindowByTitle searches the available windows for one whose title contains
+// the given substring (case-insensitive). Returns 0 if no match is found.
+func findWindowByTitle(title string) uintptr {
+	lower := strings.ToLower(title)
+	for _, w := range ListWindows() {
+		if strings.Contains(strings.ToLower(w.Title), lower) {
+			return w.HWND
+		}
+	}
+	return 0
 }
 
 // processIdleFrame evaluates templates against a captured frame during the idle
@@ -356,9 +398,9 @@ func (d *Detector) processFrame(frame image.Image, rc resolvedConfig, matchConfi
 }
 
 // Run executes the detection loop until ctx is cancelled. It should be called
-// in its own goroutine. Internally it spawns a capture goroutine that feeds
-// frames into a buffered channel, and an analysis goroutine that runs the
-// idle/match/cooldown state machine on each received frame.
+// in its own goroutine. For camera sources the frame channel is provided by
+// StartCameraCapture; for screen and window sources a capture goroutine polls
+// at the adaptive interval.
 func (d *Detector) Run(ctx context.Context) {
 	d.templates = loadTemplates(d.cfg.Templates, d.configDir, d.pokemonID)
 	if len(d.templates) == 0 {
@@ -369,8 +411,27 @@ func (d *Detector) Run(ctx context.Context) {
 	rc := d.resolveConfig()
 	d.pollIntervalNs.Store(rc.basePollNs)
 
-	frames := make(chan image.Image, 3)
-	go d.captureFrames(ctx, frames)
+	var frames <-chan image.Image
+
+	if d.cfg.SourceType == "camera" {
+		camFrames, stop, err := StartCameraCapture(d.cfg.WindowTitle, d.cfg.Region.W, d.cfg.Region.H)
+		if err != nil {
+			slog.Error("Detector camera start failed", "pokemon_id", d.pokemonID, "error", err)
+			return
+		}
+		defer stop()
+		frames = camFrames
+
+		// Ensure camera stops when context is cancelled.
+		go func() {
+			<-ctx.Done()
+			stop()
+		}()
+	} else {
+		ch := make(chan image.Image, 3)
+		go d.captureFrames(ctx, ch)
+		frames = ch
+	}
 
 	matchConfirmedAt := time.Time{}
 	for frame := range frames {

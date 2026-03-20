@@ -29,6 +29,8 @@ interface CaptureEntry {
   pollMs: number | null;
   lastDispatch: number;
   loopTimer: ReturnType<typeof setTimeout> | null;
+  prevSample: Uint8Array | null;
+  rvfcHandle: number | null;
   /** Display name of the selected source (e.g. "Screen 1", "OBS Virtual Camera"). */
   sourceLabel: string;
 }
@@ -99,6 +101,103 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
 
   // --- Helpers ---------------------------------------------------------------
 
+  /** Minimum interval between frame submissions to avoid overwhelming the backend. */
+  const MIN_SUBMIT_INTERVAL_MS = 33;
+  /** Grid size for pixel sampling (SAMPLE_GRID x SAMPLE_GRID pixels). */
+  const SAMPLE_GRID = 8;
+  /** Minimum normalized delta to consider a frame as "changed". */
+  const DELTA_THRESHOLD = 0.02;
+
+  /**
+   * Sample an 8x8 grid of pixels from the canvas and compute the
+   * normalized delta against the previous sample. Uses a single
+   * getImageData call for the full canvas (faster than 64 individual
+   * 1x1 reads, especially with willReadFrequently).
+   */
+  function samplePixelDelta(
+    ctx: CanvasRenderingContext2D, w: number, h: number,
+    prev: Uint8Array | null,
+  ): { delta: number; sample: Uint8Array } {
+    const imgData = ctx.getImageData(0, 0, w, h).data;
+    const sample = new Uint8Array(SAMPLE_GRID * SAMPLE_GRID);
+    let totalDiff = 0;
+    for (let gy = 0; gy < SAMPLE_GRID; gy++) {
+      for (let gx = 0; gx < SAMPLE_GRID; gx++) {
+        const px = Math.floor(((gx + 0.5) / SAMPLE_GRID) * w);
+        const py = Math.floor(((gy + 0.5) / SAMPLE_GRID) * h);
+        const idx = gy * SAMPLE_GRID + gx;
+        // Green channel as fast luminance proxy (index 1 in RGBA)
+        sample[idx] = imgData[(py * w + px) * 4 + 1];
+        if (prev) totalDiff += Math.abs(sample[idx] - prev[idx]);
+      }
+    }
+    const delta = prev ? totalDiff / (SAMPLE_GRID * SAMPLE_GRID * 255) : 1.0;
+    return { delta, sample };
+  }
+
+  /**
+   * Frame-accurate capture loop using requestVideoFrameCallback.
+   * Runs at the native frame rate of the video source, but only
+   * submits frames to the backend when the content has actually
+   * changed (pixel delta above threshold) and enough time has
+   * elapsed since the last submission.
+   */
+  const startRvfcLoop = useCallback((entry: CaptureEntry) => {
+    const loop = () => {
+      if (!entriesRef.current.has(entry.pokemonId) || entry.pollMs === null) return;
+
+      const video = entry.videoEl;
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        entry.rvfcHandle = video.requestVideoFrameCallback(loop);
+        return;
+      }
+
+      entry.canvas ??= document.createElement("canvas");
+      const canvas = entry.canvas;
+      if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
+      if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) {
+        entry.rvfcHandle = video.requestVideoFrameCallback(loop);
+        return;
+      }
+
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Detect green frames (Windows GPU capture artifact: solid #00FF00)
+      const center = ctx.getImageData(
+        Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1,
+      ).data;
+      if (center[0] === 0 && center[1] === 255 && center[2] === 0) {
+        entry.rvfcHandle = video.requestVideoFrameCallback(loop);
+        return;
+      }
+
+      const { delta, sample } = samplePixelDelta(ctx, canvas.width, canvas.height, entry.prevSample);
+      entry.prevSample = sample;
+
+      const now = Date.now();
+      const minInterval = Math.max(MIN_SUBMIT_INTERVAL_MS, entry.pollMs ?? MIN_SUBMIT_INTERVAL_MS);
+      const elapsed = now - entry.lastDispatch;
+
+      if (delta >= DELTA_THRESHOLD && elapsed >= minInterval) {
+        entry.lastDispatch = now;
+        canvas.toBlob((blob) => {
+          if (blob) {
+            fetch(`/api/detector/${entry.pokemonId}/match_frame`, {
+              method: "POST",
+              body: blob,
+            }).catch(() => {});
+          }
+        }, "image/jpeg", 0.7);
+      }
+
+      entry.rvfcHandle = video.requestVideoFrameCallback(loop);
+    };
+
+    entry.rvfcHandle = entry.videoEl.requestVideoFrameCallback(loop);
+  }, []);
+
   const captureFrame = (entry: CaptureEntry): Promise<Blob | null> => {
     const video = entry.videoEl;
     if (video.videoWidth === 0 || video.videoHeight === 0) {
@@ -108,7 +207,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     const canvas = entry.canvas;
     if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
     if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return Promise.resolve(null);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     // Detect green frames (Windows GPU capture artifact: solid #00FF00)
@@ -130,6 +229,12 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     }
     if (entry.pollMs === null) return;
 
+    // Prefer requestVideoFrameCallback for frame-accurate capture
+    if (typeof entry.videoEl.requestVideoFrameCallback === "function") {
+      startRvfcLoop(entry);
+      return;
+    }
+
     const tick = async () => {
       // Entry might have been removed while we were awaiting
       if (!entriesRef.current.has(entry.pokemonId)) return;
@@ -150,12 +255,16 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     };
 
     tick();
-  }, []);
+  }, [startRvfcLoop]);
 
   const cleanupEntry = useCallback((pokemonId: string) => {
     const entry = entriesRef.current.get(pokemonId);
     if (!entry) return;
     if (entry.loopTimer !== null) clearTimeout(entry.loopTimer);
+    if (entry.rvfcHandle !== null && entry.videoEl.cancelVideoFrameCallback) {
+      entry.videoEl.cancelVideoFrameCallback(entry.rvfcHandle);
+      entry.rvfcHandle = null;
+    }
     entry.stream.getTracks().forEach((t) => t.stop());
     entry.videoEl.srcObject = null;
     entry.videoEl.remove();
@@ -242,6 +351,8 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
         pollMs: null,
         lastDispatch: 0,
         loopTimer: null,
+        prevSample: null,
+        rvfcHandle: null,
         sourceLabel: label,
       };
 
@@ -291,6 +402,10 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
       clearTimeout(entry.loopTimer);
       entry.loopTimer = null;
     }
+    if (entry.rvfcHandle !== null && entry.videoEl.cancelVideoFrameCallback) {
+      entry.videoEl.cancelVideoFrameCallback(entry.rvfcHandle);
+      entry.rvfcHandle = null;
+    }
     entry.pollMs = null;
   }, []);
 
@@ -320,6 +435,9 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     return () => {
       for (const [, entry] of entriesRef.current) {
         if (entry.loopTimer !== null) clearTimeout(entry.loopTimer);
+        if (entry.rvfcHandle !== null && entry.videoEl.cancelVideoFrameCallback) {
+          entry.videoEl.cancelVideoFrameCallback(entry.rvfcHandle);
+        }
         entry.stream.getTracks().forEach((t) => t.stop());
         entry.videoEl.srcObject = null;
         entry.videoEl.remove();

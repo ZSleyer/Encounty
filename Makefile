@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-windows build-linux frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-package-linux electron-package-windows electron-package-all
+.PHONY: dev build build-all build-windows build-linux frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-package-linux electron-package-windows electron-package-all build-sidecar-linux build-sidecar-windows clean-sidecar swagger
 
 BINARY = encounty
 BACKEND_DIR = backend
@@ -32,12 +32,17 @@ frontend:
 # Alias for consistency
 frontend-build: frontend
 
-build: build-linux build-windows
+swagger:
+	cd backend && swag init -g main.go --parseDependency --parseInternal -o docs
+
+build: swagger build-linux build-windows
 all: build
 
 electron: electron-package-linux
 
 build-all: build electron-package-linux electron-package-windows
+
+build-all-with-sidecar: build-sidecar-linux build-sidecar-windows build-all
 
 icons:
 	@echo "Generating icons from frontend/public/app-icon.png..."
@@ -98,7 +103,7 @@ capture\.go|sound_unix\.go|sound_windows\.go|\
 reexec_unix\.go|reexec_windows\.go|\
 update_unix\.go|update_windows\.go|update\.go|\
 games_sync\.go|detector_api\.go|detector\.go|\
-ocr\.go|pokedex\.go|\
+ocr\.go|sidecar\.go|pokedex\.go|\
 main\.go|scripts/generate_icons\.go
 
 test:
@@ -121,9 +126,29 @@ coverage:
 	@cd $(FRONTEND_DIR) && yarn vitest run --coverage
 	@rm -f $(BACKEND_DIR)/coverage.out $(BACKEND_DIR)/coverage_filtered.out
 
-clean:
+clean: clean-sidecar
 	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-windows.exe *.syso
 	rm -rf $(FRONTEND_DIR)/dist $(LINUX_DIST)
+
+# ── Rust Sidecar Targets ─────────────────────────────────────────────────────
+
+SIDECAR_DIR = capture-sidecar
+WINDOWS_DIST = dist-windows
+
+build-sidecar-linux:
+	@echo "Building Rust capture sidecar for Linux..."
+	cd $(SIDECAR_DIR) && cargo build --release
+	@mkdir -p $(LINUX_DIST)
+	cp $(SIDECAR_DIR)/target/release/encounty-capture $(LINUX_DIST)/
+
+build-sidecar-windows:
+	@echo "Building Rust capture sidecar for Windows..."
+	cd $(SIDECAR_DIR) && cargo build --release --target x86_64-pc-windows-gnu
+	@mkdir -p $(WINDOWS_DIST)
+	cp $(SIDECAR_DIR)/target/x86_64-pc-windows-gnu/release/encounty-capture.exe $(WINDOWS_DIST)/
+
+clean-sidecar:
+	@if [ -d "$(SIDECAR_DIR)" ]; then cd $(SIDECAR_DIR) && cargo clean; fi
 
 # ── Electron Targets ─────────────────────────────────────────────────────────
 
