@@ -315,7 +315,7 @@ func TestMatchWithRegionsNoRegions(t *testing.T) {
 		img:  frame,
 		meta: state.DetectorTemplate{},
 	}
-	score := MatchWithRegions(frame, lt, 0.5, "eng")
+	score := MatchWithRegions(frame, lt, 0.5, "eng", false)
 	if score < 0.9 {
 		t.Errorf("MatchWithRegions with no regions and identical image = %f, want >= 0.9", score)
 	}
@@ -338,7 +338,7 @@ func TestMatchWithRegionsImageRegion(t *testing.T) {
 			},
 		},
 	}
-	score := MatchWithRegions(img, lt, 0.5, "eng")
+	score := MatchWithRegions(img, lt, 0.5, "eng", false)
 	if score < 0.6 {
 		t.Errorf("MatchWithRegions identical image region = %f, want >= 0.6", score)
 	}
@@ -363,7 +363,7 @@ func TestMatchWithRegionsEarlyExit(t *testing.T) {
 			},
 		},
 	}
-	score := MatchWithRegions(frame, lt, 0.95, "eng")
+	score := MatchWithRegions(frame, lt, 0.95, "eng", false)
 	if score >= 0.95 {
 		t.Errorf("MatchWithRegions should exit early below precision, got %f", score)
 	}
@@ -384,7 +384,7 @@ func TestMatchWithRegionsUnknownType(t *testing.T) {
 		},
 	}
 	// All regions are unknown, evaluated == 0, falls back to Match
-	score := MatchWithRegions(frame, lt, 0.5, "eng")
+	score := MatchWithRegions(frame, lt, 0.5, "eng", false)
 	if score < 0.9 {
 		t.Errorf("MatchWithRegions with unknown regions should fall back to Match, got %f", score)
 	}

@@ -7,8 +7,10 @@ import {
   SpriteType,
   SpriteStyle,
   SPRITE_STYLES,
+  SPRITE_FALLBACK,
   isSpriteStyleAvailable,
   bestAvailableStyle,
+  getPokemonGeneration,
 } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 
@@ -99,6 +101,9 @@ export function AddPokemonModal({
   const selectedGameGen: number | null =
     games.find((g) => g.key === selectedGame)?.generation ?? null;
 
+  // Get the generation in which the selected Pokemon was introduced
+  const pokemonGen: number | null = selected ? getPokemonGeneration(selected.id) : null;
+
   useEffect(() => {
     dialogRef.current?.showModal();
     inputRef.current?.focus();
@@ -129,6 +134,17 @@ export function AddPokemonModal({
       }
     }
   }, [selectedGameGen]);
+
+  // Clear game selection if it predates the selected Pokemon's generation
+  useEffect(() => {
+    if (selected && selectedGame) {
+      const gameGen = games.find((g) => g.key === selectedGame)?.generation;
+      const pkGen = getPokemonGeneration(selected.id);
+      if (gameGen != null && gameGen < pkGen) {
+        setSelectedGame("");
+      }
+    }
+  }, [selected?.id, games]);
 
   const buildSearchList = (data: PokemonData[]): SearchResult[] => {
     const results: SearchResult[] = [];
@@ -235,11 +251,13 @@ export function AddPokemonModal({
   const activeName = selected ? selected.name : "";
   const availableLangs = activeLanguages.length > 0 ? activeLanguages : ["en"];
 
-  const genGroups = games.reduce<Record<number, GameEntry[]>>((acc, g) => {
-    if (!acc[g.generation]) acc[g.generation] = [];
-    acc[g.generation].push(g);
-    return acc;
-  }, {});
+  const genGroups = games
+    .filter((g) => pokemonGen === null || g.generation >= pokemonGen)
+    .reduce<Record<number, GameEntry[]>>((acc, g) => {
+      if (!acc[g.generation]) acc[g.generation] = [];
+      acc[g.generation].push(g);
+      return acc;
+    }, {});
 
   return (
     <dialog
@@ -349,6 +367,12 @@ export function AddPokemonModal({
                     ? { imageRendering: "pixelated" }
                     : undefined
                 }
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (!img.src.endsWith("/0.png")) {
+                    img.src = SPRITE_FALLBACK;
+                  }
+                }}
               />
             ) : (
               <span className="text-3xl text-text-faint">?</span>

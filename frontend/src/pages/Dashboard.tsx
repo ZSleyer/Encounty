@@ -35,6 +35,7 @@ import {
   Pause,
   Timer,
   BarChart3,
+  Check,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
@@ -46,7 +47,7 @@ import { DetectorPanel } from "../components/detector/DetectorPanel";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode } from "../types";
+import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
@@ -194,6 +195,8 @@ export function Dashboard() {
   const [overlaySaving, setOverlaySaving] = useState(false);
   const [overlaySaved, setOverlaySaved] = useState(false);
 
+  const [games, setGames] = useState<GameEntry[]>([]);
+
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
     title: string;
@@ -236,6 +239,14 @@ export function Dashboard() {
     };
     globalThis.addEventListener("keydown", handler);
     return () => globalThis.removeEventListener("keydown", handler);
+  }, []);
+
+  // Fetch games list for generation-aware odds display
+  useEffect(() => {
+    fetch(`${API}/games`)
+      .then((r) => r.json())
+      .then((data: GameEntry[]) => setGames(data))
+      .catch(() => {});
   }, []);
 
   // Sync overlay editor state when the viewed Pokemon changes
@@ -440,18 +451,25 @@ export function Dashboard() {
     0,
   );
 
-  const HUNT_ODDS: Record<string, string> = {
-    encounter: "4096", soft_reset: "4096", fossil: "4096", gift: "4096",
-    radar: "~200", horde: "~820", sos: "683", masuda: "683",
-    outbreak: "4096", sandwich: "683",
-  };
   const oddsDisplay = (() => {
     if (!viewedPokemon) return "1/4096";
-    if (viewedPokemon.hunt_type && HUNT_ODDS[viewedPokemon.hunt_type]) {
-      return `1/${HUNT_ODDS[viewedPokemon.hunt_type]}`;
+
+    const gameGen = viewedPokemon.game
+      ? games.find((g) => g.key === viewedPokemon.game)?.generation ?? null
+      : null;
+    const isOldGen = gameGen !== null && gameGen >= 2 && gameGen <= 5;
+    const baseDenom = isOldGen ? 8192 : 4096;
+
+    const ht = viewedPokemon.hunt_type;
+    if (!ht || ht === "encounter" || ht === "soft_reset" || ht === "fossil" || ht === "gift") {
+      return `1/${baseDenom}`;
     }
-    const oldGen = /red|blue|yellow|gold|silver|crystal|ruby|sapphire|emerald|firered|leafgreen|diamond|pearl|platinum|heartgold|soulsilver|black|white/.test(viewedPokemon.game ?? "");
-    return oldGen ? "1/8192" : "1/4096";
+
+    const METHOD_ODDS: Record<string, string> = {
+      masuda: "683", radar: "~200", horde: "~820",
+      sos: "683", outbreak: `${baseDenom}`, sandwich: "683",
+    };
+    return `1/${METHOD_ODDS[ht] ?? baseDenom}`;
   })();
 
   // Split Pokémon into active hunts and archived
@@ -623,133 +641,134 @@ export function Dashboard() {
     );
   };
 
-  /** Renders the tab-specific content inside the scrollable work area. */
-  const renderTabContent = (pokemon: Pokemon) => {
-    if (rightPanelTab === "counter") {
-      return (
-        <>
-          {/* Archived banner */}
-          {pokemon.completed_at && (
-            <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-12">
-              <Trophy className="w-4 h-4" />
-              <span className="font-bold">{t("dash.caughtBanner")}</span>
-              <span className="w-px h-3 bg-accent-green/30" />
-              <span className="text-accent-green/80 text-xs font-medium">
-                {new Date(pokemon.completed_at).toLocaleDateString(
-                  "de-DE",
-                  { day: "2-digit", month: "short", year: "numeric" },
-                )}
-              </span>
-            </div>
+  /** Renders the counter tab with sprite, encounter buttons, timer, and stats. */
+  const renderCounterTab = (pokemon: Pokemon) => (
+    <>
+      {/* Archived banner */}
+      {pokemon.completed_at && (
+        <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-12">
+          <Trophy className="w-4 h-4" />
+          <span className="font-bold">{t("dash.caughtBanner")}</span>
+          <span className="w-px h-3 bg-accent-green/30" />
+          <span className="text-accent-green/80 text-xs font-medium">
+            {new Date(pokemon.completed_at).toLocaleDateString(
+              "de-DE",
+              { day: "2-digit", month: "short", year: "numeric" },
+            )}
+          </span>
+        </div>
+      )}
+
+      {/* Solid Card for Sprite */}
+      <div className="relative w-full aspect-2/1 max-h-75 mb-8 mt-12 flex items-center justify-center">
+        {/* Clean, no-glow sprite container */}
+        <div className="relative z-10 p-8 flex flex-col items-center">
+          <img
+            src={
+              imgError[pokemon.id] || !pokemon.sprite_url
+                ? FALLBACK
+                : pokemon.sprite_url
+            }
+            alt={pokemon.name}
+            onError={() =>
+              setImgError((prev) => ({
+                ...prev,
+                [pokemon.id]: true,
+              }))
+            }
+            className="pokemon-sprite w-56 h-56 2xl:w-64 2xl:h-64 object-contain relative z-10 drop-shadow-xl transition-transform duration-300 hover:scale-110"
+          />
+        </div>
+        {/* Pokemon Name Overlay */}
+        <h2 className="absolute -bottom-2 text-4xl 2xl:text-5xl font-black text-text-primary capitalize tracking-wide drop-shadow-md z-20">
+          {pokemon.name}
+        </h2>
+      </div>
+
+      {/* Main Counter Section */}
+      <div className="flex items-center gap-6 mt-8 w-full justify-center">
+        {/* Minus Button */}
+        <button
+          onClick={() => !pokemon.completed_at && handleDecrement(pokemon.id)}
+          disabled={!!pokemon.completed_at}
+          className="flex items-center justify-center w-16 h-16 2xl:w-20 2xl:h-20 rounded-2xl bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          title={`−${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
+        >
+          {pokemon.step && pokemon.step > 1 ? (
+            <span className="text-lg font-bold">−{pokemon.step}</span>
+          ) : (
+            <Minus className="w-8 h-8" />
           )}
+        </button>
 
-          {/* Solid Card for Sprite */}
-          <div className="relative w-full aspect-2/1 max-h-75 mb-8 mt-12 flex items-center justify-center">
-            {/* Clean, no-glow sprite container */}
-            <div className="relative z-10 p-8 flex flex-col items-center">
-              <img
-                src={
-                  imgError[pokemon.id] || !pokemon.sprite_url
-                    ? FALLBACK
-                    : pokemon.sprite_url
-                }
-                alt={pokemon.name}
-                onError={() =>
-                  setImgError((prev) => ({
-                    ...prev,
-                    [pokemon.id]: true,
-                  }))
-                }
-                className="pokemon-sprite w-56 h-56 2xl:w-64 2xl:h-64 object-contain relative z-10 drop-shadow-xl transition-transform duration-300 hover:scale-110"
-              />
-            </div>
-            {/* Pokemon Name Overlay */}
-            <h2 className="absolute -bottom-2 text-4xl 2xl:text-5xl font-black text-text-primary capitalize tracking-wide drop-shadow-md z-20">
-              {pokemon.name}
-            </h2>
+        {/* Solid Counter Card */}
+        <div className="bg-bg-card rounded-3xl px-16 py-8 2xl:px-20 2xl:py-10 text-center border border-border-subtle shadow-md min-w-85 relative group">
+          <div
+            className="text-7xl 2xl:text-8xl font-black tabular-nums leading-none tracking-tight text-text-primary"
+          >
+            {pokemon.encounters.toLocaleString()}
           </div>
-
-          {/* Main Counter Section */}
-          <div className="flex items-center gap-6 mt-8 w-full justify-center">
-            {/* Minus Button */}
-            <button
-              onClick={() => !pokemon.completed_at && handleDecrement(pokemon.id)}
-              disabled={!!pokemon.completed_at}
-              className="flex items-center justify-center w-16 h-16 2xl:w-20 2xl:h-20 rounded-2xl bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              title={`−${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
-            >
-              {pokemon.step && pokemon.step > 1 ? (
-                <span className="text-lg font-bold">−{pokemon.step}</span>
-              ) : (
-                <Minus className="w-8 h-8" />
-              )}
-            </button>
-
-            {/* Solid Counter Card */}
-            <div className="bg-bg-card rounded-3xl px-16 py-8 2xl:px-20 2xl:py-10 text-center border border-border-subtle shadow-md min-w-85 relative group">
-              <div
-                className="text-7xl 2xl:text-8xl font-black tabular-nums leading-none tracking-tight text-text-primary"
-              >
-                {pokemon.encounters.toLocaleString()}
-              </div>
-              {!pokemon.completed_at && (
-                <button
-                  onClick={() => setSetEncounterPokemon(pokemon)}
-                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-bg-hover/0 hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
-                  title={t("dash.setEncounters")}
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-
-            {/* Plus Button */}
-            <button
-              onClick={() => !pokemon.completed_at && handleIncrement(pokemon.id)}
-              disabled={!!pokemon.completed_at}
-              className="flex items-center justify-center w-20 h-20 2xl:w-24 2xl:h-24 rounded-2xl bg-accent-green border border-transparent hover:bg-accent-green/90 text-white transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              title={`+${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
-            >
-              {pokemon.step && pokemon.step > 1 ? (
-                <span className="text-2xl font-bold">+{pokemon.step}</span>
-              ) : (
-                <Plus className="w-10 h-10 stroke-[3px]" />
-              )}
-            </button>
-          </div>
-
-          {/* Reset Button */}
           {!pokemon.completed_at && (
             <button
-               onClick={() => handleReset(pokemon.id)}
-               className="mt-6 flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all shadow-sm text-xs font-semibold"
-             >
-               <RotateCcw className="w-4 h-4" />
-               Reset Counter
-             </button>
+              onClick={() => setSetEncounterPokemon(pokemon)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg bg-bg-hover/0 hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
+              title={t("dash.setEncounters")}
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
           )}
+        </div>
 
-          {/* Per-Pokemon Timer */}
-          <PokemonTimer pokemon={pokemon} send={send} />
+        {/* Plus Button */}
+        <button
+          onClick={() => !pokemon.completed_at && handleIncrement(pokemon.id)}
+          disabled={!!pokemon.completed_at}
+          className="flex items-center justify-center w-20 h-20 2xl:w-24 2xl:h-24 rounded-2xl bg-accent-green border border-transparent hover:bg-accent-green/90 text-white transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+          title={`+${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
+        >
+          {pokemon.step && pokemon.step > 1 ? (
+            <span className="text-2xl font-bold">+{pokemon.step}</span>
+          ) : (
+            <Plus className="w-10 h-10 stroke-[3px]" />
+          )}
+        </button>
+      </div>
 
-          {/* Bottom Statistics Cards */}
-          <div className="grid grid-cols-2 gap-6 mt-12 w-full max-w-xl mx-auto">
-            {/* Encounter */}
-            <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
-              <div className="text-text-muted text-[11px] 2xl:text-xs font-bold uppercase tracking-widest mb-1">{t("dash.phase") || "Encounter"}</div>
-              <div className="text-xl 2xl:text-2xl font-black text-text-primary">{pokemon.encounters.toLocaleString()}</div>
-            </div>
-            {/* Odds */}
-            <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
-              <div className="text-text-muted text-[11px] 2xl:text-xs font-bold uppercase tracking-widest mb-1">{t("dash.odds") || "Odds"}</div>
-              <div className="text-xl 2xl:text-2xl font-black text-accent-blue">
-                {oddsDisplay}
-              </div>
-            </div>
+      {/* Reset Button */}
+      {!pokemon.completed_at && (
+        <button
+           onClick={() => handleReset(pokemon.id)}
+           className="mt-6 flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all shadow-sm text-xs font-semibold"
+         >
+           <RotateCcw className="w-4 h-4" />
+           Reset Counter
+         </button>
+      )}
+
+      {/* Per-Pokemon Timer */}
+      <PokemonTimer pokemon={pokemon} send={send} />
+
+      {/* Bottom Statistics Cards */}
+      <div className="grid grid-cols-2 gap-6 mt-12 w-full max-w-xl mx-auto">
+        {/* Encounter */}
+        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
+          <div className="text-text-muted text-[11px] 2xl:text-xs font-bold uppercase tracking-widest mb-1">{t("dash.phase") || "Encounter"}</div>
+          <div className="text-xl 2xl:text-2xl font-black text-text-primary">{pokemon.encounters.toLocaleString()}</div>
+        </div>
+        {/* Odds */}
+        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
+          <div className="text-text-muted text-[11px] 2xl:text-xs font-bold uppercase tracking-widest mb-1">{t("dash.odds") || "Odds"}</div>
+          <div className="text-xl 2xl:text-2xl font-black text-accent-blue">
+            {oddsDisplay}
           </div>
-        </>
-      );
-    }
+        </div>
+      </div>
+    </>
+  );
+
+  /** Renders the tab-specific content inside the scrollable work area. */
+  const renderTabContent = (pokemon: Pokemon) => {
+    if (rightPanelTab === "counter") return renderCounterTab(pokemon);
 
     if (rightPanelTab === "detector") {
       return (
@@ -895,12 +914,20 @@ export function Dashboard() {
           const anyRunning = hasRunningTimer || hasRunningDetector;
           const canStart = sel.length > 0;
 
+          const currentMode = (() => {
+            const modes = sel.map(p => p.hunt_mode || "both");
+            if (modes.every(m => m === "timer")) return "timer";
+            if (modes.every(m => m === "detector")) return "detector";
+            return "both";
+          })();
+
           const startAll = () => {
             for (const p of sel) {
-              if (!p.timer_started_at) send("timer_start", { pokemon_id: p.id });
-            }
-            for (const p of withDetector) {
-              if (!detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/start`, { method: "POST" }).catch(() => {});
+              const mode = p.hunt_mode || "both";
+              if (mode !== "detector" && !p.timer_started_at) send("timer_start", { pokemon_id: p.id });
+              if (mode !== "timer" && hasDetectorReady(p) && !detectorStatus[p.id]) {
+                void fetch(`/api/detector/${p.id}/start`, { method: "POST" }).catch(() => {});
+              }
             }
           };
           const stopAll = () => {
@@ -909,18 +936,15 @@ export function Dashboard() {
               if (detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/stop`, { method: "POST" }).catch(() => {});
             }
           };
-          const toggleTimerOnly = () => {
-            const action = hasRunningTimer ? "timer_stop" : "timer_start";
+          const setHuntMode = (mode: "both" | "timer" | "detector") => {
             for (const p of sel) {
-              if (hasRunningTimer ? !!p.timer_started_at : !p.timer_started_at) send(action, { pokemon_id: p.id });
-            }
-            setShowHuntMenu(false);
-          };
-          const toggleDetectorOnly = () => {
-            if (hasRunningDetector) {
-              for (const p of sel) if (detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/stop`, { method: "POST" }).catch(() => {});
-            } else {
-              for (const p of withDetector) if (!detectorStatus[p.id]) void fetch(`/api/detector/${p.id}/start`, { method: "POST" }).catch(() => {});
+              if (p.hunt_mode !== mode) {
+                void fetch(`/api/pokemon/${p.id}`, {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ ...p, hunt_mode: mode }),
+                }).catch(() => {});
+              }
             }
             setShowHuntMenu(false);
           };
@@ -951,22 +975,31 @@ export function Dashboard() {
                     <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHuntMenu(false)} aria-label="Close" />
                     <div className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
                       <button
-                        onClick={toggleTimerOnly}
+                        onClick={() => setHuntMode("both")}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                      >
+                        <Timer className="w-3.5 h-3.5" />
+                        <Eye className="w-3.5 h-3.5 -ml-1" />
+                        {t("sidebar.both")}
+                        {currentMode === "both" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
+                      </button>
+                      <button
+                        onClick={() => setHuntMode("timer")}
                         className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
                       >
                         <Timer className="w-3.5 h-3.5" />
                         {t("sidebar.timerOnly")}
-                        {hasRunningTimer && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-green" />}
+                        {currentMode === "timer" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
                       </button>
                       <button
-                        onClick={toggleDetectorOnly}
+                        onClick={() => setHuntMode("detector")}
                         disabled={!hasDetector && !hasRunningDetector}
                         className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                         title={hasDetector ? undefined : t("sidebar.detectorNotReady")}
                       >
                         <Eye className="w-3.5 h-3.5" />
                         {t("sidebar.detectorOnly")}
-                        {hasRunningDetector && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-accent-green" />}
+                        {currentMode === "detector" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
                       </button>
                     </div>
                   </>

@@ -172,6 +172,8 @@ func (d *DB) migrate() error {
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3`,
 		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
+		`ALTER TABLE detector_configs ADD COLUMN relative_regions INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
 	}
 	for _, s := range alterStmts {
 		_, _ = d.db.Exec(s) // Ignore "duplicate column" errors

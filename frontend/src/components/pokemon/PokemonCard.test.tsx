@@ -111,7 +111,7 @@ describe("PokemonCard", () => {
     const pokemon = makePokemon({ sprite_url: "" });
     render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
     const img = screen.getByAltText("Bisasam");
-    expect(img.getAttribute("src")).toContain("data:image/svg+xml");
+    expect(img.getAttribute("src")).toContain("pokemon/0.png");
   });
 
   it("shows fallback sprite when image fails to load", () => {
@@ -120,7 +120,7 @@ describe("PokemonCard", () => {
     const img = screen.getByAltText("Bisasam");
     // Trigger the error handler
     fireEvent.error(img);
-    expect(img.getAttribute("src")).toContain("data:image/svg+xml");
+    expect(img.getAttribute("src")).toContain("pokemon/0.png");
   });
 
   it("formats game key for display", () => {

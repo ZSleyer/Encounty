@@ -609,6 +609,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.adaptiveCooldown": "Adaptiver Cooldown",
     "detector.adaptiveCooldownDesc": "Cooldown beenden wenn der Treffer verschwindet statt fester Timer",
     "detector.adaptiveCooldownMin": "Min. Cooldown (s)",
+    "detector.relativeRegions": "Relative Regionen",
+    "detector.relativeRegionsDesc": "Template-Regionen proportional skalieren wenn sich die Fenstergröße ändert",
 
     // ── Footer ──
     "footer.hunts": "Hunts",
@@ -1202,6 +1204,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.adaptiveCooldown": "Adaptive Cooldown",
     "detector.adaptiveCooldownDesc": "Exit cooldown when the match disappears instead of a fixed timer",
     "detector.adaptiveCooldownMin": "Min. cooldown (s)",
+    "detector.relativeRegions": "Relative Regions",
+    "detector.relativeRegionsDesc": "Scale template regions proportionally when the window size changes",
 
     // ── Footer ──
     "footer.hunts": "Hunts",

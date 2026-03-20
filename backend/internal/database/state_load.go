@@ -193,7 +193,8 @@ func loadLanguages(db *sql.DB) ([]string, error) {
 func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	rows, err := db.Query(`SELECT id, name, title, canonical_name, sprite_url, sprite_type,
 		sprite_style, encounters, step, is_active, created_at, language, game,
-		completed_at, overlay_mode, hunt_type, timer_started_at, timer_accumulated_ms
+		completed_at, overlay_mode, hunt_type, timer_started_at, timer_accumulated_ms,
+		hunt_mode
 		FROM pokemon ORDER BY sort_order`)
 	if err != nil {
 		return nil, err
@@ -210,7 +211,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		if err := rows.Scan(&p.ID, &p.Name, &p.Title, &p.CanonicalName, &p.SpriteURL,
 			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
 			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
-			&p.HuntType, &timerStartedAt, &p.TimerAccumulatedMs); err != nil {
+			&p.HuntType, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode); err != nil {
 			return nil, err
 		}
 		p.IsActive = isActive != 0
@@ -240,15 +241,16 @@ func parseOptionalTime(ns sql.NullString) *time.Time {
 // loadDetectorConfig reads the optional detector_configs row for a pokemon.
 func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, error) {
 	var dc state.DetectorConfig
-	var enabled, adaptiveCooldown int
+	var enabled, adaptiveCooldown, relativeRegions int
 	err := db.QueryRow(`SELECT enabled, source_type, region_x, region_y, region_w, region_h,
 		window_title, precision_val, consecutive_hits, cooldown_sec, change_threshold,
-		poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min
+		poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min,
+		relative_regions
 		FROM detector_configs WHERE pokemon_id = ?`, pokemonID).
 		Scan(&enabled, &dc.SourceType, &dc.Region.X, &dc.Region.Y, &dc.Region.W, &dc.Region.H,
 			&dc.WindowTitle, &dc.Precision, &dc.ConsecutiveHits, &dc.CooldownSec,
 			&dc.ChangeThreshold, &dc.PollIntervalMs, &dc.MinPollMs, &dc.MaxPollMs,
-			&adaptiveCooldown, &dc.AdaptiveCooldownMin)
+			&adaptiveCooldown, &dc.AdaptiveCooldownMin, &relativeRegions)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -257,6 +259,7 @@ func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, er
 	}
 	dc.Enabled = enabled != 0
 	dc.AdaptiveCooldown = adaptiveCooldown != 0
+	dc.RelativeRegions = relativeRegions != 0
 	dc.Templates = []state.DetectorTemplate{}
 	dc.DetectionLog = []state.DetectionLogEntry{}
 	return &dc, nil

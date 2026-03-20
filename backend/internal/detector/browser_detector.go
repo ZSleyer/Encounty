@@ -84,7 +84,7 @@ func (bd *BrowserDetector) HasTemplates() bool {
 func (bd *BrowserDetector) processIdleFrame(frame image.Image, precision float64, consecutiveHits, cooldownSec int) (float64, bool) {
 	var bestScore float64
 	for _, lt := range bd.templates {
-		if s := MatchWithRegions(frame, lt, precision, bd.lang); s > bestScore {
+		if s := MatchWithRegions(frame, lt, precision, bd.lang, bd.cfg.RelativeRegions); s > bestScore {
 			bestScore = s
 		}
 	}
@@ -116,7 +116,7 @@ func (bd *BrowserDetector) processCooldownFrame(frame image.Image, precision flo
 	var bestScore float64
 	if bd.cfg.AdaptiveCooldown {
 		for _, lt := range bd.templates {
-			score := MatchWithRegions(frame, lt, precision, bd.lang)
+			score := MatchWithRegions(frame, lt, precision, bd.lang, bd.cfg.RelativeRegions)
 			if score > bestScore {
 				bestScore = score
 			}

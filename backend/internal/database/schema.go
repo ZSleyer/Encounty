@@ -72,6 +72,7 @@ var schemaV2 = []string{
 		hunt_type            TEXT    NOT NULL DEFAULT '',
 		timer_started_at     TEXT,
 		timer_accumulated_ms INTEGER NOT NULL DEFAULT 0,
+		hunt_mode            TEXT    NOT NULL DEFAULT 'both',
 		sort_order           INTEGER NOT NULL DEFAULT 0
 	)`,
 
@@ -191,6 +192,7 @@ var schemaV2 = []string{
 		max_poll_ms         INTEGER NOT NULL DEFAULT 500,
 		adaptive_cooldown     INTEGER NOT NULL DEFAULT 0,
 		adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3,
+		relative_regions      INTEGER NOT NULL DEFAULT 0,
 		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
 	)`,
 

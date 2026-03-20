@@ -201,6 +201,21 @@ export function DetectorSettings({
                 </div>
               )}
             </div>
+              <div className="flex items-start gap-2">
+                <input
+                  id="det-relative-regions"
+                  type="checkbox"
+                  checked={cfg.relative_regions ?? false}
+                  onChange={(e) => onUpdate({ relative_regions: e.target.checked })}
+                  className="mt-0.5 accent-amber-400"
+                />
+                <div className="flex-1">
+                  <label htmlFor="det-relative-regions" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
+                    {t("detector.relativeRegions")}
+                  </label>
+                  <p className="text-[10px] text-text-faint mt-0.5">{t("detector.relativeRegionsDesc")}</p>
+                </div>
+              </div>
           </div>
 
           {/* Save + Reset */}

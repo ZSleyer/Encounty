@@ -317,3 +317,21 @@ function getClassicSpriteUrl(
     ? `${SHOWDOWN_BASE}/dex-shiny/${slug}.png`
     : `${SHOWDOWN_BASE}/dex/${slug}.png`;
 }
+
+/**
+ * Returns the generation a Pokemon was introduced in, based on its national dex number.
+ * Regional forms (id > 10000) inherit the generation of their base species,
+ * but since we can't resolve that here, they return 1 (always available).
+ */
+export function getPokemonGeneration(dexNumber: number): number {
+  if (dexNumber > 10000) return 1;
+  if (dexNumber <= 151) return 1;
+  if (dexNumber <= 251) return 2;
+  if (dexNumber <= 386) return 3;
+  if (dexNumber <= 493) return 4;
+  if (dexNumber <= 649) return 5;
+  if (dexNumber <= 721) return 6;
+  if (dexNumber <= 809) return 7;
+  if (dexNumber <= 905) return 8;
+  return 9;
+}

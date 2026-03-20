@@ -48,6 +48,7 @@ type Pokemon struct {
 	DetectorConfig *DetectorConfig `json:"detector_config,omitempty"`
 	TimerStartedAt  *time.Time     `json:"timer_started_at,omitempty"`
 	TimerAccumulatedMs int64       `json:"timer_accumulated_ms"`
+	HuntMode           string      `json:"hunt_mode,omitempty"`    // "both" | "timer" | "detector" (default "both")
 }
 
 // Session records one time-boxed encounter run for a single Pokémon.
@@ -113,6 +114,7 @@ type DetectorConfig struct {
 	MaxPollMs       int                `json:"max_poll_ms"`            // slowest adaptive poll interval (static screen), default 500
 	AdaptiveCooldown    bool           `json:"adaptive_cooldown"`
 	AdaptiveCooldownMin int            `json:"adaptive_cooldown_min"` // Minimum seconds, default 3
+	RelativeRegions     bool           `json:"relative_regions"`
 	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 

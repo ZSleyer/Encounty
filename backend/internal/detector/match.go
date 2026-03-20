@@ -56,7 +56,7 @@ func CropImage(img image.Image, r state.DetectorRect) image.Image {
 // immediately. All regions must individually score at or above precision
 // (AND-logic). The returned value is the minimum region score, clamped to
 // [0, 1]. When Regions is empty, the legacy whole-image Match is used.
-func MatchWithRegions(frame image.Image, lt loadedTemplate, precision float64, lang string) float64 {
+func MatchWithRegions(frame image.Image, lt loadedTemplate, precision float64, lang string, relativeRegions bool) float64 {
 	if len(lt.meta.Regions) == 0 {
 		return Match(frame, lt.img, 0)
 	}
@@ -64,15 +64,20 @@ func MatchWithRegions(frame image.Image, lt loadedTemplate, precision float64, l
 	minScore := 1.0
 	evaluated := 0
 	for _, region := range lt.meta.Regions {
+		rect := region.Rect
+		if relativeRegions {
+			rect = scaleRect(rect, frame.Bounds(), lt.img.Bounds())
+		}
+
 		var score float64
 		switch region.Type {
 		case "image":
-			frameCrop := CropImage(frame, region.Rect)
+			frameCrop := CropImage(frame, rect)
 			tmplCrop := CropImage(lt.img, region.Rect)
 			score = Match(frameCrop, tmplCrop, 0)
 			evaluated++
 		case "text":
-			frameCrop := CropImage(frame, region.Rect)
+			frameCrop := CropImage(frame, rect)
 			recognized, err := RecognizeText(frameCrop, lang)
 			if err != nil {
 				// Tesseract unavailable — fall back to visual comparison
@@ -104,6 +109,28 @@ func MatchWithRegions(frame image.Image, lt loadedTemplate, precision float64, l
 		return Match(frame, lt.img, 0)
 	}
 	return minScore
+}
+
+// scaleRect proportionally maps r from the reference image coordinate space
+// (refBounds) into the target coordinate space (targetBounds). This allows
+// template regions defined at one resolution to be applied to frames captured
+// at a different resolution after a window resize.
+func scaleRect(r state.DetectorRect, targetBounds, refBounds image.Rectangle) state.DetectorRect {
+	refW := refBounds.Dx()
+	refH := refBounds.Dy()
+	if refW <= 0 || refH <= 0 {
+		return r
+	}
+	targetW := targetBounds.Dx()
+	targetH := targetBounds.Dy()
+	scaleX := float64(targetW) / float64(refW)
+	scaleY := float64(targetH) / float64(refH)
+	return state.DetectorRect{
+		X: int(math.Round(float64(r.X) * scaleX)),
+		Y: int(math.Round(float64(r.Y) * scaleY)),
+		W: int(math.Round(float64(r.W) * scaleX)),
+		H: int(math.Round(float64(r.H) * scaleY)),
+	}
 }
 
 // Match computes the best normalized cross-correlation score between frame and

@@ -16,6 +16,7 @@ import {
   SPRITE_STYLES,
   isSpriteStyleAvailable,
   bestAvailableStyle,
+  getPokemonGeneration,
 } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 
@@ -122,6 +123,9 @@ export function EditPokemonModal({
   const selectedGameGen: number | null =
     games.find((g) => g.key === selectedGame)?.generation ?? null;
 
+  // Get the generation in which the selected Pokemon was introduced
+  const pokemonGen: number | null = selected ? getPokemonGeneration(selected.id) : null;
+
   // Open dialog + load data on mount
   useEffect(() => {
     dialogRef.current?.showModal();
@@ -198,6 +202,17 @@ export function EditPokemonModal({
       }
     }
   }, [selectedGameGen]);
+
+  // Clear game selection if it predates the selected Pokemon's generation
+  useEffect(() => {
+    if (selected && selectedGame) {
+      const gameGen = games.find((g) => g.key === selectedGame)?.generation;
+      const pkGen = getPokemonGeneration(selected.id);
+      if (gameGen != null && gameGen < pkGen) {
+        setSelectedGame("");
+      }
+    }
+  }, [selected?.id, games]);
 
   const buildSearchList = (data: PokemonData[]): SearchResult[] => {
     const results: SearchResult[] = [];
@@ -309,11 +324,13 @@ export function EditPokemonModal({
   const activeName = selected ? selected.name : "";
   const availableLangs = activeLanguages.length > 0 ? activeLanguages : ["en"];
 
-  const genGroups = games.reduce<Record<number, GameEntry[]>>((acc, g) => {
-    if (!acc[g.generation]) acc[g.generation] = [];
-    acc[g.generation].push(g);
-    return acc;
-  }, {});
+  const genGroups = games
+    .filter((g) => pokemonGen === null || g.generation >= pokemonGen)
+    .reduce<Record<number, GameEntry[]>>((acc, g) => {
+      if (!acc[g.generation]) acc[g.generation] = [];
+      acc[g.generation].push(g);
+      return acc;
+    }, {});
 
   return (
     <dialog

@@ -160,6 +160,7 @@ type resolvedConfig struct {
 	changeThreshold     float64
 	adaptiveCooldown    bool
 	adaptiveCooldownMin int
+	relativeRegions     bool
 }
 
 // resolveConfig applies defaults for zero-valued configuration fields and returns
@@ -180,6 +181,7 @@ func (d *Detector) resolveConfig() resolvedConfig {
 		changeThreshold:     floatOrDefault(d.cfg.ChangeThreshold, defaultChangeThreshold),
 		adaptiveCooldown:    d.cfg.AdaptiveCooldown,
 		adaptiveCooldownMin: adaptiveCooldownMin,
+		relativeRegions:     d.cfg.RelativeRegions,
 	}
 }
 
@@ -241,7 +243,7 @@ func (d *Detector) captureFrames(ctx context.Context, ch chan<- image.Image) {
 func (d *Detector) processIdleFrame(frame image.Image, rc resolvedConfig, frameDelta float64) time.Time {
 	var bestScore float64
 	for _, lt := range d.templates {
-		score := MatchWithRegions(frame, lt, rc.precision, d.lang)
+		score := MatchWithRegions(frame, lt, rc.precision, d.lang, rc.relativeRegions)
 		if score > bestScore {
 			bestScore = score
 		}
@@ -293,7 +295,7 @@ func (d *Detector) processCooldownFrame(frame image.Image, rc resolvedConfig) {
 	if rc.adaptiveCooldown {
 		var bestScore float64
 		for _, lt := range d.templates {
-			score := MatchWithRegions(frame, lt, rc.precision, d.lang)
+			score := MatchWithRegions(frame, lt, rc.precision, d.lang, rc.relativeRegions)
 			if score > bestScore {
 				bestScore = score
 			}

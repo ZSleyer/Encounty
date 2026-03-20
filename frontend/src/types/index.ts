@@ -25,6 +25,7 @@ export interface Pokemon {
   detector_config?: DetectorConfig;
   timer_started_at?: string; // ISO timestamp when timer was started
   timer_accumulated_ms?: number; // Accumulated timer in milliseconds
+  hunt_mode?: "both" | "timer" | "detector";
 }
 
 /** GameEntry is one Pokémon game as returned by GET /api/games. */
@@ -99,6 +100,7 @@ export interface DetectorConfig {
   max_poll_ms: number;       // slowest adaptive interval (static screen)
   adaptive_cooldown?: boolean;
   adaptive_cooldown_min?: number;
+  relative_regions?: boolean;
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
 }
 

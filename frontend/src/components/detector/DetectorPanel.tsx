@@ -40,6 +40,7 @@ const DEFAULT_CONFIG: DetectorConfig = {
   max_poll_ms: 500,
   adaptive_cooldown: false,
   adaptive_cooldown_min: 3,
+  relative_regions: false,
 };
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -734,7 +735,7 @@ export function DetectorPanel({
                 {showMoreMenu && (
                   <>
                     <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMoreMenu(false)} aria-label="Close menu" />
-                    <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-45">
+                    <div className="absolute right-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-45">
                       {templates.length > 0 && (
                         <button
                           onClick={handleExportTemplates}

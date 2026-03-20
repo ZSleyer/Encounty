@@ -59,7 +59,7 @@ func TestMatchWithRegionsTextRegionFallbackOnError(t *testing.T) {
 	// On CI/test environments tesseract is typically not installed, so
 	// RecognizeText will fail and the code will fall back to visual NCC.
 	// With identical images the score should be high.
-	score := MatchWithRegions(img, lt, 0.5, "eng")
+	score := MatchWithRegions(img, lt, 0.5, "eng", false)
 	// Whether tesseract is installed or not, the function should not panic
 	// and should return a valid score in [0, 1].
 	if score < 0 || score > 1 {
@@ -87,7 +87,7 @@ func TestMatchWithRegionsMultipleRegionsWithMinScore(t *testing.T) {
 			},
 		},
 	}
-	score := MatchWithRegions(frame, lt, 0.1, "eng")
+	score := MatchWithRegions(frame, lt, 0.1, "eng", false)
 	if score < 0 || score > 1 {
 		t.Errorf("MatchWithRegions multi-region score = %f, want [0, 1]", score)
 	}
