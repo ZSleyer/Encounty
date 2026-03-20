@@ -3,41 +3,52 @@ package server
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/zsleyer/encounty/backend/internal/database"
 )
 
-const (
-	gamesJSONFile   = "games.json"
-	fmtExpect3      = "expected 3 entries, got %d"
-)
+// mockGamesStore is an in-memory GamesStore for testing.
+type mockGamesStore struct {
+	rows []database.GameRow
+}
+
+func (m *mockGamesStore) SaveGames(rows []database.GameRow) error {
+	m.rows = rows
+	return nil
+}
+
+func (m *mockGamesStore) LoadGames() ([]database.GameRow, error) {
+	return m.rows, nil
+}
+
+func (m *mockGamesStore) HasGames() bool {
+	return len(m.rows) > 0
+}
 
 // resetGamesCache clears the package-level cache so each test starts fresh.
 func resetGamesCache(t *testing.T) {
 	t.Helper()
 	cachedGames = nil
-	defaultGamesJSON = nil
-	gamesConfigDir = ""
+	gamesDB = nil
 }
 
-// fixtureGamesJSON returns a minimal valid games.json for testing.
-func fixtureGamesJSON() []byte {
-	return []byte(`{
-		"red": {"names":{"en":"Red","de":"Rot"},"generation":1,"platform":"gb"},
-		"gold": {"names":{"en":"Gold","de":"Gold"},"generation":2,"platform":"gbc"},
-		"ruby": {"names":{"en":"Ruby","de":"Rubin"},"generation":3,"platform":"gba"}
-	}`)
+// fixtureGameRows returns minimal valid game rows for testing.
+func fixtureGameRows() []database.GameRow {
+	return []database.GameRow{
+		{Key: "red", NamesJSON: mustMarshal(map[string]string{"en": "Red", "de": "Rot"}), Generation: 1, Platform: "gb"},
+		{Key: "gold", NamesJSON: mustMarshal(map[string]string{"en": "Gold", "de": "Gold"}), Generation: 2, Platform: "gbc"},
+		{Key: "ruby", NamesJSON: mustMarshal(map[string]string{"en": "Ruby", "de": "Rubin"}), Generation: 3, Platform: "gba"},
+	}
 }
 
-func TestGamesLoadFromConfigDir(t *testing.T) {
+const fmtExpect3 = "expected 3 entries, got %d"
+
+func TestGamesLoadFromDB(t *testing.T) {
 	resetGamesCache(t)
 
-	dir := t.TempDir()
-	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), fixtureGamesJSON(), 0644); err != nil {
-		t.Fatal(err)
-	}
+	store := &mockGamesStore{rows: fixtureGameRows()}
+	gamesDB = store
 
 	entries := loadGames()
 	if entries == nil {
@@ -56,47 +67,19 @@ func TestGamesLoadFromConfigDir(t *testing.T) {
 	}
 }
 
-func TestGamesLoadFromEmbeddedDefault(t *testing.T) {
-	resetGamesCache(t)
-
-	// No config dir file, but embedded default is set
-	gamesConfigDir = t.TempDir()
-	SetDefaultGamesJSON(fixtureGamesJSON())
-
-	entries := loadGames()
-	if entries == nil {
-		t.Fatal("loadGames returned nil")
-	}
-	if len(entries) != 3 {
-		t.Fatalf(fmtExpect3, len(entries))
-	}
-
-	// Verify it wrote the default to config dir
-	written, err := os.ReadFile(filepath.Join(gamesConfigDir, gamesJSONFile))
-	if err != nil {
-		t.Fatalf("expected games.json to be written to config dir: %v", err)
-	}
-	if len(written) == 0 {
-		t.Error("written games.json is empty")
-	}
-}
-
 func TestGamesCaching(t *testing.T) {
 	resetGamesCache(t)
 
-	dir := t.TempDir()
-	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), fixtureGamesJSON(), 0644); err != nil {
-		t.Fatal(err)
-	}
+	store := &mockGamesStore{rows: fixtureGameRows()}
+	gamesDB = store
 
 	first := loadGames()
 	if first == nil {
 		t.Fatal("first call returned nil")
 	}
 
-	// Remove the file; cached result should still be returned
-	_ = os.Remove(filepath.Join(dir, gamesJSONFile))
+	// Clear the store; cached result should still be returned
+	store.rows = nil
 
 	second := loadGames()
 	if second == nil {
@@ -107,60 +90,21 @@ func TestGamesCaching(t *testing.T) {
 	}
 }
 
-func TestGamesLoadNoFileNoDefault(t *testing.T) {
+func TestGamesLoadNoDBReturnsNil(t *testing.T) {
 	resetGamesCache(t)
 
-	gamesConfigDir = t.TempDir()
-	// No file, no default
+	// No DB wired
 	entries := loadGames()
 	if entries != nil {
 		t.Errorf("expected nil, got %d entries", len(entries))
 	}
 }
 
-func TestGamesDeduplication(t *testing.T) {
-	resetGamesCache(t)
-
-	// Two entries with the same English name and platform should be deduped
-	data := []byte(`{
-		"red_v1": {"names":{"en":"Red"},"generation":1,"platform":"gb"},
-		"red_v2": {"names":{"en":"Red"},"generation":1,"platform":"gb"}
-	}`)
-	dir := t.TempDir()
-	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), data, 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	entries := loadGames()
-	if len(entries) != 1 {
-		t.Errorf("expected 1 entry after dedup, got %d", len(entries))
-	}
-}
-
-func TestGamesInvalidJSON(t *testing.T) {
-	resetGamesCache(t)
-
-	dir := t.TempDir()
-	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), []byte("{bad json}"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	entries := loadGames()
-	if entries != nil {
-		t.Errorf("expected nil for invalid JSON, got %d entries", len(entries))
-	}
-}
-
 func TestGamesHandleGetGames(t *testing.T) {
 	resetGamesCache(t)
 
-	dir := t.TempDir()
-	gamesConfigDir = dir
-	if err := os.WriteFile(filepath.Join(dir, gamesJSONFile), fixtureGamesJSON(), 0644); err != nil {
-		t.Fatal(err)
-	}
+	store := &mockGamesStore{rows: fixtureGameRows()}
+	gamesDB = store
 
 	srv := newTestServer(t)
 	req := newGetRequest("/api/games")
@@ -176,5 +120,20 @@ func TestGamesHandleGetGames(t *testing.T) {
 	}
 	if len(result) != 3 {
 		t.Errorf(fmtExpect3, len(result))
+	}
+}
+
+func TestGameRowsRoundTrip(t *testing.T) {
+	resetGamesCache(t)
+
+	rows := fixtureGameRows()
+	entries := gameRowsToEntries(rows)
+	if len(entries) != 3 {
+		t.Fatalf(fmtExpect3, len(entries))
+	}
+
+	roundTripped := entriesToGameRows(entries)
+	if len(roundTripped) != 3 {
+		t.Fatalf("expected 3 rows after round-trip, got %d", len(roundTripped))
 	}
 }

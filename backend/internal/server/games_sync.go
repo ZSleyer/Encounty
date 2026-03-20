@@ -1,6 +1,6 @@
 // games_sync.go implements SyncGamesFromPokeAPI, which fetches the full
-// version list from the PokéAPI and merges any new games or missing language
-// translations into the on-disk games.json without overwriting existing data.
+// version list from the PokeAPI and merges any new games or missing language
+// translations into the database without overwriting existing data.
 package server
 
 import (
@@ -9,8 +9,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,8 +17,15 @@ import (
 
 const pokeAPIBase = "https://pokeapi.co/api/v2"
 
-// syncLangPrefix maps PokéAPI language codes → our language code + franchise prefix.
-// The prefix is prepended to the short name the API returns (e.g. "Rot" → "Pokémon Rot").
+// rawGameEntry is the in-memory representation used during sync merging.
+type rawGameEntry struct {
+	Names      map[string]string `json:"names"`
+	Generation int               `json:"generation"`
+	Platform   string            `json:"platform"`
+}
+
+// syncLangPrefix maps PokeAPI language codes to our language code + franchise prefix.
+// The prefix is prepended to the short name the API returns (e.g. "Rot" -> "Pokemon Rot").
 var syncLangPrefix = map[string]struct {
 	code   string
 	prefix string
@@ -78,7 +83,7 @@ type GamesSyncResult struct {
 	Updated int `json:"updated"`
 }
 
-// --- PokéAPI response types --------------------------------------------------
+// --- PokeAPI response types --------------------------------------------------
 
 type apiVersionList struct {
 	Results []struct {
@@ -127,22 +132,27 @@ type vgInfo struct {
 	platform string
 }
 
-// SyncGamesFromPokeAPI fetches all game versions from the PokéAPI and merges
-// new or missing-language entries into the on-disk games.json.
+// SyncGamesFromPokeAPI fetches all game versions from the PokeAPI and merges
+// new or missing-language entries into the database.
 func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 	result := GamesSyncResult{}
 
-	// 1. Load the current games (embedded + any external override) into a raw map.
+	// 1. Load current games from DB for merging (empty on first sync).
 	raw := make(map[string]rawGameEntry)
-	for _, e := range loadGames() {
-		raw[e.Key] = rawGameEntry{
-			Names:      e.Names,
-			Generation: e.Generation,
-			Platform:   e.Platform,
+	if gamesDB != nil && gamesDB.HasGames() {
+		rows, err := gamesDB.LoadGames()
+		if err == nil {
+			for _, r := range rows {
+				var names map[string]string
+				if jsonErr := json.Unmarshal(r.NamesJSON, &names); jsonErr != nil {
+					continue
+				}
+				raw[r.Key] = rawGameEntry{Names: names, Generation: r.Generation, Platform: r.Platform}
+			}
 		}
 	}
 
-	// 2. Fetch the full version list from PokéAPI.
+	// 2. Fetch the full version list from PokeAPI.
 	var vList apiVersionList
 	if err := fetchAPIJSON(pokeAPIBase+"/version/?limit=200", &vList); err != nil {
 		return result, fmt.Errorf("fetch version list: %w", err)
@@ -164,7 +174,7 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 		return result, nil
 	}
 
-	// 4. Persist the merged data.
+	// 4. Persist the merged data to the database.
 	if err := persistGames(raw); err != nil {
 		return result, err
 	}
@@ -173,7 +183,7 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 	return result, nil
 }
 
-// processVersion fetches a single version from the PokéAPI and merges it into
+// processVersion fetches a single version from the PokeAPI and merges it into
 // the raw game map, updating the result counters.
 func processVersion(name, url string, raw map[string]rawGameEntry, vgCache map[string]vgInfo, result *GamesSyncResult) error {
 	ourKey := "pokemon-" + name
@@ -218,7 +228,7 @@ var franchisePrefixes = []string{
 	"Pokémon", "ポケットモンスター", "宝可梦", "寶可夢", "포켓몬스터",
 }
 
-// buildLocalisedNames extracts a language-code → localised-name map from API
+// buildLocalisedNames extracts a language-code -> localised-name map from API
 // version data, prepending franchise prefixes where needed.
 func buildLocalisedNames(detail apiVersion) map[string]string {
 	names := make(map[string]string)
@@ -272,46 +282,26 @@ func mergeGameEntry(raw map[string]rawGameEntry, key string, apiNames map[string
 	}
 }
 
-// persistGames writes the merged game data to either the database or a JSON file.
+// persistGames writes the merged game data to the database.
 func persistGames(raw map[string]rawGameEntry) error {
-	if gamesDB != nil {
-		rows := make([]database.GameRow, 0, len(raw))
-		for key, v := range raw {
-			namesJSON, err := json.Marshal(v.Names)
-			if err != nil {
-				continue
-			}
-			rows = append(rows, database.GameRow{
-				Key:        key,
-				NamesJSON:  namesJSON,
-				Generation: v.Generation,
-				Platform:   v.Platform,
-			})
-		}
-		if err := gamesDB.SaveGames(rows); err != nil {
-			return fmt.Errorf("save games to DB: %w", err)
-		}
-		return nil
+	if gamesDB == nil {
+		return fmt.Errorf("no database available for game persistence")
 	}
-	outPath := gamesSyncSavePath()
-	data, err := json.MarshalIndent(raw, "", "  ")
-	if err != nil {
-		return fmt.Errorf("marshal games: %w", err)
+	rows := make([]database.GameRow, 0, len(raw))
+	for key, v := range raw {
+		namesJSON, err := json.Marshal(v.Names)
+		if err != nil {
+			continue
+		}
+		rows = append(rows, database.GameRow{
+			Key:        key,
+			NamesJSON:  namesJSON,
+			Generation: v.Generation,
+			Platform:   v.Platform,
+		})
 	}
-	if err := os.WriteFile(outPath, data, 0644); err != nil {
-		return fmt.Errorf("write %s: %w", outPath, err)
+	if err := gamesDB.SaveGames(rows); err != nil {
+		return fmt.Errorf("save games to DB: %w", err)
 	}
 	return nil
-}
-
-// gamesSyncSavePath returns the path where the synced games.json is written.
-// It matches the highest-priority load path used by readGamesJSON.
-func gamesSyncSavePath() string {
-	if gamesConfigDir != "" {
-		return filepath.Join(gamesConfigDir, gamesFilename)
-	}
-	if exePath, err := os.Executable(); err == nil {
-		return filepath.Join(filepath.Dir(exePath), gamesFilename)
-	}
-	return gamesFilename
 }

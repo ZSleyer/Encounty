@@ -4,7 +4,6 @@ package server
 const (
 	errPokemonNotFound = "pokemon not found"
 	dbFilename         = "encounty.db"
-	gamesFilename      = "games.json"
 	pokemonFilename    = "pokemon.json"
 	statsPokemonPrefix = "/api/stats/pokemon/"
 	langJaHrkt         = "ja-Hrkt"

@@ -14,7 +14,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -45,9 +44,6 @@ var (
 	buildDate = "000000"
 )
 
-//go:embed games.json
-var embeddedGamesJSON []byte
-
 // formatVersionDisplay builds the display string in the format "v0.3-abc1234".
 func formatVersionDisplay(ver, cmt string) string {
 	if ver == "dev" {
@@ -72,8 +68,6 @@ func main() {
 		fmt.Printf("Runtime: %s (%s/%s)\n", runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
-
-	server.SetDefaultGamesJSON(embeddedGamesJSON)
 
 	configDir := getConfigDir()
 	slog.Info("Config directory", "path", configDir)
@@ -245,73 +239,10 @@ func migrateStateJSON(configDir string, db *database.DB) {
 	}
 }
 
-// migrateGamesJSON migrates games.json into the SQLite database, falling back
-// to the embedded default when no file exists on disk. The JSON file is deleted
-// after successful migration.
-func migrateGamesJSON(configDir string, db *database.DB) {
-	if db.HasGames() {
-		return
-	}
-	gamesJSON := filepath.Join(configDir, "games.json")
-	data, err := os.ReadFile(gamesJSON)
-	if err == nil {
-		rows, parseErr := parseGamesJSONToRows(data)
-		if parseErr == nil && len(rows) > 0 {
-			if err := db.SaveGames(rows); err != nil {
-				slog.Warn("Failed to migrate games.json to DB", "error", err)
-			} else if db.HasGames() {
-				_ = os.Remove(gamesJSON)
-				slog.Info("Migrated games.json into database")
-			}
-		}
-		return
-	}
-
-	// No games.json on disk — seed from embedded default.
-	if len(embeddedGamesJSON) == 0 {
-		return
-	}
-	rows, parseErr := parseGamesJSONToRows(embeddedGamesJSON)
-	if parseErr == nil && len(rows) > 0 {
-		if err := db.SaveGames(rows); err != nil {
-			slog.Warn("Failed to seed games from embedded default", "error", err)
-		} else {
-			slog.Info("Seeded games database from embedded default")
-		}
-	}
-}
-
-// migrateJSONToDB migrates state.json and games.json into the SQLite database
-// on first run after the migration. Files are deleted after successful migration.
+// migrateJSONToDB migrates state.json into the SQLite database on first run
+// after the migration. Files are deleted after successful migration.
 func migrateJSONToDB(configDir string, db *database.DB) {
 	migrateStateJSON(configDir, db)
-	migrateGamesJSON(configDir, db)
-}
-
-// parseGamesJSONToRows parses the raw games JSON map into database rows.
-func parseGamesJSONToRows(data []byte) ([]database.GameRow, error) {
-	var raw map[string]struct {
-		Names      map[string]string `json:"names"`
-		Generation int               `json:"generation"`
-		Platform   string            `json:"platform"`
-	}
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, err
-	}
-	rows := make([]database.GameRow, 0, len(raw))
-	for key, v := range raw {
-		namesJSON, err := json.Marshal(v.Names)
-		if err != nil {
-			continue
-		}
-		rows = append(rows, database.GameRow{
-			Key:        key,
-			NamesJSON:  namesJSON,
-			Generation: v.Generation,
-			Platform:   v.Platform,
-		})
-	}
-	return rows, nil
 }
 
 // loadTemplateImagesFromDisk reads template images from the filesystem into

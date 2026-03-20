@@ -51,10 +51,6 @@ type Config struct {
 // New creates a Server from cfg, registers all HTTP routes, and starts the
 // goroutine that converts hotkey actions into state mutations.
 func New(cfg Config) *Server {
-	// Make games.json use the config directory
-	if cfg.ConfigDir != "" {
-		gamesConfigDir = cfg.ConfigDir
-	}
 	// Wire DB-backed game storage
 	if cfg.DB != nil {
 		gamesDB = cfg.DB
