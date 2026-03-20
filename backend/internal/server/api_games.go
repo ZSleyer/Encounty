@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/zsleyer/encounty/backend/internal/gamesync"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
@@ -14,7 +15,7 @@ import (
 // @Description  Returns the games list sorted by generation
 // @Tags         games
 // @Produce      json
-// @Success      200 {array} GameEntry
+// @Success      200 {array} gamesync.GameEntry
 // @Router       /games [get]
 func (s *Server) handleGetGames(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, loadGames())
@@ -42,7 +43,7 @@ func (s *Server) handleGetHuntTypes(w http.ResponseWriter, _ *http.Request) {
 // @Description  Triggers a background sync of game metadata from PokeAPI
 // @Tags         games
 // @Produce      json
-// @Success      200 {object} GamesSyncResult
+// @Success      200 {object} gamesync.GamesSyncResult
 // @Failure      500 {object} errResp
 // @Router       /games/sync [post]
 func (s *Server) handleSyncGames(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +51,7 @@ func (s *Server) handleSyncGames(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	result, err := SyncGamesFromPokeAPI()
+	result, err := gamesync.SyncFromPokeAPI(gamesDB)
 	if err != nil {
 		slog.Error("Games sync error", "error", err)
 		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})

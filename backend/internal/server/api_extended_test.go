@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/zsleyer/encounty/backend/internal/gamesync"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
@@ -387,7 +388,7 @@ func TestHandleUnlinkOverlayNotFound(t *testing.T) {
 
 func TestHandleGetGames(t *testing.T) {
 	// Reset the cached games so this test gets a clean state.
-	cachedGames = nil
+	gamesync.InvalidateCache()
 
 	srv := newTestServer(t)
 

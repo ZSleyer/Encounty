@@ -1,6 +1,7 @@
 //go:build windows
 
-package server
+// replace_windows.go handles binary replacement and restart on Windows.
+package updater
 
 import (
 	"fmt"
@@ -11,10 +12,10 @@ import (
 	"time"
 )
 
-// replaceAndRestart writes a helper .bat that waits for the current process to
+// ReplaceAndRestart writes a helper .bat that waits for the current process to
 // exit, swaps the binaries, then launches the new binary. The current process
 // then exits so the bat can proceed.
-func replaceAndRestart(tmpPath, exe string) error {
+func ReplaceAndRestart(tmpPath, exe string) error {
 	batPath := filepath.Join(filepath.Dir(exe), ".encounty-update.bat")
 	bat := fmt.Sprintf("@echo off\r\nping -n 3 127.0.0.1 >nul\r\nmove /Y \"%s\" \"%s\"\r\nstart \"\" \"%s\"\r\ndel \"%%~f0\"\r\n",
 		tmpPath, exe, exe)

@@ -149,35 +149,8 @@ func TestBroadcastState(t *testing.T) {
 	}
 }
 
-// --- fetchUpdateInfo with mock HTTP ---
-
-func TestFetchUpdateInfoMockServer(t *testing.T) {
-	// Create a mock GitHub API server
-	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{
-			"tag_name": "v2.0.0",
-			"assets": [
-				{"name": "encounty-linux", "browser_download_url": "https://example.com/encounty-linux"}
-			]
-		}`))
-	}))
-	defer mockServer.Close()
-
-	// We cannot easily inject the URL into fetchUpdateInfo since it uses a
-	// hardcoded GitHub URL. Instead, test the assetDownloadURL helper and
-	// platformAssetName which are testable without HTTP calls.
-	assets := []githubAsset{
-		{Name: "encounty-linux", BrowserDownloadURL: "https://example.com/encounty-linux"},
-		{Name: "encounty-windows.exe", BrowserDownloadURL: "https://example.com/encounty-windows.exe"},
-	}
-
-	url := assetDownloadURL(assets)
-	if url == "" {
-		t.Error("assetDownloadURL should find asset for current platform")
-	}
-}
+// TestFetchUpdateInfoMockServer moved to internal/updater/updater_test.go
+// as TestAssetDownloadURLMock.
 
 // --- handleSyncGames wrong method ---
 

@@ -1,71 +1,25 @@
-// pokedex.go serves pokemon.json (the Pokédex) and handles on-demand syncs
-// from PokéAPI. The JSON file is read from the config dir if present, falling
-// back to the source tree or the embedded frontend dist in production builds.
+// pokedex.go provides HTTP handler wrappers around the pokedex package for
+// serving and syncing the Pokédex.
 package server
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strconv"
-	"strings"
+
+	"github.com/zsleyer/encounty/backend/internal/pokedex"
 )
 
-// PokedexEntry is one species record in pokemon.json.
-// Forms holds alternate forms (regional variants, mega evolutions, etc.)
-// that share the same species ID but have distinct canonical names and sprites.
-type PokedexEntry struct {
-	ID        int               `json:"id"`
-	Canonical string            `json:"canonical"`
-	Names     map[string]string `json:"names,omitempty"`
-	Forms     []PokemonForm     `json:"forms,omitempty"`
-}
-
-// PokemonForm represents an alternate form of a Pokémon species.
-// SpriteID is the numeric PokéAPI ID used to construct the sprite URL.
-type PokemonForm struct {
-	Canonical string            `json:"canonical"`
-	Names     map[string]string `json:"names,omitempty"`
-	SpriteID  int               `json:"sprite_id"`
-}
-
-// pokeAPILangMap maps PokéAPI language codes to the shorter keys used in
-// the local Pokédex Names maps. It is shared by species and form translation
-// helpers.
-var pokeAPILangMap = map[string]string{
-	langJaHrkt: "ja",
-	"ja":      "ja",
-	"ko":      "ko",
-	"zh-Hant": "zh-hant",
-	"zh-Hans": "zh-hans",
-	"fr":      "fr",
-	"de":      "de",
-	"es":      "es",
-	"it":      "it",
-	"en":      "en",
-}
-
-// ignoredFormSuffixes lists substrings and suffixes used to filter out
-// undesirable Pokémon forms (Gigantamax, Totem, Cap, etc.).
-var ignoredFormSubstrings = []string{
-	"-gmax", "-totem", "-cap", "-starter", "cosplay", "battle-bond",
-}
-
-// handleGetPokedex serves the pokemon list (configDir first, then embedded, then source).
+// handleGetPokedex serves the pokemon list (configDir first, then source fallbacks).
 //
 // @Summary      Get the Pokedex
 // @Tags         pokedex
 // @Produce      json
-// @Success      200 {array} PokedexEntry
+// @Success      200 {array} pokedex.Entry
 // @Failure      500 {object} errResp
 // @Router       /pokedex [get]
 func (s *Server) handleGetPokedex(w http.ResponseWriter, _ *http.Request) {
-	data, err := s.readPokedexJSON()
+	data, err := pokedex.ReadJSON(s.state.GetConfigDir())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, errResp{"could not load pokedex: " + err.Error()})
 		return
@@ -76,8 +30,8 @@ func (s *Server) handleGetPokedex(w http.ResponseWriter, _ *http.Request) {
 }
 
 // handleSyncPokemon downloads the latest pokemon list from PokéAPI and saves
-// it to the config directory. It orchestrates fetching new species, forms, and
-// localized names before persisting the result.
+// it to the config directory. It delegates to the pokedex package for fetching
+// and merging species, forms, and localized names.
 //
 // @Summary      Sync Pokedex from PokeAPI
 // @Tags         pokedex
@@ -92,389 +46,36 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load current pokedex
-	currentData, err := s.readPokedexJSON()
+	currentData, err := pokedex.ReadJSON(s.state.GetConfigDir())
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, errResp{"could not load current pokedex: " + err.Error()})
 		return
 	}
 
-	var current []PokedexEntry
+	var current []pokedex.Entry
 	if err := json.Unmarshal(currentData, &current); err != nil {
 		writeJSON(w, http.StatusInternalServerError, errResp{"could not parse current pokedex: " + err.Error()})
 		return
 	}
 
-	// Build index of existing canonical names
-	existing := make(map[string]bool, len(current))
-	for _, e := range current {
-		existing[e.Canonical] = true
-	}
-
-	// Fetch and merge new base species from the REST API.
-	added, err := fetchAndMergeNewSpecies(&current, existing)
+	// Delegate sync to the pokedex package.
+	result, updated, err := pokedex.SyncFromPokeAPI(current)
 	if err != nil {
 		writeJSON(w, http.StatusServiceUnavailable, errResp{err.Error()})
 		return
 	}
 
-	// Fetch and merge alternate forms via GraphQL.
-	formAdded := fetchAndMergeForms(&current)
-	added = append(added, formAdded...)
-
-	// Fetch and apply localized species names via GraphQL.
-	namesUpdated := fetchAndApplySpeciesNames(&current)
-
-	// Fetch and apply localized form names via GraphQL.
-	namesUpdated += fetchAndApplyFormNames(&current)
-
 	// Persist the updated Pokédex to disk.
-	if err := writePokedexJSON(s.state.GetConfigDir(), current); err != nil {
+	if err := pokedex.WriteJSON(s.state.GetConfigDir(), updated); err != nil {
 		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
 		return
 	}
 
-	slog.Info("Pokedex sync complete", "added", len(added), "names_updated", namesUpdated)
+	slog.Info("Pokedex sync complete", "added", result.Added, "names_updated", result.NamesUpdated)
 	writeJSON(w, http.StatusOK, PokedexSyncResponse{
-		Total:        len(current),
-		Added:        len(added),
-		NamesUpdated: namesUpdated,
-		New:          added,
+		Total:        result.Total,
+		Added:        result.Added,
+		NamesUpdated: result.NamesUpdated,
+		New:          result.New,
 	})
-}
-
-// fetchAndMergeNewSpecies fetches the full Pokémon list from PokéAPI's REST
-// endpoint and appends any base-species entries (IDs 1–2000) that are not
-// already present in current. It returns the canonical names that were added.
-func fetchAndMergeNewSpecies(current *[]PokedexEntry, existing map[string]bool) ([]string, error) {
-	type pokeAPIEntry struct {
-		Name string `json:"name"`
-		URL  string `json:"url"`
-	}
-	type pokeAPIList struct {
-		Count   int            `json:"count"`
-		Results []pokeAPIEntry `json:"results"`
-	}
-
-	resp, err := http.Get("https://pokeapi.co/api/v2/pokemon?limit=10000") //nolint:noctx
-	if err != nil {
-		return nil, fmt.Errorf("PokeAPI unavailable: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	var apiList pokeAPIList
-	if err := json.Unmarshal(body, &apiList); err != nil {
-		return nil, fmt.Errorf("failed to parse PokeAPI response: %w", err)
-	}
-
-	var added []string
-	for _, entry := range apiList.Results {
-		if existing[entry.Name] {
-			continue
-		}
-		id := extractPokeAPIID(entry.URL)
-		if id <= 0 || id > 2000 {
-			continue // skip forms and invalid entries
-		}
-		*current = append(*current, PokedexEntry{
-			ID:        id,
-			Canonical: entry.Name,
-		})
-		added = append(added, entry.Name)
-		existing[entry.Name] = true
-	}
-	return added, nil
-}
-
-// extractPokeAPIID extracts the numeric ID from a PokéAPI resource URL
-// such as "https://pokeapi.co/api/v2/pokemon/25/".
-func extractPokeAPIID(url string) int {
-	parts := strings.Split(strings.TrimSuffix(url, "/"), "/")
-	if len(parts) == 0 {
-		return 0
-	}
-	id, _ := strconv.Atoi(parts[len(parts)-1])
-	return id
-}
-
-// isIgnoredForm reports whether the given form name matches one of the
-// filtered-out form patterns (Gigantamax, Totem, Cap, etc.).
-func isIgnoredForm(name string) bool {
-	for _, sub := range ignoredFormSubstrings {
-		if strings.Contains(name, sub) {
-			return true
-		}
-	}
-	return strings.HasSuffix(name, "-star")
-}
-
-// fetchAndMergeForms fetches alternate Pokémon forms (ID > 10000) from the
-// PokéAPI GraphQL endpoint and appends new forms to the matching species in
-// current. It returns the canonical names of newly added forms.
-func fetchAndMergeForms(current *[]PokedexEntry) []string {
-	q := `{"query":"query{pokemon_v2_pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id}}"}`
-	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var glForms struct {
-		Data struct {
-			Pokemon []struct {
-				ID        int    `json:"id"`
-				Name      string `json:"name"`
-				SpeciesID int    `json:"pokemon_species_id"`
-			} `json:"pokemon_v2_pokemon"`
-		} `json:"data"`
-	}
-	if json.NewDecoder(resp.Body).Decode(&glForms) != nil {
-		return nil
-	}
-
-	specIndex := make(map[int]int, len(*current))
-	for i := range *current {
-		specIndex[(*current)[i].ID] = i
-	}
-
-	var added []string
-	for _, f := range glForms.Data.Pokemon {
-		if isIgnoredForm(f.Name) {
-			continue
-		}
-		i, ok := specIndex[f.SpeciesID]
-		if !ok {
-			continue
-		}
-		hasForm := false
-		for _, existingForm := range (*current)[i].Forms {
-			if existingForm.Canonical == f.Name {
-				hasForm = true
-				break
-			}
-		}
-		if !hasForm {
-			(*current)[i].Forms = append((*current)[i].Forms, PokemonForm{
-				Canonical: f.Name,
-				SpriteID:  f.ID,
-			})
-			added = append(added, f.Name)
-		}
-	}
-	return added
-}
-
-// fetchAndApplySpeciesNames fetches localized species names from the PokéAPI
-// GraphQL endpoint and applies them to the entries in current. It returns the
-// number of individual name values that changed.
-func fetchAndApplySpeciesNames(current *[]PokedexEntry) int {
-	q := `{"query":"query{pokemon_v2_pokemonspeciesname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){name pokemon_species_id pokemon_v2_language{name}}}"}`
-	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
-	if err != nil {
-		return 0
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var glResp struct {
-		Data struct {
-			Names []speciesNameRow `json:"pokemon_v2_pokemonspeciesname"`
-		} `json:"data"`
-	}
-	if json.NewDecoder(resp.Body).Decode(&glResp) != nil {
-		return 0
-	}
-
-	namesMap := buildSpeciesTranslationMap(glResp.Data.Names)
-
-	// Apply translations to the loaded array.
-	var namesUpdated int
-	for i := range *current {
-		fetchedNames, ok := namesMap[(*current)[i].ID]
-		if !ok {
-			continue
-		}
-		if (*current)[i].Names == nil {
-			(*current)[i].Names = make(map[string]string)
-		}
-		for l, n := range fetchedNames {
-			if (*current)[i].Names[l] != n {
-				namesUpdated++
-			}
-			(*current)[i].Names[l] = n
-		}
-	}
-	return namesUpdated
-}
-
-// speciesNameRow is a single row from the PokéAPI species-name GraphQL query.
-type speciesNameRow struct {
-	Name      string `json:"name"`
-	SpeciesID int    `json:"pokemon_species_id"`
-	Language  struct {
-		Name string `json:"name"`
-	} `json:"pokemon_v2_language"`
-}
-
-// buildSpeciesTranslationMap converts raw species-name rows into a
-// map[speciesID]map[langKey]localizedName, applying language code
-// normalization and the Kanji-over-Katakana preference for Japanese.
-func buildSpeciesTranslationMap(rows []speciesNameRow) map[int]map[string]string {
-	namesMap := make(map[int]map[string]string)
-	for _, n := range rows {
-		l, ok := pokeAPILangMap[n.Language.Name]
-		if !ok || n.Name == "" {
-			continue
-		}
-		if namesMap[n.SpeciesID] == nil {
-			namesMap[n.SpeciesID] = make(map[string]string)
-		}
-		if shouldSkipJaKatakana(l, n.Language.Name, namesMap[n.SpeciesID]) {
-			continue
-		}
-		namesMap[n.SpeciesID][l] = n.Name
-	}
-	return namesMap
-}
-
-// shouldSkipJaKatakana returns true when a Katakana "ja-Hrkt" entry should
-// be skipped because a Kanji "ja" translation already exists.
-func shouldSkipJaKatakana(langKey, apiLang string, existing map[string]string) bool {
-	return langKey == "ja" && apiLang == langJaHrkt && existing["ja"] != ""
-}
-
-// fetchAndApplyFormNames fetches localized form names from the PokéAPI GraphQL
-// endpoint and applies them to the form entries in current. It returns the
-// number of individual name values that changed.
-func fetchAndApplyFormNames(current *[]PokedexEntry) int {
-	q := `{"query":"query{pokemon_v2_pokemonformname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){pokemon_v2_pokemonform{name} pokemon_v2_language{name} pokemon_name name}}"}`
-	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
-	if err != nil {
-		return 0
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	var glResp struct {
-		Data struct {
-			Names []formNameRow `json:"pokemon_v2_pokemonformname"`
-		} `json:"data"`
-	}
-	if json.NewDecoder(resp.Body).Decode(&glResp) != nil {
-		return 0
-	}
-
-	formNamesMap := buildFormTranslationMap(glResp.Data.Names)
-
-	// Apply form translations to the loaded array.
-	var namesUpdated int
-	for i := range *current {
-		for j := range (*current)[i].Forms {
-			canonical := (*current)[i].Forms[j].Canonical
-			fetchedNames, ok := formNamesMap[canonical]
-			if !ok {
-				continue
-			}
-			if (*current)[i].Forms[j].Names == nil {
-				(*current)[i].Forms[j].Names = make(map[string]string)
-			}
-			for l, nVal := range fetchedNames {
-				if (*current)[i].Forms[j].Names[l] != nVal {
-					namesUpdated++
-				}
-				(*current)[i].Forms[j].Names[l] = nVal
-			}
-		}
-	}
-	return namesUpdated
-}
-
-// formNameRow is a single row from the PokéAPI form-name GraphQL query.
-type formNameRow struct {
-	Form struct {
-		Name string `json:"name"`
-	} `json:"pokemon_v2_pokemonform"`
-	Language struct {
-		Name string `json:"name"`
-	} `json:"pokemon_v2_language"`
-	PokemonName string `json:"pokemon_name"`
-	Name        string `json:"name"`
-}
-
-// buildFormTranslationMap converts raw form-name rows into a
-// map[formCanonical]map[langKey]localizedName, applying language code
-// normalization and the Kanji-over-Katakana preference for Japanese.
-func buildFormTranslationMap(rows []formNameRow) map[string]map[string]string {
-	formNamesMap := make(map[string]map[string]string)
-	for _, n := range rows {
-		l, ok := pokeAPILangMap[n.Language.Name]
-		formNameKey := n.Form.Name
-		if !ok || formNameKey == "" {
-			continue
-		}
-
-		// Either pokemon_name or name contains the fully qualified localized
-		// string for the form in most cases (e.g. pokemon_name: "Alolan Sandshrew").
-		// Fall back on just name ("Alolan Form") if pokemon_name is empty.
-		val := n.PokemonName
-		if val == "" {
-			val = n.Name
-		}
-		if val == "" {
-			continue
-		}
-
-		if formNamesMap[formNameKey] == nil {
-			formNamesMap[formNameKey] = make(map[string]string)
-		}
-		if shouldSkipJaKatakana(l, n.Language.Name, formNamesMap[formNameKey]) {
-			continue
-		}
-		formNamesMap[formNameKey][l] = val
-	}
-	return formNamesMap
-}
-
-// writePokedexJSON marshals the Pokédex entries and writes them atomically to
-// the pokemon.json file inside the given config directory.
-func writePokedexJSON(configDir string, entries []PokedexEntry) error {
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return fmt.Errorf("failed to marshal: %w", err)
-	}
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config dir: %w", err)
-	}
-	destPath := filepath.Join(configDir, pokemonFilename)
-	if err := os.WriteFile(destPath, data, 0644); err != nil {
-		return fmt.Errorf("failed to save: %w", err)
-	}
-	return nil
-}
-
-// readPokedexJSON reads the pokedex JSON: configDir > source dir > embedded FS > cwd.
-func (s *Server) readPokedexJSON() ([]byte, error) {
-	// 1. configDir (user-synced version)
-	configDir := s.state.GetConfigDir()
-	if data, err := os.ReadFile(filepath.Join(configDir, pokemonFilename)); err == nil {
-		return data, nil
-	}
-
-	// 2. Source directory (dev mode via runtime.Caller)
-	_, file, _, ok := runtime.Caller(0)
-	if ok {
-		p := filepath.Join(filepath.Dir(file), "..", "..", "frontend", "public", pokemonFilename)
-		if data, err := os.ReadFile(p); err == nil {
-			return data, nil
-		}
-	}
-
-	// 3. Working directory fallback
-	if data, err := os.ReadFile("frontend/public/" + pokemonFilename); err == nil {
-		return data, nil
-	}
-
-	return nil, fmt.Errorf("%s not found in any location", pokemonFilename)
 }

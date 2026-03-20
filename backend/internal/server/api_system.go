@@ -9,6 +9,7 @@ import (
 
 	"github.com/zsleyer/encounty/backend/internal/licenses"
 	"github.com/zsleyer/encounty/backend/internal/state"
+	"github.com/zsleyer/encounty/backend/internal/updater"
 )
 
 // handleGetState returns the full AppState snapshot as JSON.
@@ -163,7 +164,7 @@ func (s *Server) handleRestart(w http.ResponseWriter, r *http.Request) {
 			slog.Error("Restart: could not get executable path", "error", err)
 			os.Exit(1)
 		}
-		if err := reexec(exe, os.Args[1:]); err != nil {
+		if err := updater.Reexec(exe, os.Args[1:]); err != nil {
 			slog.Error("Restart failed", "error", err)
 			os.Exit(1)
 		}

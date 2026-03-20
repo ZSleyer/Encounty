@@ -1,15 +1,14 @@
-// games_test.go tests the server-level games handler wiring.
-package server
+// gamesync_test.go tests loading, caching, and row conversion for the games catalogue.
+package gamesync
 
 import (
 	"encoding/json"
 	"testing"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
-	"github.com/zsleyer/encounty/backend/internal/gamesync"
 )
 
-// mockGamesStore is an in-memory gamesync.GamesStore for testing.
+// mockGamesStore is an in-memory GamesStore for testing.
 type mockGamesStore struct {
 	rows []database.GameRow
 }
@@ -27,11 +26,17 @@ func (m *mockGamesStore) HasGames() bool {
 	return len(m.rows) > 0
 }
 
-// resetGamesCache clears the package-level cache so each test starts fresh.
-func resetGamesCache(t *testing.T) {
+// resetCache clears the package-level cache so each test starts fresh.
+func resetCache(t *testing.T) {
 	t.Helper()
-	gamesync.InvalidateCache()
-	gamesDB = nil
+	gamesMu.Lock()
+	cachedGames = nil
+	gamesMu.Unlock()
+}
+
+func mustMarshal(v any) []byte {
+	b, _ := json.Marshal(v)
+	return b
 }
 
 // fixtureGameRows returns minimal valid game rows for testing.
@@ -45,15 +50,13 @@ func fixtureGameRows() []database.GameRow {
 
 const fmtExpect3 = "expected 3 entries, got %d"
 
-func TestGamesLoadFromDB(t *testing.T) {
-	resetGamesCache(t)
+func TestLoadGamesFromDB(t *testing.T) {
+	resetCache(t)
 
 	store := &mockGamesStore{rows: fixtureGameRows()}
-	gamesDB = store
-
-	entries := loadGames()
+	entries := LoadGames(store)
 	if entries == nil {
-		t.Fatal("loadGames returned nil")
+		t.Fatal("LoadGames returned nil")
 	}
 	if len(entries) != 3 {
 		t.Fatalf(fmtExpect3, len(entries))
@@ -68,13 +71,11 @@ func TestGamesLoadFromDB(t *testing.T) {
 	}
 }
 
-func TestGamesCaching(t *testing.T) {
-	resetGamesCache(t)
+func TestLoadGamesCaching(t *testing.T) {
+	resetCache(t)
 
 	store := &mockGamesStore{rows: fixtureGameRows()}
-	gamesDB = store
-
-	first := loadGames()
+	first := LoadGames(store)
 	if first == nil {
 		t.Fatal("first call returned nil")
 	}
@@ -82,7 +83,7 @@ func TestGamesCaching(t *testing.T) {
 	// Clear the store; cached result should still be returned
 	store.rows = nil
 
-	second := loadGames()
+	second := LoadGames(store)
 	if second == nil {
 		t.Fatal("second call returned nil after cache")
 	}
@@ -91,50 +92,43 @@ func TestGamesCaching(t *testing.T) {
 	}
 }
 
-func TestGamesLoadNoDBReturnsNil(t *testing.T) {
-	resetGamesCache(t)
+func TestLoadGamesNilStoreReturnsNil(t *testing.T) {
+	resetCache(t)
 
-	// No DB wired
-	entries := loadGames()
+	entries := LoadGames(nil)
 	if entries != nil {
 		t.Errorf("expected nil, got %d entries", len(entries))
 	}
 }
 
-func TestGamesHandleGetGames(t *testing.T) {
-	resetGamesCache(t)
-
-	store := &mockGamesStore{rows: fixtureGameRows()}
-	gamesDB = store
-
-	srv := newTestServer(t)
-	req := newGetRequest("/api/games")
-	w := doRequest(srv.handleGetGames, req)
-
-	if w.Code != 200 {
-		t.Fatalf("status = %d, want 200", w.Code)
-	}
-
-	var result []gamesync.GameEntry
-	if err := json.Unmarshal(w.Body.Bytes(), &result); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if len(result) != 3 {
-		t.Errorf(fmtExpect3, len(result))
-	}
-}
-
-func TestGameRowsRoundTrip(t *testing.T) {
-	resetGamesCache(t)
-
+func TestRowsRoundTrip(t *testing.T) {
 	rows := fixtureGameRows()
-	entries := gamesync.RowsToEntries(rows)
+	entries := RowsToEntries(rows)
 	if len(entries) != 3 {
 		t.Fatalf(fmtExpect3, len(entries))
 	}
 
-	roundTripped := gamesync.EntriesToRows(entries)
+	roundTripped := EntriesToRows(entries)
 	if len(roundTripped) != 3 {
 		t.Fatalf("expected 3 rows after round-trip, got %d", len(roundTripped))
+	}
+}
+
+func TestInvalidateCache(t *testing.T) {
+	resetCache(t)
+
+	store := &mockGamesStore{rows: fixtureGameRows()}
+	first := LoadGames(store)
+	if first == nil {
+		t.Fatal("first call returned nil")
+	}
+
+	InvalidateCache()
+
+	// After invalidation, should re-read from store
+	store.rows = fixtureGameRows()[:1] // only one row
+	second := LoadGames(store)
+	if len(second) != 1 {
+		t.Errorf("expected 1 entry after invalidation, got %d", len(second))
 	}
 }

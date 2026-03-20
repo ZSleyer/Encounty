@@ -20,6 +20,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/detector"
 	"github.com/zsleyer/encounty/backend/internal/fileoutput"
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
+	"github.com/zsleyer/encounty/backend/internal/pokedex"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
@@ -210,23 +211,17 @@ func TestRestoreWithBothFiles(t *testing.T) {
 	}
 }
 
-// --- readPokedexJSON coverage ---
+// --- ReadJSON coverage ---
 
 // TestReadPokedexJSONAllFallbacksFail exercises the error return when
 // no pokemon.json is found anywhere.
 func TestReadPokedexJSONAllFallbacksFail(t *testing.T) {
-	// Use a completely empty server with a temp config dir that has no
-	// pokemon.json. The source-dir and cwd fallbacks may or may not succeed
-	// depending on the test environment, but we verify no panic.
+	// Use a completely empty temp dir that has no pokemon.json.
+	// The source-dir and cwd fallbacks may or may not succeed depending
+	// on the test environment, but we verify no panic.
 	tmpDir := t.TempDir()
-	stateMgr := state.NewManager(tmpDir)
-	srv := &Server{
-		state:     stateMgr,
-		hub:       NewHub(),
-		hotkeyMgr: newMockHotkeyMgr(),
-	}
 
-	_, err := srv.readPokedexJSON()
+	_, err := pokedex.ReadJSON(tmpDir)
 	// Either finds a fallback or returns error; both are valid
 	_ = err
 }
@@ -297,8 +292,8 @@ func TestWritePumpChannelClose(t *testing.T) {
 // --- handleUpdateCheck coverage: non-dev version path ---
 
 // TestUpdateCheckNonDevVersion exercises the path where version != "dev",
-// causing fetchUpdateInfo to be called. Since it calls the real GitHub API,
-// this test accepts either success or an error response.
+// causing updater.CheckForUpdate to be called. Since it calls the real GitHub
+// API, this test accepts either success or an error response.
 func TestUpdateCheckNonDevVersion(t *testing.T) {
 	srv := newTestServer(t)
 	srv.version = "0.0.1-test"

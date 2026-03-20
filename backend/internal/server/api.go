@@ -65,6 +65,3 @@ func pokemonIDFromPath(path, prefix, suffix string) string {
 	}
 	return strings.Trim(path, "/")
 }
-
-// reexec is implemented per-platform in reexec_unix.go / reexec_windows.go.
-// It replaces the current process with a fresh instance of the binary.
