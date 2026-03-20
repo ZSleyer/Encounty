@@ -99,17 +99,28 @@ jobs:
           npm pkg set version="$CLEAN_VERSION"
           yarn build
 
+      - name: Detect pre-release
+        id: prerelease
+        run: |
+          if [[ "$GITHUB_REF" == *"-pre"* ]] || [[ "$GITHUB_REF" == *"-rc"* ]] || [[ "$GITHUB_REF" == *"-alpha"* ]] || [[ "$GITHUB_REF" == *"-beta"* ]]; then
+            echo "is_pre=true" >> $GITHUB_OUTPUT
+            echo "publish_flag=never" >> $GITHUB_OUTPUT
+          else
+            echo "is_pre=false" >> $GITHUB_OUTPUT
+            echo "publish_flag=always" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref, '-pre') }}
+          prerelease: ${{ steps.prerelease.outputs.is_pre == 'true' }}
 
       - name: Package & Publish Electron Linux
         working-directory: electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn package:linux --publish always
+        run: yarn package:linux --publish ${{ steps.prerelease.outputs.publish_flag }}
 
       - name: Install Wine for Windows cross-build
         run: |
@@ -121,4 +132,12 @@ jobs:
         working-directory: electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn package:win --publish always
+        run: yarn package:win --publish ${{ steps.prerelease.outputs.publish_flag }}
+
+      - name: Upload Electron artifacts to pre-release
+        if: steps.prerelease.outputs.is_pre == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            electron/release/Encounty.AppImage
+            electron/release/Encounty.exe
