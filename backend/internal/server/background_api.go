@@ -35,15 +35,23 @@ func (s *Server) backgroundsDir() (string, error) {
 // handleBackgroundUpload accepts a JSON body with a base64-encoded image and
 // saves it to the backgrounds directory. It validates the image format
 // (PNG/JPEG/WebP) and downscales images wider than 1920px.
+//
+// @Summary      Upload a background image
+// @Tags         backgrounds
+// @Accept       json
+// @Produce      json
+// @Param        body body BackgroundUploadRequest true "Base64-encoded image"
+// @Success      200 {object} FilenameResponse
+// @Failure      400 {string} string
+// @Failure      500 {string} string
+// @Router       /backgrounds/upload [post]
 func (s *Server) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	var body struct {
-		ImageBase64 string `json:"image_base64"`
-	}
+	var body BackgroundUploadRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
@@ -120,10 +128,19 @@ func (s *Server) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	slog.Info("Background uploaded", "filename", filename)
-	writeJSON(w, http.StatusOK, map[string]string{"filename": filename})
+	writeJSON(w, http.StatusOK, FilenameResponse{Filename: filename})
 }
 
 // handleBackgroundServe serves a background image file by filename.
+//
+// @Summary      Serve a background image
+// @Tags         backgrounds
+// @Produce      image/png,image/jpeg
+// @Param        filename path string true "Image filename"
+// @Success      200 {file} binary
+// @Failure      400 {string} string
+// @Failure      404 {string} string
+// @Router       /backgrounds/{filename} [get]
 func (s *Server) handleBackgroundServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -154,6 +171,14 @@ func (s *Server) handleBackgroundServe(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleBackgroundDelete removes a background image file.
+//
+// @Summary      Delete a background image
+// @Tags         backgrounds
+// @Param        filename path string true "Image filename"
+// @Success      204
+// @Failure      400 {string} string
+// @Failure      500 {string} string
+// @Router       /backgrounds/{filename} [delete]
 func (s *Server) handleBackgroundDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)

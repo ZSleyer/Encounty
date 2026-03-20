@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strings"
 
+	httpSwagger "github.com/swaggo/http-swagger/v2"
+
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/detector"
 	"github.com/zsleyer/encounty/backend/internal/fileoutput"
@@ -96,6 +98,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	s.registerPokemonRoutes(mux)
 	s.registerBackgroundRoutes(mux)
 	s.registerDetectorRoutes(mux)
+	mux.Handle("/swagger/", httpSwagger.WrapHandler)
 	s.registerFrontend(mux)
 }
 
@@ -220,6 +223,9 @@ func (s *Server) registerBackgroundRoutes(mux *http.ServeMux) {
 func (s *Server) registerDetectorRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/detector/screenshot", s.handleDetectorScreenshot)
 	mux.HandleFunc("/api/detector/status", s.handleDetectorStatus)
+	mux.HandleFunc("GET /api/detector/windows", s.handleListWindows)
+	mux.HandleFunc("GET /api/detector/cameras", s.handleListCameras)
+	mux.HandleFunc("GET /api/detector/capabilities", s.handleDetectorCapabilities)
 	mux.HandleFunc("/api/detector/", s.handleDetectorDispatch)
 }
 

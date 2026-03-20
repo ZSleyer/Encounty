@@ -20,7 +20,12 @@ import (
 
 // handleBackup streams a ZIP file containing the SQLite database and template
 // images directly to the response, triggering a browser file download.
-// GET /api/backup
+//
+// @Summary      Download a backup ZIP
+// @Tags         system
+// @Produce      application/zip
+// @Success      200 {file} binary
+// @Router       /backup [get]
 func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -108,7 +113,17 @@ func extractZipEntry(f *zip.File, configDir string) bool {
 
 // handleRestore accepts a multipart form upload of a backup ZIP, extracts the
 // SQLite database and template images into the config dir, reopens the database,
-// reloads state, and broadcasts the new snapshot. POST /api/restore
+// reloads state, and broadcasts the new snapshot.
+//
+// @Summary      Restore from a backup ZIP
+// @Tags         system
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        backup formData file true "Backup ZIP file"
+// @Success      200 {object} RestoreResponse
+// @Failure      400 {string} string
+// @Failure      500 {string} string
+// @Router       /restore [post]
 func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -179,5 +194,5 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	}
 	s.broadcastState()
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	writeJSON(w, http.StatusOK, RestoreResponse{OK: true})
 }

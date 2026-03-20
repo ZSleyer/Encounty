@@ -3,6 +3,13 @@
 // main.go is the application entry point. It initialises the config
 // directory, loads persisted state, starts the global hotkey manager,
 // creates the HTTP server, and blocks until a signal triggers graceful shutdown.
+
+// @title           Encounty API
+// @version         1.0
+// @description     Pokémon Shiny Encounter Counter — REST API
+// @host            localhost:8080
+// @BasePath        /api
+// @schemes         http
 package main
 
 import (
@@ -20,6 +27,8 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+
+	_ "github.com/zsleyer/encounty/backend/docs"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/detector"

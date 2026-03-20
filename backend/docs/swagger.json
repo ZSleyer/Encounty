@@ -1,0 +1,3128 @@
+{
+    "schemes": [
+        "http"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "Pokémon Shiny Encounter Counter — REST API",
+        "title": "Encounty API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api",
+    "paths": {
+        "/backgrounds/upload": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backgrounds"
+                ],
+                "summary": "Upload a background image",
+                "parameters": [
+                    {
+                        "description": "Base64-encoded image",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.BackgroundUploadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.FilenameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/backgrounds/{filename}": {
+            "get": {
+                "produces": [
+                    "image/png",
+                    "image/jpeg"
+                ],
+                "tags": [
+                    "backgrounds"
+                ],
+                "summary": "Serve a background image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image filename",
+                        "name": "filename",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "backgrounds"
+                ],
+                "summary": "Delete a background image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image filename",
+                        "name": "filename",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/backup": {
+            "get": {
+                "produces": [
+                    "application/zip"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Download a backup ZIP",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/cameras": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "List available video capture devices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_detector.CameraInfo"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/capabilities": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Get platform capture capabilities",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_detector.Capabilities"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/screenshot": {
+            "get": {
+                "produces": [
+                    "image/jpeg"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Capture primary monitor screenshot",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "List running detector IDs",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_server.detectorStatusEntry"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/windows": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "List visible top-level windows",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/config": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Get or set detector config for a Pokemon",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorConfig"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Get or set detector config for a Pokemon",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorConfig"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/export_templates": {
+            "get": {
+                "produces": [
+                    "application/zip"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Export templates as ZIP",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/import_templates": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Import templates from another Pokemon",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Target Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Source Pokemon ID",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ImportTemplatesRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ImportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/import_templates_file": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Import templates from uploaded ZIP",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "Template ZIP file",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.ImportResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/match_frame": {
+            "post": {
+                "consumes": [
+                    "image/jpeg"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Submit a browser-captured frame for matching",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.MatchFrameResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/sprite_template": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Create template from Pokemon sprite",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Optional sprite URL override",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.SpriteTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.TemplateUploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/start": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Start detection for a Pokemon",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.DetectorRunResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/stop": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Stop detection for a Pokemon",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.DetectorRunResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/template/{n}": {
+            "get": {
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Get, delete or update a detector template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Template index",
+                        "name": "n",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Get, delete or update a detector template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Template index",
+                        "name": "n",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Get, delete or update a detector template",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Template index",
+                        "name": "n",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/detector/{id}/template_upload": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "detector"
+                ],
+                "summary": "Upload a new template image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Base64 image and regions",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.TemplateUploadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.TemplateUploadResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/games": {
+            "get": {
+                "description": "Returns the games list sorted by generation",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "games"
+                ],
+                "summary": "Get games list",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_server.GameEntry"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/games/sync": {
+            "post": {
+                "description": "Triggers a background sync of game metadata from PokeAPI",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "games"
+                ],
+                "summary": "Sync games from PokeAPI",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.GamesSyncResult"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/hotkeys": {
+            "post": {
+                "description": "Replaces the full hotkey map and re-registers all bindings",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotkeys"
+                ],
+                "summary": "Update all hotkeys",
+                "parameters": [
+                    {
+                        "description": "Complete hotkey map",
+                        "name": "hotkeys",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.HotkeyMap"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.HotkeyMap"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/hotkeys/pause": {
+            "post": {
+                "description": "Suspends global hotkey dispatch without unregistering bindings",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotkeys"
+                ],
+                "summary": "Pause hotkeys",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/hotkeys/resume": {
+            "post": {
+                "description": "Re-enables hotkey dispatch after a pause",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotkeys"
+                ],
+                "summary": "Resume hotkeys",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/hotkeys/status": {
+            "get": {
+                "description": "Reports whether the hotkey backend is available",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotkeys"
+                ],
+                "summary": "Get hotkey status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.HotkeysStatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/hotkeys/{action}": {
+            "put": {
+                "description": "Updates one action's key binding without touching the others",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "hotkeys"
+                ],
+                "summary": "Update a single hotkey",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hotkey action name",
+                        "name": "action",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "New key binding",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.UpdateHotkeyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.HotkeyUpdateResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/hunt-types": {
+            "get": {
+                "description": "Returns all available hunt type presets",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "games"
+                ],
+                "summary": "Get hunt type presets",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.HuntTypePreset"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/license/accept": {
+            "post": {
+                "description": "Records that the user has accepted the AGPLv3 license",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Accept license",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.LicenseAcceptResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/licenses": {
+            "get": {
+                "description": "Returns all collected third-party license entries",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Get third-party licenses",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_licenses.Entry"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/overlay/state": {
+            "get": {
+                "description": "Returns the active Pokemon and its ID for the OBS overlay page",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "overlay"
+                ],
+                "summary": "Get overlay state",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.OverlayStateResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokedex": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pokedex"
+                ],
+                "summary": "Get the Pokedex",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/internal_server.PokedexEntry"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon": {
+            "post": {
+                "description": "Creates a new Pokemon entry with a generated UUID and timestamp",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Create a new Pokemon",
+                "parameters": [
+                    {
+                        "description": "Pokemon to create",
+                        "name": "pokemon",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}": {
+            "put": {
+                "description": "Applies the JSON body fields to the Pokemon with the given ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Update a Pokemon",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Updated Pokemon fields",
+                        "name": "pokemon",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.AppState"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes the Pokemon, stops its detector, and deletes template files",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Delete a Pokemon",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/activate": {
+            "post": {
+                "description": "Sets the given Pokemon as the active one for hotkey actions",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Activate a Pokemon",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/complete": {
+            "post": {
+                "description": "Marks the hunt as finished by stamping CompletedAt",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Complete a Pokemon hunt",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/decrement": {
+            "post": {
+                "description": "Subtracts one encounter from the Pokemon (floor 0)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Decrement encounter count",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.CountResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/increment": {
+            "post": {
+                "description": "Adds one encounter to the Pokemon and broadcasts the update",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Increment encounter count",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.CountResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/overlay/unlink": {
+            "post": {
+                "description": "Copies the resolved overlay into the Pokemon and sets mode to custom",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Unlink Pokemon overlay",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/reset": {
+            "post": {
+                "description": "Zeroes out the encounter counter for the Pokemon",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Reset encounter count",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/set_encounters": {
+            "post": {
+                "description": "Sets the encounter count to an exact value",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Set encounter count",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Encounter count to set",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.SetEncountersRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.CountResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/timer/reset": {
+            "post": {
+                "description": "Clears the per-Pokemon timer entirely",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Reset Pokemon timer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/timer/start": {
+            "post": {
+                "description": "Begins the per-Pokemon timer",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Start Pokemon timer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/timer/stop": {
+            "post": {
+                "description": "Stops the per-Pokemon timer and accumulates elapsed time",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Stop Pokemon timer",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/pokemon/{id}/uncomplete": {
+            "post": {
+                "description": "Clears CompletedAt, returning the Pokemon to active-hunt status",
+                "tags": [
+                    "pokemon"
+                ],
+                "summary": "Uncomplete a Pokemon hunt",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/quit": {
+            "post": {
+                "description": "Performs a graceful shutdown: saves state, stops hotkeys, and exits",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Quit application",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/restart": {
+            "post": {
+                "description": "Saves state, stops hotkeys, and replaces the process with a fresh instance",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Restart application",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.StatusResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/restore": {
+            "post": {
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Restore from a backup ZIP",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Backup ZIP file",
+                        "name": "backup",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.RestoreResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions": {
+            "get": {
+                "description": "Returns the session history as JSON",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "state"
+                ],
+                "summary": "Get session history",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Session"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/settings": {
+            "post": {
+                "description": "Replaces the settings block and reconfigures file output",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Update settings",
+                "parameters": [
+                    {
+                        "description": "Updated settings",
+                        "name": "settings",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Settings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Settings"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/settings/config-path": {
+            "post": {
+                "description": "Moves all data to a new directory",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Set config directory path",
+                "parameters": [
+                    {
+                        "description": "New config path",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.SetConfigPathRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.PathResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/state": {
+            "get": {
+                "description": "Returns the complete AppState snapshot including all Pokemon, settings, and sessions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "state"
+                ],
+                "summary": "Get full application state",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.AppState"
+                        }
+                    }
+                }
+            }
+        },
+        "/stats/overview": {
+            "get": {
+                "description": "Returns global encounter statistics",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "statistics"
+                ],
+                "summary": "Get statistics overview",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_database.OverviewStats"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/stats/pokemon/{id}": {
+            "get": {
+                "description": "Returns encounter statistics for a specific Pokemon, with optional /history or /chart sub-paths",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "statistics"
+                ],
+                "summary": "Get Pokemon encounter stats",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Pokemon ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_database.EncounterStats"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/sync/pokemon": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "pokedex"
+                ],
+                "summary": "Sync Pokedex from PokeAPI",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.PokedexSyncResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/update/apply": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Apply a downloaded update",
+                "parameters": [
+                    {
+                        "description": "Download URL",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.UpdateApplyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.StatusResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/update/check": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Check for available updates",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.UpdateInfo"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.errResp"
+                        }
+                    }
+                }
+            }
+        },
+        "/version": {
+            "get": {
+                "description": "Returns build version information injected at compile time",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "Get version info",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_server.VersionResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "github_com_zsleyer_encounty_backend_internal_database.EncounterStats": {
+            "type": "object",
+            "properties": {
+                "first_at": {
+                    "type": "string"
+                },
+                "last_at": {
+                    "type": "string"
+                },
+                "rate_per_hour": {
+                    "type": "number"
+                },
+                "today": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_database.OverviewStats": {
+            "type": "object",
+            "properties": {
+                "today": {
+                    "type": "integer"
+                },
+                "total_encounters": {
+                    "type": "integer"
+                },
+                "total_pokemon": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_detector.CameraInfo": {
+            "type": "object",
+            "properties": {
+                "device_path": {
+                    "type": "string"
+                },
+                "driver": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_detector.Capabilities": {
+            "type": "object",
+            "properties": {
+                "display_server": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "sidecar_available": {
+                    "type": "boolean"
+                },
+                "supports_camera": {
+                    "type": "boolean"
+                },
+                "supports_screen_capture": {
+                    "type": "boolean"
+                },
+                "supports_window_capture": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_licenses.Entry": {
+            "type": "object",
+            "properties": {
+                "license": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.AppState": {
+            "type": "object",
+            "properties": {
+                "active_id": {
+                    "type": "string"
+                },
+                "data_path": {
+                    "type": "string"
+                },
+                "hotkeys": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.HotkeyMap"
+                },
+                "license_accepted": {
+                    "type": "boolean"
+                },
+                "pokemon": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon"
+                    }
+                },
+                "sessions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Session"
+                    }
+                },
+                "settings": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Settings"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.CounterElement": {
+            "type": "object",
+            "properties": {
+                "height": {
+                    "type": "integer"
+                },
+                "idle_animation": {
+                    "type": "string"
+                },
+                "label_style": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.TextStyle"
+                },
+                "label_text": {
+                    "type": "string"
+                },
+                "show_label": {
+                    "type": "boolean"
+                },
+                "style": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.TextStyle"
+                },
+                "trigger_enter": {
+                    "type": "string"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "width": {
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "integer"
+                },
+                "y": {
+                    "type": "integer"
+                },
+                "z_index": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.DetectionLogEntry": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "description": "At is the UTC timestamp when the match was confirmed.",
+                    "type": "string"
+                },
+                "confidence": {
+                    "description": "Confidence is the NCC score that triggered the match (0.0–1.0).",
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.DetectorConfig": {
+            "type": "object",
+            "properties": {
+                "adaptive_cooldown": {
+                    "type": "boolean"
+                },
+                "adaptive_cooldown_min": {
+                    "description": "Minimum seconds, default 3",
+                    "type": "integer"
+                },
+                "change_threshold": {
+                    "description": "pixel-delta fraction required to leave MATCH state",
+                    "type": "number"
+                },
+                "consecutive_hits": {
+                    "description": "consecutive matching frames required before counting",
+                    "type": "integer"
+                },
+                "cooldown_sec": {
+                    "description": "minimum seconds between counts",
+                    "type": "integer"
+                },
+                "detection_log": {
+                    "description": "last maxDetectionLog confirmed matches",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectionLogEntry"
+                    }
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "max_poll_ms": {
+                    "description": "slowest adaptive poll interval (static screen), default 500",
+                    "type": "integer"
+                },
+                "min_poll_ms": {
+                    "description": "fastest adaptive poll interval (high activity), default 30",
+                    "type": "integer"
+                },
+                "poll_interval_ms": {
+                    "description": "base milliseconds between capture polls (adaptive centre point)",
+                    "type": "integer"
+                },
+                "precision": {
+                    "description": "0.0–1.0, default 0.85",
+                    "type": "number"
+                },
+                "region": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorRect"
+                },
+                "relative_regions": {
+                    "type": "boolean"
+                },
+                "source_type": {
+                    "description": "\"screen_region\" | \"window\" | \"browser_camera\" | \"browser_display\"",
+                    "type": "string"
+                },
+                "templates": {
+                    "description": "replaces TemplatePaths",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorTemplate"
+                    }
+                },
+                "window_title": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.DetectorRect": {
+            "type": "object",
+            "properties": {
+                "h": {
+                    "type": "integer"
+                },
+                "w": {
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "integer"
+                },
+                "y": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.DetectorTemplate": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "description": "nil = true (backward compat)",
+                    "type": "boolean"
+                },
+                "image_path": {
+                    "description": "legacy filesystem path",
+                    "type": "string"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.MatchedRegion"
+                    }
+                },
+                "template_db_id": {
+                    "description": "DB primary key",
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.GradientStop": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "position": {
+                    "type": "number"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.HotkeyMap": {
+            "type": "object",
+            "properties": {
+                "decrement": {
+                    "type": "string"
+                },
+                "increment": {
+                    "type": "string"
+                },
+                "next_pokemon": {
+                    "type": "string"
+                },
+                "reset": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.HuntTypePreset": {
+            "type": "object",
+            "properties": {
+                "defaultConsecutiveHits": {
+                    "description": "DefaultConsecutiveHits is the recommended number of matching frames before counting.",
+                    "type": "integer"
+                },
+                "defaultCooldownSec": {
+                    "description": "DefaultCooldownSec is the recommended minimum seconds between counted encounters.",
+                    "type": "integer"
+                },
+                "key": {
+                    "description": "Key is the canonical identifier stored in Pokemon.HuntType.",
+                    "type": "string"
+                },
+                "nameDE": {
+                    "description": "NameDE is the German display name.",
+                    "type": "string"
+                },
+                "nameEN": {
+                    "description": "NameEN is the English display name.",
+                    "type": "string"
+                },
+                "oddsDenom": {
+                    "type": "integer"
+                },
+                "oddsNumer": {
+                    "description": "OddsNumer and OddsDenom express the base shiny probability as a fraction.",
+                    "type": "integer"
+                },
+                "templateTip": {
+                    "description": "TemplateTip is an English hint shown to the user when capturing a template.",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.MatchedRegion": {
+            "type": "object",
+            "properties": {
+                "expected_text": {
+                    "description": "used if Type == \"text\"",
+                    "type": "string"
+                },
+                "rect": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorRect"
+                },
+                "type": {
+                    "description": "\"image\" | \"text\"",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.NameElement": {
+            "type": "object",
+            "properties": {
+                "height": {
+                    "type": "integer"
+                },
+                "idle_animation": {
+                    "type": "string"
+                },
+                "style": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.TextStyle"
+                },
+                "trigger_enter": {
+                    "type": "string"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "width": {
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "integer"
+                },
+                "y": {
+                    "type": "integer"
+                },
+                "z_index": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.OverlaySettings": {
+            "type": "object",
+            "properties": {
+                "background_animation": {
+                    "type": "string"
+                },
+                "background_animation_speed": {
+                    "type": "number"
+                },
+                "background_color": {
+                    "type": "string"
+                },
+                "background_image": {
+                    "type": "string"
+                },
+                "background_image_fit": {
+                    "type": "string"
+                },
+                "background_opacity": {
+                    "type": "number"
+                },
+                "blur": {
+                    "type": "integer"
+                },
+                "border_color": {
+                    "type": "string"
+                },
+                "border_radius": {
+                    "type": "integer"
+                },
+                "border_width": {
+                    "type": "integer"
+                },
+                "canvas_height": {
+                    "type": "integer"
+                },
+                "canvas_width": {
+                    "type": "integer"
+                },
+                "counter": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.CounterElement"
+                },
+                "hidden": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.NameElement"
+                },
+                "show_border": {
+                    "type": "boolean"
+                },
+                "sprite": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.SpriteElement"
+                },
+                "title": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.TitleElement"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.Pokemon": {
+            "type": "object",
+            "properties": {
+                "canonical_name": {
+                    "description": "English PokéAPI slug",
+                    "type": "string"
+                },
+                "completed_at": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "detector_config": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorConfig"
+                },
+                "encounters": {
+                    "type": "integer"
+                },
+                "game": {
+                    "description": "key from games.json",
+                    "type": "string"
+                },
+                "hunt_mode": {
+                    "description": "\"both\" | \"timer\" | \"detector\" (default \"both\")",
+                    "type": "string"
+                },
+                "hunt_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "language": {
+                    "description": "\"de\" | \"en\"",
+                    "type": "string"
+                },
+                "name": {
+                    "description": "Display name (localized)",
+                    "type": "string"
+                },
+                "overlay": {
+                    "description": "Pokemon-specific overlay settings",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.OverlaySettings"
+                        }
+                    ]
+                },
+                "overlay_mode": {
+                    "description": "\"default\" | \"custom\" | \"linked:\u003cpokemon-id\u003e\"",
+                    "type": "string"
+                },
+                "sprite_style": {
+                    "description": "\"classic\" | \"animated\" | \"3d\" | \"artwork\"",
+                    "type": "string"
+                },
+                "sprite_type": {
+                    "description": "\"normal\" | \"shiny\"",
+                    "type": "string"
+                },
+                "sprite_url": {
+                    "type": "string"
+                },
+                "step": {
+                    "description": "Increment/decrement step size (default 1)",
+                    "type": "integer"
+                },
+                "timer_accumulated_ms": {
+                    "type": "integer"
+                },
+                "timer_started_at": {
+                    "type": "string"
+                },
+                "title": {
+                    "description": "User-defined custom title",
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.Session": {
+            "type": "object",
+            "properties": {
+                "encounters": {
+                    "type": "integer"
+                },
+                "ended_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "pokemon_id": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.Settings": {
+            "type": "object",
+            "properties": {
+                "auto_save": {
+                    "type": "boolean"
+                },
+                "browser_port": {
+                    "type": "integer"
+                },
+                "config_path": {
+                    "description": "custom data directory override",
+                    "type": "string"
+                },
+                "crisp_sprites": {
+                    "type": "boolean"
+                },
+                "languages": {
+                    "description": "active game-name languages; default [\"de\",\"en\"]",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "output_dir": {
+                    "type": "string"
+                },
+                "output_enabled": {
+                    "type": "boolean"
+                },
+                "overlay": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.OverlaySettings"
+                },
+                "tutorial_seen": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.TutorialFlags"
+                },
+                "ui_animations": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.SpriteElement": {
+            "type": "object",
+            "properties": {
+                "glow_blur": {
+                    "type": "integer"
+                },
+                "glow_color": {
+                    "type": "string"
+                },
+                "glow_opacity": {
+                    "type": "number"
+                },
+                "height": {
+                    "type": "integer"
+                },
+                "idle_animation": {
+                    "type": "string"
+                },
+                "show_glow": {
+                    "type": "boolean"
+                },
+                "trigger_enter": {
+                    "type": "string"
+                },
+                "trigger_exit": {
+                    "type": "string"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "width": {
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "integer"
+                },
+                "y": {
+                    "type": "integer"
+                },
+                "z_index": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.TextStyle": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "color_type": {
+                    "description": "\"solid\" | \"gradient\"",
+                    "type": "string"
+                },
+                "font_family": {
+                    "type": "string"
+                },
+                "font_size": {
+                    "type": "integer"
+                },
+                "font_weight": {
+                    "type": "integer"
+                },
+                "gradient_angle": {
+                    "type": "integer"
+                },
+                "gradient_stops": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.GradientStop"
+                    }
+                },
+                "outline_color": {
+                    "type": "string"
+                },
+                "outline_gradient_angle": {
+                    "type": "integer"
+                },
+                "outline_gradient_stops": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.GradientStop"
+                    }
+                },
+                "outline_type": {
+                    "description": "\"none\" | \"solid\"",
+                    "type": "string"
+                },
+                "outline_width": {
+                    "type": "integer"
+                },
+                "text_align": {
+                    "type": "string"
+                },
+                "text_shadow": {
+                    "type": "boolean"
+                },
+                "text_shadow_blur": {
+                    "type": "integer"
+                },
+                "text_shadow_color": {
+                    "type": "string"
+                },
+                "text_shadow_color_type": {
+                    "description": "\"solid\" | \"gradient\"",
+                    "type": "string"
+                },
+                "text_shadow_gradient_angle": {
+                    "type": "integer"
+                },
+                "text_shadow_gradient_stops": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.GradientStop"
+                    }
+                },
+                "text_shadow_x": {
+                    "type": "integer"
+                },
+                "text_shadow_y": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.TitleElement": {
+            "type": "object",
+            "properties": {
+                "height": {
+                    "type": "integer"
+                },
+                "idle_animation": {
+                    "type": "string"
+                },
+                "style": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.TextStyle"
+                },
+                "trigger_enter": {
+                    "type": "string"
+                },
+                "visible": {
+                    "type": "boolean"
+                },
+                "width": {
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "integer"
+                },
+                "y": {
+                    "type": "integer"
+                },
+                "z_index": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_zsleyer_encounty_backend_internal_state.TutorialFlags": {
+            "type": "object",
+            "properties": {
+                "auto_detection": {
+                    "type": "boolean"
+                },
+                "overlay_editor": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_server.BackgroundUploadRequest": {
+            "type": "object",
+            "properties": {
+                "image_base64": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.CountResponse": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_server.DetectorRunResponse": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean"
+                },
+                "running": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_server.FilenameResponse": {
+            "type": "object",
+            "properties": {
+                "filename": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.GameEntry": {
+            "type": "object",
+            "properties": {
+                "generation": {
+                    "type": "integer"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "names": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "platform": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.GamesSyncResult": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer"
+                },
+                "updated": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_server.HotkeyUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.HotkeysStatusResponse": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_server.ImportResponse": {
+            "type": "object",
+            "properties": {
+                "imported": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_server.ImportTemplatesRequest": {
+            "type": "object",
+            "properties": {
+                "source_pokemon_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.LicenseAcceptResponse": {
+            "type": "object",
+            "properties": {
+                "license_accepted": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_server.MatchFrameResponse": {
+            "type": "object",
+            "properties": {
+                "confidence": {
+                    "type": "number"
+                },
+                "match": {
+                    "type": "boolean"
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.OverlayStateResponse": {
+            "type": "object",
+            "properties": {
+                "active_id": {
+                    "type": "string"
+                },
+                "active_pokemon": {
+                    "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon"
+                }
+            }
+        },
+        "internal_server.PathResponse": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.PokedexEntry": {
+            "type": "object",
+            "properties": {
+                "canonical": {
+                    "type": "string"
+                },
+                "forms": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/internal_server.PokemonForm"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "names": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "internal_server.PokedexSyncResponse": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer"
+                },
+                "namesUpdated": {
+                    "type": "integer"
+                },
+                "new": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_server.PokemonForm": {
+            "type": "object",
+            "properties": {
+                "canonical": {
+                    "type": "string"
+                },
+                "names": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "sprite_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_server.RestoreResponse": {
+            "type": "object",
+            "properties": {
+                "ok": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_server.SetConfigPathRequest": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.SetEncountersRequest": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_server.SpriteTemplateRequest": {
+            "type": "object",
+            "properties": {
+                "sprite_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.StatusResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.TemplateUploadRequest": {
+            "type": "object",
+            "properties": {
+                "imageBase64": {
+                    "type": "string"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_zsleyer_encounty_backend_internal_state.MatchedRegion"
+                    }
+                }
+            }
+        },
+        "internal_server.TemplateUploadResponse": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer"
+                },
+                "template_db_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_server.UpdateApplyRequest": {
+            "type": "object",
+            "properties": {
+                "download_url": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.UpdateHotkeyRequest": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.UpdateInfo": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "current_version": {
+                    "type": "string"
+                },
+                "download_url": {
+                    "type": "string"
+                },
+                "latest_version": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.VersionResponse": {
+            "type": "object",
+            "properties": {
+                "build_date": {
+                    "type": "string"
+                },
+                "commit": {
+                    "type": "string"
+                },
+                "display": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_server.detectorStatusEntry": {
+            "type": "object",
+            "properties": {
+                "pokemon_id": {
+                    "type": "string"
+                },
+                "running": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_server.errResp": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}

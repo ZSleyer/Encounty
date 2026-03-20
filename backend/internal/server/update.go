@@ -42,7 +42,13 @@ type UpdateInfo struct {
 // handleUpdateCheck queries the GitHub Releases API for the latest release
 // and returns an UpdateInfo payload indicating whether an update is available.
 // In dev mode (version == "dev") it always returns available=false.
-// GET /api/update/check
+//
+// @Summary      Check for available updates
+// @Tags         system
+// @Produce      json
+// @Success      200 {object} UpdateInfo
+// @Failure      500 {object} errResp
+// @Router       /update/check [get]
 func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -77,15 +83,21 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 
 // handleUpdateApply begins the update download and replacement in a
 // background goroutine, responding immediately so the UI can show a spinner.
-// POST /api/update/apply
+//
+// @Summary      Apply a downloaded update
+// @Tags         system
+// @Accept       json
+// @Produce      json
+// @Param        body body UpdateApplyRequest true "Download URL"
+// @Success      200 {object} StatusResponse
+// @Failure      400 {object} errResp
+// @Router       /update/apply [post]
 func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	var req struct {
-		DownloadURL string `json:"download_url"`
-	}
+	var req UpdateApplyRequest
 	if err := readJSON(r, &req); err != nil {
 		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
 		return
@@ -94,7 +106,7 @@ func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, errResp{"missing download_url"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "updating"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: "updating"})
 	go s.performUpdate(req.DownloadURL)
 }
 

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/kbinani/screenshot"
+	"github.com/zsleyer/encounty/backend/internal/detector"
 	"github.com/zsleyer/encounty/backend/internal/state"
 	"golang.org/x/image/draw"
 )
@@ -29,6 +30,13 @@ import (
 // handleDetectorScreenshot captures the primary monitor, downscales to a max
 // width of 1920 px, and returns the result as a JPEG image.
 // GET /api/detector/screenshot
+//
+// @Summary      Capture primary monitor screenshot
+// @Tags         detector
+// @Produce      jpeg
+// @Success      200 {file} binary
+// @Failure      500 {object} errResp
+// @Router       /detector/screenshot [get]
 func (s *Server) handleDetectorScreenshot(w http.ResponseWriter, r *http.Request) {
 	bounds := screenshot.GetDisplayBounds(0)
 	img, err := screenshot.CaptureRect(bounds)
@@ -54,6 +62,12 @@ type detectorStatusEntry struct {
 
 // handleDetectorStatus returns a JSON array of all running detector IDs.
 // GET /api/detector/status
+//
+// @Summary      List running detector IDs
+// @Tags         detector
+// @Produce      json
+// @Success      200 {array} detectorStatusEntry
+// @Router       /detector/status [get]
 func (s *Server) handleDetectorStatus(w http.ResponseWriter, r *http.Request) {
 	entries := []detectorStatusEntry{}
 	if s.detectorMgr != nil {
@@ -62,6 +76,38 @@ func (s *Server) handleDetectorStatus(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, http.StatusOK, entries)
+}
+
+// handleListWindows returns a JSON array of visible top-level windows.
+// GET /api/detector/windows
+//
+// @Summary      List visible top-level windows
+// @Tags         detector
+// @Produce      json
+// @Success      200 {array} object
+// @Router       /detector/windows [get]
+func (s *Server) handleListWindows(w http.ResponseWriter, _ *http.Request) {
+	windows := detector.ListWindows()
+	if windows == nil {
+		windows = []detector.WindowInfo{}
+	}
+	writeJSON(w, http.StatusOK, windows)
+}
+
+// handleListCameras returns a JSON array of available V4L2 video capture devices.
+// GET /api/detector/cameras
+//
+// @Summary      List available video capture devices
+// @Tags         detector
+// @Produce      json
+// @Success      200 {array} detector.CameraInfo
+// @Router       /detector/cameras [get]
+func (s *Server) handleListCameras(w http.ResponseWriter, _ *http.Request) {
+	cameras := detector.ListCameras()
+	if cameras == nil {
+		cameras = []detector.CameraInfo{}
+	}
+	writeJSON(w, http.StatusOK, cameras)
 }
 
 // handleDetectorDispatch parses the path and dispatches to the appropriate
@@ -119,6 +165,17 @@ func (s *Server) handleDetectorDispatch(w http.ResponseWriter, r *http.Request) 
 // handleDetectorConfig reads or replaces the DetectorConfig for a single hunt.
 // GET  /api/detector/{id}/config — returns the current config (empty struct if nil).
 // POST /api/detector/{id}/config — replaces the config with the request body.
+//
+// @Summary      Get or set detector config for a Pokemon
+// @Tags         detector
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Success      200 {object} state.DetectorConfig
+// @Failure      400 {object} errResp
+// @Failure      404 {object} errResp
+// @Router       /detector/{id}/config [get]
+// @Router       /detector/{id}/config [post]
 func (s *Server) handleDetectorConfig(w http.ResponseWriter, r *http.Request, id string) {
 	st := s.state.GetState()
 	pokemon := findPokemon(st, id)
@@ -147,7 +204,7 @@ func (s *Server) handleDetectorConfig(w http.ResponseWriter, r *http.Request, id
 		}
 		s.state.ScheduleSave()
 		s.broadcastState()
-		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+		writeJSON(w, http.StatusOK, OKResponse{OK: true})
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -159,6 +216,17 @@ func (s *Server) handleDetectorConfig(w http.ResponseWriter, r *http.Request, id
 // GET    /api/detector/{id}/template/{n}
 // DELETE /api/detector/{id}/template/{n}
 // PATCH  /api/detector/{id}/template/{n}
+//
+// @Summary      Get, delete or update a detector template
+// @Tags         detector
+// @Param        id path string true "Pokemon ID"
+// @Param        n path int true "Template index"
+// @Success      200 {file} binary
+// @Failure      400 {object} errResp
+// @Failure      404 {object} errResp
+// @Router       /detector/{id}/template/{n} [get]
+// @Router       /detector/{id}/template/{n} [delete]
+// @Router       /detector/{id}/template/{n} [patch]
 func (s *Server) handleDetectorTemplateN(w http.ResponseWriter, r *http.Request, id, nStr string) {
 	switch r.Method {
 	case http.MethodGet, http.MethodDelete, http.MethodPatch:
@@ -230,7 +298,7 @@ func (s *Server) handleTemplateDelete(w http.ResponseWriter, id string, n int, c
 	s.state.SetDetectorConfig(id, &cfg)
 	s.state.ScheduleSave()
 	s.broadcastState()
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	writeJSON(w, http.StatusOK, OKResponse{OK: true})
 }
 
 // handleTemplatePatch updates the regions and/or enabled flag for an existing template.
@@ -261,11 +329,23 @@ func (s *Server) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id 
 	s.state.SetDetectorConfig(id, &cfg2)
 	s.state.ScheduleSave()
 	s.broadcastState()
-	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	writeJSON(w, http.StatusOK, OKResponse{OK: true})
 }
 
 // handleDetectorTemplateUpload saves a new PNG template from an uploaded JPEG (Browser Source)
 // POST /api/detector/{id}/template_upload
+//
+// @Summary      Upload a new template image
+// @Tags         detector
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Param        body body TemplateUploadRequest true "Base64 image and regions"
+// @Success      200 {object} TemplateUploadResponse
+// @Failure      400 {object} errResp
+// @Failure      404 {object} errResp
+// @Failure      500 {object} errResp
+// @Router       /detector/{id}/template_upload [post]
 func (s *Server) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -312,7 +392,7 @@ func (s *Server) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Req
 	s.state.ScheduleSave()
 	s.broadcastState()
 
-	writeJSON(w, http.StatusOK, map[string]any{"index": sortOrder, "template_db_id": tmpl.TemplateDBID})
+	writeJSON(w, http.StatusOK, TemplateUploadResponse{Index: sortOrder, TemplateDBID: tmpl.TemplateDBID})
 }
 
 // parseTemplateUpload reads and validates the base64-encoded image from the
@@ -395,6 +475,18 @@ func (s *Server) storeTemplateImage(pokemonID string, pngBytes []byte, sortOrder
 // decodes it (handling animated GIFs by taking the first frame), saves it as
 // a PNG template, and appends it to the DetectorConfig.
 // POST /api/detector/{id}/sprite_template
+//
+// @Summary      Create template from Pokemon sprite
+// @Tags         detector
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Param        body body SpriteTemplateRequest false "Optional sprite URL override"
+// @Success      200 {object} TemplateUploadResponse
+// @Failure      400 {object} errResp
+// @Failure      404 {object} errResp
+// @Failure      500 {object} errResp
+// @Router       /detector/{id}/sprite_template [post]
 func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -457,7 +549,7 @@ func (s *Server) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Req
 	s.state.ScheduleSave()
 	s.broadcastState()
 
-	writeJSON(w, http.StatusOK, map[string]any{"index": sortOrder, "template_db_id": tmpl.TemplateDBID})
+	writeJSON(w, http.StatusOK, TemplateUploadResponse{Index: sortOrder, TemplateDBID: tmpl.TemplateDBID})
 }
 
 // resolveSpriteURL returns the sprite URL from the request body override
@@ -492,6 +584,16 @@ func fetchSpriteImage(spriteURL string) (image.Image, error) {
 
 // handleDetectorStart starts the detection goroutine for a single hunt.
 // POST /api/detector/{id}/start
+//
+// @Summary      Start detection for a Pokemon
+// @Tags         detector
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Success      200 {object} DetectorRunResponse
+// @Failure      400 {object} errResp
+// @Failure      404 {object} errResp
+// @Failure      500 {object} errResp
+// @Router       /detector/{id}/start [post]
 func (s *Server) handleDetectorStart(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -528,7 +630,7 @@ func (s *Server) handleDetectorStart(w http.ResponseWriter, r *http.Request, id 
 	s.state.ScheduleSave()
 	s.broadcastState()
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "running": true})
+	writeJSON(w, http.StatusOK, DetectorRunResponse{OK: true, Running: true})
 }
 
 // hydrateTemplates loads image BLOBs from the DB for templates that have a
@@ -551,6 +653,8 @@ func (s *Server) hydrateTemplates(cfg *state.DetectorConfig) {
 }
 
 // launchDetector starts a browser or native detector depending on the source type.
+// Browser sources use BrowserDetector (frames submitted via /match_frame);
+// screen_region, window, and camera sources use the goroutine-based Detector.
 func (s *Server) launchDetector(id string, cfg state.DetectorConfig) error {
 	isBrowser := cfg.SourceType == "browser_camera" || cfg.SourceType == "browser_display"
 	if isBrowser {
@@ -568,6 +672,13 @@ func (s *Server) launchDetector(id string, cfg state.DetectorConfig) error {
 
 // handleDetectorStop stops the detection goroutine for a single hunt.
 // POST /api/detector/{id}/stop
+//
+// @Summary      Stop detection for a Pokemon
+// @Tags         detector
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Success      200 {object} DetectorRunResponse
+// @Router       /detector/{id}/stop [post]
 func (s *Server) handleDetectorStop(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -588,7 +699,7 @@ func (s *Server) handleDetectorStop(w http.ResponseWriter, r *http.Request, id s
 		s.broadcastState()
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "running": false})
+	writeJSON(w, http.StatusOK, DetectorRunResponse{OK: true, Running: false})
 }
 
 // findPokemon returns a pointer to the Pokémon with the given id within st,
@@ -626,6 +737,16 @@ func downscaleImage(img image.Image, maxWidth int) image.Image {
 // AppendDetectionLog. Requires a BrowserDetector (browser_camera or
 // browser_display source types) — returns 400 if no templates are loaded.
 // POST /api/detector/{id}/match_frame
+//
+// @Summary      Submit a browser-captured frame for matching
+// @Tags         detector
+// @Accept       image/jpeg
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Success      200 {object} MatchFrameResponse
+// @Failure      400 {object} errResp
+// @Failure      404 {object} errResp
+// @Router       /detector/{id}/match_frame [post]
 func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -677,10 +798,10 @@ func (s *Server) handleMatchFrame(w http.ResponseWriter, r *http.Request, id str
 		s.handleMatchIncrement(id, pokemon.Name, result.Confidence)
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"match":      result.Incremented,
-		"state":      result.State,
-		"confidence": result.Confidence,
+	writeJSON(w, http.StatusOK, MatchFrameResponse{
+		Match:      result.Incremented,
+		State:      result.State,
+		Confidence: result.Confidence,
 	})
 }
 
@@ -716,15 +837,24 @@ func (s *Server) handleMatchIncrement(id, pokemonName string, confidence float64
 
 // handleImportTemplates copies all templates from a source Pokemon to the target.
 // POST /api/detector/{id}/import_templates
+//
+// @Summary      Import templates from another Pokemon
+// @Tags         detector
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Target Pokemon ID"
+// @Param        body body ImportTemplatesRequest true "Source Pokemon ID"
+// @Success      200 {object} ImportResponse
+// @Failure      400 {object} errResp
+// @Failure      404 {object} errResp
+// @Router       /detector/{id}/import_templates [post]
 func (s *Server) handleImportTemplates(w http.ResponseWriter, r *http.Request, targetID string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	var body struct {
-		SourcePokemonID string `json:"source_pokemon_id"`
-	}
+	var body ImportTemplatesRequest
 	if err := readJSON(r, &body); err != nil {
 		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
 		return
@@ -783,11 +913,19 @@ func (s *Server) handleImportTemplates(w http.ResponseWriter, r *http.Request, t
 	s.state.ScheduleSave()
 	s.broadcastState()
 
-	writeJSON(w, http.StatusOK, map[string]any{"imported": imported})
+	writeJSON(w, http.StatusOK, ImportResponse{Imported: imported})
 }
 
 // handleExportTemplates streams a ZIP file of all templates for a Pokemon.
 // GET /api/detector/{id}/export_templates
+//
+// @Summary      Export templates as ZIP
+// @Tags         detector
+// @Produce      application/zip
+// @Param        id path string true "Pokemon ID"
+// @Success      200 {file} binary
+// @Failure      404 {object} errResp
+// @Router       /detector/{id}/export_templates [get]
 func (s *Server) handleExportTemplates(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -858,6 +996,17 @@ type templateImportMeta struct {
 
 // handleImportTemplatesFile imports templates from an uploaded ZIP file.
 // POST /api/detector/{id}/import_templates_file
+//
+// @Summary      Import templates from uploaded ZIP
+// @Tags         detector
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Param        file formData file true "Template ZIP file"
+// @Success      200 {object} ImportResponse
+// @Failure      400 {object} errResp
+// @Failure      404 {object} errResp
+// @Router       /detector/{id}/import_templates_file [post]
 func (s *Server) handleImportTemplatesFile(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -902,7 +1051,7 @@ func (s *Server) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reques
 	s.state.ScheduleSave()
 	s.broadcastState()
 
-	writeJSON(w, http.StatusOK, map[string]any{"imported": imported})
+	writeJSON(w, http.StatusOK, ImportResponse{Imported: imported})
 }
 
 // readZipFromMultipart reads and parses a ZIP file from a multipart form upload.
@@ -986,4 +1135,16 @@ func (s *Server) importTemplatesFromMeta(pokemonID string, metadata []templateIm
 		imported++
 	}
 	return imported
+}
+
+// handleDetectorCapabilities returns platform-specific capture capabilities.
+// GET /api/detector/capabilities
+//
+// @Summary      Get platform capture capabilities
+// @Tags         detector
+// @Produce      json
+// @Success      200 {object} detector.Capabilities
+// @Router       /detector/capabilities [get]
+func (s *Server) handleDetectorCapabilities(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, detector.GetCapabilities())
 }

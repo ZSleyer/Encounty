@@ -57,6 +57,13 @@ var ignoredFormSubstrings = []string{
 }
 
 // handleGetPokedex serves the pokemon list (configDir first, then embedded, then source).
+//
+// @Summary      Get the Pokedex
+// @Tags         pokedex
+// @Produce      json
+// @Success      200 {array} PokedexEntry
+// @Failure      500 {object} errResp
+// @Router       /pokedex [get]
 func (s *Server) handleGetPokedex(w http.ResponseWriter, _ *http.Request) {
 	data, err := s.readPokedexJSON()
 	if err != nil {
@@ -71,6 +78,13 @@ func (s *Server) handleGetPokedex(w http.ResponseWriter, _ *http.Request) {
 // handleSyncPokemon downloads the latest pokemon list from PokéAPI and saves
 // it to the config directory. It orchestrates fetching new species, forms, and
 // localized names before persisting the result.
+//
+// @Summary      Sync Pokedex from PokeAPI
+// @Tags         pokedex
+// @Produce      json
+// @Success      200 {object} PokedexSyncResponse
+// @Failure      500 {object} errResp
+// @Router       /sync/pokemon [post]
 func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -120,11 +134,11 @@ func (s *Server) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 	}
 
 	slog.Info("Pokedex sync complete", "added", len(added), "names_updated", namesUpdated)
-	writeJSON(w, http.StatusOK, map[string]any{
-		"total":        len(current),
-		"added":        len(added),
-		"namesUpdated": namesUpdated,
-		"new":          added,
+	writeJSON(w, http.StatusOK, PokedexSyncResponse{
+		Total:        len(current),
+		Added:        len(added),
+		NamesUpdated: namesUpdated,
+		New:          added,
 	})
 }
 
