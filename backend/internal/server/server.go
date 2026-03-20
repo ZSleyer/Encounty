@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
@@ -32,6 +33,7 @@ type Server struct {
 	buildDate   string
 	detectorMgr *detector.Manager
 	db          *database.DB
+	ready       atomic.Bool
 }
 
 // Config carries all dependencies needed to construct a Server.
@@ -127,6 +129,7 @@ func (s *Server) registerCoreRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/licenses", s.handleLicenses)
 	mux.HandleFunc("/api/license/accept", s.handleAcceptLicense)
 	mux.HandleFunc("/api/settings/config-path", s.handleSetConfigPath)
+	mux.HandleFunc("GET /api/status/ready", s.handleReadyStatus)
 	mux.HandleFunc("/api/stats/overview", s.handleStatsOverview)
 	mux.HandleFunc("/api/stats/pokemon/", s.handleStatsDispatch)
 }
@@ -314,6 +317,18 @@ func (s *Server) handleHotkeyNext() {
 	s.state.NextPokemon()
 	s.state.ScheduleSave()
 	s.broadcastState()
+}
+
+// InitAsync runs initial setup tasks (games loading) in the background
+// and marks the server as ready when complete. It broadcasts a
+// "system_ready" WebSocket event to notify connected clients.
+func (s *Server) InitAsync() {
+	go func() {
+		_ = loadGames()
+		s.ready.Store(true)
+		s.hub.BroadcastRaw("system_ready", map[string]bool{"ready": true})
+		slog.Info("Server initialization complete")
+	}()
 }
 
 // corsMiddleware adds permissive CORS headers so the Vite dev server (port

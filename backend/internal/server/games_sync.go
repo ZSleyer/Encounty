@@ -178,7 +178,7 @@ func SyncGamesFromPokeAPI() (GamesSyncResult, error) {
 	if err := persistGames(raw); err != nil {
 		return result, err
 	}
-	cachedGames = nil // invalidate in-memory cache
+	invalidateGamesCache()
 	slog.Info("SyncGames: sync complete", "added", result.Added, "updated", result.Updated)
 	return result, nil
 }

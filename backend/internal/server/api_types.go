@@ -99,6 +99,11 @@ type RestoreResponse struct {
 	OK bool `json:"ok"`
 }
 
+// ReadyStatusResponse reports server readiness for initial data loading.
+type ReadyStatusResponse struct {
+	Ready bool `json:"ready"`
+}
+
 // --- Request types -----------------------------------------------------------
 
 // SetEncountersRequest is the body for POST /api/pokemon/{id}/set_encounters.

@@ -50,6 +50,20 @@ func (s *Server) handleGetState(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.state.GetState())
 }
 
+// handleReadyStatus reports whether the server has finished initial setup
+// (games sync, etc.) so the frontend can show a loading screen until ready.
+//
+// @Summary      Check server readiness
+// @Tags         system
+// @Produce      json
+// @Success      200 {object} ReadyStatusResponse
+// @Router       /status/ready [get]
+func (s *Server) handleReadyStatus(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, ReadyStatusResponse{
+		Ready: s.ready.Load(),
+	})
+}
+
 // handleAddPokemon creates a new Pokémon entry, assigns a UUID and timestamp,
 // and appends it to the state. POST /api/pokemon
 //

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"sort"
+	"sync"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 )
@@ -31,22 +32,42 @@ type GameEntry struct {
 	Platform   string            `json:"platform"`
 }
 
-var cachedGames []GameEntry
+var (
+	cachedGames []GameEntry
+	gamesMu     sync.Mutex
+)
 
 // loadGames returns the full game catalogue. It loads from the database,
 // triggering a PokeAPI sync on the very first call when the DB is empty.
+// The function is safe for concurrent use.
 func loadGames() []GameEntry {
+	gamesMu.Lock()
+	defer gamesMu.Unlock()
+
 	if cachedGames != nil {
 		return cachedGames
 	}
 
+	cachedGames = loadGamesFromDB()
+	return cachedGames
+}
+
+// invalidateGamesCache clears the in-memory games cache so the next call
+// to loadGames re-reads from the database.
+func invalidateGamesCache() {
+	gamesMu.Lock()
+	cachedGames = nil
+	gamesMu.Unlock()
+}
+
+// loadGamesFromDB loads games from the database, triggering a PokeAPI sync
+// if the database is empty.
+func loadGamesFromDB() []GameEntry {
 	// Load from database
 	if gamesDB != nil && gamesDB.HasGames() {
 		rows, err := gamesDB.LoadGames()
 		if err == nil && len(rows) > 0 {
-			entries := gameRowsToEntries(rows)
-			cachedGames = entries
-			return entries
+			return gameRowsToEntries(rows)
 		}
 		if err != nil {
 			slog.Warn("Could not load games from DB", "error", err)
@@ -65,9 +86,7 @@ func loadGames() []GameEntry {
 		// Retry loading after sync
 		rows, err := gamesDB.LoadGames()
 		if err == nil && len(rows) > 0 {
-			entries := gameRowsToEntries(rows)
-			cachedGames = entries
-			return entries
+			return gameRowsToEntries(rows)
 		}
 	}
 

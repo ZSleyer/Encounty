@@ -108,6 +108,7 @@ func main() {
 	})
 
 	broadcastFn = srv.Broadcast
+	srv.InitAsync()
 
 	startGracefulShutdown(srv, hotkeyMgr, db, stateMgr)
 

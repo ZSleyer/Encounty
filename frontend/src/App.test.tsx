@@ -7,9 +7,17 @@ const mockFetch = vi.fn();
 
 beforeEach(() => {
   mockFetch.mockReset();
-  mockFetch.mockResolvedValue({
-    ok: true,
-    json: () => Promise.resolve({ display: "1.0.0", build_date: "2024-01-01" }),
+  mockFetch.mockImplementation((url: string) => {
+    if (url === "/api/status/ready") {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ ready: true }),
+      });
+    }
+    return Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({ display: "1.0.0", build_date: "2024-01-01" }),
+    });
   });
   vi.stubGlobal("fetch", mockFetch);
 });
@@ -47,6 +55,12 @@ describe("App", () => {
 
   it("fetches and displays version information", async () => {
     mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: true }),
+        });
+      }
       if (url === "/api/version") {
         return Promise.resolve({
           ok: true,
@@ -83,6 +97,12 @@ describe("App", () => {
 
   it("sets theme attribute on document element", async () => {
     mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: true }),
+        });
+      }
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,
@@ -109,6 +129,12 @@ describe("App", () => {
 
   it("does not render WindowControls in non-Electron mode", async () => {
     mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: true }),
+        });
+      }
       if (url === "/api/state") {
         return Promise.resolve({
           ok: true,

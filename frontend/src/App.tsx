@@ -633,16 +633,75 @@ function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
 
 /* ── Root App — wraps providers ──────────────────────────────── */
 
+/** Full-screen overlay shown while the backend performs initial setup (e.g. first-launch game sync). */
+function PreparingScreen() {
+  const { t } = useI18n();
+  return (
+    <div className="fixed inset-0 bg-bg-primary flex flex-col items-center justify-center z-50">
+      <div className="flex flex-col items-center gap-4 max-w-sm text-center">
+        <img
+          src="/app-icon.png"
+          alt="Encounty"
+          className="w-16 h-16 rounded-xl object-contain mb-2"
+        />
+        <div className="w-12 h-12 border-4 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin" />
+        <h1 className="text-xl font-bold text-text-primary">{t("app.preparing")}</h1>
+        <p className="text-sm text-text-muted">{t("app.preparingHint")}</p>
+        <p className="text-xs text-text-faint animate-pulse">{t("app.preparingSync")}</p>
+      </div>
+    </div>
+  );
+}
+
 /** Gated shell that shows the license dialog on first launch. */
 function LicenseGate() {
+  const [serverReady, setServerReady] = useState<boolean | null>(null);
   const [status, setStatus] = useState<"loading" | "pending" | "accepted">("loading");
 
+  // Check backend readiness on mount
   useEffect(() => {
+    fetch(apiUrl("/api/status/ready"))
+      .then((r) => r.json())
+      .then((data: { ready: boolean }) => setServerReady(data.ready))
+      .catch(() => setServerReady(true)); // assume ready if endpoint doesn't exist
+  }, []);
+
+  // Poll readiness when the server is not yet ready
+  useEffect(() => {
+    if (serverReady !== false) return;
+    const interval = setInterval(() => {
+      fetch(apiUrl("/api/status/ready"))
+        .then((r) => r.json())
+        .then((data: { ready: boolean }) => {
+          if (data.ready) setServerReady(true);
+        })
+        .catch(() => {});
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [serverReady]);
+
+  // Check license status once the server is ready
+  useEffect(() => {
+    if (serverReady !== true) return;
     fetch(apiUrl("/api/state"))
       .then((r) => r.json())
       .then((s: AppState) => setStatus(s.license_accepted ? "accepted" : "pending"))
       .catch(() => setStatus("pending"));
-  }, []);
+  }, [serverReady]);
+
+  // Server readiness unknown yet — show loading spinner
+  if (serverReady === null) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-transparent">
+        <div className="w-10 h-10 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Server not ready — show preparing screen
+  if (serverReady === false) {
+    return <PreparingScreen />;
+  }
 
   if (status === "loading") {
     return (
