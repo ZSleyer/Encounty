@@ -280,6 +280,15 @@ function AppShell() {
     }
   }, [appState?.settings.crisp_sprites]);
 
+  // Sync ui-animations setting with CSS class
+  useEffect(() => {
+    if (appState?.settings.ui_animations === false) {
+      document.documentElement.classList.add('animations-disabled');
+    } else {
+      document.documentElement.classList.remove('animations-disabled');
+    }
+  }, [appState?.settings.ui_animations]);
+
   // Pause CSS animations when the app tab/window is not visible (CPU savings)
   useEffect(() => {
     const handler = () => {
@@ -298,94 +307,67 @@ function AppShell() {
     globalThis.close();
   }, [t]);
 
-  useWebSocket(
-    (msg: WSMessage) => {
-      if (msg.type === "state_update") {
-        const newState = msg.payload as AppState;
-        setAppState(newState);
-        setConnected(true);
-        // Clear detector status entries for pokémon whose detector is disabled,
-        // so the UI correctly shows them as stopped.
-        for (const p of newState.pokemon ?? []) {
-          if (!p.detector_config?.enabled) {
-            clearDetectorStatus(p.id);
-          }
-        }
-      } else if (msg.type === "encounter_added") {
-        const p = msg.payload as { pokemon_id: string; count: number };
-        flashPokemon(p.pokemon_id);
-        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
-        if (pokemon) {
-          pushToast({
-            type: "encounter",
-            title: pokemon.name,
-            message: `${p.count} ${t("settings.encounterToast")}`,
-            spriteUrl: pokemon.sprite_url || undefined,
-          });
-        }
-      } else if (msg.type === "encounter_removed") {
-        const p = msg.payload as { pokemon_id: string; count: number };
-        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
-        if (pokemon) {
-          pushToast({
-            type: "encounter",
-            badge: "-1",
-            spriteUrl: pokemon.sprite_url || undefined,
-            title: pokemon.name,
-            message: `${p.count} ${t("settings.encounterToast")}`,
-          });
-        }
-      } else if (msg.type === "encounter_reset") {
-        const p = msg.payload as { pokemon_id: string };
-        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
-        if (pokemon) {
-          pushToast({
-            type: "encounter",
-            badge: "0",
-            spriteUrl: pokemon.sprite_url || undefined,
-            title: pokemon.name,
-            message: t("app.counterReset") || "Zähler zurückgesetzt",
-          });
-        }
-      } else if (msg.type === "pokemon_completed") {
-        const p = msg.payload as { pokemon_id: string };
-        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
-        if (pokemon) {
-          pushToast({
-            type: "encounter",
-            badge: "✔",
-            spriteUrl: pokemon.sprite_url || undefined,
-            title: pokemon.name,
-            message:
-              t("app.pokemonCompleted") || "Jagd erfolgreich abgeschlossen!",
-          });
-        }
-      } else if (msg.type === "pokemon_deleted") {
-        const p = msg.payload as { pokemon_id: string };
-        const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
-        if (pokemon) {
-          pushToast({
-            type: "encounter",
-            badge: "🗑",
-            spriteUrl: pokemon.sprite_url || undefined,
-            title: pokemon.name,
-            message: t("app.pokemonDeleted") || "Pokémon entfernt",
-          });
-        }
-      } else if (msg.type === "detector_status") {
-        const p = msg.payload as { pokemon_id: string; state: string; confidence: number; poll_ms: number };
-        setDetectorStatus(p.pokemon_id, {
-          state: p.state,
-          confidence: p.confidence,
-          poll_ms: p.poll_ms,
-        } as DetectorStatusEntry);
-      } else if (msg.type === "detector_match") {
-        // counter already incremented by backend; encounter_added fires separately
+  // --- WebSocket message handler ---
+  const handleWSMessage = useCallback((msg: WSMessage) => {
+    if (msg.type === "state_update") {
+      handleStateUpdate(msg.payload as AppState);
+    } else if (msg.type === "encounter_added") {
+      handleEncounterAdded(msg.payload as { pokemon_id: string; count: number });
+    } else if (msg.type === "encounter_removed") {
+      handleEncounterToast(msg.payload as { pokemon_id: string; count: number }, "-1");
+    } else if (msg.type === "encounter_reset") {
+      handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "0", t("app.counterReset") || "Zähler zurückgesetzt");
+    } else if (msg.type === "pokemon_completed") {
+      handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "✔", t("app.pokemonCompleted") || "Jagd erfolgreich abgeschlossen!");
+    } else if (msg.type === "pokemon_deleted") {
+      handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "🗑", t("app.pokemonDeleted") || "Pokémon entfernt");
+    } else if (msg.type === "detector_status") {
+      const p = msg.payload as { pokemon_id: string; state: string; confidence: number; poll_ms: number };
+      setDetectorStatus(p.pokemon_id, { state: p.state, confidence: p.confidence, poll_ms: p.poll_ms } as DetectorStatusEntry);
+    }
+    // detector_match: counter already incremented by backend; encounter_added fires separately
+  }, [appState, t, setAppState, setConnected, flashPokemon, pushToast, clearDetectorStatus, setDetectorStatus]);
+
+  function handleStateUpdate(newState: AppState) {
+    setAppState(newState);
+    setConnected(true);
+    for (const p of newState.pokemon ?? []) {
+      if (!p.detector_config?.enabled) {
+        clearDetectorStatus(p.id);
       }
-    },
-    () => setConnected(true),
-    () => setConnected(false),
-  );
+    }
+  }
+
+  function handleEncounterAdded(p: { pokemon_id: string; count: number }) {
+    flashPokemon(p.pokemon_id);
+    handleEncounterToast(p);
+  }
+
+  function handleEncounterToast(p: { pokemon_id: string; count: number }, badge?: string) {
+    const pokemon = appState?.pokemon.find((x) => x.id === p.pokemon_id);
+    if (!pokemon) return;
+    pushToast({
+      type: "encounter",
+      badge,
+      spriteUrl: pokemon.sprite_url || undefined,
+      title: pokemon.name,
+      message: `${p.count} ${t("settings.encounterToast")}`,
+    });
+  }
+
+  function handlePokemonToast(pokemonId: string, badge: string, message: string) {
+    const pokemon = appState?.pokemon.find((x) => x.id === pokemonId);
+    if (!pokemon) return;
+    pushToast({
+      type: "encounter",
+      badge,
+      spriteUrl: pokemon.sprite_url || undefined,
+      title: pokemon.name,
+      message,
+    });
+  }
+
+  useWebSocket(handleWSMessage, () => setConnected(true), () => setConnected(false));
 
   if (isOverlay) {
     return (

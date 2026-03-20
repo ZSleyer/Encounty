@@ -64,10 +64,12 @@ async function createWindow(): Promise<void> {
     title: 'Encounty',
     icon: iconPath,
     frame: false,
+    backgroundColor: '#0f0f13',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      backgroundThrottling: false,
       preload: path.join(__dirname, 'preload.js')
     }
   });

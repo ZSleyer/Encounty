@@ -231,6 +231,15 @@
   animation-play-state: paused !important;
 }
 
+/* Disable UI animations when user toggles them off (performance) */
+.animations-disabled .switch-waves,
+.animations-disabled .footer-line,
+.animations-disabled .glow-line-h,
+.animations-disabled .glow-line-v,
+.animations-disabled .pulse-border {
+  animation: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .switch-waves, .footer-line, .glow-line-h, .glow-line-v, .pulse-border {
     animation: none !important;

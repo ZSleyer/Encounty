@@ -85,7 +85,7 @@ const SECTIONS: SectionDef[] = [
     id: "display",
     titleKey: "settings.sectionDisplay",
     icon: <Image className="w-4 h-4 text-accent-blue" />,
-    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache", "theme", "dark", "light", "dunkel", "hell", "locale", "deutsch", "english"],
+    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache", "theme", "dark", "light", "dunkel", "hell", "locale", "deutsch", "english", "animation", "animationen"],
   },
   {
     id: "output",
@@ -109,7 +109,7 @@ const SECTIONS: SectionDef[] = [
     id: "about",
     titleKey: "settings.sectionAbout",
     icon: <Info className="w-4 h-4 text-text-muted" />,
-    keywords: ["about", "über", "lizenz", "license", "version", "info"],
+    keywords: ["about", "über", "lizenz", "license", "version", "info", "pokeapi", "showdown", "api"],
   },
 ];
 
@@ -129,6 +129,7 @@ export function Settings() {
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [licensesOpen, setLicensesOpen] = useState(false);
+  const [dataSourcesOpen, setDataSourcesOpen] = useState(false);
   const [licenses, setLicenses] = useState<LicenseEntry[]>([]);
   const [expandedLicense, setExpandedLicense] = useState<string | null>(null);
   const [showLicenseDialog, setShowLicenseDialog] = useState(false);
@@ -140,6 +141,15 @@ export function Settings() {
       document.documentElement.dataset.crispSprites = "";
     } else {
       delete document.documentElement.dataset.crispSprites;
+    }
+  };
+
+  const setUIAnimations = (v: boolean) => {
+    setSettings((s) => (s ? { ...s, ui_animations: v } : s));
+    if (v) {
+      document.documentElement.classList.remove('animations-disabled');
+    } else {
+      document.documentElement.classList.add('animations-disabled');
     }
   };
 
@@ -193,6 +203,7 @@ export function Settings() {
     settings?.auto_save,
     settings?.browser_port,
     settings?.crisp_sprites,
+    settings?.ui_animations,
     JSON.stringify(settings?.languages),
   ]);
 
@@ -464,6 +475,25 @@ export function Settings() {
                 <Toggle
                   enabled={settings.crisp_sprites ?? false}
                   onChange={() => setCrispSprites(!(settings.crisp_sprites ?? false))}
+                  color="bg-accent-blue/80"
+                />
+              </div>
+
+              <div className="border-t border-border-subtle/50" />
+
+              {/* UI Animations */}
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-text-primary">
+                    {t("settings.uiAnimations")}
+                  </p>
+                  <p className="text-xs text-text-muted mt-0.5 max-w-sm">
+                    {t("settings.uiAnimationsDesc")}
+                  </p>
+                </div>
+                <Toggle
+                  enabled={settings.ui_animations ?? true}
+                  onChange={() => setUIAnimations(!(settings.ui_animations ?? true))}
                   color="bg-accent-blue/80"
                 />
               </div>
@@ -816,6 +846,49 @@ export function Settings() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Data Sources & APIs */}
+              <button
+                onClick={() => setDataSourcesOpen(!dataSourcesOpen)}
+                className="w-full flex items-center justify-between py-1"
+              >
+                <span className="text-sm text-text-primary flex items-center gap-2">
+                  <Globe className="w-3.5 h-3.5 text-text-muted" />
+                  {t("licenses.dataSources")}
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 text-text-muted transition-transform duration-200 ${dataSourcesOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {dataSourcesOpen && (
+                <div className="space-y-2">
+                  <p className="text-xs text-text-muted">{t("licenses.dataSourcesDesc")}</p>
+                  <div className="space-y-1">
+                    {[
+                      { name: "PokéAPI", url: "https://pokeapi.co", desc: "Pokémon data & sprites" },
+                      { name: "Pokémon Showdown", url: "https://pokemonshowdown.com", desc: "Animated sprites" },
+                    ].map((src) => (
+                      <div
+                        key={src.name}
+                        className="bg-bg-secondary/30 border border-border-subtle rounded-lg px-3 py-2 flex items-center gap-3"
+                      >
+                        <span className="text-xs text-text-primary font-medium flex-1 min-w-0 truncate">
+                          {src.name}
+                        </span>
+                        <a
+                          href={src.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-accent-blue hover:underline shrink-0"
+                        >
+                          {src.url.replace("https://", "")}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </section>
