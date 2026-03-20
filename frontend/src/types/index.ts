@@ -55,6 +55,22 @@ export interface HotkeyMap {
   next_pokemon: string;
 }
 
+/** WindowInfo represents a native window available for capture. */
+export interface WindowInfo {
+  hwnd: number;
+  title: string;
+  class: string;
+  w: number;
+  h: number;
+}
+
+/** CameraInfo represents a native camera device available for capture. */
+export interface CameraInfo {
+  device_path: string;
+  name: string;
+  driver: string;
+}
+
 /** DetectorRect defines a rectangular screen region in absolute pixel coordinates. */
 export interface DetectorRect {
   x: number;
@@ -87,7 +103,7 @@ export interface DetectorTemplate {
 /** DetectorConfig holds all auto-detection settings for a single Pokémon hunt. */
 export interface DetectorConfig {
   enabled: boolean;
-  source_type: "screen_region" | "window" | "browser_camera" | "browser_display";
+  source_type: "screen_region" | "window" | "camera" | "browser_camera" | "browser_display";
   region: DetectorRect;
   window_title: string;
   templates: DetectorTemplate[];
@@ -102,6 +118,16 @@ export interface DetectorConfig {
   adaptive_cooldown_min?: number;
   relative_regions?: boolean;
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
+}
+
+/** DetectorCapabilities reports which capture backends the server supports. */
+export interface DetectorCapabilities {
+  platform: string;
+  display_server: string;
+  supports_window_capture: boolean;
+  supports_screen_capture: boolean;
+  supports_camera: boolean;
+  sidecar_available: boolean;
 }
 
 /** HuntTypePreset is metadata for one shiny hunting method, returned by the server. */

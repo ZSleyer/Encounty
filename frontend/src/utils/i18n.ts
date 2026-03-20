@@ -412,6 +412,11 @@ const translations: Record<Locale, Record<string, string>> = {
     "sourcePicker.captureCardHint": "Capture Card",
     "sourcePicker.connectedTo": "Verbunden: {name}",
     "sourcePicker.refreshing": "Aktualisiere…",
+    "sourcePicker.native": "Nativ",
+    "sourcePicker.browser": "Browser",
+    "sourcePicker.fast": "Schnell",
+    "sourcePicker.slow": "Langsam",
+    "sourcePicker.change": "Ändern",
 
     // ── Template Editor ──
     "templateEditor.title": "Template-Editor",
@@ -611,6 +616,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.adaptiveCooldownMin": "Min. Cooldown (s)",
     "detector.relativeRegions": "Relative Regionen",
     "detector.relativeRegionsDesc": "Template-Regionen proportional skalieren wenn sich die Fenstergröße ändert",
+    "detector.sourceWindow": "Fenster (schnell)",
+    "detector.sourceNativeCamera": "Kamera (schnell)",
+    "detector.errNoSource": "Wähle zuerst eine Aufnahmequelle",
+    "detector.selectSource": "Quelle wählen",
+    "detector.nativeCapture": "Native Aufnahme aktiv",
+    "detector.nativeCaptureHint": "Aufnahme läuft im Backend — keine Browser-Vorschau",
+    "detector.sourceUnavailable": "Auf diesem System nicht verfügbar",
+    "detector.useInstead": "Nutze Browser-Quellen stattdessen",
+    "detector.capWarning": "Gewählte Quelle wird auf diesem System nicht unterstützt",
 
     // ── Footer ──
     "footer.hunts": "Hunts",
@@ -1008,6 +1022,11 @@ const translations: Record<Locale, Record<string, string>> = {
     "sourcePicker.captureCardHint": "Capture Card",
     "sourcePicker.connectedTo": "Connected: {name}",
     "sourcePicker.refreshing": "Refreshing…",
+    "sourcePicker.native": "Native",
+    "sourcePicker.browser": "Browser",
+    "sourcePicker.fast": "Fast",
+    "sourcePicker.slow": "Slow",
+    "sourcePicker.change": "Change",
 
     // ── Template Editor ──
     "templateEditor.title": "Template Editor",
@@ -1206,6 +1225,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.adaptiveCooldownMin": "Min. cooldown (s)",
     "detector.relativeRegions": "Relative Regions",
     "detector.relativeRegionsDesc": "Scale template regions proportionally when the window size changes",
+    "detector.sourceWindow": "Window (fast)",
+    "detector.sourceNativeCamera": "Camera (fast)",
+    "detector.errNoSource": "Select a capture source first",
+    "detector.selectSource": "Select Source",
+    "detector.nativeCapture": "Native capture active",
+    "detector.nativeCaptureHint": "Capture runs on server — no browser preview",
+    "detector.sourceUnavailable": "Not available on this system",
+    "detector.useInstead": "Use browser sources instead",
+    "detector.capWarning": "Selected source is not supported on this system",
 
     // ── Footer ──
     "footer.hunts": "Hunts",
