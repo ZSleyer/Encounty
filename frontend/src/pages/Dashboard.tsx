@@ -245,7 +245,7 @@ export function Dashboard() {
   useEffect(() => {
     fetch(`${API}/games`)
       .then((r) => r.json())
-      .then((data: GameEntry[]) => setGames(data))
+      .then((data: GameEntry[]) => { if (Array.isArray(data)) setGames(data); })
       .catch(() => {});
   }, []);
 
