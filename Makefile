@@ -43,7 +43,7 @@ icons:
 	@echo "Generating icons from frontend/public/app-icon.png..."
 	cd $(BACKEND_DIR) && go run ../scripts/generate_icons.go
 
-build-linux: frontend icons licenses
+build-linux: frontend icons
 	@echo "Building Encounty $(VERSION) ($(COMMIT)) for Linux..."
 	@# Copy frontend dist to backend for embedding
 	@rm -rf $(BACKEND_DIR)/frontend
@@ -65,7 +65,7 @@ build-linux: frontend icons licenses
 	@echo "Categories=Game;Utility;" >> $(LINUX_DIST)/$(BINARY).desktop
 	@echo "Done: ./$(LINUX_DIST)/ (Run ./$(BINARY) or use the .desktop file)"
 
-build-windows: frontend icons licenses
+build-windows: frontend icons
 	$(eval WINRES := $(shell go env GOPATH)/bin/go-winres)
 	@command -v $(WINRES) >/dev/null 2>&1 || (echo "Installing go-winres..." && go install github.com/tc-hib/go-winres@latest)
 	@# Extract numeric version for Windows (v1.2.3 -> 1.2.3.0, v0.3 -> 0.3.0)

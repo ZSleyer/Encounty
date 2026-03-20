@@ -32,8 +32,14 @@ echo '[]' > "$TMP_DIR/go_entries.json"
 
 "$GO_LICENSES" report ./... --ignore github.com/zsleyer/encounty 2>/dev/null | while IFS=, read -r mod url license_type; do
   [ -z "$mod" ] && continue
-  version=$(echo "$url" | grep -oP 'v[0-9]+\.[0-9]+[^/]*' | head -1 || echo "")
-  license_file=$(find "$GO_SAVE_DIR/$mod" -maxdepth 1 \( -iname 'LICENSE*' -o -iname 'COPYING*' \) 2>/dev/null | head -1)
+  version=$(echo "$url" | grep -oP 'v[0-9]+\.[0-9]+(\.[0-9]+)?' || echo "")
+  license_file=$(find "$GO_SAVE_DIR/$mod" -maxdepth 1 \( -iname 'LICENSE*' -o -iname 'COPYING*' \) 2>/dev/null | head -1 || true)
+  # Fallback: check Go module cache if go-licenses didn't save this module
+  if [ -z "$license_file" ]; then
+    mod_cache="$(go env GOMODCACHE)/${mod}@*"
+    # shellcheck disable=SC2086
+    license_file=$(find $mod_cache -maxdepth 1 \( -iname 'LICENSE*' -o -iname 'COPYING*' \) 2>/dev/null | head -1 || true)
+  fi
   if [ -n "$license_file" ]; then
     # Use jq --rawfile to safely read the license text (handles all special chars)
     jq -n \
