@@ -103,14 +103,18 @@ async function createWindow(): Promise<void> {
   });
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url.startsWith('encounty://')) return;
-    // Allow navigation to localhost API (e.g. swagger)
     if (url.startsWith('http://localhost:')) return;
     event.preventDefault();
     shell.openExternal(url);
   });
 
-  // Load from Go backend
-  await mainWindow.loadURL('encounty://app/');
+  // In dev mode, load from Vite dev server (frontend + API proxy).
+  // In production, load from the custom encounty:// protocol.
+  if (isDev) {
+    await mainWindow.loadURL('http://localhost:5173');
+  } else {
+    await mainWindow.loadURL('encounty://app/');
+  }
 
   // Open DevTools in development mode
   if (isDev) {
@@ -124,27 +128,31 @@ async function createWindow(): Promise<void> {
 
 async function startApp(): Promise<void> {
   try {
-    // Start Go backend
-    goProcess = new GoProcessManager();
+    // In dev mode, Go backend runs separately (via `make dev` / `go run`).
+    // In production, spawn the bundled Go binary.
+    if (!isDev) {
+      goProcess = new GoProcessManager();
 
-    // Wait for backend to be ready
-    await new Promise<void>((resolve, reject) => {
-      goProcess!.on('ready', () => {
-        console.log('[Electron] Go backend ready');
-        resolve();
+      await new Promise<void>((resolve, reject) => {
+        goProcess!.on('ready', () => {
+          console.log('[Electron] Go backend ready');
+          resolve();
+        });
+
+        goProcess!.on('error', (err) => {
+          console.error('[Electron] Go backend error:', err);
+          reject(err);
+        });
+
+        goProcess!.on('max-restarts-reached', () => {
+          reject(new Error('Go backend failed to start after multiple attempts'));
+        });
+
+        goProcess!.start();
       });
-
-      goProcess!.on('error', (err) => {
-        console.error('[Electron] Go backend error:', err);
-        reject(err);
-      });
-
-      goProcess!.on('max-restarts-reached', () => {
-        reject(new Error('Go backend failed to start after multiple attempts'));
-      });
-
-      goProcess!.start();
-    });
+    } else {
+      console.log('[Electron] Dev mode — expecting Go backend on localhost:8080');
+    }
 
     // Create window once backend is ready
     await createWindow();
