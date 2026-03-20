@@ -35,7 +35,7 @@ func TestBrowserDetectorCooldownStaysInCooldown(t *testing.T) {
 	// match_active -> cooldown
 	bd.SubmitFrame(matchFrame)
 
-	// Cooldown not yet expired (10 seconds), should stay in cooldown
+	// Cooldown not yet expired (10 seconds), should stay in cooldown.
 	r := bd.SubmitFrame(matchFrame)
 	if r.State != "cooldown" {
 		t.Errorf("State = %q, want cooldown", r.State)
@@ -68,7 +68,7 @@ func TestBrowserDetectorFullCycleWithDefaults(t *testing.T) {
 		t.Errorf("State = %q, want cooldown", r.State)
 	}
 
-	// Force cooldown expiry
+	// Force cooldown expiry.
 	bd.mu.Lock()
 	bd.cooldownEnd = time.Now().Add(-1 * time.Second)
 	bd.mu.Unlock()
@@ -86,7 +86,7 @@ func TestBrowserDetectorFullCycleWithDefaults(t *testing.T) {
 		t.Errorf(fmtStateWantIdle, r.State)
 	}
 
-	// Now a matching frame should trigger again (low->high edge)
+	// Now a matching frame should trigger again (low->high edge).
 	r = bd.SubmitFrame(matchFrame)
 	if !r.Incremented {
 		t.Error("Should re-trigger after non-match gap")

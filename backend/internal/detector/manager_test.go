@@ -99,7 +99,7 @@ func TestManagerStartStop(t *testing.T) {
 func TestManagerStopIdempotent(t *testing.T) {
 	mgr, pokemonID := setupTestManager(t)
 
-	// Stopping a detector that was never started should not panic
+	// Stopping a detector that was never started should not panic.
 	mgr.Stop(pokemonID)
 	mgr.Stop(pokemonID)
 	if mgr.IsRunning(pokemonID) {
@@ -178,13 +178,14 @@ func TestManagerGetOrCreateBrowserDetector(t *testing.T) {
 	tmpDir := mgr.configDir
 
 	cfg := writeTemplateFile(t, tmpDir, pokemonID)
+	cfg.SourceType = "browser_camera"
 
 	bd1 := mgr.GetOrCreateBrowserDetector(pokemonID, cfg)
 	if bd1 == nil {
 		t.Fatal("GetOrCreateBrowserDetector returned nil")
 	}
 
-	// Calling again with the same ID should return the same instance
+	// Calling again with the same ID should return the same instance.
 	bd2 := mgr.GetOrCreateBrowserDetector(pokemonID, cfg)
 	if bd1 != bd2 {
 		t.Error("GetOrCreateBrowserDetector returned different instance for same ID")
@@ -200,6 +201,7 @@ func TestManagerResetBrowserDetector(t *testing.T) {
 	tmpDir := mgr.configDir
 
 	cfg := writeTemplateFile(t, tmpDir, pokemonID)
+	cfg.SourceType = "browser_camera"
 
 	bd1 := mgr.GetOrCreateBrowserDetector(pokemonID, cfg)
 	bd2 := mgr.ResetBrowserDetector(pokemonID, cfg)
@@ -214,7 +216,7 @@ func TestManagerResetBrowserDetector(t *testing.T) {
 
 func TestManagerStopRemovesBrowserDetector(t *testing.T) {
 	mgr, pokemonID := setupTestManager(t)
-	cfg := state.DetectorConfig{Enabled: true}
+	cfg := state.DetectorConfig{Enabled: true, SourceType: "browser_camera"}
 
 	_ = mgr.GetOrCreateBrowserDetector(pokemonID, cfg)
 	if !mgr.IsBrowserRunning(pokemonID) {
@@ -233,7 +235,7 @@ func TestManagerSetBroadcast(t *testing.T) {
 	mgr.SetBroadcast(func(msgType string, payload any) {
 		called = true
 	})
-	// Verify the broadcast was replaced by invoking it through the manager
+	// Verify the broadcast was replaced by invoking it through the manager.
 	mgr.broadcast("test", nil)
 	if !called {
 		t.Error("SetBroadcast did not replace the broadcast function")

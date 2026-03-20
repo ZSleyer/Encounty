@@ -82,5 +82,12 @@ export function useWebSocket(
     }
   }, [])
 
-  return { send }
+  /** Send raw binary data (ArrayBuffer or Uint8Array) over the WebSocket. */
+  const sendBinary = useCallback((data: ArrayBuffer | Uint8Array) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(data)
+    }
+  }, [])
+
+  return { send, sendBinary }
 }

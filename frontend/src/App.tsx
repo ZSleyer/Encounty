@@ -368,7 +368,10 @@ function AppShell() {
     });
   }
 
-  useWebSocket(handleWSMessage, () => setConnected(true), () => setConnected(false));
+  const { sendBinary } = useWebSocket(handleWSMessage, () => setConnected(true), () => setConnected(false));
+
+  // Expose sendBinary to the CaptureServiceProvider via module-level ref
+  wsSendBinaryRef.current = sendBinary;
 
   if (isOverlay) {
     return (
@@ -661,12 +664,25 @@ function LicenseGate() {
   );
 }
 
+/**
+ * Module-level ref bridging the WebSocket sendBinary function from AppShell
+ * (child) to CaptureServiceProvider (parent). AppShell sets the ref on mount,
+ * and the provider reads it lazily when a worker needs to send a frame.
+ */
+const wsSendBinaryRef: React.MutableRefObject<((data: ArrayBuffer | Uint8Array) => void) | undefined> = { current: undefined };
+
 export function App() {
+  // Wrap sendBinary in a stable callback that delegates to the ref, so the
+  // provider always uses the latest WebSocket instance without re-rendering.
+  const sendBinary = useCallback((data: ArrayBuffer | Uint8Array) => {
+    wsSendBinaryRef.current?.(data);
+  }, []);
+
   return (
     <ThemeProvider>
       <I18nProvider>
         <ToastProvider>
-          <CaptureServiceProvider>
+          <CaptureServiceProvider sendBinary={sendBinary}>
             <LicenseGate />
           </CaptureServiceProvider>
         </ToastProvider>

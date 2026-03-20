@@ -9,7 +9,10 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
+	"image"
+	_ "image/jpeg"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -136,9 +139,13 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 	}()
 
 	for {
-		_, data, err := conn.ReadMessage()
+		msgType, data, err := conn.ReadMessage()
 		if err != nil {
 			break
+		}
+		if msgType == websocket.BinaryMessage {
+			srv.processBrowserFrame(data)
+			continue
 		}
 		var msg WSMessage
 		if err := json.Unmarshal(data, &msg); err != nil {
@@ -158,6 +165,68 @@ func (h *Hub) CloseAll() {
 		close(c.send) // triggers writePump to send close frame and exit
 	}
 	h.clients = make(map[*wsClient]bool)
+}
+
+// processBrowserFrame handles a binary WebSocket message containing a JPEG frame
+// for browser-based detection. Format: 36-byte Pokemon UUID (ASCII) + JPEG data.
+func (s *Server) processBrowserFrame(data []byte) {
+	const uuidLen = 36
+	if len(data) <= uuidLen {
+		return
+	}
+	pokemonID := string(data[:uuidLen])
+	jpegData := data[uuidLen:]
+
+	frame, _, err := image.Decode(bytes.NewReader(jpegData))
+	if err != nil {
+		return
+	}
+
+	s.submitBrowserFrame(pokemonID, frame)
+}
+
+// submitBrowserFrame processes a decoded frame for browser-based detection.
+// Both the binary WebSocket handler and the HTTP match_frame endpoint delegate
+// to this method so the matching logic is shared. Errors are silently ignored
+// because binary WS frames are fire-and-forget.
+func (s *Server) submitBrowserFrame(pokemonID string, frame image.Image) {
+	if s.detectorMgr == nil {
+		return
+	}
+
+	st := s.state.GetState()
+	pokemon := findPokemon(st, pokemonID)
+	if pokemon == nil || pokemon.DetectorConfig == nil || len(pokemon.DetectorConfig.Templates) == 0 {
+		return
+	}
+
+	detCfg := *pokemon.DetectorConfig
+	s.hydrateTemplates(&detCfg)
+
+	bd := s.detectorMgr.GetOrCreateBrowserDetector(pokemonID, detCfg)
+	if !bd.HasTemplates() {
+		bd = s.detectorMgr.ResetBrowserDetector(pokemonID, detCfg)
+	}
+
+	result := bd.SubmitFrame(frame)
+
+	if result.Confidence > 0.1 {
+		slog.Debug("ws browser frame result",
+			"pokemon", pokemon.Name, "id", pokemonID,
+			"state", result.State, "confidence", result.Confidence,
+			"incremented", result.Incremented)
+	}
+
+	s.hub.BroadcastRaw("detector_status", map[string]any{
+		"pokemon_id": pokemonID,
+		"state":      result.State,
+		"confidence": result.Confidence,
+		"poll_ms":    0,
+	})
+
+	if result.Incremented {
+		s.handleMatchIncrement(pokemonID, pokemon.Name, result.Confidence)
+	}
 }
 
 func mustMarshal(v any) []byte {

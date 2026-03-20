@@ -14,14 +14,15 @@ import (
 
 const testPokemonID = "pokemon-1"
 
-// newTestBrowserDetector creates a BrowserDetector with a single template
-// loaded from a synthetic checkerboard PNG written to tmpDir.
-func newTestBrowserDetector(t *testing.T, precision float64, consecutiveHits, cooldownSec int) *BrowserDetector {
+// newTestBrowserDetector creates a Detector configured for browser sources
+// with a single template loaded from a synthetic checkerboard PNG written
+// to tmpDir.
+func newTestBrowserDetector(t *testing.T, precision float64, consecutiveHits, cooldownSec int) *Detector {
 	t.Helper()
 	tmpDir := t.TempDir()
 	pokemonID := "test-pokemon"
 
-	// Write a checkerboard template
+	// Write a checkerboard template.
 	tmplDir := filepath.Join(tmpDir, "templates", pokemonID)
 	if err := os.MkdirAll(tmplDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -40,6 +41,7 @@ func newTestBrowserDetector(t *testing.T, precision float64, consecutiveHits, co
 
 	cfg := state.DetectorConfig{
 		Enabled:         true,
+		SourceType:      "browser_camera",
 		Precision:       precision,
 		ConsecutiveHits: consecutiveHits,
 		CooldownSec:     cooldownSec,
@@ -48,7 +50,10 @@ func newTestBrowserDetector(t *testing.T, precision float64, consecutiveHits, co
 		},
 	}
 
-	return newBrowserDetector(cfg, tmpDir, pokemonID, "eng")
+	broadcast := func(msgType string, payload any) {} // no-op broadcast for test
+	d := newDetector(pokemonID, cfg, nil, broadcast, tmpDir)
+	d.templates = loadTemplates(cfg.Templates, tmpDir, pokemonID)
+	return d
 }
 
 func TestBrowserDetectorHasTemplates(t *testing.T) {
@@ -59,8 +64,10 @@ func TestBrowserDetectorHasTemplates(t *testing.T) {
 }
 
 func TestBrowserDetectorNoTemplates(t *testing.T) {
-	cfg := state.DetectorConfig{Enabled: true}
-	bd := newBrowserDetector(cfg, t.TempDir(), "nonexistent", "eng")
+	cfg := state.DetectorConfig{Enabled: true, SourceType: "browser_camera"}
+	broadcast := func(msgType string, payload any) {}
+	bd := newDetector("nonexistent", cfg, nil, broadcast, t.TempDir())
+	bd.templates = loadTemplates(cfg.Templates, t.TempDir(), "nonexistent")
 	if bd.HasTemplates() {
 		t.Error("HasTemplates() = true for detector with no template files")
 	}
@@ -69,7 +76,7 @@ func TestBrowserDetectorNoTemplates(t *testing.T) {
 func TestBrowserDetectorIdleWithNoMatch(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.85, 1, 1)
 
-	// Submit a blank frame that should not match the checkerboard template
+	// Submit a blank frame that should not match the checkerboard template.
 	frame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	result := bd.SubmitFrame(frame)
 
@@ -84,14 +91,14 @@ func TestBrowserDetectorIdleWithNoMatch(t *testing.T) {
 func TestBrowserDetectorMatchTransition(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 1)
 
-	// The template is a checkerboard; submitting a matching frame should trigger
+	// The template is a checkerboard; submitting a matching frame should trigger.
 	matchFrame := checkerImage(200, 200, 8, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 
-	// First: submit a non-matching frame to establish "prevAbove = false"
+	// First: submit a non-matching frame to establish "prevAbove = false".
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	bd.SubmitFrame(noMatchFrame)
 
-	// Now submit the matching frame — should trigger increment on low→high transition
+	// Now submit the matching frame — should trigger increment on low→high transition.
 	result := bd.SubmitFrame(matchFrame)
 	if !result.Incremented {
 		t.Error("Incremented = false on matching frame after non-matching frame")
@@ -107,16 +114,16 @@ func TestBrowserDetectorCooldownTransition(t *testing.T) {
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	matchFrame := checkerImage(200, 200, 8, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 
-	// Establish non-matching baseline
+	// Establish non-matching baseline.
 	bd.SubmitFrame(noMatchFrame)
 
-	// Trigger match
+	// Trigger match.
 	result := bd.SubmitFrame(matchFrame)
 	if result.State != "match_active" {
 		t.Fatalf("Expected match_active, got %q", result.State)
 	}
 
-	// Next frame transitions to cooldown
+	// Next frame transitions to cooldown (browser sources transition immediately).
 	result = bd.SubmitFrame(matchFrame)
 	if result.State != "cooldown" {
 		t.Errorf("State = %q, want cooldown", result.State)
@@ -129,7 +136,7 @@ func TestBrowserDetectorCooldownTransition(t *testing.T) {
 func TestBrowserDetectorCooldownToIdle(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 0) // cooldownSec=0, uses default (8)
 
-	// Override to a very short cooldown for testing
+	// Override to a very short cooldown for testing.
 	bd.mu.Lock()
 	bd.cfg.CooldownSec = 1
 	bd.mu.Unlock()
@@ -137,17 +144,17 @@ func TestBrowserDetectorCooldownToIdle(t *testing.T) {
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	matchFrame := checkerImage(200, 200, 8, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 
-	// Drive through idle→match→cooldown
+	// Drive through idle→match→cooldown.
 	bd.SubmitFrame(noMatchFrame)
 	bd.SubmitFrame(matchFrame) // match_active
 	bd.SubmitFrame(matchFrame) // cooldown
 
-	// Force cooldown to be expired
+	// Force cooldown to be expired.
 	bd.mu.Lock()
 	bd.cooldownEnd = time.Now().Add(-1 * time.Second)
 	bd.mu.Unlock()
 
-	// Next frame should return to idle
+	// Next frame should return to idle.
 	result := bd.SubmitFrame(noMatchFrame)
 	if result.State != "idle" {
 		t.Errorf("State = %q after cooldown expired, want idle", result.State)
@@ -155,29 +162,15 @@ func TestBrowserDetectorCooldownToIdle(t *testing.T) {
 }
 
 func TestBrowserDetectorEdgeDetectionPreventsRetrigger(t *testing.T) {
-	// With consecutiveHits=3, the edge detection mechanism prevents re-triggers
-	// on sustained matches. After cooldown, prevAbove is set to true, so the
-	// first matching frame after cooldown increments consecCount (high→high),
-	// but it never reaches the required 3 consecutive hits from a fresh low→high
-	// edge because consecCount was reset to 0 and there was no low→high transition.
-	// However, consecCount still accumulates: after 3 sustained frames it will
-	// trigger. The real edge detection benefit is that prevAbove=true after cooldown
-	// means the first frame does NOT start from a fresh edge (consecCount starts
-	// incrementing from the high→high path, not the low→high path).
-	//
-	// To verify the basic edge detection: in a single idle stretch, consecutive
-	// matching frames that start from prevAbove=true accumulate via the
-	// high→high path. We verify the first frame alone does not trigger with
-	// consecutiveHits=3.
 	bd := newTestBrowserDetector(t, 0.5, 3, 1)
 
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	matchFrame := checkerImage(200, 200, 8, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 
-	// Establish non-matching baseline
+	// Establish non-matching baseline.
 	bd.SubmitFrame(noMatchFrame)
 
-	// Trigger: 3 consecutive matching frames from a low→high edge
+	// Trigger: 3 consecutive matching frames from a low→high edge.
 	bd.SubmitFrame(matchFrame)
 	bd.SubmitFrame(matchFrame)
 	r := bd.SubmitFrame(matchFrame)
@@ -185,10 +178,10 @@ func TestBrowserDetectorEdgeDetectionPreventsRetrigger(t *testing.T) {
 		t.Fatal("First match should increment after 3 consecutive hits")
 	}
 
-	// match_active→cooldown
+	// match_active→cooldown.
 	bd.SubmitFrame(matchFrame)
 
-	// Force cooldown to expire
+	// Force cooldown to expire.
 	bd.mu.Lock()
 	bd.cooldownEnd = time.Now().Add(-1 * time.Second)
 	bd.mu.Unlock()
@@ -201,7 +194,7 @@ func TestBrowserDetectorEdgeDetectionPreventsRetrigger(t *testing.T) {
 		t.Error("Should not re-trigger with only 1 sustained hit (need 3)")
 	}
 
-	// Second sustained frame: consecCount becomes 2, still not enough
+	// Second sustained frame: consecCount becomes 2, still not enough.
 	r3 := bd.SubmitFrame(matchFrame)
 	if r3.Incremented {
 		t.Error("Should not re-trigger with only 2 sustained hits (need 3)")
@@ -214,22 +207,22 @@ func TestBrowserDetectorConsecutiveHitsRequired(t *testing.T) {
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	matchFrame := checkerImage(200, 200, 8, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 
-	// Establish non-matching baseline
+	// Establish non-matching baseline.
 	bd.SubmitFrame(noMatchFrame)
 
-	// First matching frame — should not trigger yet (need 3 consecutive)
+	// First matching frame — should not trigger yet (need 3 consecutive).
 	r := bd.SubmitFrame(matchFrame)
 	if r.Incremented {
 		t.Error("Should not increment after only 1 consecutive hit (need 3)")
 	}
 
-	// Second consecutive match
+	// Second consecutive match.
 	r = bd.SubmitFrame(matchFrame)
 	if r.Incremented {
 		t.Error("Should not increment after only 2 consecutive hits (need 3)")
 	}
 
-	// Third consecutive match — should trigger
+	// Third consecutive match — should trigger.
 	r = bd.SubmitFrame(matchFrame)
 	if !r.Incremented {
 		t.Error("Should increment after 3 consecutive hits")
@@ -245,17 +238,17 @@ func TestBrowserDetectorConsecutiveHitsResetOnMiss(t *testing.T) {
 	noMatchFrame := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	matchFrame := checkerImage(200, 200, 8, color.RGBA{0, 0, 0, 255}, color.RGBA{255, 255, 255, 255})
 
-	// Establish non-matching baseline
+	// Establish non-matching baseline.
 	bd.SubmitFrame(noMatchFrame)
 
-	// Two consecutive matches
+	// Two consecutive matches.
 	bd.SubmitFrame(matchFrame)
 	bd.SubmitFrame(matchFrame)
 
-	// Interrupt with non-matching frame — resets counter
+	// Interrupt with non-matching frame — resets counter.
 	bd.SubmitFrame(noMatchFrame)
 
-	// Start matching again — counter should restart from 1
+	// Start matching again — counter should restart from 1.
 	bd.SubmitFrame(matchFrame)
 	r := bd.SubmitFrame(matchFrame)
 	if r.Incremented {
@@ -264,8 +257,9 @@ func TestBrowserDetectorConsecutiveHitsResetOnMiss(t *testing.T) {
 }
 
 func TestBrowserDetectorDefaultLanguage(t *testing.T) {
-	cfg := state.DetectorConfig{Enabled: true}
-	bd := newBrowserDetector(cfg, t.TempDir(), "test", "")
+	cfg := state.DetectorConfig{Enabled: true, SourceType: "browser_camera"}
+	broadcast := func(msgType string, payload any) {}
+	bd := newDetector("test", cfg, nil, broadcast, t.TempDir())
 	if bd.lang != "eng" {
 		t.Errorf("lang = %q, want eng for empty input", bd.lang)
 	}
@@ -274,7 +268,7 @@ func TestBrowserDetectorDefaultLanguage(t *testing.T) {
 func TestBrowserDetectorInitialState(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.85, 1, 1)
 
-	// Verify initial state without submitting any frames
+	// Verify initial state without submitting any frames.
 	bd.mu.Lock()
 	defer bd.mu.Unlock()
 
@@ -292,7 +286,7 @@ func TestBrowserDetectorInitialState(t *testing.T) {
 func TestBrowserDetectorConfidenceReturned(t *testing.T) {
 	bd := newTestBrowserDetector(t, 0.5, 1, 1)
 
-	// Non-matching frame should return low confidence
+	// Non-matching frame should return low confidence.
 	noMatch := solidImage(200, 200, color.RGBA{128, 128, 128, 255})
 	r := bd.SubmitFrame(noMatch)
 	if r.Confidence >= 0.5 {
@@ -374,7 +368,7 @@ func TestLoadTemplatesInvalidPNG(t *testing.T) {
 	if err := os.MkdirAll(tmplDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// Write garbage data as a PNG file
+	// Write garbage data as a PNG file.
 	if err := os.WriteFile(filepath.Join(tmplDir, "bad.png"), []byte("not a png"), 0o644); err != nil {
 		t.Fatal(err)
 	}

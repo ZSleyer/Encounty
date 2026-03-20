@@ -52,11 +52,14 @@ func TestStopAllWithBrowserDetectors(t *testing.T) {
 	}
 	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
-	// Start goroutine detectors
+	// Start goroutine detectors.
 	_ = mgr.Start("p1", state.DetectorConfig{Enabled: true})
 
-	// Create browser detectors
-	_ = mgr.GetOrCreateBrowserDetector("p2", state.DetectorConfig{Enabled: true})
+	// Create browser detectors.
+	_ = mgr.GetOrCreateBrowserDetector("p2", state.DetectorConfig{
+		Enabled:    true,
+		SourceType: "browser_camera",
+	})
 
 	if !mgr.IsRunning("p1") {
 		t.Fatal("p1 should be running")

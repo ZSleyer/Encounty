@@ -301,7 +301,7 @@ export function DetectorPanel({
   // (e.g. user switched away and came back in the sidebar)
   useEffect(() => {
     if (isRunning && isCapturing && cfg.source_type.startsWith("browser")) {
-      capture.registerSubmitter(pokemon.id, cfg.poll_interval_ms);
+      capture.registerSubmitter(pokemon.id, cfg.poll_interval_ms, cfg.region, cfg.change_threshold);
     }
   }, [pokemon.id]); // Only on pokemon change / mount
 
@@ -552,7 +552,7 @@ export function DetectorPanel({
         // Register this pokemon for frame dispatch via the capture service
         // (only needed for browser sources — native sources are handled by the backend)
         if (cfg.source_type.startsWith("browser")) {
-          capture.registerSubmitter(pokemon.id, cfg.poll_interval_ms);
+          capture.registerSubmitter(pokemon.id, cfg.poll_interval_ms, cfg.region, cfg.change_threshold);
         }
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };

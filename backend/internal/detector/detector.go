@@ -8,7 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -45,7 +45,10 @@ const (
 )
 
 // Detector runs the per-hunt auto-detection loop for a single Pokémon hunt.
+// It consumes frames from a FrameSource and runs a unified state machine
+// (idle → match_active → cooldown) regardless of the capture backend.
 type Detector struct {
+	mu        sync.Mutex
 	pokemonID string
 	cfg       state.DetectorConfig
 	stateMgr  *state.Manager
@@ -53,13 +56,14 @@ type Detector struct {
 	configDir string
 
 	// internal state machine
-	phase              detectorPhase
-	consecCount        int
-	prevAbove          bool // edge detection: only count on low→high transition
-	prevFrame          image.Image // previous frame for delta-based adaptive polling
-	lastFrame          image.Image // frame at match confirmation for change detection
-	cooldownEnd        time.Time
-	cooldownStartTime  time.Time   // used for adaptive cooldown minimum elapsed check
+	phase             detectorPhase
+	consecCount       int
+	prevAbove         bool        // edge detection: only count on low→high transition
+	prevFrame         image.Image // previous frame for delta-based adaptive polling
+	lastFrame         image.Image // frame at match confirmation for change detection
+	cooldownEnd       time.Time
+	cooldownStartTime time.Time // used for adaptive cooldown minimum elapsed check
+	matchConfirmedAt  time.Time // when the current match was confirmed
 
 	// pollIntervalNs stores the current poll interval in nanoseconds.
 	// Read and written atomically so the capture goroutine can observe
@@ -73,20 +77,28 @@ type Detector struct {
 	// lang is the tesseract language code derived from the Pokémon's language field.
 	lang string
 
-	// lastBestScore tracks the most recent confidence value
+	// lastBestScore tracks the most recent confidence value.
 	lastBestScore float64
+
+	// isBrowser is true when frames come from a browser source. Browser sources
+	// skip adaptive polling and frame-delta-based change detection because
+	// the frame rate is controlled by the client.
+	isBrowser bool
 }
 
 // newDetector creates a Detector from the given config. Templates are loaded lazily on first Run.
 // The Pokémon's language field is resolved via mgr to derive the tesseract language code.
 func newDetector(pokemonID string, cfg state.DetectorConfig, mgr *state.Manager, broadcast BroadcastFunc, configDir string) *Detector {
 	lang := "eng"
-	for _, p := range mgr.GetState().Pokemon {
-		if p.ID == pokemonID {
-			lang = LangToTesseract(p.Language)
-			break
+	if mgr != nil {
+		for _, p := range mgr.GetState().Pokemon {
+			if p.ID == pokemonID {
+				lang = LangToTesseract(p.Language)
+				break
+			}
 		}
 	}
+	isBrowser := cfg.SourceType == "browser_camera" || cfg.SourceType == "browser_display"
 	return &Detector{
 		pokemonID: pokemonID,
 		cfg:       cfg,
@@ -95,6 +107,7 @@ func newDetector(pokemonID string, cfg state.DetectorConfig, mgr *state.Manager,
 		configDir: configDir,
 		phase:     stateIdle,
 		lang:      lang,
+		isBrowser: isBrowser,
 	}
 }
 
@@ -207,89 +220,24 @@ func msToNs(ms int) int64 {
 	return int64(time.Duration(ms) * time.Millisecond)
 }
 
-// captureFrames grabs screen frames at the current adaptive poll interval and
-// sends them into ch. Frames are dropped (non-blocking send) when the analysis
-// goroutine falls behind. The channel is closed when ctx is cancelled.
-func (d *Detector) captureFrames(ctx context.Context, ch chan<- image.Image) {
-	defer close(ch)
-
-	// For window source type, resolve and cache the target HWND.
-	var cachedHWND uintptr
-	var lastLookup time.Time
-	const hwndRefreshInterval = 30 * time.Second
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
-		var frame image.Image
-		var err error
-
-		if d.cfg.SourceType == "window" && d.cfg.WindowTitle != "" {
-			// Re-lookup HWND periodically in case the window was reopened.
-			if cachedHWND == 0 || time.Since(lastLookup) > hwndRefreshInterval {
-				cachedHWND = findWindowByTitle(d.cfg.WindowTitle)
-				lastLookup = time.Now()
-			}
-			if cachedHWND == 0 {
-				slog.Debug("Detector window not found", "pokemon_id", d.pokemonID, "title", d.cfg.WindowTitle)
-			} else {
-				frame, err = CaptureWindow(cachedHWND)
-				if err != nil {
-					slog.Debug("Detector window capture failed", "pokemon_id", d.pokemonID, "error", err)
-					// Window may have closed; force re-lookup next iteration.
-					cachedHWND = 0
-				}
-			}
-		} else {
-			frame, err = CaptureRegion(d.cfg.Region.X, d.cfg.Region.Y, d.cfg.Region.W, d.cfg.Region.H)
-			if err != nil {
-				slog.Debug("Detector capture failed", "pokemon_id", d.pokemonID, "error", err)
-			}
-		}
-
-		if frame != nil {
-			select {
-			case ch <- frame:
-			default:
-			}
-		}
-
-		interval := time.Duration(d.pollIntervalNs.Load())
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(interval):
+// bestTemplateScore evaluates all templates against a frame and returns the
+// highest NCC score.
+func (d *Detector) bestTemplateScore(frame image.Image, rc resolvedConfig) float64 {
+	var best float64
+	for _, lt := range d.templates {
+		if s := MatchWithRegions(frame, lt, rc.precision, d.lang, rc.relativeRegions); s > best {
+			best = s
 		}
 	}
-}
-
-// findWindowByTitle searches the available windows for one whose title contains
-// the given substring (case-insensitive). Returns 0 if no match is found.
-func findWindowByTitle(title string) uintptr {
-	lower := strings.ToLower(title)
-	for _, w := range ListWindows() {
-		if strings.Contains(strings.ToLower(w.Title), lower) {
-			return w.HWND
-		}
-	}
-	return 0
+	return best
 }
 
 // processIdleFrame evaluates templates against a captured frame during the idle
 // phase and transitions to stateMatchActive when enough consecutive hits are
-// confirmed. It also adjusts the adaptive poll interval based on frame delta.
-func (d *Detector) processIdleFrame(frame image.Image, rc resolvedConfig, frameDelta float64) time.Time {
-	var bestScore float64
-	for _, lt := range d.templates {
-		score := MatchWithRegions(frame, lt, rc.precision, d.lang, rc.relativeRegions)
-		if score > bestScore {
-			bestScore = score
-		}
-	}
+// confirmed. For non-browser sources it also adjusts the adaptive poll interval
+// based on frame delta.
+func (d *Detector) processIdleFrame(frame image.Image, rc resolvedConfig, frameDelta float64) {
+	bestScore := d.bestTemplateScore(frame, rc)
 	d.lastBestScore = bestScore
 
 	above := bestScore >= rc.precision
@@ -303,83 +251,102 @@ func (d *Detector) processIdleFrame(frame image.Image, rc resolvedConfig, frameD
 	}
 	d.prevAbove = above
 
-	// Adaptive polling: fast when screen is active or near match, slow when static.
-	var targetNs int64
-	switch {
-	case above || bestScore > 0.5:
-		targetNs = rc.minPollNs
-	case frameDelta > 0.05:
-		targetNs = rc.minPollNs
-	case frameDelta > 0.01:
-		targetNs = rc.basePollNs
-	default:
-		targetNs = rc.maxPollNs
+	// Adaptive polling: only relevant for screen/window/camera sources.
+	if !d.isBrowser {
+		var targetNs int64
+		switch {
+		case above || bestScore > 0.5:
+			targetNs = rc.minPollNs
+		case frameDelta > 0.05:
+			targetNs = rc.minPollNs
+		case frameDelta > 0.01:
+			targetNs = rc.basePollNs
+		default:
+			targetNs = rc.maxPollNs
+		}
+		d.pollIntervalNs.Store(targetNs)
 	}
-	d.pollIntervalNs.Store(targetNs)
 
 	if d.consecCount >= rc.consecutiveHits {
-		d.stateMgr.Increment(d.pokemonID)
-		d.stateMgr.AppendDetectionLog(d.pokemonID, bestScore)
-		d.broadcast("detector_match", map[string]any{
-			"pokemon_id": d.pokemonID,
-			"confidence": bestScore,
-		})
-		d.lastFrame = frame
-		d.phase = stateMatchActive
-		d.consecCount = 0
-		d.prevAbove = false
-		return time.Now()
+		d.onMatchConfirmed(frame, bestScore, rc)
 	}
-	return time.Time{}
 }
 
+// onMatchConfirmed handles the transition from idle to match_active after
+// enough consecutive template hits. It increments the counter, logs the
+// detection, and broadcasts a match event.
+func (d *Detector) onMatchConfirmed(frame image.Image, bestScore float64, rc resolvedConfig) {
+	if d.stateMgr != nil {
+		d.stateMgr.Increment(d.pokemonID)
+		d.stateMgr.AppendDetectionLog(d.pokemonID, bestScore)
+	}
+	d.broadcast("detector_match", map[string]any{
+		"pokemon_id": d.pokemonID,
+		"confidence": bestScore,
+	})
+	d.lastFrame = frame
+	d.matchConfirmedAt = time.Now()
+	d.cooldownEnd = time.Now().Add(time.Duration(rc.cooldownSec) * time.Second)
+	d.cooldownStartTime = time.Now()
+	d.phase = stateMatchActive
+	d.consecCount = 0
+	d.prevAbove = false
+}
+
+// processCooldownFrame checks whether the cooldown period has elapsed (either
+// by time or adaptively by score drop) and transitions back to idle.
 func (d *Detector) processCooldownFrame(frame image.Image, rc resolvedConfig) {
 	if rc.adaptiveCooldown {
-		var bestScore float64
-		for _, lt := range d.templates {
-			score := MatchWithRegions(frame, lt, rc.precision, d.lang, rc.relativeRegions)
-			if score > bestScore {
-				bestScore = score
-			}
-		}
+		bestScore := d.bestTemplateScore(frame, rc)
 		d.lastBestScore = bestScore
 		minElapsed := time.Since(d.cooldownStartTime) >= time.Duration(rc.adaptiveCooldownMin)*time.Second
 		if minElapsed && bestScore < rc.precision {
 			d.phase = stateIdle
 			d.prevAbove = true
-			d.pollIntervalNs.Store(rc.basePollNs)
+			d.consecCount = 0
+			if !d.isBrowser {
+				d.pollIntervalNs.Store(rc.basePollNs)
+			}
 		}
 		return
 	}
 	if time.Now().After(d.cooldownEnd) {
 		d.phase = stateIdle
 		d.prevAbove = true
-		d.pollIntervalNs.Store(rc.basePollNs)
+		d.consecCount = 0
+		if !d.isBrowser {
+			d.pollIntervalNs.Store(rc.basePollNs)
+		}
 	}
 }
 
 // processFrame runs one iteration of the idle/match/cooldown state machine on
 // a captured frame and broadcasts the resulting status to all clients.
-func (d *Detector) processFrame(frame image.Image, rc resolvedConfig, matchConfirmedAt time.Time) time.Time {
+func (d *Detector) processFrame(frame image.Image, rc resolvedConfig) {
 	var frameDelta float64
-	if d.prevFrame != nil {
+	if !d.isBrowser && d.prevFrame != nil {
 		frameDelta = PixelDelta(d.prevFrame, frame)
 	}
-	d.prevFrame = frame
+	if !d.isBrowser {
+		d.prevFrame = frame
+	}
 
 	switch d.phase {
 	case stateIdle:
-		if t := d.processIdleFrame(frame, rc, frameDelta); !t.IsZero() {
-			matchConfirmedAt = t
-		}
+		d.processIdleFrame(frame, rc, frameDelta)
 
 	case stateMatchActive:
-		delta := PixelDelta(d.lastFrame, frame)
-		elapsed := time.Since(matchConfirmedAt)
-		if delta >= rc.changeThreshold || elapsed >= time.Duration(rc.cooldownSec)*time.Second {
-			d.cooldownEnd = time.Now().Add(time.Duration(rc.cooldownSec) * time.Second)
-			d.cooldownStartTime = time.Now()
+		if d.isBrowser {
+			// Browser sources transition immediately to cooldown on the next frame.
 			d.phase = stateCooldown
+		} else {
+			delta := PixelDelta(d.lastFrame, frame)
+			elapsed := time.Since(d.matchConfirmedAt)
+			if delta >= rc.changeThreshold || elapsed >= time.Duration(rc.cooldownSec)*time.Second {
+				d.cooldownEnd = time.Now().Add(time.Duration(rc.cooldownSec) * time.Second)
+				d.cooldownStartTime = time.Now()
+				d.phase = stateCooldown
+			}
 		}
 
 	case stateCooldown:
@@ -393,15 +360,48 @@ func (d *Detector) processFrame(frame image.Image, rc resolvedConfig, matchConfi
 		"confidence": d.lastBestScore,
 		"poll_ms":    pollMs,
 	})
+}
 
-	return matchConfirmedAt
+// HasTemplates reports whether at least one template was loaded.
+func (d *Detector) HasTemplates() bool {
+	return len(d.templates) > 0
+}
+
+// BrowserMatchResult is returned by SubmitFrame for browser-source detectors.
+type BrowserMatchResult struct {
+	// State is the post-frame state: "idle", "match_active", or "cooldown".
+	State string
+	// Confidence is the best NCC score seen in the current frame (0.0–1.0).
+	Confidence float64
+	// Incremented is true when this frame caused the encounter counter to tick.
+	Incremented bool
+}
+
+// SubmitFrame runs one iteration of the detection state machine against a
+// single externally-supplied frame. This is used for browser sources where
+// frames arrive via HTTP POST rather than the Run loop. Safe for concurrent use.
+func (d *Detector) SubmitFrame(frame image.Image) BrowserMatchResult {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	rc := d.resolveConfig()
+	prevPhase := d.phase
+
+	d.processFrame(frame, rc)
+
+	incremented := prevPhase == stateIdle && d.phase == stateMatchActive
+
+	return BrowserMatchResult{
+		State:       d.phase.String(),
+		Confidence:  d.lastBestScore,
+		Incremented: incremented,
+	}
 }
 
 // Run executes the detection loop until ctx is cancelled. It should be called
-// in its own goroutine. For camera sources the frame channel is provided by
-// StartCameraCapture; for screen and window sources a capture goroutine polls
-// at the adaptive interval.
-func (d *Detector) Run(ctx context.Context) {
+// in its own goroutine. The source provides frames from any backend (screen,
+// window, camera, or browser).
+func (d *Detector) Run(ctx context.Context, source FrameSource) {
 	d.templates = loadTemplates(d.cfg.Templates, d.configDir, d.pokemonID)
 	if len(d.templates) == 0 {
 		slog.Warn("Detector has no templates loaded, stopping", "pokemon_id", d.pokemonID)
@@ -411,30 +411,25 @@ func (d *Detector) Run(ctx context.Context) {
 	rc := d.resolveConfig()
 	d.pollIntervalNs.Store(rc.basePollNs)
 
-	var frames <-chan image.Image
-
-	if d.cfg.SourceType == "camera" {
-		camFrames, stop, err := StartCameraCapture(d.cfg.WindowTitle, d.cfg.Region.W, d.cfg.Region.H)
-		if err != nil {
-			slog.Error("Detector camera start failed", "pokemon_id", d.pokemonID, "error", err)
-			return
-		}
-		defer stop()
-		frames = camFrames
-
-		// Ensure camera stops when context is cancelled.
-		go func() {
-			<-ctx.Done()
-			stop()
-		}()
-	} else {
-		ch := make(chan image.Image, 3)
-		go d.captureFrames(ctx, ch)
-		frames = ch
+	// If the source supports adaptive polling, wire the poll interval.
+	if ss, ok := source.(*ScreenFrameSource); ok {
+		ss.PollIntervalNs.Store(rc.basePollNs)
 	}
 
-	matchConfirmedAt := time.Time{}
-	for frame := range frames {
-		matchConfirmedAt = d.processFrame(frame, rc, matchConfirmedAt)
+	for {
+		frame, err := source.NextFrame(ctx)
+		if err != nil {
+			return
+		}
+		if frame == nil {
+			continue
+		}
+
+		d.processFrame(frame, rc)
+
+		// Propagate adaptive poll interval to the screen source.
+		if ss, ok := source.(*ScreenFrameSource); ok {
+			ss.PollIntervalNs.Store(d.pollIntervalNs.Load())
+		}
 	}
 }

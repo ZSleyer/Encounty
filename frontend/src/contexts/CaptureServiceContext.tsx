@@ -34,6 +34,8 @@ interface CaptureEntry {
   rvfcHandle: number | null;
   /** Display name of the selected source (e.g. "Screen 1", "OBS Virtual Camera"). */
   sourceLabel: string;
+  /** Web Worker for off-main-thread frame processing and encoding. */
+  worker: Worker | null;
 }
 
 interface CaptureServiceContextValue {
@@ -55,7 +57,7 @@ interface CaptureServiceContextValue {
   getSourceLabel: (pokemonId: string) => string | null;
 
   /** Start submitting frames for a pokemon (begins dispatch loop). */
-  registerSubmitter: (pokemonId: string, pollMs: number) => void;
+  registerSubmitter: (pokemonId: string, pollMs: number, roi?: { x: number; y: number; w: number; h: number } | null, changeThreshold?: number) => void;
   /** Stop submitting frames for a pokemon. */
   unregisterSubmitter: (pokemonId: string) => void;
   /** Update polling interval for a running submitter. */
@@ -73,7 +75,16 @@ const CaptureServiceContext = createContext<CaptureServiceContextValue | null>(n
 
 // --- Provider ----------------------------------------------------------------
 
-export function CaptureServiceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
+interface CaptureServiceProviderProps {
+  children: React.ReactNode;
+  /** Binary sender function from the WebSocket hook for zero-copy frame delivery. */
+  sendBinary?: (data: ArrayBuffer | Uint8Array) => void;
+}
+
+export function CaptureServiceProvider({ children, sendBinary }: Readonly<CaptureServiceProviderProps>) {
+  // Keep sendBinary in a ref so callbacks always see the latest value
+  const sendBinaryRef = useRef(sendBinary);
+  sendBinaryRef.current = sendBinary;
   // All capture entries keyed by pokemon ID
   const entriesRef = useRef<Map<string, CaptureEntry>>(new Map());
   // Container for hidden video elements
@@ -138,10 +149,15 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
 
   /**
    * Frame-accurate capture loop using requestVideoFrameCallback.
-   * Runs at the native frame rate of the video source, but only
-   * submits frames to the backend when the content has actually
-   * changed (pixel delta above threshold) and enough time has
-   * elapsed since the last submission.
+   *
+   * When a Web Worker is attached to the entry, frames are sent as
+   * transferable ImageBitmaps to the worker for off-main-thread
+   * processing (change detection, ROI crop, JPEG encode). The worker
+   * posts back encoded binary messages that are forwarded via
+   * sendBinary (WebSocket) for zero-copy delivery to the backend.
+   *
+   * Without a worker, falls back to the original on-main-thread path
+   * with canvas toBlob + HTTP POST.
    */
   const startRvfcLoop = useCallback((entry: CaptureEntry) => {
     const loop = () => {
@@ -153,6 +169,21 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
         return;
       }
 
+      // Worker path: create ImageBitmap and transfer to worker (off main thread)
+      if (entry.worker) {
+        const now = Date.now();
+        const minInterval = Math.max(MIN_SUBMIT_INTERVAL_MS, entry.pollMs ?? MIN_SUBMIT_INTERVAL_MS);
+        if (now - entry.lastDispatch >= minInterval) {
+          entry.lastDispatch = now;
+          createImageBitmap(video).then((bitmap) => {
+            entry.worker?.postMessage({ type: "frame", bitmap }, [bitmap]);
+          }).catch(() => {});
+        }
+        entry.rvfcHandle = video.requestVideoFrameCallback(loop);
+        return;
+      }
+
+      // Fallback: on-main-thread processing with HTTP POST
       entry.canvas ??= document.createElement("canvas");
       const canvas = entry.canvas;
       if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth;
@@ -266,6 +297,11 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
       entry.videoEl.cancelVideoFrameCallback(entry.rvfcHandle);
       entry.rvfcHandle = null;
     }
+    if (entry.worker) {
+      entry.worker.postMessage({ type: "stop" });
+      entry.worker.terminate();
+      entry.worker = null;
+    }
     entry.stream.getTracks().forEach((t) => t.stop());
     entry.videoEl.srcObject = null;
     entry.videoEl.remove();
@@ -355,6 +391,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
         prevSample: null,
         rvfcHandle: null,
         sourceLabel: label,
+        worker: null,
       };
 
       entriesRef.current.set(pokemonId, entry);
@@ -388,11 +425,50 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     return entriesRef.current.get(pokemonId)?.sourceLabel ?? null;
   }, []);
 
-  const registerSubmitter = useCallback((pokemonId: string, pollMs: number) => {
+  const registerSubmitter = useCallback((
+    pokemonId: string,
+    pollMs: number,
+    roi?: { x: number; y: number; w: number; h: number } | null,
+    changeThreshold?: number,
+  ) => {
     const entry = entriesRef.current.get(pokemonId);
     if (!entry) return;
     entry.pollMs = pollMs;
     entry.lastDispatch = 0;
+
+    // Tear down any previous worker before creating a new one
+    if (entry.worker) {
+      entry.worker.postMessage({ type: "stop" });
+      entry.worker.terminate();
+      entry.worker = null;
+    }
+
+    // Create a Web Worker when sendBinary is available (WebSocket path)
+    if (sendBinaryRef.current) {
+      try {
+        const worker = new Worker(
+          new URL("../workers/frameProcessor.ts", import.meta.url),
+          { type: "module" },
+        );
+        const currentSendBinary = sendBinaryRef.current;
+        worker.onmessage = (e: MessageEvent<{ type: string; data?: ArrayBuffer }>) => {
+          if (e.data.type === "encoded" && e.data.data) {
+            currentSendBinary(e.data.data);
+          }
+        };
+        worker.postMessage({
+          type: "init",
+          pokemonId,
+          roi: roi ?? null,
+          changeThreshold: changeThreshold ?? DELTA_THRESHOLD,
+        });
+        entry.worker = worker;
+      } catch {
+        // Worker creation may fail in some environments; fall back to main-thread path
+        entry.worker = null;
+      }
+    }
+
     startLoop(entry);
   }, [startLoop]);
 
@@ -406,6 +482,11 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     if (entry.rvfcHandle !== null && entry.videoEl.cancelVideoFrameCallback) {
       entry.videoEl.cancelVideoFrameCallback(entry.rvfcHandle);
       entry.rvfcHandle = null;
+    }
+    if (entry.worker) {
+      entry.worker.postMessage({ type: "stop" });
+      entry.worker.terminate();
+      entry.worker = null;
     }
     entry.pollMs = null;
   }, []);
@@ -438,6 +519,10 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
         if (entry.loopTimer !== null) clearTimeout(entry.loopTimer);
         if (entry.rvfcHandle !== null && entry.videoEl.cancelVideoFrameCallback) {
           entry.videoEl.cancelVideoFrameCallback(entry.rvfcHandle);
+        }
+        if (entry.worker) {
+          entry.worker.postMessage({ type: "stop" });
+          entry.worker.terminate();
         }
         entry.stream.getTracks().forEach((t) => t.stop());
         entry.videoEl.srcObject = null;
