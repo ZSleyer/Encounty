@@ -54,32 +54,63 @@ Pull requests are welcome! Whether it's translations, new features, or bug fixes
 
 ### Prerequisites
 
-- Go 1.24+
+- Go 1.25+
 - Node.js 18+ & Yarn
 - Make
+
+### Architecture
+
+Encounty uses a clean frontend/backend separation:
+
+- **Go backend** — pure API server (`/api/*`, `/ws`, `/swagger/`)
+- **Electron** — serves the frontend via a custom `encounty://` protocol
+- **Vite** — dev server with proxy to Go backend for development
+
+```
+backend/          Go API server (REST + WebSocket)
+  internal/
+    server/       HTTP handlers (split by domain)
+    detector/     Auto-detection engine + FrameSource pipeline
+    gamesync/     Game catalogue + PokéAPI sync
+    pokedex/      Pokédex data + GraphQL sync
+    updater/      Auto-update + platform binary replacement
+    state/        In-memory state manager
+    database/     SQLite persistence (normalized v2 schema)
+    hotkeys/      Platform-native global hotkeys
+    fileoutput/   OBS text file integration
+frontend/         React + TypeScript SPA (Vite, Tailwind CSS, Zustand)
+electron/         Electron wrapper (custom protocol, process manager)
+```
 
 ### Running in Development
 
 ```bash
+# Option 1: Make (backend + frontend, no Electron)
 make dev
+
+# Option 2: VS Code (use "Full Dev + Electron" compound launch config)
+
+# Option 3: Manual
+cd backend && go run main.go --dev          # Terminal 1: Go API server
+cd frontend && yarn dev                      # Terminal 2: Vite dev server
+cd electron && yarn dev                      # Terminal 3: Electron (optional)
 ```
 
-This starts both the Vite dev server (`:5173`) and the Go backend (`:8080`) with hot-reload.
+The Vite dev server (`:5173`) proxies `/api` and `/ws` to the Go backend (`:8080`).
+Electron in dev mode loads from Vite and does not spawn its own Go process.
+
+### API Documentation
+
+Swagger UI is available at `http://localhost:8080/swagger/` when the backend is running.
 
 ### Building from Source
 
 ```bash
-make build              # Cross-compile for Linux and Windows
-make electron-package-linux    # Build Linux AppImage
-make electron-package-windows  # Build Windows portable exe
-```
-
-### Project Structure
-
-```
-backend/     Go backend (HTTP + WebSocket server, embeds frontend)
-frontend/    React + TypeScript SPA (Vite, Tailwind CSS, Zustand)
-electron/    Electron wrapper for desktop packaging
+make build                       # Go binaries for Linux + Windows (API-only)
+make electron-package-linux      # Electron AppImage (bundles Go + frontend)
+make electron-package-windows    # Electron portable exe
+make swagger                     # Regenerate OpenAPI spec
+make test                        # Run Go + frontend tests
 ```
 
 ## Support
