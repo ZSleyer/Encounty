@@ -15,7 +15,7 @@ func TestPokemonLangFound(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir)
+	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
 
 	lang := mgr.pokemonLang("p1")
 	if lang != "deu" {
@@ -32,7 +32,7 @@ func TestPokemonLangNotFound(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir)
+	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
 
 	lang := mgr.pokemonLang("nonexistent")
 	if lang != "eng" {
@@ -40,32 +40,26 @@ func TestPokemonLangNotFound(t *testing.T) {
 	}
 }
 
-// TestStopAllWithBrowserDetectors tests StopAll when both running detectors
-// and browser detectors are present.
-func TestStopAllWithBrowserDetectors(t *testing.T) {
+// TestStopAllWithMultipleDetectors tests StopAll when multiple running
+// detectors are present.
+func TestStopAllWithMultipleDetectors(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
 	stateMgr.AddPokemon(state.Pokemon{ID: "p1", Name: "A", Language: "en"})
 	stateMgr.AddPokemon(state.Pokemon{ID: "p2", Name: "B", Language: "en"})
 
-	broadcast := func(msgType string, payload any) { // no-op broadcast for test
+	broadcast := func(msgType string, payload any) { // no-op: tests don't need broadcast
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir)
+	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
 
-	// Start goroutine detectors.
 	_ = mgr.Start("p1", state.DetectorConfig{Enabled: true})
-
-	// Create browser detectors.
-	_ = mgr.GetOrCreateBrowserDetector("p2", state.DetectorConfig{
-		Enabled:    true,
-		SourceType: "browser_camera",
-	})
+	_ = mgr.Start("p2", state.DetectorConfig{Enabled: true})
 
 	if !mgr.IsRunning("p1") {
 		t.Fatal("p1 should be running")
 	}
-	if !mgr.IsBrowserRunning("p2") {
-		t.Fatal("p2 browser detector should exist")
+	if !mgr.IsRunning("p2") {
+		t.Fatal("p2 should be running")
 	}
 
 	mgr.StopAll()
@@ -73,7 +67,7 @@ func TestStopAllWithBrowserDetectors(t *testing.T) {
 	if mgr.IsRunning("p1") {
 		t.Error("p1 still running after StopAll")
 	}
-	if mgr.IsBrowserRunning("p2") {
-		t.Error("p2 browser detector still exists after StopAll")
+	if mgr.IsRunning("p2") {
+		t.Error("p2 still running after StopAll")
 	}
 }

@@ -79,11 +79,6 @@ type Detector struct {
 
 	// lastBestScore tracks the most recent confidence value.
 	lastBestScore float64
-
-	// isBrowser is true when frames come from a browser source. Browser sources
-	// skip adaptive polling and frame-delta-based change detection because
-	// the frame rate is controlled by the client.
-	isBrowser bool
 }
 
 // newDetector creates a Detector from the given config. Templates are loaded lazily on first Run.
@@ -98,7 +93,6 @@ func newDetector(pokemonID string, cfg state.DetectorConfig, mgr *state.Manager,
 			}
 		}
 	}
-	isBrowser := cfg.SourceType == "browser_camera" || cfg.SourceType == "browser_display"
 	return &Detector{
 		pokemonID: pokemonID,
 		cfg:       cfg,
@@ -107,7 +101,6 @@ func newDetector(pokemonID string, cfg state.DetectorConfig, mgr *state.Manager,
 		configDir: configDir,
 		phase:     stateIdle,
 		lang:      lang,
-		isBrowser: isBrowser,
 	}
 }
 
@@ -251,21 +244,19 @@ func (d *Detector) processIdleFrame(frame image.Image, rc resolvedConfig, frameD
 	}
 	d.prevAbove = above
 
-	// Adaptive polling: only relevant for screen/window/camera sources.
-	if !d.isBrowser {
-		var targetNs int64
-		switch {
-		case above || bestScore > 0.5:
-			targetNs = rc.minPollNs
-		case frameDelta > 0.05:
-			targetNs = rc.minPollNs
-		case frameDelta > 0.01:
-			targetNs = rc.basePollNs
-		default:
-			targetNs = rc.maxPollNs
-		}
-		d.pollIntervalNs.Store(targetNs)
+	// Adaptive polling based on match score and frame delta.
+	var targetNs int64
+	switch {
+	case above || bestScore > 0.5:
+		targetNs = rc.minPollNs
+	case frameDelta > 0.05:
+		targetNs = rc.minPollNs
+	case frameDelta > 0.01:
+		targetNs = rc.basePollNs
+	default:
+		targetNs = rc.maxPollNs
 	}
+	d.pollIntervalNs.Store(targetNs)
 
 	if d.consecCount >= rc.consecutiveHits {
 		d.onMatchConfirmed(frame, bestScore, rc)
@@ -284,7 +275,9 @@ func (d *Detector) onMatchConfirmed(frame image.Image, bestScore float64, rc res
 		"pokemon_id": d.pokemonID,
 		"confidence": bestScore,
 	})
-	d.lastFrame = frame
+	if frame != nil {
+		d.lastFrame = frame
+	}
 	d.matchConfirmedAt = time.Now()
 	d.cooldownEnd = time.Now().Add(time.Duration(rc.cooldownSec) * time.Second)
 	d.cooldownStartTime = time.Now()
@@ -304,9 +297,7 @@ func (d *Detector) processCooldownFrame(frame image.Image, rc resolvedConfig) {
 			d.phase = stateIdle
 			d.prevAbove = true
 			d.consecCount = 0
-			if !d.isBrowser {
-				d.pollIntervalNs.Store(rc.basePollNs)
-			}
+			d.pollIntervalNs.Store(rc.basePollNs)
 		}
 		return
 	}
@@ -314,9 +305,7 @@ func (d *Detector) processCooldownFrame(frame image.Image, rc resolvedConfig) {
 		d.phase = stateIdle
 		d.prevAbove = true
 		d.consecCount = 0
-		if !d.isBrowser {
-			d.pollIntervalNs.Store(rc.basePollNs)
-		}
+		d.pollIntervalNs.Store(rc.basePollNs)
 	}
 }
 
@@ -324,29 +313,22 @@ func (d *Detector) processCooldownFrame(frame image.Image, rc resolvedConfig) {
 // a captured frame and broadcasts the resulting status to all clients.
 func (d *Detector) processFrame(frame image.Image, rc resolvedConfig) {
 	var frameDelta float64
-	if !d.isBrowser && d.prevFrame != nil {
+	if d.prevFrame != nil {
 		frameDelta = PixelDelta(d.prevFrame, frame)
 	}
-	if !d.isBrowser {
-		d.prevFrame = frame
-	}
+	d.prevFrame = frame
 
 	switch d.phase {
 	case stateIdle:
 		d.processIdleFrame(frame, rc, frameDelta)
 
 	case stateMatchActive:
-		if d.isBrowser {
-			// Browser sources transition immediately to cooldown on the next frame.
+		delta := PixelDelta(d.lastFrame, frame)
+		elapsed := time.Since(d.matchConfirmedAt)
+		if delta >= rc.changeThreshold || elapsed >= time.Duration(rc.cooldownSec)*time.Second {
+			d.cooldownEnd = time.Now().Add(time.Duration(rc.cooldownSec) * time.Second)
+			d.cooldownStartTime = time.Now()
 			d.phase = stateCooldown
-		} else {
-			delta := PixelDelta(d.lastFrame, frame)
-			elapsed := time.Since(d.matchConfirmedAt)
-			if delta >= rc.changeThreshold || elapsed >= time.Duration(rc.cooldownSec)*time.Second {
-				d.cooldownEnd = time.Now().Add(time.Duration(rc.cooldownSec) * time.Second)
-				d.cooldownStartTime = time.Now()
-				d.phase = stateCooldown
-			}
 		}
 
 	case stateCooldown:
@@ -365,37 +347,6 @@ func (d *Detector) processFrame(frame image.Image, rc resolvedConfig) {
 // HasTemplates reports whether at least one template was loaded.
 func (d *Detector) HasTemplates() bool {
 	return len(d.templates) > 0
-}
-
-// BrowserMatchResult is returned by SubmitFrame for browser-source detectors.
-type BrowserMatchResult struct {
-	// State is the post-frame state: "idle", "match_active", or "cooldown".
-	State string
-	// Confidence is the best NCC score seen in the current frame (0.0–1.0).
-	Confidence float64
-	// Incremented is true when this frame caused the encounter counter to tick.
-	Incremented bool
-}
-
-// SubmitFrame runs one iteration of the detection state machine against a
-// single externally-supplied frame. This is used for browser sources where
-// frames arrive via HTTP POST rather than the Run loop. Safe for concurrent use.
-func (d *Detector) SubmitFrame(frame image.Image) BrowserMatchResult {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	rc := d.resolveConfig()
-	prevPhase := d.phase
-
-	d.processFrame(frame, rc)
-
-	incremented := prevPhase == stateIdle && d.phase == stateMatchActive
-
-	return BrowserMatchResult{
-		State:       d.phase.String(),
-		Confidence:  d.lastBestScore,
-		Incremented: incremented,
-	}
 }
 
 // Run executes the detection loop until ctx is cancelled. It should be called
@@ -431,5 +382,109 @@ func (d *Detector) Run(ctx context.Context, source FrameSource) {
 		if ss, ok := source.(*ScreenFrameSource); ok {
 			ss.PollIntervalNs.Store(d.pollIntervalNs.Load())
 		}
+	}
+}
+
+// RunWithMatchSource executes the detection loop using pre-computed match
+// results from the sidecar instead of raw frames. The sidecar handles capture,
+// downscaling, grayscale conversion, and NCC matching internally. This method
+// feeds the scalar results into the same state machine as Run.
+func (d *Detector) RunWithMatchSource(ctx context.Context, source *SidecarMatchSource) {
+	rc := d.resolveConfig()
+	d.pollIntervalNs.Store(rc.basePollNs)
+
+	for {
+		result, err := source.NextResult(ctx)
+		if err != nil {
+			return
+		}
+		d.processMatchResult(result, rc)
+	}
+}
+
+// processMatchResult runs one iteration of the state machine using a
+// pre-computed match result from the sidecar. It mirrors processFrame but
+// uses scalar best_score and frame_delta values instead of image processing.
+func (d *Detector) processMatchResult(result SidecarMatchResult, rc resolvedConfig) {
+	switch d.phase {
+	case stateIdle:
+		d.processIdleMatchResult(result, rc)
+
+	case stateMatchActive:
+		elapsed := time.Since(d.matchConfirmedAt)
+		if result.FrameDelta >= rc.changeThreshold || elapsed >= time.Duration(rc.cooldownSec)*time.Second {
+			d.cooldownEnd = time.Now().Add(time.Duration(rc.cooldownSec) * time.Second)
+			d.cooldownStartTime = time.Now()
+			d.phase = stateCooldown
+		}
+
+	case stateCooldown:
+		d.processCooldownMatchResult(result, rc)
+	}
+
+	pollMs := time.Duration(d.pollIntervalNs.Load()).Milliseconds()
+	d.broadcast("detector_status", map[string]any{
+		"pokemon_id": d.pokemonID,
+		"state":      d.phase.String(),
+		"confidence": d.lastBestScore,
+		"poll_ms":    pollMs,
+	})
+}
+
+// processIdleMatchResult evaluates a pre-computed score during the idle phase
+// and transitions to stateMatchActive when enough consecutive hits are confirmed.
+func (d *Detector) processIdleMatchResult(result SidecarMatchResult, rc resolvedConfig) {
+	d.lastBestScore = result.BestScore
+
+	above := result.BestScore >= rc.precision
+
+	if above && !d.prevAbove {
+		d.consecCount = 1
+	} else if above && d.prevAbove {
+		d.consecCount++
+	} else {
+		d.consecCount = 0
+	}
+	d.prevAbove = above
+
+	// Adaptive polling based on sidecar-provided metrics.
+	var targetNs int64
+	switch {
+	case above || result.BestScore > 0.5:
+		targetNs = rc.minPollNs
+	case result.FrameDelta > 0.05:
+		targetNs = rc.minPollNs
+	case result.FrameDelta > 0.01:
+		targetNs = rc.basePollNs
+	default:
+		targetNs = rc.maxPollNs
+	}
+	d.pollIntervalNs.Store(targetNs)
+
+	if d.consecCount >= rc.consecutiveHits {
+		// Pass nil frame since the sidecar handled capture internally.
+		d.onMatchConfirmed(nil, result.BestScore, rc)
+	}
+}
+
+// processCooldownMatchResult checks whether the cooldown period has elapsed
+// using pre-computed scores from the sidecar.
+func (d *Detector) processCooldownMatchResult(result SidecarMatchResult, rc resolvedConfig) {
+	if rc.adaptiveCooldown {
+		d.lastBestScore = result.BestScore
+		minElapsed := time.Since(d.cooldownStartTime) >= time.Duration(rc.adaptiveCooldownMin)*time.Second
+		if minElapsed && result.BestScore < rc.precision {
+			d.phase = stateIdle
+			d.prevAbove = true
+			d.consecCount = 0
+			d.pollIntervalNs.Store(rc.basePollNs)
+		}
+		return
+	}
+	if time.Now().After(d.cooldownEnd) {
+		d.phase = stateIdle
+		d.prevAbove = true
+		d.consecCount = 0
+		d.pollIntervalNs.Store(rc.basePollNs)
 	}
 }

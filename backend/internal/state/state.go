@@ -100,7 +100,7 @@ type DetectorRect struct {
 // A nil DetectorConfig means auto-detection is disabled for that hunt.
 type DetectorConfig struct {
 	Enabled         bool               `json:"enabled"`
-	SourceType      string             `json:"source_type"`            // "screen_region" | "window" | "browser_camera" | "browser_display"
+	SourceType      string             `json:"source_type"`            // "screen_region" | "window" | "camera"
 	Region          DetectorRect       `json:"region"`
 	WindowTitle     string             `json:"window_title"`
 	Templates       []DetectorTemplate `json:"templates"`              // replaces TemplatePaths
@@ -115,6 +115,10 @@ type DetectorConfig struct {
 	AdaptiveCooldown    bool           `json:"adaptive_cooldown"`
 	AdaptiveCooldownMin int            `json:"adaptive_cooldown_min"` // Minimum seconds, default 3
 	RelativeRegions     bool           `json:"relative_regions"`
+	RematchEnabled         bool        `json:"rematch_enabled"`
+	RematchThresholdOffset float64     `json:"rematch_threshold_offset"`
+	RematchWindowSec       int         `json:"rematch_window_sec"`
+	ReplayBufferSec        int         `json:"replay_buffer_sec"`
 	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 

@@ -1,11 +1,6 @@
 package detector
 
 import (
-	"image"
-	"image/color"
-	"image/png"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/zsleyer/encounty/backend/internal/state"
@@ -29,49 +24,8 @@ func setupTestManager(t *testing.T) (*Manager, string) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir)
+	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
 	return mgr, pokemonID
-}
-
-// writeTemplateFile creates a minimal PNG template file in the expected
-// directory structure and returns a DetectorConfig referencing it.
-func writeTemplateFile(t *testing.T, tmpDir, pokemonID string) state.DetectorConfig {
-	t.Helper()
-	tmplDir := filepath.Join(tmpDir, "templates", pokemonID)
-	if err := os.MkdirAll(tmplDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	tmplPath := filepath.Join(tmplDir, "test.png")
-	f, err := os.Create(tmplPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	img := image.NewRGBA(image.Rect(0, 0, 32, 32))
-	for y := range 32 {
-		for x := range 32 {
-			if (x/4+y/4)%2 == 0 {
-				img.SetRGBA(x, y, color.RGBA{0, 0, 0, 255})
-			} else {
-				img.SetRGBA(x, y, color.RGBA{255, 255, 255, 255})
-			}
-		}
-	}
-	if err := png.Encode(f, img); err != nil {
-		_ = f.Close()
-		t.Fatal(err)
-	}
-	_ = f.Close()
-
-	return state.DetectorConfig{
-		Enabled:    true,
-		SourceType: "screen_region",
-		Templates: []state.DetectorTemplate{
-			{ImagePath: "test.png"},
-		},
-		Precision:       0.85,
-		ConsecutiveHits: 1,
-		CooldownSec:     1,
-	}
 }
 
 func TestManagerStartStop(t *testing.T) {
@@ -133,7 +87,7 @@ func TestManagerStopAll(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir)
+	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
 
 	_ = mgr.Start("p1", state.DetectorConfig{Enabled: true})
 	_ = mgr.Start("p2", state.DetectorConfig{Enabled: true})
@@ -157,7 +111,7 @@ func TestManagerRunningIDs(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir)
+	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
 
 	ids := mgr.RunningIDs()
 	if len(ids) != 0 {
@@ -170,62 +124,6 @@ func TestManagerRunningIDs(t *testing.T) {
 	ids = mgr.RunningIDs()
 	if len(ids) != 2 {
 		t.Errorf("RunningIDs() = %v, want 2 entries", ids)
-	}
-}
-
-func TestManagerGetOrCreateBrowserDetector(t *testing.T) {
-	mgr, pokemonID := setupTestManager(t)
-	tmpDir := mgr.configDir
-
-	cfg := writeTemplateFile(t, tmpDir, pokemonID)
-	cfg.SourceType = "browser_camera"
-
-	bd1 := mgr.GetOrCreateBrowserDetector(pokemonID, cfg)
-	if bd1 == nil {
-		t.Fatal("GetOrCreateBrowserDetector returned nil")
-	}
-
-	// Calling again with the same ID should return the same instance.
-	bd2 := mgr.GetOrCreateBrowserDetector(pokemonID, cfg)
-	if bd1 != bd2 {
-		t.Error("GetOrCreateBrowserDetector returned different instance for same ID")
-	}
-
-	if !mgr.IsBrowserRunning(pokemonID) {
-		t.Error("IsBrowserRunning() = false after GetOrCreateBrowserDetector")
-	}
-}
-
-func TestManagerResetBrowserDetector(t *testing.T) {
-	mgr, pokemonID := setupTestManager(t)
-	tmpDir := mgr.configDir
-
-	cfg := writeTemplateFile(t, tmpDir, pokemonID)
-	cfg.SourceType = "browser_camera"
-
-	bd1 := mgr.GetOrCreateBrowserDetector(pokemonID, cfg)
-	bd2 := mgr.ResetBrowserDetector(pokemonID, cfg)
-
-	if bd1 == bd2 {
-		t.Error("ResetBrowserDetector should return a new instance")
-	}
-	if !mgr.IsBrowserRunning(pokemonID) {
-		t.Error("IsBrowserRunning() = false after ResetBrowserDetector")
-	}
-}
-
-func TestManagerStopRemovesBrowserDetector(t *testing.T) {
-	mgr, pokemonID := setupTestManager(t)
-	cfg := state.DetectorConfig{Enabled: true, SourceType: "browser_camera"}
-
-	_ = mgr.GetOrCreateBrowserDetector(pokemonID, cfg)
-	if !mgr.IsBrowserRunning(pokemonID) {
-		t.Fatal("IsBrowserRunning should be true")
-	}
-
-	mgr.Stop(pokemonID)
-	if mgr.IsBrowserRunning(pokemonID) {
-		t.Error("IsBrowserRunning() = true after Stop, want false")
 	}
 }
 

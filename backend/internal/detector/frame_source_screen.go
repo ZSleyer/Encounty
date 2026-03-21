@@ -61,7 +61,9 @@ func (s *ScreenFrameSource) NextFrame(ctx context.Context) (image.Image, error) 
 
 // Close is a no-op for screen capture; the context cancellation in NextFrame
 // is sufficient.
-func (s *ScreenFrameSource) Close() {}
+func (s *ScreenFrameSource) Close() {
+	// no-op: capture resources are managed by the capture goroutine
+}
 
 // captureRegion grabs the configured screen rectangle.
 func (s *ScreenFrameSource) captureRegion() (image.Image, error) {
