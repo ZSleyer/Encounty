@@ -16,28 +16,17 @@ const (
 	fmtUnmarshal  = "unmarshal: %v"
 )
 
-// newGetRequest creates a GET request for the given path.
-func newGetRequest(path string) *http.Request {
-	return httptest.NewRequest(http.MethodGet, path, nil)
-}
-
-// doRequest executes handler with the given request and returns the recorder.
-func doRequest(handler http.HandlerFunc, req *http.Request) *httptest.ResponseRecorder {
-	w := httptest.NewRecorder()
-	handler(w, req)
-	return w
-}
-
 // --- handleUpdatePokemon ---
 
 func TestHandleUpdatePokemonValid(t *testing.T) {
 	srv := newTestServer(t)
 	addTestPokemon(t, srv, "p1", "Pikachu")
+	mux := newTestMux(srv)
 
 	body := `{"name":"Raichu","canonical_name":"raichu"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/pokemon/p1", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdatePokemon(w, req, "p1")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -54,11 +43,12 @@ func TestHandleUpdatePokemonValid(t *testing.T) {
 
 func TestHandleUpdatePokemonNotFound(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	body := `{"name":"Raichu"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/pokemon/nonexistent", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdatePokemon(w, req, "nonexistent")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
@@ -70,10 +60,11 @@ func TestHandleUpdatePokemonNotFound(t *testing.T) {
 func TestHandleDeletePokemonValid(t *testing.T) {
 	srv := newTestServer(t)
 	addTestPokemon(t, srv, "p1", "Pikachu")
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/pokemon/p1", nil)
 	w := httptest.NewRecorder()
-	srv.handleDeletePokemon(w, req, "p1")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
@@ -87,10 +78,11 @@ func TestHandleDeletePokemonValid(t *testing.T) {
 
 func TestHandleDeletePokemonNotFound(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/pokemon/nonexistent", nil)
 	w := httptest.NewRecorder()
-	srv.handleDeletePokemon(w, req, "nonexistent")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
@@ -102,10 +94,11 @@ func TestHandleDeletePokemonNotFound(t *testing.T) {
 func TestHandleCompletePokemonValid(t *testing.T) {
 	srv := newTestServer(t)
 	addTestPokemon(t, srv, "p1", "Pikachu")
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/complete", nil)
 	w := httptest.NewRecorder()
-	srv.handleCompletePokemon(w, req, "p1")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
@@ -119,10 +112,11 @@ func TestHandleCompletePokemonValid(t *testing.T) {
 
 func TestHandleCompletePokemonNotFound(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/nonexistent/complete", nil)
 	w := httptest.NewRecorder()
-	srv.handleCompletePokemon(w, req, "nonexistent")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
@@ -137,10 +131,11 @@ func TestHandleUncompletePokemonValid(t *testing.T) {
 
 	// Complete first, then uncomplete
 	srv.state.CompletePokemon("p1")
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/uncomplete", nil)
 	w := httptest.NewRecorder()
-	srv.handleUncompletePokemon(w, req, "p1")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
@@ -154,10 +149,11 @@ func TestHandleUncompletePokemonValid(t *testing.T) {
 
 func TestHandleUncompletePokemonNotFound(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/nonexistent/uncomplete", nil)
 	w := httptest.NewRecorder()
-	srv.handleUncompletePokemon(w, req, "nonexistent")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
@@ -169,9 +165,10 @@ func TestHandleUncompletePokemonNotFound(t *testing.T) {
 func TestHandleGetSessionsEmpty(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
 	w := httptest.NewRecorder()
-	srv.handleGetSessions(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -190,9 +187,10 @@ func TestHandleGetSessionsWithData(t *testing.T) {
 	srv := newTestServer(t)
 	srv.state.AddSession(state.Session{ID: "s1", PokemonID: "p1", Encounters: 10})
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/sessions", nil)
 	w := httptest.NewRecorder()
-	srv.handleGetSessions(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -214,11 +212,12 @@ func TestHandleGetSessionsWithData(t *testing.T) {
 
 func TestHandleUpdateHotkeysValid(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	body := `{"increment":"F5","decrement":"F6","reset":"F7","next_pokemon":"F8"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/hotkeys", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateHotkeys(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -235,10 +234,11 @@ func TestHandleUpdateHotkeysValid(t *testing.T) {
 
 func TestHandleUpdateHotkeysInvalidJSON(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/hotkeys", bytes.NewBufferString("{bad"))
 	w := httptest.NewRecorder()
-	srv.handleUpdateHotkeys(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusBadRequest)
@@ -249,11 +249,12 @@ func TestHandleUpdateHotkeysInvalidJSON(t *testing.T) {
 
 func TestHandleUpdateSingleHotkeyValid(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	body := `{"key":"F9"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/hotkeys/increment", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateSingleHotkey(w, req, "increment")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -278,11 +279,12 @@ func TestHandleUpdateSingleHotkeyValid(t *testing.T) {
 
 func TestHandleUpdateSingleHotkeyUnknownAction(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	body := `{"key":"F9"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/hotkeys/nonexistent", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateSingleHotkey(w, req, "nonexistent")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
@@ -296,9 +298,10 @@ func TestHandleOverlayStateWithActivePokemon(t *testing.T) {
 	addTestPokemon(t, srv, "p1", "Pikachu")
 	srv.state.SetActive("p1")
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/overlay/state", nil)
 	w := httptest.NewRecorder()
-	srv.handleOverlayState(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -327,9 +330,10 @@ func TestHandleOverlayStateWithActivePokemon(t *testing.T) {
 func TestHandleOverlayStateNoActivePokemon(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/overlay/state", nil)
 	w := httptest.NewRecorder()
-	srv.handleOverlayState(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -350,13 +354,13 @@ func TestHandleOverlayStateNoActivePokemon(t *testing.T) {
 func TestHandleUnlinkOverlayValid(t *testing.T) {
 	srv := newTestServer(t)
 	addTestPokemon(t, srv, "p1", "Pikachu")
+	mux := newTestMux(srv)
 
 	// The pokemon starts with default overlay mode; unlinking copies the
 	// resolved overlay and sets mode to "custom".
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/overlay/unlink", nil)
-	req.URL.Path = "/api/pokemon/p1/overlay/unlink"
 	w := httptest.NewRecorder()
-	srv.handleUnlinkOverlay(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
@@ -373,28 +377,30 @@ func TestHandleUnlinkOverlayValid(t *testing.T) {
 
 func TestHandleUnlinkOverlayNotFound(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/nonexistent/overlay/unlink", nil)
-	req.URL.Path = "/api/pokemon/nonexistent/overlay/unlink"
 	w := httptest.NewRecorder()
-	srv.handleUnlinkOverlay(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNotFound)
 	}
 }
 
-// --- handleGetGames ---
+// --- handleGetGames (via mux) ---
 
 func TestHandleGetGames(t *testing.T) {
 	// Reset the cached games so this test gets a clean state.
 	gamesync.InvalidateCache()
 
 	srv := newTestServer(t)
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/games", nil)
 	w := httptest.NewRecorder()
-	srv.handleGetGames(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -407,14 +413,16 @@ func TestHandleGetGames(t *testing.T) {
 	}
 }
 
-// --- handleGetHuntTypes ---
+// --- handleGetHuntTypes (via mux) ---
 
 func TestHandleGetHuntTypes(t *testing.T) {
 	srv := newTestServer(t)
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/hunt-types", nil)
 	w := httptest.NewRecorder()
-	srv.handleGetHuntTypes(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -438,11 +446,12 @@ func TestHandleGetHuntTypes(t *testing.T) {
 func TestHandlePauseResumeLifecycle(t *testing.T) {
 	srv := newTestServer(t)
 	hkMock := srv.hotkeyMgr.(*mockHotkeyMgr)
+	mux := newTestMux(srv)
 
 	// Pause
 	req := httptest.NewRequest(http.MethodPost, "/api/hotkeys/pause", nil)
 	w := httptest.NewRecorder()
-	srv.handleHotkeysPause(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("pause status = %d, want %d", w.Code, http.StatusOK)
@@ -462,7 +471,7 @@ func TestHandlePauseResumeLifecycle(t *testing.T) {
 	// Resume
 	req = httptest.NewRequest(http.MethodPost, "/api/hotkeys/resume", nil)
 	w = httptest.NewRecorder()
-	srv.handleHotkeysResume(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf("resume status = %d, want %d", w.Code, http.StatusOK)
@@ -482,10 +491,11 @@ func TestHandlePauseResumeLifecycle(t *testing.T) {
 
 func TestHandlePauseWrongMethod(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/hotkeys/pause", nil)
 	w := httptest.NewRecorder()
-	srv.handleHotkeysPause(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusMethodNotAllowed)
@@ -494,10 +504,11 @@ func TestHandlePauseWrongMethod(t *testing.T) {
 
 func TestHandleResumeWrongMethod(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/hotkeys/resume", nil)
 	w := httptest.NewRecorder()
-	srv.handleHotkeysResume(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusMethodNotAllowed)
@@ -506,10 +517,11 @@ func TestHandleResumeWrongMethod(t *testing.T) {
 
 func TestHandleStatusAvailable(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/hotkeys/status", nil)
 	w := httptest.NewRecorder()
-	srv.handleHotkeysStatus(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -533,9 +545,10 @@ func TestHandleStatusAvailable(t *testing.T) {
 func TestHandleLicenses(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/licenses", nil)
 	w := httptest.NewRecorder()
-	srv.handleLicenses(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)

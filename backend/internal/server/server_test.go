@@ -116,7 +116,7 @@ func TestProcessHotkeyActionsReset(t *testing.T) {
 	srv.state.Increment("p1")
 
 	// Register a fake client to capture the broadcast.
-	c := &wsClient{send: make(chan []byte, sendBufSize)}
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
 	srv.hub.mu.Lock()
 	srv.hub.clients[c] = true
 	srv.hub.mu.Unlock()
@@ -135,9 +135,9 @@ func TestProcessHotkeyActionsReset(t *testing.T) {
 
 	// The hub should have received a request_reset_confirm broadcast.
 	select {
-	case data := <-c.send:
+	case payload := <-c.send:
 		var msg WSMessage
-		if err := json.Unmarshal(data, &msg); err != nil {
+		if err := json.Unmarshal(payload.data, &msg); err != nil {
 			t.Fatalf("unmarshal: %v", err)
 		}
 		if msg.Type != "request_reset_confirm" {

@@ -1,745 +1,766 @@
-basePath: /api
-definitions:
-  github_com_zsleyer_encounty_backend_internal_database.EncounterStats:
-    properties:
-      first_at:
-        type: string
-      last_at:
-        type: string
-      rate_per_hour:
-        type: number
-      today:
-        type: integer
-      total:
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_database.OverviewStats:
-    properties:
-      today:
-        type: integer
-      total_encounters:
-        type: integer
-      total_pokemon:
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_detector.CameraInfo:
-    properties:
-      device_path:
-        type: string
-      driver:
-        type: string
-      name:
-        type: string
-    type: object
-  github_com_zsleyer_encounty_backend_internal_detector.Capabilities:
-    properties:
-      display_server:
-        type: string
-      platform:
-        type: string
-      sidecar_available:
-        type: boolean
-      supports_camera:
-        type: boolean
-      supports_screen_capture:
-        type: boolean
-      supports_window_capture:
-        type: boolean
-    type: object
-  github_com_zsleyer_encounty_backend_internal_licenses.Entry:
-    properties:
-      license:
-        type: string
-      name:
-        type: string
-      source:
-        type: string
-      text:
-        type: string
-      version:
-        type: string
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.AppState:
-    properties:
-      active_id:
-        type: string
-      data_path:
-        type: string
-      hotkeys:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.HotkeyMap'
-      license_accepted:
-        type: boolean
-      pokemon:
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon'
-        type: array
-      sessions:
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Session'
-        type: array
-      settings:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Settings'
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.CounterElement:
-    properties:
-      height:
-        type: integer
-      idle_animation:
-        type: string
-      label_style:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.TextStyle'
-      label_text:
-        type: string
-      show_label:
-        type: boolean
-      style:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.TextStyle'
-      trigger_enter:
-        type: string
-      visible:
-        type: boolean
-      width:
-        type: integer
-      x:
-        type: integer
-      "y":
-        type: integer
-      z_index:
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.DetectionLogEntry:
-    properties:
-      at:
-        description: At is the UTC timestamp when the match was confirmed.
-        type: string
-      confidence:
-        description: Confidence is the NCC score that triggered the match (0.0–1.0).
-        type: number
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.DetectorConfig:
-    properties:
-      adaptive_cooldown:
-        type: boolean
-      adaptive_cooldown_min:
-        description: Minimum seconds, default 3
-        type: integer
-      change_threshold:
-        description: pixel-delta fraction required to leave MATCH state
-        type: number
-      consecutive_hits:
-        description: consecutive matching frames required before counting
-        type: integer
-      cooldown_sec:
-        description: minimum seconds between counts
-        type: integer
-      detection_log:
-        description: last maxDetectionLog confirmed matches
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectionLogEntry'
-        type: array
-      enabled:
-        type: boolean
-      max_poll_ms:
-        description: slowest adaptive poll interval (static screen), default 500
-        type: integer
-      min_poll_ms:
-        description: fastest adaptive poll interval (high activity), default 30
-        type: integer
-      poll_interval_ms:
-        description: base milliseconds between capture polls (adaptive centre point)
-        type: integer
-      precision:
-        description: 0.0–1.0, default 0.85
-        type: number
-      region:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorRect'
-      relative_regions:
-        type: boolean
-      source_type:
-        description: '"screen_region" | "window" | "browser_camera" | "browser_display"'
-        type: string
-      templates:
-        description: replaces TemplatePaths
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorTemplate'
-        type: array
-      window_title:
-        type: string
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.DetectorRect:
-    properties:
-      h:
-        type: integer
-      w:
-        type: integer
-      x:
-        type: integer
-      "y":
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.DetectorTemplate:
-    properties:
-      enabled:
-        description: nil = true (backward compat)
-        type: boolean
-      image_path:
-        description: legacy filesystem path
-        type: string
-      regions:
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.MatchedRegion'
-        type: array
-      template_db_id:
-        description: DB primary key
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.GradientStop:
-    properties:
-      color:
-        type: string
-      position:
-        type: number
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.HotkeyMap:
-    properties:
-      decrement:
-        type: string
-      increment:
-        type: string
-      next_pokemon:
-        type: string
-      reset:
-        type: string
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.HuntTypePreset:
-    properties:
-      defaultConsecutiveHits:
-        description: DefaultConsecutiveHits is the recommended number of matching
-          frames before counting.
-        type: integer
-      defaultCooldownSec:
-        description: DefaultCooldownSec is the recommended minimum seconds between
-          counted encounters.
-        type: integer
-      key:
-        description: Key is the canonical identifier stored in Pokemon.HuntType.
-        type: string
-      nameDE:
-        description: NameDE is the German display name.
-        type: string
-      nameEN:
-        description: NameEN is the English display name.
-        type: string
-      oddsDenom:
-        type: integer
-      oddsNumer:
-        description: OddsNumer and OddsDenom express the base shiny probability as
-          a fraction.
-        type: integer
-      templateTip:
-        description: TemplateTip is an English hint shown to the user when capturing
-          a template.
-        type: string
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.MatchedRegion:
-    properties:
-      expected_text:
-        description: used if Type == "text"
-        type: string
-      rect:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorRect'
-      type:
-        description: '"image" | "text"'
-        type: string
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.NameElement:
-    properties:
-      height:
-        type: integer
-      idle_animation:
-        type: string
-      style:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.TextStyle'
-      trigger_enter:
-        type: string
-      visible:
-        type: boolean
-      width:
-        type: integer
-      x:
-        type: integer
-      "y":
-        type: integer
-      z_index:
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.OverlaySettings:
-    properties:
-      background_animation:
-        type: string
-      background_animation_speed:
-        type: number
-      background_color:
-        type: string
-      background_image:
-        type: string
-      background_image_fit:
-        type: string
-      background_opacity:
-        type: number
-      blur:
-        type: integer
-      border_color:
-        type: string
-      border_radius:
-        type: integer
-      border_width:
-        type: integer
-      canvas_height:
-        type: integer
-      canvas_width:
-        type: integer
-      counter:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.CounterElement'
-      hidden:
-        type: boolean
-      name:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.NameElement'
-      show_border:
-        type: boolean
-      sprite:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.SpriteElement'
-      title:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.TitleElement'
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.Pokemon:
-    properties:
-      canonical_name:
-        description: English PokéAPI slug
-        type: string
-      completed_at:
-        type: string
-      created_at:
-        type: string
-      detector_config:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorConfig'
-      encounters:
-        type: integer
-      game:
-        description: key from games.json
-        type: string
-      hunt_mode:
-        description: '"both" | "timer" | "detector" (default "both")'
-        type: string
-      hunt_type:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      language:
-        description: '"de" | "en"'
-        type: string
-      name:
-        description: Display name (localized)
-        type: string
-      overlay:
-        allOf:
-        - $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.OverlaySettings'
-        description: Pokemon-specific overlay settings
-      overlay_mode:
-        description: '"default" | "custom" | "linked:<pokemon-id>"'
-        type: string
-      sprite_style:
-        description: '"classic" | "animated" | "3d" | "artwork"'
-        type: string
-      sprite_type:
-        description: '"normal" | "shiny"'
-        type: string
-      sprite_url:
-        type: string
-      step:
-        description: Increment/decrement step size (default 1)
-        type: integer
-      timer_accumulated_ms:
-        type: integer
-      timer_started_at:
-        type: string
-      title:
-        description: User-defined custom title
-        type: string
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.Session:
-    properties:
-      encounters:
-        type: integer
-      ended_at:
-        type: string
-      id:
-        type: string
-      pokemon_id:
-        type: string
-      started_at:
-        type: string
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.Settings:
-    properties:
-      auto_save:
-        type: boolean
-      browser_port:
-        type: integer
-      config_path:
-        description: custom data directory override
-        type: string
-      crisp_sprites:
-        type: boolean
-      languages:
-        description: active game-name languages; default ["de","en"]
-        items:
+components:
+  schemas:
+    database.EncounterStats:
+      properties:
+        first_at:
           type: string
-        type: array
-      output_dir:
-        type: string
-      output_enabled:
-        type: boolean
-      overlay:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.OverlaySettings'
-      tutorial_seen:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.TutorialFlags'
-      ui_animations:
-        type: boolean
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.SpriteElement:
-    properties:
-      glow_blur:
-        type: integer
-      glow_color:
-        type: string
-      glow_opacity:
-        type: number
-      height:
-        type: integer
-      idle_animation:
-        type: string
-      show_glow:
-        type: boolean
-      trigger_enter:
-        type: string
-      trigger_exit:
-        type: string
-      visible:
-        type: boolean
-      width:
-        type: integer
-      x:
-        type: integer
-      "y":
-        type: integer
-      z_index:
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.TextStyle:
-    properties:
-      color:
-        type: string
-      color_type:
-        description: '"solid" | "gradient"'
-        type: string
-      font_family:
-        type: string
-      font_size:
-        type: integer
-      font_weight:
-        type: integer
-      gradient_angle:
-        type: integer
-      gradient_stops:
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.GradientStop'
-        type: array
-      outline_color:
-        type: string
-      outline_gradient_angle:
-        type: integer
-      outline_gradient_stops:
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.GradientStop'
-        type: array
-      outline_type:
-        description: '"none" | "solid"'
-        type: string
-      outline_width:
-        type: integer
-      text_align:
-        type: string
-      text_shadow:
-        type: boolean
-      text_shadow_blur:
-        type: integer
-      text_shadow_color:
-        type: string
-      text_shadow_color_type:
-        description: '"solid" | "gradient"'
-        type: string
-      text_shadow_gradient_angle:
-        type: integer
-      text_shadow_gradient_stops:
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.GradientStop'
-        type: array
-      text_shadow_x:
-        type: integer
-      text_shadow_y:
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.TitleElement:
-    properties:
-      height:
-        type: integer
-      idle_animation:
-        type: string
-      style:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.TextStyle'
-      trigger_enter:
-        type: string
-      visible:
-        type: boolean
-      width:
-        type: integer
-      x:
-        type: integer
-      "y":
-        type: integer
-      z_index:
-        type: integer
-    type: object
-  github_com_zsleyer_encounty_backend_internal_state.TutorialFlags:
-    properties:
-      auto_detection:
-        type: boolean
-      overlay_editor:
-        type: boolean
-    type: object
-  internal_server.BackgroundUploadRequest:
-    properties:
-      image_base64:
-        type: string
-    type: object
-  internal_server.CountResponse:
-    properties:
-      count:
-        type: integer
-    type: object
-  internal_server.DetectorRunResponse:
-    properties:
-      ok:
-        type: boolean
-      running:
-        type: boolean
-    type: object
-  internal_server.FilenameResponse:
-    properties:
-      filename:
-        type: string
-    type: object
-  internal_server.GameEntry:
-    properties:
-      generation:
-        type: integer
-      key:
-        type: string
-      names:
-        additionalProperties:
+        last_at:
           type: string
-        type: object
-      platform:
-        type: string
-    type: object
-  internal_server.GamesSyncResult:
-    properties:
-      added:
-        type: integer
-      updated:
-        type: integer
-    type: object
-  internal_server.HotkeyUpdateResponse:
-    properties:
-      action:
-        type: string
-      key:
-        type: string
-    type: object
-  internal_server.HotkeysStatusResponse:
-    properties:
-      available:
-        type: boolean
-    type: object
-  internal_server.ImportResponse:
-    properties:
-      imported:
-        type: integer
-    type: object
-  internal_server.ImportTemplatesRequest:
-    properties:
-      source_pokemon_id:
-        type: string
-    type: object
-  internal_server.LicenseAcceptResponse:
-    properties:
-      license_accepted:
-        type: boolean
-    type: object
-  internal_server.MatchFrameResponse:
-    properties:
-      confidence:
-        type: number
-      match:
-        type: boolean
-      state:
-        type: string
-    type: object
-  internal_server.OverlayStateResponse:
-    properties:
-      active_id:
-        type: string
-      active_pokemon:
-        $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon'
-    type: object
-  internal_server.PathResponse:
-    properties:
-      path:
-        type: string
-    type: object
-  internal_server.PokedexEntry:
-    properties:
-      canonical:
-        type: string
-      forms:
-        items:
-          $ref: '#/definitions/internal_server.PokemonForm'
-        type: array
-      id:
-        type: integer
-      names:
-        additionalProperties:
+        rate_per_hour:
+          type: number
+        today:
+          type: integer
+        total:
+          type: integer
+      type: object
+    database.OverviewStats:
+      properties:
+        today:
+          type: integer
+        total_encounters:
+          type: integer
+        total_pokemon:
+          type: integer
+      type: object
+    detector.CameraInfo:
+      properties:
+        device_path:
           type: string
-        type: object
-    type: object
-  internal_server.PokedexSyncResponse:
-    properties:
-      added:
-        type: integer
-      namesUpdated:
-        type: integer
-      new:
-        items:
+        driver:
           type: string
-        type: array
-      total:
-        type: integer
-    type: object
-  internal_server.PokemonForm:
-    properties:
-      canonical:
-        type: string
-      names:
-        additionalProperties:
+        name:
           type: string
-        type: object
-      sprite_id:
-        type: integer
-    type: object
-  internal_server.RestoreResponse:
-    properties:
-      ok:
-        type: boolean
-    type: object
-  internal_server.SetConfigPathRequest:
-    properties:
-      path:
-        type: string
-    type: object
-  internal_server.SetEncountersRequest:
-    properties:
-      count:
-        type: integer
-    type: object
-  internal_server.SpriteTemplateRequest:
-    properties:
-      sprite_url:
-        type: string
-    type: object
-  internal_server.StatusResponse:
-    properties:
-      status:
-        type: string
-    type: object
-  internal_server.TemplateUploadRequest:
-    properties:
-      imageBase64:
-        type: string
-      regions:
-        items:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.MatchedRegion'
-        type: array
-    type: object
-  internal_server.TemplateUploadResponse:
-    properties:
-      index:
-        type: integer
-      template_db_id:
-        type: integer
-    type: object
-  internal_server.UpdateApplyRequest:
-    properties:
-      download_url:
-        type: string
-    type: object
-  internal_server.UpdateHotkeyRequest:
-    properties:
-      key:
-        type: string
-    type: object
-  internal_server.UpdateInfo:
-    properties:
-      available:
-        type: boolean
-      current_version:
-        type: string
-      download_url:
-        type: string
-      latest_version:
-        type: string
-    type: object
-  internal_server.VersionResponse:
-    properties:
-      build_date:
-        type: string
-      commit:
-        type: string
-      display:
-        type: string
-      version:
-        type: string
-    type: object
-  internal_server.detectorStatusEntry:
-    properties:
-      pokemon_id:
-        type: string
-      running:
-        type: boolean
-    type: object
-  internal_server.errResp:
-    properties:
-      error:
-        type: string
-    type: object
-host: localhost:8080
+      type: object
+    detector.Capabilities:
+      properties:
+        display_server:
+          type: string
+        platform:
+          type: string
+        sidecar_available:
+          type: boolean
+        sidecar_match_support:
+          description: sidecar can do capture+match
+          type: boolean
+        supports_camera:
+          type: boolean
+        supports_screen_capture:
+          type: boolean
+        supports_window_capture:
+          type: boolean
+      type: object
+    gamesync.GameEntry:
+      properties:
+        generation:
+          type: integer
+        key:
+          type: string
+        names:
+          additionalProperties:
+            type: string
+          type: object
+        platform:
+          type: string
+      type: object
+    gamesync.GamesSyncResult:
+      properties:
+        added:
+          type: integer
+        updated:
+          type: integer
+      type: object
+    licenses.Entry:
+      properties:
+        license:
+          type: string
+        name:
+          type: string
+        source:
+          type: string
+        text:
+          type: string
+        version:
+          type: string
+      type: object
+    pokedex.Entry:
+      properties:
+        canonical:
+          type: string
+        forms:
+          items:
+            $ref: '#/components/schemas/pokedex.Form'
+          type: array
+          uniqueItems: false
+        id:
+          type: integer
+        names:
+          additionalProperties:
+            type: string
+          type: object
+      type: object
+    pokedex.Form:
+      properties:
+        canonical:
+          type: string
+        names:
+          additionalProperties:
+            type: string
+          type: object
+        sprite_id:
+          type: integer
+      type: object
+    server.BackgroundUploadRequest:
+      properties:
+        image_base64:
+          type: string
+      type: object
+    server.CountResponse:
+      properties:
+        count:
+          type: integer
+      type: object
+    server.DetectorRunResponse:
+      properties:
+        ok:
+          type: boolean
+        running:
+          type: boolean
+      type: object
+    server.FilenameResponse:
+      properties:
+        filename:
+          type: string
+      type: object
+    server.HotkeyUpdateResponse:
+      properties:
+        action:
+          type: string
+        key:
+          type: string
+      type: object
+    server.HotkeysStatusResponse:
+      properties:
+        available:
+          type: boolean
+      type: object
+    server.ImportResponse:
+      properties:
+        imported:
+          type: integer
+      type: object
+    server.ImportTemplatesRequest:
+      properties:
+        source_pokemon_id:
+          type: string
+      type: object
+    server.LicenseAcceptResponse:
+      properties:
+        license_accepted:
+          type: boolean
+      type: object
+    server.MatchFrameResponse:
+      properties:
+        confidence:
+          type: number
+        match:
+          type: boolean
+        state:
+          type: string
+      type: object
+    server.OverlayStateResponse:
+      properties:
+        active_id:
+          type: string
+        active_pokemon:
+          $ref: '#/components/schemas/state.Pokemon'
+      type: object
+    server.PathResponse:
+      properties:
+        path:
+          type: string
+      type: object
+    server.PokedexSyncResponse:
+      properties:
+        added:
+          type: integer
+        namesUpdated:
+          type: integer
+        new:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        total:
+          type: integer
+      type: object
+    server.ReadyStatusResponse:
+      properties:
+        ready:
+          type: boolean
+      type: object
+    server.RestoreResponse:
+      properties:
+        ok:
+          type: boolean
+      type: object
+    server.SetConfigPathRequest:
+      properties:
+        path:
+          type: string
+      type: object
+    server.SetEncountersRequest:
+      properties:
+        count:
+          type: integer
+      type: object
+    server.SpriteTemplateRequest:
+      properties:
+        sprite_url:
+          type: string
+      type: object
+    server.StatusResponse:
+      properties:
+        status:
+          type: string
+      type: object
+    server.TemplateUploadRequest:
+      properties:
+        imageBase64:
+          type: string
+        regions:
+          items:
+            $ref: '#/components/schemas/state.MatchedRegion'
+          type: array
+          uniqueItems: false
+      type: object
+    server.TemplateUploadResponse:
+      properties:
+        index:
+          type: integer
+        template_db_id:
+          type: integer
+      type: object
+    server.UpdateApplyRequest:
+      properties:
+        download_url:
+          type: string
+      type: object
+    server.UpdateHotkeyRequest:
+      properties:
+        key:
+          type: string
+      type: object
+    server.VersionResponse:
+      properties:
+        build_date:
+          type: string
+        commit:
+          type: string
+        display:
+          type: string
+        version:
+          type: string
+      type: object
+    server.detectorStatusEntry:
+      properties:
+        pokemon_id:
+          type: string
+        running:
+          type: boolean
+      type: object
+    server.errResp:
+      properties:
+        error:
+          type: string
+      type: object
+    state.AppState:
+      properties:
+        active_id:
+          type: string
+        data_path:
+          type: string
+        hotkeys:
+          $ref: '#/components/schemas/state.HotkeyMap'
+        license_accepted:
+          type: boolean
+        pokemon:
+          items:
+            $ref: '#/components/schemas/state.Pokemon'
+          type: array
+          uniqueItems: false
+        sessions:
+          items:
+            $ref: '#/components/schemas/state.Session'
+          type: array
+          uniqueItems: false
+        settings:
+          $ref: '#/components/schemas/state.Settings'
+      type: object
+    state.CounterElement:
+      properties:
+        height:
+          type: integer
+        idle_animation:
+          type: string
+        label_style:
+          $ref: '#/components/schemas/state.TextStyle'
+        label_text:
+          type: string
+        show_label:
+          type: boolean
+        style:
+          $ref: '#/components/schemas/state.TextStyle'
+        trigger_enter:
+          type: string
+        visible:
+          type: boolean
+        width:
+          type: integer
+        x:
+          type: integer
+        "y":
+          type: integer
+        z_index:
+          type: integer
+      type: object
+    state.DetectionLogEntry:
+      properties:
+        at:
+          description: At is the UTC timestamp when the match was confirmed.
+          type: string
+        confidence:
+          description: Confidence is the NCC score that triggered the match (0.0–1.0).
+          type: number
+      type: object
+    state.DetectorConfig:
+      properties:
+        adaptive_cooldown:
+          type: boolean
+        adaptive_cooldown_min:
+          description: Minimum seconds, default 3
+          type: integer
+        change_threshold:
+          description: pixel-delta fraction required to leave MATCH state
+          type: number
+        consecutive_hits:
+          description: consecutive matching frames required before counting
+          type: integer
+        cooldown_sec:
+          description: minimum seconds between counts
+          type: integer
+        detection_log:
+          description: last maxDetectionLog confirmed matches
+          items:
+            $ref: '#/components/schemas/state.DetectionLogEntry'
+          type: array
+          uniqueItems: false
+        enabled:
+          type: boolean
+        max_poll_ms:
+          description: slowest adaptive poll interval (static screen), default 500
+          type: integer
+        min_poll_ms:
+          description: fastest adaptive poll interval (high activity), default 30
+          type: integer
+        poll_interval_ms:
+          description: base milliseconds between capture polls (adaptive centre point)
+          type: integer
+        precision:
+          description: 0.0–1.0, default 0.85
+          type: number
+        region:
+          $ref: '#/components/schemas/state.DetectorRect'
+        relative_regions:
+          type: boolean
+        source_type:
+          description: '"screen_region" | "window" | "browser_camera" | "browser_display"'
+          type: string
+        templates:
+          description: replaces TemplatePaths
+          items:
+            $ref: '#/components/schemas/state.DetectorTemplate'
+          type: array
+          uniqueItems: false
+        window_title:
+          type: string
+      type: object
+    state.DetectorRect:
+      properties:
+        h:
+          type: integer
+        w:
+          type: integer
+        x:
+          type: integer
+        "y":
+          type: integer
+      type: object
+    state.DetectorTemplate:
+      properties:
+        enabled:
+          description: nil = true (backward compat)
+          type: boolean
+        image_path:
+          description: legacy filesystem path
+          type: string
+        regions:
+          items:
+            $ref: '#/components/schemas/state.MatchedRegion'
+          type: array
+          uniqueItems: false
+        template_db_id:
+          description: DB primary key
+          type: integer
+      type: object
+    state.GradientStop:
+      properties:
+        color:
+          type: string
+        position:
+          type: number
+      type: object
+    state.HotkeyMap:
+      properties:
+        decrement:
+          type: string
+        increment:
+          type: string
+        next_pokemon:
+          type: string
+        reset:
+          type: string
+      type: object
+    state.HuntTypePreset:
+      properties:
+        defaultConsecutiveHits:
+          description: DefaultConsecutiveHits is the recommended number of matching
+            frames before counting.
+          type: integer
+        defaultCooldownSec:
+          description: DefaultCooldownSec is the recommended minimum seconds between
+            counted encounters.
+          type: integer
+        key:
+          description: Key is the canonical identifier stored in Pokemon.HuntType.
+          type: string
+        nameDE:
+          description: NameDE is the German display name.
+          type: string
+        nameEN:
+          description: NameEN is the English display name.
+          type: string
+        oddsDenom:
+          type: integer
+        oddsNumer:
+          description: OddsNumer and OddsDenom express the base shiny probability
+            as a fraction.
+          type: integer
+        templateTip:
+          description: TemplateTip is an English hint shown to the user when capturing
+            a template.
+          type: string
+      type: object
+    state.MatchedRegion:
+      properties:
+        expected_text:
+          description: used if Type == "text"
+          type: string
+        rect:
+          $ref: '#/components/schemas/state.DetectorRect'
+        type:
+          description: '"image" | "text"'
+          type: string
+      type: object
+    state.NameElement:
+      properties:
+        height:
+          type: integer
+        idle_animation:
+          type: string
+        style:
+          $ref: '#/components/schemas/state.TextStyle'
+        trigger_enter:
+          type: string
+        visible:
+          type: boolean
+        width:
+          type: integer
+        x:
+          type: integer
+        "y":
+          type: integer
+        z_index:
+          type: integer
+      type: object
+    state.OverlaySettings:
+      description: Pokemon-specific overlay settings
+      properties:
+        background_animation:
+          type: string
+        background_animation_speed:
+          type: number
+        background_color:
+          type: string
+        background_image:
+          type: string
+        background_image_fit:
+          type: string
+        background_opacity:
+          type: number
+        blur:
+          type: integer
+        border_color:
+          type: string
+        border_radius:
+          type: integer
+        border_width:
+          type: integer
+        canvas_height:
+          type: integer
+        canvas_width:
+          type: integer
+        counter:
+          $ref: '#/components/schemas/state.CounterElement'
+        hidden:
+          type: boolean
+        name:
+          $ref: '#/components/schemas/state.NameElement'
+        show_border:
+          type: boolean
+        sprite:
+          $ref: '#/components/schemas/state.SpriteElement'
+        title:
+          $ref: '#/components/schemas/state.TitleElement'
+      type: object
+    state.Pokemon:
+      properties:
+        canonical_name:
+          description: English PokéAPI slug
+          type: string
+        completed_at:
+          type: string
+        created_at:
+          type: string
+        detector_config:
+          $ref: '#/components/schemas/state.DetectorConfig'
+        encounters:
+          type: integer
+        game:
+          description: key from games.json
+          type: string
+        hunt_mode:
+          description: '"both" | "timer" | "detector" (default "both")'
+          type: string
+        hunt_type:
+          type: string
+        id:
+          type: string
+        is_active:
+          type: boolean
+        language:
+          description: '"de" | "en"'
+          type: string
+        name:
+          description: Display name (localized)
+          type: string
+        overlay:
+          $ref: '#/components/schemas/state.OverlaySettings'
+        overlay_mode:
+          description: '"default" | "custom" | "linked:<pokemon-id>"'
+          type: string
+        sprite_style:
+          description: '"classic" | "animated" | "3d" | "artwork"'
+          type: string
+        sprite_type:
+          description: '"normal" | "shiny"'
+          type: string
+        sprite_url:
+          type: string
+        step:
+          description: Increment/decrement step size (default 1)
+          type: integer
+        timer_accumulated_ms:
+          type: integer
+        timer_started_at:
+          type: string
+        title:
+          description: User-defined custom title
+          type: string
+      type: object
+    state.Session:
+      properties:
+        encounters:
+          type: integer
+        ended_at:
+          type: string
+        id:
+          type: string
+        pokemon_id:
+          type: string
+        started_at:
+          type: string
+      type: object
+    state.Settings:
+      properties:
+        auto_save:
+          type: boolean
+        browser_port:
+          type: integer
+        config_path:
+          description: custom data directory override
+          type: string
+        crisp_sprites:
+          type: boolean
+        languages:
+          description: active game-name languages; default ["de","en"]
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        output_dir:
+          type: string
+        output_enabled:
+          type: boolean
+        overlay:
+          $ref: '#/components/schemas/state.OverlaySettings'
+        tutorial_seen:
+          $ref: '#/components/schemas/state.TutorialFlags'
+        ui_animations:
+          type: boolean
+      type: object
+    state.SpriteElement:
+      properties:
+        glow_blur:
+          type: integer
+        glow_color:
+          type: string
+        glow_opacity:
+          type: number
+        height:
+          type: integer
+        idle_animation:
+          type: string
+        show_glow:
+          type: boolean
+        trigger_enter:
+          type: string
+        trigger_exit:
+          type: string
+        visible:
+          type: boolean
+        width:
+          type: integer
+        x:
+          type: integer
+        "y":
+          type: integer
+        z_index:
+          type: integer
+      type: object
+    state.TextStyle:
+      properties:
+        color:
+          type: string
+        color_type:
+          description: '"solid" | "gradient"'
+          type: string
+        font_family:
+          type: string
+        font_size:
+          type: integer
+        font_weight:
+          type: integer
+        gradient_angle:
+          type: integer
+        gradient_stops:
+          items:
+            $ref: '#/components/schemas/state.GradientStop'
+          type: array
+          uniqueItems: false
+        outline_color:
+          type: string
+        outline_gradient_angle:
+          type: integer
+        outline_gradient_stops:
+          items:
+            $ref: '#/components/schemas/state.GradientStop'
+          type: array
+          uniqueItems: false
+        outline_type:
+          description: '"none" | "solid"'
+          type: string
+        outline_width:
+          type: integer
+        text_align:
+          type: string
+        text_shadow:
+          type: boolean
+        text_shadow_blur:
+          type: integer
+        text_shadow_color:
+          type: string
+        text_shadow_color_type:
+          description: '"solid" | "gradient"'
+          type: string
+        text_shadow_gradient_angle:
+          type: integer
+        text_shadow_gradient_stops:
+          items:
+            $ref: '#/components/schemas/state.GradientStop'
+          type: array
+          uniqueItems: false
+        text_shadow_x:
+          type: integer
+        text_shadow_y:
+          type: integer
+      type: object
+    state.TitleElement:
+      properties:
+        height:
+          type: integer
+        idle_animation:
+          type: string
+        style:
+          $ref: '#/components/schemas/state.TextStyle'
+        trigger_enter:
+          type: string
+        visible:
+          type: boolean
+        width:
+          type: integer
+        x:
+          type: integer
+        "y":
+          type: integer
+        z_index:
+          type: integer
+      type: object
+    state.TutorialFlags:
+      properties:
+        auto_detection:
+          type: boolean
+        overlay_editor:
+          type: boolean
+      type: object
+    updater.UpdateInfo:
+      properties:
+        available:
+          type: boolean
+        current_version:
+          type: string
+        download_url:
+          type: string
+        latest_version:
+          type: string
+      type: object
+externalDocs:
+  description: ""
+  url: ""
 info:
-  contact: {}
   description: Pokémon Shiny Encounter Counter — REST API
   title: Encounty API
   version: "1.0"
+openapi: 3.1.0
 paths:
   /backgrounds/{filename}:
     delete:
@@ -748,18 +769,23 @@ paths:
         in: path
         name: filename
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: Delete a background image
       tags:
       - backgrounds
@@ -769,119 +795,154 @@ paths:
         in: path
         name: filename
         required: true
-        type: string
-      produces:
-      - image/png
-      - image/jpeg
+        schema:
+          type: string
       responses:
         "200":
+          content:
+            image/jpeg:
+              schema:
+                type: file
+            image/png:
+              schema:
+                type: file
           description: OK
-          schema:
-            type: file
         "400":
+          content:
+            image/jpeg:
+              schema:
+                type: string
+            image/png:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "404":
+          content:
+            image/jpeg:
+              schema:
+                type: string
+            image/png:
+              schema:
+                type: string
           description: Not Found
-          schema:
-            type: string
       summary: Serve a background image
       tags:
       - backgrounds
   /backgrounds/upload:
     post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Base64-encoded image
-        in: body
-        name: body
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/server.BackgroundUploadRequest'
+                description: Base64-encoded image
+                summary: body
+        description: Base64-encoded image
         required: true
-        schema:
-          $ref: '#/definitions/internal_server.BackgroundUploadRequest'
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.FilenameResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.FilenameResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: Upload a background image
       tags:
       - backgrounds
   /backup:
     get:
-      produces:
-      - application/zip
       responses:
         "200":
+          content:
+            application/zip:
+              schema:
+                type: file
           description: OK
-          schema:
-            type: file
       summary: Download a backup ZIP
       tags:
       - system
   /detector/{id}/config:
     get:
-      consumes:
-      - application/json
       parameters:
       - description: Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/state.DetectorConfig'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorConfig'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Get or set detector config for a Pokemon
       tags:
       - detector
     post:
-      consumes:
-      - application/json
       parameters:
       - description: Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/state.DetectorConfig'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.DetectorConfig'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Get or set detector config for a Pokemon
       tags:
       - detector
@@ -892,150 +953,189 @@ paths:
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/zip
+        schema:
+          type: string
       responses:
         "200":
+          content:
+            application/zip:
+              schema:
+                type: file
           description: OK
-          schema:
-            type: file
         "404":
+          content:
+            application/zip:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Export templates as ZIP
       tags:
       - detector
   /detector/{id}/import_templates:
     post:
-      consumes:
-      - application/json
       parameters:
       - description: Target Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      - description: Source Pokemon ID
-        in: body
-        name: body
-        required: true
         schema:
-          $ref: '#/definitions/internal_server.ImportTemplatesRequest'
-      produces:
-      - application/json
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/server.ImportTemplatesRequest'
+                description: Source Pokemon ID
+                summary: body
+        description: Source Pokemon ID
+        required: true
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.ImportResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.ImportResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Import templates from another Pokemon
       tags:
       - detector
   /detector/{id}/import_templates_file:
     post:
-      consumes:
-      - multipart/form-data
       parameters:
       - description: Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      - description: Template ZIP file
-        in: formData
-        name: file
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              title: file
+              type: file
+          multipart/form-data:
+            schema:
+              type: object
+        description: Template ZIP file
         required: true
-        type: file
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.ImportResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.ImportResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Import templates from uploaded ZIP
       tags:
       - detector
   /detector/{id}/match_frame:
     post:
-      consumes:
-      - image/jpeg
       parameters:
       - description: Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
+      requestBody:
+        content:
+          image/jpeg:
+            schema:
+              format: binary
+              type: string
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.MatchFrameResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.MatchFrameResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Submit a browser-captured frame for matching
       tags:
       - detector
   /detector/{id}/sprite_template:
     post:
-      consumes:
-      - application/json
       parameters:
       - description: Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      - description: Optional sprite URL override
-        in: body
-        name: body
         schema:
-          $ref: '#/definitions/internal_server.SpriteTemplateRequest'
-      produces:
-      - application/json
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/server.SpriteTemplateRequest'
+                description: Optional sprite URL override
+                summary: body
+        description: Optional sprite URL override
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.TemplateUploadResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.TemplateUploadResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Create template from Pokemon sprite
       tags:
       - detector
@@ -1046,26 +1146,33 @@ paths:
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.DetectorRunResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.DetectorRunResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Start detection for a Pokemon
       tags:
       - detector
@@ -1076,14 +1183,15 @@ paths:
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.DetectorRunResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.DetectorRunResponse'
       summary: Stop detection for a Pokemon
       tags:
       - detector
@@ -1094,25 +1202,33 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       - description: Template index
         in: path
         name: "n"
         required: true
-        type: integer
+        schema:
+          type: integer
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                type: file
           description: OK
-          schema:
-            type: file
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Get, delete or update a detector template
       tags:
       - detector
@@ -1122,25 +1238,33 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       - description: Template index
         in: path
         name: "n"
         required: true
-        type: integer
+        schema:
+          type: integer
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                type: file
           description: OK
-          schema:
-            type: file
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Get, delete or update a detector template
       tags:
       - detector
@@ -1150,365 +1274,405 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       - description: Template index
         in: path
         name: "n"
         required: true
-        type: integer
+        schema:
+          type: integer
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                type: file
           description: OK
-          schema:
-            type: file
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Get, delete or update a detector template
       tags:
       - detector
   /detector/{id}/template_upload:
     post:
-      consumes:
-      - application/json
       parameters:
       - description: Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      - description: Base64 image and regions
-        in: body
-        name: body
-        required: true
         schema:
-          $ref: '#/definitions/internal_server.TemplateUploadRequest'
-      produces:
-      - application/json
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/server.TemplateUploadRequest'
+                description: Base64 image and regions
+                summary: body
+        description: Base64 image and regions
+        required: true
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.TemplateUploadResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.TemplateUploadResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Upload a new template image
       tags:
       - detector
   /detector/cameras:
     get:
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/detector.CameraInfo'
+                type: array
           description: OK
-          schema:
-            items:
-              $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_detector.CameraInfo'
-            type: array
       summary: List available video capture devices
       tags:
       - detector
   /detector/capabilities:
     get:
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/detector.Capabilities'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_detector.Capabilities'
       summary: Get platform capture capabilities
       tags:
       - detector
   /detector/screenshot:
     get:
-      produces:
-      - image/jpeg
       responses:
         "200":
+          content:
+            image/jpeg:
+              schema:
+                type: file
           description: OK
-          schema:
-            type: file
         "500":
+          content:
+            image/jpeg:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Capture primary monitor screenshot
       tags:
       - detector
   /detector/status:
     get:
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/server.detectorStatusEntry'
+                type: array
           description: OK
-          schema:
-            items:
-              $ref: '#/definitions/internal_server.detectorStatusEntry'
-            type: array
       summary: List running detector IDs
       tags:
       - detector
   /detector/windows:
     get:
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  type: object
+                type: array
           description: OK
-          schema:
-            items:
-              type: object
-            type: array
       summary: List visible top-level windows
       tags:
       - detector
   /games:
     get:
       description: Returns the games list sorted by generation
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/gamesync.GameEntry'
+                type: array
           description: OK
-          schema:
-            items:
-              $ref: '#/definitions/internal_server.GameEntry'
-            type: array
       summary: Get games list
       tags:
       - games
   /games/sync:
     post:
       description: Triggers a background sync of game metadata from PokeAPI
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/gamesync.GamesSyncResult'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.GamesSyncResult'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Sync games from PokeAPI
       tags:
       - games
   /hotkeys:
     post:
-      consumes:
-      - application/json
       description: Replaces the full hotkey map and re-registers all bindings
-      parameters:
-      - description: Complete hotkey map
-        in: body
-        name: hotkeys
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/state.HotkeyMap'
+                description: Complete hotkey map
+                summary: hotkeys
+        description: Complete hotkey map
         required: true
-        schema:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.HotkeyMap'
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/state.HotkeyMap'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.HotkeyMap'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Update all hotkeys
       tags:
       - hotkeys
   /hotkeys/{action}:
     put:
-      consumes:
-      - application/json
       description: Updates one action's key binding without touching the others
       parameters:
       - description: Hotkey action name
         in: path
         name: action
         required: true
-        type: string
-      - description: New key binding
-        in: body
-        name: body
-        required: true
         schema:
-          $ref: '#/definitions/internal_server.UpdateHotkeyRequest'
-      produces:
-      - application/json
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/server.UpdateHotkeyRequest'
+                description: New key binding
+                summary: body
+        description: New key binding
+        required: true
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.HotkeyUpdateResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.HotkeyUpdateResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Update a single hotkey
       tags:
       - hotkeys
   /hotkeys/pause:
     post:
       description: Suspends global hotkey dispatch without unregistering bindings
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.StatusResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.StatusResponse'
       summary: Pause hotkeys
       tags:
       - hotkeys
   /hotkeys/resume:
     post:
       description: Re-enables hotkey dispatch after a pause
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.StatusResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.StatusResponse'
       summary: Resume hotkeys
       tags:
       - hotkeys
   /hotkeys/status:
     get:
       description: Reports whether the hotkey backend is available
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.HotkeysStatusResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.HotkeysStatusResponse'
       summary: Get hotkey status
       tags:
       - hotkeys
   /hunt-types:
     get:
       description: Returns all available hunt type presets
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/state.HuntTypePreset'
+                type: array
           description: OK
-          schema:
-            items:
-              $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.HuntTypePreset'
-            type: array
       summary: Get hunt type presets
       tags:
       - games
   /license/accept:
     post:
       description: Records that the user has accepted the AGPLv3 license
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.LicenseAcceptResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.LicenseAcceptResponse'
       summary: Accept license
       tags:
       - system
   /licenses:
     get:
       description: Returns all collected third-party license entries
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/licenses.Entry'
+                type: array
           description: OK
-          schema:
-            items:
-              $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_licenses.Entry'
-            type: array
       summary: Get third-party licenses
       tags:
       - system
   /overlay/state:
     get:
       description: Returns the active Pokemon and its ID for the OBS overlay page
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.OverlayStateResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.OverlayStateResponse'
       summary: Get overlay state
       tags:
       - overlay
   /pokedex:
     get:
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/pokedex.Entry'
+                type: array
           description: OK
-          schema:
-            items:
-              $ref: '#/definitions/internal_server.PokedexEntry'
-            type: array
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Get the Pokedex
       tags:
       - pokedex
   /pokemon:
     post:
-      consumes:
-      - application/json
       description: Creates a new Pokemon entry with a generated UUID and timestamp
-      parameters:
-      - description: Pokemon to create
-        in: body
-        name: pokemon
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/state.Pokemon'
+                description: Pokemon to create
+                summary: pokemon
+        description: Pokemon to create
         required: true
-        schema:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon'
-      produces:
-      - application/json
       responses:
         "201":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/state.Pokemon'
           description: Created
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Create a new Pokemon
       tags:
       - pokemon
@@ -1520,48 +1684,59 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Delete a Pokemon
       tags:
       - pokemon
     put:
-      consumes:
-      - application/json
       description: Applies the JSON body fields to the Pokemon with the given ID
       parameters:
       - description: Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      - description: Updated Pokemon fields
-        in: body
-        name: pokemon
-        required: true
         schema:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Pokemon'
-      produces:
-      - application/json
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/state.Pokemon'
+                description: Updated Pokemon fields
+                summary: pokemon
+        description: Updated Pokemon fields
+        required: true
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/state.AppState'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.AppState'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Update a Pokemon
       tags:
       - pokemon
@@ -1573,14 +1748,17 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Activate a Pokemon
       tags:
       - pokemon
@@ -1592,14 +1770,17 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Complete a Pokemon hunt
       tags:
       - pokemon
@@ -1611,18 +1792,21 @@ paths:
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.CountResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.CountResponse'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Decrement encounter count
       tags:
       - pokemon
@@ -1634,18 +1818,21 @@ paths:
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.CountResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.CountResponse'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Increment encounter count
       tags:
       - pokemon
@@ -1657,14 +1844,17 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Unlink Pokemon overlay
       tags:
       - pokemon
@@ -1676,49 +1866,60 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Reset encounter count
       tags:
       - pokemon
   /pokemon/{id}/set_encounters:
     post:
-      consumes:
-      - application/json
       description: Sets the encounter count to an exact value
       parameters:
       - description: Pokemon ID
         in: path
         name: id
         required: true
-        type: string
-      - description: Encounter count to set
-        in: body
-        name: body
-        required: true
         schema:
-          $ref: '#/definitions/internal_server.SetEncountersRequest'
-      produces:
-      - application/json
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/server.SetEncountersRequest'
+                description: Encounter count to set
+                summary: body
+        description: Encounter count to set
+        required: true
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.CountResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.CountResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Set encounter count
       tags:
       - pokemon
@@ -1730,14 +1931,17 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Reset Pokemon timer
       tags:
       - pokemon
@@ -1749,14 +1953,17 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Start Pokemon timer
       tags:
       - pokemon
@@ -1768,14 +1975,17 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Stop Pokemon timer
       tags:
       - pokemon
@@ -1787,14 +1997,17 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        schema:
+          type: string
       responses:
         "204":
           description: No Content
         "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Not Found
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Uncomplete a Pokemon hunt
       tags:
       - pokemon
@@ -1802,13 +2015,13 @@ paths:
     post:
       description: 'Performs a graceful shutdown: saves state, stops hotkeys, and
         exits'
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.StatusResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.StatusResponse'
       summary: Quit application
       tags:
       - system
@@ -1816,108 +2029,123 @@ paths:
     post:
       description: Saves state, stops hotkeys, and replaces the process with a fresh
         instance
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.StatusResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.StatusResponse'
       summary: Restart application
       tags:
       - system
   /restore:
     post:
-      consumes:
-      - multipart/form-data
-      parameters:
-      - description: Backup ZIP file
-        in: formData
-        name: backup
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              title: backup
+              type: file
+          multipart/form-data:
+            schema:
+              type: object
+        description: Backup ZIP file
         required: true
-        type: file
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.RestoreResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.RestoreResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Bad Request
-          schema:
-            type: string
         "500":
+          content:
+            application/json:
+              schema:
+                type: string
           description: Internal Server Error
-          schema:
-            type: string
       summary: Restore from a backup ZIP
       tags:
       - system
   /sessions:
     get:
       description: Returns the session history as JSON
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/state.Session'
+                type: array
           description: OK
-          schema:
-            items:
-              $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Session'
-            type: array
       summary: Get session history
       tags:
       - state
   /settings:
     post:
-      consumes:
-      - application/json
       description: Replaces the settings block and reconfigures file output
-      parameters:
-      - description: Updated settings
-        in: body
-        name: settings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/state.Settings'
+                description: Updated settings
+                summary: settings
+        description: Updated settings
         required: true
-        schema:
-          $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Settings'
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/state.Settings'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.Settings'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Update settings
       tags:
       - settings
   /settings/config-path:
     post:
-      consumes:
-      - application/json
       description: Moves all data to a new directory
-      parameters:
-      - description: New config path
-        in: body
-        name: body
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/server.SetConfigPathRequest'
+                description: New config path
+                summary: body
+        description: New config path
         required: true
-        schema:
-          $ref: '#/definitions/internal_server.SetConfigPathRequest'
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.PathResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.PathResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Set config directory path
       tags:
       - settings
@@ -1925,34 +2153,38 @@ paths:
     get:
       description: Returns the complete AppState snapshot including all Pokemon, settings,
         and sessions
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/state.AppState'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_state.AppState'
       summary: Get full application state
       tags:
       - state
   /stats/overview:
     get:
       description: Returns global encounter statistics
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/database.OverviewStats'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_database.OverviewStats'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Service Unavailable
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Get statistics overview
       tags:
       - statistics
@@ -1965,95 +2197,119 @@ paths:
         in: path
         name: id
         required: true
-        type: string
-      produces:
-      - application/json
+        schema:
+          type: string
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/database.EncounterStats'
           description: OK
-          schema:
-            $ref: '#/definitions/github_com_zsleyer_encounty_backend_internal_database.EncounterStats'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
         "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Service Unavailable
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Get Pokemon encounter stats
       tags:
       - statistics
-  /sync/pokemon:
-    post:
-      produces:
-      - application/json
+  /status/ready:
+    get:
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.ReadyStatusResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.PokedexSyncResponse'
+      summary: Check server readiness
+      tags:
+      - system
+  /sync/pokemon:
+    post:
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.PokedexSyncResponse'
+          description: OK
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Sync Pokedex from PokeAPI
       tags:
       - pokedex
   /update/apply:
     post:
-      consumes:
-      - application/json
-      parameters:
-      - description: Download URL
-        in: body
-        name: body
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/server.UpdateApplyRequest'
+                description: Download URL
+                summary: body
+        description: Download URL
         required: true
-        schema:
-          $ref: '#/definitions/internal_server.UpdateApplyRequest'
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.StatusResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.StatusResponse'
         "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Bad Request
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Apply a downloaded update
       tags:
       - system
   /update/check:
     get:
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/updater.UpdateInfo'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.UpdateInfo'
         "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.errResp'
           description: Internal Server Error
-          schema:
-            $ref: '#/definitions/internal_server.errResp'
       summary: Check for available updates
       tags:
       - system
   /version:
     get:
       description: Returns build version information injected at compile time
-      produces:
-      - application/json
       responses:
         "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/server.VersionResponse'
           description: OK
-          schema:
-            $ref: '#/definitions/internal_server.VersionResponse'
       summary: Get version info
       tags:
       - system
-schemes:
-- http
-swagger: "2.0"
+servers:
+- url: localhost:8080/api

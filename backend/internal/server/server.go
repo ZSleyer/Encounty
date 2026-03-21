@@ -8,15 +8,22 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"sync/atomic"
-
-	httpSwagger "github.com/swaggo/http-swagger/v2"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/detector"
 	"github.com/zsleyer/encounty/backend/internal/fileoutput"
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
+	"github.com/zsleyer/encounty/backend/internal/gamesync"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/backgrounds"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/backup"
+	detectorhandler "github.com/zsleyer/encounty/backend/internal/server/handler/detector"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/games"
+	pokemonhandler "github.com/zsleyer/encounty/backend/internal/server/handler/pokemon"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/settings"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/stats"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/system"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/update"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
@@ -53,11 +60,6 @@ type Config struct {
 // New creates a Server from cfg, registers all HTTP routes, and starts the
 // goroutine that converts hotkey actions into state mutations.
 func New(cfg Config) *Server {
-	// Wire DB-backed game storage
-	if cfg.DB != nil {
-		gamesDB = cfg.DB
-	}
-
 	s := &Server{
 		state:       cfg.State,
 		hub:         NewHub(),
@@ -72,6 +74,13 @@ func New(cfg Config) *Server {
 
 	// Wire hotkey actions to state changes
 	go s.processHotkeyActions(cfg.HotkeyMgr.Actions())
+
+	// Forward sidecar preview frames to WebSocket clients.
+	if cfg.DetectorMgr != nil {
+		if ch := cfg.DetectorMgr.PreviewFrames(); ch != nil {
+			go s.forwardPreviewFrames(ch)
+		}
+	}
 
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
@@ -88,139 +97,230 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		s.hub.ServeWS(s, w, r)
 	})
-	s.registerCoreRoutes(mux)
-	s.registerPokemonRoutes(mux)
-	s.registerBackgroundRoutes(mux)
-	s.registerDetectorRoutes(mux)
-	mux.Handle("/swagger/", httpSwagger.WrapHandler)
+	pokemonhandler.RegisterRoutes(mux, s)
+	backup.RegisterRoutes(mux, s)
+	backgrounds.RegisterRoutes(mux, s)
+	settings.RegisterRoutes(mux, s)
+	games.RegisterRoutes(mux, s)
+	stats.RegisterRoutes(mux, s)
+	system.RegisterRoutes(mux, s)
+	update.RegisterRoutes(mux, s)
+	detectorhandler.RegisterRoutes(mux, s)
+	mux.Handle("/swagger/", swaggerHandler())
 }
 
-// registerCoreRoutes wires state, settings, hotkeys, stats, and other
-// top-level REST endpoints.
-func (s *Server) registerCoreRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/state", s.handleGetState)
-	mux.HandleFunc("/api/sessions", s.handleGetSessions)
-	mux.HandleFunc("/api/settings", s.handleUpdateSettings)
-	mux.HandleFunc("/api/hotkeys", s.handleUpdateHotkeys)
-	mux.HandleFunc("/api/hotkeys/pause", s.handleHotkeysPause)
-	mux.HandleFunc("/api/hotkeys/resume", s.handleHotkeysResume)
-	mux.HandleFunc("/api/hotkeys/status", s.handleHotkeysStatus)
-	mux.HandleFunc("/api/hotkeys/", func(w http.ResponseWriter, r *http.Request) {
-		action := strings.TrimPrefix(r.URL.Path, "/api/hotkeys/")
-		if r.Method == http.MethodPut {
-			s.handleUpdateSingleHotkey(w, r, action)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-	mux.HandleFunc("/api/overlay/state", s.handleOverlayState)
-	mux.HandleFunc("/api/games", s.handleGetGames)
-	mux.HandleFunc("/api/hunt-types", s.handleGetHuntTypes)
-	mux.HandleFunc("/api/games/sync", s.handleSyncGames)
-	mux.HandleFunc("/api/pokedex", s.handleGetPokedex)
-	mux.HandleFunc("/api/sync/pokemon", s.handleSyncPokemon)
-	mux.HandleFunc("/api/backup", s.handleBackup)
-	mux.HandleFunc("/api/restore", s.handleRestore)
-	mux.HandleFunc("/api/quit", s.handleQuit)
-	mux.HandleFunc("/api/restart", s.handleRestart)
-	mux.HandleFunc("/api/version", s.handleVersion)
-	mux.HandleFunc("/api/update/check", s.handleUpdateCheck)
-	mux.HandleFunc("/api/update/apply", s.handleUpdateApply)
-	mux.HandleFunc("/api/licenses", s.handleLicenses)
-	mux.HandleFunc("/api/license/accept", s.handleAcceptLicense)
-	mux.HandleFunc("/api/settings/config-path", s.handleSetConfigPath)
-	mux.HandleFunc("GET /api/status/ready", s.handleReadyStatus)
-	mux.HandleFunc("/api/stats/overview", s.handleStatsOverview)
-	mux.HandleFunc("/api/stats/pokemon/", s.handleStatsDispatch)
+// StateManager returns the in-memory state manager.
+func (s *Server) StateManager() *state.Manager {
+	return s.state
 }
 
-// registerPokemonRoutes wires the /api/pokemon and /api/pokemon/{id}/* routes.
-func (s *Server) registerPokemonRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/pokemon", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			st := s.state.GetState()
-			writeJSON(w, http.StatusOK, st.Pokemon)
-		case http.MethodPost:
-			s.handleAddPokemon(w, r)
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
-
-	mux.HandleFunc(pokemonAPIPrefix, func(w http.ResponseWriter, r *http.Request) {
-		s.dispatchPokemonAction(w, r)
-	})
+// VersionInfo returns the version, commit hash, and build date.
+func (s *Server) VersionInfo() (version, commit, buildDate string) {
+	return s.version, s.commit, s.buildDate
 }
 
-// dispatchPokemonAction routes a /api/pokemon/{id}/... request to the
-// appropriate handler based on the URL suffix.
-func (s *Server) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
+// IsReady reports whether the server has finished initial setup.
+func (s *Server) IsReady() bool {
+	return s.ready.Load()
+}
 
-	switch {
-	case strings.HasSuffix(path, "/overlay/unlink"):
-		if r.Method == http.MethodPost {
-			s.handleUnlinkOverlay(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	case strings.HasSuffix(path, "/set_encounters"):
-		s.handleSetEncounters(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/set_encounters"))
-	case strings.HasSuffix(path, "/timer/start"):
-		s.handleTimerStart(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/timer/start"))
-	case strings.HasSuffix(path, "/timer/stop"):
-		s.handleTimerStop(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/timer/stop"))
-	case strings.HasSuffix(path, "/timer/reset"):
-		s.handleTimerReset(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/timer/reset"))
-	case strings.HasSuffix(path, "/increment"):
-		s.handleIncrement(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/increment"))
-	case strings.HasSuffix(path, "/decrement"):
-		s.handleDecrement(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/decrement"))
-	case strings.HasSuffix(path, "/reset"):
-		s.handleReset(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/reset"))
-	case strings.HasSuffix(path, "/activate"):
-		s.handleActivate(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/activate"))
-	case strings.HasSuffix(path, "/complete"):
-		s.handleCompletePokemon(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/complete"))
-	case strings.HasSuffix(path, "/uncomplete"):
-		s.handleUncompletePokemon(w, r, pokemonIDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
-	default:
-		id := pokemonIDFromPath(path, pokemonAPIPrefix, "")
-		switch r.Method {
-		case http.MethodPut:
-			s.handleUpdatePokemon(w, r, id)
-		case http.MethodDelete:
-			s.handleDeletePokemon(w, r, id)
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
+// ConfigDir returns the active configuration directory path.
+func (s *Server) ConfigDir() string {
+	return s.state.GetConfigDir()
+}
+
+// Version returns the current binary version string.
+func (s *Server) Version() string {
+	return s.version
+}
+
+// SaveState persists the current in-memory state to disk.
+func (s *Server) SaveState() error {
+	return s.state.Save()
+}
+
+// ScheduleSave enqueues a deferred state save.
+func (s *Server) ScheduleSave() {
+	s.state.ScheduleSave()
+}
+
+// StopHotkeys shuts down the global hotkey listener.
+func (s *Server) StopHotkeys() {
+	s.hotkeyMgr.Stop()
+}
+
+// BackupDB returns the current database handle so the backup handler can
+// close it before restoring a new database file.
+func (s *Server) BackupDB() *database.DB {
+	return s.db
+}
+
+// SetBackupDB replaces the active database handle after a backup restore.
+func (s *Server) SetBackupDB(db *database.DB) {
+	s.db = db
+	s.state.SetDB(db)
+}
+
+// ReloadState reloads the in-memory state from the database.
+func (s *Server) ReloadState() error {
+	return s.state.Reload()
+}
+
+// BroadcastState sends the current state snapshot to all WebSocket clients.
+func (s *Server) BroadcastState() {
+	s.broadcastState()
+}
+
+// GamesDB returns the database handle as a gamesync.GamesStore so the games
+// handler sub-package can load and sync game metadata without depending on
+// the concrete *database.DB type. Returns nil when no database is configured.
+func (s *Server) GamesDB() gamesync.GamesStore {
+	if s.db == nil {
+		return nil
+	}
+	return s.db
+}
+
+// StatsDB returns the database handle as a stats.StatsQuerier so the stats
+// handler sub-package can query encounter statistics without depending on
+// the concrete *database.DB type. Returns nil when no database is configured.
+func (s *Server) StatsDB() stats.StatsQuerier {
+	if s.db == nil {
+		return nil
+	}
+	return s.db
+}
+
+// HotkeyUpdateAllBindings replaces all hotkey bindings atomically.
+func (s *Server) HotkeyUpdateAllBindings(hm state.HotkeyMap) error {
+	return s.hotkeyMgr.UpdateAllBindings(hm)
+}
+
+// HotkeyUpdateBinding replaces a single action's key binding at runtime.
+func (s *Server) HotkeyUpdateBinding(action, keyCombo string) error {
+	return s.hotkeyMgr.UpdateBinding(action, keyCombo)
+}
+
+// HotkeySetPaused pauses or resumes hotkey dispatch.
+func (s *Server) HotkeySetPaused(paused bool) {
+	s.hotkeyMgr.SetPaused(paused)
+}
+
+// HotkeyIsAvailable reports whether the hotkey backend is available.
+func (s *Server) HotkeyIsAvailable() bool {
+	return s.hotkeyMgr.IsAvailable()
+}
+
+// SettingsDB returns the current database handle for the settings handler.
+func (s *Server) SettingsDB() *database.DB {
+	return s.db
+}
+
+// SetSettingsDB replaces the active database handle and updates the state
+// manager's reference.
+func (s *Server) SetSettingsDB(db *database.DB) {
+	s.db = db
+	s.state.SetDB(db)
+}
+
+// FileWriterSetConfig reconfigures the file output writer with a new output
+// directory and enabled state. No-op when no file writer is configured.
+func (s *Server) FileWriterSetConfig(outputDir string, enabled bool) {
+	if s.fileWriter != nil {
+		s.fileWriter.SetConfig(outputDir, enabled)
 	}
 }
 
-// registerBackgroundRoutes wires the /api/backgrounds/* routes.
-func (s *Server) registerBackgroundRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/backgrounds/upload", s.handleBackgroundUpload)
-	mux.HandleFunc("/api/backgrounds/", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			s.handleBackgroundServe(w, r)
-		case http.MethodDelete:
-			s.handleBackgroundDelete(w, r)
-		default:
-			w.WriteHeader(http.StatusMethodNotAllowed)
-		}
-	})
+// --- pokemonhandler.Deps implementation --------------------------------------
+
+// StateAddPokemon appends a new Pokemon to the in-memory state.
+func (s *Server) StateAddPokemon(p state.Pokemon) { s.state.AddPokemon(p) }
+
+// StateUpdatePokemon applies field updates to the Pokemon with the given id.
+func (s *Server) StateUpdatePokemon(id string, update state.Pokemon) bool {
+	return s.state.UpdatePokemon(id, update)
 }
 
-// registerDetectorRoutes wires the /api/detector/* routes.
-func (s *Server) registerDetectorRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/api/detector/screenshot", s.handleDetectorScreenshot)
-	mux.HandleFunc("/api/detector/status", s.handleDetectorStatus)
-	mux.HandleFunc("GET /api/detector/windows", s.handleListWindows)
-	mux.HandleFunc("GET /api/detector/cameras", s.handleListCameras)
-	mux.HandleFunc("GET /api/detector/capabilities", s.handleDetectorCapabilities)
-	mux.HandleFunc("/api/detector/", s.handleDetectorDispatch)
+// StateDeletePokemon removes the Pokemon with the given id.
+func (s *Server) StateDeletePokemon(id string) bool { return s.state.DeletePokemon(id) }
+
+// StateIncrement adds one encounter step to the Pokemon.
+func (s *Server) StateIncrement(id string) (int, bool) { return s.state.Increment(id) }
+
+// StateDecrement subtracts one encounter step from the Pokemon.
+func (s *Server) StateDecrement(id string) (int, bool) { return s.state.Decrement(id) }
+
+// StateReset zeroes the encounter counter for the Pokemon.
+func (s *Server) StateReset(id string) bool { return s.state.Reset(id) }
+
+// StateSetEncounters sets the encounter count to an exact value.
+func (s *Server) StateSetEncounters(id string, count int) (int, bool) {
+	return s.state.SetEncounters(id, count)
+}
+
+// StateSetActive marks the given Pokemon as active.
+func (s *Server) StateSetActive(id string) bool { return s.state.SetActive(id) }
+
+// StateCompletePokemon stamps CompletedAt on the Pokemon.
+func (s *Server) StateCompletePokemon(id string) bool { return s.state.CompletePokemon(id) }
+
+// StateUncompletePokemon clears CompletedAt on the Pokemon.
+func (s *Server) StateUncompletePokemon(id string) bool { return s.state.UncompletePokemon(id) }
+
+// StateUnlinkOverlay copies the resolved overlay and sets mode to custom.
+func (s *Server) StateUnlinkOverlay(pokemonID string) bool {
+	return s.state.UnlinkOverlay(pokemonID)
+}
+
+// StateStartTimer begins the per-Pokemon timer.
+func (s *Server) StateStartTimer(id string) bool { return s.state.StartTimer(id) }
+
+// StateStopTimer stops the per-Pokemon timer.
+func (s *Server) StateStopTimer(id string) bool { return s.state.StopTimer(id) }
+
+// StateResetTimer clears the per-Pokemon timer.
+func (s *Server) StateResetTimer(id string) bool { return s.state.ResetTimer(id) }
+
+// StateGetState returns a snapshot of the current application state.
+func (s *Server) StateGetState() state.AppState { return s.state.GetState() }
+
+// StateScheduleSave enqueues a deferred state save.
+func (s *Server) StateScheduleSave() { s.state.ScheduleSave() }
+
+// DetectorStopper returns the detector manager as a DetectorStopper, or nil.
+func (s *Server) DetectorStopper() pokemonhandler.DetectorStopper {
+	if s.detectorMgr == nil {
+		return nil
+	}
+	return s.detectorMgr
+}
+
+// EncounterLogger returns the database as an EncounterLogger, or nil.
+func (s *Server) EncounterLogger() pokemonhandler.EncounterLogger {
+	if s.db == nil {
+		return nil
+	}
+	return s.db
+}
+
+// Broadcaster returns the WebSocket hub as a Broadcaster.
+func (s *Server) Broadcaster() pokemonhandler.Broadcaster { return s.hub }
+
+// DetectorMgr returns the detector manager instance. Returns nil when no
+// detector manager is configured.
+func (s *Server) DetectorMgr() *detector.Manager {
+	return s.detectorMgr
+}
+
+// DetectorDB returns the database handle as a detectorhandler.DetectorStore so
+// the detector handler sub-package can load, save and delete template images
+// without depending on the concrete *database.DB type. Returns nil when no
+// database is configured.
+func (s *Server) DetectorDB() detectorhandler.DetectorStore {
+	if s.db == nil {
+		return nil
+	}
+	return s.db
 }
 
 // Start begins accepting HTTP connections. Blocks until the server is shut
@@ -250,6 +350,19 @@ func (s *Server) Broadcast(msgType string, payload any) {
 // Hub returns the WebSocket hub so main can call CloseAll during shutdown.
 func (s *Server) Hub() *Hub {
 	return s.hub
+}
+
+// forwardPreviewFrames reads JPEG preview frames from the detector manager
+// and broadcasts them as binary WebSocket messages. The binary format is:
+// 36-byte session_id (UUID, zero-padded) + JPEG data.
+func (s *Server) forwardPreviewFrames(ch <-chan detector.PreviewFrameMsg) {
+	for frame := range ch {
+		sid := []byte(frame.SessionID)
+		buf := make([]byte, 36+len(frame.JPEGData))
+		copy(buf[:36], sid)
+		copy(buf[36:], frame.JPEGData)
+		s.hub.BroadcastBinary(buf)
+	}
 }
 
 // handleHotkeyIncrement processes the "increment" hotkey action for the given Pokémon.
@@ -324,7 +437,7 @@ func (s *Server) handleHotkeyNext() {
 // "system_ready" WebSocket event to notify connected clients.
 func (s *Server) InitAsync() {
 	go func() {
-		_ = loadGames()
+		_ = games.LoadGames(s)
 		s.ready.Store(true)
 		s.hub.BroadcastRaw("system_ready", map[string]bool{"ready": true})
 		slog.Info("Server initialization complete")

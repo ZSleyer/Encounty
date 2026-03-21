@@ -1,7 +1,7 @@
-// update.go provides HTTP handler wrappers for the auto-update system.
+// Package update provides HTTP handlers for the auto-update system.
 // The actual update logic (GitHub API calls, file download, binary
 // replacement) lives in the updater package.
-package server
+package update
 
 import (
 	"log/slog"
@@ -10,8 +10,46 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/updater"
 )
+
+// Deps declares the capabilities the update handlers need from the
+// application layer, keeping this package decoupled from the server package.
+type Deps interface {
+	// Version returns the current binary version string.
+	Version() string
+	// SaveState persists the current state to disk.
+	SaveState() error
+	// ScheduleSave enqueues a deferred state save.
+	ScheduleSave()
+	// StopHotkeys shuts down the global hotkey listener.
+	StopHotkeys()
+	// ConfigDir returns the active configuration directory path.
+	ConfigDir() string
+}
+
+// updateApplyRequest is the body for POST /api/update/apply.
+type updateApplyRequest struct {
+	DownloadURL string `json:"download_url"`
+}
+
+// statusResponse carries a single status string.
+type statusResponse struct {
+	Status string `json:"status"`
+}
+
+// handler groups the update HTTP handlers together with their dependencies.
+type handler struct {
+	deps Deps
+}
+
+// RegisterRoutes attaches the update endpoints to mux.
+func RegisterRoutes(mux *http.ServeMux, d Deps) {
+	h := &handler{deps: d}
+	mux.HandleFunc("/api/update/check", h.handleUpdateCheck)
+	mux.HandleFunc("/api/update/apply", h.handleUpdateApply)
+}
 
 // handleUpdateCheck queries the GitHub Releases API for the latest release
 // and returns an UpdateInfo payload indicating whether an update is available.
@@ -21,17 +59,18 @@ import (
 // @Tags         system
 // @Produce      json
 // @Success      200 {object} updater.UpdateInfo
-// @Failure      500 {object} errResp
+// @Failure      500 {object} httputil.ErrResp
 // @Router       /update/check [get]
-func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if s.version == "dev" {
-		writeJSON(w, http.StatusOK, updater.UpdateInfo{
+	version := h.deps.Version()
+	if version == "dev" {
+		httputil.WriteJSON(w, http.StatusOK, updater.UpdateInfo{
 			Available:      false,
-			CurrentVersion: s.version,
+			CurrentVersion: version,
 		})
 		return
 	}
@@ -40,19 +79,19 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 	// portable, so electron-updater cannot apply updates — the Go backend
 	// still provides the check so the frontend can show a notification.
 	if os.Getenv("ENCOUNTY_ELECTRON") == "1" && runtime.GOOS != "windows" {
-		writeJSON(w, http.StatusOK, updater.UpdateInfo{
+		httputil.WriteJSON(w, http.StatusOK, updater.UpdateInfo{
 			Available:      false,
-			CurrentVersion: s.version,
+			CurrentVersion: version,
 		})
 		return
 	}
-	info, err := updater.CheckForUpdate(s.version)
+	info, err := updater.CheckForUpdate(version)
 	if err != nil {
 		slog.Error("Update check error", "error", err)
-		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, info)
+	httputil.WriteJSON(w, http.StatusOK, info)
 }
 
 // handleUpdateApply begins the update download and replacement in a
@@ -62,32 +101,32 @@ func (s *Server) handleUpdateCheck(w http.ResponseWriter, r *http.Request) {
 // @Tags         system
 // @Accept       json
 // @Produce      json
-// @Param        body body UpdateApplyRequest true "Download URL"
-// @Success      200 {object} StatusResponse
-// @Failure      400 {object} errResp
+// @Param        body body updateApplyRequest true "Download URL"
+// @Success      200 {object} statusResponse
+// @Failure      400 {object} httputil.ErrResp
 // @Router       /update/apply [post]
-func (s *Server) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleUpdateApply(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	var req UpdateApplyRequest
-	if err := readJSON(r, &req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+	var req updateApplyRequest
+	if err := httputil.ReadJSON(r, &req); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 	if req.DownloadURL == "" {
-		writeJSON(w, http.StatusBadRequest, errResp{"missing download_url"})
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "missing download_url"})
 		return
 	}
-	writeJSON(w, http.StatusOK, StatusResponse{Status: "updating"})
-	go s.performUpdate(req.DownloadURL)
+	httputil.WriteJSON(w, http.StatusOK, statusResponse{Status: "updating"})
+	go h.performUpdate(req.DownloadURL)
 }
 
 // performUpdate downloads the binary at downloadURL to a temporary path,
 // sets executable permissions on Unix, saves state, stops hotkeys, and then
 // calls updater.ReplaceAndRestart to swap the binary and relaunch.
-func (s *Server) performUpdate(downloadURL string) {
+func (h *handler) performUpdate(downloadURL string) {
 	exe, err := os.Executable()
 	if err != nil {
 		slog.Error("Update: get executable failed", "error", err)
@@ -120,14 +159,14 @@ func (s *Server) performUpdate(downloadURL string) {
 	}
 
 	slog.Info("Update: saving state and stopping hotkeys")
-	if err := s.state.Save(); err != nil {
+	if err := h.deps.SaveState(); err != nil {
 		slog.Warn("Update: save state failed", "error", err)
 	}
-	s.hotkeyMgr.Stop()
+	h.deps.StopHotkeys()
 
 	// Write marker so the restarted process knows a client was connected
 	// and should not open a new browser tab.
-	markerPath := filepath.Join(s.state.GetConfigDir(), ".update-restart")
+	markerPath := filepath.Join(h.deps.ConfigDir(), ".update-restart")
 	_ = os.WriteFile(markerPath, []byte("1"), 0644)
 
 	slog.Info("Update: replacing binary and restarting")

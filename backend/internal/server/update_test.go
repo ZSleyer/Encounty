@@ -17,9 +17,10 @@ func TestUpdateCheckDevMode(t *testing.T) {
 	srv := newTestServer(t)
 	srv.version = "dev"
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/update/check", nil)
 	w := httptest.NewRecorder()
-	srv.handleUpdateCheck(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", w.Code)
@@ -41,9 +42,10 @@ func TestUpdateCheckDevMode(t *testing.T) {
 func TestUpdateCheckMethodNotAllowed(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodPost, "/api/update/check", nil)
 	w := httptest.NewRecorder()
-	srv.handleUpdateCheck(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf("status = %d, want 405", w.Code)
@@ -54,9 +56,10 @@ func TestUpdateCheckMethodNotAllowed(t *testing.T) {
 func TestUpdateApplyMethodNotAllowed(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/update/apply", nil)
 	w := httptest.NewRecorder()
-	srv.handleUpdateApply(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf("status = %d, want 405", w.Code)
@@ -67,10 +70,11 @@ func TestUpdateApplyMethodNotAllowed(t *testing.T) {
 func TestUpdateApplyMissingURL(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	body := `{"download_url":""}`
 	req := httptest.NewRequest(http.MethodPost, "/api/update/apply", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateApply(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want 400", w.Code)

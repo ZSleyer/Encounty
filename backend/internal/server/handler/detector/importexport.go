@@ -1,5 +1,6 @@
-// detector_api_import.go — HTTP handlers for detector template import and export.
-package server
+// importexport.go — HTTP handlers for detector template import and export
+// between Pokemon and via ZIP files.
+package detector
 
 import (
 	"archive/zip"
@@ -11,8 +12,19 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
+
+// importResponse reports how many templates were imported.
+type importResponse struct {
+	Imported int `json:"imported"`
+}
+
+// importTemplatesRequest is the body for POST /api/detector/{id}/import_templates.
+type importTemplatesRequest struct {
+	SourcePokemonID string `json:"source_pokemon_id"`
+}
 
 // handleImportTemplates copies all templates from a source Pokemon to the target.
 // POST /api/detector/{id}/import_templates
@@ -22,32 +34,33 @@ import (
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "Target Pokemon ID"
-// @Param        body body ImportTemplatesRequest true "Source Pokemon ID"
-// @Success      200 {object} ImportResponse
-// @Failure      400 {object} errResp
-// @Failure      404 {object} errResp
+// @Param        body body importTemplatesRequest true "Source Pokemon ID"
+// @Success      200 {object} importResponse
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
 // @Router       /detector/{id}/import_templates [post]
-func (s *Server) handleImportTemplates(w http.ResponseWriter, r *http.Request, targetID string) {
+func (h *handler) handleImportTemplates(w http.ResponseWriter, r *http.Request, targetID string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	var body ImportTemplatesRequest
-	if err := readJSON(r, &body); err != nil {
-		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+	var body importTemplatesRequest
+	if err := httputil.ReadJSON(r, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
-	st := s.state.GetState()
+	sm := h.deps.StateManager()
+	st := sm.GetState()
 	target := findPokemon(st, targetID)
 	if target == nil {
-		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return
 	}
 	source := findPokemon(st, body.SourcePokemonID)
 	if source == nil || source.DetectorConfig == nil || len(source.DetectorConfig.Templates) == 0 {
-		writeJSON(w, http.StatusBadRequest, errResp{"source has no templates"})
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "source has no templates"})
 		return
 	}
 
@@ -57,19 +70,20 @@ func (s *Server) handleImportTemplates(w http.ResponseWriter, r *http.Request, t
 	}
 
 	// Ensure the detector_configs row exists for the target (FK constraint)
-	s.state.SetDetectorConfig(targetID, &targetCfg)
-	if err := s.state.Save(); err != nil {
-		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+	sm.SetDetectorConfig(targetID, &targetCfg)
+	if err := sm.Save(); err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
+	db := h.deps.DetectorDB()
 	imported := 0
 	for _, srcTmpl := range source.DetectorConfig.Templates {
 		// Load image data from DB
-		if srcTmpl.TemplateDBID <= 0 || s.db == nil {
+		if srcTmpl.TemplateDBID <= 0 || db == nil {
 			continue
 		}
-		imgData, err := s.db.LoadTemplateImage(srcTmpl.TemplateDBID)
+		imgData, err := db.LoadTemplateImage(srcTmpl.TemplateDBID)
 		if err != nil {
 			continue
 		}
@@ -81,18 +95,18 @@ func (s *Server) handleImportTemplates(w http.ResponseWriter, r *http.Request, t
 		}
 		copy(newTmpl.Regions, srcTmpl.Regions)
 
-		if err := s.storeTemplateImage(targetID, imgData, sortOrder, &newTmpl); err != nil {
+		if err := h.storeTemplateImage(targetID, imgData, sortOrder, &newTmpl); err != nil {
 			continue
 		}
 		targetCfg.Templates = append(targetCfg.Templates, newTmpl)
 		imported++
 	}
 
-	s.state.SetDetectorConfig(targetID, &targetCfg)
-	s.state.ScheduleSave()
-	s.broadcastState()
+	sm.SetDetectorConfig(targetID, &targetCfg)
+	sm.ScheduleSave()
+	h.deps.BroadcastState()
 
-	writeJSON(w, http.StatusOK, ImportResponse{Imported: imported})
+	httputil.WriteJSON(w, http.StatusOK, importResponse{Imported: imported})
 }
 
 // handleExportTemplates streams a ZIP file of all templates for a Pokemon.
@@ -103,18 +117,19 @@ func (s *Server) handleImportTemplates(w http.ResponseWriter, r *http.Request, t
 // @Produce      application/zip
 // @Param        id path string true "Pokemon ID"
 // @Success      200 {file} binary
-// @Failure      404 {object} errResp
+// @Failure      404 {object} httputil.ErrResp
 // @Router       /detector/{id}/export_templates [get]
-func (s *Server) handleExportTemplates(w http.ResponseWriter, r *http.Request, id string) {
+func (h *handler) handleExportTemplates(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	st := s.state.GetState()
+	sm := h.deps.StateManager()
+	st := sm.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil || pokemon.DetectorConfig == nil {
-		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return
 	}
 
@@ -124,14 +139,15 @@ func (s *Server) handleExportTemplates(w http.ResponseWriter, r *http.Request, i
 		Enabled  *bool                 `json:"enabled,omitempty"`
 	}
 
+	db := h.deps.DetectorDB()
 	var metadata []exportMeta
 	var pngDataList [][]byte
 
 	for i, tmpl := range pokemon.DetectorConfig.Templates {
-		if tmpl.TemplateDBID <= 0 || s.db == nil {
+		if tmpl.TemplateDBID <= 0 || db == nil {
 			continue
 		}
-		data, err := s.db.LoadTemplateImage(tmpl.TemplateDBID)
+		data, err := db.LoadTemplateImage(tmpl.TemplateDBID)
 		if err != nil {
 			continue
 		}
@@ -182,11 +198,11 @@ type templateImportMeta struct {
 // @Produce      json
 // @Param        id path string true "Pokemon ID"
 // @Param        file formData file true "Template ZIP file"
-// @Success      200 {object} ImportResponse
-// @Failure      400 {object} errResp
-// @Failure      404 {object} errResp
+// @Success      200 {object} importResponse
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
 // @Router       /detector/{id}/import_templates_file [post]
-func (s *Server) handleImportTemplatesFile(w http.ResponseWriter, r *http.Request, id string) {
+func (h *handler) handleImportTemplatesFile(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -194,22 +210,23 @@ func (s *Server) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reques
 
 	zr, err := readZipFromMultipart(r)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
 	metadata, err := readTemplateMetadata(zr)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errResp{err.Error()})
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
 	pngMap := collectZipPNGs(zr)
 
-	st := s.state.GetState()
+	sm := h.deps.StateManager()
+	st := sm.GetState()
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
-		writeJSON(w, http.StatusNotFound, errResp{errPokemonNotFound})
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return
 	}
 
@@ -218,19 +235,19 @@ func (s *Server) handleImportTemplatesFile(w http.ResponseWriter, r *http.Reques
 		targetCfg = *pokemon.DetectorConfig
 	}
 
-	s.state.SetDetectorConfig(id, &targetCfg)
-	if err := s.state.Save(); err != nil {
-		writeJSON(w, http.StatusInternalServerError, errResp{err.Error()})
+	sm.SetDetectorConfig(id, &targetCfg)
+	if err := sm.Save(); err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
-	imported := s.importTemplatesFromMeta(id, metadata, pngMap, &targetCfg)
+	imported := h.importTemplatesFromMeta(id, metadata, pngMap, &targetCfg)
 
-	s.state.SetDetectorConfig(id, &targetCfg)
-	s.state.ScheduleSave()
-	s.broadcastState()
+	sm.SetDetectorConfig(id, &targetCfg)
+	sm.ScheduleSave()
+	h.deps.BroadcastState()
 
-	writeJSON(w, http.StatusOK, ImportResponse{Imported: imported})
+	httputil.WriteJSON(w, http.StatusOK, importResponse{Imported: imported})
 }
 
 // readZipFromMultipart reads and parses a ZIP file from a multipart form upload.
@@ -275,7 +292,7 @@ func readTemplateMetadata(zr *zip.Reader) ([]templateImportMeta, error) {
 	return nil, fmt.Errorf("no templates in file")
 }
 
-// collectZipPNGs reads all PNG files from a ZIP archive into a filename→data map.
+// collectZipPNGs reads all PNG files from a ZIP archive into a filename->data map.
 func collectZipPNGs(zr *zip.Reader) map[string][]byte {
 	pngMap := map[string][]byte{}
 	for _, f := range zr.File {
@@ -295,7 +312,7 @@ func collectZipPNGs(zr *zip.Reader) map[string][]byte {
 
 // importTemplatesFromMeta stores templates described by metadata entries,
 // looking up their PNG data in pngMap. Returns the count of templates imported.
-func (s *Server) importTemplatesFromMeta(pokemonID string, metadata []templateImportMeta, pngMap map[string][]byte, targetCfg *state.DetectorConfig) int {
+func (h *handler) importTemplatesFromMeta(pokemonID string, metadata []templateImportMeta, pngMap map[string][]byte, targetCfg *state.DetectorConfig) int {
 	imported := 0
 	for _, meta := range metadata {
 		pngBytes := pngMap[meta.Filename]
@@ -307,7 +324,7 @@ func (s *Server) importTemplatesFromMeta(pokemonID string, metadata []templateIm
 		}
 		sortOrder := len(targetCfg.Templates)
 		newTmpl := state.DetectorTemplate{Regions: meta.Regions, Enabled: meta.Enabled}
-		if err := s.storeTemplateImage(pokemonID, pngBytes, sortOrder, &newTmpl); err != nil {
+		if err := h.storeTemplateImage(pokemonID, pngBytes, sortOrder, &newTmpl); err != nil {
 			continue
 		}
 		targetCfg.Templates = append(targetCfg.Templates, newTmpl)

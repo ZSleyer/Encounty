@@ -9,10 +9,7 @@
 package server
 
 import (
-	"bytes"
 	"encoding/json"
-	"image"
-	_ "image/jpeg"
 	"log/slog"
 	"net/http"
 	"sync"
@@ -33,21 +30,29 @@ type WSMessage struct {
 	Payload json.RawMessage `json:"payload"`
 }
 
+// wsPayload pairs raw bytes with a WebSocket message type so the write pump
+// can send both text (JSON) and binary (preview frames) messages.
+type wsPayload struct {
+	data    []byte
+	msgType int // websocket.TextMessage or websocket.BinaryMessage
+}
+
 // wsClient wraps a single WebSocket connection with a buffered send channel.
 // The writePump goroutine drains the channel and performs the actual writes,
 // ensuring only one goroutine writes to the connection at a time.
 type wsClient struct {
 	conn *websocket.Conn
-	send chan []byte
+	send chan wsPayload
 }
 
 const sendBufSize = 64
 
 // writePump runs in its own goroutine and serialises all writes to conn.
+// It supports both text and binary message types via the wsPayload envelope.
 func (c *wsClient) writePump() {
 	defer func() { _ = c.conn.Close() }()
 	for msg := range c.send {
-		if err := c.conn.WriteMessage(websocket.TextMessage, msg); err != nil {
+		if err := c.conn.WriteMessage(msg.msgType, msg.data); err != nil {
 			slog.Debug("WebSocket write error", "error", err)
 			return
 		}
@@ -82,10 +87,23 @@ func (h *Hub) Broadcast(msg WSMessage) {
 	defer h.mu.RUnlock()
 	for c := range h.clients {
 		select {
-		case c.send <- data:
+		case c.send <- wsPayload{data: data, msgType: websocket.TextMessage}:
 		default:
 			// Client too slow — drop message to avoid blocking.
 			slog.Debug("WebSocket send buffer full, dropping message")
+		}
+	}
+}
+
+// BroadcastBinary sends raw binary data to every connected client as a
+// WebSocket binary message. Used for streaming preview frames.
+func (h *Hub) BroadcastBinary(data []byte) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for c := range h.clients {
+		select {
+		case c.send <- wsPayload{data: data, msgType: websocket.BinaryMessage}:
+		default:
 		}
 	}
 }
@@ -113,7 +131,7 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 
 	c := &wsClient{
 		conn: conn,
-		send: make(chan []byte, sendBufSize),
+		send: make(chan wsPayload, sendBufSize),
 	}
 
 	h.mu.Lock()
@@ -126,7 +144,7 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 	// Send current state on connect.
 	state := srv.state.GetState()
 	p, _ := json.Marshal(state)
-	c.send <- mustMarshal(WSMessage{Type: "state_update", Payload: p})
+	c.send <- wsPayload{data: mustMarshal(WSMessage{Type: "state_update", Payload: p}), msgType: websocket.TextMessage}
 
 	defer func() {
 		h.mu.Lock()
@@ -139,13 +157,9 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 	}()
 
 	for {
-		msgType, data, err := conn.ReadMessage()
+		_, data, err := conn.ReadMessage()
 		if err != nil {
 			break
-		}
-		if msgType == websocket.BinaryMessage {
-			srv.processBrowserFrame(data)
-			continue
 		}
 		var msg WSMessage
 		if err := json.Unmarshal(data, &msg); err != nil {
@@ -165,68 +179,6 @@ func (h *Hub) CloseAll() {
 		close(c.send) // triggers writePump to send close frame and exit
 	}
 	h.clients = make(map[*wsClient]bool)
-}
-
-// processBrowserFrame handles a binary WebSocket message containing a JPEG frame
-// for browser-based detection. Format: 36-byte Pokemon UUID (ASCII) + JPEG data.
-func (s *Server) processBrowserFrame(data []byte) {
-	const uuidLen = 36
-	if len(data) <= uuidLen {
-		return
-	}
-	pokemonID := string(data[:uuidLen])
-	jpegData := data[uuidLen:]
-
-	frame, _, err := image.Decode(bytes.NewReader(jpegData))
-	if err != nil {
-		return
-	}
-
-	s.submitBrowserFrame(pokemonID, frame)
-}
-
-// submitBrowserFrame processes a decoded frame for browser-based detection.
-// Both the binary WebSocket handler and the HTTP match_frame endpoint delegate
-// to this method so the matching logic is shared. Errors are silently ignored
-// because binary WS frames are fire-and-forget.
-func (s *Server) submitBrowserFrame(pokemonID string, frame image.Image) {
-	if s.detectorMgr == nil {
-		return
-	}
-
-	st := s.state.GetState()
-	pokemon := findPokemon(st, pokemonID)
-	if pokemon == nil || pokemon.DetectorConfig == nil || len(pokemon.DetectorConfig.Templates) == 0 {
-		return
-	}
-
-	detCfg := *pokemon.DetectorConfig
-	s.hydrateTemplates(&detCfg)
-
-	bd := s.detectorMgr.GetOrCreateBrowserDetector(pokemonID, detCfg)
-	if !bd.HasTemplates() {
-		bd = s.detectorMgr.ResetBrowserDetector(pokemonID, detCfg)
-	}
-
-	result := bd.SubmitFrame(frame)
-
-	if result.Confidence > 0.1 {
-		slog.Debug("ws browser frame result",
-			"pokemon", pokemon.Name, "id", pokemonID,
-			"state", result.State, "confidence", result.Confidence,
-			"incremented", result.Incremented)
-	}
-
-	s.hub.BroadcastRaw("detector_status", map[string]any{
-		"pokemon_id": pokemonID,
-		"state":      result.State,
-		"confidence": result.Confidence,
-		"poll_ms":    0,
-	})
-
-	if result.Incremented {
-		s.handleMatchIncrement(pokemonID, pokemon.Name, result.Confidence)
-	}
 }
 
 func mustMarshal(v any) []byte {

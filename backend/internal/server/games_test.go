@@ -1,8 +1,10 @@
-// games_test.go tests the server-level games handler wiring.
+// games_test.go tests the games/pokedex HTTP route wiring through the server.
 package server
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
@@ -27,13 +29,6 @@ func (m *mockGamesStore) HasGames() bool {
 	return len(m.rows) > 0
 }
 
-// resetGamesCache clears the package-level cache so each test starts fresh.
-func resetGamesCache(t *testing.T) {
-	t.Helper()
-	gamesync.InvalidateCache()
-	gamesDB = nil
-}
-
 // fixtureGameRows returns minimal valid game rows for testing.
 func fixtureGameRows() []database.GameRow {
 	return []database.GameRow{
@@ -45,73 +40,25 @@ func fixtureGameRows() []database.GameRow {
 
 const fmtExpect3 = "expected 3 entries, got %d"
 
-func TestGamesLoadFromDB(t *testing.T) {
-	resetGamesCache(t)
+func TestGamesHTTPGetGames(t *testing.T) {
+	gamesync.InvalidateCache()
 
 	store := &mockGamesStore{rows: fixtureGameRows()}
-	gamesDB = store
-
-	entries := loadGames()
-	if entries == nil {
-		t.Fatal("loadGames returned nil")
-	}
+	// Pre-load the cache via gamesync so the HTTP handler finds data.
+	entries := gamesync.LoadGames(store)
 	if len(entries) != 3 {
 		t.Fatalf(fmtExpect3, len(entries))
 	}
 
-	// Verify sorting by generation
-	for i := 1; i < len(entries); i++ {
-		if entries[i].Generation < entries[i-1].Generation {
-			t.Errorf("entries not sorted by generation: gen %d before gen %d",
-				entries[i-1].Generation, entries[i].Generation)
-		}
-	}
-}
-
-func TestGamesCaching(t *testing.T) {
-	resetGamesCache(t)
-
-	store := &mockGamesStore{rows: fixtureGameRows()}
-	gamesDB = store
-
-	first := loadGames()
-	if first == nil {
-		t.Fatal("first call returned nil")
-	}
-
-	// Clear the store; cached result should still be returned
-	store.rows = nil
-
-	second := loadGames()
-	if second == nil {
-		t.Fatal("second call returned nil after cache")
-	}
-	if len(second) != len(first) {
-		t.Errorf("cached length mismatch: %d vs %d", len(second), len(first))
-	}
-}
-
-func TestGamesLoadNoDBReturnsNil(t *testing.T) {
-	resetGamesCache(t)
-
-	// No DB wired
-	entries := loadGames()
-	if entries != nil {
-		t.Errorf("expected nil, got %d entries", len(entries))
-	}
-}
-
-func TestGamesHandleGetGames(t *testing.T) {
-	resetGamesCache(t)
-
-	store := &mockGamesStore{rows: fixtureGameRows()}
-	gamesDB = store
-
 	srv := newTestServer(t)
-	req := newGetRequest("/api/games")
-	w := doRequest(srv.handleGetGames, req)
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
 
-	if w.Code != 200 {
+	req := httptest.NewRequest(http.MethodGet, "/api/games", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", w.Code)
 	}
 
@@ -122,11 +69,11 @@ func TestGamesHandleGetGames(t *testing.T) {
 	if len(result) != 3 {
 		t.Errorf(fmtExpect3, len(result))
 	}
+
+	gamesync.InvalidateCache()
 }
 
 func TestGameRowsRoundTrip(t *testing.T) {
-	resetGamesCache(t)
-
 	rows := fixtureGameRows()
 	entries := gamesync.RowsToEntries(rows)
 	if len(entries) != 3 {

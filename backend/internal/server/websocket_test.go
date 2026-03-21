@@ -39,7 +39,7 @@ func TestHubBroadcastMultipleClients(t *testing.T) {
 	const numClients = 3
 	clients := make([]*wsClient, numClients)
 	for i := range clients {
-		clients[i] = &wsClient{send: make(chan []byte, sendBufSize)}
+		clients[i] = &wsClient{send: make(chan wsPayload, sendBufSize)}
 		h.mu.Lock()
 		h.clients[clients[i]] = true
 		h.mu.Unlock()
@@ -50,9 +50,9 @@ func TestHubBroadcastMultipleClients(t *testing.T) {
 
 	for i, c := range clients {
 		select {
-		case data := <-c.send:
+		case payload := <-c.send:
 			var got WSMessage
-			if err := json.Unmarshal(data, &got); err != nil {
+			if err := json.Unmarshal(payload.data, &got); err != nil {
 				t.Fatalf("client %d: unmarshal: %v", i, err)
 			}
 			if got.Type != "test_broadcast" {
@@ -67,7 +67,7 @@ func TestHubBroadcastMultipleClients(t *testing.T) {
 // TestHubBroadcastRaw verifies BroadcastRaw marshals payload into a WSMessage.
 func TestHubBroadcastRaw(t *testing.T) {
 	h := NewHub()
-	c := &wsClient{send: make(chan []byte, sendBufSize)}
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
 	h.mu.Lock()
 	h.clients[c] = true
 	h.mu.Unlock()
@@ -76,9 +76,9 @@ func TestHubBroadcastRaw(t *testing.T) {
 	h.BroadcastRaw("raw_test", payload)
 
 	select {
-	case data := <-c.send:
+	case payload := <-c.send:
 		var got WSMessage
-		if err := json.Unmarshal(data, &got); err != nil {
+		if err := json.Unmarshal(payload.data, &got); err != nil {
 			t.Fatalf("unmarshal: %v", err)
 		}
 		if got.Type != "raw_test" {
@@ -102,10 +102,10 @@ func TestHubBroadcastDropsSlowClient(t *testing.T) {
 	h := NewHub()
 
 	// Create a client with a tiny buffer and fill it.
-	slow := &wsClient{send: make(chan []byte, 1)}
-	slow.send <- []byte("filler")
+	slow := &wsClient{send: make(chan wsPayload, 1)}
+	slow.send <- wsPayload{data: []byte("filler"), msgType: websocket.TextMessage}
 
-	fast := &wsClient{send: make(chan []byte, sendBufSize)}
+	fast := &wsClient{send: make(chan wsPayload, sendBufSize)}
 
 	h.mu.Lock()
 	h.clients[slow] = true
@@ -130,9 +130,9 @@ func TestHubCloseAll(t *testing.T) {
 	h := NewHub()
 
 	const numClients = 3
-	channels := make([]chan []byte, numClients)
+	channels := make([]chan wsPayload, numClients)
 	for i := range channels {
-		ch := make(chan []byte, sendBufSize)
+		ch := make(chan wsPayload, sendBufSize)
 		channels[i] = ch
 		c := &wsClient{send: ch}
 		h.mu.Lock()

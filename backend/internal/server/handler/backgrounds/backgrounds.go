@@ -1,7 +1,7 @@
-// Package server — background_api.go provides HTTP handlers for uploading,
-// serving and deleting custom overlay background images. Images are stored
-// in ~/.config/encounty/backgrounds/.
-package server
+// Package backgrounds provides HTTP handlers for uploading, serving and
+// deleting custom overlay background images. Images are stored in
+// <configDir>/backgrounds/.
+package backgrounds
 
 import (
 	"bytes"
@@ -19,13 +19,53 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zsleyer/encounty/backend/internal/httputil"
+
 	_ "golang.org/x/image/webp"
 )
 
+// Deps declares the capabilities the backgrounds handlers need from the
+// application layer, keeping this package decoupled from the server package.
+type Deps interface {
+	ConfigDir() string
+}
+
+// backgroundUploadRequest is the body for POST /api/backgrounds/upload.
+type backgroundUploadRequest struct {
+	ImageBase64 string `json:"image_base64"`
+}
+
+// filenameResponse returns an uploaded file's name.
+type filenameResponse struct {
+	Filename string `json:"filename"`
+}
+
+const apiPrefix = "/api/backgrounds/"
+
+type handler struct {
+	deps Deps
+}
+
+// RegisterRoutes wires the /api/backgrounds/* routes onto mux.
+func RegisterRoutes(mux *http.ServeMux, d Deps) {
+	h := &handler{deps: d}
+	mux.HandleFunc("/api/backgrounds/upload", h.handleBackgroundUpload)
+	mux.HandleFunc(apiPrefix, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			h.handleBackgroundServe(w, r)
+		case http.MethodDelete:
+			h.handleBackgroundDelete(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	})
+}
+
 // backgroundsDir returns the path to the backgrounds directory, creating it if
 // needed.
-func (s *Server) backgroundsDir() (string, error) {
-	dir := filepath.Join(s.state.GetConfigDir(), "backgrounds")
+func (h *handler) backgroundsDir() (string, error) {
+	dir := filepath.Join(h.deps.ConfigDir(), "backgrounds")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("create backgrounds dir: %w", err)
 	}
@@ -45,13 +85,13 @@ func (s *Server) backgroundsDir() (string, error) {
 // @Failure      400 {string} string
 // @Failure      500 {string} string
 // @Router       /backgrounds/upload [post]
-func (s *Server) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	var body BackgroundUploadRequest
+	var body backgroundUploadRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, "invalid JSON", http.StatusBadRequest)
 		return
@@ -94,7 +134,7 @@ func (s *Server) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) 
 		img = downscale(img, 1920)
 	}
 
-	dir, err := s.backgroundsDir()
+	dir, err := h.backgroundsDir()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -128,7 +168,7 @@ func (s *Server) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	slog.Info("Background uploaded", "filename", filename)
-	writeJSON(w, http.StatusOK, FilenameResponse{Filename: filename})
+	httputil.WriteJSON(w, http.StatusOK, filenameResponse{Filename: filename})
 }
 
 // handleBackgroundServe serves a background image file by filename.
@@ -141,19 +181,19 @@ func (s *Server) handleBackgroundUpload(w http.ResponseWriter, r *http.Request) 
 // @Failure      400 {string} string
 // @Failure      404 {string} string
 // @Router       /backgrounds/{filename} [get]
-func (s *Server) handleBackgroundServe(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleBackgroundServe(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	filename := strings.TrimPrefix(r.URL.Path, "/api/backgrounds/")
+	filename := strings.TrimPrefix(r.URL.Path, apiPrefix)
 	if filename == "" || strings.Contains(filename, "..") || strings.Contains(filename, "/") {
 		http.Error(w, "invalid filename", http.StatusBadRequest)
 		return
 	}
 
-	dir, err := s.backgroundsDir()
+	dir, err := h.backgroundsDir()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -179,19 +219,19 @@ func (s *Server) handleBackgroundServe(w http.ResponseWriter, r *http.Request) {
 // @Failure      400 {string} string
 // @Failure      500 {string} string
 // @Router       /backgrounds/{filename} [delete]
-func (s *Server) handleBackgroundDelete(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleBackgroundDelete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	filename := strings.TrimPrefix(r.URL.Path, "/api/backgrounds/")
+	filename := strings.TrimPrefix(r.URL.Path, apiPrefix)
 	if filename == "" || strings.Contains(filename, "..") || strings.Contains(filename, "/") {
 		http.Error(w, "invalid filename", http.StatusBadRequest)
 		return
 	}
 
-	dir, err := s.backgroundsDir()
+	dir, err := h.backgroundsDir()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

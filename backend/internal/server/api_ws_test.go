@@ -285,7 +285,8 @@ func TestHandleIncrementWithFileWriter(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/increment", nil)
 	w := httptest.NewRecorder()
-	srv.handleIncrement(w, req, "p1")
+	mux := newTestMux(srv)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatus, w.Code, http.StatusOK)
@@ -301,7 +302,8 @@ func TestHandleDecrementWithFileWriter(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/decrement", nil)
 	w := httptest.NewRecorder()
-	srv.handleDecrement(w, req, "p1")
+	mux := newTestMux(srv)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatus, w.Code, http.StatusOK)
@@ -317,7 +319,8 @@ func TestHandleResetWithFileWriter(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/reset", nil)
 	w := httptest.NewRecorder()
-	srv.handleReset(w, req, "p1")
+	mux := newTestMux(srv)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
 		t.Errorf(fmtStatus, w.Code, http.StatusNoContent)
@@ -330,11 +333,12 @@ func TestHandleUpdateSettingsWithFileWriter(t *testing.T) {
 	srv := newTestServer(t)
 	dir := t.TempDir()
 	srv.fileWriter = fileoutput.New(dir, true)
+	mux := newTestMux(srv)
 
 	body := `{"output_enabled":false,"output_dir":"/tmp/new","browser_port":9090,"overlay":{}}`
 	req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateSettings(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatus, w.Code, http.StatusOK)
@@ -345,10 +349,11 @@ func TestHandleUpdateSettingsWithFileWriter(t *testing.T) {
 
 func TestHandleUpdateSingleHotkeyInvalidJSON(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/hotkeys/increment", bytes.NewBufferString("{bad"))
 	w := httptest.NewRecorder()
-	srv.handleUpdateSingleHotkey(w, req, "increment")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf(fmtStatus, w.Code, http.StatusBadRequest)
@@ -359,10 +364,11 @@ func TestHandleUpdateSingleHotkeyInvalidJSON(t *testing.T) {
 
 func TestHandleUpdatePokemonInvalidJSON(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/pokemon/p1", bytes.NewBufferString("{bad"))
 	w := httptest.NewRecorder()
-	srv.handleUpdatePokemon(w, req, "p1")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf(fmtStatus, w.Code, http.StatusBadRequest)

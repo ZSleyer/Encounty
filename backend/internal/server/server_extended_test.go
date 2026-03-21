@@ -87,7 +87,7 @@ func TestBroadcast(t *testing.T) {
 	srv := newTestServer(t)
 
 	// Register a fake client
-	c := &wsClient{send: make(chan []byte, sendBufSize)}
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
 	srv.hub.mu.Lock()
 	srv.hub.clients[c] = true
 	srv.hub.mu.Unlock()
@@ -95,9 +95,9 @@ func TestBroadcast(t *testing.T) {
 	srv.Broadcast("test_event", map[string]string{"key": "value"})
 
 	select {
-	case data := <-c.send:
+	case payload := <-c.send:
 		var msg WSMessage
-		if err := json.Unmarshal(data, &msg); err != nil {
+		if err := json.Unmarshal(payload.data, &msg); err != nil {
 			t.Fatalf("unmarshal: %v", err)
 		}
 		if msg.Type != "test_event" {
@@ -128,7 +128,7 @@ func TestBroadcastState(t *testing.T) {
 	addTestPokemon(t, srv, "p1", "Pikachu")
 
 	// Register a fake client
-	c := &wsClient{send: make(chan []byte, sendBufSize)}
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
 	srv.hub.mu.Lock()
 	srv.hub.clients[c] = true
 	srv.hub.mu.Unlock()
@@ -136,9 +136,9 @@ func TestBroadcastState(t *testing.T) {
 	srv.broadcastState()
 
 	select {
-	case data := <-c.send:
+	case payload := <-c.send:
 		var msg WSMessage
-		if err := json.Unmarshal(data, &msg); err != nil {
+		if err := json.Unmarshal(payload.data, &msg); err != nil {
 			t.Fatalf("unmarshal: %v", err)
 		}
 		if msg.Type != "state_update" {
@@ -156,10 +156,12 @@ func TestBroadcastState(t *testing.T) {
 
 func TestHandleSyncGamesWrongMethod(t *testing.T) {
 	srv := newTestServer(t)
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/games/sync", nil)
 	w := httptest.NewRecorder()
-	srv.handleSyncGames(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf(extFmtStatus, w.Code, http.StatusMethodNotAllowed)
@@ -171,9 +173,10 @@ func TestHandleSyncGamesWrongMethod(t *testing.T) {
 func TestHandleUpdateApplyInvalidJSON(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodPost, "/api/update/apply", bytes.NewBufferString("{bad"))
 	w := httptest.NewRecorder()
-	srv.handleUpdateApply(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf(extFmtStatus, w.Code, http.StatusBadRequest)
@@ -185,9 +188,10 @@ func TestHandleUpdateApplyInvalidJSON(t *testing.T) {
 func TestHandleQuitWrongMethod(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/quit", nil)
 	w := httptest.NewRecorder()
-	srv.handleQuit(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf(extFmtStatus, w.Code, http.StatusMethodNotAllowed)
@@ -199,9 +203,10 @@ func TestHandleQuitWrongMethod(t *testing.T) {
 func TestHandleRestartWrongMethod(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/restart", nil)
 	w := httptest.NewRecorder()
-	srv.handleRestart(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf(extFmtStatus, w.Code, http.StatusMethodNotAllowed)

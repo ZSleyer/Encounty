@@ -1,17 +1,12 @@
 package server
 
 import (
-	"archive/zip"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -25,191 +20,8 @@ import (
 )
 
 const (
-	covTmplPNG     = "tmpl.png"
-	covPathBackup  = "/api/backup"
-	covFmtStatus   = "status = %d, want 200"
-	covFakePNG     = "fake-png"
-	covEncountyDB  = "encounty.db"
+	covFmtStatus = "status = %d, want 200"
 )
-
-// --- handleBackup coverage ---
-
-// TestBackupWithTemplateFiles exercises the WalkDir path that includes template
-// files in the backup ZIP.
-func TestBackupWithTemplateFiles(t *testing.T) {
-	srv := newTestServer(t)
-	configDir := srv.state.GetConfigDir()
-
-	// Write state.json
-	if err := os.WriteFile(filepath.Join(configDir, "state.json"), []byte(`{}`), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	// Write a template file
-	tmplDir := filepath.Join(configDir, "templates", "p1")
-	if err := os.MkdirAll(tmplDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmplDir, covTmplPNG), []byte("fake-png-data"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, covPathBackup, nil)
-	w := httptest.NewRecorder()
-	srv.handleBackup(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(covFmtStatus, w.Code)
-	}
-
-	zr, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
-	if err != nil {
-		t.Fatalf("invalid zip: %v", err)
-	}
-
-	foundTemplate := false
-	for _, f := range zr.File {
-		if strings.Contains(f.Name, covTmplPNG) {
-			foundTemplate = true
-			rc, err := f.Open()
-			if err != nil {
-				t.Fatal(err)
-			}
-			content, _ := io.ReadAll(rc)
-			_ = rc.Close()
-			if string(content) != "fake-png-data" {
-				t.Error("template content mismatch")
-			}
-		}
-	}
-	if !foundTemplate {
-		t.Error("template file not found in backup ZIP")
-	}
-}
-
-// TestBackupWithBothFiles exercises the template-images path in backup.
-func TestBackupWithBothFiles(t *testing.T) {
-	srv := newTestServerWithDB(t)
-	configDir := srv.state.GetConfigDir()
-
-	// Save state so DB has content
-	srv.state.AddPokemon(state.Pokemon{
-		ID:        "p1",
-		Name:      "Pikachu",
-		CreatedAt: time.Now(),
-	})
-	if err := srv.state.Save(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a template image so both DB and templates are in the backup
-	tmplDir := filepath.Join(configDir, "templates", "p1")
-	if err := os.MkdirAll(tmplDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmplDir, covTmplPNG), []byte(covFakePNG), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	req := httptest.NewRequest(http.MethodGet, covPathBackup, nil)
-	w := httptest.NewRecorder()
-	srv.handleBackup(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(covFmtStatus, w.Code)
-	}
-
-	zr, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
-	if err != nil {
-		t.Fatalf("invalid zip: %v", err)
-	}
-
-	names := map[string]bool{}
-	for _, f := range zr.File {
-		names[f.Name] = true
-	}
-	if !names[covEncountyDB] {
-		t.Error("encounty.db missing from backup")
-	}
-	if !names["templates/p1/"+covTmplPNG] {
-		t.Error("templates/p1/tmpl.png missing from backup")
-	}
-}
-
-// TestBackupNoFiles exercises the path where neither state.json nor
-// pokemon.json exist — the backup should still succeed with an empty ZIP.
-func TestBackupNoFiles(t *testing.T) {
-	srv := newTestServer(t)
-
-	req := httptest.NewRequest(http.MethodGet, covPathBackup, nil)
-	w := httptest.NewRecorder()
-	srv.handleBackup(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(covFmtStatus, w.Code)
-	}
-}
-
-// --- handleRestore coverage ---
-
-// TestRestoreWithBothFiles tests restoring a ZIP that contains both
-// encounty.db and template images.
-func TestRestoreWithBothFiles(t *testing.T) {
-	srv := newTestServerWithDB(t)
-	configDir := srv.state.GetConfigDir()
-
-	// Save state so the DB has content for backup
-	srv.state.AddPokemon(state.Pokemon{
-		ID:         "p1",
-		Name:       "Bulbasaur",
-		Encounters: 5,
-		CreatedAt:  time.Now(),
-	})
-	if err := srv.state.Save(); err != nil {
-		t.Fatal(err)
-	}
-
-	// Read the DB file to put into our ZIP
-	dbData, err := os.ReadFile(filepath.Join(configDir, covEncountyDB))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a ZIP with encounty.db, a template file, and a file that should be skipped
-	var zipBuf bytes.Buffer
-	zw := zip.NewWriter(&zipBuf)
-	fw, _ := zw.Create(covEncountyDB)
-	_, _ = fw.Write(dbData)
-	fw2, _ := zw.Create("templates/p1/tmpl.png")
-	_, _ = fw2.Write([]byte(covFakePNG))
-	fw3, _ := zw.Create("other.txt")
-	_, _ = fw3.Write([]byte("ignored"))
-	_ = zw.Close()
-
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
-	formFile, _ := mw.CreateFormFile("backup", "backup.zip")
-	_, _ = formFile.Write(zipBuf.Bytes())
-	_ = mw.Close()
-
-	req := httptest.NewRequest(http.MethodPost, "/api/restore", &body)
-	req.Header.Set("Content-Type", mw.FormDataContentType())
-	w := httptest.NewRecorder()
-	srv.handleRestore(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
-	}
-
-	// Verify template file was written
-	data, err := os.ReadFile(filepath.Join(configDir, "templates", "p1", covTmplPNG))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(data) != covFakePNG {
-		t.Errorf("template content = %q, want %q", string(data), covFakePNG)
-	}
-}
 
 // --- ReadJSON coverage ---
 
@@ -227,7 +39,7 @@ func TestReadPokedexJSONAllFallbacksFail(t *testing.T) {
 }
 
 // TestHandleGetPokedexError exercises the error path where readPokedexJSON
-// returns an error.
+// returns an error via the mux-routed handler.
 func TestHandleGetPokedexError(t *testing.T) {
 	tmpDir := t.TempDir()
 	stateMgr := state.NewManager(tmpDir)
@@ -236,9 +48,12 @@ func TestHandleGetPokedexError(t *testing.T) {
 		hub:       NewHub(),
 		hotkeyMgr: newMockHotkeyMgr(),
 	}
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
+
 	req := httptest.NewRequest(http.MethodGet, "/api/pokedex", nil)
 	w := httptest.NewRecorder()
-	srv.handleGetPokedex(w, req)
+	mux.ServeHTTP(w, req)
 
 	// This might return 200 (if source-dir fallback works) or 500 (if not).
 	// The important thing is it doesn't panic.
@@ -298,9 +113,10 @@ func TestUpdateCheckNonDevVersion(t *testing.T) {
 	srv := newTestServer(t)
 	srv.version = "0.0.1-test"
 
+	mux := newTestMux(srv)
 	req := httptest.NewRequest(http.MethodGet, "/api/update/check", nil)
 	w := httptest.NewRecorder()
-	srv.handleUpdateCheck(w, req)
+	mux.ServeHTTP(w, req)
 
 	// The GitHub API call may succeed or fail depending on network; both are valid.
 	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
@@ -321,11 +137,12 @@ func TestHandleDeletePokemonWithDetectorMgr(t *testing.T) {
 	broadcast := func(msgType string, payload any) { // no-op for test
 	}
 	tmpDir := stateMgr.GetConfigDir()
-	srv.detectorMgr = detector.NewManager(stateMgr, broadcast, tmpDir)
+	srv.detectorMgr = detector.NewManager(stateMgr, broadcast, tmpDir, nil)
+	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/pokemon/p1", nil)
 	w := httptest.NewRecorder()
-	srv.handleDeletePokemon(w, req, "p1")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusNoContent)
@@ -342,10 +159,11 @@ func TestHandleDeletePokemonWithDetectorMgr(t *testing.T) {
 func TestHandleUpdateApplyWithURL(t *testing.T) {
 	srv := newTestServer(t)
 
+	mux := newTestMux(srv)
 	body := `{"download_url":"https://example.com/test-binary"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/update/apply", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateApply(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -366,7 +184,7 @@ func TestHandleUpdateApplyWithURL(t *testing.T) {
 // the payload cannot be marshalled.
 func TestBroadcastRawMarshalError(t *testing.T) {
 	h := NewHub()
-	c := &wsClient{send: make(chan []byte, sendBufSize)}
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
 	h.mu.Lock()
 	h.clients[c] = true
 	h.mu.Unlock()
@@ -398,11 +216,12 @@ func TestBroadcastMarshalError(t *testing.T) {
 // with update operations.
 func TestHandleUpdateSettingsFileWriterConfig(t *testing.T) {
 	srv := newTestServer(t)
+	mux := newTestMux(srv)
 
 	body := `{"output_enabled":true,"output_dir":"/tmp/test2","browser_port":8888,"overlay":{}}`
 	req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateSettings(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
@@ -434,11 +253,12 @@ func (m *errorHotkeyMgr) UpdateBinding(action, keyCombo string) error {
 func TestHandleUpdateHotkeysBindingError(t *testing.T) {
 	srv := newTestServer(t)
 	srv.hotkeyMgr = &errorHotkeyMgr{}
+	mux := newTestMux(srv)
 
 	body := `{"increment":"F5","decrement":"F6","reset":"F7","next_pokemon":"F8"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/hotkeys", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateHotkeys(w, req)
+	mux.ServeHTTP(w, req)
 
 	// Should still return 200 (the error is logged, not returned to client)
 	if w.Code != http.StatusOK {
@@ -451,11 +271,12 @@ func TestHandleUpdateHotkeysBindingError(t *testing.T) {
 func TestHandleUpdateSingleHotkeyBindingError(t *testing.T) {
 	srv := newTestServer(t)
 	srv.hotkeyMgr = &errorHotkeyMgr{}
+	mux := newTestMux(srv)
 
 	body := `{"key":"F9"}`
 	req := httptest.NewRequest(http.MethodPut, "/api/hotkeys/increment", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
-	srv.handleUpdateSingleHotkey(w, req, "increment")
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("status = %d, want 400", w.Code)
@@ -468,7 +289,7 @@ func TestShutdownWithDetectorMgr(t *testing.T) {
 	stateMgr := state.NewManager(t.TempDir())
 	hkMgr := newMockHotkeyMgr()
 	detMgr := detector.NewManager(stateMgr, func(string, any) { // no-op for test
-	}, t.TempDir())
+	}, t.TempDir(), nil)
 
 	srv := New(Config{
 		Port:        0,

@@ -1,8 +1,9 @@
-// backup.go implements the backup and restore endpoints.
-// Backups are ZIP archives containing the SQLite database (which includes
-// template images as BLOBs since the v2 schema). Legacy backups with a
-// separate templates/ directory are still accepted during restore.
-package server
+// Package backup provides HTTP handlers for creating and restoring ZIP
+// backups of the Encounty configuration. Backups are ZIP archives containing
+// the SQLite database (which includes template images as BLOBs since the v2
+// schema). Legacy backups with a separate templates/ directory are still
+// accepted during restore.
+package backup
 
 import (
 	"archive/zip"
@@ -16,7 +17,43 @@ import (
 	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
+	"github.com/zsleyer/encounty/backend/internal/httputil"
 )
+
+const dbFilename = "encounty.db"
+
+// Deps declares the capabilities the backup handlers need from the
+// application layer, keeping this package decoupled from the server package.
+type Deps interface {
+	// ConfigDir returns the active configuration directory path.
+	ConfigDir() string
+	// BackupDB returns the current database handle for close/reopen during
+	// restore. Returns nil when no database is configured.
+	BackupDB() *database.DB
+	// SetBackupDB replaces the active database handle after a restore.
+	SetBackupDB(db *database.DB)
+	// ReloadState reloads the in-memory state from the database.
+	ReloadState() error
+	// BroadcastState sends the current state snapshot to all WebSocket clients.
+	BroadcastState()
+}
+
+// restoreResponse confirms a successful backup restore.
+type restoreResponse struct {
+	OK bool `json:"ok"`
+}
+
+// handler groups the backup HTTP handlers together with their dependencies.
+type handler struct {
+	deps Deps
+}
+
+// RegisterRoutes wires the /api/backup and /api/restore routes onto mux.
+func RegisterRoutes(mux *http.ServeMux, d Deps) {
+	h := &handler{deps: d}
+	mux.HandleFunc("/api/backup", h.handleBackup)
+	mux.HandleFunc("/api/restore", h.handleRestore)
+}
 
 // handleBackup streams a ZIP file containing the SQLite database and template
 // images directly to the response, triggering a browser file download.
@@ -26,13 +63,13 @@ import (
 // @Produce      application/zip
 // @Success      200 {file} binary
 // @Router       /backup [get]
-func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleBackup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 
-	configDir := s.state.GetConfigDir()
+	configDir := h.deps.ConfigDir()
 	ts := time.Now().Format("2006-01-02_150405")
 	filename := fmt.Sprintf("encounty-backup-%s.zip", ts)
 
@@ -120,11 +157,11 @@ func extractZipEntry(f *zip.File, configDir string) bool {
 // @Accept       multipart/form-data
 // @Produce      json
 // @Param        backup formData file true "Backup ZIP file"
-// @Success      200 {object} RestoreResponse
+// @Success      200 {object} restoreResponse
 // @Failure      400 {string} string
 // @Failure      500 {string} string
 // @Router       /restore [post]
-func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
+func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -154,7 +191,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	configDir := s.state.GetConfigDir()
+	configDir := h.deps.ConfigDir()
 	if err := os.MkdirAll(configDir, 0755); err != nil {
 		http.Error(w, "failed to prepare config dir", http.StatusInternalServerError)
 		return
@@ -176,8 +213,8 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Reopen the database and reload state
-	if s.db != nil {
-		_ = s.db.Close()
+	if db := h.deps.BackupDB(); db != nil {
+		_ = db.Close()
 	}
 	dbPath := filepath.Join(configDir, dbFilename)
 	newDB, err := database.Open(dbPath)
@@ -185,14 +222,13 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to reopen database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.db = newDB
-	s.state.SetDB(newDB)
+	h.deps.SetBackupDB(newDB)
 
-	if err := s.state.Reload(); err != nil {
+	if err := h.deps.ReloadState(); err != nil {
 		http.Error(w, "failed to reload state: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.broadcastState()
+	h.deps.BroadcastState()
 
-	writeJSON(w, http.StatusOK, RestoreResponse{OK: true})
+	httputil.WriteJSON(w, http.StatusOK, restoreResponse{OK: true})
 }

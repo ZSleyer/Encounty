@@ -1,4 +1,4 @@
-// pokedex_test.go tests the Pokédex HTTP handlers.
+// pokedex_test.go tests the Pokedex HTTP handlers via mux routing.
 package server
 
 import (
@@ -31,9 +31,12 @@ func TestPokedexHandleGetPokedex(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
+
 	req := httptest.NewRequest(http.MethodGet, "/api/pokedex", nil)
 	w := httptest.NewRecorder()
-	srv.handleGetPokedex(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", w.Code)
@@ -60,10 +63,12 @@ func TestPokedexHandleGetPokedex(t *testing.T) {
 
 func TestPokedexSyncMethodNotAllowed(t *testing.T) {
 	srv := newTestServer(t)
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/sync/pokemon", nil)
 	w := httptest.NewRecorder()
-	srv.handleSyncPokemon(w, req)
+	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf("status = %d, want 405", w.Code)
