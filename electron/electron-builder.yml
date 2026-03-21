@@ -18,6 +18,12 @@ extraResources:
   - from: ../encounty-backend-windows.exe
     to: encounty-backend-windows.exe
     filter: encounty-backend-windows.exe
+  - from: ../capture-sidecar/target/release/encounty-capture
+    to: encounty-capture
+    filter: encounty-capture
+  - from: ../capture-sidecar/target/x86_64-pc-windows-gnu/release/encounty-capture.exe
+    to: encounty-capture.exe
+    filter: encounty-capture.exe
 publish:
   provider: github
   owner: ZSleyer
