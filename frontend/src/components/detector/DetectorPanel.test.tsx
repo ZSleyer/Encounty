@@ -12,20 +12,6 @@ vi.stubGlobal(
   ),
 );
 
-// Mock the CaptureServiceContext hooks used by DetectorPanel
-vi.mock("../../contexts/CaptureServiceContext", () => ({
-  useCaptureService: () => ({
-    startCapture: vi.fn(),
-    stopCapture: vi.fn(),
-    getStream: () => null,
-    isCapturing: () => false,
-    registerSubmitter: vi.fn(),
-    unregisterSubmitter: vi.fn(),
-    updateSubmitterInterval: vi.fn(),
-    captureError: null,
-  }),
-  useCaptureVersion: () => 0,
-}));
 
 describe("DetectorPanel", () => {
   it("renders without crashing", () => {

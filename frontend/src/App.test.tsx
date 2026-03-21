@@ -26,20 +26,6 @@ vi.mock("./hooks/useWebSocket", () => ({
   useWebSocket: vi.fn(() => ({ send: vi.fn() })),
 }));
 
-vi.mock("./contexts/CaptureServiceContext", () => ({
-  CaptureServiceProvider: ({ children }: { children: React.ReactNode }) => children,
-  useCaptureService: () => ({
-    startCapture: vi.fn(),
-    stopCapture: vi.fn(),
-    getStream: () => null,
-    isCapturing: () => false,
-    registerSubmitter: vi.fn(),
-    unregisterSubmitter: vi.fn(),
-    updateSubmitterInterval: vi.fn(),
-    captureError: null,
-  }),
-  useCaptureVersion: () => 0,
-}));
 
 describe("App", () => {
   it("renders without crashing", () => {

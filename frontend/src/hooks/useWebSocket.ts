@@ -17,30 +17,35 @@ const RECONNECT_DELAY = 2000
  * useWebSocket connects to the backend WebSocket and keeps the connection
  * alive. Callbacks are stored in refs so callers never need to memoize them.
  *
- * @param onMessage - Called for every message received from the server.
+ * @param onMessage - Called for every JSON message received from the server.
  * @param onConnect - Called when the connection is successfully established.
  * @param onDisconnect - Called when the connection closes.
+ * @param onBinaryMessage - Called for every binary message (e.g. MJPEG preview frames).
  * @returns An object with a `send(type, payload)` function for outbound messages.
  */
 export function useWebSocket(
   onMessage: (msg: WSMessage) => void,
   onConnect?: () => void,
   onDisconnect?: () => void,
+  onBinaryMessage?: (data: ArrayBuffer) => void,
 ) {
   const ws = useRef<WebSocket | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onMessageRef = useRef(onMessage)
   const onConnectRef = useRef(onConnect)
   const onDisconnectRef = useRef(onDisconnect)
+  const onBinaryMessageRef = useRef(onBinaryMessage)
   onMessageRef.current = onMessage
   onConnectRef.current = onConnect
   onDisconnectRef.current = onDisconnect
+  onBinaryMessageRef.current = onBinaryMessage
 
   const connect = useCallback(() => {
     const state = ws.current?.readyState
     if (state === WebSocket.OPEN || state === WebSocket.CONNECTING) return
 
     const socket = new WebSocket(WS_URL)
+    socket.binaryType = 'arraybuffer'
     ws.current = socket
 
     socket.onopen = () => {
@@ -49,11 +54,15 @@ export function useWebSocket(
     }
 
     socket.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data) as WSMessage
-        onMessageRef.current(msg)
-      } catch {
-        console.warn('[WS] Failed to parse message:', event.data)
+      if (typeof event.data === 'string') {
+        try {
+          const msg = JSON.parse(event.data) as WSMessage
+          onMessageRef.current(msg)
+        } catch {
+          console.warn('[WS] Failed to parse message:', event.data)
+        }
+      } else if (event.data instanceof ArrayBuffer) {
+        onBinaryMessageRef.current?.(event.data)
       }
     }
 
@@ -82,12 +91,5 @@ export function useWebSocket(
     }
   }, [])
 
-  /** Send raw binary data (ArrayBuffer or Uint8Array) over the WebSocket. */
-  const sendBinary = useCallback((data: ArrayBuffer | Uint8Array) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(data)
-    }
-  }, [])
-
-  return { send, sendBinary }
+  return { send }
 }

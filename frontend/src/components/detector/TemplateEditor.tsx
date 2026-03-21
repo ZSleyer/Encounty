@@ -1,14 +1,21 @@
+/**
+ * TemplateEditor.tsx — Template creation and region editing for auto-detection.
+ *
+ * In new-template mode, captures a frame from the sidecar via the REST API
+ * and allows the user to draw detection regions on the snapshot.
+ * In edit mode, loads an existing template image for region editing.
+ */
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon, Type, Loader2, ScanText, Play } from "lucide-react";
+import { X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon, Type, Loader2, ScanText } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { MatchedRegion } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
-import { useReplayBuffer } from "../../hooks/useReplayBuffer";
+import { apiUrl } from "../../utils/api";
 
 export type TemplateEditorProps = Readonly<{
-  /** Live video stream for new-template mode. If omitted, edit mode is assumed. */
-  stream?: MediaStream;
+  /** Pokemon ID for fetching sidecar capture frames (new-template mode). */
+  pokemonId?: string;
   onClose: () => void;
   /** Called when saving a new template (new-template mode). */
   onSaveTemplate?: (payload: { imageBase64: string; regions: MatchedRegion[] }) => Promise<void>;
@@ -18,62 +25,44 @@ export type TemplateEditorProps = Readonly<{
   initialImageUrl?: string;
   /** Pre-load existing regions (edit mode). */
   initialRegions?: MatchedRegion[];
-  /** Pokémon name — pre-fills expected_text when switching a region to type "text". */
+  /** Pokemon name -- pre-fills expected_text when switching a region to type "text". */
   pokemonName?: string;
   /** Tesseract language code for OCR auto-recognition (e.g. "deu", "eng"). */
   ocrLang?: string;
 }>;
 
-/** Flow controls for creating a new template. */
+/** Flow controls for creating a new template via sidecar capture. */
 function NewTemplateControls({
   phase,
   isSaving,
-  onTakeSnapshot,
+  isCapturing,
+  onCaptureFrame,
   onResetSnapshot,
   onSave,
-  onUseFrame,
-  onBackToLive,
   t,
 }: Readonly<{
-  phase: "video" | "replay" | "snapshot";
+  phase: "idle" | "snapshot";
   isSaving: boolean;
-  onTakeSnapshot: () => void;
+  isCapturing: boolean;
+  onCaptureFrame: () => void;
   onResetSnapshot: () => void;
   onSave: () => void;
-  onUseFrame: () => void;
-  onBackToLive: () => void;
   t: (k: string) => string;
 }>) {
-  if (phase === "video") {
+  if (phase === "idle") {
     return (
       <button
-        onClick={onTakeSnapshot}
-        className="flex items-center justify-center gap-2 w-full py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+        onClick={onCaptureFrame}
+        disabled={isCapturing}
+        className="flex items-center justify-center gap-2 w-full py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
       >
-        <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
-        {t("templateEditor.takeSnapshot")}
-      </button>
-    );
-  }
-
-  if (phase === "replay") {
-    return (
-      <div className="flex w-full gap-3">
-        <button
-          onClick={onBackToLive}
-          className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all"
-        >
-          <Play className="w-4 h-4 2xl:w-5 2xl:h-5" />
-          {t("templateEditor.backToLive")}
-        </button>
-        <button
-          onClick={onUseFrame}
-          className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
-        >
+        {isCapturing ? (
+          <Loader2 className="w-5 h-5 2xl:w-6 2xl:h-6 animate-spin" />
+        ) : (
           <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
-          {t("templateEditor.useFrame")}
-        </button>
-      </div>
+        )}
+        {isCapturing ? t("templateEditor.capturing") : t("templateEditor.takeSnapshot")}
+      </button>
     );
   }
 
@@ -99,8 +88,9 @@ function NewTemplateControls({
   );
 }
 
+/** Template editor for creating new templates or editing existing ones. */
 export function TemplateEditor({
-  stream,
+  pokemonId,
   onClose,
   onSaveTemplate,
   onUpdateRegions,
@@ -110,14 +100,11 @@ export function TemplateEditor({
   ocrLang = "eng",
 }: TemplateEditorProps) {
   const { t } = useI18n();
-  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [phase, setPhase] = useState<"video" | "replay" | "snapshot">("video");
-  const [selectedFrameIndex, setSelectedFrameIndex] = useState(0);
-
-  const replayBuffer = useReplayBuffer(stream, 30);
+  const [phase, setPhase] = useState<"idle" | "snapshot">("idle");
+  const [isCapturing, setIsCapturing] = useState(false);
   const [snapshotWidth, setSnapshotWidth] = useState(0);
   const [snapshotHeight, setSnapshotHeight] = useState(0);
 
@@ -135,7 +122,7 @@ export function TemplateEditor({
   const { recognize, isRecognizing, ocrError } = useOCR(ocrLang);
 
   // Track the actual rendered image area within the object-contain container.
-  // object-contain can produce letterboxing — overlays and mouse coords must
+  // object-contain can produce letterboxing -- overlays and mouse coords must
   // be relative to the image, not the full container.
   const [imageBounds, setImageBounds] = useState<{
     offsetX: number; offsetY: number; renderedW: number; renderedH: number;
@@ -159,7 +146,7 @@ export function TemplateEditor({
   }, [snapshotWidth, snapshotHeight]);
 
   useEffect(() => {
-    if ((phase !== "snapshot" && phase !== "replay") || snapshotWidth === 0 || snapshotHeight === 0) {
+    if (phase !== "snapshot" || snapshotWidth === 0 || snapshotHeight === 0) {
       setImageBounds(null);
       return;
     }
@@ -191,114 +178,50 @@ export function TemplateEditor({
     img.src = initialImageUrl;
   }, [initialImageUrl]); // only run once on mount
 
-  useEffect(() => {
-    if (phase === "video" && videoRef.current && videoRef.current.srcObject !== stream) {
-      videoRef.current.srcObject = stream ?? null;
-      videoRef.current.play().catch(() => {});
-    }
-  }, [stream, phase]);
+  // --- Sidecar frame capture -------------------------------------------------
 
-  useEffect(() => {
-    if (phase !== "replay") return;
-
-    const frame = replayBuffer.getFrame(selectedFrameIndex);
-    if (!frame || !canvasRef.current) return;
-
-    if (canvasRef.current.width !== frame.width) {
-      canvasRef.current.width = frame.width;
-      setSnapshotWidth(frame.width);
-    }
-    if (canvasRef.current.height !== frame.height) {
-      canvasRef.current.height = frame.height;
-      setSnapshotHeight(frame.height);
-    }
-
-    const ctx = canvasRef.current.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(frame, 0, 0);
-    }
-  }, [phase, selectedFrameIndex, replayBuffer]);
-
-  useEffect(() => {
-    if (phase !== "replay") return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        const step = e.shiftKey ? 5 : 1;
-        setSelectedFrameIndex((prev) => Math.max(0, prev - step));
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        const step = e.shiftKey ? 5 : 1;
-        setSelectedFrameIndex((prev) => Math.min(replayBuffer.frameCount - 1, prev + step));
+  /** Fetch a single frame from the sidecar capture endpoint and draw it on the canvas. */
+  const handleCaptureFrame = async () => {
+    if (!pokemonId || !canvasRef.current) return;
+    setIsCapturing(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(apiUrl(`/api/detector/${pokemonId}/capture_frame`));
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setErrorMsg(body.error ?? t("detector.errCaptureFailed"));
+        return;
       }
-    };
+      const blob = await res.blob();
+      const bitmap = await createImageBitmap(blob);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [phase, replayBuffer.frameCount]);
+      canvasRef.current.width = bitmap.width;
+      canvasRef.current.height = bitmap.height;
+      setSnapshotWidth(bitmap.width);
+      setSnapshotHeight(bitmap.height);
 
-  const handleTakeSnapshot = () => {
-    // Stop the replay buffer and enter replay phase to browse frames
-    replayBuffer.stop();
-    if (replayBuffer.frameCount > 0) {
-      setSelectedFrameIndex(replayBuffer.frameCount - 1);
-      setPhase("replay");
-    } else {
-      // Fallback: no frames buffered, capture current video frame directly
-      if (!videoRef.current || !canvasRef.current) return;
-      const video = videoRef.current;
-      if (video.videoWidth === 0 || video.videoHeight === 0) return;
-
-      setSnapshotWidth(video.videoWidth);
-      setSnapshotHeight(video.videoHeight);
-
-      canvasRef.current.width = video.videoWidth;
-      canvasRef.current.height = video.videoHeight;
       const ctx = canvasRef.current.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-      }
+      if (ctx) ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+
       setPhase("snapshot");
       setRegions([]);
       setCurrentBox(null);
-      setErrorMsg(null);
+    } catch {
+      setErrorMsg(t("detector.errCaptureFailed"));
+    } finally {
+      setIsCapturing(false);
     }
   };
 
-  const handleUseFrame = () => {
-    if (!canvasRef.current) return;
-    const frame = replayBuffer.getFrame(selectedFrameIndex);
-    if (!frame) return;
-
-    setSnapshotWidth(frame.width);
-    setSnapshotHeight(frame.height);
-
-    canvasRef.current.width = frame.width;
-    canvasRef.current.height = frame.height;
-    const ctx = canvasRef.current.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(frame, 0, 0);
-    }
-
-    setPhase("snapshot");
-    setRegions([]);
-    setCurrentBox(null);
-    setErrorMsg(null);
-  };
-
-  const returnToLiveVideo = () => {
-    setPhase("video");
-    setSelectedFrameIndex(0);
+  const resetSnapshot = () => {
+    setPhase("idle");
     setCurrentBox(null);
     setRegions([]);
     setErrorMsg(null);
-    replayBuffer.clear();
-    replayBuffer.resume();
   };
 
-  const handleBackToLive = returnToLiveVideo;
-  const resetSnapshot = returnToLiveVideo;
+  // --- Region drawing --------------------------------------------------------
 
   const getRelativeMousePos = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (!containerRef.current) return { x: 0, y: 0 };
@@ -331,8 +254,7 @@ export function TemplateEditor({
   };
 
   const onPointerDown = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (phase !== "snapshot" && phase !== "replay") return;
-    if (phase === "replay") return;
+    if (phase !== "snapshot") return;
     setIsDrawing(true);
     const pos = getRelativeMousePos(e);
     setStartPos(pos);
@@ -340,8 +262,7 @@ export function TemplateEditor({
   };
 
   const onPointerMove = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (!isDrawing || (phase !== "snapshot" && phase !== "replay")) return;
-    if (phase === "replay") return;
+    if (!isDrawing || phase !== "snapshot") return;
     const pos = getRelativeMousePos(e);
     setCurrentBox({
       x: Math.min(startPos.x, pos.x),
@@ -379,7 +300,7 @@ export function TemplateEditor({
   const updateRegion = (index: number, updates: Partial<MatchedRegion>) => {
     const newReg = [...regions];
     const merged = { ...newReg[index], ...updates };
-    // When switching to text type, pre-fill expected_text with the pokémon name
+    // When switching to text type, pre-fill expected_text with the pokemon name
     // if the field is currently empty, so the user has a useful starting point.
     if (updates.type === "text" && !merged.expected_text && pokemonName) {
       merged.expected_text = pokemonName;
@@ -470,12 +391,9 @@ export function TemplateEditor({
           if (isEditMode) {
             heading = t("templateEditor.editTitle");
             hint = t("templateEditor.editHint");
-          } else if (phase === "video") {
+          } else if (phase === "idle") {
             heading = t("templateEditor.step1Title");
             hint = t("templateEditor.step1Hint");
-          } else if (phase === "replay") {
-            heading = t("templateEditor.replayTitle");
-            hint = t("templateEditor.replayHint");
           } else {
             heading = t("templateEditor.step2Title");
             hint = t("templateEditor.step2Hint");
@@ -503,35 +421,24 @@ export function TemplateEditor({
         onTouchMove={phase === "snapshot" ? onPointerMove : undefined}
         onTouchEnd={phase === "snapshot" ? onPointerUp : undefined}
       >
-        {/* Video feed layer — hidden in edit mode */}
-        {!isEditMode && (
-          <>
-            <video
-              ref={videoRef}
-              className={`w-full h-full object-contain pointer-events-none ${phase === "video" ? "" : "hidden"}`}
-              autoPlay
-              playsInline
-              muted
-            />
-            {phase === "video" && replayBuffer.isBuffering && (
-              <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-mono text-white">
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                {Math.floor(replayBuffer.bufferedSeconds)}s / 30s
-              </div>
-            )}
-          </>
+        {/* Idle placeholder when no snapshot has been taken yet */}
+        {!isEditMode && phase === "idle" && (
+          <div className="w-full h-full flex flex-col items-center justify-center">
+            <Camera className="w-12 h-12 2xl:w-14 2xl:h-14 text-white/20 mb-3" />
+            <p className="text-sm text-white/40">{t("templateEditor.captureHint")}</p>
+          </div>
         )}
 
         {/* Snapshot canvas layer */}
         <canvas
           ref={canvasRef}
-          className={`w-full h-full object-contain pointer-events-none ${phase === "snapshot" || phase === "replay" ? "" : "hidden"}`}
+          className={`w-full h-full object-contain pointer-events-none ${phase === "snapshot" ? "" : "hidden"}`}
         />
 
-        {/* Overlay wrapper — positioned to match the rendered image area
+        {/* Overlay wrapper -- positioned to match the rendered image area
             within the object-contain container, so percentage-based region
             positioning is correct even with letterboxing. */}
-        {(phase === "snapshot" || phase === "replay") && imageBounds && (
+        {phase === "snapshot" && imageBounds && (
           <div
             className="absolute pointer-events-none"
             style={{
@@ -582,39 +489,6 @@ export function TemplateEditor({
           </div>
         )}
       </div>
-
-      {/* Replay Timeline */}
-      {phase === "replay" && replayBuffer.frameCount > 0 && (
-        <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-4 px-8">
-          <div className="flex items-center gap-4">
-            <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
-              {(() => {
-                const totalSec = replayBuffer.bufferedSeconds;
-                const secPerFrame = totalSec / replayBuffer.frameCount;
-                const currentSec = selectedFrameIndex * secPerFrame;
-                const relative = currentSec - totalSec;
-                return Math.abs(relative) < 0.1 ? "now" : `${Math.round(relative)}s`;
-              })()}
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={replayBuffer.frameCount - 1}
-              value={selectedFrameIndex}
-              onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
-              className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer
-                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
-                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
-            />
-            <span className="text-white/60 text-xs 2xl:text-sm shrink-0">
-              {selectedFrameIndex + 1} / {replayBuffer.frameCount}
-            </span>
-          </div>
-          <p className="text-xs 2xl:text-sm text-text-muted text-center mt-2">
-            Arrow keys: ±1 frame, Shift+Arrow keys: ±5 frames
-          </p>
-        </div>
-      )}
 
       {/* Region List Editor */}
       {phase === "snapshot" && regions.length > 0 && (
@@ -715,11 +589,10 @@ export function TemplateEditor({
           <NewTemplateControls
             phase={phase}
             isSaving={isSaving}
-            onTakeSnapshot={handleTakeSnapshot}
+            isCapturing={isCapturing}
+            onCaptureFrame={handleCaptureFrame}
             onResetSnapshot={resetSnapshot}
             onSave={handleSave}
-            onUseFrame={handleUseFrame}
-            onBackToLive={handleBackToLive}
             t={t}
           />
         )}

@@ -433,6 +433,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "templateEditor.step2Hint":
       "Ziehe Rechtecke, um zu scannende Bereiche zu markieren (z.B. Pokémon und Text).",
     "templateEditor.takeSnapshot": "Schnappschuss",
+    "templateEditor.capturing": "Aufnahme...",
+    "templateEditor.captureHint": "Klicke auf Schnappschuss, um ein Bild von der Quelle aufzunehmen",
     "templateEditor.retake": "Neu aufnehmen",
     "templateEditor.cancel": "Abbrechen",
     "templateEditor.saving": "Speichere…",
@@ -619,8 +621,19 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.adaptiveCooldownMin": "Min. Cooldown (s)",
     "detector.relativeRegions": "Relative Regionen",
     "detector.relativeRegionsDesc": "Template-Regionen proportional skalieren wenn sich die Fenstergröße ändert",
-    "detector.sourceWindow": "Fenster (schnell)",
-    "detector.sourceNativeCamera": "Kamera (schnell)",
+
+    // ── Detector: Re-Match & Replay ──
+    "detector.rematchReplay": "Re-Match & Replay",
+    "detector.rematchReplayDesc": "Nach einem Treffer erneut prüfen und einen Replay-Buffer für Aufnahmen vorhalten",
+    "detector.rematchEnabled": "Re-Match aktivieren",
+    "detector.rematchEnabledDesc": "Nach einem Encounter erneut matchen um Fehlerkennungen rückgängig zu machen",
+    "detector.rematchOffset": "Re-Match Toleranz",
+    "detector.rematchWindow": "Re-Match Fenster",
+    "detector.replayBuffer": "Replay-Buffer Dauer",
+
+    "detector.sourceScreen": "Bildschirm",
+    "detector.sourceWindow": "Fenster",
+    "detector.sourceNativeCamera": "Kamera",
     "detector.errNoSource": "Wähle zuerst eine Aufnahmequelle",
     "detector.selectSource": "Quelle wählen",
     "detector.nativeCapture": "Native Aufnahme aktiv",
@@ -628,6 +641,12 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.sourceUnavailable": "Auf diesem System nicht verfügbar",
     "detector.useInstead": "Nutze Browser-Quellen stattdessen",
     "detector.capWarning": "Gewählte Quelle wird auf diesem System nicht unterstützt",
+    "detector.snapshot": "Schnappschuss",
+    "detector.snapshotLoading": "Erstelle Schnappschuss…",
+    "detector.useAsTemplate": "Als Template verwenden",
+    "detector.closeTimeline": "Timeline schließen",
+    "detector.frameOf": "Frame {current} von {total}",
+    "detector.timelineHint": "Pfeiltasten: ±1 Frame, Shift+Pfeiltasten: ±5 Frames",
 
     // ── Footer ──
     "footer.hunts": "Hunts",
@@ -1046,6 +1065,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "templateEditor.step2Hint":
       "Draw rectangles to mark scan regions (e.g. Pokémon and text).",
     "templateEditor.takeSnapshot": "Take Snapshot",
+    "templateEditor.capturing": "Capturing...",
+    "templateEditor.captureHint": "Click Take Snapshot to capture a frame from the source",
     "templateEditor.retake": "Retake",
     "templateEditor.cancel": "Cancel",
     "templateEditor.saving": "Saving…",
@@ -1231,8 +1252,19 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.adaptiveCooldownMin": "Min. cooldown (s)",
     "detector.relativeRegions": "Relative Regions",
     "detector.relativeRegionsDesc": "Scale template regions proportionally when the window size changes",
-    "detector.sourceWindow": "Window (fast)",
-    "detector.sourceNativeCamera": "Camera (fast)",
+
+    // ── Detector: Re-Match & Replay ──
+    "detector.rematchReplay": "Re-Match & Replay",
+    "detector.rematchReplayDesc": "Re-verify after a match and maintain a replay buffer for recordings",
+    "detector.rematchEnabled": "Enable re-match",
+    "detector.rematchEnabledDesc": "Re-match after an encounter to undo false positives",
+    "detector.rematchOffset": "Re-match tolerance",
+    "detector.rematchWindow": "Re-match window",
+    "detector.replayBuffer": "Replay buffer duration",
+
+    "detector.sourceScreen": "Screen",
+    "detector.sourceWindow": "Window",
+    "detector.sourceNativeCamera": "Camera",
     "detector.errNoSource": "Select a capture source first",
     "detector.selectSource": "Select Source",
     "detector.nativeCapture": "Native capture active",
@@ -1240,6 +1272,12 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.sourceUnavailable": "Not available on this system",
     "detector.useInstead": "Use browser sources instead",
     "detector.capWarning": "Selected source is not supported on this system",
+    "detector.snapshot": "Snapshot",
+    "detector.snapshotLoading": "Creating snapshot…",
+    "detector.useAsTemplate": "Use as template",
+    "detector.closeTimeline": "Close timeline",
+    "detector.frameOf": "Frame {current} of {total}",
+    "detector.timelineHint": "Arrow keys: ±1 frame, Shift+Arrow: ±5 frames",
 
     // ── Footer ──
     "footer.hunts": "Hunts",

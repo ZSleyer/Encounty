@@ -1115,42 +1115,38 @@ export function Dashboard() {
                   <li
                     key={p.id}
                     className={itemClassName}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleActivate(p.id);
+                      }
+                    }}
+                    onClick={(e) => {
+                      // Ignore clicks on nested interactive elements (buttons, inputs)
+                      if ((e.target as HTMLElement).closest("button, input, a")) return;
+                      if (e.ctrlKey || e.metaKey) {
+                        setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(p.id)) next.delete(p.id);
+                          else next.add(p.id);
+                          return next;
+                        });
+                        lastSelectedIdx.current = idx;
+                      } else if (e.shiftKey && lastSelectedIdx.current !== null) {
+                        const from = Math.min(lastSelectedIdx.current, idx);
+                        const to = Math.max(lastSelectedIdx.current, idx);
+                        setSelectedIds(prev => {
+                          const next = new Set(prev);
+                          for (let i = from; i <= to; i++) next.add(displayList[i].id);
+                          return next;
+                        });
+                      } else {
+                        if (selectedIds.size > 0) setSelectedIds(new Set());
+                        handleActivate(p.id);
+                      }
+                    }}
                   >
-                    <button
-                      type="button"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleActivate(p.id);
-                        }
-                      }}
-                      onClick={(e) => {
-                        if (e.ctrlKey || e.metaKey) {
-                          // Ctrl+Click: toggle single item
-                          setSelectedIds(prev => {
-                            const next = new Set(prev);
-                            if (next.has(p.id)) next.delete(p.id);
-                            else next.add(p.id);
-                            return next;
-                          });
-                          lastSelectedIdx.current = idx;
-                        } else if (e.shiftKey && lastSelectedIdx.current !== null) {
-                          // Shift+Click: range select
-                          const from = Math.min(lastSelectedIdx.current, idx);
-                          const to = Math.max(lastSelectedIdx.current, idx);
-                          setSelectedIds(prev => {
-                            const next = new Set(prev);
-                            for (let i = from; i <= to; i++) next.add(displayList[i].id);
-                            return next;
-                          });
-                        } else {
-                          // Normal click: activate pokemon, clear selection
-                          if (selectedIds.size > 0) setSelectedIds(new Set());
-                          handleActivate(p.id);
-                        }
-                      }}
-                      className="flex items-center gap-3 w-full text-left bg-transparent border-none p-0 cursor-pointer"
-                    >
                     <div className="w-9 h-9 2xl:w-11 2xl:h-11 shrink-0 relative">
                       <img
                         src={src}
@@ -1210,7 +1206,6 @@ export function Dashboard() {
                       </div>
                       <SidebarTimer pokemon={p} send={send} />
                     </div>
-                    </button>
                     <div className="flex gap-1 items-center">
                       {/* Hotkey target star — sets active_id (hotkey target) */}
                       <button

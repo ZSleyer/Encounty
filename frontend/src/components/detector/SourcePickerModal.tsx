@@ -1,16 +1,15 @@
 /**
- * SourcePickerModal.tsx — Source picker for screen/window/camera capture.
+ * SourcePickerModal.tsx — Source picker for native capture via the Rust sidecar.
  *
- * Shows a two-category modal: "Native (fast)" sources fetched from the Go
- * backend (windows, cameras) and "Browser (slow)" sources via Electron
- * desktopCapturer / getUserMedia. Native sources are captured server-side
- * and do not require a MediaStream in the browser.
+ * Displays three tabs (Screens, Windows, Cameras) populated from the backend
+ * API. Each source card shows a thumbnail fetched via the sidecar's
+ * capture_frame endpoint when the card is visible.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
-import { X, Monitor, AppWindow, Camera, RefreshCw, Zap, Globe } from "lucide-react";
+import { X, Monitor, AppWindow, Camera, RefreshCw, ImageOff } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { apiUrl } from "../../utils/api";
-import { WindowInfo, CameraInfo, DetectorCapabilities } from "../../types";
+import { SourceInfo, DetectorCapabilities } from "../../types";
 
 // --- Types -------------------------------------------------------------------
 
@@ -18,54 +17,186 @@ export interface SelectedSource {
   type: "screen" | "window" | "camera";
   sourceId: string;
   label: string;
-  /** Pre-acquired camera stream for reuse — avoids double camera activation. */
-  stream?: MediaStream;
 }
 
 type SourcePickerModalProps = Readonly<{
-  sourceType: "browser_display" | "browser_camera" | "window" | "camera";
+  sourceType: "screen" | "window" | "camera";
   capabilities?: DetectorCapabilities | null;
   onSelect: (source: SelectedSource) => void;
   onClose: () => void;
 }>;
 
-interface BrowserCameraDevice {
-  deviceId: string;
-  label: string;
-  stream: MediaStream;
+type Tab = "screens" | "windows" | "cameras";
+
+// --- Thumbnail component -----------------------------------------------------
+
+/** Lazily loads a JPEG thumbnail from the sidecar capture_frame endpoint. */
+function SourceThumbnail({
+  sourceType,
+  sourceId,
+  fallbackIcon,
+}: Readonly<{
+  sourceType: string;
+  sourceId: string;
+  fallbackIcon: React.ReactNode;
+}>) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    setSrc(null);
+    setFailed(false);
+
+    const url = apiUrl(
+      `/api/detector/source/thumbnail?source_type=${encodeURIComponent(sourceType)}&source_id=${encodeURIComponent(sourceId)}&w=320`,
+    );
+
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error("thumbnail fetch failed");
+        return res.blob();
+      })
+      .then((blob) => {
+        if (!mountedRef.current) return;
+        setSrc(URL.createObjectURL(blob));
+      })
+      .catch(() => {
+        if (mountedRef.current) setFailed(true);
+      });
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [sourceType, sourceId]);
+
+  // Revoke blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (src) URL.revokeObjectURL(src);
+    };
+  }, [src]);
+
+  if (failed || !src) {
+    return (
+      <div className="w-full aspect-video bg-black/40 flex items-center justify-center">
+        {failed ? (
+          <ImageOff className="w-6 h-6 text-white/15" />
+        ) : (
+          <RefreshCw className="w-5 h-5 text-white/20 animate-spin" />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt="Source preview"
+      className="w-full aspect-video object-cover bg-black/40"
+      draggable={false}
+    />
+  );
 }
 
-type Category = "native" | "browser";
-type NativeTab = "native_windows" | "native_cameras";
-type BrowserTab = "screens" | "windows" | "cameras";
-type Tab = NativeTab | BrowserTab;
+// --- Source card component ----------------------------------------------------
 
-// Keywords that identify capture cards vs regular webcams
-const CAPTURE_CARD_KEYWORDS = [
-  "elgato", "cam link", "hd60", "hd 60", "4k60", "4k 60", "game capture",
-  "avermedia", "live gamer", "gc", "razer ripsaw", "ripsaw",
-  "magewell", "blackmagic", "decklink", "intensity",
-  "startech", "j5create", "pengo", "genki shadowcast", "shadowcast",
-  "hagibis", "capture card", "video capture",
-];
-
-/** Detect whether a device label indicates a capture card rather than a webcam. */
-function isCaptureCard(label: string): boolean {
-  const lower = label.toLowerCase();
-  return CAPTURE_CARD_KEYWORDS.some((kw) => lower.includes(kw));
+/** Generic card that wraps a thumbnail and label for any source type. */
+function SourceCard({
+  id,
+  selected,
+  sourceType,
+  title,
+  subtitle,
+  fallbackIcon,
+  onClick,
+  onDoubleClick,
+}: Readonly<{
+  id: string;
+  selected: boolean;
+  sourceType: string;
+  title: string;
+  subtitle: string;
+  fallbackIcon: React.ReactNode;
+  onClick: () => void;
+  onDoubleClick: () => void;
+}>) {
+  return (
+    <button
+      onClick={onClick}
+      onDoubleClick={onDoubleClick}
+      className={`relative rounded-xl border-2 overflow-hidden transition-all text-left ${
+        selected
+          ? "border-accent-blue ring-2 ring-accent-blue/30"
+          : "border-border-subtle hover:border-text-muted"
+      }`}
+    >
+      <SourceThumbnail
+        sourceType={sourceType}
+        sourceId={id}
+        fallbackIcon={fallbackIcon}
+      />
+      <div className="px-2 py-1.5 bg-bg-primary">
+        <p className="text-[11px] text-text-secondary font-medium truncate" title={title}>
+          {title}
+        </p>
+        <p className="text-[10px] text-text-muted truncate">
+          {subtitle}
+        </p>
+      </div>
+    </button>
+  );
 }
 
-// --- Native source grid components -------------------------------------------
+// --- Grid components ---------------------------------------------------------
+
+/** Renders selectable cards for screens fetched from the sidecar. */
+function ScreenGrid({
+  screens,
+  selectedId,
+  onSelect,
+  onDoubleClick,
+  t,
+}: Readonly<{
+  screens: SourceInfo[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onDoubleClick: (id: string) => void;
+  t: (k: string) => string;
+}>) {
+  if (screens.length === 0) {
+    return <p className="text-xs text-text-faint text-center py-12">{t("sourcePicker.noSources")}</p>;
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {screens.map((s) => (
+        <SourceCard
+          key={s.id}
+          id={s.id}
+          selected={selectedId === s.id}
+          sourceType="screen"
+          title={s.title || `Screen ${s.id}`}
+          subtitle={s.w && s.h ? `${s.w}\u00d7${s.h}` : ""}
+          fallbackIcon={<Monitor className="w-8 h-8 text-white/20" />}
+          onClick={() => onSelect(s.id)}
+          onDoubleClick={() => onDoubleClick(s.id)}
+        />
+      ))}
+    </div>
+  );
+}
 
 /** Renders selectable cards for native windows fetched from the backend. */
-function NativeWindowGrid({
+function WindowGrid({
   windows,
   selectedId,
   onSelect,
   onDoubleClick,
   t,
 }: Readonly<{
-  windows: WindowInfo[];
+  windows: SourceInfo[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onDoubleClick: (id: string) => void;
@@ -77,46 +208,32 @@ function NativeWindowGrid({
 
   return (
     <div className="grid grid-cols-2 gap-3">
-      {windows.map((win) => {
-        const id = win.hwnd.toString();
-        return (
-          <button
-            key={id}
-            onClick={() => onSelect(id)}
-            onDoubleClick={() => onDoubleClick(id)}
-            className={`relative rounded-xl border-2 overflow-hidden transition-all text-left ${
-              selectedId === id
-                ? "border-accent-blue ring-2 ring-accent-blue/30"
-                : "border-border-subtle hover:border-text-muted"
-            }`}
-          >
-            <div className="w-full aspect-video bg-black/40 flex items-center justify-center">
-              <AppWindow className="w-8 h-8 text-white/20" />
-            </div>
-            <div className="px-2 py-1.5 bg-bg-primary">
-              <p className="text-[11px] text-text-secondary font-medium truncate" title={win.title}>
-                {win.title}
-              </p>
-              <p className="text-[10px] text-text-muted truncate">
-                {win.w}&times;{win.h} &middot; {win.class}
-              </p>
-            </div>
-          </button>
-        );
-      })}
+      {windows.map((win) => (
+        <SourceCard
+          key={win.id}
+          id={win.id}
+          selected={selectedId === win.id}
+          sourceType="window"
+          title={win.title || win.id}
+          subtitle={win.w && win.h ? `${win.w}\u00d7${win.h}` : ""}
+          fallbackIcon={<AppWindow className="w-8 h-8 text-white/20" />}
+          onClick={() => onSelect(win.id)}
+          onDoubleClick={() => onDoubleClick(win.id)}
+        />
+      ))}
     </div>
   );
 }
 
 /** Renders selectable cards for native cameras fetched from the backend. */
-function NativeCameraGrid({
+function CameraGrid({
   cameras,
   selectedId,
   onSelect,
   onDoubleClick,
   t,
 }: Readonly<{
-  cameras: CameraInfo[];
+  cameras: SourceInfo[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onDoubleClick: (id: string) => void;
@@ -129,327 +246,94 @@ function NativeCameraGrid({
   return (
     <div className="grid grid-cols-2 gap-3">
       {cameras.map((cam) => (
-        <button
-          key={cam.device_path}
-          onClick={() => onSelect(cam.device_path)}
-          onDoubleClick={() => onDoubleClick(cam.device_path)}
-          className={`relative rounded-xl border-2 overflow-hidden transition-all text-left ${
-            selectedId === cam.device_path
-              ? "border-accent-blue ring-2 ring-accent-blue/30"
-              : "border-border-subtle hover:border-text-muted"
-          }`}
-        >
-          <div className="w-full aspect-video bg-black/40 flex items-center justify-center">
-            <Camera className="w-8 h-8 text-white/20" />
-          </div>
-          <div className="px-2 py-1.5 bg-bg-primary">
-            <p className="text-[11px] text-text-secondary font-medium truncate" title={cam.name}>
-              {cam.name}
-            </p>
-            <p className="text-[10px] text-text-muted truncate">
-              {cam.driver}
-            </p>
-          </div>
-        </button>
+        <SourceCard
+          key={cam.id}
+          id={cam.id}
+          selected={selectedId === cam.id}
+          sourceType="camera"
+          title={cam.title || cam.id}
+          subtitle={cam.w && cam.h ? `${cam.w}\u00d7${cam.h}` : ""}
+          fallbackIcon={<Camera className="w-8 h-8 text-white/20" />}
+          onClick={() => onSelect(cam.id)}
+          onDoubleClick={() => onDoubleClick(cam.id)}
+        />
       ))}
     </div>
   );
 }
 
-// --- Browser source grid components ------------------------------------------
+// --- Helpers -----------------------------------------------------------------
 
-/** Renders the browser camera device grid, or a "no sources" message when empty. */
-function BrowserCameraGrid({
-  cameras,
-  selectedId,
-  onSelect,
-  onDoubleClick,
-  videoRefsMap,
-  t,
-}: Readonly<{
-  cameras: BrowserCameraDevice[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onDoubleClick: (id: string) => void;
-  videoRefsMap: React.RefObject<Map<string, HTMLVideoElement>>;
-  t: (k: string) => string;
-}>) {
-  if (cameras.length === 0) {
-    return <p className="text-xs text-text-faint text-center py-12">{t("sourcePicker.noSources")}</p>;
-  }
-
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {cameras.map(cam => (
-        <button
-          key={cam.deviceId}
-          onClick={() => onSelect(cam.deviceId)}
-          onDoubleClick={() => onDoubleClick(cam.deviceId)}
-          className={`relative rounded-xl border-2 overflow-hidden transition-all text-left ${
-            selectedId === cam.deviceId
-              ? "border-accent-blue ring-2 ring-accent-blue/30"
-              : "border-border-subtle hover:border-text-muted"
-          }`}
-        >
-          <video
-            ref={(el) => {
-              if (el) videoRefsMap.current.set(cam.deviceId, el);
-              else videoRefsMap.current.delete(cam.deviceId);
-            }}
-            autoPlay
-            playsInline
-            muted
-            className="w-full aspect-video object-cover bg-black"
-          />
-          <div className="px-2 py-1.5 bg-bg-primary">
-            <p className="text-[11px] text-text-secondary font-medium truncate" title={cam.label}>
-              {cam.label}
-            </p>
-            <div className="flex gap-1 mt-0.5 flex-wrap">
-              {isCaptureCard(cam.label) && (
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
-                  {t("sourcePicker.captureCardHint")}
-                </span>
-              )}
-              {cam.label.toLowerCase().includes("obs") && (
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-500/20 text-purple-400">
-                  {t("sourcePicker.obsHint")}
-                </span>
-              )}
-            </div>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Renders the Electron screen/window capture source grid. */
-function BrowserSourceGrid({
-  sources,
-  selectedId,
-  onSelect,
-  onDoubleClick,
-  t,
-}: Readonly<{
-  sources: CaptureSource[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onDoubleClick: (id: string) => void;
-  t: (k: string) => string;
-}>) {
-  if (sources.length === 0) {
-    return <p className="text-xs text-text-faint text-center py-12">{t("sourcePicker.noSources")}</p>;
-  }
-
-  return (
-    <div className="grid grid-cols-3 gap-3">
-      {sources.map(src => (
-        <button
-          key={src.id}
-          onClick={() => onSelect(src.id)}
-          onDoubleClick={() => onDoubleClick(src.id)}
-          className={`relative group rounded-xl border-2 overflow-hidden transition-all ${
-            selectedId === src.id
-              ? "border-accent-blue ring-2 ring-accent-blue/30"
-              : "border-border-subtle hover:border-text-muted"
-          }`}
-        >
-          <img
-            src={src.thumbnail}
-            alt={src.name}
-            className="w-full aspect-video object-cover bg-black"
-            draggable={false}
-          />
-          <div className="px-2 py-1.5 bg-bg-primary">
-            <p className="text-[11px] text-text-secondary font-medium truncate" title={src.name}>
-              {src.appIcon && (
-                <img
-                  src={src.appIcon}
-                  alt=""
-                  className="inline-block w-3.5 h-3.5 mr-1 -mt-0.5"
-                />
-              )}
-              {src.name}
-            </p>
-          </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Compute the set of browser tabs available given the source type. */
-function computeBrowserTabs(isBrowser: boolean, st: string): BrowserTab[] {
-  if (!isBrowser) return ["screens", "windows", "cameras"];
-  if (st === "browser_camera") return ["cameras"];
-  return ["screens", "windows"];
+/** Build a SelectedSource from a screen selection. */
+function buildScreenSource(screens: SourceInfo[], id: string): SelectedSource | null {
+  const s = screens.find((sc) => sc.id === id);
+  if (!s) return null;
+  return { type: "screen", sourceId: s.id, label: s.title || `Screen ${s.id}` };
 }
 
 /** Build a SelectedSource from a native window selection. */
-function buildNativeWindowSource(windows: WindowInfo[], id: string): SelectedSource | null {
-  const win = windows.find((w) => w.hwnd.toString() === id);
+function buildWindowSource(windows: SourceInfo[], id: string): SelectedSource | null {
+  const win = windows.find((w) => w.id === id);
   if (!win) return null;
-  return { type: "window", sourceId: win.hwnd.toString(), label: win.title };
+  return { type: "window", sourceId: win.id, label: win.title || win.id };
 }
 
 /** Build a SelectedSource from a native camera selection. */
-function buildNativeCameraSource(cameras: CameraInfo[], id: string): SelectedSource | null {
-  const cam = cameras.find((c) => c.device_path === id);
+function buildCameraSource(cameras: SourceInfo[], id: string): SelectedSource | null {
+  const cam = cameras.find((c) => c.id === id);
   if (!cam) return null;
-  return { type: "camera", sourceId: cam.device_path, label: cam.name };
+  return { type: "camera", sourceId: cam.id, label: cam.title || cam.id };
 }
 
-/** Build a SelectedSource from a browser camera selection. */
-function buildBrowserCameraSource(cameras: BrowserCameraDevice[], id: string): SelectedSource | null {
-  const cam = cameras.find((c) => c.deviceId === id);
-  if (!cam) return null;
-  return { type: "camera", sourceId: cam.deviceId, label: cam.label, stream: cam.stream };
-}
-
-/** Stop all browser camera streams except the one with the given device ID. */
-function stopOtherCameraStreams(cameras: BrowserCameraDevice[], keepId: string) {
-  for (const cam of cameras) {
-    if (cam.deviceId !== keepId) {
-      cam.stream.getTracks().forEach((tr) => tr.stop());
-    }
-  }
-}
-
-/** Build a SelectedSource from a browser (Electron) capture source. */
-function buildBrowserDisplaySource(sources: CaptureSource[], id: string): SelectedSource | null {
-  const src = sources.find((s) => s.id === id);
-  if (!src) return null;
-  const type = src.id.startsWith("screen:") ? "screen" as const : "window" as const;
-  return { type, sourceId: src.id, label: src.name };
+/** Map source type to initial tab. */
+function sourceTypeToTab(sourceType: string): Tab {
+  if (sourceType === "camera") return "cameras";
+  if (sourceType === "screen" || sourceType === "screen_region") return "screens";
+  return "windows";
 }
 
 // --- Component ---------------------------------------------------------------
 
+/** Modal for selecting a native capture source (screen, window, or camera). */
 export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose }: SourcePickerModalProps) {
   const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const isElectron = !!globalThis.electronAPI;
-  const isWayland = globalThis.electronAPI?.isWayland ?? false;
 
-  const isNativeSource = sourceType === "window" || sourceType === "camera";
-  const isBrowserSource = sourceType === "browser_display" || sourceType === "browser_camera";
+  // --- Tab state -------------------------------------------------------------
 
-  // On Wayland + browser display capture, skip the thumbnail picker entirely and let
-  // the caller fall through to the native PipeWire/xdg-desktop-portal picker.
-  useEffect(() => {
-    if (isWayland && sourceType === "browser_display") {
-      onClose();
-    }
-  }, [isWayland, sourceType, onClose]);
+  const [activeTab, setActiveTab] = useState<Tab>(() => sourceTypeToTab(sourceType));
 
-  // --- Category / Tab state --------------------------------------------------
+  // --- Source data -----------------------------------------------------------
 
-  const [activeCategory, setActiveCategory] = useState<Category>("native");
+  const [screens, setScreens] = useState<SourceInfo[]>([]);
+  const [nativeWindows, setNativeWindows] = useState<SourceInfo[]>([]);
+  const [nativeCameras, setNativeCameras] = useState<SourceInfo[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const getDefaultTab = (cat: Category): Tab => {
-    if (cat === "native") {
-      return sourceType === "camera" ? "native_cameras" : "native_windows";
-    }
-    return sourceType === "browser_camera" ? "cameras" : "screens";
-  };
-
-  const [activeTab, setActiveTab] = useState<Tab>(getDefaultTab("native"));
-
-  // Available tabs per category
-  const nativeTabs: NativeTab[] = ["native_windows", "native_cameras"];
-  const browserTabs: BrowserTab[] = computeBrowserTabs(isBrowserSource, sourceType);
-
-  // --- Native source data ----------------------------------------------------
-
-  const [nativeWindows, setNativeWindows] = useState<WindowInfo[]>([]);
-  const [nativeCameras, setNativeCameras] = useState<CameraInfo[]>([]);
-  const [nativeLoading, setNativeLoading] = useState(false);
-
-  const fetchNativeSources = useCallback(async () => {
-    setNativeLoading(true);
+  const fetchSources = useCallback(async () => {
+    setLoading(true);
     try {
-      const [winRes, camRes] = await Promise.all([
+      const [screenRes, winRes, camRes] = await Promise.all([
+        fetch(apiUrl("/api/detector/screens")),
         fetch(apiUrl("/api/detector/windows")),
         fetch(apiUrl("/api/detector/cameras")),
       ]);
+      if (screenRes.ok) {
+        const data = await screenRes.json() as SourceInfo[];
+        setScreens(Array.isArray(data) ? data : []);
+      }
       if (winRes.ok) {
-        const data = await winRes.json() as WindowInfo[];
+        const data = await winRes.json() as SourceInfo[];
         setNativeWindows(Array.isArray(data) ? data : []);
       }
       if (camRes.ok) {
-        const data = await camRes.json() as CameraInfo[];
+        const data = await camRes.json() as SourceInfo[];
         setNativeCameras(Array.isArray(data) ? data : []);
       }
     } catch {
-      // Backend might not support native sources yet
+      // Backend might not be reachable
     }
-    setNativeLoading(false);
-  }, []);
-
-  // --- Browser source data ---------------------------------------------------
-
-  const [captureSources, setCaptureSources] = useState<CaptureSource[]>([]);
-  const [browserCameras, setBrowserCameras] = useState<BrowserCameraDevice[]>([]);
-  const [browserLoading, setBrowserLoading] = useState(false);
-
-  const videoRefsMap = useRef<Map<string, HTMLVideoElement>>(new Map());
-
-  const fetchBrowserSources = useCallback(async () => {
-    if (!isElectron || isWayland) return;
-    setBrowserLoading(true);
-    try {
-      const sources = await globalThis.electronAPI!.getCaptureSources();
-      setCaptureSources(sources);
-    } catch {
-      setCaptureSources([]);
-    }
-    setBrowserLoading(false);
-  }, [isElectron, isWayland]);
-
-  const cleanupBrowserCameraStreams = useCallback(() => {
-    setBrowserCameras((prev) => {
-      for (const cam of prev) {
-        cam.stream.getTracks().forEach((tr) => tr.stop());
-      }
-      return [];
-    });
-  }, []);
-
-  const fetchBrowserCameras = useCallback(async () => {
-    setBrowserLoading(true);
-    try {
-      if (globalThis.electronAPI?.requestCameraAccess) {
-        await globalThis.electronAPI.requestCameraAccess();
-      } else {
-        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-        tempStream.getTracks().forEach((tr) => tr.stop());
-      }
-
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter((d) => d.kind === "videoinput");
-
-      const entries: BrowserCameraDevice[] = [];
-      for (const device of videoInputs) {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: device.deviceId } },
-            audio: false,
-          });
-          entries.push({
-            deviceId: device.deviceId,
-            label: device.label || `Camera ${device.deviceId.slice(0, 8)}`,
-            stream,
-          });
-        } catch {
-          // Skip cameras that fail to open
-        }
-      }
-      setBrowserCameras(entries);
-    } catch {
-      // Permission denied or no cameras
-    }
-    setBrowserLoading(false);
+    setLoading(false);
   }, []);
 
   // --- Selected state --------------------------------------------------------
@@ -458,127 +342,59 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
 
   // --- Lifecycle -------------------------------------------------------------
 
-  // Open dialog on mount
   useEffect(() => {
     dialogRef.current?.showModal();
   }, []);
 
-  // Fetch native sources on mount
   useEffect(() => {
-    fetchNativeSources();
-  }, [fetchNativeSources]);
+    fetchSources();
+  }, [fetchSources]);
 
-  // Fetch browser sources when switching to browser category
-  useEffect(() => {
-    if (activeCategory !== "browser") return;
-    const currentBrowserTab = activeTab as BrowserTab;
-    if (currentBrowserTab === "cameras" && browserCameras.length === 0) {
-      fetchBrowserCameras();
-    } else if (currentBrowserTab !== "cameras" && captureSources.length === 0) {
-      fetchBrowserSources();
-    }
-  }, [activeCategory, activeTab, browserCameras.length, captureSources.length, fetchBrowserCameras, fetchBrowserSources]);
-
-  // Cleanup browser camera streams on unmount
-  useEffect(() => {
-    return () => cleanupBrowserCameraStreams();
-  }, [cleanupBrowserCameraStreams]);
-
-  // Attach browser camera streams to video elements
-  useEffect(() => {
-    for (const cam of browserCameras) {
-      const videoEl = videoRefsMap.current.get(cam.deviceId);
-      if (videoEl && videoEl.srcObject !== cam.stream) {
-        videoEl.srcObject = cam.stream;
-        videoEl.play().catch(() => {});
-      }
-    }
-  }, [browserCameras]);
-
-  // Refresh browser source thumbnails periodically
-  useEffect(() => {
-    if (activeCategory !== "browser" || !isElectron || isWayland) return;
-    const currentBrowserTab = activeTab as BrowserTab;
-    if (currentBrowserTab === "cameras") return;
-    const interval = setInterval(fetchBrowserSources, 3000);
-    return () => clearInterval(interval);
-  }, [activeCategory, activeTab, isElectron, isWayland, fetchBrowserSources]);
-
-  // Filter browser sources by active tab
-  const filteredBrowserSources = captureSources.filter(s => {
-    if (activeTab === "screens") return s.id.startsWith("screen:");
-    if (activeTab === "windows") return !s.id.startsWith("screen:");
-    return false;
-  });
-
-  // Reset selection when switching tabs
   useEffect(() => {
     setSelectedId(null);
   }, [activeTab]);
 
   // --- Handlers --------------------------------------------------------------
 
-  const handleCategorySwitch = (cat: Category) => {
-    setActiveCategory(cat);
-    setActiveTab(getDefaultTab(cat));
-    setSelectedId(null);
-  };
-
   const handleCancel = () => {
-    for (const cam of browserCameras) {
-      cam.stream.getTracks().forEach((tr) => tr.stop());
-    }
     dialogRef.current?.close();
     onClose();
   };
 
-  const resolveSelectedSource = (id: string): SelectedSource | null => {
-    if (activeCategory === "native") {
-      if (activeTab === "native_windows") return buildNativeWindowSource(nativeWindows, id);
-      if (activeTab === "native_cameras") return buildNativeCameraSource(nativeCameras, id);
+  const resolveSelectedSource = useCallback(
+    (id: string): SelectedSource | null => {
+      if (activeTab === "screens") return buildScreenSource(screens, id);
+      if (activeTab === "windows") return buildWindowSource(nativeWindows, id);
+      if (activeTab === "cameras") return buildCameraSource(nativeCameras, id);
       return null;
-    }
-    if (activeTab === "cameras") return buildBrowserCameraSource(browserCameras, id);
-    return buildBrowserDisplaySource(captureSources, id);
-  };
+    },
+    [activeTab, screens, nativeWindows, nativeCameras],
+  );
 
   const handleSelect = () => {
     if (!selectedId) return;
     const source = resolveSelectedSource(selectedId);
     if (!source) return;
-
-    if (activeCategory === "browser" && activeTab === "cameras") {
-      stopOtherCameraStreams(browserCameras, selectedId);
-    } else {
-      cleanupBrowserCameraStreams();
-    }
     onSelect(source);
   };
 
-  const handleDoubleClick = (id: string) => {
-    setSelectedId(id);
-    setTimeout(() => {
-      const source = resolveSelectedSource(id);
-      if (!source) return;
-
-      if (activeCategory === "browser" && activeTab === "cameras") {
-        stopOtherCameraStreams(browserCameras, id);
-      } else {
-        cleanupBrowserCameraStreams();
-      }
-      onSelect(source);
-    }, 0);
-  };
+  const handleDoubleClick = useCallback(
+    (id: string) => {
+      setSelectedId(id);
+      // Resolve in next tick so selectedId state is consistent
+      setTimeout(() => {
+        const source = resolveSelectedSource(id);
+        if (source) onSelect(source);
+      }, 0);
+    },
+    [resolveSelectedSource, onSelect],
+  );
 
   // --- Render helpers --------------------------------------------------------
-
-  const isLoading = activeCategory === "native" ? nativeLoading : browserLoading;
 
   /** Render the tab icon for a given tab key. */
   function tabIcon(tab: Tab) {
     switch (tab) {
-      case "native_windows": return <AppWindow className="w-3.5 h-3.5" />;
-      case "native_cameras": return <Camera className="w-3.5 h-3.5" />;
       case "screens": return <Monitor className="w-3.5 h-3.5" />;
       case "windows": return <AppWindow className="w-3.5 h-3.5" />;
       case "cameras": return <Camera className="w-3.5 h-3.5" />;
@@ -588,17 +404,24 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
   /** Render the tab label for a given tab key. */
   function tabLabel(tab: Tab): string {
     switch (tab) {
-      case "native_windows": return t("sourcePicker.windows");
-      case "native_cameras": return t("sourcePicker.cameras");
       case "screens": return t("sourcePicker.screens");
       case "windows": return t("sourcePicker.windows");
       case "cameras": return t("sourcePicker.cameras");
     }
   }
 
+  /** Check whether the active tab's source type is unsupported. */
+  function isTabUnsupported(): boolean {
+    if (!capabilities) return false;
+    if (activeTab === "screens" && !capabilities.supports_screen_capture && !capabilities.sidecar_available) return true;
+    if (activeTab === "windows" && !capabilities.supports_window_capture && !capabilities.sidecar_supports_window_capture) return true;
+    if (activeTab === "cameras" && !capabilities.supports_camera && !capabilities.sidecar_available) return true;
+    return false;
+  }
+
   /** Render the content grid for the active tab. */
   function renderContent() {
-    if (isLoading) {
+    if (loading) {
       return (
         <div className="flex items-center justify-center h-48">
           <RefreshCw className="w-5 h-5 text-text-muted animate-spin" />
@@ -607,37 +430,19 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
       );
     }
 
-    if (activeCategory === "native") {
-      if (activeTab === "native_windows") {
-        if (capabilities?.supports_window_capture === false) {
-          return (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-xs text-text-muted">{t("detector.sourceUnavailable")}</p>
-              <p className="text-[10px] text-text-faint mt-1">{t("detector.useInstead")}</p>
-            </div>
-          );
-        }
-        return (
-          <NativeWindowGrid
-            windows={nativeWindows}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onDoubleClick={handleDoubleClick}
-            t={t}
-          />
-        );
-      }
-      if (activeTab === "native_cameras" && capabilities?.supports_camera === false) {
-        return (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-xs text-text-muted">{t("detector.sourceUnavailable")}</p>
-            <p className="text-[10px] text-text-faint mt-1">{t("detector.useInstead")}</p>
-          </div>
-        );
-      }
+    if (isTabUnsupported()) {
       return (
-        <NativeCameraGrid
-          cameras={nativeCameras}
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <p className="text-xs text-text-muted">{t("detector.sourceUnavailable")}</p>
+          <p className="text-[10px] text-text-faint mt-1">{t("detector.useInstead")}</p>
+        </div>
+      );
+    }
+
+    if (activeTab === "screens") {
+      return (
+        <ScreenGrid
+          screens={screens}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onDoubleClick={handleDoubleClick}
@@ -646,22 +451,21 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
       );
     }
 
-    // Browser category
-    if (activeTab === "cameras") {
+    if (activeTab === "windows") {
       return (
-        <BrowserCameraGrid
-          cameras={browserCameras}
+        <WindowGrid
+          windows={nativeWindows}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onDoubleClick={handleDoubleClick}
-          videoRefsMap={videoRefsMap}
           t={t}
         />
       );
     }
+
     return (
-      <BrowserSourceGrid
-        sources={filteredBrowserSources}
+      <CameraGrid
+        cameras={nativeCameras}
         selectedId={selectedId}
         onSelect={setSelectedId}
         onDoubleClick={handleDoubleClick}
@@ -672,7 +476,7 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
 
   // --- JSX -------------------------------------------------------------------
 
-  const currentTabs = activeCategory === "native" ? nativeTabs : browserTabs;
+  const tabs: Tab[] = ["screens", "windows", "cameras"];
 
   return (
     <dialog
@@ -691,57 +495,23 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
         </button>
       </div>
 
-      {/* Category selector (Native / Browser) */}
-      <div className="flex gap-2 px-5 pb-3">
-        <button
-          onClick={() => handleCategorySwitch("native")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-            activeCategory === "native"
-              ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/30"
-              : "bg-bg-primary text-text-muted hover:text-text-primary hover:bg-bg-hover"
-          }`}
-        >
-          <Zap className="w-3.5 h-3.5" />
-          {t("sourcePicker.native")}
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
-            {t("sourcePicker.fast")}
-          </span>
-        </button>
-        <button
-          onClick={() => handleCategorySwitch("browser")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-            activeCategory === "browser"
-              ? "bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/30"
-              : "bg-bg-primary text-text-muted hover:text-text-primary hover:bg-bg-hover"
-          }`}
-        >
-          <Globe className="w-3.5 h-3.5" />
-          {t("sourcePicker.browser")}
-          <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400">
-            {t("sourcePicker.slow")}
-          </span>
-        </button>
+      {/* Tabs */}
+      <div className="flex gap-1 px-5 pb-3">
+        {tabs.map(tab => (
+          <button
+            key={tab}
+            onClick={() => { setActiveTab(tab); setSelectedId(null); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              activeTab === tab
+                ? "bg-accent-blue text-white"
+                : "bg-bg-primary text-text-muted hover:text-text-primary hover:bg-bg-hover"
+            }`}
+          >
+            {tabIcon(tab)}
+            {tabLabel(tab)}
+          </button>
+        ))}
       </div>
-
-      {/* Tabs within the active category */}
-      {currentTabs.length > 1 && (
-        <div className="flex gap-1 px-5 pb-3">
-          {currentTabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => { setActiveTab(tab); setSelectedId(null); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                activeTab === tab
-                  ? "bg-accent-blue text-white"
-                  : "bg-bg-primary text-text-muted hover:text-text-primary hover:bg-bg-hover"
-              }`}
-            >
-              {tabIcon(tab)}
-              {tabLabel(tab)}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Content grid */}
       <div className="px-5 pb-3 min-h-65 max-h-100 overflow-y-auto">

@@ -20,21 +20,6 @@ vi.mock("../hooks/useWebSocket", () => ({
   useWebSocket: vi.fn(() => ({ send: mockSend })),
 }));
 
-// Mock the CaptureServiceContext hooks used indirectly via DetectorPanel
-vi.mock("../contexts/CaptureServiceContext", () => ({
-  useCaptureService: () => ({
-    startCapture: vi.fn(),
-    stopCapture: vi.fn(),
-    getStream: () => null,
-    isCapturing: () => false,
-    registerSubmitter: vi.fn(),
-    unregisterSubmitter: vi.fn(),
-    updateSubmitterInterval: vi.fn(),
-    captureError: null,
-  }),
-  useCaptureVersion: () => 0,
-  CaptureServiceProvider: ({ children }: { children: React.ReactNode }) => children,
-}));
 
 describe("Dashboard", () => {
   beforeEach(() => {

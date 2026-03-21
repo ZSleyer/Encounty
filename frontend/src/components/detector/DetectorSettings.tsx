@@ -218,6 +218,90 @@ export function DetectorSettings({
               </div>
           </div>
 
+          {/* Re-Match & Replay section */}
+          <div className="border-t border-border-subtle pt-3">
+            <p className="text-xs 2xl:text-sm text-text-muted font-semibold mb-1">
+              {t("detector.rematchReplay")}
+            </p>
+            <p className="text-[10px] text-text-faint mb-3">
+              {t("detector.rematchReplayDesc")}
+            </p>
+
+            {/* Toggle: Re-Match enabled */}
+            <div className="flex items-start gap-2 mb-3">
+              <input
+                id="det-rematch-enabled" type="checkbox"
+                checked={cfg.rematch_enabled ?? true}
+                onChange={(e) => onUpdate({ rematch_enabled: e.target.checked })}
+                className="mt-0.5 accent-accent-blue"
+              />
+              <div className="flex-1">
+                <label htmlFor="det-rematch-enabled" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
+                  {t("detector.rematchEnabled")}
+                </label>
+                <p className="text-[10px] text-text-faint mt-0.5">{t("detector.rematchEnabledDesc")}</p>
+              </div>
+            </div>
+
+            {cfg.rematch_enabled !== false && (
+              <div className="space-y-3 ml-5 pl-2 border-l border-border-subtle">
+                {/* Rematch threshold offset slider */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="det-rematch-offset" className="text-xs 2xl:text-sm text-text-muted">
+                      {t("detector.rematchOffset")}
+                    </label>
+                    <span className="text-xs 2xl:text-sm text-text-secondary font-mono">
+                      {((cfg.rematch_threshold_offset ?? 0.05) * 100).toFixed(0)}%
+                    </span>
+                  </div>
+                  <input
+                    id="det-rematch-offset" type="range" min={0.01} max={0.15} step={0.01}
+                    value={cfg.rematch_threshold_offset ?? 0.05}
+                    onChange={(e) => onUpdate({ rematch_threshold_offset: Number.parseFloat(e.target.value) })}
+                    className="w-full accent-accent-blue"
+                  />
+                </div>
+
+                {/* Re-match window slider */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="det-rematch-window" className="text-xs 2xl:text-sm text-text-muted">
+                      {t("detector.rematchWindow")}
+                    </label>
+                    <span className="text-xs 2xl:text-sm text-text-secondary font-mono">
+                      {cfg.rematch_window_sec ?? 5}s
+                    </span>
+                  </div>
+                  <input
+                    id="det-rematch-window" type="range" min={1} max={30} step={1}
+                    value={cfg.rematch_window_sec ?? 5}
+                    onChange={(e) => onUpdate({ rematch_window_sec: Number.parseInt(e.target.value, 10) })}
+                    className="w-full accent-accent-blue"
+                  />
+                </div>
+
+                {/* Replay buffer duration slider */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label htmlFor="det-replay-buffer" className="text-xs 2xl:text-sm text-text-muted">
+                      {t("detector.replayBuffer")}
+                    </label>
+                    <span className="text-xs 2xl:text-sm text-text-secondary font-mono">
+                      {cfg.replay_buffer_sec ?? 30}s
+                    </span>
+                  </div>
+                  <input
+                    id="det-replay-buffer" type="range" min={10} max={120} step={5}
+                    value={cfg.replay_buffer_sec ?? 30}
+                    onChange={(e) => onUpdate({ replay_buffer_sec: Number.parseInt(e.target.value, 10) })}
+                    className="w-full accent-accent-blue"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Save + Reset */}
           <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
             <button

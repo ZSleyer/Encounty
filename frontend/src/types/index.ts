@@ -71,6 +71,15 @@ export interface CameraInfo {
   driver: string;
 }
 
+/** SourceInfo describes a capture source reported by the sidecar (screen, window, camera). */
+export interface SourceInfo {
+  id: string;
+  title: string;
+  source_type: string;
+  w: number;
+  h: number;
+}
+
 /** DetectorRect defines a rectangular screen region in absolute pixel coordinates. */
 export interface DetectorRect {
   x: number;
@@ -103,7 +112,7 @@ export interface DetectorTemplate {
 /** DetectorConfig holds all auto-detection settings for a single Pokémon hunt. */
 export interface DetectorConfig {
   enabled: boolean;
-  source_type: "screen_region" | "window" | "camera" | "browser_camera" | "browser_display";
+  source_type: "screen_region" | "window" | "camera";
   region: DetectorRect;
   window_title: string;
   templates: DetectorTemplate[];
@@ -117,6 +126,10 @@ export interface DetectorConfig {
   adaptive_cooldown?: boolean;
   adaptive_cooldown_min?: number;
   relative_regions?: boolean;
+  rematch_enabled?: boolean;
+  rematch_threshold_offset?: number;   // 0.01–0.15
+  rematch_window_sec?: number;         // 1–30
+  replay_buffer_sec?: number;          // 10–120
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
 }
 
@@ -128,6 +141,7 @@ export interface DetectorCapabilities {
   supports_screen_capture: boolean;
   supports_camera: boolean;
   sidecar_available: boolean;
+  sidecar_supports_window_capture: boolean;
 }
 
 /** HuntTypePreset is metadata for one shiny hunting method, returned by the server. */

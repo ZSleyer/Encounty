@@ -23,6 +23,7 @@ import { HotkeyPage } from "./pages/HotkeyPage";
 import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket } from "./hooks/useWebSocket";
+import { dispatchPreviewFrame } from "./hooks/usePreviewStream";
 import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
 import { WSMessage, AppState } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
@@ -30,7 +31,6 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider, useToast } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/shared/ToastContainer";
 import { WindowControls } from "./components/settings/WindowControls";
-import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
 import { LicenseDialog } from "./components/settings/LicenseDialog";
 import { apiUrl } from "./utils/api";
 
@@ -368,10 +368,7 @@ function AppShell() {
     });
   }
 
-  const { sendBinary } = useWebSocket(handleWSMessage, () => setConnected(true), () => setConnected(false));
-
-  // Expose sendBinary to the CaptureServiceProvider via module-level ref
-  wsSendBinaryRef.current = sendBinary;
+  useWebSocket(handleWSMessage, () => setConnected(true), () => setConnected(false), dispatchPreviewFrame);
 
   if (isOverlay) {
     return (
@@ -723,27 +720,12 @@ function LicenseGate() {
   );
 }
 
-/**
- * Module-level ref bridging the WebSocket sendBinary function from AppShell
- * (child) to CaptureServiceProvider (parent). AppShell sets the ref on mount,
- * and the provider reads it lazily when a worker needs to send a frame.
- */
-const wsSendBinaryRef: React.MutableRefObject<((data: ArrayBuffer | Uint8Array) => void) | undefined> = { current: undefined };
-
 export function App() {
-  // Wrap sendBinary in a stable callback that delegates to the ref, so the
-  // provider always uses the latest WebSocket instance without re-rendering.
-  const sendBinary = useCallback((data: ArrayBuffer | Uint8Array) => {
-    wsSendBinaryRef.current?.(data);
-  }, []);
-
   return (
     <ThemeProvider>
       <I18nProvider>
         <ToastProvider>
-          <CaptureServiceProvider sendBinary={sendBinary}>
-            <LicenseGate />
-          </CaptureServiceProvider>
+          <LicenseGate />
         </ToastProvider>
       </I18nProvider>
     </ThemeProvider>

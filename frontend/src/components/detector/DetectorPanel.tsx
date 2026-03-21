@@ -8,12 +8,11 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   X, Plus, Pencil, Sparkles, Loader2, HelpCircle, Eye, EyeOff,
-  MoreHorizontal, Download, Upload, FileDown,
+  MoreHorizontal, Download, Upload, FileDown, Camera,
 } from "lucide-react";
 import { DetectorCapabilities, DetectorConfig, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
 import { useCounterStore } from "../../hooks/useCounterState";
 import { TemplateEditor } from "./TemplateEditor";
 import { DetectorTutorial } from "./DetectorTutorial";
@@ -23,12 +22,14 @@ import { DetectorSettings } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { getSpriteUrl } from "../../utils/sprites";
 import { apiUrl } from "../../utils/api";
+import { useReplayTimeline } from "../../hooks/useReplayTimeline";
+import { ReplayTimeline } from "./ReplayTimeline";
 
 // ── Default config ───────────────────────────────────────────────────────────
 
 const DEFAULT_CONFIG: DetectorConfig = {
   enabled: false,
-  source_type: "browser_display",
+  source_type: "window",
   region: { x: 0, y: 0, w: 0, h: 0 },
   window_title: "",
   templates: [],
@@ -137,70 +138,51 @@ export function DetectorPanel({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const capture = useCaptureService();
-  // Subscribe to capture version changes so we re-render when streams start/stop
-  useCaptureVersion();
+  // Replay timeline state
+  const replay = useReplayTimeline(pokemon.id);
 
-  // Per-pokemon stream from the capture service
-  const stream = capture.getStream(pokemon.id);
-  const isCapturing = capture.isCapturing(pokemon.id);
+  const handleSnapshotUseAsTemplate = useCallback(async () => {
+    const blob = await replay.getCurrentFrameBlob();
+    if (!blob) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = (reader.result as string).split(",")[1];
+      if (!base64) return;
+      try {
+        await handleSaveNewTemplate({ imageBase64: base64, regions: [] });
+      } catch {
+        pushToast({ type: "error", title: t("detector.errCaptureFailed") });
+      }
+      await replay.deleteSnapshot();
+    };
+    reader.readAsDataURL(blob);
+  }, [replay, pushToast, t]);
+
+  const handleSnapshotClose = useCallback(async () => {
+    await replay.deleteSnapshot();
+  }, [replay]);
 
   const startCapture = useCallback(() => {
-    // Native sources (window, camera) — always show the source picker so the
-    // user can select a specific window/camera. The backend captures directly.
-    if (cfg.source_type === "window" || cfg.source_type === "camera") {
-      setShowSourcePicker(true);
-      return Promise.resolve();
-    }
-
-    if (cfg.source_type === "browser_display" || cfg.source_type === "browser_camera") {
-      const isElectron = !!globalThis.electronAPI;
-      const isWayland = !!globalThis.electronAPI?.isWayland;
-
-      // On Wayland + Electron + display capture, skip the source picker and
-      // go straight to the native PipeWire/xdg-desktop-portal picker via getDisplayMedia.
-      if (cfg.source_type === "browser_display" && isElectron && isWayland) {
-        return capture.startCapture(pokemon.id, cfg.source_type);
-      }
-
-      // In Electron for display capture (non-Wayland), or always for camera, show the source picker
-      if ((cfg.source_type === "browser_display" && isElectron) || cfg.source_type === "browser_camera") {
-        setShowSourcePicker(true);
-        return Promise.resolve();
-      }
-      // Non-Electron display capture: fall through to browser-native picker
-      return capture.startCapture(pokemon.id, cfg.source_type);
-    }
-    return Promise.resolve();
-  }, [cfg.source_type, capture, pokemon.id]);
+    setShowSourcePicker(true);
+  }, []);
 
   const handleSourceSelected = useCallback((source: SelectedSource) => {
     setShowSourcePicker(false);
-
-    // Native sources: the backend captures directly — no browser MediaStream needed.
-    // Save the selection to the config (window_title stores the source identifier)
-    // and let the user start detection, which calls POST /api/detector/{id}/start.
-    if (cfg.source_type === "window" || cfg.source_type === "camera") {
-      setCfg((prev) => ({
-        ...prev,
-        window_title: source.sourceId,
-      }));
-      onConfigChange({
-        ...cfg,
-        window_title: source.sourceId,
-        templates,
-      });
-      return;
-    }
-
-    // Browser sources: acquire a MediaStream via the capture service.
-    const st = cfg.source_type as "browser_display" | "browser_camera";
-    capture.startCapture(pokemon.id, st, source.sourceId, source.label, source.stream);
-  }, [capture, pokemon.id, cfg.source_type, cfg, onConfigChange, templates]);
-
-  const stopCapture = useCallback(() => {
-    capture.stopCapture(pokemon.id);
-  }, [capture, pokemon.id]);
+    // Map the SelectedSource type to the DetectorConfig source_type enum
+    const mappedSourceType: DetectorConfig["source_type"] =
+      source.type === "screen" ? "screen_region" : source.type;
+    setCfg((prev) => ({
+      ...prev,
+      source_type: mappedSourceType,
+      window_title: source.sourceId,
+    }));
+    onConfigChange({
+      ...cfg,
+      source_type: mappedSourceType,
+      window_title: source.sourceId,
+      templates,
+    });
+  }, [cfg, onConfigChange, templates]);
 
   const pokemonOcrLang = LANG_MAP[pokemon.language ?? ""] || "eng";
 
@@ -291,26 +273,6 @@ export function DetectorPanel({
       consecutive_hits: activePreset.default_consecutive_hits,
     }));
   };
-
-  // Propagate capture errors from the shared service
-  useEffect(() => {
-    if (capture.captureError) setErrorMsg(capture.captureError);
-  }, [capture.captureError]);
-
-  // Re-register submitter when component mounts for an already-running detector
-  // (e.g. user switched away and came back in the sidebar)
-  useEffect(() => {
-    if (isRunning && isCapturing && cfg.source_type.startsWith("browser")) {
-      capture.registerSubmitter(pokemon.id, cfg.poll_interval_ms, cfg.region, cfg.change_threshold);
-    }
-  }, [pokemon.id]); // Only on pokemon change / mount
-
-  // Sync poll interval to capture service when config changes
-  useEffect(() => {
-    if (isRunning) {
-      capture.updateSubmitterInterval(pokemon.id, cfg.poll_interval_ms);
-    }
-  }, [cfg.poll_interval_ms, isRunning, pokemon.id, capture]);
 
   // ── Template operations ────────────────────────────────────────────────────
 
@@ -513,23 +475,16 @@ export function DetectorPanel({
   const handleStart = async () => {
     if (isStarting) return;
 
-    const isNativeSource = cfg.source_type === "window" || cfg.source_type === "camera";
-
-    // Gate: browser sources must be connected before starting detection.
-    // Native sources don't need a browser stream — the backend captures directly.
-    if (!isNativeSource && !isCapturing) {
-      setErrorMsg(t("detector.errNoStream"));
-      return;
-    }
-    // Native sources require a window/camera selection stored in window_title.
-    if (isNativeSource && !cfg.window_title) {
+    // A source selection is required before starting
+    if (!cfg.window_title) {
       setErrorMsg(t("detector.errNoSource"));
       return;
     }
     if (templates.length === 0) { setErrorMsg(t("detector.errNoTemplates")); return; }
 
-    // Prevent starting when the selected source type is unsupported by the platform
-    if (capabilities) {
+    // Prevent starting when the selected source type is unsupported by the platform.
+    // The sidecar can handle all source types even when Go-native capture cannot.
+    if (capabilities && !capabilities.sidecar_available) {
       const unsupported =
         (cfg.source_type === "window" && !capabilities.supports_window_capture) ||
         (cfg.source_type === "camera" && !capabilities.supports_camera) ||
@@ -549,11 +504,6 @@ export function DetectorPanel({
       const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/start`), { method: "POST" });
       if (res.ok) {
         setErrorMsg(null);
-        // Register this pokemon for frame dispatch via the capture service
-        // (only needed for browser sources — native sources are handled by the backend)
-        if (cfg.source_type.startsWith("browser")) {
-          capture.registerSubmitter(pokemon.id, cfg.poll_interval_ms, cfg.region, cfg.change_threshold);
-        }
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
         setErrorMsg(body.error ?? t("detector.errStartFailed"));
@@ -563,8 +513,6 @@ export function DetectorPanel({
   };
 
   const handleStop = async () => {
-    // Unregister from frame dispatch (does NOT stop the shared stream)
-    capture.unregisterSubmitter(pokemon.id);
     try { await fetch(apiUrl(`/api/detector/${pokemon.id}/stop`), { method: "POST" }); } catch {}
   };
 
@@ -632,10 +580,7 @@ export function DetectorPanel({
   // ── Derived ────────────────────────────────────────────────────────────────
 
   const { dot: dotClass, pulse } = stateDotClass(detectorState, isRunning);
-  const isNativeSource = cfg.source_type === "window" || cfg.source_type === "camera";
-  const canStart = isNativeSource
-    ? (!!cfg.window_title && templates.length > 0)
-    : (isCapturing && templates.length > 0);
+  const canStart = !!cfg.window_title && templates.length > 0;
   const showAsRunning = isRunning || isStarting;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -704,8 +649,7 @@ export function DetectorPanel({
             disabled={isStarting || (!isRunning && !canStart)}
             title={(() => {
               if (!isRunning && !canStart) {
-                if (isNativeSource) return cfg.window_title ? t("detector.errNoTemplates") : t("detector.errNoSource");
-                return isCapturing ? t("detector.errNoTemplates") : t("detector.errNoStream");
+                return cfg.window_title ? t("detector.errNoTemplates") : t("detector.errNoSource");
               }
               return isRunning ? t("detector.tooltipStop") : t("detector.tooltipStart");
             })()}
@@ -739,9 +683,8 @@ export function DetectorPanel({
           pokemon={pokemon}
           cfg={cfg}
           capabilities={capabilities}
-          onSourceTypeChange={(sourceType) => setCfg({ ...cfg, source_type: sourceType as any })}
+          onSourceTypeChange={(sourceType) => setCfg({ ...cfg, source_type: sourceType as DetectorConfig["source_type"] })}
           onStartCapture={startCapture}
-          onStopCapture={stopCapture}
           isRunning={isRunning}
           confidence={confidence}
         />
@@ -762,16 +705,28 @@ export function DetectorPanel({
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => {
-                  if (!stream) { setErrorMsg(t("detector.errNoStream")); return; }
-                  setShowAddTemplate(true);
-                }}
+                onClick={() => setShowAddTemplate(true)}
                 title={t("detector.tooltipAddFromVideo")}
                 className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 {t("detector.addFromVideo")}
               </button>
+              {isRunning && (
+                <button
+                  onClick={replay.takeSnapshot}
+                  disabled={replay.isLoading || replay.snapshot !== null}
+                  title={t("detector.snapshot")}
+                  className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors disabled:opacity-50"
+                >
+                  {replay.isLoading ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Camera className="w-3 h-3" />
+                  )}
+                  {replay.isLoading ? t("detector.snapshotLoading") : t("detector.snapshot")}
+                </button>
+              )}
               {hasGameSprite && (
                 <button
                   onClick={handleAddSpriteTemplate}
@@ -888,6 +843,19 @@ export function DetectorPanel({
           )}
         </div>
 
+        {/* ── Replay Timeline ─────────────────────────────────────────────── */}
+        {replay.snapshot && (
+          <ReplayTimeline
+            frameCount={replay.snapshot.frameCount}
+            durationSec={replay.snapshot.durationSec}
+            currentIndex={replay.currentIndex}
+            currentFrameUrl={replay.currentFrameUrl}
+            onSeek={replay.seekTo}
+            onUseAsTemplate={handleSnapshotUseAsTemplate}
+            onClose={handleSnapshotClose}
+          />
+        )}
+
         {/* ── Settings Component ──────────────────────────────────────────────── */}
         <DetectorSettings
           cfg={cfg}
@@ -901,9 +869,9 @@ export function DetectorPanel({
       </div>
 
       {/* ── Template Editor: Add from Video ────────────────────────────────── */}
-      {showAddTemplate && stream && (
+      {showAddTemplate && (
         <TemplateEditor
-          stream={stream}
+          pokemonId={pokemon.id}
           pokemonName={pokemon.name}
           ocrLang={pokemonOcrLang}
           onClose={() => setShowAddTemplate(false)}
@@ -931,7 +899,7 @@ export function DetectorPanel({
       {/* ── Source Picker ──────────────────────────────────────────────────── */}
       {showSourcePicker && (
         <SourcePickerModal
-          sourceType={cfg.source_type as "browser_display" | "browser_camera" | "window" | "camera"}
+          sourceType={cfg.source_type as "screen" | "window" | "camera"}
           capabilities={capabilities}
           onSelect={handleSourceSelected}
           onClose={() => setShowSourcePicker(false)}
