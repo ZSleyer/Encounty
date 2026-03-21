@@ -41,6 +41,7 @@ The application was developed on Arch Linux with Wayland but is also available f
 **[⬇ Download the latest version here](https://github.com/ZSleyer/Encounty/releases/latest)**
 
 Choose the file matching your operating system:
+
 - **Windows**: `Encounty.exe`
 - **Linux**: `Encounty.AppImage`
 

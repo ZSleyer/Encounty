@@ -64,6 +64,7 @@ async function createWindow(): Promise<void> {
     title: 'Encounty',
     icon: iconPath,
     frame: false,
+    show: true,
     backgroundColor: '#0f0f13',
     webPreferences: {
       nodeIntegration: false,
@@ -109,9 +110,25 @@ async function createWindow(): Promise<void> {
   });
 
   // In dev mode, load from Vite dev server (frontend + API proxy).
+  // Retry until Vite is ready since the background task may still be starting.
   // In production, load from the custom encounty:// protocol.
   if (isDev) {
-    await mainWindow.loadURL('http://localhost:5173');
+    const viteUrl = 'http://localhost:5173';
+    const maxRetries = 30;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        await mainWindow.loadURL(viteUrl);
+        break;
+      } catch {
+        if (i === maxRetries - 1) {
+          console.error('[Electron] Vite dev server not reachable after retries');
+          app.quit();
+          return;
+        }
+        console.log(`[Electron] Waiting for Vite dev server... (${i + 1}/${maxRetries})`);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
   } else {
     await mainWindow.loadURL('encounty://app/');
   }
