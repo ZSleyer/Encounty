@@ -8,11 +8,6 @@ package database
 // They are idempotent (CREATE TABLE IF NOT EXISTS) so they can be run
 // on every startup without harm. Foreign keys use ON DELETE CASCADE.
 var schemaV2 = []string{
-	// ── Schema versioning ────────────────────────────────────────────────
-	`CREATE TABLE IF NOT EXISTS schema_version (
-		version INTEGER PRIMARY KEY
-	)`,
-
 	// ── App config (singleton) ───────────────────────────────────────────
 	`CREATE TABLE IF NOT EXISTS app_config (
 		id               INTEGER PRIMARY KEY CHECK (id = 1),

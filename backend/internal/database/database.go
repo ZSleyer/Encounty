@@ -99,6 +99,13 @@ func tryOpen(dsn string) (*DB, error) {
 		return nil, fmt.Errorf("ping sqlite: %w", err)
 	}
 
+	// Enable foreign key enforcement before any migrations or queries.
+	// This must be set per-connection and outside transactions (SQLite requirement).
+	if _, err := sqlDB.Exec(`PRAGMA foreign_keys = ON`); err != nil {
+		_ = sqlDB.Close()
+		return nil, fmt.Errorf("enable foreign keys: %w", err)
+	}
+
 	d := &DB{db: sqlDB}
 	if err := d.migrate(); err != nil {
 		_ = sqlDB.Close()
@@ -113,87 +120,15 @@ func (d *DB) Close() error {
 }
 
 func (d *DB) migrate() error {
-	// Legacy tables (encounter_events, timer_sessions, app_state, games)
-	// are kept for backward compatibility and migration.
-	legacyStmts := []string{
-		`CREATE TABLE IF NOT EXISTS encounter_events (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			pokemon_id TEXT NOT NULL,
-			pokemon_name TEXT NOT NULL,
-			timestamp TEXT NOT NULL,
-			delta INTEGER NOT NULL,
-			count_after INTEGER NOT NULL,
-			source TEXT DEFAULT 'manual'
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_encounter_pokemon ON encounter_events(pokemon_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_encounter_ts ON encounter_events(timestamp)`,
-		`CREATE TABLE IF NOT EXISTS timer_sessions (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			pokemon_id TEXT NOT NULL,
-			started_at TEXT NOT NULL,
-			ended_at TEXT,
-			encounters_during INTEGER DEFAULT 0
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_timer_pokemon ON timer_sessions(pokemon_id)`,
-		`CREATE TABLE IF NOT EXISTS app_state (
-			id INTEGER PRIMARY KEY CHECK (id = 1),
-			data TEXT NOT NULL,
-			updated_at TEXT NOT NULL
-		)`,
-		`CREATE TABLE IF NOT EXISTS games (
-			key TEXT PRIMARY KEY,
-			names TEXT NOT NULL,
-			generation INTEGER NOT NULL,
-			platform TEXT NOT NULL
-		)`,
-	}
-	for _, s := range legacyStmts {
-		if _, err := d.db.Exec(s); err != nil {
-			return fmt.Errorf("exec %q: %w", s[:40], err)
-		}
-	}
-
-	// Enable foreign key enforcement (off by default in SQLite).
-	if _, err := d.db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
-		return fmt.Errorf("enable foreign keys: %w", err)
-	}
-
-	// Normalized v2 schema tables.
-	for _, s := range schemaV2 {
-		if _, err := d.db.Exec(s); err != nil {
-			return fmt.Errorf("exec %q: %w", s[:min(40, len(s))], err)
-		}
-	}
-
-	// Idempotent schema upgrades (ALTER TABLE is not IF NOT EXISTS).
-	// Ignore "duplicate column" errors for existing databases.
-	alterStmts := []string{
-		`ALTER TABLE detector_templates ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`,
-		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3`,
-		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
-		`ALTER TABLE detector_configs ADD COLUMN relative_regions INTEGER NOT NULL DEFAULT 0`,
-		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
-	}
-	for _, s := range alterStmts {
-		_, _ = d.db.Exec(s) // Ignore "duplicate column" errors
-	}
-
-	return nil
+	return RunMigrations(d.db)
 }
 
-// SchemaVersion returns the current schema version, or 0 if unset.
-func (d *DB) SchemaVersion() int {
+// MigrationVersion returns the highest applied migration version, or 0 if
+// no migrations have been recorded yet.
+func (d *DB) MigrationVersion() int {
 	var v int
-	_ = d.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_version`).Scan(&v)
+	_ = d.db.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM migrations`).Scan(&v)
 	return v
-}
-
-// SetSchemaVersion records the schema version.
-func (d *DB) SetSchemaVersion(v int) error {
-	_, err := d.db.Exec(
-		`INSERT INTO schema_version (version) VALUES (?) ON CONFLICT(version) DO NOTHING`, v)
-	return err
 }
 
 // LogEncounter records an encounter event.

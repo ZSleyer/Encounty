@@ -283,18 +283,15 @@ func loadTemplateImagesFromDisk(pokemon []state.Pokemon, configDir string) {
 // migrateToNormalizedSchema writes the in-memory state (loaded from the legacy
 // JSON blob) into the normalized v2 database tables. Template images are read
 // from disk and embedded as BLOBs so that the filesystem copies are no longer
-// required. The migration is idempotent: it checks SchemaVersion and skips if
-// the database has already been upgraded.
+// required. The migration is idempotent: it checks whether the app_config row
+// already exists (indicating data was previously migrated) and skips if so.
 func migrateToNormalizedSchema(db *database.DB, stateMgr *state.Manager) {
-	if db.SchemaVersion() >= 2 {
+	if db.HasState() {
 		return
 	}
 
 	st := stateMgr.GetState()
 	if len(st.Pokemon) == 0 && st.ActiveID == "" && !st.LicenseAccepted {
-		if err := db.SetSchemaVersion(2); err != nil {
-			slog.Error("Failed to set schema version on fresh install", "error", err)
-		}
 		return
 	}
 
@@ -302,10 +299,6 @@ func migrateToNormalizedSchema(db *database.DB, stateMgr *state.Manager) {
 
 	if err := db.SaveFullState(&st); err != nil {
 		slog.Error("Failed to migrate to normalized schema", "error", err)
-		return
-	}
-	if err := db.SetSchemaVersion(2); err != nil {
-		slog.Error("Failed to set schema version after migration", "error", err)
 		return
 	}
 	slog.Info("Migrated state to normalized database schema (v2)")
