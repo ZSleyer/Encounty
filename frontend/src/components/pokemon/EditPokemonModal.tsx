@@ -91,7 +91,7 @@ export function EditPokemonModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
 
-  const [language, setstring] = useState<string>(pokemon.language || "de");
+  const [language, setLanguage] = useState<string>(pokemon.language || "de");
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [allPokemon, setAllPokemon] = useState<PokemonData[]>([]);
@@ -365,7 +365,7 @@ export function EditPokemonModal({
           <button
             key={lang}
             onClick={() => {
-              setstring(lang);
+              setLanguage(lang);
               if (selected) {
                 const searchList = buildSearchList(allPokemon);
                 const fullP = searchList.find(

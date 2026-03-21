@@ -67,7 +67,7 @@ export function ShadowEditorModal({
   const [sx, setSx] = useState(initialX);
   const [sy, setSy] = useState(initialY);
 
-  const padRef = useRef<HTMLDivElement>(null);
+  const padRef = useRef<HTMLButtonElement>(null);
 
   // --- XY pad drag logic ---
   const updateFromEvent = useCallback((e: MouseEvent | React.MouseEvent) => {
@@ -146,9 +146,11 @@ export function ShadowEditorModal({
       <div className="mb-4">
         <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">Offset</p>
         <div className="flex flex-col items-center">
-          <div
+          <button
+            type="button"
             ref={padRef}
-            className="relative bg-bg-primary border border-border-subtle rounded-lg cursor-crosshair"
+            aria-label="Shadow offset picker"
+            className="appearance-none p-0 m-0 block relative bg-bg-primary border border-border-subtle rounded-lg cursor-crosshair"
             style={{ width: PAD_SIZE, height: PAD_SIZE }}
             onMouseDown={startPadDrag}
           >
@@ -170,7 +172,7 @@ export function ShadowEditorModal({
                 transform: "translate(-50%, -50%)",
               }}
             />
-          </div>
+          </button>
           <p className="text-[10px] 2xl:text-xs text-text-muted mt-1">
             X: {sx} &nbsp; Y: {sy}
           </p>

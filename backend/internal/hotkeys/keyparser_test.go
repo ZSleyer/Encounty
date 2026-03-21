@@ -54,19 +54,26 @@ func TestParseKeyComboModifiers(t *testing.T) {
 			if err != nil {
 				t.Fatalf(fmtUnexpectedErr, err)
 			}
-			if combo.Key != tt.wantKey {
-				t.Errorf(fmtKeyWant, combo.Key, tt.wantKey)
-			}
-			if combo.Ctrl != tt.wantCtrl {
-				t.Errorf("Ctrl = %v, want %v", combo.Ctrl, tt.wantCtrl)
-			}
-			if combo.Shift != tt.wantShift {
-				t.Errorf("Shift = %v, want %v", combo.Shift, tt.wantShift)
-			}
-			if combo.Alt != tt.wantAlt {
-				t.Errorf("Alt = %v, want %v", combo.Alt, tt.wantAlt)
-			}
+			assertCombo(t, combo, tt.wantKey, tt.wantCtrl, tt.wantShift, tt.wantAlt)
 		})
+	}
+}
+
+// assertCombo verifies that a parsed KeyCombo matches the expected key and
+// modifier flags.
+func assertCombo(t *testing.T, combo KeyCombo, wantKey string, wantCtrl, wantShift, wantAlt bool) {
+	t.Helper()
+	if combo.Key != wantKey {
+		t.Errorf(fmtKeyWant, combo.Key, wantKey)
+	}
+	if combo.Ctrl != wantCtrl {
+		t.Errorf("Ctrl = %v, want %v", combo.Ctrl, wantCtrl)
+	}
+	if combo.Shift != wantShift {
+		t.Errorf("Shift = %v, want %v", combo.Shift, wantShift)
+	}
+	if combo.Alt != wantAlt {
+		t.Errorf("Alt = %v, want %v", combo.Alt, wantAlt)
 	}
 }
 

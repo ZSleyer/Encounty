@@ -38,8 +38,8 @@ type testDeps struct {
 }
 
 func (d *testDeps) ConfigDir() string          { return d.stateMgr.GetConfigDir() }
-func (d *testDeps) BackupDB() *database.DB     { return d.db }
-func (d *testDeps) SetBackupDB(db *database.DB) { d.db = db; d.stateMgr.SetDB(db) }
+func (d *testDeps) DB() *database.DB     { return d.db }
+func (d *testDeps) SetDB(db *database.DB) { d.db = db; d.stateMgr.SetDB(db) }
 func (d *testDeps) ReloadState() error          { return d.stateMgr.Reload() }
 func (d *testDeps) BroadcastState()             { /* no-op: mock implementation for testing */ }
 

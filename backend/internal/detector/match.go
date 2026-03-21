@@ -69,35 +69,11 @@ func MatchWithRegions(frame image.Image, lt loadedTemplate, precision float64, l
 			rect = scaleRect(rect, frame.Bounds(), lt.img.Bounds())
 		}
 
-		var score float64
-		switch region.Type {
-		case "image":
-			frameCrop := CropImage(frame, rect)
-			tmplCrop := CropImage(lt.img, region.Rect)
-			score = Match(frameCrop, tmplCrop, 0)
-			evaluated++
-		case "text":
-			frameCrop := CropImage(frame, rect)
-			recognized, err := RecognizeText(frameCrop, lang)
-			if err != nil {
-				// Tesseract unavailable — fall back to visual comparison
-				// of the text region. The template crop contains the exact
-				// pixels of the expected text, so NCC works as a visual
-				// fingerprint without needing OCR.
-				tmplCrop := CropImage(lt.img, region.Rect)
-				score = Match(frameCrop, tmplCrop, 0)
-				evaluated++
-				break
-			}
-			if TextMatches(recognized, region.ExpectedText) {
-				score = 1.0
-			} else {
-				score = 0.0
-			}
-			evaluated++
-		default:
+		score, ok := matchRegion(frame, lt.img, region, rect, lang)
+		if !ok {
 			continue
 		}
+		evaluated++
 		if score < minScore {
 			minScore = score
 		}
@@ -109,6 +85,43 @@ func MatchWithRegions(frame image.Image, lt loadedTemplate, precision float64, l
 		return Match(frame, lt.img, 0)
 	}
 	return minScore
+}
+
+// matchRegion evaluates a single region against the frame and template.
+// It returns the NCC or text-match score and true when the region was
+// evaluated, or (0, false) when the region type is unknown and should be
+// skipped.
+func matchRegion(frame, tmplImg image.Image, region state.MatchedRegion, rect state.DetectorRect, lang string) (float64, bool) {
+	switch region.Type {
+	case "image":
+		frameCrop := CropImage(frame, rect)
+		tmplCrop := CropImage(tmplImg, region.Rect)
+		return Match(frameCrop, tmplCrop, 0), true
+	case "text":
+		return matchTextRegion(frame, tmplImg, region, rect, lang), true
+	default:
+		return 0, false
+	}
+}
+
+// matchTextRegion handles the "text" region type by attempting OCR on the
+// frame crop. If tesseract is unavailable it falls back to visual NCC
+// comparison against the template crop.
+func matchTextRegion(frame, tmplImg image.Image, region state.MatchedRegion, rect state.DetectorRect, lang string) float64 {
+	frameCrop := CropImage(frame, rect)
+	recognized, err := RecognizeText(frameCrop, lang)
+	if err != nil {
+		// Tesseract unavailable — fall back to visual comparison
+		// of the text region. The template crop contains the exact
+		// pixels of the expected text, so NCC works as a visual
+		// fingerprint without needing OCR.
+		tmplCrop := CropImage(tmplImg, region.Rect)
+		return Match(frameCrop, tmplCrop, 0)
+	}
+	if TextMatches(recognized, region.ExpectedText) {
+		return 1.0
+	}
+	return 0.0
 }
 
 // scaleRect proportionally maps r from the reference image coordinate space

@@ -31,10 +31,10 @@ type Deps interface {
 	// HotkeyIsAvailable reports whether the hotkey backend is available.
 	HotkeyIsAvailable() bool
 
-	// SettingsDB returns the current database handle.
-	SettingsDB() *database.DB
-	// SetSettingsDB replaces the active database handle.
-	SetSettingsDB(db *database.DB)
+	// DB returns the current database handle.
+	DB() *database.DB
+	// SetDB replaces the active database handle.
+	SetDB(db *database.DB)
 
 	// FileWriterSetConfig reconfigures the file output writer.
 	FileWriterSetConfig(outputDir string, enabled bool)
@@ -156,15 +156,15 @@ func (h *handler) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 	sm := h.deps.StateManager()
 
 	// Close the current database before copying files
-	if db := h.deps.SettingsDB(); db != nil {
+	if db := h.deps.DB(); db != nil {
 		_ = db.Close()
 	}
 
 	if err := sm.SetConfigDir(body.Path); err != nil {
 		// Reopen old DB on failure
-		if h.deps.SettingsDB() != nil {
+		if h.deps.DB() != nil {
 			oldDB, _ := database.Open(filepath.Join(sm.GetConfigDir(), dbFilename))
-			h.deps.SetSettingsDB(oldDB)
+			h.deps.SetDB(oldDB)
 			gamesync.InvalidateCache()
 		}
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
@@ -176,11 +176,11 @@ func (h *handler) handleSetConfigPath(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Warn("Could not open database at new path", "error", err)
 	}
-	h.deps.SetSettingsDB(newDB)
+	h.deps.SetDB(newDB)
 	gamesync.InvalidateCache()
 
 	h.deps.BroadcastState()
-	httputil.WriteJSON(w, http.StatusOK, pathResponse{Path: body.Path})
+	httputil.WriteJSON(w, http.StatusOK, pathResponse(body))
 }
 
 // handleUpdateHotkeys replaces the full hotkey map and re-registers all

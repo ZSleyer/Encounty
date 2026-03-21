@@ -51,7 +51,7 @@ func ListCameras() []CameraInfo {
 		cap := dev.Capability()
 		// Only include devices that support video capture.
 		if cap.DeviceCapabilities&v4l2.CapVideoCapture == 0 {
-			dev.Close()
+			_ = dev.Close()
 			continue
 		}
 
@@ -60,7 +60,7 @@ func ListCameras() []CameraInfo {
 			Name:       strings.TrimRight(cap.Card, "\x00"),
 			Driver:     strings.TrimRight(cap.Driver, "\x00"),
 		})
-		dev.Close()
+		_ = dev.Close()
 	}
 	return cameras
 }
@@ -83,7 +83,7 @@ func StartCameraCapture(devicePath string, width, height int) (<-chan image.Imag
 	}
 
 	if err := dev.Start(context.Background()); err != nil {
-		dev.Close()
+		_ = dev.Close()
 		return nil, nil, fmt.Errorf("start camera %s: %w", devicePath, err)
 	}
 
@@ -92,13 +92,15 @@ func StartCameraCapture(devicePath string, width, height int) (<-chan image.Imag
 
 	go func() {
 		defer close(out)
-		for frame := range dev.GetOutput() {
+		for frame := range dev.GetFrames() {
 			select {
 			case <-stopCh:
+				frame.Release()
 				return
 			default:
 			}
-			img, err := jpeg.Decode(bytes.NewReader(frame))
+			img, err := jpeg.Decode(bytes.NewReader(frame.Data))
+			frame.Release()
 			if err != nil {
 				slog.Debug("Camera frame decode failed", "device", devicePath, "error", err)
 				continue
@@ -115,7 +117,7 @@ func StartCameraCapture(devicePath string, width, height int) (<-chan image.Imag
 		if !stopOnce {
 			stopOnce = true
 			close(stopCh)
-			dev.Close()
+			_ = dev.Close()
 		}
 	}
 	return out, stop, nil

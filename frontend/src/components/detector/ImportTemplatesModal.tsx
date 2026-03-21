@@ -21,8 +21,19 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-100 bg-black/70 flex items-center justify-center p-4 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-bg-card border border-border-subtle rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+    <button
+      type="button"
+      aria-label="Close dialog"
+      className="appearance-none border-none p-0 m-0 w-full h-full fixed inset-0 z-100 bg-black/70 flex items-center justify-center backdrop-blur-sm"
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+    >
+      <div
+        className="bg-bg-card border border-border-subtle rounded-2xl shadow-2xl w-full max-w-md p-6"
+        role="none"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-text-primary">{t("detector.importFromPokemon")}</h3>
           <button onClick={onClose} className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors">
@@ -53,7 +64,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
           </div>
         )}
       </div>
-    </div>,
+    </button>,
     document.body,
   );
 }

@@ -189,11 +189,13 @@ export function GradientEditorModal({
       {/* --- Stop list --- */}
       <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
         {stops.map((stop, idx) => (
-          <div
+          <button
+            type="button"
             key={`stop-${stop.color}-${stop.position}-${idx}`}
-            className={`flex items-center gap-2 p-1.5 rounded-lg ${
+            className={`flex items-center gap-2 p-1.5 rounded-lg w-full text-left ${
               selectedIdx === idx ? "bg-accent-blue/10" : ""
             }`}
+            style={{ background: "none", border: "none", cursor: "pointer" }}
             onClick={() => setSelectedIdx(idx)}
           >
             <ColorSwatch
@@ -224,7 +226,7 @@ export function GradientEditorModal({
                 <X size={12} />
               </button>
             )}
-          </div>
+          </button>
         ))}
       </div>
 

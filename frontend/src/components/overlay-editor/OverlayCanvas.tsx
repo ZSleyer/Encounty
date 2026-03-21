@@ -329,9 +329,10 @@ export function OverlayCanvas({
 
   return (
     <div
-      role="application"
       ref={canvasContainerRef}
+      role="toolbar"
       data-tutorial="canvas"
+      tabIndex={0}
       aria-label="Overlay canvas"
       className={`flex-1 rounded-xl border border-border-subtle overflow-auto min-h-0 relative ${canvasBg === "transparent" ? "canvas-checkered" : ""}`}
       style={{
@@ -342,6 +343,7 @@ export function OverlayCanvas({
       onMouseDown={onMouseDown}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
+      onKeyDown={(e) => { if (e.key === "Escape") onMouseUp(); }}
     >
       {/* Virtual space — defines the scrollable extent */}
       <div

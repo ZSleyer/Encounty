@@ -149,14 +149,9 @@ func (s *Server) StopHotkeys() {
 	s.hotkeyMgr.Stop()
 }
 
-// BackupDB returns the current database handle so the backup handler can
-// close it before restoring a new database file.
-func (s *Server) BackupDB() *database.DB {
-	return s.db
-}
-
-// SetBackupDB replaces the active database handle after a backup restore.
-func (s *Server) SetBackupDB(db *database.DB) {
+// SetDB replaces the active database handle and updates the state manager's
+// reference. Used after backup restore or settings changes.
+func (s *Server) SetDB(db *database.DB) {
 	s.db = db
 	s.state.SetDB(db)
 }
@@ -171,25 +166,24 @@ func (s *Server) BroadcastState() {
 	s.broadcastState()
 }
 
+// dbAs returns the database handle cast to T, or the zero value of T when db is nil.
+func dbAs[T any](db *database.DB) T {
+	if db == nil {
+		var zero T
+		return zero
+	}
+	return any(db).(T)
+}
+
 // GamesDB returns the database handle as a gamesync.GamesStore so the games
 // handler sub-package can load and sync game metadata without depending on
 // the concrete *database.DB type. Returns nil when no database is configured.
-func (s *Server) GamesDB() gamesync.GamesStore {
-	if s.db == nil {
-		return nil
-	}
-	return s.db
-}
+func (s *Server) GamesDB() gamesync.GamesStore { return dbAs[gamesync.GamesStore](s.db) }
 
 // StatsDB returns the database handle as a stats.StatsQuerier so the stats
 // handler sub-package can query encounter statistics without depending on
 // the concrete *database.DB type. Returns nil when no database is configured.
-func (s *Server) StatsDB() stats.StatsQuerier {
-	if s.db == nil {
-		return nil
-	}
-	return s.db
-}
+func (s *Server) StatsDB() stats.StatsQuerier { return dbAs[stats.StatsQuerier](s.db) }
 
 // HotkeyUpdateAllBindings replaces all hotkey bindings atomically.
 func (s *Server) HotkeyUpdateAllBindings(hm state.HotkeyMap) error {
@@ -211,16 +205,9 @@ func (s *Server) HotkeyIsAvailable() bool {
 	return s.hotkeyMgr.IsAvailable()
 }
 
-// SettingsDB returns the current database handle for the settings handler.
-func (s *Server) SettingsDB() *database.DB {
+// DB returns the current database handle.
+func (s *Server) DB() *database.DB {
 	return s.db
-}
-
-// SetSettingsDB replaces the active database handle and updates the state
-// manager's reference.
-func (s *Server) SetSettingsDB(db *database.DB) {
-	s.db = db
-	s.state.SetDB(db)
 }
 
 // FileWriterSetConfig reconfigures the file output writer with a new output
@@ -297,10 +284,7 @@ func (s *Server) DetectorStopper() pokemonhandler.DetectorStopper {
 
 // EncounterLogger returns the database as an EncounterLogger, or nil.
 func (s *Server) EncounterLogger() pokemonhandler.EncounterLogger {
-	if s.db == nil {
-		return nil
-	}
-	return s.db
+	return dbAs[pokemonhandler.EncounterLogger](s.db)
 }
 
 // Broadcaster returns the WebSocket hub as a Broadcaster.
@@ -317,10 +301,7 @@ func (s *Server) DetectorMgr() *detector.Manager {
 // without depending on the concrete *database.DB type. Returns nil when no
 // database is configured.
 func (s *Server) DetectorDB() detectorhandler.DetectorStore {
-	if s.db == nil {
-		return nil
-	}
-	return s.db
+	return dbAs[detectorhandler.DetectorStore](s.db)
 }
 
 // Start begins accepting HTTP connections. Blocks until the server is shut

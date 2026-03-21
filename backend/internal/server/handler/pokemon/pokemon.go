@@ -295,14 +295,7 @@ func (h *handler) handleDecrement(w http.ResponseWriter, _ *http.Request, id str
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/reset [post]
 func (h *handler) handleReset(w http.ResponseWriter, _ *http.Request, id string) {
-	if !h.deps.StateReset(id) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-	h.deps.StateScheduleSave()
-	h.deps.Broadcaster().BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": id})
-	h.deps.BroadcastState()
-	w.WriteHeader(http.StatusNoContent)
+	h.pokemonMutate(w, id, "encounter_reset", h.deps.StateReset)
 }
 
 // handleSetEncounters sets the encounter count to an exact value.
@@ -347,13 +340,7 @@ func (h *handler) handleSetEncounters(w http.ResponseWriter, r *http.Request, id
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/timer/start [post]
 func (h *handler) handleTimerStart(w http.ResponseWriter, _ *http.Request, id string) {
-	if !h.deps.StateStartTimer(id) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-	h.deps.StateScheduleSave()
-	h.deps.BroadcastState()
-	w.WriteHeader(http.StatusNoContent)
+	h.pokemonMutate(w, id, "", h.deps.StateStartTimer)
 }
 
 // handleTimerStop stops the per-Pokemon timer and accumulates elapsed time.
@@ -367,13 +354,7 @@ func (h *handler) handleTimerStart(w http.ResponseWriter, _ *http.Request, id st
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/timer/stop [post]
 func (h *handler) handleTimerStop(w http.ResponseWriter, _ *http.Request, id string) {
-	if !h.deps.StateStopTimer(id) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-	h.deps.StateScheduleSave()
-	h.deps.BroadcastState()
-	w.WriteHeader(http.StatusNoContent)
+	h.pokemonMutate(w, id, "", h.deps.StateStopTimer)
 }
 
 // handleTimerReset clears the per-Pokemon timer entirely.
@@ -387,13 +368,7 @@ func (h *handler) handleTimerStop(w http.ResponseWriter, _ *http.Request, id str
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/timer/reset [post]
 func (h *handler) handleTimerReset(w http.ResponseWriter, _ *http.Request, id string) {
-	if !h.deps.StateResetTimer(id) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-	h.deps.StateScheduleSave()
-	h.deps.BroadcastState()
-	w.WriteHeader(http.StatusNoContent)
+	h.pokemonMutate(w, id, "", h.deps.StateResetTimer)
 }
 
 // handleActivate sets the given Pokemon as the active one for hotkey actions.
@@ -407,13 +382,7 @@ func (h *handler) handleTimerReset(w http.ResponseWriter, _ *http.Request, id st
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/activate [post]
 func (h *handler) handleActivate(w http.ResponseWriter, _ *http.Request, id string) {
-	if !h.deps.StateSetActive(id) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-	h.deps.StateScheduleSave()
-	h.deps.BroadcastState()
-	w.WriteHeader(http.StatusNoContent)
+	h.pokemonMutate(w, id, "", h.deps.StateSetActive)
 }
 
 // handleCompletePokemon marks the hunt as finished by stamping CompletedAt.
@@ -427,14 +396,7 @@ func (h *handler) handleActivate(w http.ResponseWriter, _ *http.Request, id stri
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/complete [post]
 func (h *handler) handleCompletePokemon(w http.ResponseWriter, _ *http.Request, id string) {
-	if !h.deps.StateCompletePokemon(id) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-	h.deps.StateScheduleSave()
-	h.deps.Broadcaster().BroadcastRaw("pokemon_completed", map[string]any{"pokemon_id": id})
-	h.deps.BroadcastState()
-	w.WriteHeader(http.StatusNoContent)
+	h.pokemonMutate(w, id, "pokemon_completed", h.deps.StateCompletePokemon)
 }
 
 // handleUncompletePokemon clears CompletedAt, returning the Pokemon to
@@ -448,13 +410,7 @@ func (h *handler) handleCompletePokemon(w http.ResponseWriter, _ *http.Request, 
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/uncomplete [post]
 func (h *handler) handleUncompletePokemon(w http.ResponseWriter, _ *http.Request, id string) {
-	if !h.deps.StateUncompletePokemon(id) {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-	h.deps.StateScheduleSave()
-	h.deps.BroadcastState()
-	w.WriteHeader(http.StatusNoContent)
+	h.pokemonMutate(w, id, "", h.deps.StateUncompletePokemon)
 }
 
 // handleUnlinkOverlay copies the resolved overlay into the Pokemon and sets
@@ -475,6 +431,24 @@ func (h *handler) handleUnlinkOverlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.deps.StateScheduleSave()
+	h.deps.BroadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// pokemonMutate is a shared helper for handlers that perform a state mutation
+// on a Pokemon identified by id. It calls mutateFn to perform the mutation,
+// returns 404 when the Pokemon is not found, then schedules a save, broadcasts
+// state, and writes 204 No Content. If eventType is non-empty, an additional
+// typed event is broadcast with the Pokemon ID.
+func (h *handler) pokemonMutate(w http.ResponseWriter, id string, eventType string, mutateFn func(string) bool) {
+	if !mutateFn(id) {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+	h.deps.StateScheduleSave()
+	if eventType != "" {
+		h.deps.Broadcaster().BroadcastRaw(eventType, map[string]any{"pokemon_id": id})
+	}
 	h.deps.BroadcastState()
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -612,81 +612,101 @@ func (s *SidecarManager) readLoop() {
 		default:
 		}
 
-		b, err := s.stdout.Peek(1)
-		if err != nil {
-			if err != io.EOF {
-				slog.Warn("Sidecar stdout read error", "error", err)
-			}
+		resp, ok := s.readNextMessage()
+		if !ok {
 			return
 		}
-
-		if b[0] == frameMagic {
-			if decErr := s.decodeFrameExtended(); decErr != nil {
-				slog.Warn("Sidecar frame decode error", "error", decErr)
-				return
-			}
-			continue
+		if resp.Type != "" {
+			s.dispatchMessage(resp)
 		}
+	}
+}
 
-		// Read a JSON line.
-		line, err := s.stdout.ReadBytes('\n')
-		if err != nil {
-			if err != io.EOF {
-				slog.Warn("Sidecar stdout line read error", "error", err)
-			}
-			return
+// readNextMessage reads the next message from the sidecar's stdout. It peeks
+// at the first byte to distinguish binary frames from JSON lines. Returns
+// (resp, true) on success, or (zero, false) when the loop should stop.
+func (s *SidecarManager) readNextMessage() (sidecarResponse, bool) {
+	b, err := s.stdout.Peek(1)
+	if err != nil {
+		if err != io.EOF {
+			slog.Warn("Sidecar stdout read error", "error", err)
 		}
+		return sidecarResponse{}, false
+	}
 
-		var resp sidecarResponse
-		if err := json.Unmarshal(line, &resp); err != nil {
-			slog.Debug("Sidecar non-JSON stdout line", "line", string(line))
-			continue
+	if b[0] == frameMagic {
+		if decErr := s.decodeFrameExtended(); decErr != nil {
+			slog.Warn("Sidecar frame decode error", "error", decErr)
+			return sidecarResponse{}, false
 		}
+		// Frame handled; return an empty response so the caller continues.
+		return sidecarResponse{}, true
+	}
 
-		switch resp.Type {
-		case "match_result":
-			msg := MatchResultMsg{
-				SessionID:   resp.SessionID,
-				BestScore:   resp.BestScore,
-				FrameDelta:  resp.FrameDelta,
-				TimestampMs: resp.TimestampMs,
-			}
-			// Non-blocking send; drop if the consumer is behind.
-			select {
-			case s.matchCh <- msg:
-			default:
-				slog.Debug("Sidecar match result dropped, consumer too slow")
-			}
+	// Read a JSON line.
+	line, err := s.stdout.ReadBytes('\n')
+	if err != nil {
+		if err != io.EOF {
+			slog.Warn("Sidecar stdout line read error", "error", err)
+		}
+		return sidecarResponse{}, false
+	}
 
-		case "replay_match":
-			msg := ReplayMatchMsg{
-				SessionID:   resp.SessionID,
-				BestScore:   resp.BestScore,
-				TimestampMs: resp.TimestampMs,
-			}
-			select {
-			case s.replayMatchCh <- msg:
-			default:
-				slog.Debug("Sidecar replay match dropped, consumer too slow")
-			}
+	var resp sidecarResponse
+	if err := json.Unmarshal(line, &resp); err != nil {
+		slog.Debug("Sidecar non-JSON stdout line", "line", string(line))
+		return sidecarResponse{}, true
+	}
 
-		case "error":
-			slog.Warn("Sidecar reported error", "message", resp.Message)
-			// Also forward to respCh in case a command is waiting.
-			select {
-			case s.respCh <- resp:
-			default:
-			}
+	return resp, true
+}
 
+// dispatchMessage routes a parsed JSON response from the sidecar to the
+// appropriate channel based on its message type.
+func (s *SidecarManager) dispatchMessage(resp sidecarResponse) {
+	switch resp.Type {
+	case "match_result":
+		msg := MatchResultMsg{
+			SessionID:   resp.SessionID,
+			BestScore:   resp.BestScore,
+			FrameDelta:  resp.FrameDelta,
+			TimestampMs: resp.TimestampMs,
+		}
+		// Non-blocking send; drop if the consumer is behind.
+		select {
+		case s.matchCh <- msg:
 		default:
-			// Command acknowledgement (templates_loaded, detection_started,
-			// detection_stopped, sources, config_updated, preview_started,
-			// preview_stopped, etc.) — forward to the waiting caller.
-			select {
-			case s.respCh <- resp:
-			default:
-				slog.Debug("Sidecar response dropped, no command waiting", "type", resp.Type)
-			}
+			slog.Debug("Sidecar match result dropped, consumer too slow")
+		}
+
+	case "replay_match":
+		msg := ReplayMatchMsg{
+			SessionID:   resp.SessionID,
+			BestScore:   resp.BestScore,
+			TimestampMs: resp.TimestampMs,
+		}
+		select {
+		case s.replayMatchCh <- msg:
+		default:
+			slog.Debug("Sidecar replay match dropped, consumer too slow")
+		}
+
+	case "error":
+		slog.Warn("Sidecar reported error", "message", resp.Message)
+		// Also forward to respCh in case a command is waiting.
+		select {
+		case s.respCh <- resp:
+		default:
+		}
+
+	default:
+		// Command acknowledgement (templates_loaded, detection_started,
+		// detection_stopped, sources, config_updated, preview_started,
+		// preview_stopped, etc.) — forward to the waiting caller.
+		select {
+		case s.respCh <- resp:
+		default:
+			slog.Debug("Sidecar response dropped, no command waiting", "type", resp.Type)
 		}
 	}
 }

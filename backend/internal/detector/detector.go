@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -48,7 +47,6 @@ const (
 // It consumes frames from a FrameSource and runs a unified state machine
 // (idle → match_active → cooldown) regardless of the capture backend.
 type Detector struct {
-	mu        sync.Mutex
 	pokemonID string
 	cfg       state.DetectorConfig
 	stateMgr  *state.Manager

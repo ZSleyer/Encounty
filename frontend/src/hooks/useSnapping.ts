@@ -15,6 +15,65 @@ export interface Guide {
 
 const SNAP_THRESHOLD = 5;
 
+/** Returns alignment guides for the canvas center and edges. */
+function getCanvasEdgeGuides(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  cw: number,
+  ch: number,
+): Guide[] {
+  const guides: Guide[] = [];
+
+  // Canvas center alignment
+  if (Math.abs(x + w / 2 - cw / 2) < SNAP_THRESHOLD) {
+    guides.push({ type: "v", position: cw / 2 });
+  }
+  if (Math.abs(y + h / 2 - ch / 2) < SNAP_THRESHOLD) {
+    guides.push({ type: "h", position: ch / 2 });
+  }
+
+  // Canvas edges
+  if (Math.abs(x) < SNAP_THRESHOLD) guides.push({ type: "v", position: 0 });
+  if (Math.abs(x + w - cw) < SNAP_THRESHOLD) guides.push({ type: "v", position: cw });
+  if (Math.abs(y) < SNAP_THRESHOLD) guides.push({ type: "h", position: 0 });
+  if (Math.abs(y + h - ch) < SNAP_THRESHOLD) guides.push({ type: "h", position: ch });
+
+  return guides;
+}
+
+/** Returns alignment guides for sibling overlay elements (left/center/right, top/center/bottom). */
+function getElementEdgeGuides(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  settings: OverlaySettings,
+  exclude: ElementKey,
+): Guide[] {
+  const guides: Guide[] = [];
+  const keys: ElementKey[] = ["sprite", "name", "title", "counter"];
+
+  for (const key of keys) {
+    if (key === exclude) continue;
+    const el = settings[key];
+    const ex = el.x, ey = el.y, ew = el.width, eh = el.height;
+
+    // Vertical guides (left/center/right of other element)
+    if (Math.abs(x - ex) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex });
+    if (Math.abs(x + w / 2 - (ex + ew / 2)) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex + ew / 2 });
+    if (Math.abs(x + w - (ex + ew)) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex + ew });
+
+    // Horizontal guides (top/center/bottom of other element)
+    if (Math.abs(y - ey) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey });
+    if (Math.abs(y + h / 2 - (ey + eh / 2)) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey + eh / 2 });
+    if (Math.abs(y + h - (ey + eh)) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey + eh });
+  }
+
+  return guides;
+}
+
 /**
  * useSnapping provides snap-to-grid and snap-to-element logic for the
  * drag/resize interactions in the overlay editor canvas.
@@ -36,41 +95,14 @@ export function useSnapping(
     h: number,
   ): Guide[] => {
     if (!enabled) return [];
-    const guides: Guide[] = [];
+
     const cw = settings.canvas_width;
     const ch = settings.canvas_height;
 
-    // Canvas center alignment
-    if (Math.abs(x + w / 2 - cw / 2) < SNAP_THRESHOLD) {
-      guides.push({ type: "v", position: cw / 2 });
-    }
-    if (Math.abs(y + h / 2 - ch / 2) < SNAP_THRESHOLD) {
-      guides.push({ type: "h", position: ch / 2 });
-    }
-    // Canvas edges
-    if (Math.abs(x) < SNAP_THRESHOLD) guides.push({ type: "v", position: 0 });
-    if (Math.abs(x + w - cw) < SNAP_THRESHOLD) guides.push({ type: "v", position: cw });
-    if (Math.abs(y) < SNAP_THRESHOLD) guides.push({ type: "h", position: 0 });
-    if (Math.abs(y + h - ch) < SNAP_THRESHOLD) guides.push({ type: "h", position: ch });
-
-    // Other element alignment
-    for (const key of ["sprite", "name", "title", "counter"] as ElementKey[]) {
-      if (key === activeKey) continue;
-      const el = settings[key];
-      const ex = el.x, ey = el.y, ew = el.width, eh = el.height;
-
-      // Vertical guides (left/center/right of other element)
-      if (Math.abs(x - ex) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex });
-      if (Math.abs(x + w / 2 - (ex + ew / 2)) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex + ew / 2 });
-      if (Math.abs(x + w - (ex + ew)) < SNAP_THRESHOLD) guides.push({ type: "v", position: ex + ew });
-
-      // Horizontal guides (top/center/bottom of other element)
-      if (Math.abs(y - ey) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey });
-      if (Math.abs(y + h / 2 - (ey + eh / 2)) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey + eh / 2 });
-      if (Math.abs(y + h - (ey + eh)) < SNAP_THRESHOLD) guides.push({ type: "h", position: ey + eh });
-    }
-
-    return guides;
+    return [
+      ...getCanvasEdgeGuides(x, y, w, h, cw, ch),
+      ...getElementEdgeGuides(x, y, w, h, settings, activeKey),
+    ];
   };
 
   const snap = (

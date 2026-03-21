@@ -27,11 +27,11 @@ const dbFilename = "encounty.db"
 type Deps interface {
 	// ConfigDir returns the active configuration directory path.
 	ConfigDir() string
-	// BackupDB returns the current database handle for close/reopen during
+	// DB returns the current database handle for close/reopen during
 	// restore. Returns nil when no database is configured.
-	BackupDB() *database.DB
-	// SetBackupDB replaces the active database handle after a restore.
-	SetBackupDB(db *database.DB)
+	DB() *database.DB
+	// SetDB replaces the active database handle after a restore.
+	SetDB(db *database.DB)
 	// ReloadState reloads the in-memory state from the database.
 	ReloadState() error
 	// BroadcastState sends the current state snapshot to all WebSocket clients.
@@ -213,7 +213,7 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Reopen the database and reload state
-	if db := h.deps.BackupDB(); db != nil {
+	if db := h.deps.DB(); db != nil {
 		_ = db.Close()
 	}
 	dbPath := filepath.Join(configDir, dbFilename)
@@ -222,7 +222,7 @@ func (h *handler) handleRestore(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to reopen database: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	h.deps.SetBackupDB(newDB)
+	h.deps.SetDB(newDB)
 
 	if err := h.deps.ReloadState(); err != nil {
 		http.Error(w, "failed to reload state: "+err.Error(), http.StatusInternalServerError)

@@ -52,7 +52,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
   const imgRef = useRef<HTMLImageElement>(null);
 
   // Container div reference for computing mouse positions.
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLButtonElement>(null);
 
   // Drag state (in display space, relative to container).
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(
@@ -323,10 +323,11 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
             />
 
             {/* Transparent drag overlay — captures all mouse events */}
-            <div
+            <button
+              type="button"
               ref={containerRef}
-              className="absolute inset-0"
-              style={{ cursor: "crosshair" }}
+              aria-label="Region selection area"
+              style={{ all: "unset", display: "block", position: "absolute", inset: 0, cursor: "crosshair" }}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
@@ -339,7 +340,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
                   className="border-2 border-accent-blue bg-accent-blue/20 rounded-sm"
                 />
               )}
-            </div>
+            </button>
           </>
         )}
       </div>

@@ -2,6 +2,7 @@ package detector
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image"
 	"log/slog"
@@ -317,7 +318,7 @@ func prepareSidecarTemplates(cfg state.DetectorConfig, configDir, pokemonID stri
 // StartPreview starts the JPEG preview stream for a running detector session.
 func (m *Manager) StartPreview(pokemonID string, maxDim, quality, targetFPS int) error {
 	if m.sidecar == nil {
-		return fmt.Errorf(errSidecarNotAvailable)
+		return errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.StartPreview(pokemonID, maxDim, quality, targetFPS)
 }
@@ -325,7 +326,7 @@ func (m *Manager) StartPreview(pokemonID string, maxDim, quality, targetFPS int)
 // StopPreview stops the JPEG preview stream for a detector session.
 func (m *Manager) StopPreview(pokemonID string) error {
 	if m.sidecar == nil {
-		return fmt.Errorf(errSidecarNotAvailable)
+		return errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.StopPreview(pokemonID)
 }
@@ -336,7 +337,7 @@ func (m *Manager) StopPreview(pokemonID string) error {
 // created with no templates and a high poll interval so it does minimal work.
 func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig) error {
 	if m.sidecar == nil {
-		return fmt.Errorf(errSidecarNotAvailable)
+		return errors.New(errSidecarNotAvailable)
 	}
 
 	m.mu.Lock()
@@ -371,7 +372,7 @@ func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig
 // detection is also stopped.
 func (m *Manager) StopPreviewSession(pokemonID string) error {
 	if m.sidecar == nil {
-		return fmt.Errorf(errSidecarNotAvailable)
+		return errors.New(errSidecarNotAvailable)
 	}
 
 	m.mu.Lock()
@@ -420,7 +421,7 @@ func (m *Manager) PreviewFrames() <-chan PreviewFrameMsg {
 // sidecar session: current duration in seconds and frame count.
 func (m *Manager) GetReplayStatus(pokemonID string) (float64, int, error) {
 	if m.sidecar == nil {
-		return 0, 0, fmt.Errorf(errSidecarNotAvailable)
+		return 0, 0, errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.GetReplayStatus(pokemonID)
 }
@@ -429,7 +430,7 @@ func (m *Manager) GetReplayStatus(pokemonID string) (float64, int, error) {
 // session. Returns the frame count, duration, and filesystem path.
 func (m *Manager) SnapshotReplay(pokemonID string) (int, float64, string, error) {
 	if m.sidecar == nil {
-		return 0, 0, "", fmt.Errorf(errSidecarNotAvailable)
+		return 0, 0, "", errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.SnapshotReplay(pokemonID)
 }
@@ -437,7 +438,7 @@ func (m *Manager) SnapshotReplay(pokemonID string) (int, float64, string, error)
 // DeleteSnapshot removes the snapshot directory for the given pokemon's session.
 func (m *Manager) DeleteSnapshot(pokemonID string) error {
 	if m.sidecar == nil {
-		return fmt.Errorf(errSidecarNotAvailable)
+		return errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.DeleteSnapshot(pokemonID)
 }
@@ -446,7 +447,7 @@ func (m *Manager) DeleteSnapshot(pokemonID string) error {
 // given pokemon's session at the specified index.
 func (m *Manager) GetSnapshotFrame(pokemonID string, frameIndex int) ([]byte, error) {
 	if m.sidecar == nil {
-		return nil, fmt.Errorf(errSidecarNotAvailable)
+		return nil, errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.GetSnapshotFrame(pokemonID, frameIndex)
 }
@@ -455,7 +456,7 @@ func (m *Manager) GetSnapshotFrame(pokemonID string, frameIndex int) ([]byte, er
 // pokemon's session within the specified time window (in seconds).
 func (m *Manager) TriggerRematch(pokemonID string, windowSec int) error {
 	if m.sidecar == nil {
-		return fmt.Errorf(errSidecarNotAvailable)
+		return errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.TriggerRematch(pokemonID, windowSec)
 }
@@ -464,7 +465,7 @@ func (m *Manager) TriggerRematch(pokemonID string, windowSec int) error {
 // (e.g. "screen", "window", "camera"). Returns nil when no sidecar is available.
 func (m *Manager) ListSources(sourceType string) ([]SourceInfo, error) {
 	if m.sidecar == nil {
-		return nil, fmt.Errorf(errSidecarNotAvailable)
+		return nil, errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.ListSources(sourceType)
 }
@@ -473,7 +474,7 @@ func (m *Manager) ListSources(sourceType string) ([]SourceInfo, error) {
 // sidecar and returns it as a decoded image. Useful for generating thumbnails.
 func (m *Manager) CaptureSourceFrame(sourceType, sourceID string, w, h int) (image.Image, error) {
 	if m.sidecar == nil {
-		return nil, fmt.Errorf(errSidecarNotAvailable)
+		return nil, errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.CaptureFrame(sourceType, sourceID, w, h)
 }

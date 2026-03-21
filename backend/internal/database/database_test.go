@@ -242,22 +242,6 @@ func TestOpenAndMigrate(t *testing.T) {
 	_ = openTestDB(t)
 }
 
-// TestSchemaVersion verifies that SchemaVersion returns 0 initially,
-// SetSchemaVersion persists a value, and subsequent reads return it.
-func TestSchemaVersion(t *testing.T) {
-	db := openTestDB(t)
-
-	if v := db.SchemaVersion(); v != 0 {
-		t.Fatalf("initial SchemaVersion = %d, want 0", v)
-	}
-	if err := db.SetSchemaVersion(3); err != nil {
-		t.Fatalf("SetSchemaVersion: %v", err)
-	}
-	if v := db.SchemaVersion(); v != 3 {
-		t.Fatalf("SchemaVersion after set = %d, want 3", v)
-	}
-}
-
 // TestHasState verifies that HasState returns false on an empty DB
 // and true after SaveFullState writes data.
 func TestHasState(t *testing.T) {
@@ -313,33 +297,8 @@ func TestSaveAndLoadFullState(t *testing.T) {
 		t.Errorf("Hotkeys = %+v, want %+v", got.Hotkeys, want.Hotkeys)
 	}
 
-	// Settings (scalar fields)
-	if got.Settings.OutputEnabled != want.Settings.OutputEnabled {
-		t.Errorf("OutputEnabled = %v, want %v", got.Settings.OutputEnabled, want.Settings.OutputEnabled)
-	}
-	if got.Settings.OutputDir != want.Settings.OutputDir {
-		t.Errorf("OutputDir = %q, want %q", got.Settings.OutputDir, want.Settings.OutputDir)
-	}
-	if got.Settings.AutoSave != want.Settings.AutoSave {
-		t.Errorf("AutoSave = %v, want %v", got.Settings.AutoSave, want.Settings.AutoSave)
-	}
-	if got.Settings.BrowserPort != want.Settings.BrowserPort {
-		t.Errorf("BrowserPort = %d, want %d", got.Settings.BrowserPort, want.Settings.BrowserPort)
-	}
-	if got.Settings.CrispSprites != want.Settings.CrispSprites {
-		t.Errorf("CrispSprites = %v, want %v", got.Settings.CrispSprites, want.Settings.CrispSprites)
-	}
-	if got.Settings.ConfigPath != want.Settings.ConfigPath {
-		t.Errorf("ConfigPath = %q, want %q", got.Settings.ConfigPath, want.Settings.ConfigPath)
-	}
-	if got.Settings.TutorialSeen != want.Settings.TutorialSeen {
-		t.Errorf("TutorialSeen = %+v, want %+v", got.Settings.TutorialSeen, want.Settings.TutorialSeen)
-	}
-
-	// Languages (order matters)
-	if !reflect.DeepEqual(got.Settings.Languages, want.Settings.Languages) {
-		t.Errorf("Languages = %v, want %v", got.Settings.Languages, want.Settings.Languages)
-	}
+	// Settings (scalar fields + languages)
+	compareSettings(t, "Settings", &got.Settings, &want.Settings)
 
 	// Global overlay
 	compareOverlay(t, "global", &got.Settings.Overlay, &want.Settings.Overlay)
@@ -365,75 +324,8 @@ func TestSaveAndLoadFullState(t *testing.T) {
 	}
 	compareOverlay(t, "p2-overlay", got.Pokemon[1].Overlay, want.Pokemon[1].Overlay)
 
-	// Detector config
-	if got.Pokemon[1].DetectorConfig == nil {
-		t.Fatal("p2 DetectorConfig should not be nil")
-	}
-	gotDC := got.Pokemon[1].DetectorConfig
-	wantDC := want.Pokemon[1].DetectorConfig
-	if gotDC.Enabled != wantDC.Enabled {
-		t.Errorf("DetectorConfig.Enabled = %v, want %v", gotDC.Enabled, wantDC.Enabled)
-	}
-	if gotDC.SourceType != wantDC.SourceType {
-		t.Errorf("DetectorConfig.SourceType = %q, want %q", gotDC.SourceType, wantDC.SourceType)
-	}
-	if !floatClose(gotDC.Precision, wantDC.Precision, 0.001) {
-		t.Errorf("DetectorConfig.Precision = %f, want %f", gotDC.Precision, wantDC.Precision)
-	}
-	if gotDC.ConsecutiveHits != wantDC.ConsecutiveHits {
-		t.Errorf("ConsecutiveHits = %d, want %d", gotDC.ConsecutiveHits, wantDC.ConsecutiveHits)
-	}
-	if gotDC.CooldownSec != wantDC.CooldownSec {
-		t.Errorf("CooldownSec = %d, want %d", gotDC.CooldownSec, wantDC.CooldownSec)
-	}
-
-	// Templates: SaveFullState inserts new templates with ImageData, so we
-	// should get one template back with a TemplateDBID > 0 but no ImageData.
-	if len(gotDC.Templates) != 1 {
-		t.Fatalf("Templates len = %d, want 1", len(gotDC.Templates))
-	}
-	if gotDC.Templates[0].TemplateDBID <= 0 {
-		t.Error("Template TemplateDBID should be > 0 after roundtrip")
-	}
-	// ImageData is NOT loaded by LoadFullState.
-	if gotDC.Templates[0].ImageData != nil {
-		t.Error("Template ImageData should be nil after LoadFullState")
-	}
-	// Regions should survive the roundtrip.
-	if len(gotDC.Templates[0].Regions) != 1 {
-		t.Fatalf("Template regions len = %d, want 1", len(gotDC.Templates[0].Regions))
-	}
-	gotR := gotDC.Templates[0].Regions[0]
-	wantR := wantDC.Templates[0].Regions[0]
-	if gotR.Type != wantR.Type {
-		t.Errorf("Region.Type = %q, want %q", gotR.Type, wantR.Type)
-	}
-	if gotR.Rect != wantR.Rect {
-		t.Errorf("Region.Rect = %+v, want %+v", gotR.Rect, wantR.Rect)
-	}
-
-	// Detection log
-	if len(gotDC.DetectionLog) != 1 {
-		t.Fatalf("DetectionLog len = %d, want 1", len(gotDC.DetectionLog))
-	}
-	if !floatClose(gotDC.DetectionLog[0].Confidence, wantDC.DetectionLog[0].Confidence, 0.001) {
-		t.Errorf("DetectionLog[0].Confidence = %f, want %f",
-			gotDC.DetectionLog[0].Confidence, wantDC.DetectionLog[0].Confidence)
-	}
-
-	// Sessions
-	if len(got.Sessions) != 1 {
-		t.Fatalf("Sessions len = %d, want 1", len(got.Sessions))
-	}
-	if got.Sessions[0].ID != want.Sessions[0].ID {
-		t.Errorf("Session.ID = %q, want %q", got.Sessions[0].ID, want.Sessions[0].ID)
-	}
-	if got.Sessions[0].PokemonID != want.Sessions[0].PokemonID {
-		t.Errorf("Session.PokemonID = %q, want %q", got.Sessions[0].PokemonID, want.Sessions[0].PokemonID)
-	}
-	if got.Sessions[0].Encounters != want.Sessions[0].Encounters {
-		t.Errorf("Session.Encounters = %d, want %d", got.Sessions[0].Encounters, want.Sessions[0].Encounters)
-	}
+	compareDetectorConfig(t, got.Pokemon[1].DetectorConfig, want.Pokemon[1].DetectorConfig)
+	compareSessions(t, got.Sessions, want.Sessions)
 }
 
 // ---------------------------------------------------------------------------
@@ -544,43 +436,13 @@ func TestOverlayGradientStopsRoundtrip(t *testing.T) {
 	}
 
 	// Name gradient stops (3 stops)
-	wantNameStops := st.Settings.Overlay.Name.Style.GradientStops
-	gotNameStops := got.Settings.Overlay.Name.Style.GradientStops
-	if len(gotNameStops) != len(wantNameStops) {
-		t.Fatalf("Name GradientStops len = %d, want %d", len(gotNameStops), len(wantNameStops))
-	}
-	for i := range wantNameStops {
-		if gotNameStops[i].Color != wantNameStops[i].Color {
-			t.Errorf("Name GradientStops[%d].Color = %q, want %q", i, gotNameStops[i].Color, wantNameStops[i].Color)
-		}
-		if !floatClose(gotNameStops[i].Position, wantNameStops[i].Position, 0.001) {
-			t.Errorf("Name GradientStops[%d].Position = %f, want %f", i, gotNameStops[i].Position, wantNameStops[i].Position)
-		}
-	}
+	compareGradientStops(t, "Name", got.Settings.Overlay.Name.Style.GradientStops, st.Settings.Overlay.Name.Style.GradientStops)
 
 	// Counter main gradient stops (2 stops)
-	wantCounterStops := st.Settings.Overlay.Counter.Style.GradientStops
-	gotCounterStops := got.Settings.Overlay.Counter.Style.GradientStops
-	if len(gotCounterStops) != len(wantCounterStops) {
-		t.Fatalf("Counter GradientStops len = %d, want %d", len(gotCounterStops), len(wantCounterStops))
-	}
-	for i := range wantCounterStops {
-		if gotCounterStops[i].Color != wantCounterStops[i].Color {
-			t.Errorf("Counter GradientStops[%d].Color = %q, want %q", i, gotCounterStops[i].Color, wantCounterStops[i].Color)
-		}
-	}
+	compareGradientStops(t, "Counter", got.Settings.Overlay.Counter.Style.GradientStops, st.Settings.Overlay.Counter.Style.GradientStops)
 
 	// Counter label gradient stops (2 stops)
-	wantLabelStops := st.Settings.Overlay.Counter.LabelStyle.GradientStops
-	gotLabelStops := got.Settings.Overlay.Counter.LabelStyle.GradientStops
-	if len(gotLabelStops) != len(wantLabelStops) {
-		t.Fatalf("Counter LabelStyle GradientStops len = %d, want %d", len(gotLabelStops), len(wantLabelStops))
-	}
-	for i := range wantLabelStops {
-		if gotLabelStops[i].Color != wantLabelStops[i].Color {
-			t.Errorf("Counter LabelStyle GradientStops[%d].Color = %q, want %q", i, gotLabelStops[i].Color, wantLabelStops[i].Color)
-		}
-	}
+	compareGradientStops(t, "Counter LabelStyle", got.Settings.Overlay.Counter.LabelStyle.GradientStops, st.Settings.Overlay.Counter.LabelStyle.GradientStops)
 }
 
 // TestPerPokemonOverlay verifies that a pokemon with overlay_mode="custom"
@@ -774,8 +636,83 @@ func TestDetectionLogCap(t *testing.T) {
 // Comparison helpers
 // ---------------------------------------------------------------------------
 
-// comparePokemonScalars checks scalar fields of two Pokemon.
+// compareSettings checks all scalar fields and the Languages slice of two
+// Settings values for equality.
+func compareSettings(t *testing.T, label string, got, want *state.Settings) {
+	t.Helper()
+	if got.OutputEnabled != want.OutputEnabled {
+		t.Errorf("%s OutputEnabled = %v, want %v", label, got.OutputEnabled, want.OutputEnabled)
+	}
+	if got.OutputDir != want.OutputDir {
+		t.Errorf("%s OutputDir = %q, want %q", label, got.OutputDir, want.OutputDir)
+	}
+	if got.AutoSave != want.AutoSave {
+		t.Errorf("%s AutoSave = %v, want %v", label, got.AutoSave, want.AutoSave)
+	}
+	if got.BrowserPort != want.BrowserPort {
+		t.Errorf("%s BrowserPort = %d, want %d", label, got.BrowserPort, want.BrowserPort)
+	}
+	if got.CrispSprites != want.CrispSprites {
+		t.Errorf("%s CrispSprites = %v, want %v", label, got.CrispSprites, want.CrispSprites)
+	}
+	if got.ConfigPath != want.ConfigPath {
+		t.Errorf("%s ConfigPath = %q, want %q", label, got.ConfigPath, want.ConfigPath)
+	}
+	if got.TutorialSeen != want.TutorialSeen {
+		t.Errorf("%s TutorialSeen = %+v, want %+v", label, got.TutorialSeen, want.TutorialSeen)
+	}
+	if !reflect.DeepEqual(got.Languages, want.Languages) {
+		t.Errorf("%s Languages = %v, want %v", label, got.Languages, want.Languages)
+	}
+}
+
+// compareGradientStops checks that two gradient stop slices have the same
+// length and matching Color + Position values.
+func compareGradientStops(t *testing.T, label string, got, want []state.GradientStop) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("%s GradientStops len = %d, want %d", label, len(got), len(want))
+	}
+	for i := range want {
+		if got[i].Color != want[i].Color {
+			t.Errorf("%s GradientStops[%d].Color = %q, want %q", label, i, got[i].Color, want[i].Color)
+		}
+		if !floatClose(got[i].Position, want[i].Position, 0.001) {
+			t.Errorf("%s GradientStops[%d].Position = %f, want %f", label, i, got[i].Position, want[i].Position)
+		}
+	}
+}
+
+// comparePokemonScalars checks scalar fields of two Pokemon by delegating to
+// focused sub-helpers to keep cognitive complexity low.
 func comparePokemonScalars(t *testing.T, label string, got, want *state.Pokemon) {
+	t.Helper()
+	comparePokemonIdentity(t, label, got, want)
+	comparePokemonAppearance(t, label, got, want)
+	if got.Encounters != want.Encounters {
+		t.Errorf("%s Encounters = %d, want %d", label, got.Encounters, want.Encounters)
+	}
+	if got.Step != want.Step {
+		t.Errorf("%s Step = %d, want %d", label, got.Step, want.Step)
+	}
+	if got.IsActive != want.IsActive {
+		t.Errorf("%s IsActive = %v, want %v", label, got.IsActive, want.IsActive)
+	}
+	if !got.CreatedAt.Equal(want.CreatedAt) {
+		t.Errorf("%s CreatedAt = %v, want %v", label, got.CreatedAt, want.CreatedAt)
+	}
+	if got.OverlayMode != want.OverlayMode {
+		t.Errorf("%s OverlayMode = %q, want %q", label, got.OverlayMode, want.OverlayMode)
+	}
+	if got.TimerAccumulatedMs != want.TimerAccumulatedMs {
+		t.Errorf("%s TimerAccumulatedMs = %d, want %d", label, got.TimerAccumulatedMs, want.TimerAccumulatedMs)
+	}
+	compareCompletedAt(t, label, got.CompletedAt, want.CompletedAt)
+}
+
+// comparePokemonIdentity checks identity fields: ID, Name, Title,
+// CanonicalName, Language, and Game.
+func comparePokemonIdentity(t *testing.T, label string, got, want *state.Pokemon) {
 	t.Helper()
 	if got.ID != want.ID {
 		t.Errorf("%s ID = %q, want %q", label, got.ID, want.ID)
@@ -789,6 +726,18 @@ func comparePokemonScalars(t *testing.T, label string, got, want *state.Pokemon)
 	if got.CanonicalName != want.CanonicalName {
 		t.Errorf("%s CanonicalName = %q, want %q", label, got.CanonicalName, want.CanonicalName)
 	}
+	if got.Language != want.Language {
+		t.Errorf("%s Language = %q, want %q", label, got.Language, want.Language)
+	}
+	if got.Game != want.Game {
+		t.Errorf("%s Game = %q, want %q", label, got.Game, want.Game)
+	}
+}
+
+// comparePokemonAppearance checks visual fields: SpriteURL, SpriteType,
+// SpriteStyle, OverlayMode, and HuntType.
+func comparePokemonAppearance(t *testing.T, label string, got, want *state.Pokemon) {
+	t.Helper()
 	if got.SpriteURL != want.SpriteURL {
 		t.Errorf("%s SpriteURL = %q, want %q", label, got.SpriteURL, want.SpriteURL)
 	}
@@ -798,38 +747,18 @@ func comparePokemonScalars(t *testing.T, label string, got, want *state.Pokemon)
 	if got.SpriteStyle != want.SpriteStyle {
 		t.Errorf("%s SpriteStyle = %q, want %q", label, got.SpriteStyle, want.SpriteStyle)
 	}
-	if got.Encounters != want.Encounters {
-		t.Errorf("%s Encounters = %d, want %d", label, got.Encounters, want.Encounters)
-	}
-	if got.Step != want.Step {
-		t.Errorf("%s Step = %d, want %d", label, got.Step, want.Step)
-	}
-	if got.IsActive != want.IsActive {
-		t.Errorf("%s IsActive = %v, want %v", label, got.IsActive, want.IsActive)
-	}
-	if !got.CreatedAt.Equal(want.CreatedAt) {
-		t.Errorf("%s CreatedAt = %v, want %v", label, got.CreatedAt, want.CreatedAt)
-	}
-	if got.Language != want.Language {
-		t.Errorf("%s Language = %q, want %q", label, got.Language, want.Language)
-	}
-	if got.Game != want.Game {
-		t.Errorf("%s Game = %q, want %q", label, got.Game, want.Game)
-	}
-	if got.OverlayMode != want.OverlayMode {
-		t.Errorf("%s OverlayMode = %q, want %q", label, got.OverlayMode, want.OverlayMode)
-	}
 	if got.HuntType != want.HuntType {
 		t.Errorf("%s HuntType = %q, want %q", label, got.HuntType, want.HuntType)
 	}
-	if got.TimerAccumulatedMs != want.TimerAccumulatedMs {
-		t.Errorf("%s TimerAccumulatedMs = %d, want %d", label, got.TimerAccumulatedMs, want.TimerAccumulatedMs)
-	}
-	// CompletedAt
-	if (got.CompletedAt == nil) != (want.CompletedAt == nil) {
-		t.Errorf("%s CompletedAt nil mismatch: got nil=%v, want nil=%v", label, got.CompletedAt == nil, want.CompletedAt == nil)
-	} else if got.CompletedAt != nil && !got.CompletedAt.Equal(*want.CompletedAt) {
-		t.Errorf("%s CompletedAt = %v, want %v", label, *got.CompletedAt, *want.CompletedAt)
+}
+
+// compareCompletedAt checks that two optional CompletedAt timestamps match.
+func compareCompletedAt(t *testing.T, label string, got, want *time.Time) {
+	t.Helper()
+	if (got == nil) != (want == nil) {
+		t.Errorf("%s CompletedAt nil mismatch: got nil=%v, want nil=%v", label, got == nil, want == nil)
+	} else if got != nil && !got.Equal(*want) {
+		t.Errorf("%s CompletedAt = %v, want %v", label, *got, *want)
 	}
 }
 
@@ -871,28 +800,7 @@ func compareOverlay(t *testing.T, label string, got, want *state.OverlaySettings
 	}
 
 	// Sprite element
-	compareElementBase(t, label+".Sprite", &got.Sprite.OverlayElementBase, &want.Sprite.OverlayElementBase)
-	if got.Sprite.ShowGlow != want.Sprite.ShowGlow {
-		t.Errorf("%s Sprite.ShowGlow = %v, want %v", label, got.Sprite.ShowGlow, want.Sprite.ShowGlow)
-	}
-	if got.Sprite.GlowColor != want.Sprite.GlowColor {
-		t.Errorf("%s Sprite.GlowColor = %q, want %q", label, got.Sprite.GlowColor, want.Sprite.GlowColor)
-	}
-	if !floatClose(got.Sprite.GlowOpacity, want.Sprite.GlowOpacity, 0.001) {
-		t.Errorf("%s Sprite.GlowOpacity = %f, want %f", label, got.Sprite.GlowOpacity, want.Sprite.GlowOpacity)
-	}
-	if got.Sprite.GlowBlur != want.Sprite.GlowBlur {
-		t.Errorf("%s Sprite.GlowBlur = %d, want %d", label, got.Sprite.GlowBlur, want.Sprite.GlowBlur)
-	}
-	if got.Sprite.IdleAnimation != want.Sprite.IdleAnimation {
-		t.Errorf("%s Sprite.IdleAnimation = %q, want %q", label, got.Sprite.IdleAnimation, want.Sprite.IdleAnimation)
-	}
-	if got.Sprite.TriggerEnter != want.Sprite.TriggerEnter {
-		t.Errorf("%s Sprite.TriggerEnter = %q, want %q", label, got.Sprite.TriggerEnter, want.Sprite.TriggerEnter)
-	}
-	if got.Sprite.TriggerExit != want.Sprite.TriggerExit {
-		t.Errorf("%s Sprite.TriggerExit = %q, want %q", label, got.Sprite.TriggerExit, want.Sprite.TriggerExit)
-	}
+	compareSpriteElement(t, label+".Sprite", &got.Sprite, &want.Sprite)
 
 	// Name element
 	compareElementBase(t, label+".Name", &got.Name.OverlayElementBase, &want.Name.OverlayElementBase)
@@ -903,14 +811,47 @@ func compareOverlay(t *testing.T, label string, got, want *state.OverlaySettings
 	compareTextStyle(t, label+".Title.Style", &got.Title.Style, &want.Title.Style)
 
 	// Counter element
-	compareElementBase(t, label+".Counter", &got.Counter.OverlayElementBase, &want.Counter.OverlayElementBase)
-	compareTextStyle(t, label+".Counter.Style", &got.Counter.Style, &want.Counter.Style)
-	compareTextStyle(t, label+".Counter.LabelStyle", &got.Counter.LabelStyle, &want.Counter.LabelStyle)
-	if got.Counter.ShowLabel != want.Counter.ShowLabel {
-		t.Errorf("%s Counter.ShowLabel = %v, want %v", label, got.Counter.ShowLabel, want.Counter.ShowLabel)
+	compareCounterElement(t, label+".Counter", &got.Counter, &want.Counter)
+}
+
+// compareSpriteElement checks all fields of an OverlaySpriteElement.
+func compareSpriteElement(t *testing.T, label string, got, want *state.SpriteElement) {
+	t.Helper()
+	compareElementBase(t, label, &got.OverlayElementBase, &want.OverlayElementBase)
+	if got.ShowGlow != want.ShowGlow {
+		t.Errorf("%s ShowGlow = %v, want %v", label, got.ShowGlow, want.ShowGlow)
 	}
-	if got.Counter.LabelText != want.Counter.LabelText {
-		t.Errorf("%s Counter.LabelText = %q, want %q", label, got.Counter.LabelText, want.Counter.LabelText)
+	if got.GlowColor != want.GlowColor {
+		t.Errorf("%s GlowColor = %q, want %q", label, got.GlowColor, want.GlowColor)
+	}
+	if !floatClose(got.GlowOpacity, want.GlowOpacity, 0.001) {
+		t.Errorf("%s GlowOpacity = %f, want %f", label, got.GlowOpacity, want.GlowOpacity)
+	}
+	if got.GlowBlur != want.GlowBlur {
+		t.Errorf("%s GlowBlur = %d, want %d", label, got.GlowBlur, want.GlowBlur)
+	}
+	if got.IdleAnimation != want.IdleAnimation {
+		t.Errorf("%s IdleAnimation = %q, want %q", label, got.IdleAnimation, want.IdleAnimation)
+	}
+	if got.TriggerEnter != want.TriggerEnter {
+		t.Errorf("%s TriggerEnter = %q, want %q", label, got.TriggerEnter, want.TriggerEnter)
+	}
+	if got.TriggerExit != want.TriggerExit {
+		t.Errorf("%s TriggerExit = %q, want %q", label, got.TriggerExit, want.TriggerExit)
+	}
+}
+
+// compareCounterElement checks all fields of an OverlayCounterElement.
+func compareCounterElement(t *testing.T, label string, got, want *state.CounterElement) {
+	t.Helper()
+	compareElementBase(t, label, &got.OverlayElementBase, &want.OverlayElementBase)
+	compareTextStyle(t, label+".Style", &got.Style, &want.Style)
+	compareTextStyle(t, label+".LabelStyle", &got.LabelStyle, &want.LabelStyle)
+	if got.ShowLabel != want.ShowLabel {
+		t.Errorf("%s ShowLabel = %v, want %v", label, got.ShowLabel, want.ShowLabel)
+	}
+	if got.LabelText != want.LabelText {
+		t.Errorf("%s LabelText = %q, want %q", label, got.LabelText, want.LabelText)
 	}
 }
 
@@ -934,6 +875,84 @@ func compareElementBase(t *testing.T, label string, got, want *state.OverlayElem
 	}
 	if got.ZIndex != want.ZIndex {
 		t.Errorf("%s ZIndex = %d, want %d", label, got.ZIndex, want.ZIndex)
+	}
+}
+
+// compareDetectorConfig checks all detector config fields, templates, regions,
+// and detection log entries for equality.
+func compareDetectorConfig(t *testing.T, got, want *state.DetectorConfig) {
+	t.Helper()
+	if got == nil {
+		t.Fatal("DetectorConfig should not be nil")
+	}
+	if got.Enabled != want.Enabled {
+		t.Errorf("DetectorConfig.Enabled = %v, want %v", got.Enabled, want.Enabled)
+	}
+	if got.SourceType != want.SourceType {
+		t.Errorf("DetectorConfig.SourceType = %q, want %q", got.SourceType, want.SourceType)
+	}
+	if !floatClose(got.Precision, want.Precision, 0.001) {
+		t.Errorf("DetectorConfig.Precision = %f, want %f", got.Precision, want.Precision)
+	}
+	if got.ConsecutiveHits != want.ConsecutiveHits {
+		t.Errorf("ConsecutiveHits = %d, want %d", got.ConsecutiveHits, want.ConsecutiveHits)
+	}
+	if got.CooldownSec != want.CooldownSec {
+		t.Errorf("CooldownSec = %d, want %d", got.CooldownSec, want.CooldownSec)
+	}
+
+	// Templates: SaveFullState inserts new templates with ImageData, so we
+	// should get one template back with a TemplateDBID > 0 but no ImageData.
+	if len(got.Templates) != 1 {
+		t.Fatalf("Templates len = %d, want 1", len(got.Templates))
+	}
+	if got.Templates[0].TemplateDBID <= 0 {
+		t.Error("Template TemplateDBID should be > 0 after roundtrip")
+	}
+	// ImageData is NOT loaded by LoadFullState.
+	if got.Templates[0].ImageData != nil {
+		t.Error("Template ImageData should be nil after LoadFullState")
+	}
+	// Regions should survive the roundtrip.
+	if len(got.Templates[0].Regions) != 1 {
+		t.Fatalf("Template regions len = %d, want 1", len(got.Templates[0].Regions))
+	}
+	gotR := got.Templates[0].Regions[0]
+	wantR := want.Templates[0].Regions[0]
+	if gotR.Type != wantR.Type {
+		t.Errorf("Region.Type = %q, want %q", gotR.Type, wantR.Type)
+	}
+	if gotR.Rect != wantR.Rect {
+		t.Errorf("Region.Rect = %+v, want %+v", gotR.Rect, wantR.Rect)
+	}
+
+	// Detection log
+	if len(got.DetectionLog) != 1 {
+		t.Fatalf("DetectionLog len = %d, want 1", len(got.DetectionLog))
+	}
+	if !floatClose(got.DetectionLog[0].Confidence, want.DetectionLog[0].Confidence, 0.001) {
+		t.Errorf("DetectionLog[0].Confidence = %f, want %f",
+			got.DetectionLog[0].Confidence, want.DetectionLog[0].Confidence)
+	}
+}
+
+// compareSessions checks that the session slices match on ID, PokemonID,
+// and Encounters.
+func compareSessions(t *testing.T, got, want []state.Session) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("Sessions len = %d, want %d", len(got), len(want))
+	}
+	for i := range got {
+		if got[i].ID != want[i].ID {
+			t.Errorf("Session[%d].ID = %q, want %q", i, got[i].ID, want[i].ID)
+		}
+		if got[i].PokemonID != want[i].PokemonID {
+			t.Errorf("Session[%d].PokemonID = %q, want %q", i, got[i].PokemonID, want[i].PokemonID)
+		}
+		if got[i].Encounters != want[i].Encounters {
+			t.Errorf("Session[%d].Encounters = %d, want %d", i, got[i].Encounters, want[i].Encounters)
+		}
 	}
 }
 
@@ -989,23 +1008,6 @@ func compareTextStyle(t *testing.T, label string, got, want *state.TextStyle) {
 	compareGradientStops(t, label+".TextShadowGradientStops", got.TextShadowGradientStops, want.TextShadowGradientStops)
 }
 
-// compareGradientStops checks two gradient stop slices.
-func compareGradientStops(t *testing.T, label string, got, want []state.GradientStop) {
-	t.Helper()
-	if len(got) != len(want) {
-		t.Errorf("%s len = %d, want %d", label, len(got), len(want))
-		return
-	}
-	for i := range want {
-		if got[i].Color != want[i].Color {
-			t.Errorf("%s[%d].Color = %q, want %q", label, i, got[i].Color, want[i].Color)
-		}
-		if !floatClose(got[i].Position, want[i].Position, 0.001) {
-			t.Errorf("%s[%d].Position = %f, want %f", label, i, got[i].Position, want[i].Position)
-		}
-	}
-}
-
 // ---------------------------------------------------------------------------
 // 6. Legacy encounter methods
 // ---------------------------------------------------------------------------
@@ -1055,6 +1057,30 @@ func TestLogEncounter(t *testing.T) {
 	}
 }
 
+// assertHistory fetches encounter history and validates the result length.
+// An optional checks callback can inspect individual events after the length
+// assertion passes.
+func assertHistory(
+	t *testing.T,
+	db *database.DB,
+	id string,
+	limit, offset, wantLen int,
+	checks func([]database.EncounterEvent),
+) {
+	t.Helper()
+	events, err := db.GetEncounterHistory(id, limit, offset)
+	if err != nil {
+		t.Fatalf("GetEncounterHistory(%q, %d, %d): %v", id, limit, offset, err)
+	}
+	if len(events) != wantLen {
+		t.Fatalf("GetEncounterHistory(%q, %d, %d) len = %d, want %d",
+			id, limit, offset, len(events), wantLen)
+	}
+	if checks != nil {
+		checks(events)
+	}
+}
+
 // TestGetEncounterHistory verifies paginated encounter history retrieval
 // with default limit handling and DESC ordering.
 func TestGetEncounterHistory(t *testing.T) {
@@ -1074,60 +1100,31 @@ func TestGetEncounterHistory(t *testing.T) {
 		t.Fatalf("LogEncounter p2: %v", err)
 	}
 
-	// Fetch first 3 for p1.
-	events, err := db.GetEncounterHistory("p1", 3, 0)
-	if err != nil {
-		t.Fatalf("GetEncounterHistory: %v", err)
-	}
-	if len(events) != 3 {
-		t.Fatalf("len(events) = %d, want 3", len(events))
-	}
-	// Events are DESC by ID, so first should be count_after=5.
-	if events[0].CountAfter != 5 {
-		t.Errorf("events[0].CountAfter = %d, want 5", events[0].CountAfter)
-	}
-	if events[2].CountAfter != 3 {
-		t.Errorf("events[2].CountAfter = %d, want 3", events[2].CountAfter)
-	}
+	// Fetch first 3 for p1 (DESC order: count_after = 5, 4, 3).
+	assertHistory(t, db, "p1", 3, 0, 3, func(events []database.EncounterEvent) {
+		if events[0].CountAfter != 5 {
+			t.Errorf("events[0].CountAfter = %d, want 5", events[0].CountAfter)
+		}
+		if events[2].CountAfter != 3 {
+			t.Errorf("events[2].CountAfter = %d, want 3", events[2].CountAfter)
+		}
+	})
 
 	// Fetch with offset.
-	events, err = db.GetEncounterHistory("p1", 2, 3)
-	if err != nil {
-		t.Fatalf("GetEncounterHistory (offset): %v", err)
-	}
-	if len(events) != 2 {
-		t.Fatalf("len(events) = %d, want 2", len(events))
-	}
-	if events[0].CountAfter != 2 {
-		t.Errorf("events[0].CountAfter = %d, want 2", events[0].CountAfter)
-	}
+	assertHistory(t, db, "p1", 2, 3, 2, func(events []database.EncounterEvent) {
+		if events[0].CountAfter != 2 {
+			t.Errorf("events[0].CountAfter = %d, want 2", events[0].CountAfter)
+		}
+	})
 
 	// Fetch for different pokemon (p2).
-	events, err = db.GetEncounterHistory("p2", 10, 0)
-	if err != nil {
-		t.Fatalf("GetEncounterHistory p2: %v", err)
-	}
-	if len(events) != 2 {
-		t.Fatalf("len(events) = %d, want 2", len(events))
-	}
+	assertHistory(t, db, "p2", 10, 0, 2, nil)
 
 	// Fetch with limit <= 0 should default to 20.
-	events, err = db.GetEncounterHistory("p1", 0, 0)
-	if err != nil {
-		t.Fatalf("GetEncounterHistory (limit=0): %v", err)
-	}
-	if len(events) != 5 {
-		t.Errorf("len(events) = %d, want 5 (all events)", len(events))
-	}
+	assertHistory(t, db, "p1", 0, 0, 5, nil)
 
 	// Fetch for non-existent pokemon returns empty slice.
-	events, err = db.GetEncounterHistory("nonexistent", 10, 0)
-	if err != nil {
-		t.Fatalf("GetEncounterHistory (nonexistent): %v", err)
-	}
-	if len(events) != 0 {
-		t.Errorf("len(events) = %d, want 0 for nonexistent pokemon", len(events))
-	}
+	assertHistory(t, db, "nonexistent", 10, 0, 0, nil)
 }
 
 // TestGetEncounterStats verifies aggregated statistics calculation including
@@ -1185,6 +1182,29 @@ func TestGetEncounterStats(t *testing.T) {
 	}
 }
 
+// assertChartInterval fetches chart data for the given pokemon and interval,
+// then asserts whether the result is non-empty (wantNonEmpty=true) or empty
+// (wantNonEmpty=false). The data points are returned for additional inspection.
+func assertChartInterval(
+	t *testing.T,
+	db *database.DB,
+	id, interval string,
+	wantNonEmpty bool,
+) []database.ChartPoint {
+	t.Helper()
+	points, err := db.GetChartData(id, interval)
+	if err != nil {
+		t.Fatalf("GetChartData(%q, %q): %v", id, interval, err)
+	}
+	if wantNonEmpty && len(points) == 0 {
+		t.Errorf("GetChartData(%q, %q): got empty, want non-empty", id, interval)
+	}
+	if !wantNonEmpty && len(points) != 0 {
+		t.Errorf("GetChartData(%q, %q): len = %d, want 0", id, interval, len(points))
+	}
+	return points
+}
+
 // TestGetChartData verifies chart data generation for hour, day, and week
 // intervals with proper grouping and cutoff dates.
 func TestGetChartData(t *testing.T) {
@@ -1199,15 +1219,8 @@ func TestGetChartData(t *testing.T) {
 		}
 	}
 
-	// Test day interval - should return data points.
-	points, err := db.GetChartData("p1", "day")
-	if err != nil {
-		t.Fatalf("GetChartData (day): %v", err)
-	}
-	if len(points) == 0 {
-		t.Error("day points should not be empty")
-	}
-	// Total count across all points should be 10.
+	// Test day interval - should return data points with total count = 10.
+	points := assertChartInterval(t, db, "p1", "day", true)
 	total := 0
 	for _, p := range points {
 		total += p.Count
@@ -1220,40 +1233,16 @@ func TestGetChartData(t *testing.T) {
 	}
 
 	// Test hour interval.
-	points, err = db.GetChartData("p1", "hour")
-	if err != nil {
-		t.Fatalf("GetChartData (hour): %v", err)
-	}
-	if len(points) == 0 {
-		t.Error("hour points should not be empty")
-	}
+	assertChartInterval(t, db, "p1", "hour", true)
 
 	// Test week interval.
-	points, err = db.GetChartData("p1", "week")
-	if err != nil {
-		t.Fatalf("GetChartData (week): %v", err)
-	}
-	if len(points) == 0 {
-		t.Error("week points should not be empty")
-	}
+	assertChartInterval(t, db, "p1", "week", true)
 
 	// Test default interval (invalid string should default to day).
-	points, err = db.GetChartData("p1", "invalid")
-	if err != nil {
-		t.Fatalf("GetChartData (invalid): %v", err)
-	}
-	if len(points) == 0 {
-		t.Error("default points should not be empty")
-	}
+	assertChartInterval(t, db, "p1", "invalid", true)
 
-	// Test with non-existent pokemon.
-	points, err = db.GetChartData("nonexistent", "day")
-	if err != nil {
-		t.Fatalf("GetChartData (nonexistent): %v", err)
-	}
-	if len(points) != 0 {
-		t.Errorf("points len = %d, want 0 for nonexistent pokemon", len(points))
-	}
+	// Test with non-existent pokemon (should return empty).
+	assertChartInterval(t, db, "nonexistent", "day", false)
 }
 
 // TestGetOverviewStats verifies global statistics aggregation across

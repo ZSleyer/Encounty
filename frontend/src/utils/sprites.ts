@@ -217,6 +217,85 @@ function getOfficialArtworkUrl(pokemonId: number, shiny = false): string {
     : `${POKEAPI_BASE}/other/official-artwork/${pokemonId}.png`;
 }
 
+/** Predicate + path builder pair used by the classic sprite lookup table. */
+interface ClassicSpriteRule {
+  match: (key: string) => boolean;
+  /** Return the URL, or null to skip to the next rule. */
+  url: (id: number, shinyPart: string, canonicalName?: string) => string | null;
+}
+
+/**
+ * Ordered lookup table for classic (version-specific) sprite resolution.
+ * Each rule matches a game key pattern and returns the corresponding PokeAPI path.
+ * Order matters: BDSP must be checked before generic diamond/pearl, etc.
+ */
+const CLASSIC_SPRITE_RULES: ClassicSpriteRule[] = [
+  // Gen 1
+  {
+    match: (k) => (k.includes("red") && !k.includes("firered")) || k === "pokemon-blue",
+    url: (id) => `${POKEAPI_BASE}/versions/generation-i/red-blue/transparent/${id}.png`,
+  },
+  {
+    match: (k) => k.includes("yellow"),
+    url: (id) => `${POKEAPI_BASE}/versions/generation-i/yellow/transparent/${id}.png`,
+  },
+  // Gen 2
+  {
+    match: (k) => k.includes("crystal"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-ii/crystal/transparent/${sp}${id}.png`,
+  },
+  {
+    match: (k) => k.includes("gold") && !k.includes("heartgold"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-ii/gold/transparent/${sp}${id}.png`,
+  },
+  {
+    match: (k) => k.includes("silver") && !k.includes("soulsilver"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-ii/silver/transparent/${sp}${id}.png`,
+  },
+  // Gen 3
+  {
+    match: (k) => k.includes("emerald"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iii/emerald/${sp}${id}.png`,
+  },
+  {
+    match: (k) => k.includes("firered") || k.includes("leafgreen"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iii/firered-leafgreen/${sp}${id}.png`,
+  },
+  {
+    match: (k) => (k.includes("ruby") && !k.includes("omegaruby") && !k.includes("omega-ruby"))
+      || (k.includes("sapphire") && !k.includes("alphasapphire") && !k.includes("alpha-sapphire")),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/${sp}${id}.png`,
+  },
+  // Gen 4 — BDSP remakes (must precede generic diamond/pearl)
+  {
+    match: (k) => k.includes("brilliant") || k.includes("shining") || k === "pokemon-bd" || k === "pokemon-sp",
+    url: (id, sp, cn) => {
+      if (sp) {
+        const slug = (cn || String(id)).toLowerCase();
+        return `${SHOWDOWN_BASE}/dex-shiny/${slug}.png`;
+      }
+      return `${POKEAPI_BASE}/versions/generation-viii/brilliant-diamond-shining-pearl/${id}.png`;
+    },
+  },
+  {
+    match: (k) => k.includes("diamond") || k.includes("pearl"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iv/diamond-pearl/${sp}${id}.png`,
+  },
+  {
+    match: (k) => k.includes("platinum"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iv/platinum/${sp}${id}.png`,
+  },
+  {
+    match: (k) => k.includes("heartgold") || k.includes("soulsilver"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-iv/heartgold-soulsilver/${sp}${id}.png`,
+  },
+  // Gen 5
+  {
+    match: (k) => k.includes("black") || k.includes("white"),
+    url: (id, sp) => `${POKEAPI_BASE}/versions/generation-v/black-white/animated/${sp}${id}.gif`,
+  },
+];
+
 /**
  * Classic version-specific sprite from PokeAPI GitHub (Gen 1-5 only).
  * Gen 6+ falls through to Showdown dex renders.
@@ -228,7 +307,7 @@ function getClassicSpriteUrl(
   canonicalName?: string,
 ): string {
   const shinyPart = shiny ? "shiny/" : "";
-  gameKey = gameKey || "";
+  const key = gameKey || "";
 
   // Form variants (IDs > 10000) — always use default path
   if (pokemonId > 10000) {
@@ -237,81 +316,15 @@ function getClassicSpriteUrl(
       : `${POKEAPI_BASE}/${pokemonId}.png`;
   }
 
-  // ── Gen 1 ────────────────────────────────────────────────────────────
-  if (
-    (gameKey.includes("red") && !gameKey.includes("firered")) ||
-    gameKey === "pokemon-blue"
-  ) {
-    return `${POKEAPI_BASE}/versions/generation-i/red-blue/transparent/${pokemonId}.png`;
-  }
-  if (gameKey.includes("yellow")) {
-    return `${POKEAPI_BASE}/versions/generation-i/yellow/transparent/${pokemonId}.png`;
-  }
-
-  // ── Gen 2 ────────────────────────────────────────────────────────────
-  if (gameKey.includes("crystal")) {
-    return `${POKEAPI_BASE}/versions/generation-ii/crystal/transparent/${shinyPart}${pokemonId}.png`;
-  }
-  if (gameKey.includes("gold") && !gameKey.includes("heartgold")) {
-    return `${POKEAPI_BASE}/versions/generation-ii/gold/transparent/${shinyPart}${pokemonId}.png`;
-  }
-  if (gameKey.includes("silver") && !gameKey.includes("soulsilver")) {
-    return `${POKEAPI_BASE}/versions/generation-ii/silver/transparent/${shinyPart}${pokemonId}.png`;
-  }
-
-  // ── Gen 3 ────────────────────────────────────────────────────────────
-  if (gameKey.includes("emerald")) {
-    return `${POKEAPI_BASE}/versions/generation-iii/emerald/${shinyPart}${pokemonId}.png`;
-  }
-  if (gameKey.includes("firered") || gameKey.includes("leafgreen")) {
-    return `${POKEAPI_BASE}/versions/generation-iii/firered-leafgreen/${shinyPart}${pokemonId}.png`;
-  }
-  if (
-    gameKey.includes("ruby") &&
-    !gameKey.includes("omegaruby") &&
-    !gameKey.includes("omega-ruby")
-  ) {
-    return `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/${shinyPart}${pokemonId}.png`;
-  }
-  if (
-    gameKey.includes("sapphire") &&
-    !gameKey.includes("alphasapphire") &&
-    !gameKey.includes("alpha-sapphire")
-  ) {
-    return `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/${shinyPart}${pokemonId}.png`;
-  }
-
-  // ── Gen 4 ────────────────────────────────────────────────────────────
-  // BDSP (Gen 8 remakes) — must check BEFORE generic diamond/pearl
-  if (
-    gameKey.includes("brilliant") ||
-    gameKey.includes("shining") ||
-    gameKey === "pokemon-bd" ||
-    gameKey === "pokemon-sp"
-  ) {
-    if (shiny) {
-      const slug = (canonicalName || String(pokemonId)).toLowerCase();
-      return `${SHOWDOWN_BASE}/dex-shiny/${slug}.png`;
+  // Walk the ordered rule table; first match wins
+  for (const rule of CLASSIC_SPRITE_RULES) {
+    if (rule.match(key)) {
+      const result = rule.url(pokemonId, shinyPart, canonicalName);
+      if (result) return result;
     }
-    return `${POKEAPI_BASE}/versions/generation-viii/brilliant-diamond-shining-pearl/${pokemonId}.png`;
-  }
-  if (gameKey.includes("diamond") || gameKey.includes("pearl")) {
-    return `${POKEAPI_BASE}/versions/generation-iv/diamond-pearl/${shinyPart}${pokemonId}.png`;
-  }
-  if (gameKey.includes("platinum")) {
-    return `${POKEAPI_BASE}/versions/generation-iv/platinum/${shinyPart}${pokemonId}.png`;
-  }
-  if (gameKey.includes("heartgold") || gameKey.includes("soulsilver")) {
-    return `${POKEAPI_BASE}/versions/generation-iv/heartgold-soulsilver/${shinyPart}${pokemonId}.png`;
   }
 
-  // ── Gen 5 ────────────────────────────────────────────────────────────
-  if (gameKey.includes("black") || gameKey.includes("white")) {
-    return `${POKEAPI_BASE}/versions/generation-v/black-white/animated/${shinyPart}${pokemonId}.gif`;
-  }
-
-  // ── Gen 6+ / default ─────────────────────────────────────────────────
-  // Classic should not be selected for Gen 6+, but as fallback use Showdown dex
+  // Gen 6+ / default — fallback to Showdown dex renders
   const slug = (canonicalName || String(pokemonId)).toLowerCase();
   return shiny
     ? `${SHOWDOWN_BASE}/dex-shiny/${slug}.png`

@@ -71,7 +71,7 @@ export function AddPokemonModal({
   const inputRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
 
-  const [language, setstring] = useState<string>(
+  const [language, setLanguage] = useState<string>(
     activeLanguages.includes("de")
       ? "de"
       : activeLanguages[0] ?? "en",
@@ -292,7 +292,7 @@ export function AddPokemonModal({
           <button
             key={lang}
             onClick={() => {
-              setstring(lang);
+              setLanguage(lang);
               if (selected) {
                 const searchList = buildSearchList(allPokemon);
                 const fullP = searchList.find(

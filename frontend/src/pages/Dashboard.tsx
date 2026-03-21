@@ -168,6 +168,145 @@ function huntButtonClass(anyRunning: boolean, canStart: boolean): string {
   return "opacity-30 cursor-not-allowed text-text-muted";
 }
 
+/** Resolves the overlay settings for a given viewed Pokemon. */
+function resolveCurrentOverlay(
+  appState: { pokemon: Pokemon[]; active_id: string; settings: { overlay: OverlaySettings } } | null,
+  viewedPokemonId: string | null,
+): OverlaySettings | null {
+  if (!appState) return null;
+  const viewed = appState.pokemon.find(
+    (p) => p.id === (viewedPokemonId || appState.active_id),
+  );
+  if (!viewed) return null;
+  const mode = viewed.overlay_mode || "default";
+  return mode === "custom" && viewed.overlay
+    ? viewed.overlay
+    : resolveOverlay(viewed, appState.pokemon, appState.settings.overlay);
+}
+
+/** Filters a Pokemon list by a search query, matching name, canonical name, or game. */
+function filterPokemonByQuery(list: Pokemon[], query: string): Pokemon[] {
+  if (!query) return list;
+  return list.filter(
+    (p) =>
+      p.name.toLowerCase().includes(query) ||
+      p.canonical_name.toLowerCase().includes(query) ||
+      p.game?.toLowerCase().includes(query),
+  );
+}
+
+/** Resolves overlay settings from a copy source (global or another Pokemon). */
+function resolveCopySource(
+  sourceId: string,
+  pokemon: Pokemon[],
+  globalOverlay: OverlaySettings,
+): OverlaySettings | null {
+  if (sourceId === "global") return globalOverlay;
+  const p = pokemon.find((x) => x.id === sourceId);
+  return p ? resolveOverlay(p, pokemon, globalOverlay) : null;
+}
+
+/** Computes the shiny odds display string for the given Pokemon and game list. */
+function computeOddsDisplay(pokemon: Pokemon | null, games: GameEntry[]): string {
+  if (!pokemon) return "1/4096";
+
+  const gameGen = pokemon.game
+    ? games.find((g) => g.key === pokemon.game)?.generation ?? null
+    : null;
+  const isOldGen = gameGen !== null && gameGen >= 2 && gameGen <= 5;
+  const baseDenom = isOldGen ? 8192 : 4096;
+
+  const ht = pokemon.hunt_type;
+  if (!ht || ht === "encounter" || ht === "soft_reset" || ht === "fossil" || ht === "gift") {
+    return `1/${baseDenom}`;
+  }
+
+  const METHOD_ODDS: Record<string, string> = {
+    masuda: "683", radar: "~200", horde: "~820",
+    sos: "683", outbreak: `${baseDenom}`, sandwich: "683",
+  };
+  return `1/${METHOD_ODDS[ht] ?? baseDenom}`;
+}
+
+/** Formats a game key into a short display string. */
+function formatGame(game: string): string {
+  return game
+    ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase()
+    : "—";
+}
+
+/** Builds a confirmation dialog config for a reset request, or null if the message is not a reset. */
+function buildResetConfirmConfig(
+  msg: { type: string; payload: unknown },
+  pokemon: Pokemon[],
+  t: (key: string) => string,
+  onConfirm: (pokemonId: string) => void,
+): { isOpen: boolean; title: string; message: string; isDestructive: boolean; onConfirm: () => void } | null {
+  if (msg.type !== "request_reset_confirm") return null;
+  const payload = msg.payload as { pokemon_id: string };
+  const match = pokemon.find((p) => p.id === payload.pokemon_id);
+  const nameSuffix = match ? ` (${match.name})` : "";
+  return {
+    isOpen: true,
+    title: t("confirm.resetTitle"),
+    message: `${t("confirm.resetMsg")}${nameSuffix}`,
+    isDestructive: true,
+    onConfirm: () => onConfirm(payload.pokemon_id),
+  };
+}
+
+/** Fetches the games list on mount for generation-aware odds display. */
+function useGames(): GameEntry[] {
+  const [games, setGames] = useState<GameEntry[]>([]);
+  useEffect(() => {
+    fetch(apiUrl("/api/games"))
+      .then((r) => r.json())
+      .then((data: GameEntry[]) => { if (Array.isArray(data)) setGames(data); })
+      .catch(() => {});
+  }, []);
+  return games;
+}
+
+/** Switches away from the detector tab when the viewed Pokemon gets archived. */
+function useForceCounterOnArchive(
+  appState: { pokemon: Pokemon[]; active_id: string } | null,
+  viewedPokemonId: string | null,
+  rightPanelTab: string,
+  setRightPanelTab: (tab: "counter" | "detector" | "overlay" | "statistics") => void,
+) {
+  useEffect(() => {
+    const viewed = appState?.pokemon.find((p) => p.id === (viewedPokemonId || appState?.active_id));
+    if (viewed?.completed_at && rightPanelTab === "detector") {
+      setRightPanelTab("counter");
+    }
+  }, [appState?.pokemon, viewedPokemonId, appState?.active_id, rightPanelTab]);
+}
+
+/** Pauses hotkeys while the overlay editor tab is active. */
+function useHotkeyPause(activeTab: string) {
+  useEffect(() => {
+    if (activeTab === "overlay") {
+      void fetch(apiUrl("/api/hotkeys/pause"), { method: "POST" }).catch(() => {});
+    } else {
+      void fetch(apiUrl("/api/hotkeys/resume"), { method: "POST" }).catch(() => {});
+    }
+  }, [activeTab]);
+}
+
+/** Registers a global Cmd+K / Ctrl+K shortcut that focuses the given ref. */
+function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        ref.current?.focus();
+      }
+    };
+    globalThis.addEventListener("keydown", handler);
+    return () => globalThis.removeEventListener("keydown", handler);
+  }, [ref]);
+}
+
 type SidebarTab = "active" | "archived";
 
 export function Dashboard() {
@@ -194,7 +333,7 @@ export function Dashboard() {
   const [overlaySaving, setOverlaySaving] = useState(false);
   const [overlaySaved, setOverlaySaved] = useState(false);
 
-  const [games, setGames] = useState<GameEntry[]>([]);
+  const games = useGames();
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -211,77 +350,30 @@ export function Dashboard() {
   });
 
   const { send } = useWebSocket((msg) => {
-    if (msg.type === "request_reset_confirm") {
+    const config = buildResetConfirmConfig(
+      msg, appState?.pokemon ?? [], t,
+      (pokemonId) => send("reset", { pokemon_id: pokemonId }),
+    );
+    if (config) {
       globalThis.electronAPI?.focusWindow();
-      const payload = msg.payload as { pokemon_id: string };
-      const pokemon = appState?.pokemon.find(
-        (p) => p.id === payload.pokemon_id,
-      );
-      const nameSuffix = pokemon ? ` (${pokemon.name})` : "";
-      setConfirmConfig({
-        isOpen: true,
-        title: t("confirm.resetTitle"),
-        message: `${t("confirm.resetMsg")}${nameSuffix}`,
-        isDestructive: true,
-        onConfirm: () => send("reset", { pokemon_id: payload.pokemon_id }),
-      });
+      setConfirmConfig(config);
     }
   });
 
-  // Cmd+K / Ctrl+K shortcut
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    globalThis.addEventListener("keydown", handler);
-    return () => globalThis.removeEventListener("keydown", handler);
-  }, []);
-
-  // Fetch games list for generation-aware odds display
-  useEffect(() => {
-    fetch(apiUrl("/api/games"))
-      .then((r) => r.json())
-      .then((data: GameEntry[]) => { if (Array.isArray(data)) setGames(data); })
-      .catch(() => {});
-  }, []);
+  useFocusShortcut(searchRef);
 
   // Sync overlay editor state when the viewed Pokemon changes
   useEffect(() => {
-    if (!appState) return;
-    const viewed = appState.pokemon.find(
-      (p) => p.id === (viewedPokemonId || appState.active_id),
-    );
-    if (!viewed) return;
-    const mode = viewed.overlay_mode || "default";
-    if (mode === "custom" && viewed.overlay) {
-      setCurrentOverlay(viewed.overlay);
-    } else {
-      setCurrentOverlay(
-        resolveOverlay(viewed, appState.pokemon, appState.settings.overlay),
-      );
+    const overlay = resolveCurrentOverlay(appState, viewedPokemonId);
+    if (overlay) {
+      setCurrentOverlay(overlay);
+      setOverlayDirty(false);
     }
-    setOverlayDirty(false);
   }, [viewedPokemonId, appState?.active_id]);
 
-  // Pause/resume hotkeys when switching to/from overlay tab
-  useEffect(() => {
-    if (rightPanelTab === "overlay") {
-      void fetch(apiUrl("/api/hotkeys/pause"), { method: "POST" }).catch(() => {});
-    } else {
-      void fetch(apiUrl("/api/hotkeys/resume"), { method: "POST" }).catch(() => {});
-    }
-  }, [rightPanelTab]);
+  useHotkeyPause(rightPanelTab);
 
-  // Force counter tab if the viewed pokemon gets archived while on detector tab
-  useEffect(() => {
-    const viewed = appState?.pokemon.find((p) => p.id === (viewedPokemonId || appState?.active_id));
-    if (viewed?.completed_at && rightPanelTab === "detector") {
-      setRightPanelTab("counter");
-    }
-  }, [appState?.pokemon, viewedPokemonId, appState?.active_id, rightPanelTab]);
+  useForceCounterOnArchive(appState, viewedPokemonId, rightPanelTab, setRightPanelTab);
 
   // --- Event Handlers ---
 
@@ -385,16 +477,14 @@ export function Dashboard() {
     if (!viewedPokemon) return;
     const currentMode = viewedPokemon.overlay_mode || "default";
 
-    // Warn when leaving custom mode
-    if (currentMode === "custom" && newMode !== "custom") {
-      if (!confirm(t("overlay.confirmModeChange"))) return;
-    }
+    // Warn when leaving custom mode — bail if user cancels
+    const needsConfirm = currentMode === "custom" && newMode !== "custom";
+    if (needsConfirm && !confirm(t("overlay.confirmModeChange"))) return;
 
     if (newMode === "default") {
       await updatePokemonOverlay(viewedPokemon.id, "default", null);
       setCurrentOverlay(appState!.settings.overlay);
     } else if (newMode === "custom") {
-      // Initialize custom overlay from current resolved settings
       const resolved = resolveOverlay(
         viewedPokemon,
         appState!.pokemon,
@@ -414,19 +504,8 @@ export function Dashboard() {
 
   /** Copy overlay settings from another Pokemon or default. */
   const copyOverlayFrom = (sourceId: string) => {
-    if (sourceId === "global") {
-      setCurrentOverlay(appState!.settings.overlay);
-    } else {
-      const p = appState!.pokemon.find((x) => x.id === sourceId);
-      if (p) {
-        const resolved = resolveOverlay(
-          p,
-          appState!.pokemon,
-          appState!.settings.overlay,
-        );
-        setCurrentOverlay(resolved);
-      }
-    }
+    const overlay = resolveCopySource(sourceId, appState!.pokemon, appState!.settings.overlay);
+    if (overlay) setCurrentOverlay(overlay);
     setOverlayDirty(true);
   };
 
@@ -450,26 +529,7 @@ export function Dashboard() {
     0,
   );
 
-  const oddsDisplay = (() => {
-    if (!viewedPokemon) return "1/4096";
-
-    const gameGen = viewedPokemon.game
-      ? games.find((g) => g.key === viewedPokemon.game)?.generation ?? null
-      : null;
-    const isOldGen = gameGen !== null && gameGen >= 2 && gameGen <= 5;
-    const baseDenom = isOldGen ? 8192 : 4096;
-
-    const ht = viewedPokemon.hunt_type;
-    if (!ht || ht === "encounter" || ht === "soft_reset" || ht === "fossil" || ht === "gift") {
-      return `1/${baseDenom}`;
-    }
-
-    const METHOD_ODDS: Record<string, string> = {
-      masuda: "683", radar: "~200", horde: "~820",
-      sos: "683", outbreak: `${baseDenom}`, sandwich: "683",
-    };
-    return `1/${METHOD_ODDS[ht] ?? baseDenom}`;
-  })();
+  const oddsDisplay = computeOddsDisplay(viewedPokemon, games);
 
   // Split Pokémon into active hunts and archived
   const activeHunts = appState.pokemon.filter((p) => !p.completed_at);
@@ -477,26 +537,78 @@ export function Dashboard() {
 
   // Filter by search query
   const q = searchQuery.trim().toLowerCase();
-  const filterPokemon = (list: Pokemon[]) =>
-    q
-      ? list.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) ||
-            p.canonical_name.toLowerCase().includes(q) ||
-            p.game?.toLowerCase().includes(q),
-        )
-      : list;
-
-  const displayList = filterPokemon(
+  const displayList = filterPokemonByQuery(
     sidebarTab === "active" ? activeHunts : archivedHunts,
+    q,
   );
 
-  const formatGame = (game: string) =>
-    game
-      ? game.replace("pokemon-", "").replace("letsgo", "L.G. ").toUpperCase()
-      : "—";
-
   const FALLBACK = SPRITE_FALLBACK;
+
+  /** Renders the empty-list placeholder based on current search query and sidebar tab. */
+  const renderEmptyList = () => {
+    if (q) {
+      return (
+        <>
+          <Search className="w-8 h-8 text-text-faint mb-3" />
+          <p className="text-sm text-text-muted">
+            {t("dash.noMatch")} &bdquo;{q}&ldquo;
+          </p>
+          <button
+            onClick={() => {
+              setSearchQuery("");
+              setShowAddModal(true);
+            }}
+            className="mt-3 text-xs text-accent-blue hover:underline flex items-center gap-1"
+          >
+            <Plus className="w-3 h-3" />
+            {t("dash.addNew")}
+          </button>
+        </>
+      );
+    }
+    if (sidebarTab === "active") {
+      return (
+        <>
+          <Gamepad2 className="w-10 h-10 text-text-faint mb-3" />
+          <p className="text-sm text-text-muted">
+            {t("dash.noPokemon")}
+          </p>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="mt-4 text-xs text-accent-blue hover:underline"
+          >
+            {t("dash.addFirst")}
+          </button>
+        </>
+      );
+    }
+    return (
+      <>
+        <Trophy className="w-10 h-10 text-text-faint mb-3" />
+        <p className="text-sm text-text-muted">
+          {t("dash.noArchive")}
+        </p>
+        <p className="text-xs text-text-faint mt-1">
+          {t("dash.noArchiveHint")}
+        </p>
+      </>
+    );
+  };
+
+  /** Renders the right main panel when no Pokemon is selected. */
+  const renderNoPokemonPanel = () => (
+    <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
+      <div className="w-20 h-20 rounded-full bg-bg-card border border-border-subtle flex items-center justify-center mb-6 shadow-sm">
+        <Sparkles className="w-8 h-8 text-text-faint" />
+      </div>
+      <h2 className="text-2xl font-semibold text-text-primary mb-2">
+        {t("dash.noActive")}
+      </h2>
+      <p className="text-text-muted text-sm max-w-xs">
+        {t("dash.noActiveHint")}
+      </p>
+    </div>
+  );
 
   /** Renders a single import-dropdown item for copying overlays from other Pokemon. */
   const renderImportItem = (p: Pokemon) => {
@@ -1043,55 +1155,7 @@ export function Dashboard() {
         <div className="flex-1 overflow-y-auto">
           {displayList.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-              {(() => {
-                if (q) {
-                  return (
-                    <>
-                      <Search className="w-8 h-8 text-text-faint mb-3" />
-                      <p className="text-sm text-text-muted">
-                        {t("dash.noMatch")} &bdquo;{q}&ldquo;
-                      </p>
-                      <button
-                        onClick={() => {
-                          setSearchQuery("");
-                          setShowAddModal(true);
-                        }}
-                        className="mt-3 text-xs text-accent-blue hover:underline flex items-center gap-1"
-                      >
-                        <Plus className="w-3 h-3" />
-                        {t("dash.addNew")}
-                      </button>
-                    </>
-                  );
-                }
-                if (sidebarTab === "active") {
-                  return (
-                    <>
-                      <Gamepad2 className="w-10 h-10 text-text-faint mb-3" />
-                      <p className="text-sm text-text-muted">
-                        {t("dash.noPokemon")}
-                      </p>
-                      <button
-                        onClick={() => setShowAddModal(true)}
-                        className="mt-4 text-xs text-accent-blue hover:underline"
-                      >
-                        {t("dash.addFirst")}
-                      </button>
-                    </>
-                  );
-                }
-                return (
-                  <>
-                    <Trophy className="w-10 h-10 text-text-faint mb-3" />
-                    <p className="text-sm text-text-muted">
-                      {t("dash.noArchive")}
-                    </p>
-                    <p className="text-xs text-text-faint mt-1">
-                      {t("dash.noArchiveHint")}
-                    </p>
-                  </>
-                );
-              })()}
+              {renderEmptyList()}
             </div>
           ) : (
             <ul className="py-1 select-none">
@@ -1115,38 +1179,42 @@ export function Dashboard() {
                   <li
                     key={p.id}
                     className={itemClassName}
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleActivate(p.id);
-                      }
-                    }}
-                    onClick={(e) => {
-                      // Ignore clicks on nested interactive elements (buttons, inputs)
-                      if ((e.target as HTMLElement).closest("button, input, a")) return;
-                      if (e.ctrlKey || e.metaKey) {
-                        setSelectedIds(prev => {
-                          const next = new Set(prev);
-                          if (next.has(p.id)) next.delete(p.id);
-                          else next.add(p.id);
-                          return next;
-                        });
-                        lastSelectedIdx.current = idx;
-                      } else if (e.shiftKey && lastSelectedIdx.current !== null) {
-                        const from = Math.min(lastSelectedIdx.current, idx);
-                        const to = Math.max(lastSelectedIdx.current, idx);
-                        setSelectedIds(prev => {
-                          const next = new Set(prev);
-                          for (let i = from; i <= to; i++) next.add(displayList[i].id);
-                          return next;
-                        });
-                      } else {
-                        if (selectedIds.size > 0) setSelectedIds(new Set());
-                        handleActivate(p.id);
-                      }
-                    }}
                   >
+                    <button
+                      type="button"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          handleActivate(p.id);
+                        }
+                      }}
+                      onClick={(e) => {
+                        if (e.ctrlKey || e.metaKey) {
+                          // Ctrl+Click: toggle single item
+                          setSelectedIds(prev => {
+                            const next = new Set(prev);
+                            if (next.has(p.id)) next.delete(p.id);
+                            else next.add(p.id);
+                            return next;
+                          });
+                          lastSelectedIdx.current = idx;
+                        } else if (e.shiftKey && lastSelectedIdx.current !== null) {
+                          // Shift+Click: range select
+                          const from = Math.min(lastSelectedIdx.current, idx);
+                          const to = Math.max(lastSelectedIdx.current, idx);
+                          setSelectedIds(prev => {
+                            const next = new Set(prev);
+                            for (let i = from; i <= to; i++) next.add(displayList[i].id);
+                            return next;
+                          });
+                        } else {
+                          // Normal click: activate pokemon, clear selection
+                          if (selectedIds.size > 0) setSelectedIds(new Set());
+                          handleActivate(p.id);
+                        }
+                      }}
+                      className="flex items-center gap-3 w-full text-left bg-transparent border-none p-0 cursor-pointer"
+                    >
                     <div className="w-9 h-9 2xl:w-11 2xl:h-11 shrink-0 relative">
                       <img
                         src={src}
@@ -1204,8 +1272,9 @@ export function Dashboard() {
                           </span>
                         )}
                       </div>
-                      <SidebarTimer pokemon={p} send={send} />
                     </div>
+                    </button>
+                      <SidebarTimer pokemon={p} send={send} />
                     <div className="flex gap-1 items-center">
                       {/* Hotkey target star — sets active_id (hotkey target) */}
                       <button
@@ -1371,17 +1440,7 @@ export function Dashboard() {
             {renderScrollableContent(viewedPokemon)}
         </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
-            <div className="w-20 h-20 rounded-full bg-bg-card border border-border-subtle flex items-center justify-center mb-6 shadow-sm">
-              <Sparkles className="w-8 h-8 text-text-faint" />
-            </div>
-            <h2 className="text-2xl font-semibold text-text-primary mb-2">
-              {t("dash.noActive")}
-            </h2>
-            <p className="text-text-muted text-sm max-w-xs">
-              {t("dash.noActiveHint")}
-            </p>
-          </div>
+          renderNoPokemonPanel()
         )}
       </main>
 

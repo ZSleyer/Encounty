@@ -50,6 +50,78 @@ function saveBounds(): void {
 
 // --- Window creation -----------------------------------------------------------
 
+/** Registers event handlers for bounds persistence, external link handling, and cleanup. */
+function setupWindowEvents(win: BrowserWindow, saved: WindowBounds): void {
+  // Forward maximize/unmaximize state to the renderer
+  win.on('maximize', () => {
+    win.webContents.send('window:maximized-change', true);
+  });
+  win.on('unmaximize', () => {
+    win.webContents.send('window:maximized-change', false);
+  });
+
+  // Restore maximized state if it was saved
+  if (saved.maximized) {
+    win.maximize();
+  }
+
+  // Persist window bounds on resize/move (debounced)
+  let boundsTimer: ReturnType<typeof setTimeout> | null = null;
+  const debouncedSave = () => {
+    if (boundsTimer) clearTimeout(boundsTimer);
+    boundsTimer = setTimeout(saveBounds, 500);
+  };
+  win.on('resize', debouncedSave);
+  win.on('move', debouncedSave);
+
+  // Open external links and overlay URLs in the system browser
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url.startsWith('encounty://')) return;
+    if (url.startsWith('http://localhost:')) return;
+    event.preventDefault();
+    shell.openExternal(url);
+  });
+
+  win.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+/** Loads the initial URL and optionally opens DevTools for development. */
+async function loadContent(win: BrowserWindow): Promise<void> {
+  // In dev mode, load from Vite dev server (frontend + API proxy).
+  // Retry until Vite is ready since the background task may still be starting.
+  // In production, load from the custom encounty:// protocol.
+  if (isDev) {
+    const viteUrl = 'http://localhost:5173';
+    const maxRetries = 30;
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        await win.loadURL(viteUrl);
+        break;
+      } catch {
+        if (i === maxRetries - 1) {
+          console.error('[Electron] Vite dev server not reachable after retries');
+          app.quit();
+          return;
+        }
+        console.log(`[Electron] Waiting for Vite dev server... (${i + 1}/${maxRetries})`);
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  } else {
+    await win.loadURL('encounty://app/');
+  }
+
+  if (isDev) {
+    win.webContents.openDevTools();
+  }
+}
+
 async function createWindow(): Promise<void> {
   const iconPath = app.isPackaged
     ? path.join(process.resourcesPath, 'app-icon.png')
@@ -64,7 +136,6 @@ async function createWindow(): Promise<void> {
     title: 'Encounty',
     icon: iconPath,
     frame: false,
-    show: true,
     backgroundColor: '#0f0f13',
     webPreferences: {
       nodeIntegration: false,
@@ -75,72 +146,8 @@ async function createWindow(): Promise<void> {
     }
   });
 
-  // Forward maximize/unmaximize state to the renderer
-  mainWindow.on('maximize', () => {
-    mainWindow?.webContents.send('window:maximized-change', true);
-  });
-  mainWindow.on('unmaximize', () => {
-    mainWindow?.webContents.send('window:maximized-change', false);
-  });
-
-  // Restore maximized state if it was saved
-  if (saved.maximized) {
-    mainWindow.maximize();
-  }
-
-  // Persist window bounds on resize/move (debounced)
-  let boundsTimer: ReturnType<typeof setTimeout> | null = null;
-  const debouncedSave = () => {
-    if (boundsTimer) clearTimeout(boundsTimer);
-    boundsTimer = setTimeout(saveBounds, 500);
-  };
-  mainWindow.on('resize', debouncedSave);
-  mainWindow.on('move', debouncedSave);
-
-  // Open external links and overlay URLs in the system browser
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (url.startsWith('encounty://')) return;
-    if (url.startsWith('http://localhost:')) return;
-    event.preventDefault();
-    shell.openExternal(url);
-  });
-
-  // In dev mode, load from Vite dev server (frontend + API proxy).
-  // Retry until Vite is ready since the background task may still be starting.
-  // In production, load from the custom encounty:// protocol.
-  if (isDev) {
-    const viteUrl = 'http://localhost:5173';
-    const maxRetries = 30;
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        await mainWindow.loadURL(viteUrl);
-        break;
-      } catch {
-        if (i === maxRetries - 1) {
-          console.error('[Electron] Vite dev server not reachable after retries');
-          app.quit();
-          return;
-        }
-        console.log(`[Electron] Waiting for Vite dev server... (${i + 1}/${maxRetries})`);
-        await new Promise(r => setTimeout(r, 1000));
-      }
-    }
-  } else {
-    await mainWindow.loadURL('encounty://app/');
-  }
-
-  // Open DevTools in development mode
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+  setupWindowEvents(mainWindow, saved);
+  await loadContent(mainWindow);
 }
 
 async function startApp(): Promise<void> {
@@ -150,6 +157,7 @@ async function startApp(): Promise<void> {
     if (!isDev) {
       goProcess = new GoProcessManager();
 
+      // Wait for backend to be ready
       await new Promise<void>((resolve, reject) => {
         goProcess!.on('ready', () => {
           console.log('[Electron] Go backend ready');
@@ -167,8 +175,6 @@ async function startApp(): Promise<void> {
 
         goProcess!.start();
       });
-    } else {
-      console.log('[Electron] Dev mode — expecting Go backend on localhost:8080');
     }
 
     // Create window once backend is ready
@@ -311,12 +317,6 @@ if (gotTheLock) {
 // so the screen capture detection loop keeps running at full speed.
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 
-// GPU acceleration: ensure hardware rendering is used for compositing,
-// canvas operations, and video decode on all supported platforms.
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
-app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
-
 // Wayland-specific Chromium flags
 if (isWayland) {
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
@@ -326,50 +326,12 @@ if (isWayland) {
 
 console.log('[Electron] Platform detection:', { isWayland, platform: process.platform, WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY, XDG_SESSION_TYPE: process.env.XDG_SESSION_TYPE });
 
-// Register encounty:// as a privileged scheme so the renderer can use
-// relative URLs, fetch(), and service workers just like HTTPS.
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'encounty',
-  privileges: {
-    standard: true,
-    secure: true,
-    supportFetchAPI: true,
-    corsEnabled: false,
-    stream: true,
-  }
-}]);
-
 // Move Electron/Chromium data into a subdirectory so it doesn't mix with
 // the Go backend's config files (state.json etc.) in the same folder.
 app.setPath('userData', path.join(app.getPath('userData'), 'electron'));
 
 // App lifecycle
 app.on('ready', async () => {
-  // Resolve the frontend dist directory
-  const frontendRoot = app.isPackaged
-    ? path.join(process.resourcesPath, 'frontend-dist')
-    : path.join(__dirname, '..', '..', 'frontend', 'dist');
-
-  // Register encounty:// protocol to serve frontend assets
-  protocol.handle('encounty', (request) => {
-    const url = new URL(request.url);
-    let filePath = decodeURIComponent(url.pathname);
-    if (filePath === '/' || filePath === '') filePath = '/index.html';
-
-    const fullPath = path.join(frontendRoot, filePath);
-
-    // SPA fallback: serve index.html for routes that don't map to files
-    try {
-      const stat = fs.statSync(fullPath);
-      if (stat.isDirectory()) {
-        return net.fetch('file://' + path.join(frontendRoot, 'index.html'));
-      }
-      return net.fetch('file://' + fullPath);
-    } catch {
-      return net.fetch('file://' + path.join(frontendRoot, 'index.html'));
-    }
-  });
-
   Menu.setApplicationMenu(null);
 
   // Allow media (camera/mic) and display-capture permissions

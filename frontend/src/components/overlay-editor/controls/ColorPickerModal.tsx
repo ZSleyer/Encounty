@@ -119,7 +119,7 @@ export function ColorPickerModal({
 }: ColorPickerModalProps) {
   const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const satAreaRef = useRef<HTMLDivElement>(null);
+  const satAreaRef = useRef<HTMLButtonElement>(null);
   const hueBarRef = useRef<HTMLDivElement>(null);
   const opacityBarRef = useRef<HTMLDivElement>(null);
 
@@ -149,7 +149,7 @@ export function ColorPickerModal({
 
   /** Creates a drag handler that calls `onMove` with the pointer position relative to `elRef`. */
   const useDrag = (
-    elRef: React.RefObject<HTMLDivElement | null>,
+    elRef: React.RefObject<HTMLElement | null>,
     onMove: (x: number, y: number, rect: DOMRect) => void,
   ) => {
     return useCallback(
@@ -267,12 +267,12 @@ export function ColorPickerModal({
       </div>
 
       {/* Saturation / Brightness area */}
-      <div
+      <button
+        type="button"
         ref={satAreaRef}
-        role="application"
-        tabIndex={0}
+        aria-label="Color saturation and brightness picker"
         onMouseDown={handleSatMouseDown}
-        className="relative w-full rounded border border-border-subtle cursor-crosshair select-none"
+        className="appearance-none p-0 m-0 block relative w-full rounded border border-border-subtle cursor-crosshair select-none"
         style={{
           height: 256,
           background: `
@@ -295,7 +295,7 @@ export function ColorPickerModal({
             transform: "translate(-50%, -50%)",
           }}
         />
-      </div>
+      </button>
 
       {/* Hue slider */}
       <div

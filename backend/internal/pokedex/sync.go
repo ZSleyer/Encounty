@@ -312,28 +312,39 @@ func fetchAndApplyFormNames(current *[]Entry) int {
 	}
 
 	formNamesMap := buildFormTranslationMap(glResp.Data.Names)
+	return applyFormTranslations(current, formNamesMap)
+}
 
-	// Apply form translations to the loaded array.
+// applyFormTranslations merges the fetched form name translations into the
+// current entries, returning the number of individual name values that changed.
+func applyFormTranslations(current *[]Entry, formNamesMap map[string]map[string]string) int {
 	var namesUpdated int
 	for i := range *current {
 		for j := range (*current)[i].Forms {
-			canonical := (*current)[i].Forms[j].Canonical
-			fetchedNames, ok := formNamesMap[canonical]
+			names, ok := formNamesMap[(*current)[i].Forms[j].Canonical]
 			if !ok {
 				continue
 			}
-			if (*current)[i].Forms[j].Names == nil {
-				(*current)[i].Forms[j].Names = make(map[string]string)
-			}
-			for l, nVal := range fetchedNames {
-				if (*current)[i].Forms[j].Names[l] != nVal {
-					namesUpdated++
-				}
-				(*current)[i].Forms[j].Names[l] = nVal
-			}
+			namesUpdated += mergeFormNames(&(*current)[i].Forms[j], names)
 		}
 	}
 	return namesUpdated
+}
+
+// mergeFormNames copies all entries from names into the form's Names map,
+// initializing it if nil. Returns the number of values that actually changed.
+func mergeFormNames(form *Form, names map[string]string) int {
+	var changed int
+	if form.Names == nil {
+		form.Names = make(map[string]string)
+	}
+	for lang, val := range names {
+		if form.Names[lang] != val {
+			changed++
+		}
+		form.Names[lang] = val
+	}
+	return changed
 }
 
 // formNameRow is a single row from the PokéAPI form-name GraphQL query.

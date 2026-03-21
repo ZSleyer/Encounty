@@ -12,6 +12,94 @@ interface Props {
   testTrigger?: { element: string; n: number; reverse?: boolean };
 }
 
+/** State for a single animation channel (counter, sprite, name, title). */
+interface AnimChannel {
+  animClass: string;
+  reverse: boolean;
+  triggerId: number;
+}
+
+/** Setters for a single animation channel. */
+interface AnimChannelSetters {
+  setAnimClass: (cls: string) => void;
+  setReverse: (rev: boolean) => void;
+  setTriggerId: (id: number) => void;
+}
+
+/** All animation channels managed by the overlay. */
+interface AnimChannels {
+  counter: AnimChannel;
+  sprite: AnimChannel;
+  name: AnimChannel;
+  title: AnimChannel;
+}
+
+/** All animation channel setters. */
+interface AnimChannelSettersMap {
+  counter: AnimChannelSetters;
+  sprite: AnimChannelSetters;
+  name: AnimChannelSetters;
+  title: AnimChannelSetters;
+}
+
+/**
+ * Triggers an animation on a single channel by looking up the CSS class
+ * from the given animation map and updating the channel state.
+ */
+function triggerAnimation(
+  key: string,
+  animMap: Record<string, string>,
+  reverse: boolean,
+  setters: AnimChannelSetters,
+): void {
+  const cls = animMap[key] ?? "";
+  if (cls) {
+    setters.setReverse(reverse);
+    setters.setAnimClass(cls);
+    setters.setTriggerId(Date.now());
+  }
+}
+
+/**
+ * useAnimationTriggers manages the four overlay animation channels
+ * (counter, sprite, name, title) and returns their state plus setters.
+ */
+function useAnimationTriggers(): {
+  channels: AnimChannels;
+  setters: AnimChannelSettersMap;
+} {
+  const [animClass, setAnimClass] = useState("");
+  const [animReverse, setAnimReverse] = useState(false);
+  const [triggerId, setTriggerId] = useState(0);
+
+  const [spriteAnimClass, setSpriteAnimClass] = useState("");
+  const [spriteAnimReverse, setSpriteAnimReverse] = useState(false);
+  const [spriteTriggerId, setSpriteTriggerId] = useState(0);
+
+  const [nameAnimClass, setNameAnimClass] = useState("");
+  const [nameAnimReverse, setNameAnimReverse] = useState(false);
+  const [nameTriggerId, setNameTriggerId] = useState(0);
+
+  const [titleAnimClass, setTitleAnimClass] = useState("");
+  const [titleAnimReverse, setTitleAnimReverse] = useState(false);
+  const [titleTriggerId, setTitleTriggerId] = useState(0);
+
+  return {
+    channels: {
+      counter: { animClass, reverse: animReverse, triggerId },
+      sprite: { animClass: spriteAnimClass, reverse: spriteAnimReverse, triggerId: spriteTriggerId },
+      name: { animClass: nameAnimClass, reverse: nameAnimReverse, triggerId: nameTriggerId },
+      title: { animClass: titleAnimClass, reverse: titleAnimReverse, triggerId: titleTriggerId },
+    },
+    setters: {
+      counter: { setAnimClass, setReverse: setAnimReverse, setTriggerId },
+      sprite: { setAnimClass: setSpriteAnimClass, setReverse: setSpriteAnimReverse, setTriggerId: setSpriteTriggerId },
+      name: { setAnimClass: setNameAnimClass, setReverse: setNameAnimReverse, setTriggerId: setNameTriggerId },
+      title: { setAnimClass: setTitleAnimClass, setReverse: setTitleAnimReverse, setTriggerId: setTitleTriggerId },
+    },
+  };
+}
+
 // Inject Google Font dynamically
 function useGoogleFont(fontFamily: string) {
   useEffect(() => {
@@ -220,203 +308,154 @@ const BG_ANIM_DEFAULT_DURATION: Record<string, number> = {
   particles: 12,
 };
 
-export function Overlay({
-  previewSettings,
-  previewPokemon,
-  testTrigger,
-}: Readonly<Props>) {
-  const { appState } = useCounterStore();
+/**
+ * Resolves the active Pokemon to display in the overlay, checking
+ * preview, URL-targeted, and server-active sources in priority order.
+ */
+function resolveActivePokemon(
+  previewPokemon: Pokemon | undefined,
+  appState: { pokemon: Pokemon[]; active_id: string } | null,
+  overlayPokemonId: string | null,
+): Pokemon | null {
+  if (previewPokemon) return previewPokemon;
+  if (overlayPokemonId) {
+    return appState?.pokemon.find((p) => p.id === overlayPokemonId) ?? null;
+  }
+  if (!appState) return null;
+  return appState.pokemon.find((p) => p.id === appState.active_id) ?? null;
+}
 
-  // Counter animation
-  const [animClass, setAnimClass] = useState("");
-  const [animReverse, setAnimReverse] = useState(false);
-  const [triggerId, setTriggerId] = useState(0);
-  // Sprite animation
-  const [spriteAnimClass, setSpriteAnimClass] = useState("");
-  const [spriteAnimReverse, setSpriteAnimReverse] = useState(false);
-  const [spriteTriggerId, setSpriteTriggerId] = useState(0);
-  // Name animation
-  const [nameAnimClass, setNameAnimClass] = useState("");
-  const [nameAnimReverse, setNameAnimReverse] = useState(false);
-  const [nameTriggerId, setNameTriggerId] = useState(0);
-  // Title animation
-  const [titleAnimClass, setTitleAnimClass] = useState("");
-  const [titleAnimReverse, setTitleAnimReverse] = useState(false);
-  const [titleTriggerId, setTitleTriggerId] = useState(0);
-
-  const prevCount = useRef<number | undefined>(undefined);
-
-  // Path-based route param takes priority, query param as fallback
-  const { pokemonId: routePokemonId } = useParams<{ pokemonId?: string }>();
-  const searchParams = new URLSearchParams(globalThis.location.search);
-  const overlayPokemonId = routePokemonId || searchParams.get("id");
-
-  const activePokemon: Pokemon | null = useMemo(
-    () =>
-      previewPokemon ||
-      (overlayPokemonId
-        ? appState?.pokemon.find((p) => p.id === overlayPokemonId)
-        : null) ||
-      (appState?.pokemon.find((p) => p.id === appState.active_id) ?? null),
-    [previewPokemon, appState, overlayPokemonId],
-  );
-
-  const settings: OverlaySettings | null = useMemo(() => {
-    if (previewSettings) return previewSettings;
-    if (!activePokemon || !appState) return null;
-    return resolveOverlay(
-      activePokemon,
-      appState.pokemon,
-      appState.settings.overlay,
-    );
-  }, [previewSettings, activePokemon, appState]);
-
-  // Inject fonts
-  useGoogleFont(settings?.name.style.font_family || "sans");
-  useGoogleFont(settings?.counter.style.font_family || "sans");
-  useGoogleFont(settings?.title?.style.font_family || "sans");
-
-  // Trigger animations on counter change
-  useEffect(() => {
-    if (!activePokemon || !settings) return;
-    if (
-      prevCount.current !== undefined &&
-      activePokemon.encounters !== prevCount.current
-    ) {
-      const isReset = activePokemon.encounters === 0;
-      const isIncrement = activePokemon.encounters > (prevCount.current ?? 0);
-      const isDecrement = !isIncrement && !isReset;
-
-      // Counter
-      const counterKey = settings.counter.trigger_enter;
-      if (counterKey !== "slot" && counterKey !== "flip-digit") {
-        const keyForIncrement = isIncrement ? counterKey : "shake";
-        const key = isReset ? "rubber" : keyForIncrement;
-        const cls = COUNTER_ANIMS[key] ?? "";
-        if (cls) {
-          setAnimReverse(isDecrement);
-          setAnimClass(cls);
-          setTriggerId(Date.now());
-        }
-      } else {
-        // slot / flip-digit: just toggle reverse so digits re-key with right direction
-        setAnimReverse(isDecrement);
-      }
-
-      // Sprite
-      const spriteKey = settings.sprite.trigger_enter;
-      if (spriteKey && spriteKey !== "none") {
-        const cls = SPRITE_ANIMS[spriteKey] ?? "";
-        if (cls) {
-          setSpriteAnimReverse(isDecrement);
-          setSpriteAnimClass(cls);
-          setSpriteTriggerId(Date.now());
-        }
-      }
-
-      // Name
-      const nameKey = settings.name.trigger_enter;
-      if (nameKey && nameKey !== "none") {
-        const cls = NAME_ANIMS[nameKey] ?? "";
-        if (cls) {
-          setNameAnimReverse(isDecrement);
-          setNameAnimClass(cls);
-          setNameTriggerId(Date.now());
-        }
-      }
-
-      // Title
-      if (settings.title) {
-        const titleKey = settings.title.trigger_enter;
-        if (titleKey && titleKey !== "none") {
-          const cls = NAME_ANIMS[titleKey] ?? "";
-          if (cls) {
-            setTitleAnimReverse(isDecrement);
-            setTitleAnimClass(cls);
-            setTitleTriggerId(Date.now());
-          }
-        }
-      }
-    }
-    prevCount.current = activePokemon.encounters;
-  }, [activePokemon?.encounters, settings]);
-
-  // Test trigger from editor
-  useEffect(() => {
-    if (!testTrigger || !settings) return;
-    const rev = testTrigger.reverse ?? false;
-    if (testTrigger.element === "counter") {
-      const key = settings.counter.trigger_enter;
-      if (key !== "slot" && key !== "flip-digit") {
-        const cls = COUNTER_ANIMS[key] ?? "";
-        if (cls) {
-          setAnimReverse(rev);
-          setAnimClass(cls);
-          setTriggerId(Date.now());
-        }
-      } else {
-        setAnimReverse(rev);
-        setTriggerId(Date.now());
-      }
-    } else if (testTrigger.element === "sprite") {
-      const cls = SPRITE_ANIMS[settings.sprite.trigger_enter] ?? "";
-      if (cls) {
-        setSpriteAnimReverse(rev);
-        setSpriteAnimClass(cls);
-        setSpriteTriggerId(Date.now());
-      }
-    } else if (testTrigger.element === "name") {
-      const cls = NAME_ANIMS[settings.name.trigger_enter] ?? "";
-      if (cls) {
-        setNameAnimReverse(rev);
-        setNameAnimClass(cls);
-        setNameTriggerId(Date.now());
-      }
-    } else if (testTrigger.element === "title" && settings.title) {
-      const cls = NAME_ANIMS[settings.title.trigger_enter] ?? "";
-      if (cls) {
-        setTitleAnimReverse(rev);
-        setTitleAnimClass(cls);
-        setTitleTriggerId(Date.now());
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-docs
-  }, [testTrigger?.n]);
-
-  if (!activePokemon || !settings) {
-    if (previewSettings) {
-      return (
-        <div
+/** Renders a placeholder when no active Pokemon is available in the overlay. */
+function renderNoDataFallback(isPreview: boolean): React.JSX.Element {
+  if (isPreview) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <span
           style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            color: "rgba(255,255,255,0.3)",
+            fontSize: 11,
+            fontFamily: "sans-serif",
+            letterSpacing: "0.2em",
           }}
         >
-          <span
-            style={{
-              color: "rgba(255,255,255,0.3)",
-              fontSize: 11,
-              fontFamily: "sans-serif",
-              letterSpacing: "0.2em",
-            }}
-          >
-            Kein aktives Pokémon
-          </span>
-        </div>
-      );
-    }
-    return (
-      <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent overflow-hidden relative">
-        <div className="text-white/20 text-xs font-bold uppercase tracking-[0.3em] animate-pulse relative z-10">
-          Warten auf Daten...
-        </div>
+          Kein aktives Pokémon
+        </span>
       </div>
     );
   }
+  return (
+    <div className="overlay-page min-h-screen flex items-center justify-center bg-transparent overflow-hidden relative">
+      <div className="text-white/20 text-xs font-bold uppercase tracking-[0.3em] animate-pulse relative z-10">
+        Warten auf Daten...
+      </div>
+    </div>
+  );
+}
 
+/**
+ * Dispatches trigger animation for a single overlay element (sprite, name, title).
+ * Only fires when the trigger key is set to a valid animation.
+ */
+function dispatchElementAnim(
+  key: string | undefined,
+  animMap: Record<string, string>,
+  reverse: boolean,
+  channelSetters: AnimChannelSetters,
+): void {
+  if (key && key !== "none") {
+    triggerAnimation(key, animMap, reverse, channelSetters);
+  }
+}
+
+/**
+ * Dispatches the counter animation, with special handling for slot/flip-digit modes
+ * which only toggle direction instead of playing a CSS animation.
+ */
+function dispatchCounterAnim(
+  counter: { trigger_enter: string },
+  isIncrement: boolean,
+  isDecrement: boolean,
+  isReset: boolean,
+  channelSetters: AnimChannelSetters,
+): void {
+  const key = counter.trigger_enter;
+  if (key !== "slot" && key !== "flip-digit") {
+    const keyForIncrement = isIncrement ? key : "shake";
+    const animKey = isReset ? "rubber" : keyForIncrement;
+    triggerAnimation(animKey, COUNTER_ANIMS, isDecrement, channelSetters);
+  } else {
+    channelSetters.setReverse(isDecrement);
+  }
+}
+
+/**
+ * Dispatches counter-change animations across all overlay channels
+ * (counter, sprite, name, title).
+ */
+function dispatchCounterAnimations(
+  settings: OverlaySettings,
+  isIncrement: boolean,
+  isDecrement: boolean,
+  isReset: boolean,
+  allSetters: AnimChannelSettersMap,
+): void {
+  dispatchCounterAnim(settings.counter, isIncrement, isDecrement, isReset, allSetters.counter);
+  dispatchElementAnim(settings.sprite.trigger_enter, SPRITE_ANIMS, isDecrement, allSetters.sprite);
+  dispatchElementAnim(settings.name.trigger_enter, NAME_ANIMS, isDecrement, allSetters.name);
+  if (settings.title) {
+    dispatchElementAnim(settings.title.trigger_enter, NAME_ANIMS, isDecrement, allSetters.title);
+  }
+}
+
+/** Resolves the effective overlay settings for the current Pokemon. */
+function resolveSettings(
+  previewSettings: OverlaySettings | undefined,
+  activePokemon: Pokemon | null,
+  appState: { pokemon: Pokemon[]; settings: { overlay: OverlaySettings } } | null,
+): OverlaySettings | null {
+  if (previewSettings) return previewSettings;
+  if (!activePokemon || !appState) return null;
+  return resolveOverlay(activePokemon, appState.pokemon, appState.settings.overlay);
+}
+
+/** Dispatches a test-trigger animation from the overlay editor preview. */
+function dispatchTestTrigger(
+  testTrigger: { element: string; reverse?: boolean; n: number },
+  settings: OverlaySettings,
+  allSetters: AnimChannelSettersMap,
+): void {
+  const rev = testTrigger.reverse ?? false;
+  if (testTrigger.element === "counter") {
+    const key = settings.counter.trigger_enter;
+    if (key !== "slot" && key !== "flip-digit") {
+      triggerAnimation(key, COUNTER_ANIMS, rev, allSetters.counter);
+    } else {
+      allSetters.counter.setReverse(rev);
+      allSetters.counter.setTriggerId(Date.now());
+    }
+  } else if (testTrigger.element === "sprite") {
+    triggerAnimation(settings.sprite.trigger_enter, SPRITE_ANIMS, rev, allSetters.sprite);
+  } else if (testTrigger.element === "name") {
+    triggerAnimation(settings.name.trigger_enter, NAME_ANIMS, rev, allSetters.name);
+  } else if (testTrigger.element === "title" && settings.title) {
+    triggerAnimation(settings.title.trigger_enter, NAME_ANIMS, rev, allSetters.title);
+  }
+}
+
+/** Computes all derived CSS styles for the overlay background, text, and layout. */
+function buildOverlayStyles(
+  settings: OverlaySettings,
+  isPreview: boolean,
+  crispSprites: boolean,
+) {
   const bgHex = settings.background_color.replace("#", "");
   const opacity = Math.round(settings.background_opacity * 255)
     .toString(16)
@@ -430,9 +469,7 @@ export function Overlay({
 
   const counterMode = settings.counter.trigger_enter;
 
-  // Background and content are on separate layers so animated elements
-  // can overflow the card without being clipped (e.g. spin, bounce).
-  const outerStyle: React.CSSProperties = previewSettings
+  const outerStyle: React.CSSProperties = isPreview
     ? { position: "absolute", inset: 0 }
     : {
         position: "relative",
@@ -442,7 +479,6 @@ export function Overlay({
 
   const hidden = settings.hidden ?? false;
   const borderWidth = settings.border_width ?? 2;
-  const crispSprites = appState?.settings.crisp_sprites ?? false;
 
   const bgAnimKey = settings.background_animation ?? "none";
   const hasBgAnim = bgAnimKey !== "none" && bgAnimKey in BG_ANIM_CLASS;
@@ -453,7 +489,6 @@ export function Overlay({
         position: "absolute",
         inset: 0,
         pointerEvents: "none",
-        // When animation is active, use solid background_color as base
         backgroundColor: hasBgAnim ? settings.background_color : bgWithOpacity,
         backdropFilter: `blur(${settings.blur}px)`,
         borderRadius: `${settings.border_radius}px`,
@@ -466,11 +501,14 @@ export function Overlay({
   const bgImageFit = settings.background_image_fit ?? "cover";
   const bgSizeMap: Record<string, string> = { tile: "auto", stretch: "100% 100%" };
   const bgImageSize = bgSizeMap[bgImageFit] ?? bgImageFit;
+  const bgImageUrl = settings.background_image
+    ? apiUrl(`/api/backgrounds/${settings.background_image}`)
+    : "";
   const bgImageStyle: React.CSSProperties | undefined = settings.background_image
     ? {
         position: "absolute",
         inset: 0,
-        backgroundImage: `url(${apiUrl(`/api/backgrounds/${settings.background_image}`)})`,
+        backgroundImage: `url(${bgImageUrl})`,
         backgroundSize: bgImageSize,
         backgroundRepeat: bgImageFit === "tile" ? "repeat" : "no-repeat",
         backgroundPosition: "center",
@@ -478,6 +516,72 @@ export function Overlay({
         pointerEvents: "none",
       }
     : undefined;
+
+  return {
+    nameStyle, counterStyle, labelStyle, titleStyle, counterMode,
+    outerStyle, crispSprites, bgAnimKey, hasBgAnim,
+    bgStyle, bgImageStyle,
+  };
+}
+
+export function Overlay({
+  previewSettings,
+  previewPokemon,
+  testTrigger,
+}: Readonly<Props>) {
+  const { appState } = useCounterStore();
+  const { channels, setters } = useAnimationTriggers();
+
+  const prevCount = useRef<number | undefined>(undefined);
+
+  // Path-based route param takes priority, query param as fallback
+  const { pokemonId: routePokemonId } = useParams<{ pokemonId?: string }>();
+  const searchParams = new URLSearchParams(globalThis.location.search);
+  const overlayPokemonId = routePokemonId || searchParams.get("id");
+
+  const activePokemon: Pokemon | null = useMemo(
+    () => resolveActivePokemon(previewPokemon, appState, overlayPokemonId),
+    [previewPokemon, appState, overlayPokemonId],
+  );
+
+  const settings: OverlaySettings | null = useMemo(
+    () => resolveSettings(previewSettings, activePokemon, appState),
+    [previewSettings, activePokemon, appState],
+  );
+
+  // Inject fonts
+  useGoogleFont(settings?.name.style.font_family || "sans");
+  useGoogleFont(settings?.counter.style.font_family || "sans");
+  useGoogleFont(settings?.title?.style.font_family || "sans");
+
+  // Trigger animations on counter change
+  useEffect(() => {
+    if (!activePokemon || !settings) return;
+    if (prevCount.current !== undefined && activePokemon.encounters !== prevCount.current) {
+      const isReset = activePokemon.encounters === 0;
+      const isIncrement = activePokemon.encounters > (prevCount.current ?? 0);
+      dispatchCounterAnimations(settings, isIncrement, !isIncrement && !isReset, isReset, setters);
+    }
+    prevCount.current = activePokemon.encounters;
+  }, [activePokemon?.encounters, settings]);
+
+  // Test trigger from editor
+  useEffect(() => {
+    if (testTrigger && settings) {
+      dispatchTestTrigger(testTrigger, settings, setters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-docs
+  }, [testTrigger?.n]);
+
+  if (!activePokemon || !settings) {
+    return renderNoDataFallback(!!previewSettings);
+  }
+
+  const {
+    nameStyle, counterStyle, labelStyle, titleStyle, counterMode,
+    outerStyle, crispSprites, bgAnimKey, hasBgAnim,
+    bgStyle, bgImageStyle,
+  } = buildOverlayStyles(settings, !!previewSettings, appState?.settings.crisp_sprites ?? false);
 
   const canvas = (
     <div style={outerStyle}>
@@ -510,7 +614,7 @@ export function Overlay({
           className={SPRITE_IDLE[settings.sprite.idle_animation] ?? ""}
         >
           <div
-            key={`sprite-${spriteTriggerId}`}
+            key={`sprite-${channels.sprite.triggerId}`}
             style={{
               position: "relative",
               width: "100%",
@@ -519,9 +623,9 @@ export function Overlay({
               alignItems: "center",
               justifyContent: "center",
               transformOrigin: "center",
-              animationDirection: spriteAnimReverse ? "reverse" : undefined,
+              animationDirection: channels.sprite.reverse ? "reverse" : undefined,
             }}
-            className={spriteAnimClass}
+            className={channels.sprite.animClass}
           >
             {settings.sprite.show_glow && (
               <div
@@ -578,13 +682,13 @@ export function Overlay({
             className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
           >
             <span
-              key={`name-${nameTriggerId}`}
-              className={`uppercase tracking-widest whitespace-nowrap ${nameAnimClass}`}
+              key={`name-${channels.name.triggerId}`}
+              className={`uppercase tracking-widest whitespace-nowrap ${channels.name.animClass}`}
               style={{
                 ...nameStyle,
                 display: "inline-block",
                 transformOrigin: "center",
-                animationDirection: nameAnimReverse ? "reverse" : undefined,
+                animationDirection: channels.name.reverse ? "reverse" : undefined,
               }}
             >
               {activePokemon.name}
@@ -619,13 +723,13 @@ export function Overlay({
             className={TEXT_IDLE[settings.title.idle_animation] ?? ""}
           >
             <span
-              key={`title-${titleTriggerId}`}
-              className={`uppercase tracking-widest whitespace-nowrap ${titleAnimClass}`}
+              key={`title-${channels.title.triggerId}`}
+              className={`uppercase tracking-widest whitespace-nowrap ${channels.title.animClass}`}
               style={{
                 ...titleStyle,
                 display: "inline-block",
                 transformOrigin: "center",
-                animationDirection: titleAnimReverse ? "reverse" : undefined,
+                animationDirection: channels.title.reverse ? "reverse" : undefined,
               }}
             >
               {activePokemon.title}
@@ -665,7 +769,7 @@ export function Overlay({
                   <SlotCounter
                     value={activePokemon.encounters}
                     counterStyle={counterStyle}
-                    reverse={animReverse}
+                    reverse={channels.counter.reverse}
                   />
                 );
               }
@@ -674,19 +778,19 @@ export function Overlay({
                   <FlipCounter
                     value={activePokemon.encounters}
                     counterStyle={counterStyle}
-                    reverse={animReverse}
+                    reverse={channels.counter.reverse}
                   />
                 );
               }
               return (
                 <span
-                  key={`counter-${triggerId}`}
-                  className={`font-black tabular-nums leading-none ${animClass}`}
+                  key={`counter-${channels.counter.triggerId}`}
+                  className={`font-black tabular-nums leading-none ${channels.counter.animClass}`}
                   style={{
                     ...counterStyle,
                     display: "inline-block",
                     transformOrigin: "center",
-                    animationDirection: animReverse ? "reverse" : undefined,
+                    animationDirection: channels.counter.reverse ? "reverse" : undefined,
                   }}
                 >
                   {activePokemon.encounters}

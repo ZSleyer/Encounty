@@ -280,6 +280,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   // Canvas background for testing (transparent = checkered, white, black)
   const [canvasBg, setCanvasBg] = useState<"transparent" | "white" | "black">("transparent");
 
+  const bgPreviewUrl = localSettings.background_image
+    ? apiUrl(`/api/backgrounds/${localSettings.background_image}`)
+    : "";
+
   const effectiveTool = (activeTool === "hand" || spaceHeld) ? "hand" : "pointer";
 
   // Background image upload state
@@ -736,15 +740,16 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           {LAYERS.filter(key => key !== "title" || activePokemon?.title).map((key) => {
             const el = localSettings[key] as OverlayElementBase;
             return (
-              <div
+              <button
+                type="button"
                 key={key}
                 onClick={() => setSelectedEl(key)}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedEl(key); } }}
-                className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors ${
+                className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors w-full text-left ${
                   selectedEl === key
                     ? "bg-accent-blue/20 border border-accent-blue/40"
                     : "hover:bg-bg-hover border border-transparent"
                 }`}
+                style={{ background: "none" }}
               >
                 <span className="text-xs 2xl:text-sm text-text-primary">
                   {ELEMENT_LABELS[key]}
@@ -791,7 +796,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     )}
                   </button>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -882,7 +887,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 <div
                   className="mt-1.5 w-full h-12 rounded border border-border-subtle bg-bg-primary overflow-hidden"
                   style={{
-                    backgroundImage: `url(${apiUrl(`/api/backgrounds/${localSettings.background_image}`)})`,
+                    backgroundImage: `url(${bgPreviewUrl})`,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                   }}
