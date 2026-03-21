@@ -2,39 +2,35 @@
 
 Encounty is a modern, open-source encounter tracker for Pokémon games. It uses text and image recognition to automatically detect and count encounters, enabling unlimited multi-hunts — limited only by your hardware. Manual tracking via global hotkeys is also supported.
 
-The application was developed on Arch Linux with Wayland but is also available for Windows.
+## Compatibility
+
+The application is currently only tested on and known to be compatible with:
+
+- **Linux**: Wayland only (no X11/Xwayland support for capture; tested on Arch Linux)
+- **Windows**: Windows 11 only (version 21H2+)
+
+> [!IMPORTANT]
+> macOS and other Linux/Windows versions are currently unsupported as of 2026, and there are no plans to support them.
 
 ## Features
 
-- Automatic encounter tracking via text and image recognition
-- Unlimited simultaneous multi-hunts
+- **GPU-accelerated** encounter tracking via high-performance NCC template matching
+- Unlimited simultaneous multi-hunts with minimal CPU overhead
 - Manual tracking with configurable global hotkeys
 - Customizable dashboard with real-time stats
 - OBS overlay editor with drag-and-drop and live preview
 
-<div>
-  <img src="docs/images/dashboard.png" width="800" alt="Dashboard">
-  <br>
-  <em>Modern, customizable dashboard with real-time stats.</em>
-</div>
+![Dashboard](docs/images/dashboard.png)
+*Modern, customizable dashboard with real-time stats.*
 
-<div>
-  <img src="docs/images/overlay_editor.png" width="800" alt="Overlay Editor">
-  <br>
-  <em>Powerful overlay editor with drag-and-drop and real-time preview.</em>
-</div>
+![Overlay Editor](docs/images/overlay_editor.png)
+*Powerful overlay editor with drag-and-drop and real-time preview.*
 
-<div>
-  <img src="docs/images/auto_detection.png" width="800" alt="Auto-Detection">
-  <br>
-  <em>Auto-detection system for encounter counting.</em>
-</div>
+![Auto-Detection](docs/images/auto_detection.png)
+*Auto-detection system for encounter counting.*
 
-<div>
-  <img src="docs/images/auto_detection_templates.png" width="800" alt="Auto-Detection Templates">
-  <br>
-  <em>Auto-detection templates for encounter counting.</em>
-</div>
+![Auto-Detection Templates](docs/images/auto_detection_templates.png)
+*Auto-detection templates for encounter counting.*
 
 ## Download
 
@@ -63,15 +59,16 @@ Pull requests are welcome! Whether it's translations, new features, or bug fixes
 
 Encounty uses a clean frontend/backend separation:
 
-- **Go backend** — pure API server (`/api/*`, `/ws`, `/swagger/`)
+- **Go backend** — pure API server and state coordinator (`/api/*`, `/ws`)
+- **Rust sidecar** — high-performance GPU capture (PipeWire/DXGI) & NCC matching
 - **Electron** — serves the frontend via a custom `encounty://` protocol
 - **Vite** — dev server with proxy to Go backend for development
 
-```
+```text
 backend/          Go API server (REST + WebSocket)
   internal/
     server/       HTTP handlers (split by domain)
-    detector/     Auto-detection engine + FrameSource pipeline
+    detector/     Sidecar manager + detection state machine
     gamesync/     Game catalogue + PokéAPI sync
     pokedex/      Pokédex data + GraphQL sync
     updater/      Auto-update + platform binary replacement

@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	// pokeAPIGraphQL is the PokéAPI GraphQL beta endpoint.
-	pokeAPIGraphQL = "https://beta.pokeapi.co/graphql/v1beta"
+	// pokeAPIGraphQL is the PokéAPI GraphQL v1beta2 endpoint.
+	pokeAPIGraphQL = "https://graphql.pokeapi.co/v1beta2"
 
 	// contentTypeJSON is the MIME type for JSON request bodies.
 	contentTypeJSON = "application/json"
@@ -161,7 +161,7 @@ func isIgnoredForm(name string) bool {
 // PokéAPI GraphQL endpoint and appends new forms to the matching species in
 // current. It returns the canonical names of newly added forms.
 func fetchAndMergeForms(current *[]Entry) []string {
-	q := `{"query":"query{pokemon_v2_pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id}}"}`
+	q := `{"query":"query{pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id}}"}`
 	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
 	if err != nil {
 		return nil
@@ -174,7 +174,7 @@ func fetchAndMergeForms(current *[]Entry) []string {
 				ID        int    `json:"id"`
 				Name      string `json:"name"`
 				SpeciesID int    `json:"pokemon_species_id"`
-			} `json:"pokemon_v2_pokemon"`
+			} `json:"pokemon"`
 		} `json:"data"`
 	}
 	if json.NewDecoder(resp.Body).Decode(&glForms) != nil {
@@ -217,7 +217,7 @@ func fetchAndMergeForms(current *[]Entry) []string {
 // GraphQL endpoint and applies them to the entries in current. It returns the
 // number of individual name values that changed.
 func fetchAndApplySpeciesNames(current *[]Entry) int {
-	q := `{"query":"query{pokemon_v2_pokemonspeciesname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){name pokemon_species_id pokemon_v2_language{name}}}"}`
+	q := `{"query":"query{pokemonspeciesname(where:{language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){name pokemon_species_id language{name}}}"}`
 	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
 	if err != nil {
 		return 0
@@ -226,7 +226,7 @@ func fetchAndApplySpeciesNames(current *[]Entry) int {
 
 	var glResp struct {
 		Data struct {
-			Names []speciesNameRow `json:"pokemon_v2_pokemonspeciesname"`
+			Names []speciesNameRow `json:"pokemonspeciesname"`
 		} `json:"data"`
 	}
 	if json.NewDecoder(resp.Body).Decode(&glResp) != nil {
@@ -261,7 +261,7 @@ type speciesNameRow struct {
 	SpeciesID int    `json:"pokemon_species_id"`
 	Language  struct {
 		Name string `json:"name"`
-	} `json:"pokemon_v2_language"`
+	} `json:"language"`
 }
 
 // buildSpeciesTranslationMap converts raw species-name rows into a
@@ -295,7 +295,7 @@ func shouldSkipJaKatakana(langKey, apiLang string, existing map[string]string) b
 // endpoint and applies them to the form entries in current. It returns the
 // number of individual name values that changed.
 func fetchAndApplyFormNames(current *[]Entry) int {
-	q := `{"query":"query{pokemon_v2_pokemonformname(where:{pokemon_v2_language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){pokemon_v2_pokemonform{name} pokemon_v2_language{name} pokemon_name name}}"}`
+	q := `{"query":"query{pokemonformname(where:{language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){pokemonform{name} language{name} pokemon_name name}}"}`
 	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
 	if err != nil {
 		return 0
@@ -304,7 +304,7 @@ func fetchAndApplyFormNames(current *[]Entry) int {
 
 	var glResp struct {
 		Data struct {
-			Names []formNameRow `json:"pokemon_v2_pokemonformname"`
+			Names []formNameRow `json:"pokemonformname"`
 		} `json:"data"`
 	}
 	if json.NewDecoder(resp.Body).Decode(&glResp) != nil {
@@ -340,10 +340,10 @@ func fetchAndApplyFormNames(current *[]Entry) int {
 type formNameRow struct {
 	Form struct {
 		Name string `json:"name"`
-	} `json:"pokemon_v2_pokemonform"`
+	} `json:"pokemonform"`
 	Language struct {
 		Name string `json:"name"`
-	} `json:"pokemon_v2_language"`
+	} `json:"language"`
 	PokemonName string `json:"pokemon_name"`
 	Name        string `json:"name"`
 }
