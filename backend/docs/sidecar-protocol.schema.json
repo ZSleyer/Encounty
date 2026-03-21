@@ -1,0 +1,930 @@
+{
+  "commands": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "definitions": {
+      "DetectionConfig": {
+        "description": "Tunable parameters for the sidecar's capture-and-match loop.",
+        "properties": {
+          "change_threshold": {
+            "default": 0.15,
+            "description": "Fraction of changed pixels between consecutive frames required to consider the frame \"new\" and worth matching.",
+            "format": "double",
+            "type": "number"
+          },
+          "consecutive_hits": {
+            "default": 1,
+            "description": "Number of consecutive frames that must exceed `precision` before reporting a match.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Rect"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Optional crop rectangle applied to the captured frame before matching."
+          },
+          "max_dim": {
+            "default": 320,
+            "description": "Maximum dimension (width or height) to downscale captured frames to before matching, keeping aspect ratio.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "max_poll_ms": {
+            "default": 500,
+            "description": "Upper bound for adaptive polling interval in milliseconds.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "min_poll_ms": {
+            "default": 30,
+            "description": "Lower bound for adaptive polling interval in milliseconds.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "poll_interval_ms": {
+            "default": 50,
+            "description": "Target polling interval in milliseconds.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "precision": {
+            "default": 0.85,
+            "description": "Minimum normalised cross-correlation score to count as a match.",
+            "format": "double",
+            "type": "number"
+          },
+          "relative_regions": {
+            "default": false,
+            "description": "When `true`, template regions are interpreted relative to the (possibly cropped) frame rather than absolute screen coordinates.",
+            "type": "boolean"
+          },
+          "rematch_enabled": {
+            "default": true,
+            "description": "Whether re-match in replay buffer is enabled.",
+            "type": "boolean"
+          },
+          "rematch_threshold_offset": {
+            "default": 0.05,
+            "description": "How far below precision to still consider a \"near miss\" for re-match.",
+            "format": "double",
+            "type": "number"
+          },
+          "rematch_window_sec": {
+            "default": 5,
+            "description": "Seconds to look back for re-match.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "replay_buffer_sec": {
+            "default": 30,
+            "description": "How many seconds the replay buffer holds.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "window_title": {
+            "default": null,
+            "description": "Optional window title filter (used when `source_type` is `\"window\"`).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "Rect": {
+        "description": "Axis-aligned rectangle used for crop regions and template regions.",
+        "properties": {
+          "h": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "w": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "x": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "y": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "h",
+          "w",
+          "x",
+          "y"
+        ],
+        "type": "object"
+      },
+      "Region": {
+        "description": "A sub-region inside a template image used for image or text matching.",
+        "properties": {
+          "expected_text": {
+            "default": "",
+            "description": "Text expected by OCR when `region_type` is `\"text\"`.",
+            "type": "string"
+          },
+          "rect": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/Rect"
+              }
+            ],
+            "description": "Bounding rectangle within the template image."
+          },
+          "region_type": {
+            "description": "Region kind: `\"image\"` for pixel matching, `\"text\"` for OCR.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rect",
+          "region_type"
+        ],
+        "type": "object"
+      },
+      "SourceType": {
+        "description": "Discriminator for the kind of source to list.",
+        "enum": [
+          "window",
+          "screen",
+          "camera"
+        ],
+        "type": "string"
+      },
+      "TemplateConfig": {
+        "description": "Configuration for a single template image that the sidecar loads and matches against captured frames.",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Whether this template participates in detection.",
+            "type": "boolean"
+          },
+          "id": {
+            "description": "Unique template identifier within the session.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "path": {
+            "description": "Absolute filesystem path to the template PNG.",
+            "type": "string"
+          },
+          "regions": {
+            "default": [],
+            "description": "Sub-regions to match inside the template.",
+            "items": {
+              "$ref": "#/definitions/Region"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    "description": "A single command received from the Go backend.",
+    "oneOf": [
+      {
+        "description": "Enumerate available capture sources of the given type.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "list_sources"
+            ],
+            "type": "string"
+          },
+          "source_type": {
+            "$ref": "#/definitions/SourceType"
+          }
+        },
+        "required": [
+          "cmd",
+          "source_type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Load (or replace) template images for a detection session.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "load_templates"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "templates": {
+            "items": {
+              "$ref": "#/definitions/TemplateConfig"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "cmd",
+          "session_id",
+          "templates"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Start the capture-and-match loop for the given source and config.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "start_detection"
+            ],
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/definitions/DetectionConfig"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cmd",
+          "config",
+          "session_id",
+          "source_id",
+          "source_type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Stop a running detection session.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "stop_detection"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cmd",
+          "session_id"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Capture a single frame for live preview (sent back as binary).",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "capture_frame"
+            ],
+            "type": "string"
+          },
+          "h": {
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "w": {
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cmd",
+          "h",
+          "source_id",
+          "source_type",
+          "w"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Start streaming JPEG preview frames for a detection session.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "start_preview"
+            ],
+            "type": "string"
+          },
+          "max_dim": {
+            "default": 640,
+            "description": "Maximum dimension (width or height) for preview frames.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "quality": {
+            "default": 75,
+            "description": "JPEG quality (1-100).",
+            "format": "uint8",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "target_fps": {
+            "default": 0,
+            "description": "Target FPS. 0 means capture framerate (no limit).",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cmd",
+          "session_id"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Stop streaming preview frames for a detection session.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "stop_preview"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cmd",
+          "session_id"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Update tunable detection parameters for a running session.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "update_config"
+            ],
+            "type": "string"
+          },
+          "config": {
+            "$ref": "#/definitions/DetectionConfig"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cmd",
+          "config",
+          "session_id"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Query the replay buffer status for a detection session.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "get_replay_status"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cmd",
+          "session_id"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Freeze the replay buffer contents to disk as a snapshot.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "snapshot_replay"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cmd",
+          "session_id"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Delete a previously saved snapshot from disk.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "delete_snapshot"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cmd",
+          "session_id"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Retrieve a single JPEG frame from a saved snapshot.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "get_snapshot_frame"
+            ],
+            "type": "string"
+          },
+          "frame_index": {
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cmd",
+          "frame_index",
+          "session_id"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Run NCC matching on replay buffer frames within a time window.",
+        "properties": {
+          "cmd": {
+            "enum": [
+              "trigger_rematch"
+            ],
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "window_sec": {
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "cmd",
+          "session_id",
+          "window_sec"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "Command"
+  },
+  "responses": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "definitions": {
+      "SourceInfo": {
+        "description": "Metadata for a single capturable source.",
+        "properties": {
+          "h": {
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "source_type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "w": {
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "h",
+          "id",
+          "source_type",
+          "title",
+          "w"
+        ],
+        "type": "object"
+      }
+    },
+    "description": "A JSON response written to stdout.",
+    "oneOf": [
+      {
+        "description": "Result of a `list_sources` command.",
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/definitions/SourceInfo"
+            },
+            "type": "array"
+          },
+          "type": {
+            "enum": [
+              "sources"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "data",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Scalar match result emitted by the detection loop.",
+        "properties": {
+          "best_score": {
+            "description": "Best normalised cross-correlation score across all enabled templates.",
+            "format": "double",
+            "type": "number"
+          },
+          "frame_delta": {
+            "description": "Fraction of pixels that changed since the previous frame.",
+            "format": "double",
+            "type": "number"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "timestamp_ms": {
+            "description": "Milliseconds since the Unix epoch when the frame was captured.",
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "match_result"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "best_score",
+          "frame_delta",
+          "session_id",
+          "timestamp_ms",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Acknowledgement that a detection session has started.",
+        "properties": {
+          "h": {
+            "description": "Height of the captured (and possibly cropped/downscaled) frame.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "detection_started"
+            ],
+            "type": "string"
+          },
+          "w": {
+            "description": "Width of the captured (and possibly cropped/downscaled) frame.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "h",
+          "session_id",
+          "type",
+          "w"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Acknowledgement that a detection session has stopped.",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "detection_stopped"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Acknowledgement that templates were loaded for a session.",
+        "properties": {
+          "count": {
+            "description": "Number of templates successfully loaded.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "templates_loaded"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Acknowledgement that the detection config was updated.",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "config_updated"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Acknowledgement that preview streaming has started.",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "preview_started"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Acknowledgement that preview streaming has stopped.",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "preview_stopped"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Current status of the replay ring buffer for a session.",
+        "properties": {
+          "duration_sec": {
+            "description": "Total wall-clock seconds covered by the ring buffer.",
+            "format": "double",
+            "type": "number"
+          },
+          "frame_count": {
+            "description": "Number of frames currently stored.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "replay_status"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "duration_sec",
+          "frame_count",
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Notification that a replay snapshot has been written to disk.",
+        "properties": {
+          "duration_sec": {
+            "description": "Wall-clock duration covered by the snapshot.",
+            "format": "double",
+            "type": "number"
+          },
+          "frame_count": {
+            "description": "Number of JPEG frames in the snapshot.",
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "path": {
+            "description": "Filesystem path to the snapshot directory.",
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "snapshot_ready"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "duration_sec",
+          "frame_count",
+          "path",
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Header for a single snapshot frame; the JPEG payload follows as a binary frame on stdout immediately after this JSON line.",
+        "properties": {
+          "frame_index": {
+            "format": "uint32",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "snapshot_frame"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "frame_index",
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "Notification that a snapshot directory has been removed.",
+        "properties": {
+          "session_id": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "snapshot_deleted"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "A frame in the replay buffer that scored above precision during re-match.",
+        "properties": {
+          "best_score": {
+            "description": "Best NCC score for this frame.",
+            "format": "double",
+            "type": "number"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "timestamp_ms": {
+            "description": "Unix-epoch milliseconds when the frame was originally captured.",
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": "integer"
+          },
+          "type": {
+            "enum": [
+              "replay_match"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "best_score",
+          "session_id",
+          "timestamp_ms",
+          "type"
+        ],
+        "type": "object"
+      },
+      {
+        "description": "An error encountered while processing a command.",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "error"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "message",
+          "type"
+        ],
+        "type": "object"
+      }
+    ],
+    "title": "Response"
+  }
+}

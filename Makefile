@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-windows build-linux frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-package-linux electron-package-windows electron-package-all build-sidecar-linux build-sidecar-windows clean-sidecar swagger
+.PHONY: dev build build-all build-windows build-linux frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-package-linux electron-package-windows electron-package-all build-sidecar-linux build-sidecar-windows clean-sidecar swagger sidecar-schema
 
 BINARY = encounty
 BACKEND_DIR = backend
@@ -33,7 +33,7 @@ frontend:
 frontend-build: frontend
 
 swagger:
-	cd backend && swag init -g main.go --parseDependency --parseInternal -o docs
+	cd backend && swag init -g main.go --parseDependency --parseInternal -o docs --v3.1
 
 build: swagger build-linux build-windows
 all: build
@@ -138,6 +138,9 @@ build-sidecar-windows:
 	cd $(SIDECAR_DIR) && cargo build --release --target x86_64-pc-windows-gnu
 	@mkdir -p $(WINDOWS_DIST)
 	cp $(SIDECAR_DIR)/target/x86_64-pc-windows-gnu/release/encounty-capture.exe $(WINDOWS_DIST)/
+
+sidecar-schema:
+	cd $(SIDECAR_DIR) && cargo run --bin gen-schema > ../$(BACKEND_DIR)/docs/sidecar-protocol.schema.json
 
 clean-sidecar:
 	@if [ -d "$(SIDECAR_DIR)" ]; then cd $(SIDECAR_DIR) && cargo clean; fi
