@@ -2,6 +2,21 @@
 
 Encounty is a modern, open-source encounter tracker for Pokémon games. It uses text and image recognition to automatically detect and count encounters, enabling unlimited multi-hunts — limited only by your hardware. Manual tracking via global hotkeys is also supported.
 
+## Download
+
+**[⬇ Download the latest version here](https://github.com/ZSleyer/Encounty/releases/latest)**
+
+Choose the file matching your operating system:
+
+- **Windows**: `Encounty.exe`
+- **Linux**: `Encounty.AppImage`
+
+All releases can be found on the [Releases](https://github.com/ZSleyer/Encounty/releases) page.
+
+## Support
+
+Encounty is a hobby project provided free of charge. There is no official support.
+
 ## Compatibility
 
 The application is currently only tested on and known to be compatible with:
@@ -32,17 +47,6 @@ The application is currently only tested on and known to be compatible with:
 ![Auto-Detection Templates](docs/images/auto_detection_templates.png)
 *Auto-detection templates for encounter counting.*
 
-## Download
-
-**[⬇ Download the latest version here](https://github.com/ZSleyer/Encounty/releases/latest)**
-
-Choose the file matching your operating system:
-
-- **Windows**: `Encounty.exe`
-- **Linux**: `Encounty.AppImage`
-
-All releases can be found on the [Releases](https://github.com/ZSleyer/Encounty/releases) page.
-
 ## Contributing
 
 Pull requests are welcome! Whether it's translations, new features, or bug fixes — feel free to contribute.
@@ -51,47 +55,72 @@ Pull requests are welcome! Whether it's translations, new features, or bug fixes
 
 ### Prerequisites
 
-- Go 1.25+
-- Node.js 18+ & Yarn
-- Make
+| Tool | Version | Notes |
+|------|---------|-------|
+| Go | 1.25+ | Backend API server |
+| Node.js | 22+ | Frontend build |
+| Yarn | any | Package manager (`npm install -g yarn`) |
+| Rust | stable | Capture sidecar (`rustup install stable`) |
+| Make | any | Build orchestration |
+
+**Linux only** — additional system packages required to build the Rust sidecar:
+
+```bash
+# Arch Linux
+sudo pacman -S pipewire pkg-config clang
+
+# Ubuntu / Debian
+sudo apt-get install -y libpipewire-0.3-dev pkg-config libclang-dev libudev-dev
+```
 
 ### Architecture
 
-Encounty uses a clean frontend/backend separation:
+Encounty uses a three-process architecture:
 
-- **Go backend** — pure API server and state coordinator (`/api/*`, `/ws`)
-- **Rust sidecar** — high-performance GPU capture (PipeWire/DXGI) & NCC matching
-- **Electron** — serves the frontend via a custom `encounty://` protocol
-- **Vite** — dev server with proxy to Go backend for development
+- **Rust sidecar** (`encounty-capture`) — screen/window/camera capture via PipeWire (Linux) or DXGI (Windows); CPU-based NCC template matching; communicates with the backend over stdin/stdout using newline-delimited JSON + binary frames
+- **Go backend** — pure API server and state coordinator (`/api/*`, `/ws`); spawns and manages the sidecar subprocess
+- **Electron** — desktop shell; serves the frontend via a custom `encounty://` protocol and manages the Go process lifecycle
+- **Vite** — dev server with proxy to the Go backend for development (no Electron needed)
 
 ```text
 backend/          Go API server (REST + WebSocket)
   internal/
     server/       HTTP handlers (split by domain)
-    detector/     Sidecar manager + detection state machine
+    detector/     Sidecar process manager + detection state machine
     gamesync/     Game catalogue + PokéAPI sync
     pokedex/      Pokédex data + GraphQL sync
     updater/      Auto-update + platform binary replacement
     state/        In-memory state manager
     database/     SQLite persistence (normalized v2 schema)
-    hotkeys/      Platform-native global hotkeys
+    hotkeys/      Platform-native global hotkeys (evdev / Win32)
     fileoutput/   OBS text file integration
-frontend/         React + TypeScript SPA (Vite, Tailwind CSS, Zustand)
+capture-sidecar/  Rust sidecar (capture + NCC matching)
+  src/
+    capture/      Screen, window, camera backends (PipeWire / xcap / nokhwa)
+    detection/    Capture-and-match session registry
+    match_engine/ CPU NCC implementation
+    protocol.rs   stdin/stdout wire protocol types
+frontend/         React + TypeScript SPA (Vite, Tailwind CSS 4, Zustand)
 electron/         Electron wrapper (custom protocol, process manager)
 ```
 
 ### Running in Development
 
+The backend automatically locates the sidecar binary at
+`../capture-sidecar/target/{debug,release}/encounty-capture` relative to its
+working directory, so a one-time sidecar build is all that is required.
+
 ```bash
-# Option 1: Make (backend + frontend, no Electron)
+# 1. Build the sidecar once (re-run only when capture-sidecar/ changes)
+cd capture-sidecar && cargo build && cd ..
+
+# 2a. Start backend + frontend via Make
 make dev
 
-# Option 2: VS Code (use "Full Dev + Electron" compound launch config)
-
-# Option 3: Manual
-cd backend && go run main.go --dev          # Terminal 1: Go API server
-cd frontend && yarn dev                      # Terminal 2: Vite dev server
-cd electron && yarn dev                      # Terminal 3: Electron (optional)
+# 2b. Or start each process manually in separate terminals
+cd backend  && go run -ldflags="-X main.version=dev" main.go --dev   # :8080
+cd frontend && yarn dev                                                # :5173
+cd electron && yarn dev                                                # optional Electron window
 ```
 
 The Vite dev server (`:5173`) proxies `/api` and `/ws` to the Go backend (`:8080`).
@@ -104,16 +133,41 @@ Swagger UI is available at `http://localhost:8080/swagger/` when the backend is 
 ### Building from Source
 
 ```bash
-make build                       # Go binaries for Linux + Windows (API-only)
-make electron-package-linux      # Electron AppImage (bundles Go + frontend)
-make electron-package-windows    # Electron portable exe
-make swagger                     # Regenerate OpenAPI spec
-make test                        # Run Go + frontend tests
+# Rust sidecar
+make build-sidecar-linux       # Linux binary → dist-linux/encounty-capture
+make build-sidecar-windows     # Windows binary → dist-windows/encounty-capture.exe
+
+# Go backend (requires sidecar to be built first for a complete bundle)
+make build-linux               # Linux amd64 binary + dist-linux/ bundle
+make build-windows             # Windows amd64 binary
+
+# Electron desktop app (bundles Go backend, frontend, and sidecar)
+make electron-package-linux    # AppImage
+make electron-package-windows  # Portable exe
+
+# Everything at once
+make build-all-with-sidecar    # Sidecar + backends + Electron packages
+
+# Utilities
+make swagger                   # Regenerate OpenAPI spec
+make test                      # Go + frontend + Rust tests
+make coverage                  # Coverage reports (filtered)
+make clean                     # Remove all build artifacts
 ```
 
-## Support
+### Testing
 
-Encounty is a hobby project provided free of charge. There is no official support.
+```bash
+make test                            # All tests (Go + frontend)
+cd capture-sidecar && cargo test     # Rust unit tests
+```
+
+The Wayland portal test (`wayland_screen_capture_receives_frame`) is marked
+`#[ignore]` and requires an interactive compositor dialog. Run it manually with:
+
+```bash
+cd capture-sidecar && cargo test -- --ignored
+```
 
 ## License
 
