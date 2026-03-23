@@ -152,25 +152,7 @@ export class CPUDetector {
       const tmpl = templates[i];
       if (!tmpl.gray) continue;
 
-      let score: number;
-
-      // Small templates (sprites, ≤128px): multi-scale matching — try the
-      // template at several sizes against the downscaled frame because we
-      // don't know the on-screen scale. Matches Go's matchMultiScale logic.
-      if (tmpl.width <= 128 && tmpl.height <= 128) {
-        score = matchMultiScale(
-          frameGray.gray, frameGray.width, frameGray.height,
-          tmpl, maxDim,
-        );
-      } else {
-        // Large templates (frame crops): downscale to maxDim like the frame
-        const tmplGray = downscaleTemplate(tmpl, maxDim);
-        score = ncc(
-          frameGray.gray, frameGray.width, frameGray.height,
-          tmplGray.gray, tmplGray.width, tmplGray.height,
-          tmplGray.mean, tmplGray.stdDev,
-        );
-      }
+      const score = matchTemplate(source, tmpl, frameGray, maxDim, config.crop);
 
       if (score > bestScore) {
         bestScore = score;
@@ -240,6 +222,158 @@ interface GrayTemplate {
   height: number;
   mean: number;
   stdDev: number;
+}
+
+/**
+ * Match a single template against a video frame, respecting region definitions.
+ *
+ * When regions are defined, each region is matched independently against the
+ * corresponding crop of the frame (AND-logic: minimum score across all regions).
+ * When no regions are defined, the whole template is matched against the frame.
+ * Matches the Go MatchWithRegions logic.
+ */
+function matchTemplate(
+  source: HTMLVideoElement,
+  tmpl: TemplateData,
+  frameGray: { gray: Float32Array; width: number; height: number },
+  maxDim: number,
+  _crop?: { x: number; y: number; w: number; h: number },
+): number {
+  const regions = tmpl.regions ?? [];
+
+  // No regions defined — fall back to whole-template matching
+  if (regions.length === 0) {
+    return matchWholeTemplate(frameGray, tmpl, maxDim);
+  }
+
+  // Region-scoped matching (AND-logic across all regions)
+  let minScore = 1.0;
+  let evaluated = 0;
+
+  // We need the full-resolution frame pixels for region cropping.
+  // Use a temporary canvas to grab the video at its native resolution.
+  const srcW = source.videoWidth;
+  const srcH = source.videoHeight;
+  if (srcW === 0 || srcH === 0) return 0;
+
+  const tmpCanvas = new OffscreenCanvas(srcW, srcH);
+  const tmpCtx = tmpCanvas.getContext("2d", { willReadFrequently: true });
+  if (!tmpCtx) return 0;
+  tmpCtx.drawImage(source, 0, 0, srcW, srcH);
+
+  // Template original dimensions (before any downscale) to map region rects
+  const tmplW = tmpl.width;
+  const tmplH = tmpl.height;
+
+  for (const region of regions) {
+    if (region.type !== "image") continue;
+
+    const r = region.rect;
+    // Scale region rect from template coords to frame coords
+    const scaleX = srcW / tmplW;
+    const scaleY = srcH / tmplH;
+    const frameRx = Math.round(r.x * scaleX);
+    const frameRy = Math.round(r.y * scaleY);
+    const frameRw = Math.max(4, Math.round(r.w * scaleX));
+    const frameRh = Math.max(4, Math.round(r.h * scaleY));
+
+    // Crop the region from the frame
+    const frameCrop = cropGrayscale(tmpCtx, frameRx, frameRy, frameRw, frameRh, maxDim);
+    // Crop the region from the template (using original pixel data)
+    const tmplCrop = cropTemplateRegion(tmpl, r.x, r.y, r.w, r.h, maxDim);
+    if (!tmplCrop) continue;
+
+    const score = ncc(
+      frameCrop.gray, frameCrop.width, frameCrop.height,
+      tmplCrop.gray, tmplCrop.width, tmplCrop.height,
+      tmplCrop.mean, tmplCrop.stdDev,
+    );
+
+    evaluated++;
+    if (score < minScore) minScore = score;
+    // Early exit: if any region is below a reasonable threshold, skip the rest
+    if (minScore < 0.3) return minScore;
+  }
+
+  if (evaluated === 0) {
+    // No image regions evaluated — fall back to whole-template
+    return matchWholeTemplate(frameGray, tmpl, maxDim);
+  }
+
+  return minScore;
+}
+
+/** Match whole template (no regions) against the pre-downscaled frame. */
+function matchWholeTemplate(
+  frameGray: { gray: Float32Array; width: number; height: number },
+  tmpl: TemplateData,
+  maxDim: number,
+): number {
+  if (tmpl.width <= 128 && tmpl.height <= 128) {
+    return matchMultiScale(frameGray.gray, frameGray.width, frameGray.height, tmpl, maxDim);
+  }
+  const tmplGray = downscaleTemplate(tmpl, maxDim);
+  return ncc(
+    frameGray.gray, frameGray.width, frameGray.height,
+    tmplGray.gray, tmplGray.width, tmplGray.height,
+    tmplGray.mean, tmplGray.stdDev,
+  );
+}
+
+/** Crop a region from a canvas context and convert to grayscale. */
+function cropGrayscale(
+  ctx: OffscreenCanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  maxDim: number,
+): { gray: Float32Array; width: number; height: number } {
+  const [dw, dh] = fitDimensions(w, h, maxDim);
+  const cropCanvas = new OffscreenCanvas(dw, dh);
+  const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true })!;
+  // Draw the region scaled down to maxDim
+  cropCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, dw, dh);
+  const pixels = cropCtx.getImageData(0, 0, dw, dh).data;
+  const n = dw * dh;
+  const gray = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    gray[i] = 0.299 * pixels[i * 4] + 0.587 * pixels[i * 4 + 1] + 0.114 * pixels[i * 4 + 2];
+  }
+  return { gray, width: dw, height: dh };
+}
+
+/** Crop a region from a template's gray data and downscale. */
+function cropTemplateRegion(
+  tmpl: TemplateData,
+  rx: number, ry: number, rw: number, rh: number,
+  maxDim: number,
+): GrayTemplate | null {
+  if (!tmpl.gray || rw < 4 || rh < 4) return null;
+  const [dw, dh] = fitDimensions(rw, rh, maxDim);
+  const n = dw * dh;
+  const gray = new Float32Array(n);
+  const scaleX = rw / dw;
+  const scaleY = rh / dh;
+
+  let sum = 0;
+  for (let y = 0; y < dh; y++) {
+    for (let x = 0; x < dw; x++) {
+      const sx = Math.min(Math.floor(x * scaleX) + rx, tmpl.width - 1);
+      const sy = Math.min(Math.floor(y * scaleY) + ry, tmpl.height - 1);
+      const v = tmpl.gray[sy * tmpl.width + sx];
+      gray[y * dw + x] = v;
+      sum += v;
+    }
+  }
+
+  const mean = sum / n;
+  let varSum = 0;
+  for (let i = 0; i < n; i++) {
+    const d = gray[i] - mean;
+    varSum += d * d;
+  }
+  const stdDev = Math.sqrt(varSum / n);
+  if (stdDev < 1e-6) return null;
+
+  return { gray, width: dw, height: dh, mean, stdDev };
 }
 
 /**
