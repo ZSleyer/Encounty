@@ -3,8 +3,11 @@
 package detector
 
 import (
+	"fmt"
 	"image"
 	"image/jpeg"
+	pngenc "image/png"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -50,6 +53,7 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("GET /api/detector/cameras", h.handleListCameras)
 	mux.HandleFunc("GET /api/detector/capabilities", h.handleDetectorCapabilities)
 	mux.HandleFunc("GET /api/detector/source/thumbnail", h.handleSourceThumbnail)
+	mux.HandleFunc("GET /api/detector/source/capture_frame", h.handleCaptureFrame)
 	mux.HandleFunc("/api/detector/", h.handleDetectorDispatch)
 }
 
@@ -248,9 +252,56 @@ func (h *handler) handleSourceThumbnail(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Downscale to the requested width before encoding; the sidecar may return
+	// a full-resolution frame on Wayland even when a smaller w was requested.
+	img = downscaleImage(img, maxW)
+
 	w.Header().Set(headerContentType, contentTypeJPEG)
 	w.Header().Set("Cache-Control", "no-cache")
-	if err := jpeg.Encode(w, img, &jpeg.Options{Quality: 70}); err != nil {
+	if err := jpeg.Encode(w, img, &jpeg.Options{Quality: 85}); err != nil {
+		return
+	}
+}
+
+// handleCaptureFrame captures a single full-resolution frame from a source and
+// returns it as a lossless PNG. Unlike handleSourceThumbnail, this does
+// not downscale the image, making it suitable for template creation and OCR.
+// Query parameters: source_type, source_id.
+// GET /api/detector/source/capture_frame?source_type=window&source_id=123
+//
+// @Summary      Capture a full-resolution source frame via sidecar
+// @Tags         detector
+// @Produce      png
+// @Param        source_type query string true "Source type (screen, window, camera)"
+// @Param        source_id   query string true "Source identifier"
+// @Success      200 {file} binary
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      503 {object} httputil.ErrResp
+// @Router       /detector/source/capture_frame [get]
+func (h *handler) handleCaptureFrame(w http.ResponseWriter, r *http.Request) {
+	sourceType := r.URL.Query().Get("source_type")
+	sourceID := r.URL.Query().Get("source_id")
+	if sourceType == "" || sourceID == "" {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "source_type and source_id required"})
+		return
+	}
+
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	// Request full resolution (0, 0 lets the sidecar return native size).
+	img, err := mgr.CaptureSourceFrame(sourceType, sourceID, 0, 0)
+	if err != nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+
+	w.Header().Set(headerContentType, contentTypePNG)
+	w.Header().Set("Cache-Control", "no-cache")
+	if err := pngenc.Encode(w, img); err != nil {
 		return
 	}
 }
@@ -322,6 +373,10 @@ func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request)
 		h.handleImportTemplatesFile(w, r, id)
 	case "import_templates":
 		h.handleImportTemplates(w, r, id)
+	case "mjpeg":
+		h.handleMJPEGStream(w, r, id)
+	case "stream":
+		h.handleVideoStream(w, r, id)
 	case "preview":
 		if len(parts) < 3 {
 			w.WriteHeader(http.StatusNotFound)
@@ -529,7 +584,7 @@ func (h *handler) handlePreviewStart(w http.ResponseWriter, r *http.Request, id 
 		return
 	}
 
-	if err := mgr.StartPreview(id, 640, 75, 0); err != nil {
+	if err := mgr.StartPreview(id, 960, 85, 0); err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}
@@ -565,6 +620,102 @@ func (h *handler) handlePreviewStop(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
+}
+
+// --- MJPEG Stream ------------------------------------------------------------
+
+// handleMJPEGStream serves a multipart/x-mixed-replace MJPEG stream of
+// preview frames for the given detector session. The browser's native <img>
+// tag decodes this natively with zero JavaScript overhead.
+// GET /api/detector/{id}/mjpeg
+func (h *handler) handleMJPEGStream(w http.ResponseWriter, r *http.Request, id string) {
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	ch, unsub := mgr.SubscribePreview(id)
+	defer unsub()
+
+	const boundary = "frame"
+	w.Header().Set("Content-Type", "multipart/x-mixed-replace; boundary="+boundary)
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Connection", "close")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: "streaming not supported"})
+		return
+	}
+
+	ctx := r.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case frame, open := <-ch:
+			if !open {
+				return
+			}
+			if len(frame.JPEGData) == 0 {
+				continue
+			}
+			fmt.Fprintf(w, "--%s\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", boundary, len(frame.JPEGData))
+			if _, err := w.Write(frame.JPEGData); err != nil {
+				return
+			}
+			io.WriteString(w, "\r\n")
+			flusher.Flush()
+		}
+	}
+}
+
+// handleVideoStream serves a continuous fMP4 (H.264) byte stream for the
+// given detector session. The browser consumes this via MSE (Media Source
+// Extensions) for hardware-accelerated H.264 decoding.
+// GET /api/detector/{id}/stream
+func (h *handler) handleVideoStream(w http.ResponseWriter, r *http.Request, id string) {
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	ch, unsub := mgr.SubscribePreview(id)
+	defer unsub()
+
+	w.Header().Set("Content-Type", "video/mp4")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Connection", "close")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: "streaming not supported"})
+		return
+	}
+
+	ctx := r.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case frame, open := <-ch:
+			if !open {
+				return
+			}
+			if len(frame.FMP4Data) > 0 {
+				if _, err := w.Write(frame.FMP4Data); err != nil {
+					return
+				}
+				flusher.Flush()
+			} else if len(frame.JPEGData) > 0 {
+				// JPEG fallback — send nothing on the video stream endpoint.
+				// Clients using /stream expect fMP4 only.
+				continue
+			}
+		}
+	}
 }
 
 // --- Preview Session ---------------------------------------------------------
@@ -767,7 +918,7 @@ func (h *handler) handleReplayRematch(w http.ResponseWriter, r *http.Request, id
 	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
-// handleSnapshotFrame returns a single JPEG frame from a saved snapshot.
+// handleSnapshotFrame returns a single PNG frame from a saved snapshot.
 // GET /api/detector/{id}/replay/snapshot/{index}
 func (h *handler) handleSnapshotFrame(w http.ResponseWriter, r *http.Request, id string, indexStr string) {
 	if r.Method != http.MethodGet {
@@ -787,15 +938,15 @@ func (h *handler) handleSnapshotFrame(w http.ResponseWriter, r *http.Request, id
 		return
 	}
 
-	jpegData, err := mgr.GetSnapshotFrame(id, idx)
+	pngData, err := mgr.GetSnapshotFrame(id, idx)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
-	w.Header().Set(headerContentType, contentTypeJPEG)
-	w.Header().Set("Content-Length", strconv.Itoa(len(jpegData)))
-	_, _ = w.Write(jpegData)
+	w.Header().Set(headerContentType, contentTypePNG)
+	w.Header().Set("Content-Length", strconv.Itoa(len(pngData)))
+	_, _ = w.Write(pngData)
 }
 
 // --- Helpers -----------------------------------------------------------------
@@ -804,6 +955,7 @@ const (
 	errPokemonNotFound     = "pokemon not found"
 	errDetectorNotAvailable = "detector not available"
 	contentTypeJPEG        = "image/jpeg"
+	contentTypePNG         = "image/png"
 	headerContentType      = "Content-Type"
 )
 

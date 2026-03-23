@@ -75,13 +75,6 @@ func New(cfg Config) *Server {
 	// Wire hotkey actions to state changes
 	go s.processHotkeyActions(cfg.HotkeyMgr.Actions())
 
-	// Forward sidecar preview frames to WebSocket clients.
-	if cfg.DetectorMgr != nil {
-		if ch := cfg.DetectorMgr.PreviewFrames(); ch != nil {
-			go s.forwardPreviewFrames(ch)
-		}
-	}
-
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
@@ -331,19 +324,6 @@ func (s *Server) Broadcast(msgType string, payload any) {
 // Hub returns the WebSocket hub so main can call CloseAll during shutdown.
 func (s *Server) Hub() *Hub {
 	return s.hub
-}
-
-// forwardPreviewFrames reads JPEG preview frames from the detector manager
-// and broadcasts them as binary WebSocket messages. The binary format is:
-// 36-byte session_id (UUID, zero-padded) + JPEG data.
-func (s *Server) forwardPreviewFrames(ch <-chan detector.PreviewFrameMsg) {
-	for frame := range ch {
-		sid := []byte(frame.SessionID)
-		buf := make([]byte, 36+len(frame.JPEGData))
-		copy(buf[:36], sid)
-		copy(buf[36:], frame.JPEGData)
-		s.hub.BroadcastBinary(buf)
-	}
 }
 
 // handleHotkeyIncrement processes the "increment" hotkey action for the given Pokémon.

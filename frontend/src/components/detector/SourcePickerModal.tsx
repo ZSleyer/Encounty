@@ -50,7 +50,7 @@ function SourceThumbnail({
     setFailed(false);
 
     const url = apiUrl(
-      `/api/detector/source/thumbnail?source_type=${encodeURIComponent(sourceType)}&source_id=${encodeURIComponent(sourceId)}&w=320`,
+      `/api/detector/source/thumbnail?source_type=${encodeURIComponent(sourceType)}&source_id=${encodeURIComponent(sourceId)}&w=640`,
     );
 
     fetch(url)
@@ -299,6 +299,10 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
   const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
 
+  // On Wayland, screen/window selection is handled by the compositor portal
+  // dialog, so we skip the thumbnail grid for those tabs.
+  const isWayland = capabilities?.display_server === "wayland";
+
   // --- Tab state -------------------------------------------------------------
 
   const [activeTab, setActiveTab] = useState<Tab>(() => sourceTypeToTab(sourceType));
@@ -313,11 +317,20 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
   const fetchSources = useCallback(async () => {
     setLoading(true);
     try {
-      const [screenRes, winRes, camRes] = await Promise.all([
-        fetch(apiUrl("/api/detector/screens")),
-        fetch(apiUrl("/api/detector/windows")),
-        fetch(apiUrl("/api/detector/cameras")),
-      ]);
+      // On Wayland, only fetch cameras — screens and windows use the portal
+      const fetches: Promise<Response>[] = isWayland
+        ? [
+            Promise.resolve(new Response("[]", { status: 200 })),
+            Promise.resolve(new Response("[]", { status: 200 })),
+            fetch(apiUrl("/api/detector/cameras")),
+          ]
+        : [
+            fetch(apiUrl("/api/detector/screens")),
+            fetch(apiUrl("/api/detector/windows")),
+            fetch(apiUrl("/api/detector/cameras")),
+          ];
+
+      const [screenRes, winRes, camRes] = await Promise.all(fetches);
       if (screenRes.ok) {
         const data = await screenRes.json() as SourceInfo[];
         setScreens(Array.isArray(data) ? data : []);
@@ -334,7 +347,7 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
       // Backend might not be reachable
     }
     setLoading(false);
-  }, []);
+  }, [isWayland]);
 
   // --- Selected state --------------------------------------------------------
 
@@ -419,6 +432,18 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
     return false;
   }
 
+  /** Whether the active tab uses the Wayland portal instead of a thumbnail grid. */
+  const isPortalTab = isWayland && (activeTab === "screens" || activeTab === "windows");
+
+  /** Handle the portal confirm button — select a placeholder source. */
+  const handlePortalConfirm = () => {
+    const type = activeTab === "screens" ? "screen" : "window";
+    const label = activeTab === "screens"
+      ? t("sourcePicker.screens")
+      : t("sourcePicker.windows");
+    onSelect({ type, sourceId: "0", label });
+  };
+
   /** Render the content grid for the active tab. */
   function renderContent() {
     if (loading) {
@@ -435,6 +460,26 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <p className="text-xs text-text-muted">{t("detector.sourceUnavailable")}</p>
           <p className="text-[10px] text-text-faint mt-1">{t("detector.useInstead")}</p>
+        </div>
+      );
+    }
+
+    // On Wayland, screen and window selection is delegated to the compositor
+    // portal dialog. Show a simple prompt with a confirm button instead of
+    // fetching and displaying source thumbnails.
+    if (isPortalTab) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+          {activeTab === "screens"
+            ? <Monitor className="w-10 h-10 text-text-muted" />
+            : <AppWindow className="w-10 h-10 text-text-muted" />}
+          <p className="text-sm text-text-secondary">{t("sourcePicker.portalHint")}</p>
+          <button
+            onClick={handlePortalConfirm}
+            className="px-5 py-2 rounded-lg text-sm font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
+          >
+            {t("sourcePicker.portalConfirm")}
+          </button>
         </div>
       );
     }
@@ -518,7 +563,7 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
         {renderContent()}
       </div>
 
-      {/* Footer buttons */}
+      {/* Footer buttons — hidden on portal tabs where confirm is inline */}
       <div className="flex justify-end gap-3 px-5 pb-5 pt-2 border-t border-border-subtle">
         <button
           onClick={handleCancel}
@@ -526,17 +571,19 @@ export function SourcePickerModal({ sourceType, capabilities, onSelect, onClose 
         >
           {t("sourcePicker.cancel")}
         </button>
-        <button
-          onClick={handleSelect}
-          disabled={!selectedId}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${
-            selectedId
-              ? "bg-accent-blue text-white hover:bg-accent-blue/90"
-              : "bg-bg-hover text-text-muted cursor-not-allowed opacity-60"
-          }`}
-        >
-          {t("sourcePicker.select")}
-        </button>
+        {!isPortalTab && (
+          <button
+            onClick={handleSelect}
+            disabled={!selectedId}
+            className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              selectedId
+                ? "bg-accent-blue text-white hover:bg-accent-blue/90"
+                : "bg-bg-hover text-text-muted cursor-not-allowed opacity-60"
+            }`}
+          >
+            {t("sourcePicker.select")}
+          </button>
+        )}
       </div>
     </dialog>
   );

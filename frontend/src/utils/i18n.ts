@@ -348,6 +348,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.connect": "Verbinden",
     "detector.disconnect": "Trennen",
     "detector.noStream": "Keine Verbindung",
+    "detector.startPreview": "Vorschau starten",
     "detector.settings": "Einstellungen",
     "detector.errNoStream": "Verbinde zuerst eine Quelle",
     "detector.addFromVideo": "Aus Video",
@@ -420,6 +421,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "sourcePicker.fast": "Schnell",
     "sourcePicker.slow": "Langsam",
     "sourcePicker.change": "Ändern",
+    "sourcePicker.portalHint": "Klicke 'Bestätigen' um die Quellauswahl des Systems zu öffnen.",
+    "sourcePicker.portalConfirm": "Bestätigen",
 
     // ── Template Editor ──
     "templateEditor.title": "Template-Editor",
@@ -636,6 +639,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.sourceNativeCamera": "Kamera",
     "detector.errNoSource": "Wähle zuerst eine Aufnahmequelle",
     "detector.selectSource": "Quelle wählen",
+    "detector.captureRequiredHint": "Zuerst eine Quelle verbinden",
     "detector.nativeCapture": "Native Aufnahme aktiv",
     "detector.nativeCaptureHint": "Aufnahme läuft im Backend — keine Browser-Vorschau",
     "detector.sourceUnavailable": "Auf diesem System nicht verfügbar",
@@ -647,6 +651,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.closeTimeline": "Timeline schließen",
     "detector.frameOf": "Frame {current} von {total}",
     "detector.timelineHint": "Pfeiltasten: ±1 Frame, Shift+Pfeiltasten: ±5 Frames",
+    "detector.connectSource": "Quelle verbinden",
+    "detector.previewTimer": "Vorschau: {0}s",
+    "detector.resumePreview": "Vorschau fortsetzen",
+    "detector.permanentPreview": "Dauerhaft anzeigen",
 
     // ── Footer ──
     "footer.hunts": "Hunts",
@@ -981,6 +989,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.connect": "Connect",
     "detector.disconnect": "Disconnect",
     "detector.noStream": "No connection",
+    "detector.startPreview": "Start Preview",
     "detector.settings": "Settings",
     "detector.errNoStream": "Connect a source first",
     "detector.addFromVideo": "From Video",
@@ -1052,6 +1061,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "sourcePicker.fast": "Fast",
     "sourcePicker.slow": "Slow",
     "sourcePicker.change": "Change",
+    "sourcePicker.portalHint": "Click 'Confirm' to open the system source picker.",
+    "sourcePicker.portalConfirm": "Confirm",
 
     // ── Template Editor ──
     "templateEditor.title": "Template Editor",
@@ -1267,6 +1278,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.sourceNativeCamera": "Camera",
     "detector.errNoSource": "Select a capture source first",
     "detector.selectSource": "Select Source",
+    "detector.captureRequiredHint": "Connect a source first",
     "detector.nativeCapture": "Native capture active",
     "detector.nativeCaptureHint": "Capture runs on server — no browser preview",
     "detector.sourceUnavailable": "Not available on this system",
@@ -1278,6 +1290,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.closeTimeline": "Close timeline",
     "detector.frameOf": "Frame {current} of {total}",
     "detector.timelineHint": "Arrow keys: ±1 frame, Shift+Arrow: ±5 frames",
+    "detector.connectSource": "Connect source",
+    "detector.previewTimer": "Preview: {0}s",
+    "detector.resumePreview": "Resume preview",
+    "detector.permanentPreview": "Always show",
 
     // ── Footer ──
     "footer.hunts": "Hunts",

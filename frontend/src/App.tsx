@@ -23,7 +23,6 @@ import { HotkeyPage } from "./pages/HotkeyPage";
 import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket } from "./hooks/useWebSocket";
-import { dispatchPreviewFrame } from "./hooks/usePreviewStream";
 import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
 import { WSMessage, AppState } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
@@ -368,7 +367,7 @@ function AppShell() {
     });
   }
 
-  useWebSocket(handleWSMessage, () => setConnected(true), () => setConnected(false), dispatchPreviewFrame);
+  useWebSocket(handleWSMessage, () => setConnected(true), () => setConnected(false));
 
   if (isOverlay) {
     return (

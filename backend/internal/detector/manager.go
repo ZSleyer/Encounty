@@ -35,6 +35,23 @@ type Manager struct {
 
 	// matchRouterCancel stops the matchRouter goroutine on shutdown.
 	matchRouterCancel context.CancelFunc
+
+	// previewMu guards previewSubs. Separate from mu to avoid holding the
+	// main lock while dispatching preview frames.
+	previewMu          sync.Mutex
+	previewSubs        map[*previewSub]struct{}
+	previewDispatchStop context.CancelFunc
+
+	// initSegments caches the fMP4 init segment (ftyp+moov) per session
+	// so late-joining HTTP stream subscribers receive it immediately.
+	initSegments   map[string][]byte
+	initSegmentsMu sync.RWMutex
+}
+
+// previewSub is a single subscriber to the preview frame fan-out.
+type previewSub struct {
+	ch        chan PreviewFrameMsg
+	sessionID string // filter; empty string = all sessions
 }
 
 // NewManager creates a Manager. broadcast is called for each WebSocket event
@@ -54,6 +71,12 @@ func NewManager(stateMgr *state.Manager, broadcast BroadcastFunc, configDir stri
 		m.matchRouterCancel = cancel
 		go m.matchRouter(ctx, sidecar.MatchResults())
 		go m.replayMatchRouter(ctx, sidecar.ReplayMatchResults())
+
+		dispatchCtx, dispatchCancel := context.WithCancel(context.Background())
+		m.previewDispatchStop = dispatchCancel
+		m.previewSubs = make(map[*previewSub]struct{})
+		m.initSegments = make(map[string][]byte)
+		go m.dispatchPreviewFrames(dispatchCtx, sidecar.PreviewFrames())
 	}
 
 	return m
@@ -166,6 +189,10 @@ func (m *Manager) StopAll() {
 
 	if m.matchRouterCancel != nil {
 		m.matchRouterCancel()
+	}
+
+	if m.previewDispatchStop != nil {
+		m.previewDispatchStop()
 	}
 }
 
@@ -345,12 +372,30 @@ func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig
 
 	// If a real detection session is already running, just start the preview.
 	if _, running := m.running[pokemonID]; running {
-		return m.sidecar.StartPreview(pokemonID, 640, 75, 0)
+		return m.sidecar.StartPreview(pokemonID, 960, 85, 0)
 	}
 
-	// Start a lightweight sidecar session with no templates.
+	// Already have a preview-only session — no-op.
+	if m.previewOnly[pokemonID] {
+		return nil
+	}
+
+	// Discard any stale init segment from a previous session so that
+	// late-joining subscribers don't receive an outdated init.
+	m.initSegmentsMu.Lock()
+	delete(m.initSegments, pokemonID)
+	m.initSegmentsMu.Unlock()
+
+	// Start a lightweight sidecar session with no templates. The replay
+	// buffer is enabled so users can create templates from captured frames
+	// before starting full detection.
+	replayBuf := cfg.ReplayBufferSec
+	if replayBuf == 0 {
+		replayBuf = 30 // match sidecar default
+	}
 	previewConfig := SidecarDetectionConfig{
-		PollIntervalMs: 1000,
+		PollIntervalMs:  1000,
+		ReplayBufferSec: replayBuf,
 		Crop: SidecarRect{
 			X: cfg.Region.X,
 			Y: cfg.Region.Y,
@@ -364,7 +409,7 @@ func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig
 
 	m.previewOnly[pokemonID] = true
 
-	return m.sidecar.StartPreview(pokemonID, 640, 75, 0)
+	return m.sidecar.StartPreview(pokemonID, 960, 85, 0)
 }
 
 // StopPreviewSession stops a preview-only session. If the session was created
@@ -378,16 +423,21 @@ func (m *Manager) StopPreviewSession(pokemonID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if err := m.sidecar.StopPreview(pokemonID); err != nil {
-		return err
-	}
+	_ = m.sidecar.StopPreview(pokemonID)
 
 	if m.previewOnly[pokemonID] {
 		if err := m.sidecar.StopDetection(pokemonID); err != nil {
 			slog.Warn("Failed to stop preview-only sidecar session", "pokemon_id", pokemonID, "error", err)
 		}
-		delete(m.previewOnly, pokemonID)
 	}
+
+	// Always clear state so the next start creates a fresh session,
+	// even if the stop commands failed (e.g. broken pipe after crash).
+	delete(m.previewOnly, pokemonID)
+
+	m.initSegmentsMu.Lock()
+	delete(m.initSegments, pokemonID)
+	m.initSegmentsMu.Unlock()
 
 	return nil
 }
@@ -408,13 +458,70 @@ func (m *Manager) UpdateConfig(pokemonID string, cfg state.DetectorConfig) error
 	return m.sidecar.UpdateConfig(pokemonID, scConfig)
 }
 
-// PreviewFrames returns the channel of JPEG preview frames from the sidecar.
-// Returns nil when no sidecar is configured.
-func (m *Manager) PreviewFrames() <-chan PreviewFrameMsg {
-	if m.sidecar == nil {
-		return nil
+// SubscribePreview returns a channel that receives JPEG preview frames for
+// the given session ID. Call the returned function to unsubscribe.
+func (m *Manager) SubscribePreview(sessionID string) (<-chan PreviewFrameMsg, func()) {
+	sub := &previewSub{
+		ch:        make(chan PreviewFrameMsg, 8),
+		sessionID: sessionID,
 	}
-	return m.sidecar.PreviewFrames()
+	m.previewMu.Lock()
+	m.previewSubs[sub] = struct{}{}
+	m.previewMu.Unlock()
+
+	// Send cached init segment to late-joining subscriber.
+	m.initSegmentsMu.RLock()
+	if initData, ok := m.initSegments[sessionID]; ok {
+		sub.ch <- PreviewFrameMsg{
+			SessionID: sessionID,
+			IsVideo:   true,
+			IsInit:    true,
+			FMP4Data:  initData,
+		}
+	}
+	m.initSegmentsMu.RUnlock()
+
+	var once sync.Once
+	unsub := func() {
+		once.Do(func() {
+			m.previewMu.Lock()
+			delete(m.previewSubs, sub)
+			m.previewMu.Unlock()
+			close(sub.ch)
+		})
+	}
+	return sub.ch, unsub
+}
+
+// dispatchPreviewFrames reads from the sidecar's preview channel and fans
+// out each frame to matching subscribers via non-blocking sends.
+func (m *Manager) dispatchPreviewFrames(ctx context.Context, ch <-chan PreviewFrameMsg) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case frame, ok := <-ch:
+			if !ok {
+				return
+			}
+			// Cache init segment for late-joining video stream subscribers.
+			if frame.IsVideo && frame.IsInit {
+				m.initSegmentsMu.Lock()
+				m.initSegments[frame.SessionID] = frame.FMP4Data
+				m.initSegmentsMu.Unlock()
+			}
+			m.previewMu.Lock()
+			for sub := range m.previewSubs {
+				if sub.sessionID == "" || sub.sessionID == frame.SessionID {
+					select {
+					case sub.ch <- frame:
+					default:
+					}
+				}
+			}
+			m.previewMu.Unlock()
+		}
+	}
 }
 
 // GetReplayStatus returns the replay buffer status for the given pokemon's

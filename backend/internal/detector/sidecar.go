@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -124,7 +125,7 @@ type frameHeader struct {
 	Width      uint16
 	Height     uint16
 	Timestamp  uint32
-	Format     byte   // 0x00=RGBA, 0x01=JPEG
+	Format     byte   // 0x00=RGBA, 0x01=JPEG, 0x02=fMP4
 	SessionLen uint16
 	PayloadLen uint32
 }
@@ -135,7 +136,10 @@ type PreviewFrameMsg struct {
 	SessionID string
 	Width     int
 	Height    int
-	JPEGData  []byte
+	IsVideo   bool   // true when FMP4Data is populated
+	IsInit    bool   // true for ftyp+moov init segment
+	JPEGData  []byte // populated for FORMAT_JPEG
+	FMP4Data  []byte // populated for FORMAT_FMP4
 }
 
 // ReplayMatchMsg holds an asynchronous replay match result emitted by the
@@ -161,6 +165,8 @@ type SidecarManager struct {
 	previewCh     chan PreviewFrameMsg   // JPEG preview frames from sidecar
 	stopOnce      sync.Once
 	done          chan struct{}
+	snapshotCh     chan PreviewFrameMsg // dedicated channel for snapshot frames
+	expectSnapshot atomic.Bool          // true when GetSnapshotFrame is waiting
 }
 
 // NewSidecarManager locates the encounty-capture binary, starts it as a
@@ -198,8 +204,9 @@ func NewSidecarManager() (*SidecarManager, error) {
 		replayMatchCh: make(chan ReplayMatchMsg, 64),
 		respCh:        make(chan sidecarResponse, 4),
 		frameCh:       make(chan image.Image, 3),
-		previewCh:     make(chan PreviewFrameMsg, 4),
+		previewCh:     make(chan PreviewFrameMsg, 32),
 		done:          make(chan struct{}),
+		snapshotCh:    make(chan PreviewFrameMsg, 1),
 	}
 
 	// Forward sidecar stderr to the Go structured logger.
@@ -279,7 +286,7 @@ func (s *SidecarManager) StartDetection(sessionID string, sourceType string, sou
 		"source_id":   sourceID,
 		"config":      config,
 	}
-	resp, err := s.sendCommand(req)
+	resp, err := s.sendCommandWithTimeout(req, captureFrameTimeout)
 	if err != nil {
 		return fmt.Errorf("start_detection: %w", err)
 	}
@@ -472,7 +479,11 @@ func (s *SidecarManager) GetSnapshotFrame(sessionID string, frameIndex int) ([]b
 	}
 	data = append(data, '\n')
 
+	// Signal the read loop to route the next JPEG frame to snapshotCh.
+	s.expectSnapshot.Store(true)
+
 	if _, err := s.stdin.Write(data); err != nil {
+		s.expectSnapshot.Store(false)
 		return nil, fmt.Errorf("write get_snapshot_frame: %w", err)
 	}
 
@@ -480,10 +491,11 @@ func (s *SidecarManager) GetSnapshotFrame(sessionID string, frameIndex int) ([]b
 	select {
 	case resp := <-s.respCh:
 		if resp.Type == "error" {
+			s.expectSnapshot.Store(false)
 			return nil, fmt.Errorf("get_snapshot_frame: %s", resp.Message)
 		}
 		select {
-		case frame := <-s.previewCh:
+		case frame := <-s.snapshotCh:
 			return frame.JPEGData, nil
 		case <-time.After(sidecarTimeout):
 			return nil, fmt.Errorf("get_snapshot_frame: timeout waiting for frame data")
@@ -491,8 +503,10 @@ func (s *SidecarManager) GetSnapshotFrame(sessionID string, frameIndex int) ([]b
 			return nil, fmt.Errorf("get_snapshot_frame: sidecar closed")
 		}
 	case <-time.After(sidecarTimeout):
+		s.expectSnapshot.Store(false)
 		return nil, fmt.Errorf("get_snapshot_frame: timeout waiting for response")
 	case <-s.done:
+		s.expectSnapshot.Store(false)
 		return nil, fmt.Errorf("get_snapshot_frame: sidecar closed")
 	}
 }
@@ -571,10 +585,10 @@ func (s *SidecarManager) Close() {
 	})
 }
 
-// sendCommand marshals req as JSON, writes it followed by a newline to stdin,
-// then waits for the next command-response message from the readLoop. The
-// caller must hold s.mu.
-func (s *SidecarManager) sendCommand(req any) (sidecarResponse, error) {
+// sendCommandWithTimeout marshals req as JSON, writes it followed by a newline
+// to stdin, then waits up to timeout for the next command-response message from
+// the readLoop. The caller must hold s.mu.
+func (s *SidecarManager) sendCommandWithTimeout(req any, timeout time.Duration) (sidecarResponse, error) {
 	data, err := json.Marshal(req)
 	if err != nil {
 		return sidecarResponse{}, fmt.Errorf("marshal command: %w", err)
@@ -588,11 +602,18 @@ func (s *SidecarManager) sendCommand(req any) (sidecarResponse, error) {
 	select {
 	case resp := <-s.respCh:
 		return resp, nil
-	case <-time.After(sidecarTimeout):
-		return sidecarResponse{}, fmt.Errorf("sidecar response timeout after %v", sidecarTimeout)
+	case <-time.After(timeout):
+		return sidecarResponse{}, fmt.Errorf("sidecar response timeout after %v", timeout)
 	case <-s.done:
 		return sidecarResponse{}, fmt.Errorf("sidecar closed while waiting for response")
 	}
+}
+
+// sendCommand marshals req as JSON, writes it followed by a newline to stdin,
+// then waits for the next command-response message from the readLoop. The
+// caller must hold s.mu.
+func (s *SidecarManager) sendCommand(req any) (sidecarResponse, error) {
+	return s.sendCommandWithTimeout(req, sidecarTimeout)
 }
 
 // readLoop is the long-running goroutine that reads all data from the
@@ -758,11 +779,34 @@ func (s *SidecarManager) decodeFrameExtended() error {
 			Height:    int(hdr.Height),
 			JPEGData:  payload,
 		}
-		// Non-blocking send; drop if the consumer is behind.
+		// If GetSnapshotFrame is waiting, route there instead of the
+		// preview channel to avoid the race where both consumers read
+		// from the same channel.
+		if s.expectSnapshot.CompareAndSwap(true, false) {
+			select {
+			case s.snapshotCh <- msg:
+			default:
+			}
+		} else {
+			select {
+			case s.previewCh <- msg:
+			default:
+				slog.Debug("Preview frame dropped, consumer too slow", "session_id", sessionID)
+			}
+		}
+
+	case 0x02: // fMP4 video chunk
+		isInit := hdr.Width == 1
+		msg := PreviewFrameMsg{
+			SessionID: sessionID,
+			IsVideo:   true,
+			IsInit:    isInit,
+			FMP4Data:  payload,
+		}
 		select {
 		case s.previewCh <- msg:
 		default:
-			slog.Debug("Preview frame dropped, consumer too slow", "session_id", sessionID)
+			slog.Debug("Video chunk dropped, consumer too slow", "session_id", sessionID)
 		}
 
 	default:

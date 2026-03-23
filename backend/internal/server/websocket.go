@@ -95,19 +95,6 @@ func (h *Hub) Broadcast(msg WSMessage) {
 	}
 }
 
-// BroadcastBinary sends raw binary data to every connected client as a
-// WebSocket binary message. Used for streaming preview frames.
-func (h *Hub) BroadcastBinary(data []byte) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	for c := range h.clients {
-		select {
-		case c.send <- wsPayload{data: data, msgType: websocket.BinaryMessage}:
-		default:
-		}
-	}
-}
-
 // BroadcastRaw is a convenience wrapper that marshals payload to JSON
 // and broadcasts it as a WSMessage with the given type string.
 func (h *Hub) BroadcastRaw(msgType string, payload any) {

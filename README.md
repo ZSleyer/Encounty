@@ -1,5 +1,10 @@
 # Encounty
 
+![CI](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml/badge.svg?branch=main)
+![License: AGPL-3.0](https://img.shields.io/github/license/ZSleyer/Encounty)
+![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)
+![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)
+
 Encounty is a modern, open-source encounter tracker for Pokémon games. It uses text and image recognition to automatically detect and count encounters, enabling unlimited multi-hunts — limited only by your hardware. Manual tracking via global hotkeys is also supported.
 
 ## Download
@@ -29,7 +34,8 @@ The application is currently only tested on and known to be compatible with:
 
 ## Features
 
-- **GPU-accelerated** encounter tracking via high-performance NCC template matching
+- Hardware-accelerated **H.264 preview streaming** with GPU encoding (VA-API, NVENC)
+- High-performance **CPU-based NCC template matching** for encounter detection
 - Unlimited simultaneous multi-hunts with minimal CPU overhead
 - Manual tracking with configurable global hotkeys
 - Customizable dashboard with real-time stats
@@ -46,6 +52,13 @@ The application is currently only tested on and known to be compatible with:
 
 ![Auto-Detection Templates](docs/images/auto_detection_templates.png)
 *Auto-detection templates for encounter counting.*
+
+## How It Works
+
+1. The Rust sidecar captures your screen, window, or camera feed
+2. NCC template matching compares each frame against user-defined templates
+3. A match triggers an automatic encounter count increment
+4. Results are broadcast in real-time via WebSocket to the dashboard and overlays
 
 ## Contributing
 
@@ -77,7 +90,7 @@ sudo apt-get install -y libpipewire-0.3-dev pkg-config libclang-dev libudev-dev
 
 Encounty uses a three-process architecture:
 
-- **Rust sidecar** (`encounty-capture`) — screen/window/camera capture via PipeWire (Linux) or DXGI (Windows); CPU-based NCC template matching; communicates with the backend over stdin/stdout using newline-delimited JSON + binary frames
+- **Rust sidecar** (`encounty-capture`) — screen/window/camera capture via PipeWire (Linux) or DXGI (Windows); CPU-based NCC template matching; H.264 fMP4 preview streaming via GStreamer with HW encoder selection (VA-API, NVENC); communicates with the backend over stdin/stdout using newline-delimited JSON + binary frames
 - **Go backend** — pure API server and state coordinator (`/api/*`, `/ws`); spawns and manages the sidecar subprocess
 - **Electron** — desktop shell; serves the frontend via a custom `encounty://` protocol and manages the Go process lifecycle
 - **Vite** — dev server with proxy to the Go backend for development (no Electron needed)
