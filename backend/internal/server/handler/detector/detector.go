@@ -220,9 +220,9 @@ func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request)
 	case "sprite_template":
 		h.handleDetectorSpriteTemplate(w, r, id)
 	case "start":
-		h.handleDetectorStart(w, r, id)
+		h.handleBrowserDetectorStart(w, r, id)
 	case "stop":
-		h.handleDetectorStop(w, r, id)
+		h.handleBrowserDetectorStop(w, r, id)
 	case "export_templates":
 		h.handleExportTemplates(w, r, id)
 	case "import_templates_file":
