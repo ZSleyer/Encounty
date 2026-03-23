@@ -71,7 +71,7 @@ export interface CameraInfo {
   driver: string;
 }
 
-/** SourceInfo describes a capture source reported by the sidecar (screen, window, camera). */
+/** SourceInfo describes a capture source (screen, window, camera). */
 export interface SourceInfo {
   id: string;
   title: string;
@@ -140,8 +140,6 @@ export interface DetectorCapabilities {
   supports_window_capture: boolean;
   supports_screen_capture: boolean;
   supports_camera: boolean;
-  sidecar_available: boolean;
-  sidecar_supports_window_capture: boolean;
 }
 
 /** HuntTypePreset is metadata for one shiny hunting method, returned by the server. */

@@ -23,6 +23,9 @@ import { DetectorSettings } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { getSpriteUrl } from "../../utils/sprites";
 import { apiUrl } from "../../utils/api";
+import { WebGPUDetector, CPUDetector } from "../../engine";
+import { DetectionLoop } from "../../engine/DetectionLoop";
+import type { Detector, TemplateData } from "../../engine";
 
 // --- Default config ----------------------------------------------------------
 
@@ -128,6 +131,13 @@ export function DetectorPanel({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Shared detector singleton (WebGPU preferred, CPU fallback)
+  const detectorRef = useRef<Detector | null>(null);
+  // Per-pokemon detection loop
+  const loopRef = useRef<DetectionLoop | null>(null);
+  // Track whether detector init has been attempted
+  const detectorInitRef = useRef(false);
+
   const capture = useCaptureService();
   // Subscribe to capture version changes so we re-render when streams start/stop
   useCaptureVersion();
@@ -227,6 +237,42 @@ export function DetectorPanel({
       return () => clearTimeout(timer);
     }
   }, [appState?.settings?.tutorial_seen?.auto_detection]);
+
+  // --- Detector singleton initialization (WebGPU -> CPU fallback) -----------
+
+  useEffect(() => {
+    if (detectorInitRef.current) return;
+    detectorInitRef.current = true;
+
+    (async () => {
+      try {
+        const gpu = await WebGPUDetector.create();
+        detectorRef.current = gpu;
+      } catch {
+        try {
+          detectorRef.current = new CPUDetector();
+        } catch (cpuErr) {
+          console.error("[DetectorPanel] Failed to create CPU detector:", cpuErr);
+        }
+      }
+    })();
+
+    return () => {
+      // Destroy detector only when the component fully unmounts
+      detectorRef.current?.destroy();
+      detectorRef.current = null;
+      detectorInitRef.current = false;
+    };
+  }, []);
+
+  // --- Cleanup detection loop on unmount or pokemon change ------------------
+
+  useEffect(() => {
+    return () => {
+      loopRef.current?.stop();
+      loopRef.current = null;
+    };
+  }, [pokemon.id]);
 
   // Determine the game's generation for sprite availability.
   const pokemonGame = useMemo(
@@ -471,17 +517,78 @@ export function DetectorPanel({
       // Save config first and wait for it to persist
       await onConfigChange({ ...cfg, templates });
       const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/start`), { method: "POST" });
-      if (res.ok) {
-        setErrorMsg(null);
-      } else {
+      if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string };
         setErrorMsg(body.error ?? t("detector.errStartFailed"));
+        return;
       }
+
+      // --- Start browser-side detection loop --------------------------------
+      await startDetectionLoop();
+      setErrorMsg(null);
     } catch { setErrorMsg(t("detector.errStartFailed")); }
     finally { setIsStarting(false); }
   };
 
+  /** Create and start the browser-side DetectionLoop for this pokemon. */
+  const startDetectionLoop = async () => {
+    // Stop any existing loop for this pokemon
+    loopRef.current?.stop();
+    loopRef.current = null;
+
+    // Ensure detector is available (lazy init if mount effect hasn't finished)
+    if (!detectorRef.current) {
+      try {
+        detectorRef.current = await WebGPUDetector.create();
+      } catch {
+        detectorRef.current = new CPUDetector();
+      }
+    }
+
+    const detector = detectorRef.current;
+    const loop = new DetectionLoop(pokemon.id, detector);
+
+    // Load template images from the backend and prepare them for detection
+    const enabledTemplates = templates
+      .map((t, i) => ({ template: t, index: i }))
+      .filter(({ template: tmpl }) => tmpl.enabled !== false);
+
+    const loadedTemplates: TemplateData[] = [];
+    for (const { template: tmpl, index } of enabledTemplates) {
+      try {
+        const imgResp = await fetch(apiUrl(`/api/detector/${pokemon.id}/template/${index}`));
+        if (!imgResp.ok) continue;
+        const blob = await imgResp.blob();
+        const bmp = await createImageBitmap(blob);
+        const templateData = await detector.loadTemplate(bmp, tmpl.regions);
+        bmp.close();
+        if (templateData) loadedTemplates.push(templateData);
+      } catch {
+        // Skip templates that fail to load
+      }
+    }
+
+    if (loadedTemplates.length === 0) {
+      setErrorMsg(t("detector.errNoTemplates"));
+      return;
+    }
+
+    loop.loadTemplates(loadedTemplates);
+    loop.updateConfig({
+      precision: cfg.precision,
+      changeThreshold: cfg.change_threshold,
+      consecutiveHits: cfg.consecutive_hits,
+    });
+
+    // Start the loop — it reads frames from the capture service video element
+    loop.start(() => capture.getVideoElement(pokemon.id));
+    loopRef.current = loop;
+  };
+
   const handleStop = async () => {
+    // Stop the browser-side detection loop first
+    loopRef.current?.stop();
+    loopRef.current = null;
     try { await fetch(apiUrl(`/api/detector/${pokemon.id}/stop`), { method: "POST" }); } catch { /* ignore */ }
   };
 

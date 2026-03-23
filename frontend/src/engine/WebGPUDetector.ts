@@ -1,7 +1,7 @@
 /**
  * WebGPUDetector — GPU-accelerated NCC template matching engine.
  *
- * Ports the Rust sidecar's wgpu compute pipeline to the browser using the
+ * Implements a wgpu-style compute pipeline in the browser using the
  * WebGPU API. The pipeline stages are:
  *
  * 1. Upload video frame to GPU texture (zero-copy via copyExternalImageToTexture)
@@ -818,7 +818,6 @@ function divCeil(a: number, b: number): number {
 
 /**
  * Calculate output dimensions that fit within maxDim, preserving aspect ratio.
- * Matches the Rust sidecar's fit_dimensions logic.
  */
 function fitDimensions(w: number, h: number, maxDim: number): [number, number] {
   if (w <= maxDim && h <= maxDim) {
