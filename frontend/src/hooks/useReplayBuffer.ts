@@ -23,6 +23,8 @@ export interface UseReplayBufferResult {
   clear: () => void;
   /** Stop capturing new frames (freezes the buffer). */
   stop: () => void;
+  /** Restart capturing after a stop (clears buffer and begins fresh). */
+  restart: () => void;
 }
 
 /** Default replay buffer duration in seconds. */
@@ -70,6 +72,41 @@ export function useReplayBuffer(
     }
     setIsBuffering(false);
   }, []);
+
+  /** Restart capturing after a stop — clears the buffer and begins fresh. */
+  const restart = useCallback(() => {
+    // Stop any existing capture
+    if (intervalRef.current !== null) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    // Reset buffer state
+    const buf: ImageData[] = new Array(maxFrames);
+    bufferRef.current = buf;
+    writeIndexRef.current = 0;
+    filledRef.current = 0;
+    setFrameCount(0);
+    // Restart capture if video element is available
+    if (videoElement && videoElement.readyState >= 2 && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const captureFrame = () => {
+        if (!videoElement || videoElement.videoWidth === 0 || videoElement.videoHeight === 0) return;
+        if (canvas.width !== videoElement.videoWidth) canvas.width = videoElement.videoWidth;
+        if (canvas.height !== videoElement.videoHeight) canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return;
+        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const wi = writeIndexRef.current;
+        buf[wi] = imageData;
+        writeIndexRef.current = (wi + 1) % maxFrames;
+        if (filledRef.current < maxFrames) filledRef.current += 1;
+        setFrameCount(filledRef.current);
+      };
+      setIsBuffering(true);
+      intervalRef.current = window.setInterval(captureFrame, captureIntervalMs);
+    }
+  }, [videoElement, maxFrames, captureIntervalMs]);
 
   const getFrame = useCallback((index: number): ImageData | null => {
     const filled = filledRef.current;
@@ -176,5 +213,6 @@ export function useReplayBuffer(
     bufferedSeconds,
     clear,
     stop,
+    restart,
   };
 }

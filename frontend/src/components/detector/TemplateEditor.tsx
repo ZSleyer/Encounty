@@ -312,22 +312,24 @@ export function TemplateEditor({
     setErrorMsg(null);
   };
 
-  /** Go back to live video from replay. */
+  /** Go back to live video from replay — restarts the replay buffer. */
   const handleBackToLive = () => {
     setPhase("video");
     setSelectedFrameIndex(0);
     setCurrentBox(null);
     setRegions([]);
     setErrorMsg(null);
+    replayBuffer.restart();
   };
 
-  /** Reset the snapshot and go back to live video. */
+  /** Reset the snapshot and go back to live video — restarts the replay buffer. */
   const resetSnapshot = () => {
     setPhase("video");
     setSelectedFrameIndex(0);
     setCurrentBox(null);
     setRegions([]);
     setErrorMsg(null);
+    replayBuffer.restart();
   };
 
   // --- Region drawing --------------------------------------------------------
@@ -626,7 +628,7 @@ export function TemplateEditor({
             </span>
           </div>
           <p className="text-xs 2xl:text-sm text-text-muted text-center mt-2">
-            Arrow keys: +/-1 frame, Shift+Arrow keys: +/-5 frames
+            {t("templateEditor.replayKeys")}
           </p>
         </div>
       )}

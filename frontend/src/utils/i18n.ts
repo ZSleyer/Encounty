@@ -614,6 +614,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // ── Template Editor: Replay ──
     "templateEditor.replayTitle": "Frame aus Aufnahme wählen",
     "templateEditor.replayHint": "Durch die letzten 30 Sekunden scrubben, um den besten Frame zu finden",
+    "templateEditor.replayKeys": "Pfeiltasten: ±1 Frame, Shift+Pfeiltasten: ±5 Frames",
     "templateEditor.useFrame": "Diesen Frame verwenden",
     "templateEditor.backToLive": "Zurück zu Live",
 
@@ -1253,6 +1254,7 @@ const translations: Record<Locale, Record<string, string>> = {
     // ── Template Editor: Replay ──
     "templateEditor.replayTitle": "Select Frame from Replay",
     "templateEditor.replayHint": "Scrub through the last 30 seconds to find the best frame",
+    "templateEditor.replayKeys": "Arrow keys: ±1 frame, Shift+Arrow keys: ±5 frames",
     "templateEditor.useFrame": "Use This Frame",
     "templateEditor.backToLive": "Back to Live",
 
