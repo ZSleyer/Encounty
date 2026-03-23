@@ -130,7 +130,7 @@ type frameHeader struct {
 	PayloadLen uint32
 }
 
-// PreviewFrameMsg holds a JPEG preview frame from the sidecar, tagged with
+// PreviewFrameMsg holds a preview frame from the sidecar, tagged with
 // the session ID so it can be routed to the correct WebSocket subscriber.
 type PreviewFrameMsg struct {
 	SessionID string
@@ -138,8 +138,10 @@ type PreviewFrameMsg struct {
 	Height    int
 	IsVideo   bool   // true when FMP4Data is populated
 	IsInit    bool   // true for ftyp+moov init segment
+	IsRaw     bool   // true when RGBAData is populated (raw preview)
 	JPEGData  []byte // populated for FORMAT_JPEG
 	FMP4Data  []byte // populated for FORMAT_FMP4
+	RGBAData  []byte // populated for FORMAT_RGBA (raw preview)
 }
 
 // ReplayMatchMsg holds an asynchronous replay match result emitted by the
@@ -215,6 +217,23 @@ func NewSidecarManager() (*SidecarManager, error) {
 
 	// Start the read loop that dispatches all stdout data.
 	go sm.readLoop()
+
+	// Wait for the sidecar to signal readiness after its internal init
+	// (GPU context, match engine). This avoids broken-pipe errors when
+	// sending commands before the sidecar is ready to receive them.
+	const sidecarReadyTimeout = 10 * time.Second
+	select {
+	case resp := <-sm.respCh:
+		if resp.Type != "ready" {
+			sm.Close()
+			return nil, fmt.Errorf("sidecar: expected ready signal, got %q", resp.Type)
+		}
+	case <-time.After(sidecarReadyTimeout):
+		sm.Close()
+		return nil, fmt.Errorf("sidecar: ready signal timeout after %v", sidecarReadyTimeout)
+	case <-sm.done:
+		return nil, fmt.Errorf("sidecar: process exited before ready signal")
+	}
 
 	slog.Info("Sidecar started", "binary", binPath, "pid", cmd.Process.Pid)
 	return sm, nil
@@ -605,6 +624,16 @@ func (s *SidecarManager) Close() {
 // to stdin, then waits up to timeout for the next command-response message from
 // the readLoop. The caller must hold s.mu.
 func (s *SidecarManager) sendCommandWithTimeout(req any, timeout time.Duration) (sidecarResponse, error) {
+	// Fast-fail if the sidecar has already crashed or been closed.
+	if s.crashed.Load() {
+		return sidecarResponse{}, fmt.Errorf("sidecar has crashed")
+	}
+	select {
+	case <-s.done:
+		return sidecarResponse{}, fmt.Errorf("sidecar is closed")
+	default:
+	}
+
 	data, err := json.Marshal(req)
 	if err != nil {
 		return sidecarResponse{}, fmt.Errorf("marshal command: %w", err)
@@ -741,6 +770,12 @@ func (s *SidecarManager) dispatchMessage(resp sidecarResponse) {
 			slog.Debug("Sidecar replay match dropped, consumer too slow")
 		}
 
+	case "ready":
+		select {
+		case s.respCh <- resp:
+		default:
+		}
+
 	case "error":
 		slog.Warn("Sidecar reported error", "message", resp.Message)
 		// Also forward to respCh in case a command is waiting.
@@ -790,15 +825,31 @@ func (s *SidecarManager) decodeFrameExtended() error {
 	case 0x00: // RGBA
 		w := int(hdr.Width)
 		h := int(hdr.Height)
-		img := &image.RGBA{
-			Pix:    payload,
-			Stride: w * 4,
-			Rect:   image.Rect(0, 0, w, h),
-		}
-		// Non-blocking send; drop the frame if the consumer is behind.
-		select {
-		case s.frameCh <- img:
-		default:
+		if sessionID != "" {
+			// RGBA preview frame — route to previewCh for raw preview subscribers.
+			msg := PreviewFrameMsg{
+				SessionID: sessionID,
+				Width:     w,
+				Height:    h,
+				IsRaw:     true,
+				RGBAData:  payload,
+			}
+			select {
+			case s.previewCh <- msg:
+			default:
+				slog.Debug("Raw preview frame dropped, consumer too slow", "session_id", sessionID)
+			}
+		} else {
+			// One-shot capture frame (no session) — route to frameCh.
+			img := &image.RGBA{
+				Pix:    payload,
+				Stride: w * 4,
+				Rect:   image.Rect(0, 0, w, h),
+			}
+			select {
+			case s.frameCh <- img:
+			default:
+			}
 		}
 
 	case 0x01: // JPEG preview

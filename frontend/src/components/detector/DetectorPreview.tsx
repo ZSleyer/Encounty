@@ -10,6 +10,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import { Camera, MonitorPlay, Unplug } from "lucide-react";
 import { DetectorCapabilities, DetectorConfig, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
+import { useRawPreview } from "../../hooks/useRawPreview";
 import { useVideoStream } from "../../hooks/useVideoStream";
 import { useMJPEGStream } from "../../hooks/useMJPEGStream";
 import { apiUrl } from "../../utils/api";
@@ -95,21 +96,25 @@ export function DetectorPreview({
 
   // --- Stream URLs -----------------------------------------------------------
 
+  const rawUrl = previewEnabled
+    ? apiUrl(`/api/detector/${pokemon.id}/raw_stream`)
+    : null;
   const streamUrl = previewEnabled
     ? apiUrl(`/api/detector/${pokemon.id}/stream`)
     : null;
   const mjpegUrl = previewEnabled
     ? apiUrl(`/api/detector/${pokemon.id}/mjpeg`)
     : null;
+  const { fps: rawFps, active: rawActive } = useRawPreview(rawUrl, canvasRef);
   const { fps: videoFps, active: videoActive } = useVideoStream(
-    streamUrl,
+    rawActive ? null : streamUrl,
     videoRef,
   );
   const { fps: mjpegFps } = useMJPEGStream(
-    videoActive ? null : mjpegUrl,
+    rawActive || videoActive ? null : mjpegUrl,
     canvasRef,
   );
-  const displayFps = videoActive ? videoFps : mjpegFps;
+  const displayFps = rawActive ? rawFps : videoActive ? videoFps : mjpegFps;
 
   // --- Auto-start preview when source first connects -------------------------
 
@@ -307,14 +312,14 @@ export function DetectorPreview({
                 <>
                   <video
                     ref={videoRef}
-                    className={`w-full h-full object-contain ${videoActive ? "" : "hidden"}`}
+                    className={`w-full h-full object-contain ${!rawActive && videoActive ? "" : "hidden"}`}
                     autoPlay
                     muted
                     playsInline
                   />
                   <canvas
                     ref={canvasRef}
-                    className={`w-full h-full ${videoActive ? "hidden" : ""}`}
+                    className={`w-full h-full ${!rawActive && videoActive ? "hidden" : ""}`}
                   />
 
                   {/* Timer countdown overlay (bottom center) */}

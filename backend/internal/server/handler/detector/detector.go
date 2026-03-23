@@ -377,6 +377,8 @@ func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request)
 		h.handleMJPEGStream(w, r, id)
 	case "stream":
 		h.handleVideoStream(w, r, id)
+	case "raw_stream":
+		h.handleRawStream(w, r, id)
 	case "preview":
 		if len(parts) < 3 {
 			w.WriteHeader(http.StatusNotFound)
@@ -714,6 +716,68 @@ func (h *handler) handleVideoStream(w http.ResponseWriter, r *http.Request, id s
 				// Clients using /stream expect fMP4 only.
 				continue
 			}
+		}
+	}
+}
+
+// --- Raw RGBA Stream ---------------------------------------------------------
+
+// handleRawStream serves a binary stream of raw RGBA preview frames for the
+// given detector session. Each frame is prefixed with an 8-byte header:
+// [width:u16 LE][height:u16 LE][length:u32 LE][rgba_data].
+// TCP backpressure naturally limits throughput — when the client cannot consume
+// fast enough, Write() blocks and the subscriber channel drops frames.
+// GET /api/detector/{id}/raw_stream
+func (h *handler) handleRawStream(w http.ResponseWriter, r *http.Request, id string) {
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	ch, unsub := mgr.SubscribePreview(id)
+	defer unsub()
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	w.Header().Set("Connection", "close")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: "streaming not supported"})
+		return
+	}
+
+	ctx := r.Context()
+	var hdr [8]byte
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case frame, open := <-ch:
+			if !open {
+				return
+			}
+			if !frame.IsRaw || len(frame.RGBAData) == 0 {
+				continue
+			}
+			// 8-byte header: width(u16 LE) + height(u16 LE) + length(u32 LE)
+			hdr[0] = byte(frame.Width)
+			hdr[1] = byte(frame.Width >> 8)
+			hdr[2] = byte(frame.Height)
+			hdr[3] = byte(frame.Height >> 8)
+			dataLen := uint32(len(frame.RGBAData))
+			hdr[4] = byte(dataLen)
+			hdr[5] = byte(dataLen >> 8)
+			hdr[6] = byte(dataLen >> 16)
+			hdr[7] = byte(dataLen >> 24)
+			if _, err := w.Write(hdr[:]); err != nil {
+				return
+			}
+			if _, err := w.Write(frame.RGBAData); err != nil {
+				return
+			}
+			flusher.Flush()
 		}
 	}
 }
