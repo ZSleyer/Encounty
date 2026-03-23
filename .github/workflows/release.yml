@@ -40,12 +40,7 @@ jobs:
           echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libpipewire-0.3-dev libclang-dev pkg-config libudev-dev gcc-mingw-w64-x86-64
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-gnu
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64-x86-64
 
       - name: Install Frontend Dependencies
         working-directory: frontend
@@ -99,14 +94,6 @@ jobs:
           go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows.exe main.go
           rm -rf ./frontend
           rm -f *.syso
-
-      - name: Build Sidecar (Linux)
-        working-directory: capture-sidecar
-        run: cargo build --release
-
-      - name: Build Sidecar (Windows)
-        working-directory: capture-sidecar
-        run: cargo build --release --target x86_64-pc-windows-gnu
 
       - name: Build Electron
         working-directory: electron

@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-windows build-linux frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-package-linux electron-package-windows electron-package-all build-sidecar-linux build-sidecar-windows clean-sidecar swagger sidecar-schema
+.PHONY: dev build build-all build-windows build-linux frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-package-linux electron-package-windows electron-package-all swagger icons
 
 BINARY = encounty
 BACKEND_DIR = backend
@@ -42,8 +42,6 @@ electron: electron-package-linux
 
 build-all: build electron-package-linux electron-package-windows
 
-build-all-with-sidecar: build-sidecar-linux build-sidecar-windows build-all
-
 icons:
 	@echo "Generating icons from frontend/public/app-icon.png..."
 	cd $(BACKEND_DIR) && go run ../scripts/generate_icons.go
@@ -86,16 +84,15 @@ build-windows: icons
 # Reexec / update platform    — syscall.Exec, binary replacement
 # update.go                   — GitHub API + platform binary swap
 # games_sync / pokedex        — external PokéAPI HTTP calls
-# detector_api                — tightly coupled to capture + filesystem
-# detector.go, ocr.go         — main loop needs screen capture; OCR needs tesseract
+# detector.go                 — main loop needs screen capture
 # main.go / scripts           — entry points with os.Exit / signal handling
 GO_COVERAGE_EXCLUDE = manager_linux\.go|manager_windows\.go|\
 keycodes_linux\.go|keycodes_windows\.go|\
 capture\.go|sound_unix\.go|sound_windows\.go|\
 reexec_unix\.go|reexec_windows\.go|\
 update_unix\.go|update_windows\.go|update\.go|\
-games_sync\.go|detector_api\.go|detector\.go|\
-ocr\.go|sidecar\.go|pokedex\.go|\
+games_sync\.go|detector\.go|\
+pokedex\.go|browser_detector\.go|\
 main\.go|scripts/generate_icons\.go
 
 test:
@@ -118,32 +115,9 @@ coverage:
 	@cd $(FRONTEND_DIR) && yarn vitest run --coverage
 	@rm -f $(BACKEND_DIR)/coverage.out $(BACKEND_DIR)/coverage_filtered.out
 
-clean: clean-sidecar
+clean:
 	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-windows.exe *.syso
 	rm -rf $(FRONTEND_DIR)/dist $(LINUX_DIST)
-
-# ── Rust Sidecar Targets ─────────────────────────────────────────────────────
-
-SIDECAR_DIR = capture-sidecar
-WINDOWS_DIST = dist-windows
-
-build-sidecar-linux:
-	@echo "Building Rust capture sidecar for Linux..."
-	cd $(SIDECAR_DIR) && cargo build --release
-	@mkdir -p $(LINUX_DIST)
-	cp $(SIDECAR_DIR)/target/release/encounty-capture $(LINUX_DIST)/
-
-build-sidecar-windows:
-	@echo "Building Rust capture sidecar for Windows..."
-	cd $(SIDECAR_DIR) && cargo build --release --target x86_64-pc-windows-gnu
-	@mkdir -p $(WINDOWS_DIST)
-	cp $(SIDECAR_DIR)/target/x86_64-pc-windows-gnu/release/encounty-capture.exe $(WINDOWS_DIST)/
-
-sidecar-schema:
-	cd $(SIDECAR_DIR) && cargo run --bin gen-schema > ../$(BACKEND_DIR)/docs/sidecar-protocol.schema.json
-
-clean-sidecar:
-	@if [ -d "$(SIDECAR_DIR)" ]; then cd $(SIDECAR_DIR) && cargo clean; fi
 
 # ── Electron Targets ─────────────────────────────────────────────────────────
 
