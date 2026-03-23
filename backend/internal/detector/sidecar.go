@@ -612,6 +612,7 @@ func (s *SidecarManager) sendCommandWithTimeout(req any, timeout time.Duration) 
 	data = append(data, '\n')
 
 	if _, err := s.stdin.Write(data); err != nil {
+		s.crashed.Store(true)
 		return sidecarResponse{}, fmt.Errorf("write command: %w", err)
 	}
 

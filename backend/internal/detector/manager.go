@@ -463,7 +463,16 @@ func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig
 		},
 	}
 	if err := m.sidecar.StartDetection(pokemonID, cfg.SourceType, cfg.WindowTitle, previewConfig); err != nil {
-		return fmt.Errorf("sidecar start preview session: %w", err)
+		// The sidecar may have crashed during the write. Try to restart and retry once.
+		if restartErr := m.ensureSidecar(); restartErr != nil {
+			return fmt.Errorf("sidecar start preview session (restart failed): %w", restartErr)
+		}
+		if m.sidecar == nil {
+			return errors.New(errSidecarNotAvailable)
+		}
+		if err2 := m.sidecar.StartDetection(pokemonID, cfg.SourceType, cfg.WindowTitle, previewConfig); err2 != nil {
+			return fmt.Errorf("sidecar start preview session (retry): %w", err2)
+		}
 	}
 
 	m.previewOnly[pokemonID] = true
