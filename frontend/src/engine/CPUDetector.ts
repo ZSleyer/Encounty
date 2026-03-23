@@ -99,7 +99,7 @@ export class CPUDetector {
     }
     const stdDev = Math.sqrt(varSum / n);
 
-    if (stdDev < 1e-9) {
+    if (stdDev < 1e-6) {
       return null;
     }
 

@@ -130,15 +130,18 @@ export function TemplateEditor({
   ocrLang = "eng",
 }: TemplateEditorProps) {
   const { t } = useI18n();
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Callback ref so React triggers a re-render when the video element mounts,
+  // which lets useReplayBuffer receive the actual element instead of null.
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
+  const videoRef = useCallback((el: HTMLVideoElement | null) => { setVideoEl(el); }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [phase, setPhase] = useState<Phase>("video");
   const [selectedFrameIndex, setSelectedFrameIndex] = useState(0);
 
-  // Browser-based replay buffer capturing from the stream at 5fps
-  const replayBuffer = useReplayBuffer(stream ? videoRef.current : null, 30, 5);
+  // Browser-based replay buffer capturing from the stream at 60fps
+  const replayBuffer = useReplayBuffer(stream ? videoEl : null, 30, 60);
   const [snapshotWidth, setSnapshotWidth] = useState(0);
   const [snapshotHeight, setSnapshotHeight] = useState(0);
 
@@ -212,11 +215,11 @@ export function TemplateEditor({
 
   // Wire the stream to the video element when in "video" phase
   useEffect(() => {
-    if (phase === "video" && videoRef.current && videoRef.current.srcObject !== stream) {
-      videoRef.current.srcObject = stream ?? null;
-      videoRef.current.play().catch(() => {});
+    if (phase === "video" && videoEl && videoEl.srcObject !== stream) {
+      videoEl.srcObject = stream ?? null;
+      videoEl.play().catch(() => {});
     }
-  }, [stream, phase]);
+  }, [stream, phase, videoEl]);
 
   // Render selected replay frame to canvas
   useEffect(() => {
@@ -270,8 +273,8 @@ export function TemplateEditor({
       setPhase("replay");
     } else {
       // Fallback: no frames buffered, capture current video frame directly
-      if (!videoRef.current || !canvasRef.current) return;
-      const video = videoRef.current;
+      if (!videoEl || !canvasRef.current) return;
+      const video = videoEl;
       if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
       setSnapshotWidth(video.videoWidth);

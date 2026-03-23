@@ -134,13 +134,16 @@ export class DetectionLoop {
           this.consecutiveCount = 0;
         }
 
-        // Confirmed match — notify backend
+        // Confirmed match — notify backend with match flag
         if (this.consecutiveCount >= this.config.consecutiveHits) {
           this.consecutiveCount = 0;
-          this.notifyMatch(result.bestScore, delta);
         }
 
-        this.pollIntervalMs = this.computeNextInterval(result.bestScore, delta);
+        // Report every detection result so the backend can broadcast
+        // detector_status with live confidence to the frontend.
+        this.reportScore(result.bestScore, result.frameDelta);
+
+        this.pollIntervalMs = this.computeNextInterval(result.bestScore, result.frameDelta);
       } catch {
         // Detection error — back off to avoid tight error loops
         this.pollIntervalMs = MAX_POLL_MS;
@@ -177,8 +180,8 @@ export class DetectionLoop {
     return Math.round(Math.max(MIN_POLL_MS, Math.min(MAX_POLL_MS, interval)));
   }
 
-  /** POST a confirmed match to the backend. */
-  private notifyMatch(score: number, frameDelta: number): void {
+  /** POST the current detection score to the backend for state machine processing. */
+  private reportScore(score: number, frameDelta: number): void {
     fetch(apiUrl(`/api/detector/${this.pokemonId}/match`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },

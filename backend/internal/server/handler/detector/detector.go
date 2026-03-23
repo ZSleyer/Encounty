@@ -542,6 +542,16 @@ func (h *handler) handleBrowserDetectorStart(w http.ResponseWriter, r *http.Requ
 	}
 
 	mgr.GetOrCreateBrowserDetector(id, cfg)
+
+	// Broadcast an initial detector_status so the frontend immediately shows
+	// the running state (before the first POST /match arrives from the browser).
+	h.deps.Broadcast("detector_status", map[string]any{
+		"pokemon_id": id,
+		"state":      "idle",
+		"confidence":  0.0,
+		"poll_ms":     100,
+	})
+
 	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
