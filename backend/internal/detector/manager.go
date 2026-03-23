@@ -63,23 +63,72 @@ func NewManager(stateMgr *state.Manager, broadcast BroadcastFunc, configDir stri
 		stateMgr:    stateMgr,
 		broadcast:   broadcast,
 		configDir:   configDir,
-		sidecar:     sidecar,
 	}
 
 	if sidecar != nil {
-		ctx, cancel := context.WithCancel(context.Background())
-		m.matchRouterCancel = cancel
-		go m.matchRouter(ctx, sidecar.MatchResults())
-		go m.replayMatchRouter(ctx, sidecar.ReplayMatchResults())
-
-		dispatchCtx, dispatchCancel := context.WithCancel(context.Background())
-		m.previewDispatchStop = dispatchCancel
-		m.previewSubs = make(map[*previewSub]struct{})
-		m.initSegments = make(map[string][]byte)
-		go m.dispatchPreviewFrames(dispatchCtx, sidecar.PreviewFrames())
+		m.wireSidecar(sidecar)
 	}
 
 	return m
+}
+
+// wireSidecar connects a sidecar instance to the manager's routing
+// goroutines (match router, replay match router, preview dispatcher).
+// Any previously running routers are cancelled first.
+func (m *Manager) wireSidecar(sc *SidecarManager) {
+	// Cancel previous routers if they exist.
+	if m.matchRouterCancel != nil {
+		m.matchRouterCancel()
+	}
+	if m.previewDispatchStop != nil {
+		m.previewDispatchStop()
+	}
+
+	m.sidecar = sc
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m.matchRouterCancel = cancel
+	go m.matchRouter(ctx, sc.MatchResults())
+	go m.replayMatchRouter(ctx, sc.ReplayMatchResults())
+
+	dispatchCtx, dispatchCancel := context.WithCancel(context.Background())
+	m.previewDispatchStop = dispatchCancel
+	if m.previewSubs == nil {
+		m.previewSubs = make(map[*previewSub]struct{})
+	}
+	if m.initSegments == nil {
+		m.initSegments = make(map[string][]byte)
+	}
+	go m.dispatchPreviewFrames(dispatchCtx, sc.PreviewFrames())
+}
+
+// ensureSidecar checks the health of the current sidecar process and
+// restarts it if necessary. Returns an error only if the sidecar binary
+// is not available at all. Caller must hold m.mu.
+func (m *Manager) ensureSidecar() error {
+	if m.sidecar != nil && m.sidecar.IsHealthy() {
+		return nil
+	}
+
+	if m.sidecar != nil {
+		slog.Warn("Sidecar process is unhealthy, restarting")
+		m.sidecar.Close()
+	}
+
+	sc, err := NewSidecarManager()
+	if err != nil {
+		m.sidecar = nil
+		return fmt.Errorf("sidecar restart failed: %w", err)
+	}
+
+	// Clear stale preview-only state since the old sidecar sessions are gone.
+	for id := range m.previewOnly {
+		delete(m.previewOnly, id)
+	}
+
+	m.wireSidecar(sc)
+	slog.Info("Sidecar restarted successfully", "pid", sc.cmd.Process.Pid)
+	return nil
 }
 
 // createFrameSource builds the appropriate FrameSource for the given config.
@@ -115,6 +164,11 @@ func (m *Manager) Start(pokemonID string, cfg state.DetectorConfig) error {
 			slog.Warn("Failed to stop preview-only session before start", "pokemon_id", pokemonID, "error", err)
 		}
 		delete(m.previewOnly, pokemonID)
+	}
+
+	// Ensure sidecar is healthy; restart if it crashed.
+	if err := m.ensureSidecar(); err != nil {
+		slog.Warn("Sidecar restart failed, will use native fallback", "error", err)
 	}
 
 	// Use sidecar path when available.
@@ -362,13 +416,18 @@ func (m *Manager) StopPreview(pokemonID string) error {
 // If a detection session is already running for pokemonID, the preview is
 // started on the existing session. Otherwise a minimal sidecar session is
 // created with no templates and a high poll interval so it does minimal work.
+// When the sidecar process has crashed, it is automatically restarted.
 func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Ensure the sidecar is alive; restart it if it crashed.
+	if err := m.ensureSidecar(); err != nil {
+		return err
+	}
 	if m.sidecar == nil {
 		return errors.New(errSidecarNotAvailable)
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	// If a real detection session is already running, just start the preview.
 	if _, running := m.running[pokemonID]; running {
@@ -414,20 +473,19 @@ func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig
 
 // StopPreviewSession stops a preview-only session. If the session was created
 // solely for preview (not backed by a real detection), the underlying sidecar
-// detection is also stopped.
+// detection is also stopped. Tolerates a crashed sidecar by cleaning up local
+// state even when commands cannot be sent.
 func (m *Manager) StopPreviewSession(pokemonID string) error {
-	if m.sidecar == nil {
-		return errors.New(errSidecarNotAvailable)
-	}
-
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	_ = m.sidecar.StopPreview(pokemonID)
+	if m.sidecar != nil && m.sidecar.IsHealthy() {
+		_ = m.sidecar.StopPreview(pokemonID)
 
-	if m.previewOnly[pokemonID] {
-		if err := m.sidecar.StopDetection(pokemonID); err != nil {
-			slog.Warn("Failed to stop preview-only sidecar session", "pokemon_id", pokemonID, "error", err)
+		if m.previewOnly[pokemonID] {
+			if err := m.sidecar.StopDetection(pokemonID); err != nil {
+				slog.Warn("Failed to stop preview-only sidecar session", "pokemon_id", pokemonID, "error", err)
+			}
 		}
 	}
 
@@ -570,11 +628,20 @@ func (m *Manager) TriggerRematch(pokemonID string, windowSec int) error {
 
 // ListSources asks the sidecar for capture sources of the given type
 // (e.g. "screen", "window", "camera"). Returns nil when no sidecar is available.
+// Automatically restarts the sidecar if it has crashed.
 func (m *Manager) ListSources(sourceType string) ([]SourceInfo, error) {
-	if m.sidecar == nil {
+	m.mu.Lock()
+	if err := m.ensureSidecar(); err != nil {
+		m.mu.Unlock()
+		return nil, err
+	}
+	sc := m.sidecar
+	m.mu.Unlock()
+
+	if sc == nil {
 		return nil, errors.New(errSidecarNotAvailable)
 	}
-	return m.sidecar.ListSources(sourceType)
+	return sc.ListSources(sourceType)
 }
 
 // CaptureSourceFrame captures a single frame from the given source via the

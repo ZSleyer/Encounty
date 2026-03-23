@@ -167,6 +167,7 @@ type SidecarManager struct {
 	done          chan struct{}
 	snapshotCh     chan PreviewFrameMsg // dedicated channel for snapshot frames
 	expectSnapshot atomic.Bool          // true when GetSnapshotFrame is waiting
+	crashed        atomic.Bool          // set by readLoop on unexpected EOF
 }
 
 // NewSidecarManager locates the encounty-capture binary, starts it as a
@@ -559,6 +560,21 @@ func (s *SidecarManager) UpdateConfig(sessionID string, config SidecarDetectionC
 	return nil
 }
 
+// IsHealthy reports whether the sidecar process is still running and
+// responsive. It checks both the explicit shutdown signal and the crash
+// flag set by the read loop when the process exits unexpectedly.
+func (s *SidecarManager) IsHealthy() bool {
+	if s.crashed.Load() {
+		return false
+	}
+	select {
+	case <-s.done:
+		return false
+	default:
+	}
+	return true
+}
+
 // Close shuts down the sidecar process. It closes stdin (signalling EOF) and
 // waits up to 3 seconds for the process to exit before killing it. Close is
 // safe to call multiple times.
@@ -625,6 +641,18 @@ func (s *SidecarManager) readLoop() {
 	defer close(s.matchCh)
 	defer close(s.replayMatchCh)
 	defer close(s.previewCh)
+	defer func() {
+		// Mark the sidecar as crashed so the manager can detect it and
+		// spawn a replacement. This flag is only set when the read loop
+		// exits before Close() is called (i.e. the process died).
+		select {
+		case <-s.done:
+			// Close() already signalled — normal shutdown, not a crash.
+		default:
+			s.crashed.Store(true)
+			slog.Warn("Sidecar read loop exited unexpectedly, process likely crashed")
+		}
+	}()
 
 	for {
 		select {
