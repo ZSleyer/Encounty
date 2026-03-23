@@ -23,9 +23,12 @@ import { apiUrl } from "../utils/api";
 
 // --- Types -------------------------------------------------------------------
 
+/** Supported capture source types. dev_video is only available in dev mode. */
+export type CaptureSourceType = "browser_display" | "browser_camera" | "dev_video";
+
 interface CaptureEntry {
   pokemonId: string;
-  sourceType: "browser_display" | "browser_camera";
+  sourceType: CaptureSourceType;
   stream: MediaStream;
   videoEl: HTMLVideoElement;
   /** Display name of the selected source (e.g. "Screen 1", "OBS Virtual Camera"). */
@@ -36,7 +39,7 @@ interface CaptureServiceContextValue {
   /** Start a capture for a specific pokemon. Optional sourceId/sourceLabel for pre-selected sources, existingStream for reuse. */
   startCapture: (
     pokemonId: string,
-    sourceType: "browser_display" | "browser_camera",
+    sourceType: CaptureSourceType,
     sourceId?: string,
     sourceLabel?: string,
     existingStream?: MediaStream,
@@ -123,7 +126,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
 
   const startCapture = useCallback(async (
     pokemonId: string,
-    sourceType: "browser_display" | "browser_camera",
+    sourceType: CaptureSourceType,
     sourceId?: string,
     sourceLabel?: string,
     existingStream?: MediaStream,
@@ -159,6 +162,27 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
           video: { displaySurface: "window" },
           audio: false,
         });
+      } else if (sourceType === "dev_video") {
+        // Dev mode: play a local video file in a loop and capture its stream.
+        // sourceId contains the object URL of the selected file.
+        if (!sourceId) {
+          captureErrorRef.current = "No video file selected";
+          notify();
+          return;
+        }
+        const devVideo = document.createElement("video");
+        devVideo.src = sourceId;
+        devVideo.loop = true;
+        devVideo.muted = true;
+        devVideo.playsInline = true;
+        devVideo.autoplay = true;
+        await devVideo.play();
+        // captureStream creates a MediaStream from the <video> element
+        stream = (devVideo as HTMLVideoElement & { captureStream(): MediaStream }).captureStream();
+        label = sourceLabel || "Dev Video";
+        // Keep the source video alive by attaching it to the hidden container
+        devVideo.style.cssText = "width:1px;height:1px;pointer-events:none;position:fixed;top:-9999px";
+        containerRef.current?.appendChild(devVideo);
       } else {
         if (!navigator.mediaDevices?.getUserMedia) {
           captureErrorRef.current = "getUserMedia not available. Ensure context is secure (HTTPS/localhost).";

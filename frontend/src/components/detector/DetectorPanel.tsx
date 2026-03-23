@@ -147,7 +147,16 @@ export function DetectorPanel({
   const isCapturing = capture.isCapturing(pokemon.id);
 
   /** Open the source picker or start capture directly depending on platform. */
+  /** Ref for the hidden file input used by dev_video source type. */
+  const devVideoInputRef = useRef<HTMLInputElement>(null);
+
   const startCapture = useCallback(() => {
+    // Dev mode: open a file picker for a local video file
+    if (cfg.source_type === "dev_video") {
+      devVideoInputRef.current?.click();
+      return Promise.resolve();
+    }
+
     if (cfg.source_type === "browser_display" || cfg.source_type === "browser_camera") {
       const isElectron = !!globalThis.electronAPI;
       const isWayland = !!globalThis.electronAPI?.isWayland;
@@ -168,6 +177,15 @@ export function DetectorPanel({
     }
     return Promise.resolve();
   }, [cfg.source_type, capture, pokemon.id]);
+
+  /** Handle dev video file selection. */
+  const handleDevVideoFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const objectUrl = URL.createObjectURL(file);
+    capture.startCapture(pokemon.id, "dev_video", objectUrl, file.name);
+  }, [capture, pokemon.id]);
 
   /** Handle a source selection from the SourcePickerModal. */
   const handleSourceSelected = useCallback((source: SelectedSource) => {
@@ -662,6 +680,16 @@ export function DetectorPanel({
 
   return (
     <>
+      {/* Hidden file input for dev_video source type */}
+      {import.meta.env.DEV && (
+        <input
+          ref={devVideoInputRef}
+          type="file"
+          accept="video/*"
+          className="hidden"
+          onChange={handleDevVideoFile}
+        />
+      )}
       <div className="space-y-5">
         {/* --- Header with Tutorial button ----------------------------------- */}
         <div className="flex items-center justify-between">

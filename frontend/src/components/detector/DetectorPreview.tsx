@@ -82,6 +82,9 @@ export function DetectorPreview({
             >
               <option value="browser_camera">{t("detector.sourceCamera")}</option>
               <option value="browser_display">{t("detector.sourceBrowser")}</option>
+              {import.meta.env.DEV && (
+                <option value="dev_video">Video File (Dev)</option>
+              )}
             </select>
             {stream ? (
               <>
