@@ -137,7 +137,7 @@ func TestHandleDeletePokemonWithDetectorMgr(t *testing.T) {
 	broadcast := func(msgType string, payload any) { // no-op for test
 	}
 	tmpDir := stateMgr.GetConfigDir()
-	srv.detectorMgr = detector.NewManager(stateMgr, broadcast, tmpDir, nil)
+	srv.detectorMgr = detector.NewManager(stateMgr, broadcast, tmpDir)
 	mux := newTestMux(srv)
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/pokemon/p1", nil)
@@ -289,7 +289,7 @@ func TestShutdownWithDetectorMgr(t *testing.T) {
 	stateMgr := state.NewManager(t.TempDir())
 	hkMgr := newMockHotkeyMgr()
 	detMgr := detector.NewManager(stateMgr, func(string, any) { // no-op for test
-	}, t.TempDir(), nil)
+	}, t.TempDir())
 
 	srv := New(Config{
 		Port:        0,

@@ -87,19 +87,11 @@ func main() {
 	}
 	hotkeyMgr := initHotkeys(stateMgr)
 
-	// Sidecar — start the Rust capture binary if available.
-	var sidecar *detector.SidecarManager
-	if sc, err := detector.NewSidecarManager(); err != nil {
-		slog.Warn("Sidecar not available", "error", err)
-	} else {
-		sidecar = sc
-	}
-
 	// Detector manager — broadcast function is wired after server creation.
 	var broadcastFn detector.BroadcastFunc = func(msgType string, payload any) { /* replaced after server init */ }
 	detectorMgr := detector.NewManager(stateMgr, func(msgType string, payload any) {
 		broadcastFn(msgType, payload)
-	}, configDir, sidecar)
+	}, configDir)
 
 	srv := server.New(server.Config{
 		Port:        port,
@@ -117,7 +109,7 @@ func main() {
 	broadcastFn = srv.Broadcast
 	srv.InitAsync()
 
-	startGracefulShutdown(srv, hotkeyMgr, db, stateMgr, sidecar)
+	startGracefulShutdown(srv, hotkeyMgr, db, stateMgr)
 
 	if err := srv.Start(); err != nil && err != http.ErrServerClosed {
 		slog.Error("Server error", "error", err)
@@ -185,7 +177,7 @@ func initHotkeys(stateMgr *state.Manager) hotkeys.Manager {
 
 // startGracefulShutdown installs signal handlers that perform an orderly
 // shutdown of the server, hotkeys, database, and state persistence.
-func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *database.DB, stateMgr *state.Manager, sidecar *detector.SidecarManager) {
+func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *database.DB, stateMgr *state.Manager) {
 	quit := make(chan os.Signal, 2)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -205,9 +197,6 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *da
 		}()
 
 		srv.Hub().CloseAll()
-		if sidecar != nil {
-			sidecar.Close()
-		}
 		hotkeyMgr.Stop()
 		// Stop all running timers so elapsed time is folded into accumulated_ms
 		// before the state is persisted. This ensures timers start paused on restart.

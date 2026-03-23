@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	_ "image/jpeg"
 	"image/jpeg"
 	"image/png"
 	"log/slog"

@@ -24,7 +24,7 @@ func setupTestManager(t *testing.T) (*Manager, string) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
+	mgr := NewManager(stateMgr, broadcast, tmpDir)
 	return mgr, pokemonID
 }
 
@@ -87,7 +87,7 @@ func TestManagerStopAll(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
+	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	_ = mgr.Start("p1", state.DetectorConfig{Enabled: true})
 	_ = mgr.Start("p2", state.DetectorConfig{Enabled: true})
@@ -111,7 +111,7 @@ func TestManagerRunningIDs(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
+	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	ids := mgr.RunningIDs()
 	if len(ids) != 0 {

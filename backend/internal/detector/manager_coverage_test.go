@@ -15,7 +15,7 @@ func TestPokemonLangFound(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
+	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	lang := mgr.pokemonLang("p1")
 	if lang != "deu" {
@@ -32,7 +32,7 @@ func TestPokemonLangNotFound(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op broadcast for test
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
+	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	lang := mgr.pokemonLang("nonexistent")
 	if lang != "eng" {
@@ -50,7 +50,7 @@ func TestStopAllWithMultipleDetectors(t *testing.T) {
 
 	broadcast := func(msgType string, payload any) { // no-op: tests don't need broadcast
 	}
-	mgr := NewManager(stateMgr, broadcast, tmpDir, nil)
+	mgr := NewManager(stateMgr, broadcast, tmpDir)
 
 	_ = mgr.Start("p1", state.DetectorConfig{Enabled: true})
 	_ = mgr.Start("p2", state.DetectorConfig{Enabled: true})
