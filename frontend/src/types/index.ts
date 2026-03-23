@@ -112,7 +112,7 @@ export interface DetectorTemplate {
 /** DetectorConfig holds all auto-detection settings for a single Pokémon hunt. */
 export interface DetectorConfig {
   enabled: boolean;
-  source_type: "screen_region" | "window" | "camera";
+  source_type: "screen_region" | "window" | "camera" | "browser_display" | "browser_camera";
   region: DetectorRect;
   window_title: string;
   templates: DetectorTemplate[];

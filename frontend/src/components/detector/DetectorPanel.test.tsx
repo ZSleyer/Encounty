@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, makePokemon } from "../../test-utils";
 import { DetectorPanel } from "./DetectorPanel";
+import { CaptureServiceProvider } from "../../contexts/CaptureServiceContext";
 
 vi.stubGlobal(
   "fetch",
@@ -16,13 +17,15 @@ vi.stubGlobal(
 describe("DetectorPanel", () => {
   it("renders without crashing", () => {
     render(
-      <DetectorPanel
-        pokemon={makePokemon()}
-        onConfigChange={vi.fn()}
-        isRunning={false}
-        confidence={0}
-        detectorState="idle"
-      />,
+      <CaptureServiceProvider>
+        <DetectorPanel
+          pokemon={makePokemon()}
+          onConfigChange={vi.fn()}
+          isRunning={false}
+          confidence={0}
+          detectorState="idle"
+        />
+      </CaptureServiceProvider>,
     );
     // Should show the start button
     expect(screen.getByRole("button", { name: /start/i })).toBeInTheDocument();
@@ -30,13 +33,15 @@ describe("DetectorPanel", () => {
 
   it("shows stop button when running", () => {
     render(
-      <DetectorPanel
-        pokemon={makePokemon()}
-        onConfigChange={vi.fn()}
-        isRunning={true}
-        confidence={0.9}
-        detectorState="idle"
-      />,
+      <CaptureServiceProvider>
+        <DetectorPanel
+          pokemon={makePokemon()}
+          onConfigChange={vi.fn()}
+          isRunning={true}
+          confidence={0.9}
+          detectorState="idle"
+        />
+      </CaptureServiceProvider>,
     );
     expect(screen.getByRole("button", { name: /stop/i })).toBeInTheDocument();
   });

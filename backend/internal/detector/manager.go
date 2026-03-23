@@ -33,6 +33,11 @@ type Manager struct {
 	configDir   string
 	sidecar     *SidecarManager // nil if sidecar not available
 
+	// browserDetectors holds browser-driven detectors keyed by pokemon ID.
+	// These are driven by external score submissions from the frontend WebGPU
+	// engine rather than the sidecar capture pipeline.
+	browserDetectors map[string]*BrowserDetector
+
 	// matchRouterCancel stops the matchRouter goroutine on shutdown.
 	matchRouterCancel context.CancelFunc
 
@@ -46,6 +51,10 @@ type Manager struct {
 	// so late-joining HTTP stream subscribers receive it immediately.
 	initSegments   map[string][]byte
 	initSegmentsMu sync.RWMutex
+
+	// virtualCamNodes caches the PipeWire virtual camera node name
+	// returned by the sidecar when starting a detection session.
+	virtualCamNodes map[string]string // pokemon_id → node_name
 }
 
 // previewSub is a single subscriber to the preview frame fan-out.
@@ -58,11 +67,13 @@ type previewSub struct {
 // emitted by detectors. sidecar may be nil if the sidecar binary is not available.
 func NewManager(stateMgr *state.Manager, broadcast BroadcastFunc, configDir string, sidecar *SidecarManager) *Manager {
 	m := &Manager{
-		running:     make(map[string]*runningDetector),
-		previewOnly: make(map[string]bool),
-		stateMgr:    stateMgr,
-		broadcast:   broadcast,
-		configDir:   configDir,
+		running:          make(map[string]*runningDetector),
+		previewOnly:      make(map[string]bool),
+		virtualCamNodes:  make(map[string]string),
+		browserDetectors: make(map[string]*BrowserDetector),
+		stateMgr:         stateMgr,
+		broadcast:        broadcast,
+		configDir:        configDir,
 	}
 
 	if sidecar != nil {
@@ -245,6 +256,7 @@ func (m *Manager) stopLocked(pokemonID string) {
 		}
 	}
 	delete(m.running, pokemonID)
+	delete(m.virtualCamNodes, pokemonID)
 }
 
 // StopAll cancels all running detectors. Called on server shutdown.
@@ -353,8 +365,13 @@ func (m *Manager) startWithSidecar(pokemonID string, cfg state.DetectorConfig) (
 	}
 
 	scConfig := toSidecarConfig(cfg)
-	if err := m.sidecar.StartDetection(pokemonID, cfg.SourceType, cfg.WindowTitle, scConfig); err != nil {
+	result, err := m.sidecar.StartDetection(pokemonID, cfg.SourceType, cfg.WindowTitle, scConfig)
+	if err != nil {
 		return nil, fmt.Errorf("sidecar start detection: %w", err)
+	}
+
+	if result.VirtualCamNode != "" {
+		m.virtualCamNodes[pokemonID] = result.VirtualCamNode
 	}
 
 	d := newDetector(pokemonID, cfg, m.stateMgr, m.broadcast, m.configDir)
@@ -458,6 +475,43 @@ func prepareSidecarTemplates(cfg state.DetectorConfig, configDir, pokemonID stri
 	return result
 }
 
+// GetOrCreateBrowserDetector returns the BrowserDetector for pokemonID,
+// creating one with the given config if it does not already exist. The
+// returned detector is ready to receive score submissions.
+func (m *Manager) GetOrCreateBrowserDetector(pokemonID string, cfg state.DetectorConfig) *BrowserDetector {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if bd, ok := m.browserDetectors[pokemonID]; ok {
+		return bd
+	}
+
+	bd := NewBrowserDetector(cfg)
+	m.browserDetectors[pokemonID] = bd
+	slog.Info("Browser detector created", "pokemon_id", pokemonID)
+	return bd
+}
+
+// GetBrowserDetector returns the BrowserDetector for pokemonID, or nil if none
+// is active.
+func (m *Manager) GetBrowserDetector(pokemonID string) *BrowserDetector {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.browserDetectors[pokemonID]
+}
+
+// StopBrowserDetector removes the BrowserDetector for pokemonID. No-op if
+// none is active.
+func (m *Manager) StopBrowserDetector(pokemonID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, ok := m.browserDetectors[pokemonID]; ok {
+		delete(m.browserDetectors, pokemonID)
+		slog.Info("Browser detector stopped", "pokemon_id", pokemonID)
+	}
+}
+
 // StartPreview starts the JPEG preview stream for a running detector session.
 func (m *Manager) StartPreview(pokemonID string, maxDim, quality, targetFPS int) error {
 	if m.sidecar == nil {
@@ -493,7 +547,7 @@ func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig
 
 	// If a real detection session is already running, just start the preview.
 	if _, running := m.running[pokemonID]; running {
-		return m.sidecar.StartPreview(pokemonID, 960, 85, 0)
+		return m.sidecar.StartPreview(pokemonID, 480, 85, 20)
 	}
 
 	// Already have a preview-only session — no-op.
@@ -524,7 +578,8 @@ func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig
 			H: cfg.Region.H,
 		},
 	}
-	if err := m.sidecar.StartDetection(pokemonID, cfg.SourceType, cfg.WindowTitle, previewConfig); err != nil {
+	result, err := m.sidecar.StartDetection(pokemonID, cfg.SourceType, cfg.WindowTitle, previewConfig)
+	if err != nil {
 		// The sidecar may have crashed during the write. Try to restart and retry once.
 		if restartErr := m.ensureSidecar(); restartErr != nil {
 			return fmt.Errorf("sidecar start preview session (restart failed): %w", restartErr)
@@ -532,14 +587,20 @@ func (m *Manager) StartPreviewSession(pokemonID string, cfg state.DetectorConfig
 		if m.sidecar == nil {
 			return errors.New(errSidecarNotAvailable)
 		}
-		if err2 := m.sidecar.StartDetection(pokemonID, cfg.SourceType, cfg.WindowTitle, previewConfig); err2 != nil {
+		result2, err2 := m.sidecar.StartDetection(pokemonID, cfg.SourceType, cfg.WindowTitle, previewConfig)
+		if err2 != nil {
 			return fmt.Errorf("sidecar start preview session (retry): %w", err2)
 		}
+		result = result2
+	}
+
+	if result.VirtualCamNode != "" {
+		m.virtualCamNodes[pokemonID] = result.VirtualCamNode
 	}
 
 	m.previewOnly[pokemonID] = true
 
-	return m.sidecar.StartPreview(pokemonID, 960, 85, 0)
+	return m.sidecar.StartPreview(pokemonID, 480, 85, 20)
 }
 
 // StopPreviewSession stops a preview-only session. If the session was created
@@ -563,6 +624,7 @@ func (m *Manager) StopPreviewSession(pokemonID string) error {
 	// Always clear state so the next start creates a fresh session,
 	// even if the stop commands failed (e.g. broken pipe after crash).
 	delete(m.previewOnly, pokemonID)
+	delete(m.virtualCamNodes, pokemonID)
 
 	m.initSegmentsMu.Lock()
 	delete(m.initSegments, pokemonID)
@@ -653,6 +715,34 @@ func (m *Manager) dispatchPreviewFrames(ctx context.Context, ch <-chan PreviewFr
 	}
 }
 
+// StartReplay starts (or restarts) the replay buffer for the given pokemon's
+// sidecar session with the configured buffer duration.
+func (m *Manager) StartReplay(pokemonID string) error {
+	if m.sidecar == nil {
+		return errors.New(errSidecarNotAvailable)
+	}
+
+	// Read the configured replay buffer duration from the detector config.
+	bufferSec := 30 // default
+	m.mu.Lock()
+	if rd, ok := m.running[pokemonID]; ok && rd.detector != nil {
+		if rd.detector.cfg.ReplayBufferSec > 0 {
+			bufferSec = rd.detector.cfg.ReplayBufferSec
+		}
+	}
+	m.mu.Unlock()
+
+	return m.sidecar.StartReplay(pokemonID, bufferSec)
+}
+
+// StopReplay stops the replay buffer for the given pokemon's sidecar session.
+func (m *Manager) StopReplay(pokemonID string) error {
+	if m.sidecar == nil {
+		return errors.New(errSidecarNotAvailable)
+	}
+	return m.sidecar.StopReplay(pokemonID)
+}
+
 // GetReplayStatus returns the replay buffer status for the given pokemon's
 // sidecar session: current duration in seconds and frame count.
 func (m *Manager) GetReplayStatus(pokemonID string) (float64, int, error) {
@@ -722,6 +812,14 @@ func (m *Manager) CaptureSourceFrame(sourceType, sourceID string, w, h int) (ima
 		return nil, errors.New(errSidecarNotAvailable)
 	}
 	return m.sidecar.CaptureFrame(sourceType, sourceID, w, h)
+}
+
+// VirtualCamNode returns the cached PipeWire virtual camera node name for the
+// given pokemon's sidecar session. Returns an empty string when no node is available.
+func (m *Manager) VirtualCamNode(pokemonID string) string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.virtualCamNodes[pokemonID]
 }
 
 // replayMatchRouter reads replay match results from the sidecar and handles

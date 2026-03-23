@@ -2,17 +2,18 @@
  * DetectorPanel.tsx — Auto-detection configuration and monitoring panel.
  *
  * Orchestrates source selection, template management, and detection controls.
- * Uses DetectorPreview for live video display and DetectorSettings for
- * configuration options.
+ * Uses CaptureService for browser-native capture and DetectionLoop for
+ * WebGPU/CPU template matching in the browser.
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   X, Plus, Pencil, Sparkles, Loader2, HelpCircle, Eye, EyeOff,
-  MoreHorizontal, Download, Upload, FileDown, Camera,
+  MoreHorizontal, Download, Upload, FileDown,
 } from "lucide-react";
-import { DetectorCapabilities, DetectorConfig, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion, Settings as SettingsType } from "../../types";
+import { DetectorConfig, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
+import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
 import { useCounterStore } from "../../hooks/useCounterState";
 import { TemplateEditor } from "./TemplateEditor";
 import { DetectorTutorial } from "./DetectorTutorial";
@@ -22,14 +23,12 @@ import { DetectorSettings } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { getSpriteUrl } from "../../utils/sprites";
 import { apiUrl } from "../../utils/api";
-import { useReplayTimeline } from "../../hooks/useReplayTimeline";
-import { ReplayTimeline } from "./ReplayTimeline";
 
-// ── Default config ───────────────────────────────────────────────────────────
+// --- Default config ----------------------------------------------------------
 
 const DEFAULT_CONFIG: DetectorConfig = {
   enabled: false,
-  source_type: "window",
+  source_type: "browser_display",
   region: { x: 0, y: 0, w: 0, h: 0 },
   window_title: "",
   templates: [],
@@ -45,7 +44,7 @@ const DEFAULT_CONFIG: DetectorConfig = {
   relative_regions: false,
 };
 
-// ── Props ────────────────────────────────────────────────────────────────────
+// --- Props -------------------------------------------------------------------
 
 export type DetectorPanelProps = Readonly<{
   pokemon: Pokemon;
@@ -55,7 +54,7 @@ export type DetectorPanelProps = Readonly<{
   detectorState: string;
 }>;
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers -----------------------------------------------------------------
 
 function stateDotClass(state: string, running: boolean): { dot: string; pulse: boolean } {
   if (!running) return { dot: "bg-text-muted", pulse: false };
@@ -67,7 +66,7 @@ function stateDotClass(state: string, running: boolean): { dot: string; pulse: b
 }
 
 function stateLabel(state: string, running: boolean, t: (k: string) => string): string {
-  if (!running) return "–";
+  if (!running) return "\u2013";
   switch (state) {
     case "match_active": return t("detector.stateMatch");
     case "cooldown": return t("detector.stateCooldown");
@@ -75,13 +74,13 @@ function stateLabel(state: string, running: boolean, t: (k: string) => string): 
   }
 }
 
-// Map ISO 639-1 (pokemon language) → tesseract language code.
+// Map ISO 639-1 (pokemon language) to tesseract language code.
 const LANG_MAP: Record<string, string> = {
   de: "deu", fr: "fra", es: "spa", it: "ita", ja: "jpn", ko: "kor",
   "zh-hans": "chi_sim", "zh-hant": "chi_sim",
 };
 
-// ── Component ────────────────────────────────────────────────────────────────
+// --- Component ---------------------------------------------------------------
 
 export function DetectorPanel({
   pokemon,
@@ -119,18 +118,6 @@ export function DetectorPanel({
   // Source picker state
   const [showSourcePicker, setShowSourcePicker] = useState(false);
 
-  // Bumped when a template editor closes to force-restart the preview stream.
-  const [previewVersion, setPreviewVersion] = useState(0);
-
-  // Detector capabilities
-  const [capabilities, setCapabilities] = useState<DetectorCapabilities | null>(null);
-  useEffect(() => {
-    fetch(apiUrl("/api/detector/capabilities"))
-      .then(res => res.ok ? res.json() : null)
-      .then(data => { if (data) setCapabilities(data as DetectorCapabilities); })
-      .catch(() => {});
-  }, []);
-
   // Template editor state
   const [showAddTemplate, setShowAddTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<{
@@ -141,71 +128,57 @@ export function DetectorPanel({
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Replay timeline state
-  const replay = useReplayTimeline(pokemon.id);
+  const capture = useCaptureService();
+  // Subscribe to capture version changes so we re-render when streams start/stop
+  useCaptureVersion();
 
-  const handleSnapshotUseAsTemplate = useCallback(async () => {
-    const blob = await replay.getCurrentFrameBlob();
-    if (!blob) return;
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64 = (reader.result as string).split(",")[1];
-      if (!base64) return;
-      try {
-        await handleSaveNewTemplate({ imageBase64: base64, regions: [] });
-      } catch {
-        pushToast({ type: "error", title: t("detector.errCaptureFailed") });
-      }
-      await replay.deleteSnapshot();
-    };
-    reader.readAsDataURL(blob);
-  }, [replay, pushToast, t]);
+  // Per-pokemon stream from the capture service
+  const stream = capture.getStream(pokemon.id);
+  const isCapturing = capture.isCapturing(pokemon.id);
 
-  const handleSnapshotClose = useCallback(async () => {
-    await replay.deleteSnapshot();
-  }, [replay]);
-
+  /** Open the source picker or start capture directly depending on platform. */
   const startCapture = useCallback(() => {
-    setShowSourcePicker(true);
-  }, []);
+    if (cfg.source_type === "browser_display" || cfg.source_type === "browser_camera") {
+      const isElectron = !!globalThis.electronAPI;
+      const isWayland = !!globalThis.electronAPI?.isWayland;
 
-  /** Stop any active detection/preview and clear the source selection. */
-  const handleDisconnect = useCallback(async () => {
-    // Stop detection if running
-    if (isRunning) {
-      try { await fetch(apiUrl(`/api/detector/${pokemon.id}/stop`), { method: "POST" }); } catch { /* ignore */ }
+      // On Wayland + Electron + display capture, skip the source picker and
+      // go straight to the native PipeWire/xdg-desktop-portal picker.
+      if (cfg.source_type === "browser_display" && isElectron && isWayland) {
+        return capture.startCapture(pokemon.id, cfg.source_type);
+      }
+
+      // In Electron for display capture (non-Wayland), or always for camera, show the source picker
+      if ((cfg.source_type === "browser_display" && isElectron) || cfg.source_type === "browser_camera") {
+        setShowSourcePicker(true);
+        return Promise.resolve();
+      }
+      // Non-Electron display capture: fall through to browser-native picker
+      return capture.startCapture(pokemon.id, cfg.source_type);
     }
-    // Stop preview session if active
-    try { await fetch(apiUrl(`/api/detector/${pokemon.id}/preview_session/stop`), { method: "POST" }); } catch { /* ignore */ }
-    try { await fetch(apiUrl(`/api/detector/${pokemon.id}/preview/stop`), { method: "POST" }); } catch { /* ignore */ }
-    // Clear the source selection in config
-    const nextCfg = { ...cfg, window_title: "", templates };
-    setCfg((prev) => ({ ...prev, window_title: "" }));
-    onConfigChange(nextCfg);
-  }, [isRunning, pokemon.id, cfg, templates, onConfigChange]);
+    return Promise.resolve();
+  }, [cfg.source_type, capture, pokemon.id]);
 
+  /** Handle a source selection from the SourcePickerModal. */
   const handleSourceSelected = useCallback((source: SelectedSource) => {
     setShowSourcePicker(false);
-    // Map the SelectedSource type to the DetectorConfig source_type enum
-    const mappedSourceType: DetectorConfig["source_type"] =
-      source.type === "screen" ? "screen_region" : source.type;
-    setCfg((prev) => ({
-      ...prev,
-      source_type: mappedSourceType,
-      window_title: source.sourceId,
-    }));
-    onConfigChange({
-      ...cfg,
-      source_type: mappedSourceType,
-      window_title: source.sourceId,
-      templates,
-    });
-  }, [cfg, onConfigChange, templates]);
+    const st = cfg.source_type as "browser_display" | "browser_camera";
+    capture.startCapture(pokemon.id, st, source.sourceId, source.label, source.stream);
+  }, [capture, pokemon.id, cfg.source_type]);
+
+  /** Stop and release the capture for this pokemon. */
+  const stopCapture = useCallback(() => {
+    capture.stopCapture(pokemon.id);
+  }, [capture, pokemon.id]);
 
   const pokemonOcrLang = LANG_MAP[pokemon.language ?? ""] || "eng";
 
+  // Propagate capture errors from the shared service
+  useEffect(() => {
+    if (capture.captureError) setErrorMsg(capture.captureError);
+  }, [capture.captureError]);
+
   // Re-sync when the pokemon prop changes externally.
-  // Merge with defaults so zero-valued fields from older saves get sensible values.
   useEffect(() => {
     const saved = pokemon.detector_config;
     if (!saved) {
@@ -226,7 +199,7 @@ export function DetectorPanel({
     setTemplates(saved.templates || []);
   }, [pokemon.id, pokemon.detector_config]);
 
-  // ── Hunt-type presets + games data ───────────────────────────────────────
+  // --- Hunt-type presets + games data ----------------------------------------
 
   const [huntTypePresets, setHuntTypePresets] = useState<HuntTypePreset[]>([]);
   const [games, setGames] = useState<GameEntry[]>([]);
@@ -250,7 +223,6 @@ export function DetectorPanel({
   useEffect(() => {
     const tutorialSeen = appState?.settings?.tutorial_seen?.auto_detection;
     if (!tutorialSeen) {
-      // Small delay to ensure DOM is ready with data-detector-tutorial attributes
       const timer = setTimeout(() => setShowTutorial(true), 300);
       return () => clearTimeout(timer);
     }
@@ -261,10 +233,9 @@ export function DetectorPanel({
     () => games.find((g) => g.key === pokemon.game),
     [games, pokemon.game],
   );
-  // Classic pixel sprites only exist for Gen 1-5.
   const hasGameSprite = (pokemonGame?.generation ?? 0) <= 5 && pokemonGame != null;
 
-  // Resolve canonical_name → numeric Pokédex/sprite ID for sprite URL generation.
+  // Resolve canonical_name to numeric sprite ID for sprite URL generation.
   const pokedexSpriteId = useMemo(() => {
     if (!pokemon.canonical_name || pokedex.length === 0) return null;
     for (const entry of pokedex) {
@@ -292,7 +263,7 @@ export function DetectorPanel({
     }));
   };
 
-  // ── Template operations ────────────────────────────────────────────────────
+  // --- Template operations ---------------------------------------------------
 
   const handleDeleteTemplate = async (index: number) => {
     try {
@@ -391,8 +362,6 @@ export function DetectorPanel({
     setAddingSprite(true);
     setErrorMsg(null);
     try {
-      // Add both normal AND shiny sprites as templates so both encounter
-      // variants are recognized (the user hunts one but sees the other first).
       const spriteId = pokedexSpriteId ?? pokemon.canonical_name;
       const variants: { type: "normal" | "shiny"; url: string }[] = [
         { type: "normal", url: getSpriteUrl(spriteId, pokemon.game, "normal", "classic", pokemon.canonical_name) },
@@ -410,7 +379,6 @@ export function DetectorPanel({
         if (res.ok) {
           const data = await res.json() as { path?: string };
           if (data.path) {
-            // Empty regions array → full-image NCC match (the sprite IS the template).
             newTemplates.push({ image_path: data.path, regions: [] });
             addedCount++;
           }
@@ -439,7 +407,6 @@ export function DetectorPanel({
       if (res.ok) {
         const data = await res.json() as { imported: number };
         pushToast({ type: "success", title: t("detector.importSuccess").replace("{count}", String(data.imported)) });
-        // Refresh templates from the server state
         const stateRes = await fetch(apiUrl(`/api/detector/${pokemon.id}/config`));
         if (stateRes.ok) {
           const config = await stateRes.json() as DetectorConfig;
@@ -462,7 +429,6 @@ export function DetectorPanel({
   const handleImportFromFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Reset so the same file can be re-selected
     e.target.value = "";
     const formData = new FormData();
     formData.append("file", file);
@@ -488,36 +454,21 @@ export function DetectorPanel({
     setShowMoreMenu(false);
   };
 
-  // ── Start / Stop ───────────────────────────────────────────────────────────
+  // --- Start / Stop ----------------------------------------------------------
 
   const handleStart = async () => {
     if (isStarting) return;
-
-    // A source selection is required before starting
-    if (!cfg.window_title) {
-      setErrorMsg(t("detector.errNoSource"));
+    // Gate: source must be connected before starting detection.
+    if (!isCapturing) {
+      setErrorMsg(t("detector.errNoStream"));
       return;
     }
     if (templates.length === 0) { setErrorMsg(t("detector.errNoTemplates")); return; }
 
-    // Prevent starting when the selected source type is unsupported by the platform.
-    // The sidecar can handle all source types even when Go-native capture cannot.
-    if (capabilities && !capabilities.sidecar_available) {
-      const unsupported =
-        (cfg.source_type === "window" && !capabilities.supports_window_capture) ||
-        (cfg.source_type === "camera" && !capabilities.supports_camera) ||
-        (cfg.source_type === "screen_region" && !capabilities.supports_screen_capture);
-      if (unsupported) {
-        pushToast({ type: "error", title: t("detector.capWarning") });
-        return;
-      }
-    }
-
     setIsStarting(true);
     setErrorMsg(null);
     try {
-      // Save config first and wait for it to persist, so the backend
-      // sees the latest templates and settings when /start is called.
+      // Save config first and wait for it to persist
       await onConfigChange({ ...cfg, templates });
       const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/start`), { method: "POST" });
       if (res.ok) {
@@ -531,10 +482,10 @@ export function DetectorPanel({
   };
 
   const handleStop = async () => {
-    try { await fetch(apiUrl(`/api/detector/${pokemon.id}/stop`), { method: "POST" }); } catch {}
+    try { await fetch(apiUrl(`/api/detector/${pokemon.id}/stop`), { method: "POST" }); } catch { /* ignore */ }
   };
 
-  // ── Settings handlers ──────────────────────────────────────────────────────
+  // --- Settings handlers -----------------------------------------------------
 
   const handleResetSettings = () => {
     setCfg((prev) => ({
@@ -567,11 +518,10 @@ export function DetectorPanel({
     setSettingsDirty(true);
   };
 
-  // ── Tutorial ───────────────────────────────────────────────────────────────
+  // --- Tutorial --------------------------------------------------------------
 
   const handleTutorialComplete = async () => {
     setShowTutorial(false);
-    // Mark tutorial as seen in backend
     if (!appState?.settings) return;
     const updatedSettings: SettingsType = {
       ...appState.settings,
@@ -595,18 +545,18 @@ export function DetectorPanel({
     setShowTutorial(true);
   };
 
-  // ── Derived ────────────────────────────────────────────────────────────────
+  // --- Derived ---------------------------------------------------------------
 
   const { dot: dotClass, pulse } = stateDotClass(detectorState, isRunning);
-  const canStart = !!cfg.window_title && templates.length > 0;
+  const canStart = isCapturing && templates.length > 0;
   const showAsRunning = isRunning || isStarting;
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // --- Render ----------------------------------------------------------------
 
   return (
     <>
       <div className="space-y-5">
-        {/* ── Header with Tutorial button ─────────────────────────────────── */}
+        {/* --- Header with Tutorial button ----------------------------------- */}
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-text-secondary">
             {t("detector.title")}
@@ -621,7 +571,7 @@ export function DetectorPanel({
           </button>
         </div>
 
-        {/* ── Control bar ─────────────────────────────────────────────────── */}
+        {/* --- Control bar --------------------------------------------------- */}
         <div
           data-detector-tutorial="controls"
           className={`flex items-center gap-3 rounded-xl px-4 py-3 shadow-sm transition-colors bg-bg-card border ${
@@ -650,7 +600,7 @@ export function DetectorPanel({
               <div className="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-150 ${
-                    confidence >= cfg.precision ? 'bg-green-400' : 'bg-accent-blue/50'
+                    confidence >= cfg.precision ? "bg-green-400" : "bg-accent-blue/50"
                   }`}
                   style={{ width: `${Math.min(confidence * 100, 100)}%` }}
                 />
@@ -666,9 +616,7 @@ export function DetectorPanel({
             onClick={isRunning ? handleStop : handleStart}
             disabled={isStarting || (!isRunning && !canStart)}
             title={(() => {
-              if (!isRunning && !canStart) {
-                return cfg.window_title ? t("detector.errNoTemplates") : t("detector.errNoSource");
-              }
+              if (!isRunning && !canStart) return isCapturing ? t("detector.errNoTemplates") : t("detector.errNoStream");
               return isRunning ? t("detector.tooltipStop") : t("detector.tooltipStart");
             })()}
             className={(() => {
@@ -684,7 +632,7 @@ export function DetectorPanel({
           </button>
         </div>
 
-        {/* ── Error banner ────────────────────────────────────────────────── */}
+        {/* --- Error banner -------------------------------------------------- */}
         {errorMsg && (
           <button
             type="button"
@@ -692,23 +640,22 @@ export function DetectorPanel({
             onClick={() => setErrorMsg(null)}
           >
             <span className="flex-1">{errorMsg}</span>
-            <span className="shrink-0 opacity-60">✕</span>
+            <span className="shrink-0 opacity-60">{"\u2715"}</span>
           </button>
         )}
 
-        {/* ── Preview Component ───────────────────────────────────────────────── */}
+        {/* --- Preview Component --------------------------------------------- */}
         <DetectorPreview
           pokemon={pokemon}
           cfg={cfg}
-          capabilities={capabilities}
+          onSourceTypeChange={(sourceType) => setCfg((prev) => ({ ...prev, source_type: sourceType as DetectorConfig["source_type"] }))}
           onStartCapture={startCapture}
-          onDisconnect={handleDisconnect}
+          onStopCapture={stopCapture}
           isRunning={isRunning}
           confidence={confidence}
-          previewVersion={previewVersion}
         />
 
-        {/* ── Templates ───────────────────────────────────────────────────── */}
+        {/* --- Templates ----------------------------------------------------- */}
         <div
           data-detector-tutorial="templates"
           className="bg-bg-card border border-border-subtle rounded-xl shadow-sm p-4"
@@ -724,33 +671,16 @@ export function DetectorPanel({
             </span>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowAddTemplate(true)}
-                disabled={!cfg.window_title}
-                title={cfg.window_title ? t("detector.tooltipAddFromVideo") : t("detector.captureRequiredHint")}
-                className={`flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold transition-colors ${
-                  cfg.window_title
-                    ? "bg-accent-blue text-white hover:bg-accent-blue/90"
-                    : "bg-accent-blue/40 text-white/60 cursor-not-allowed"
-                }`}
+                onClick={() => {
+                  if (!stream) { setErrorMsg(t("detector.errNoStream")); return; }
+                  setShowAddTemplate(true);
+                }}
+                title={t("detector.tooltipAddFromVideo")}
+                className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
               >
                 <Plus className="w-3 h-3" />
                 {t("detector.addFromVideo")}
               </button>
-              {isRunning && (
-                <button
-                  onClick={replay.takeSnapshot}
-                  disabled={replay.isLoading || replay.snapshot !== null}
-                  title={t("detector.snapshot")}
-                  className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors disabled:opacity-50"
-                >
-                  {replay.isLoading ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Camera className="w-3 h-3" />
-                  )}
-                  {replay.isLoading ? t("detector.snapshotLoading") : t("detector.snapshot")}
-                </button>
-              )}
               {hasGameSprite && (
                 <button
                   onClick={handleAddSpriteTemplate}
@@ -824,7 +754,7 @@ export function DetectorPanel({
                     src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
                     alt={`Template ${index + 1}`}
                     className={`w-full aspect-square object-contain rounded-lg border border-border-subtle bg-bg-primary transition-all ${
-                      tmpl.enabled === false ? 'opacity-40 grayscale' : ''
+                      tmpl.enabled === false ? "opacity-40 grayscale" : ""
                     }`}
                   />
                   {/* Region count badge */}
@@ -867,20 +797,7 @@ export function DetectorPanel({
           )}
         </div>
 
-        {/* ── Replay Timeline ─────────────────────────────────────────────── */}
-        {replay.snapshot && (
-          <ReplayTimeline
-            frameCount={replay.snapshot.frameCount}
-            durationSec={replay.snapshot.durationSec}
-            currentIndex={replay.currentIndex}
-            currentFrameUrl={replay.currentFrameUrl}
-            onSeek={replay.seekTo}
-            onUseAsTemplate={handleSnapshotUseAsTemplate}
-            onClose={handleSnapshotClose}
-          />
-        )}
-
-        {/* ── Settings Component ──────────────────────────────────────────────── */}
+        {/* --- Settings Component -------------------------------------------- */}
         <DetectorSettings
           cfg={cfg}
           onUpdate={updateCfg}
@@ -892,45 +809,44 @@ export function DetectorPanel({
         />
       </div>
 
-      {/* ── Template Editor: Add from Video ────────────────────────────────── */}
-      {showAddTemplate && (
+      {/* --- Template Editor: Add from Video --------------------------------- */}
+      {showAddTemplate && stream && (
         <TemplateEditor
-          pokemonId={pokemon.id}
+          stream={stream}
           pokemonName={pokemon.name}
           ocrLang={pokemonOcrLang}
-          onClose={() => { setShowAddTemplate(false); setPreviewVersion((v) => v + 1); }}
+          onClose={() => setShowAddTemplate(false)}
           onSaveTemplate={handleSaveNewTemplate}
         />
       )}
 
-      {/* ── Template Editor: Edit existing ─────────────────────────────────── */}
+      {/* --- Template Editor: Edit existing ---------------------------------- */}
       {editingTemplate && (
         <TemplateEditor
           initialImageUrl={editingTemplate.url}
           initialRegions={editingTemplate.regions}
           pokemonName={pokemon.name}
           ocrLang={pokemonOcrLang}
-          onClose={() => { setEditingTemplate(null); setPreviewVersion((v) => v + 1); }}
+          onClose={() => setEditingTemplate(null)}
           onUpdateRegions={handleUpdateRegions}
         />
       )}
 
-      {/* ── Tutorial ────────────────────────────────────────────────────────── */}
+      {/* --- Tutorial -------------------------------------------------------- */}
       {showTutorial && (
         <DetectorTutorial onComplete={handleTutorialComplete} />
       )}
 
-      {/* ── Source Picker ──────────────────────────────────────────────────── */}
+      {/* --- Source Picker --------------------------------------------------- */}
       {showSourcePicker && (
         <SourcePickerModal
-          sourceType={cfg.source_type as "screen" | "window" | "camera"}
-          capabilities={capabilities}
+          sourceType={cfg.source_type as "browser_display" | "browser_camera"}
           onSelect={handleSourceSelected}
           onClose={() => setShowSourcePicker(false)}
         />
       )}
 
-      {/* ── Import Templates Modal ───────────────────────────────────────── */}
+      {/* --- Import Templates Modal ----------------------------------------- */}
       {showImportModal && (
         <ImportTemplatesModal
           currentPokemonId={pokemon.id}

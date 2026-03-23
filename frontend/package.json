@@ -31,6 +31,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "@vitest/coverage-v8": "^4.0.18",
+    "@webgpu/types": "^0.1.69",
     "jsdom": "^29.0.0",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",

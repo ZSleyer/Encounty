@@ -32,6 +32,7 @@ import { ToastContainer } from "./components/shared/ToastContainer";
 import { WindowControls } from "./components/settings/WindowControls";
 import { LicenseDialog } from "./components/settings/LicenseDialog";
 import { apiUrl } from "./utils/api";
+import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
 function UpdateOverlay({
@@ -712,10 +713,10 @@ function LicenseGate() {
   }
 
   return (
-    <>
+    <CaptureServiceProvider>
       <AppShell />
       <ToastContainer />
-    </>
+    </CaptureServiceProvider>
   );
 }
 

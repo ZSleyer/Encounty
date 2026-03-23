@@ -11,6 +11,19 @@ vi.mock("../../hooks/useOCR", () => ({
   }),
 }));
 
+// Mock useReplayBuffer since it requires a real video element
+vi.mock("../../hooks/useReplayBuffer", () => ({
+  useReplayBuffer: () => ({
+    frames: [],
+    frameCount: 0,
+    getFrame: () => null,
+    isBuffering: false,
+    bufferedSeconds: 0,
+    clear: vi.fn(),
+    stop: vi.fn(),
+  }),
+}));
+
 describe("TemplateEditor", () => {
   it("renders in edit mode with an initial image URL", () => {
     render(
@@ -25,10 +38,9 @@ describe("TemplateEditor", () => {
     expect(buttons.length).toBeGreaterThan(0);
   });
 
-  it("renders in new-template mode with pokemonId", () => {
+  it("renders in new-template mode with stream", () => {
     render(
       <TemplateEditor
-        pokemonId="poke-1"
         onClose={vi.fn()}
         onSaveTemplate={vi.fn()}
       />,

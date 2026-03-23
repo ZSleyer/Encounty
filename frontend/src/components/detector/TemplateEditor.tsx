@@ -1,27 +1,27 @@
 /**
  * TemplateEditor.tsx — Template creation and region editing for auto-detection.
  *
- * In new-template mode, shows a live preview from the sidecar capture stream,
- * lets the user take a replay-buffer snapshot, scrub through frames to pick
- * the best one, then draw detection regions on it.
+ * In new-template mode, shows a live preview from the CaptureService stream,
+ * lets the user take a replay-buffer snapshot via useReplayBuffer, scrub through
+ * frames to pick the best one, then draw detection regions on it.
  * In edit mode, loads an existing template image for region editing.
  */
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon,
-  Type, Loader2, ScanText, ChevronLeft, ChevronRight,
+  Type, Loader2, ScanText, Play,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { MatchedRegion } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
-import { apiUrl } from "../../utils/api";
-import { useVideoStream } from "../../hooks/useVideoStream";
-import { useMJPEGStream } from "../../hooks/useMJPEGStream";
+import { useReplayBuffer } from "../../hooks/useReplayBuffer";
+
+// --- Props -------------------------------------------------------------------
 
 export type TemplateEditorProps = Readonly<{
-  /** Pokemon ID for fetching sidecar capture frames (new-template mode). */
-  pokemonId?: string;
+  /** Live video stream for new-template mode. If omitted, edit mode is assumed. */
+  stream?: MediaStream;
   onClose: () => void;
   /** Called when saving a new template (new-template mode). */
   onSaveTemplate?: (payload: { imageBase64: string; regions: MatchedRegion[] }) => Promise<void>;
@@ -37,312 +37,63 @@ export type TemplateEditorProps = Readonly<{
   ocrLang?: string;
 }>;
 
-type Phase = "live" | "replay" | "snapshot";
+type Phase = "video" | "replay" | "snapshot";
 
-// --- Replay buffer status type -----------------------------------------------
+// --- Flow Controls -----------------------------------------------------------
 
-type ReplayStatus = {
-  duration_sec: number;
-  frame_count: number;
-};
-
-type SnapshotResponse = {
-  frame_count: number;
-  duration_sec: number;
-  path: string;
-};
-
-// --- Live Preview Component --------------------------------------------------
-
-/** Embedded live preview using the video/MJPEG stream hooks.
- *
- * Ensures the sidecar preview stream is active while mounted, so the
- * template editor always shows a live image even if the main panel's
- * 30-second preview timer has expired.
- */
-function LivePreview({ pokemonId }: Readonly<{ pokemonId: string }>) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Start preview stream on mount, stop on unmount.
-  useEffect(() => {
-    fetch(apiUrl(`/api/detector/${pokemonId}/preview/start`), {
-      method: "POST",
-    }).catch(() => {});
-    return () => {
-      fetch(apiUrl(`/api/detector/${pokemonId}/preview/stop`), {
-        method: "POST",
-      }).catch(() => {});
-    };
-  }, [pokemonId]);
-
-  const streamUrl = apiUrl(`/api/detector/${pokemonId}/stream`);
-  const mjpegUrl = apiUrl(`/api/detector/${pokemonId}/mjpeg`);
-  const { active: videoActive } = useVideoStream(streamUrl, videoRef);
-  useMJPEGStream(videoActive ? null : mjpegUrl, canvasRef);
-
-  return (
-    <>
-      <video
-        ref={videoRef}
-        className={`w-full h-full object-contain ${videoActive ? "" : "hidden"}`}
-        autoPlay
-        muted
-        playsInline
-      />
-      <canvas
-        ref={canvasRef}
-        className={`w-full h-full ${videoActive ? "hidden" : ""}`}
-      />
-    </>
-  );
-}
-
-// --- Replay Scrubber Component -----------------------------------------------
-
-/** Timeline scrubber for replay buffer frames. */
-function ReplayScrubber({
-  pokemonId,
-  frameCount,
-  durationSec,
+/** Flow controls for creating a new template (video/replay/snapshot phases). */
+function NewTemplateControls({
+  phase,
+  isSaving,
+  onTakeSnapshot,
+  onResetSnapshot,
+  onSave,
   onUseFrame,
   onBackToLive,
   t,
 }: Readonly<{
-  pokemonId: string;
-  frameCount: number;
-  durationSec: number;
-  onUseFrame: (blob: Blob) => void;
+  phase: Phase;
+  isSaving: boolean;
+  onTakeSnapshot: () => void;
+  onResetSnapshot: () => void;
+  onSave: () => void;
+  onUseFrame: () => void;
   onBackToLive: () => void;
   t: (k: string) => string;
 }>) {
-  const [currentIndex, setCurrentIndex] = useState(frameCount - 1);
-  const [frameUrl, setFrameUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const prevUrlRef = useRef<string | null>(null);
-  const currentBlobRef = useRef<Blob | null>(null);
+  if (phase === "video") {
+    return (
+      <button
+        onClick={onTakeSnapshot}
+        className="flex items-center justify-center gap-2 w-full py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+      >
+        <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
+        {t("templateEditor.takeSnapshot")}
+      </button>
+    );
+  }
 
-  // Fetch frame image when index changes
-  useEffect(() => {
-    if (frameCount === 0) return;
-
-    let cancelled = false;
-    setIsLoading(true);
-
-    fetch(apiUrl(`/api/detector/${pokemonId}/replay/snapshot/${currentIndex}`))
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch frame");
-        return res.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        currentBlobRef.current = blob;
-        const url = URL.createObjectURL(blob);
-        // Revoke previous URL to prevent memory leaks
-        if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-        prevUrlRef.current = url;
-        setFrameUrl(url);
-      })
-      .catch(() => {
-        // Ignore fetch errors for rapid scrubbing
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pokemonId, currentIndex, frameCount]);
-
-  // Cleanup object URL on unmount
-  useEffect(() => {
-    return () => {
-      if (prevUrlRef.current) URL.revokeObjectURL(prevUrlRef.current);
-    };
-  }, []);
-
-  // Keyboard navigation: Arrow Left/Right +/-1, Shift+Arrow +/-5
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const step = e.shiftKey ? 5 : 1;
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setCurrentIndex((prev) => Math.max(0, prev - step));
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        setCurrentIndex((prev) => Math.min(frameCount - 1, prev + step));
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [frameCount]);
-
-  // Compute negative time offset from the newest frame
-  const timeOffset = frameCount > 1
-    ? -((frameCount - 1 - currentIndex) / (frameCount - 1)) * durationSec
-    : 0;
-
-  const handleUseFrame = () => {
-    if (currentBlobRef.current) {
-      onUseFrame(currentBlobRef.current);
-    }
-  };
-
-  return (
-    <div className="w-full flex flex-col items-center">
-      {/* Frame display */}
-      <div className="relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-4 flex items-center justify-center">
-        {frameUrl ? (
-          <img
-            src={frameUrl}
-            alt={`Replay frame ${currentIndex + 1}`}
-            className="w-full h-full object-contain"
-          />
-        ) : (
-          <Loader2 className="w-8 h-8 text-white/40 animate-spin" />
-        )}
-        {isLoading && frameUrl && (
-          <div className="absolute top-2 right-2">
-            <Loader2 className="w-4 h-4 text-white/60 animate-spin" />
-          </div>
-        )}
-      </div>
-
-      {/* Timeline controls */}
-      <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] px-4 mb-4">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-            disabled={currentIndex === 0}
-            className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors disabled:opacity-30"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-
-          <input
-            type="range"
-            min={0}
-            max={Math.max(0, frameCount - 1)}
-            value={currentIndex}
-            onChange={(e) => setCurrentIndex(Number(e.target.value))}
-            className="flex-1 h-2 rounded-full appearance-none bg-white/20 accent-accent-blue cursor-pointer"
-          />
-
-          <button
-            onClick={() => setCurrentIndex((prev) => Math.min(frameCount - 1, prev + 1))}
-            disabled={currentIndex >= frameCount - 1}
-            className="p-1.5 rounded-lg bg-white/10 text-white hover:bg-white/20 transition-colors disabled:opacity-30"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between mt-2 text-xs text-white/50 font-mono">
-          <span>{timeOffset.toFixed(1)}s</span>
-          <span>{currentIndex + 1} / {frameCount}</span>
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex w-full max-w-sm 2xl:max-w-md gap-3">
+  if (phase === "replay") {
+    return (
+      <div className="flex w-full gap-3">
         <button
           onClick={onBackToLive}
           className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all"
         >
-          <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5" />
+          <Play className="w-4 h-4 2xl:w-5 2xl:h-5" />
           {t("templateEditor.backToLive")}
         </button>
         <button
-          onClick={handleUseFrame}
-          disabled={!currentBlobRef.current}
-          className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+          onClick={onUseFrame}
+          className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
         >
           <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
           {t("templateEditor.useFrame")}
         </button>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-// --- Flow Controls -----------------------------------------------------------
-
-/** Flow controls for the "live" phase: snapshot button + buffer status. */
-function LiveControls({
-  pokemonId,
-  onSnapshot,
-  isCapturing,
-  t,
-}: Readonly<{
-  pokemonId: string;
-  onSnapshot: () => void;
-  isCapturing: boolean;
-  t: (k: string) => string;
-}>) {
-  const [bufferStatus, setBufferStatus] = useState<ReplayStatus | null>(null);
-
-  // Poll replay buffer status every 2 seconds
-  useEffect(() => {
-    let cancelled = false;
-
-    const poll = () => {
-      fetch(apiUrl(`/api/detector/${pokemonId}/replay/status`))
-        .then((res) => res.ok ? res.json() : null)
-        .then((data: ReplayStatus | null) => {
-          if (!cancelled && data) setBufferStatus(data);
-        })
-        .catch(() => {});
-    };
-
-    poll();
-    const timer = setInterval(poll, 2000);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [pokemonId]);
-
-  const bufferLabel = bufferStatus
-    ? `${Math.round(bufferStatus.duration_sec)}s / 30s`
-    : null;
-
-  return (
-    <div className="flex flex-col items-center gap-2 w-full">
-      <button
-        onClick={onSnapshot}
-        disabled={isCapturing}
-        className="flex items-center justify-center gap-2 w-full py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
-      >
-        {isCapturing ? (
-          <Loader2 className="w-5 h-5 2xl:w-6 2xl:h-6 animate-spin" />
-        ) : (
-          <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
-        )}
-        {isCapturing ? t("templateEditor.capturing") : t("templateEditor.takeSnapshot")}
-      </button>
-      {bufferLabel && (
-        <div className="flex items-center gap-2 text-xs text-white/50">
-          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-          <span className="font-mono">{bufferLabel}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Flow controls for the "snapshot" phase: retake + save. */
-function SnapshotControls({
-  isSaving,
-  onResetSnapshot,
-  onSave,
-  t,
-}: Readonly<{
-  isSaving: boolean;
-  onResetSnapshot: () => void;
-  onSave: () => void;
-  t: (k: string) => string;
-}>) {
   return (
     <div className="flex w-full gap-3">
       <button
@@ -369,7 +120,7 @@ function SnapshotControls({
 
 /** Template editor for creating new templates or editing existing ones. */
 export function TemplateEditor({
-  pokemonId,
+  stream,
   onClose,
   onSaveTemplate,
   onUpdateRegions,
@@ -379,17 +130,17 @@ export function TemplateEditor({
   ocrLang = "eng",
 }: TemplateEditorProps) {
   const { t } = useI18n();
+  const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [phase, setPhase] = useState<Phase>("live");
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [phase, setPhase] = useState<Phase>("video");
+  const [selectedFrameIndex, setSelectedFrameIndex] = useState(0);
+
+  // Browser-based replay buffer capturing from the stream at 5fps
+  const replayBuffer = useReplayBuffer(stream ? videoRef.current : null, 30, 5);
   const [snapshotWidth, setSnapshotWidth] = useState(0);
   const [snapshotHeight, setSnapshotHeight] = useState(0);
-
-  // Replay state
-  const [replayFrameCount, setReplayFrameCount] = useState(0);
-  const [replayDuration, setReplayDuration] = useState(0);
 
   // Array of confirmed regions (absolute pixel coords in the snapshot)
   const [regions, setRegions] = useState<MatchedRegion[]>([]);
@@ -427,7 +178,7 @@ export function TemplateEditor({
   }, [snapshotWidth, snapshotHeight]);
 
   useEffect(() => {
-    if (phase !== "snapshot" || snapshotWidth === 0 || snapshotHeight === 0) {
+    if ((phase !== "snapshot" && phase !== "replay") || snapshotWidth === 0 || snapshotHeight === 0) {
       setImageBounds(null);
       return;
     }
@@ -459,70 +210,121 @@ export function TemplateEditor({
     img.src = initialImageUrl;
   }, [initialImageUrl]); // only run once on mount
 
-  // --- Replay buffer snapshot ------------------------------------------------
+  // Wire the stream to the video element when in "video" phase
+  useEffect(() => {
+    if (phase === "video" && videoRef.current && videoRef.current.srcObject !== stream) {
+      videoRef.current.srcObject = stream ?? null;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [stream, phase]);
 
-  /** Take a replay buffer snapshot and transition to the replay phase. */
-  const handleTakeSnapshot = async () => {
-    if (!pokemonId) return;
-    setIsCapturing(true);
-    setErrorMsg(null);
-    try {
-      const res = await fetch(apiUrl(`/api/detector/${pokemonId}/replay/snapshot`), {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
-        setErrorMsg(body.error ?? t("detector.errCaptureFailed"));
-        return;
+  // Render selected replay frame to canvas
+  useEffect(() => {
+    if (phase !== "replay") return;
+
+    const frame = replayBuffer.getFrame(selectedFrameIndex);
+    if (!frame || !canvasRef.current) return;
+
+    if (canvasRef.current.width !== frame.width) {
+      canvasRef.current.width = frame.width;
+      setSnapshotWidth(frame.width);
+    }
+    if (canvasRef.current.height !== frame.height) {
+      canvasRef.current.height = frame.height;
+      setSnapshotHeight(frame.height);
+    }
+
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.putImageData(frame, 0, 0);
+    }
+  }, [phase, selectedFrameIndex, replayBuffer]);
+
+  // Keyboard navigation in replay phase
+  useEffect(() => {
+    if (phase !== "replay") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        setSelectedFrameIndex((prev) => Math.max(0, prev - step));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        setSelectedFrameIndex((prev) => Math.min(replayBuffer.frameCount - 1, prev + step));
       }
-      const data = (await res.json()) as SnapshotResponse;
-      setReplayFrameCount(data.frame_count);
-      setReplayDuration(data.duration_sec);
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [phase, replayBuffer.frameCount]);
+
+  // --- Snapshot and replay handlers ------------------------------------------
+
+  /** Stop the replay buffer and enter replay phase to browse captured frames. */
+  const handleTakeSnapshot = () => {
+    replayBuffer.stop();
+    if (replayBuffer.frameCount > 0) {
+      setSelectedFrameIndex(replayBuffer.frameCount - 1);
       setPhase("replay");
-    } catch {
-      setErrorMsg(t("detector.errCaptureFailed"));
-    } finally {
-      setIsCapturing(false);
-    }
-  };
+    } else {
+      // Fallback: no frames buffered, capture current video frame directly
+      if (!videoRef.current || !canvasRef.current) return;
+      const video = videoRef.current;
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
 
-  /** Go back to live from replay, cleaning up the snapshot on the server. */
-  const handleBackToLive = () => {
-    if (pokemonId) {
-      fetch(apiUrl(`/api/detector/${pokemonId}/replay/snapshot`), {
-        method: "DELETE",
-      }).catch(() => {});
-    }
-    setPhase("live");
-    setReplayFrameCount(0);
-    setReplayDuration(0);
-    setErrorMsg(null);
-  };
+      setSnapshotWidth(video.videoWidth);
+      setSnapshotHeight(video.videoHeight);
 
-  /** Use a selected replay frame: draw it on the canvas and enter snapshot phase. */
-  const handleUseFrame = async (blob: Blob) => {
-    if (!canvasRef.current) return;
-    try {
-      const bitmap = await createImageBitmap(blob);
-      canvasRef.current.width = bitmap.width;
-      canvasRef.current.height = bitmap.height;
-      setSnapshotWidth(bitmap.width);
-      setSnapshotHeight(bitmap.height);
-
+      canvasRef.current.width = video.videoWidth;
+      canvasRef.current.height = video.videoHeight;
       const ctx = canvasRef.current.getContext("2d");
-      if (ctx) ctx.drawImage(bitmap, 0, 0);
-      bitmap.close();
-
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      }
       setPhase("snapshot");
       setRegions([]);
       setCurrentBox(null);
-    } catch {
-      setErrorMsg(t("detector.errCaptureFailed"));
+      setErrorMsg(null);
     }
   };
 
+  /** Use the currently selected replay frame as the snapshot to draw regions on. */
+  const handleUseFrame = () => {
+    if (!canvasRef.current) return;
+    const frame = replayBuffer.getFrame(selectedFrameIndex);
+    if (!frame) return;
+
+    setSnapshotWidth(frame.width);
+    setSnapshotHeight(frame.height);
+
+    canvasRef.current.width = frame.width;
+    canvasRef.current.height = frame.height;
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.putImageData(frame, 0, 0);
+    }
+
+    setPhase("snapshot");
+    setRegions([]);
+    setCurrentBox(null);
+    setErrorMsg(null);
+  };
+
+  /** Go back to live video from replay. */
+  const handleBackToLive = () => {
+    setPhase("video");
+    setSelectedFrameIndex(0);
+    setCurrentBox(null);
+    setRegions([]);
+    setErrorMsg(null);
+  };
+
+  /** Reset the snapshot and go back to live video. */
   const resetSnapshot = () => {
-    setPhase("live");
+    setPhase("video");
+    setSelectedFrameIndex(0);
     setCurrentBox(null);
     setRegions([]);
     setErrorMsg(null);
@@ -678,7 +480,7 @@ export function TemplateEditor({
     if (isEditMode) {
       return { heading: t("templateEditor.editTitle"), hint: t("templateEditor.editHint") };
     }
-    if (phase === "live") {
+    if (phase === "video") {
       return { heading: t("templateEditor.step1Title"), hint: t("templateEditor.step1Hint") };
     }
     if (phase === "replay") {
@@ -705,231 +507,242 @@ export function TemplateEditor({
         <p className="text-sm 2xl:text-base text-gray-400">{hint}</p>
       </div>
 
-      {/* Replay phase uses its own layout with the scrubber */}
-      {!isEditMode && phase === "replay" && pokemonId && (
-        <ReplayScrubber
-          pokemonId={pokemonId}
-          frameCount={replayFrameCount}
-          durationSec={replayDuration}
-          onUseFrame={handleUseFrame}
-          onBackToLive={handleBackToLive}
-          t={t}
-        />
-      )}
-
-      {/* Live + Snapshot + Replay phases use the shared container (canvas must
-          exist during replay so handleUseFrame can draw the selected frame). */}
-      {(phase === "live" || phase === "replay" || phase === "snapshot" || isEditMode) && (
-        <>
-          <div
-            ref={containerRef}
-            className={`relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[60vh] 2xl:max-h-[65vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-6 flex items-center justify-center select-none touch-none ${
-              phase === "snapshot" ? "cursor-crosshair" : "cursor-default"
-            }`}
-            onMouseDown={phase === "snapshot" ? onPointerDown : undefined}
-            onMouseMove={phase === "snapshot" ? onPointerMove : undefined}
-            onMouseUp={phase === "snapshot" ? onPointerUp : undefined}
-            onMouseLeave={phase === "snapshot" ? onPointerUp : undefined}
-            onTouchStart={phase === "snapshot" ? onPointerDown : undefined}
-            onTouchMove={phase === "snapshot" ? onPointerMove : undefined}
-            onTouchEnd={phase === "snapshot" ? onPointerUp : undefined}
-          >
-            {/* Live preview when no snapshot has been taken yet */}
-            {!isEditMode && phase === "live" && pokemonId && (
-              <LivePreview pokemonId={pokemonId} />
-            )}
-
-            {/* Fallback when no pokemonId (should not happen in new-template mode) */}
-            {!isEditMode && phase === "live" && !pokemonId && (
-              <div className="w-full h-full flex flex-col items-center justify-center">
-                <Camera className="w-12 h-12 2xl:w-14 2xl:h-14 text-white/20 mb-3" />
-                <p className="text-sm text-white/40">{t("templateEditor.captureHint")}</p>
+      <div
+        ref={containerRef}
+        className={`relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[60vh] 2xl:max-h-[65vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-6 flex items-center justify-center select-none touch-none ${
+          phase === "snapshot" ? "cursor-crosshair" : "cursor-default"
+        }`}
+        onMouseDown={phase === "snapshot" ? onPointerDown : undefined}
+        onMouseMove={phase === "snapshot" ? onPointerMove : undefined}
+        onMouseUp={phase === "snapshot" ? onPointerUp : undefined}
+        onMouseLeave={phase === "snapshot" ? onPointerUp : undefined}
+        onTouchStart={phase === "snapshot" ? onPointerDown : undefined}
+        onTouchMove={phase === "snapshot" ? onPointerMove : undefined}
+        onTouchEnd={phase === "snapshot" ? onPointerUp : undefined}
+      >
+        {/* Video feed layer -- hidden in edit mode */}
+        {!isEditMode && (
+          <>
+            <video
+              ref={videoRef}
+              className={`w-full h-full object-contain pointer-events-none ${phase === "video" ? "" : "hidden"}`}
+              autoPlay
+              playsInline
+              muted
+            />
+            {phase === "video" && replayBuffer.isBuffering && (
+              <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-mono text-white">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                {Math.floor(replayBuffer.bufferedSeconds)}s / 30s
               </div>
             )}
+          </>
+        )}
 
-            {/* Snapshot canvas layer */}
-            <canvas
-              ref={canvasRef}
-              className={`w-full h-full object-contain pointer-events-none ${phase === "snapshot" ? "" : "hidden"}`}
-            />
+        {/* Snapshot canvas layer */}
+        <canvas
+          ref={canvasRef}
+          className={`w-full h-full object-contain pointer-events-none ${phase === "snapshot" || phase === "replay" ? "" : "hidden"}`}
+        />
 
-            {/* Overlay wrapper for regions and drawing box */}
-            {phase === "snapshot" && imageBounds && (
+        {/* Overlay wrapper for regions and drawing box */}
+        {(phase === "snapshot" || phase === "replay") && imageBounds && (
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              left: imageBounds.offsetX,
+              top: imageBounds.offsetY,
+              width: imageBounds.renderedW,
+              height: imageBounds.renderedH,
+            }}
+          >
+            {/* Existing regions */}
+            {snapshotWidth > 0 && regions.map((r, i) => (
               <div
-                className="absolute pointer-events-none"
+                key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
+                className={`absolute border-[3px] pointer-events-none transition-colors ${
+                  r.type === "text"
+                    ? "border-purple-500 bg-purple-500/30"
+                    : "border-accent-blue bg-accent-blue/30"
+                }`}
                 style={{
-                  left: imageBounds.offsetX,
-                  top: imageBounds.offsetY,
-                  width: imageBounds.renderedW,
-                  height: imageBounds.renderedH,
+                  left: `${(r.rect.x / snapshotWidth) * 100}%`,
+                  top: `${(r.rect.y / snapshotHeight) * 100}%`,
+                  width: `${(r.rect.w / snapshotWidth) * 100}%`,
+                  height: `${(r.rect.h / snapshotHeight) * 100}%`,
                 }}
               >
-                {/* Existing regions */}
-                {snapshotWidth > 0 && regions.map((r, i) => (
-                  <div
-                    key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
-                    className={`absolute border-[3px] pointer-events-none transition-colors ${
-                      r.type === 'text'
-                        ? 'border-purple-500 bg-purple-500/30'
-                        : 'border-accent-blue bg-accent-blue/30'
-                    }`}
-                    style={{
-                      left: `${(r.rect.x / snapshotWidth) * 100}%`,
-                      top: `${(r.rect.y / snapshotHeight) * 100}%`,
-                      width: `${(r.rect.w / snapshotWidth) * 100}%`,
-                      height: `${(r.rect.h / snapshotHeight) * 100}%`,
-                    }}
-                  >
-                    <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
-                      <strong className={r.type === 'text' ? 'text-purple-400' : 'text-accent-blue'}>#{i + 1}</strong>
-                      {r.type === 'text' ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" /> : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />}
-                      {r.type === 'text' && r.expected_text ? (
-                        <span className="opacity-80 ml-1 truncate max-w-15">"{r.expected_text}"</span>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-
-                {/* Current drawing box */}
-                {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
-                  <div
-                    className="absolute border-2 border-yellow-400 border-dashed bg-yellow-400/15 pointer-events-none"
-                    style={{
-                      left: `${currentBox.x * 100}%`,
-                      top: `${currentBox.y * 100}%`,
-                      width: `${currentBox.w * 100}%`,
-                      height: `${currentBox.h * 100}%`,
-                    }}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Region List Editor */}
-          {phase === "snapshot" && regions.length > 0 && (
-            <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-3 mb-2 max-h-32 2xl:max-h-40 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
-              {regions.map((r, i) => (
-                <div key={`region-edit-${r.type}-${r.rect.x}-${r.rect.y}-${i}`} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-2 shadow-lg hover:border-accent-blue/50 transition-colors">
-                  <span className={`font-mono font-bold w-5 shrink-0 ${r.type === 'text' ? 'text-purple-400' : 'text-accent-blue'}`}>
-                    #{i + 1}
-                  </span>
-                  <select
-                    className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
-                    value={r.type}
-                    onChange={(e) => updateRegion(i, { type: e.target.value as "image" | "text" })}
-                  >
-                    <option value="image">{t("templateEditor.regionImage")}</option>
-                    <option value="text">{t("templateEditor.regionText")} (OCR)</option>
-                  </select>
-                  {r.type === "text" && (
-                    <>
-                      <input
-                        type="text"
-                        placeholder={t("templateEditor.expectedText")}
-                        value={r.expected_text}
-                        onChange={(e) => updateRegion(i, { expected_text: e.target.value })}
-                        className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-30 2xl:min-w-35 focus:border-purple-400"
-                      />
-                      <button
-                        title="Auto-recognize text (OCR)"
-                        onClick={() => handleRunOCR(i)}
-                        disabled={isRecognizing}
-                        className="text-amber-400 hover:text-amber-300 disabled:opacity-40 transition-colors p-1"
-                      >
-                        {isRecognizing ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <ScanText className="w-4 h-4 2xl:w-5 2xl:h-5" />
-                        )}
-                      </button>
-                    </>
-                  )}
-                  <div className="w-px h-6 bg-border-subtle mx-1"></div>
-                  <button
-                    title={t("templateEditor.deleteRegion")}
-                    onClick={() => deleteRegion(i)}
-                    className="text-text-muted hover:text-red-400 transition-colors p-1"
-                  >
-                     <Trash2 className="w-4 h-4 2xl:w-5 2xl:h-5" />
-                  </button>
+                <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
+                  <strong className={r.type === "text" ? "text-purple-400" : "text-accent-blue"}>#{i + 1}</strong>
+                  {r.type === "text" ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" /> : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />}
+                  {r.type === "text" && r.expected_text ? (
+                    <span className="opacity-80 ml-1 truncate max-w-15">"{r.expected_text}"</span>
+                  ) : null}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Hints below region list */}
-          {phase === "snapshot" && (
-            <div className="w-full max-w-4xl px-4 mb-4 flex flex-col items-center gap-1">
-              {regions.length === 0 && (
-                <p className="text-xs 2xl:text-sm text-text-muted text-center">
-                  {t("templateEditor.noRegions")}
-                </p>
-              )}
-              {hasTextRegion && (
-                <p className="text-xs 2xl:text-sm text-amber-400 text-center">
-                  {t("templateEditor.ocrHint")}
-                </p>
-              )}
-              {ocrError && (
-                <p className="text-xs 2xl:text-sm text-red-400 text-center">
-                  OCR error: {ocrError}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Flow Controls */}
-          <div className="flex flex-col items-center gap-3 w-full max-w-sm 2xl:max-w-md shrink-0">
-            {isEditMode ? (
-              <div className="flex w-full gap-3">
-                <button
-                  onClick={onClose}
-                  disabled={isSaving}
-                  className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
-                >
-                  {t("templateEditor.cancel")}
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
-                >
-                  <Save className="w-5 h-5 2xl:w-6 2xl:h-6" />
-                  {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
-                </button>
               </div>
-            ) : phase === "live" && pokemonId ? (
-              <LiveControls
-                pokemonId={pokemonId}
-                onSnapshot={handleTakeSnapshot}
-                isCapturing={isCapturing}
-                t={t}
-              />
-            ) : phase === "snapshot" ? (
-              <SnapshotControls
-                isSaving={isSaving}
-                onResetSnapshot={resetSnapshot}
-                onSave={handleSave}
-                t={t}
-              />
-            ) : null}
+            ))}
 
-            {errorMsg && (
-              <div className="w-full px-4 py-3 bg-red-500/10 text-red-500 text-sm 2xl:text-base text-center rounded-lg font-medium border border-red-500/20">
-                {errorMsg}
-              </div>
+            {/* Current drawing box */}
+            {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
+              <div
+                className="absolute border-2 border-yellow-400 border-dashed bg-yellow-400/15 pointer-events-none"
+                style={{
+                  left: `${currentBox.x * 100}%`,
+                  top: `${currentBox.y * 100}%`,
+                  width: `${currentBox.w * 100}%`,
+                  height: `${currentBox.h * 100}%`,
+                }}
+              />
             )}
           </div>
-        </>
-      )}
+        )}
+      </div>
 
-      {/* Error display for replay phase */}
-      {phase === "replay" && errorMsg && (
-        <div className="w-full max-w-sm px-4 py-3 bg-red-500/10 text-red-500 text-sm 2xl:text-base text-center rounded-lg font-medium border border-red-500/20 mt-3">
-          {errorMsg}
+      {/* Replay Timeline */}
+      {phase === "replay" && replayBuffer.frameCount > 0 && (
+        <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-4 px-8">
+          <div className="flex items-center gap-4">
+            <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
+              {(() => {
+                const totalSec = replayBuffer.bufferedSeconds;
+                const secPerFrame = totalSec / replayBuffer.frameCount;
+                const currentSec = selectedFrameIndex * secPerFrame;
+                const relative = currentSec - totalSec;
+                return Math.abs(relative) < 0.1 ? "now" : `${Math.round(relative)}s`;
+              })()}
+            </span>
+            <input
+              type="range"
+              min={0}
+              max={replayBuffer.frameCount - 1}
+              value={selectedFrameIndex}
+              onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
+              className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
+                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
+            />
+            <span className="text-white/60 text-xs 2xl:text-sm shrink-0">
+              {selectedFrameIndex + 1} / {replayBuffer.frameCount}
+            </span>
+          </div>
+          <p className="text-xs 2xl:text-sm text-text-muted text-center mt-2">
+            Arrow keys: +/-1 frame, Shift+Arrow keys: +/-5 frames
+          </p>
         </div>
       )}
+
+      {/* Region List Editor */}
+      {phase === "snapshot" && regions.length > 0 && (
+        <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-3 mb-2 max-h-32 2xl:max-h-40 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
+          {regions.map((r, i) => (
+            <div key={`region-edit-${r.type}-${r.rect.x}-${r.rect.y}-${i}`} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-2 shadow-lg hover:border-accent-blue/50 transition-colors">
+              <span className={`font-mono font-bold w-5 shrink-0 ${r.type === "text" ? "text-purple-400" : "text-accent-blue"}`}>
+                #{i + 1}
+              </span>
+              <select
+                className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
+                value={r.type}
+                onChange={(e) => updateRegion(i, { type: e.target.value as "image" | "text" })}
+              >
+                <option value="image">{t("templateEditor.regionImage")}</option>
+                <option value="text">{t("templateEditor.regionText")} (OCR)</option>
+              </select>
+              {r.type === "text" && (
+                <>
+                  <input
+                    type="text"
+                    placeholder={t("templateEditor.expectedText")}
+                    value={r.expected_text}
+                    onChange={(e) => updateRegion(i, { expected_text: e.target.value })}
+                    className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-30 2xl:min-w-35 focus:border-purple-400"
+                  />
+                  <button
+                    title="Auto-recognize text (OCR)"
+                    onClick={() => handleRunOCR(i)}
+                    disabled={isRecognizing}
+                    className="text-amber-400 hover:text-amber-300 disabled:opacity-40 transition-colors p-1"
+                  >
+                    {isRecognizing ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <ScanText className="w-4 h-4 2xl:w-5 2xl:h-5" />
+                    )}
+                  </button>
+                </>
+              )}
+              <div className="w-px h-6 bg-border-subtle mx-1"></div>
+              <button
+                title={t("templateEditor.deleteRegion")}
+                onClick={() => deleteRegion(i)}
+                className="text-text-muted hover:text-red-400 transition-colors p-1"
+              >
+                 <Trash2 className="w-4 h-4 2xl:w-5 2xl:h-5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Hints below region list */}
+      {phase === "snapshot" && (
+        <div className="w-full max-w-4xl px-4 mb-4 flex flex-col items-center gap-1">
+          {regions.length === 0 && (
+            <p className="text-xs 2xl:text-sm text-text-muted text-center">
+              {t("templateEditor.noRegions")}
+            </p>
+          )}
+          {hasTextRegion && (
+            <p className="text-xs 2xl:text-sm text-amber-400 text-center">
+              {t("templateEditor.ocrHint")}
+            </p>
+          )}
+          {ocrError && (
+            <p className="text-xs 2xl:text-sm text-red-400 text-center">
+              OCR error: {ocrError}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Flow Controls */}
+      <div className="flex flex-col items-center gap-3 w-full max-w-sm 2xl:max-w-md shrink-0">
+        {isEditMode ? (
+          <div className="flex w-full gap-3">
+            <button
+              onClick={onClose}
+              disabled={isSaving}
+              className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
+            >
+              {t("templateEditor.cancel")}
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+            >
+              <Save className="w-5 h-5 2xl:w-6 2xl:h-6" />
+              {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
+            </button>
+          </div>
+        ) : (
+          <NewTemplateControls
+            phase={phase}
+            isSaving={isSaving}
+            onTakeSnapshot={handleTakeSnapshot}
+            onResetSnapshot={resetSnapshot}
+            onSave={handleSave}
+            onUseFrame={handleUseFrame}
+            onBackToLive={handleBackToLive}
+            t={t}
+          />
+        )}
+
+        {errorMsg && (
+          <div className="w-full px-4 py-3 bg-red-500/10 text-red-500 text-sm 2xl:text-base text-center rounded-lg font-medium border border-red-500/20">
+            {errorMsg}
+          </div>
+        )}
+      </div>
     </div>
   );
 

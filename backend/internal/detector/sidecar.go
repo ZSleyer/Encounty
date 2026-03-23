@@ -115,6 +115,10 @@ type sidecarResponse struct {
 	FrameCount  int     `json:"frame_count,omitempty"`
 	Path        string  `json:"path,omitempty"`
 	FrameIndex  int     `json:"frame_index,omitempty"`
+
+	// VirtualCamNode is the PipeWire virtual camera node name, populated
+	// when the sidecar response type is "detection_started".
+	VirtualCamNode string `json:"virtual_cam_node,omitempty"`
 }
 
 // frameHeader mirrors the extended binary frame header emitted by the sidecar.
@@ -293,9 +297,16 @@ func (s *SidecarManager) LoadTemplates(sessionID string, templates []SidecarTemp
 	return nil
 }
 
+// StartDetectionResult holds the response from a successful StartDetection call.
+type StartDetectionResult struct {
+	VirtualCamNode string // PipeWire virtual camera node name (may be empty)
+}
+
 // StartDetection instructs the sidecar to begin its capture-and-match loop for
 // the given source. Match results are delivered asynchronously via MatchResults().
-func (s *SidecarManager) StartDetection(sessionID string, sourceType string, sourceID string, config SidecarDetectionConfig) error {
+// The returned StartDetectionResult contains optional metadata such as the
+// PipeWire virtual camera node name.
+func (s *SidecarManager) StartDetection(sessionID string, sourceType string, sourceID string, config SidecarDetectionConfig) (StartDetectionResult, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -308,12 +319,12 @@ func (s *SidecarManager) StartDetection(sessionID string, sourceType string, sou
 	}
 	resp, err := s.sendCommandWithTimeout(req, captureFrameTimeout)
 	if err != nil {
-		return fmt.Errorf("start_detection: %w", err)
+		return StartDetectionResult{}, fmt.Errorf("start_detection: %w", err)
 	}
 	if resp.Type == "error" {
-		return fmt.Errorf("start_detection: sidecar error: %s", resp.Message)
+		return StartDetectionResult{}, fmt.Errorf("start_detection: sidecar error: %s", resp.Message)
 	}
-	return nil
+	return StartDetectionResult{VirtualCamNode: resp.VirtualCamNode}, nil
 }
 
 // StopDetection tells the sidecar to stop the detection loop for the given
@@ -427,6 +438,44 @@ func (s *SidecarManager) StopPreview(sessionID string) error {
 	}
 	if resp.Type == "error" {
 		return fmt.Errorf("stop_preview: sidecar error: %s", resp.Message)
+	}
+	return nil
+}
+
+// StartReplay starts (or restarts) the GStreamer MPEG-TS replay buffer for a
+// sidecar session. This is called on-demand when the user opens the template
+// editor rather than at session startup.
+func (s *SidecarManager) StartReplay(sessionID string, bufferSec int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	req := map[string]any{
+		"cmd":               "start_replay",
+		"session_id":        sessionID,
+		"replay_buffer_sec": bufferSec,
+	}
+	resp, err := s.sendCommand(req)
+	if err != nil {
+		return fmt.Errorf("start_replay: %w", err)
+	}
+	if resp.Type == "error" {
+		return fmt.Errorf("start_replay: sidecar error: %s", resp.Message)
+	}
+	return nil
+}
+
+// StopReplay stops the replay buffer for a sidecar session.
+func (s *SidecarManager) StopReplay(sessionID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	req := map[string]any{"cmd": "stop_replay", "session_id": sessionID}
+	resp, err := s.sendCommand(req)
+	if err != nil {
+		return fmt.Errorf("stop_replay: %w", err)
+	}
+	if resp.Type == "error" {
+		return fmt.Errorf("stop_replay: sidecar error: %s", resp.Message)
 	}
 	return nil
 }

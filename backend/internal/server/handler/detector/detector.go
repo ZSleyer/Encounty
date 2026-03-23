@@ -338,6 +338,7 @@ func (h *handler) handleDetectorCapabilities(w http.ResponseWriter, _ *http.Requ
 //	/api/detector/{id}/replay/snapshot
 //	/api/detector/{id}/replay/snapshot/{index}
 //	/api/detector/{id}/replay/rematch
+//	/api/detector/{id}/virtual_cam
 func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/api/detector/")
 	parts := strings.SplitN(rest, "/", 4)
@@ -407,9 +408,55 @@ func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request)
 		}
 	case "replay":
 		h.dispatchReplay(w, r, id, parts[2:])
+	case "virtual_cam":
+		h.handleVirtualCam(w, r, id)
+	case "match":
+		h.handleMatchSubmit(w, r, id)
+	case "browser":
+		if len(parts) < 3 {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		switch parts[2] {
+		case "start":
+			h.handleBrowserDetectorStart(w, r, id)
+		case "stop":
+			h.handleBrowserDetectorStop(w, r, id)
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+// --- Virtual Camera ----------------------------------------------------------
+
+// virtualCamResponse reports the PipeWire virtual camera node name for a session.
+type virtualCamResponse struct {
+	NodeName string `json:"node_name"`
+}
+
+// handleVirtualCam returns the PipeWire virtual camera node name for a
+// detector session. Returns an empty node_name when not available.
+// GET /api/detector/{id}/virtual_cam
+//
+// @Summary      Get virtual camera node name
+// @Tags         detector
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Success      200 {object} virtualCamResponse
+// @Router       /detector/{id}/virtual_cam [get]
+func (h *handler) handleVirtualCam(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var nodeName string
+	if mgr := h.deps.DetectorMgr(); mgr != nil {
+		nodeName = mgr.VirtualCamNode(id)
+	}
+	httputil.WriteJSON(w, http.StatusOK, virtualCamResponse{NodeName: nodeName})
 }
 
 // --- Config ------------------------------------------------------------------
@@ -884,9 +931,55 @@ func (h *handler) dispatchReplay(w http.ResponseWriter, r *http.Request, id stri
 		}
 	case "rematch":
 		h.handleReplayRematch(w, r, id)
+	case "start":
+		h.handleReplayStart(w, r, id)
+	case "stop":
+		h.handleReplayStop(w, r, id)
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
+}
+
+// handleReplayStart starts the replay buffer on demand for the template editor.
+// POST /api/detector/{id}/replay/start
+func (h *handler) handleReplayStart(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	if err := mgr.StartReplay(id); err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
+}
+
+// handleReplayStop stops the replay buffer for a session.
+// POST /api/detector/{id}/replay/stop
+func (h *handler) handleReplayStop(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	if err := mgr.StopReplay(id); err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
 // handleReplayStatus returns the current replay buffer status for a session.
@@ -1011,6 +1104,185 @@ func (h *handler) handleSnapshotFrame(w http.ResponseWriter, r *http.Request, id
 	w.Header().Set(headerContentType, contentTypePNG)
 	w.Header().Set("Content-Length", strconv.Itoa(len(pngData)))
 	_, _ = w.Write(pngData)
+}
+
+// --- Browser Detection (WebGPU score submission) -----------------------------
+
+// matchSubmitRequest is the JSON body for POST /api/detector/{id}/match.
+type matchSubmitRequest struct {
+	Score      float64 `json:"score"`
+	FrameDelta float64 `json:"frame_delta"`
+}
+
+// matchSubmitResponse is returned by handleMatchSubmit.
+type matchSubmitResponse struct {
+	Matched    bool    `json:"matched"`
+	Confidence float64 `json:"confidence"`
+	PollMs     int     `json:"poll_ms"`
+}
+
+// handleMatchSubmit accepts a pre-computed NCC score from the browser WebGPU
+// engine and feeds it into the BrowserDetector state machine. When a match is
+// confirmed the encounter counter is incremented and a detector_match event is
+// broadcast.
+// POST /api/detector/{id}/match
+//
+// @Summary      Submit a WebGPU match score for a Pokemon
+// @Tags         detector
+// @Accept       json
+// @Produce      json
+// @Param        id   path string            true "Pokemon ID"
+// @Param        body body matchSubmitRequest true "Match score"
+// @Success      200 {object} matchSubmitResponse
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Failure      405 {string} string
+// @Failure      503 {object} httputil.ErrResp
+// @Router       /detector/{id}/match [post]
+func (h *handler) handleMatchSubmit(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req matchSubmitRequest
+	if err := httputil.ReadJSON(r, &req); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	bd := mgr.GetBrowserDetector(id)
+	if bd == nil {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: "no browser detector active for this pokemon"})
+		return
+	}
+
+	result := bd.SubmitScore(req.Score, req.FrameDelta)
+
+	if result.Matched {
+		sm := h.deps.StateManager()
+		sm.Increment(id)
+		sm.AppendDetectionLog(id, result.Confidence)
+		h.deps.Broadcast("detector_match", map[string]any{
+			"pokemon_id": id,
+			"confidence": result.Confidence,
+			"source":     "browser",
+		})
+	}
+
+	h.deps.Broadcast("detector_status", map[string]any{
+		"pokemon_id": id,
+		"state":      result.State,
+		"confidence": result.Confidence,
+		"poll_ms":    result.PollMs,
+	})
+
+	httputil.WriteJSON(w, http.StatusOK, matchSubmitResponse{
+		Matched:    result.Matched,
+		Confidence: result.Confidence,
+		PollMs:     result.PollMs,
+	})
+}
+
+// browserDetectorStartRequest is the optional JSON body for
+// POST /api/detector/{id}/browser/start. When empty, the existing
+// DetectorConfig from the Pokemon state is used.
+type browserDetectorStartRequest struct {
+	Precision       float64 `json:"precision,omitempty"`
+	ConsecutiveHits int     `json:"consecutive_hits,omitempty"`
+	CooldownSec     int     `json:"cooldown_sec,omitempty"`
+}
+
+// handleBrowserDetectorStart creates a BrowserDetector for the given Pokemon,
+// using either the existing DetectorConfig or overrides from the request body.
+// POST /api/detector/{id}/browser/start
+//
+// @Summary      Start a browser-driven detector for a Pokemon
+// @Tags         detector
+// @Accept       json
+// @Produce      json
+// @Param        id   path string true "Pokemon ID"
+// @Success      200 {object} okResponse
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Failure      405 {string} string
+// @Failure      503 {object} httputil.ErrResp
+// @Router       /detector/{id}/browser/start [post]
+func (h *handler) handleBrowserDetectorStart(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	sm := h.deps.StateManager()
+	st := sm.GetState()
+	pokemon := findPokemon(st, id)
+	if pokemon == nil {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+
+	// Start from the existing config if available, then apply overrides.
+	var cfg state.DetectorConfig
+	if pokemon.DetectorConfig != nil {
+		cfg = *pokemon.DetectorConfig
+	}
+
+	// Allow partial overrides from the request body (best-effort parse).
+	var req browserDetectorStartRequest
+	if err := httputil.ReadJSON(r, &req); err == nil {
+		if req.Precision > 0 {
+			cfg.Precision = req.Precision
+		}
+		if req.ConsecutiveHits > 0 {
+			cfg.ConsecutiveHits = req.ConsecutiveHits
+		}
+		if req.CooldownSec > 0 {
+			cfg.CooldownSec = req.CooldownSec
+		}
+	}
+
+	mgr.GetOrCreateBrowserDetector(id, cfg)
+	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
+}
+
+// handleBrowserDetectorStop removes the BrowserDetector for the given Pokemon.
+// POST /api/detector/{id}/browser/stop
+//
+// @Summary      Stop a browser-driven detector for a Pokemon
+// @Tags         detector
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Success      200 {object} okResponse
+// @Failure      405 {string} string
+// @Failure      503 {object} httputil.ErrResp
+// @Router       /detector/{id}/browser/stop [post]
+func (h *handler) handleBrowserDetectorStop(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	mgr := h.deps.DetectorMgr()
+	if mgr == nil {
+		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: errDetectorNotAvailable})
+		return
+	}
+
+	mgr.StopBrowserDetector(id)
+	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
 // --- Helpers -----------------------------------------------------------------
