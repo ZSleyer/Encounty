@@ -111,9 +111,16 @@ export class DetectionLoop {
     if (!this.running) return;
 
     const video = getVideo();
+
+    // Auto-stop when the video element disappears (stream ended or capture stopped)
+    if (!video) {
+      this.stop();
+      return;
+    }
+
     const loopStart = performance.now();
 
-    if (video && video.videoWidth > 0 && video.videoHeight > 0 && this.templates.length > 0) {
+    if (video.videoWidth > 0 && video.videoHeight > 0 && this.templates.length > 0) {
       try {
         const result: DetectorResult = await this.detector.detect(
           video,

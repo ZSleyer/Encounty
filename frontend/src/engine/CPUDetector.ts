@@ -152,17 +152,26 @@ export class CPUDetector {
       const tmpl = templates[i];
       if (!tmpl.gray) continue;
 
-      const tmplGray = downscaleTemplate(tmpl, maxDim);
-      const score = ncc(
-        frameGray.gray,
-        frameGray.width,
-        frameGray.height,
-        tmplGray.gray,
-        tmplGray.width,
-        tmplGray.height,
-        tmplGray.mean,
-        tmplGray.stdDev,
-      );
+      let score: number;
+
+      // Small templates (sprites, ≤128px): multi-scale matching — try the
+      // template at several sizes against the downscaled frame because we
+      // don't know the on-screen scale. Matches Go's matchMultiScale logic.
+      if (tmpl.width <= 128 && tmpl.height <= 128) {
+        score = matchMultiScale(
+          frameGray.gray, frameGray.width, frameGray.height,
+          tmpl, maxDim,
+        );
+      } else {
+        // Large templates (frame crops): downscale to maxDim like the frame
+        const tmplGray = downscaleTemplate(tmpl, maxDim);
+        score = ncc(
+          frameGray.gray, frameGray.width, frameGray.height,
+          tmplGray.gray, tmplGray.width, tmplGray.height,
+          tmplGray.mean, tmplGray.stdDev,
+        );
+      }
+
       if (score > bestScore) {
         bestScore = score;
         bestIndex = i;
@@ -231,6 +240,41 @@ interface GrayTemplate {
   height: number;
   mean: number;
   stdDev: number;
+}
+
+/**
+ * Multi-scale template matching for small templates (sprites).
+ *
+ * Tries the template at 8-12 different sizes against the downscaled frame,
+ * returning the best NCC score. This handles sprites that appear at an
+ * unknown scale in the game capture. Matches Go's matchMultiScale logic.
+ */
+function matchMultiScale(
+  frameGray: Float32Array, fw: number, fh: number,
+  tmpl: TemplateData, frameDim: number,
+): number {
+  const minDim = 12;
+  const maxDim = Math.min(fw, fh);
+  if (maxDim <= minDim) return 0;
+  const step = Math.max(Math.floor((maxDim - minDim) / 12), 4);
+  let best = 0;
+
+  for (let targetDim = minDim; targetDim <= maxDim; targetDim += step) {
+    const scaled = downscaleTemplate(tmpl, targetDim);
+    if (scaled.width < 4 || scaled.height < 4) continue;
+    const score = ncc(
+      frameGray, fw, fh,
+      scaled.gray, scaled.width, scaled.height,
+      scaled.mean, scaled.stdDev,
+    );
+    if (score > best) best = score;
+    // Early exit when score is high enough
+    if (best >= 0.95) break;
+  }
+
+  // Suppress falsely low results from the ignore parameter
+  void frameDim;
+  return best;
 }
 
 /**
