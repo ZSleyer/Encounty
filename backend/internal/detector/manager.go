@@ -157,15 +157,6 @@ func (m *Manager) Start(pokemonID string, cfg state.DetectorConfig) error {
 
 	m.stopLocked(pokemonID)
 
-	// Tear down any preview-only sidecar session so the real detection can
-	// claim the session ID.
-	if m.previewOnly[pokemonID] && m.sidecar != nil {
-		if err := m.sidecar.StopDetection(pokemonID); err != nil {
-			slog.Warn("Failed to stop preview-only session before start", "pokemon_id", pokemonID, "error", err)
-		}
-		delete(m.previewOnly, pokemonID)
-	}
-
 	// Ensure sidecar is healthy; restart if it crashed.
 	if err := m.ensureSidecar(); err != nil {
 		slog.Warn("Sidecar restart failed, will use native fallback", "error", err)
@@ -173,6 +164,30 @@ func (m *Manager) Start(pokemonID string, cfg state.DetectorConfig) error {
 
 	// Use sidecar path when available.
 	if m.sidecar != nil {
+		// If a preview-only session is already running on the same source,
+		// promote it to a full detection session by loading templates and
+		// updating the config. This avoids tearing down the capture pipeline
+		// and re-opening the device, which can fail on exclusive V4L2 devices.
+		if m.previewOnly[pokemonID] {
+			rd, err := m.promotePreviewSession(pokemonID, cfg)
+			if err != nil {
+				slog.Warn("Preview promotion failed, falling back to full restart", "pokemon_id", pokemonID, "error", err)
+				// Fall through to stop + restart below.
+			} else {
+				delete(m.previewOnly, pokemonID)
+				m.running[pokemonID] = rd
+				return nil
+			}
+		}
+
+		// Tear down any preview-only session that could not be promoted.
+		if m.previewOnly[pokemonID] && m.sidecar != nil {
+			if err := m.sidecar.StopDetection(pokemonID); err != nil {
+				slog.Warn("Failed to stop preview-only session before start", "pokemon_id", pokemonID, "error", err)
+			}
+			delete(m.previewOnly, pokemonID)
+		}
+
 		rd, err := m.startWithSidecar(pokemonID, cfg)
 		if err != nil {
 			slog.Error("Sidecar start failed, falling back to native", "pokemon_id", pokemonID, "error", err)
@@ -288,6 +303,41 @@ func (m *Manager) RunningIDs() []string {
 	return ids
 }
 
+// promotePreviewSession upgrades a preview-only sidecar session to a full
+// detection session by loading templates and updating the config. The capture
+// pipeline keeps running so exclusive-access devices (V4L2 with exclusive_caps)
+// are not re-opened. Caller must hold m.mu.
+func (m *Manager) promotePreviewSession(pokemonID string, cfg state.DetectorConfig) (*runningDetector, error) {
+	templates := prepareSidecarTemplates(cfg, m.configDir, pokemonID)
+	if len(templates) == 0 {
+		return nil, fmt.Errorf("no valid templates for sidecar")
+	}
+
+	if err := m.sidecar.LoadTemplates(pokemonID, templates); err != nil {
+		return nil, fmt.Errorf("sidecar load templates: %w", err)
+	}
+
+	scConfig := toSidecarConfig(cfg)
+	if err := m.sidecar.UpdateConfig(pokemonID, scConfig); err != nil {
+		return nil, fmt.Errorf("sidecar update config: %w", err)
+	}
+
+	d := newDetector(pokemonID, cfg, m.stateMgr, m.broadcast, m.configDir)
+	source := NewSidecarMatchSource(64)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		defer source.Close()
+		d.RunWithMatchSource(ctx, source)
+	}()
+
+	return &runningDetector{
+		cancel:        cancel,
+		detector:      d,
+		sidecarSource: source,
+	}, nil
+}
+
 // startWithSidecar creates a sidecar-backed detector for native capture sources.
 // It loads templates into the sidecar, starts the detection pipeline, and spawns
 // a goroutine that feeds pre-computed results into the detector's state machine.
@@ -361,6 +411,18 @@ func prepareSidecarTemplates(cfg state.DetectorConfig, configDir, pokemonID stri
 		absPath := t.ImagePath
 		if absPath != "" && !filepath.IsAbs(absPath) {
 			absPath = filepath.Join(configDir, "templates", pokemonID, t.ImagePath)
+		}
+
+		// When ImagePath is empty but ImageData is available (v2 DB storage),
+		// write the image to a temporary file so the sidecar can read it.
+		if absPath == "" && len(t.ImageData) > 0 {
+			tmpDir := filepath.Join(os.TempDir(), "encounty-templates", pokemonID)
+			if err := os.MkdirAll(tmpDir, 0o700); err == nil {
+				tmpPath := filepath.Join(tmpDir, fmt.Sprintf("template_%d.png", i))
+				if err := os.WriteFile(tmpPath, t.ImageData, 0o600); err == nil {
+					absPath = tmpPath
+				}
+			}
 		}
 
 		// Skip templates whose file cannot be found.

@@ -922,7 +922,7 @@ func findSidecarBinary() (string, error) {
 
 	// Check Cargo build output relative to cwd (for dev mode with `go run`).
 	if cwd, err := os.Getwd(); err == nil {
-		for _, profile := range []string{"debug", "release"} {
+		for _, profile := range []string{"release", "debug"} {
 			candidate := filepath.Join(cwd, "..", "capture-sidecar", "target", profile, sidecarBinaryName)
 			if abs, err := filepath.Abs(candidate); err == nil {
 				if _, err := os.Stat(abs); err == nil {
