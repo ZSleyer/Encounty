@@ -330,12 +330,51 @@ if (isWayland) {
 
 console.log('[Electron] Platform detection:', { isWayland, platform: process.platform, WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY, XDG_SESSION_TYPE: process.env.XDG_SESSION_TYPE });
 
+// Register encounty:// as a privileged scheme so the renderer can use
+// relative URLs, fetch(), and service workers just like HTTPS.
+// Must be called before app.on('ready').
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'encounty',
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    corsEnabled: false,
+    stream: true,
+  }
+}]);
+
 // Move Electron/Chromium data into a subdirectory so it doesn't mix with
 // the Go backend's config files (state.json etc.) in the same folder.
 app.setPath('userData', path.join(app.getPath('userData'), 'electron'));
 
 // App lifecycle
 app.on('ready', async () => {
+  // Resolve the frontend dist directory and register the encounty:// protocol
+  // handler to serve frontend assets from disk.
+  const frontendRoot = app.isPackaged
+    ? path.join(process.resourcesPath, 'frontend-dist')
+    : path.join(__dirname, '..', '..', 'frontend', 'dist');
+
+  protocol.handle('encounty', (request) => {
+    const url = new URL(request.url);
+    let filePath = decodeURIComponent(url.pathname);
+    if (filePath === '/' || filePath === '') filePath = '/index.html';
+
+    const fullPath = path.join(frontendRoot, filePath);
+
+    // SPA fallback: serve index.html for routes that don't map to files
+    try {
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        return net.fetch('file://' + path.join(frontendRoot, 'index.html'));
+      }
+      return net.fetch('file://' + fullPath);
+    } catch {
+      return net.fetch('file://' + path.join(frontendRoot, 'index.html'));
+    }
+  });
+
   Menu.setApplicationMenu(null);
 
   // Allow media, display-capture, and WebGPU permissions
