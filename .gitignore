@@ -14,8 +14,11 @@ __debug_bin*
 # Go build cache
 /vendor/
 
+# Dependencies (all levels)
+node_modules/
+/yarn.lock
+
 # Frontend
-frontend/node_modules/
 frontend/dist/
 backend/frontend/
 
@@ -54,11 +57,7 @@ coverage.out
 coverage_filtered.out
 frontend/coverage/
 
-# Test caches
-node_modules/.vite/
-
 # Electron build artifacts
-electron/node_modules/
 electron/dist/
 electron/release/
 
