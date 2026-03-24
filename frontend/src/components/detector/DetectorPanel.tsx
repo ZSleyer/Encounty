@@ -70,14 +70,16 @@ function ensureDetector(): Promise<void> {
         if (WorkerDetector.isAvailable()) {
           sharedDetector = await WorkerDetector.create();
           console.log("[Detector] Using Worker backend (CPU offloaded)");
-        } else {
+        } else if (CPUDetector.isAvailable()) {
           sharedDetector = new CPUDetector();
           console.log("[Detector] Using main-thread CPU backend");
         }
         sharedDetectorBackend = "cpu";
       } catch (cpuErr) {
-        sharedDetector = new CPUDetector();
-        sharedDetectorBackend = "cpu";
+        if (CPUDetector.isAvailable()) {
+          sharedDetector = new CPUDetector();
+          sharedDetectorBackend = "cpu";
+        }
         console.warn("[Detector] Worker failed, main-thread fallback:", cpuErr);
       }
     }
