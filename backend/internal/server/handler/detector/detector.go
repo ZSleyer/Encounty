@@ -5,7 +5,6 @@ package detector
 import (
 	"image"
 	"image/jpeg"
-	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -59,11 +58,7 @@ type detectorStatusEntry struct {
 	Running   bool   `json:"running"`
 }
 
-// detectorRunResponse reports whether a detector is running.
-type detectorRunResponse struct {
-	OK      bool `json:"ok"`
-	Running bool `json:"running"`
-}
+
 
 // okResponse signals a successful operation.
 type okResponse struct {
@@ -301,98 +296,6 @@ func (h *handler) handleDetectorConfig(w http.ResponseWriter, r *http.Request, i
 	}
 }
 
-// --- Start / Stop ------------------------------------------------------------
-
-// handleDetectorStart starts the detection goroutine for a single hunt.
-// POST /api/detector/{id}/start
-//
-// @Summary      Start detection for a Pokemon
-// @Tags         detector
-// @Produce      json
-// @Param        id path string true "Pokemon ID"
-// @Success      200 {object} detectorRunResponse
-// @Failure      400 {object} httputil.ErrResp
-// @Failure      404 {object} httputil.ErrResp
-// @Failure      500 {object} httputil.ErrResp
-// @Router       /detector/{id}/start [post]
-func (h *handler) handleDetectorStart(w http.ResponseWriter, r *http.Request, id string) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	sm := h.deps.StateManager()
-	st := sm.GetState()
-	pokemon := findPokemon(st, id)
-	if pokemon == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-	if pokemon.DetectorConfig == nil {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "no detector config"})
-		return
-	}
-	if len(pokemon.DetectorConfig.Templates) == 0 {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "no templates configured"})
-		return
-	}
-
-	cfg := *pokemon.DetectorConfig
-	h.hydrateTemplates(&cfg)
-
-	if mgr := h.deps.DetectorMgr(); mgr != nil {
-		if err := h.launchDetector(id, cfg); err != nil {
-			httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
-			return
-		}
-	}
-
-	cfg.Enabled = true
-	sm.SetDetectorConfig(id, &cfg)
-	sm.ScheduleSave()
-	h.deps.BroadcastState()
-
-	httputil.WriteJSON(w, http.StatusOK, detectorRunResponse{OK: true, Running: true})
-}
-
-// launchDetector starts the detection goroutine for the given config.
-func (h *handler) launchDetector(id string, cfg state.DetectorConfig) error {
-	return h.deps.DetectorMgr().Start(id, cfg)
-}
-
-// handleDetectorStop stops the detection goroutine for a single hunt.
-// POST /api/detector/{id}/stop
-//
-// @Summary      Stop detection for a Pokemon
-// @Tags         detector
-// @Produce      json
-// @Param        id path string true "Pokemon ID"
-// @Success      200 {object} detectorRunResponse
-// @Router       /detector/{id}/stop [post]
-func (h *handler) handleDetectorStop(w http.ResponseWriter, r *http.Request, id string) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	if mgr := h.deps.DetectorMgr(); mgr != nil {
-		mgr.Stop(id)
-	}
-
-	sm := h.deps.StateManager()
-	st := sm.GetState()
-	pokemon := findPokemon(st, id)
-	if pokemon != nil && pokemon.DetectorConfig != nil {
-		cfg := *pokemon.DetectorConfig
-		cfg.Enabled = false
-		sm.SetDetectorConfig(id, &cfg)
-		sm.ScheduleSave()
-		h.deps.BroadcastState()
-	}
-
-	httputil.WriteJSON(w, http.StatusOK, detectorRunResponse{OK: true, Running: false})
-}
-
 // --- Browser Detection (WebGPU score submission) -----------------------------
 
 // matchSubmitRequest is the JSON body for POST /api/detector/{id}/match.
@@ -619,22 +522,3 @@ func downscaleImage(img image.Image, maxWidth int) image.Image {
 	return dst
 }
 
-// hydrateTemplates loads image BLOBs from the DB for templates that have a
-// TemplateDBID but no in-memory ImageData.
-func (h *handler) hydrateTemplates(cfg *state.DetectorConfig) {
-	db := h.deps.DetectorDB()
-	if db == nil {
-		return
-	}
-	for i := range cfg.Templates {
-		if cfg.Templates[i].TemplateDBID > 0 && len(cfg.Templates[i].ImageData) == 0 {
-			data, err := db.LoadTemplateImage(cfg.Templates[i].TemplateDBID)
-			if err != nil {
-				slog.Warn("Failed to load template BLOB from DB",
-					"template_db_id", cfg.Templates[i].TemplateDBID, "error", err)
-				continue
-			}
-			cfg.Templates[i].ImageData = data
-		}
-	}
-}
