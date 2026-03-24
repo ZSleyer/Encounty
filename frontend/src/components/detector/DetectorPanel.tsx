@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   X, Plus, Pencil, Sparkles, Loader2, HelpCircle, Eye, EyeOff,
-  MoreHorizontal, Download, Upload, FileDown,
+  MoreHorizontal, Download, Upload, FileDown, AlertTriangle,
 } from "lucide-react";
 import { DetectorConfig, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
@@ -137,6 +137,8 @@ export function DetectorPanel({
   const loopRef = useRef<DetectionLoop | null>(null);
   // Track whether detector init has been attempted
   const detectorInitRef = useRef(false);
+  // Track which backend is active for the CPU fallback warning
+  const [detectorBackend, setDetectorBackend] = useState<"gpu" | "cpu" | null>(null);
 
   const capture = useCaptureService();
   // Subscribe to capture version changes so we re-render when streams start/stop
@@ -266,9 +268,11 @@ export function DetectorPanel({
       try {
         const gpu = await WebGPUDetector.create();
         detectorRef.current = gpu;
+        setDetectorBackend("gpu");
       } catch {
         try {
           detectorRef.current = new CPUDetector();
+          setDetectorBackend("cpu");
         } catch (cpuErr) {
           console.error("[DetectorPanel] Failed to create CPU detector:", cpuErr);
         }
@@ -558,8 +562,10 @@ export function DetectorPanel({
     if (!detectorRef.current) {
       try {
         detectorRef.current = await WebGPUDetector.create();
+        setDetectorBackend("gpu");
       } catch {
         detectorRef.current = new CPUDetector();
+        setDetectorBackend("cpu");
       }
     }
 
@@ -592,10 +598,18 @@ export function DetectorPanel({
     }
 
     loop.loadTemplates(loadedTemplates);
+
+    // Collect all regions from enabled templates for adaptive threshold computation
+    const allRegions = templates
+      .filter((tmpl) => tmpl.enabled !== false)
+      .flatMap((tmpl) => tmpl.regions.map((r) => ({ rect: r.rect })));
+
     loop.updateConfig({
       precision: cfg.precision,
       changeThreshold: cfg.change_threshold,
       consecutiveHits: cfg.consecutive_hits,
+      adaptiveThreshold: cfg.adaptive_threshold,
+      regions: allRegions,
     });
 
     // Wire up live score reporting to the Zustand store so the confidence
@@ -784,6 +798,14 @@ export function DetectorPanel({
             <span className="flex-1">{errorMsg}</span>
             <span className="shrink-0 opacity-60">{"\u2715"}</span>
           </button>
+        )}
+
+        {/* --- CPU fallback warning ------------------------------------------ */}
+        {detectorBackend === "cpu" && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{t("detector.cpuFallbackWarning")}</span>
+          </div>
         )}
 
         {/* --- Preview Component --------------------------------------------- */}

@@ -55,6 +55,7 @@ export class CPUDetector {
     regions?: Array<{
       type: string;
       rect: { x: number; y: number; w: number; h: number };
+      polarity?: "positive" | "negative";
     }>,
   ): TemplateData | null {
     let pixels: Uint8ClampedArray;
@@ -152,7 +153,21 @@ export class CPUDetector {
       const tmpl = templates[i];
       if (!tmpl.gray) continue;
 
-      const score = matchTemplate(source, tmpl, frameGray, maxDim, config.crop);
+      let score = matchTemplate(source, tmpl, frameGray, maxDim, config.crop);
+
+      // Apply negative region penalty: high match on negative region suppresses detection
+      const negRegions = tmpl.regions.filter(
+        (r) => r.polarity === "negative",
+      );
+      if (negRegions.length > 0 && score > 0) {
+        // Score negative regions using the same hybrid match pipeline
+        const posRegions = tmpl.regions.filter(
+          (r) => r.polarity !== "negative",
+        );
+        const negativeTmpl = { ...tmpl, regions: negRegions };
+        const negScore = matchTemplate(source, negativeTmpl, frameGray, maxDim, config.crop);
+        score = score * Math.max(0, 1 - negScore);
+      }
 
       if (score > bestScore) {
         bestScore = score;

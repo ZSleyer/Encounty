@@ -99,6 +99,7 @@ export interface MatchedRegion {
   type: "image" | "text";
   expected_text: string;
   rect: DetectorRect;
+  polarity?: "positive" | "negative";
 }
 
 /** DetectorTemplate bundles the saved screenshot and its defined regions. */
@@ -130,7 +131,9 @@ export interface DetectorConfig {
   rematch_threshold_offset?: number;   // 0.01–0.15
   rematch_window_sec?: number;         // 1–30
   replay_buffer_sec?: number;          // 10–120
+  adaptive_threshold?: boolean;        // auto-adjust precision based on region size (default: true)
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
+  ocr_backend?: "onnx" | "tesseract";  // OCR engine: ONNX (GPU) or tesseract (CPU fallback)
 }
 
 /** DetectorCapabilities reports which capture backends the server supports. */

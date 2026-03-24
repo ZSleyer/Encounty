@@ -132,6 +132,7 @@ func migrateBaseline(tx *sql.Tx) error {
 		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE detector_configs ADD COLUMN relative_regions INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
+		`ALTER TABLE template_regions ADD COLUMN is_negative INTEGER NOT NULL DEFAULT 0`,
 	}
 	for _, s := range alterStmts {
 		_, _ = tx.Exec(s)

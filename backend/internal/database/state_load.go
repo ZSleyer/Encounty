@@ -308,7 +308,7 @@ func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTempla
 
 // loadTemplateRegions reads matched regions for a single template.
 func loadTemplateRegions(db *sql.DB, templateID int64) ([]state.MatchedRegion, error) {
-	rows, err := db.Query(`SELECT type, expected_text, rect_x, rect_y, rect_w, rect_h
+	rows, err := db.Query(`SELECT type, expected_text, rect_x, rect_y, rect_w, rect_h, is_negative
 		FROM template_regions WHERE template_id = ? ORDER BY sort_order`, templateID)
 	if err != nil {
 		return nil, err
@@ -318,8 +318,12 @@ func loadTemplateRegions(db *sql.DB, templateID int64) ([]state.MatchedRegion, e
 	var regions []state.MatchedRegion
 	for rows.Next() {
 		var r state.MatchedRegion
-		if err := rows.Scan(&r.Type, &r.ExpectedText, &r.Rect.X, &r.Rect.Y, &r.Rect.W, &r.Rect.H); err != nil {
+		var isNeg int
+		if err := rows.Scan(&r.Type, &r.ExpectedText, &r.Rect.X, &r.Rect.Y, &r.Rect.W, &r.Rect.H, &isNeg); err != nil {
 			return nil, err
+		}
+		if isNeg != 0 {
+			r.Polarity = "negative"
 		}
 		regions = append(regions, r)
 	}

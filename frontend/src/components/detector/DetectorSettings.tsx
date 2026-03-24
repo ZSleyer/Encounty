@@ -25,7 +25,7 @@ export type DetectorSettingsProps = Readonly<{
 // ── Default config ───────────────────────────────────────────────────────────
 
 const DEFAULT_CONFIG = {
-  precision: 0.55,
+  precision: 0.8,
   consecutive_hits: 1,
   cooldown_sec: 8,
   change_threshold: 0.15,
@@ -201,6 +201,21 @@ export function DetectorSettings({
                 </div>
               )}
             </div>
+              <div className="flex items-start gap-2">
+                <input
+                  id="det-adaptive-threshold"
+                  type="checkbox"
+                  checked={cfg.adaptive_threshold ?? true}
+                  onChange={(e) => onUpdate({ adaptive_threshold: e.target.checked })}
+                  className="mt-0.5 accent-amber-400"
+                />
+                <div className="flex-1">
+                  <label htmlFor="det-adaptive-threshold" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
+                    {t("detector.adaptiveThreshold")}
+                  </label>
+                  <p className="text-[10px] text-text-faint mt-0.5">{t("detector.adaptiveThresholdDesc")}</p>
+                </div>
+              </div>
               <div className="flex items-start gap-2">
                 <input
                   id="det-relative-regions"

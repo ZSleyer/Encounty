@@ -8,6 +8,11 @@
  *
  * Polling is adaptive: fast near a potential match, slow when the scene
  * is static.
+ *
+ * Includes temporal coherence features:
+ * - Exponential Moving Average (EMA) for smoothed confidence display
+ * - Hysteresis to prevent double-counting near the threshold
+ * - Adaptive threshold that adjusts precision based on region size
  */
 import type { Detector, DetectorResult, TemplateData } from "../engine";
 import { apiUrl } from "../utils/api";
@@ -22,6 +27,11 @@ interface Rect {
   h: number;
 }
 
+/** Region definition for adaptive threshold computation. */
+interface Region {
+  rect: Rect;
+}
+
 /** Configuration for the detection loop. */
 interface DetectionLoopConfig {
   /** NCC score threshold for a positive match (0.0–1.0). */
@@ -32,6 +42,10 @@ interface DetectionLoopConfig {
   changeThreshold: number;
   /** Number of consecutive frames above precision to confirm a match. */
   consecutiveHits: number;
+  /** Whether to adjust precision based on region size (default: true). */
+  adaptiveThreshold?: boolean;
+  /** Template regions used for adaptive threshold computation. */
+  regions?: Region[];
 }
 
 // --- Adaptive polling constants ----------------------------------------------
@@ -42,6 +56,11 @@ const MIN_POLL_MS = 30;
 const MAX_POLL_MS = 500;
 /** Default starting interval in ms. */
 const DEFAULT_POLL_MS = 100;
+
+// --- EMA smoothing constant --------------------------------------------------
+
+/** Weight for the newest score in the exponential moving average. */
+const EMA_ALPHA = 0.3;
 
 // --- DetectionLoop -----------------------------------------------------------
 
@@ -63,21 +82,29 @@ export class DetectionLoop {
   private lastScore = 0;
   private rafId: number | null = null;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
-  private onScoreCallback: ((score: number, state: string) => void) | null = null;
+
+  /** Smoothed score (EMA) used for live confidence display. */
+  private smoothedScore = 0;
+
+  /** When true, a match was just confirmed and we wait for the score to drop before re-triggering. */
+  private inHysteresis = false;
+
+  /** Optional callback for live score reporting. */
+  private scoreCallback: ((score: number, state: string) => void) | null = null;
 
   constructor(pokemonId: string, detector: Detector) {
     this.pokemonId = pokemonId;
     this.detector = detector;
   }
 
-  /** Register a callback for live score updates (called every detection cycle). */
-  onScore(cb: (score: number, state: string) => void): void {
-    this.onScoreCallback = cb;
-  }
-
   /** Load or replace templates for matching. */
   loadTemplates(templates: TemplateData[]): void {
     this.templates = templates;
+  }
+
+  /** Register a callback for live score updates. */
+  onScore(cb: (score: number, state: string) => void): void {
+    this.scoreCallback = cb;
   }
 
   /** Update detection configuration (partial merge). */
@@ -94,6 +121,8 @@ export class DetectionLoop {
     this.running = true;
     this.consecutiveCount = 0;
     this.lastScore = 0;
+    this.smoothedScore = 0;
+    this.inHysteresis = false;
     this.pollIntervalMs = DEFAULT_POLL_MS;
     this.runLoop(getVideo);
   }
@@ -113,20 +142,31 @@ export class DetectionLoop {
 
   // --- Internal loop ---------------------------------------------------------
 
+  /**
+   * Compute the effective precision, optionally adjusted for region size.
+   *
+   * Larger regions tend to produce slightly lower NCC scores due to more
+   * background noise, so we reduce the threshold proportionally (capped).
+   */
+  private computeEffectivePrecision(): number {
+    const { precision, adaptiveThreshold, regions } = this.config;
+
+    // Adaptive threshold is enabled by default unless explicitly disabled
+    if (adaptiveThreshold === false || !regions || regions.length === 0) {
+      return precision;
+    }
+
+    const regionArea = regions.reduce((sum, r) => sum + r.rect.w * r.rect.h, 0);
+    const adjustment = 0.05 * Math.min(regionArea / 500_000, 0.2);
+    return precision - adjustment;
+  }
+
   private async runLoop(getVideo: () => HTMLVideoElement | null): Promise<void> {
     if (!this.running) return;
 
     const video = getVideo();
 
-    // Auto-stop when the video element disappears (stream ended or capture stopped)
-    if (!video) {
-      this.stop();
-      return;
-    }
-
-    const loopStart = performance.now();
-
-    if (video.videoWidth > 0 && video.videoHeight > 0 && this.templates.length > 0) {
+    if (video && video.videoWidth > 0 && video.videoHeight > 0 && this.templates.length > 0) {
       try {
         const result: DetectorResult = await this.detector.detect(
           video,
@@ -138,26 +178,43 @@ export class DetectionLoop {
           },
         );
 
-        const delta = performance.now() - loopStart;
-        this.lastScore = result.bestScore;
+        const rawScore = result.bestScore;
+        this.lastScore = rawScore;
 
-        if (result.bestScore >= this.config.precision) {
+        // Update the smoothed score (EMA) for live confidence display
+        this.smoothedScore = EMA_ALPHA * rawScore + (1 - EMA_ALPHA) * this.smoothedScore;
+
+        const effectivePrecision = this.computeEffectivePrecision();
+
+        // Hysteresis: after a confirmed match, require the score to drop
+        // well below the threshold before allowing a new match sequence
+        if (this.inHysteresis) {
+          if (rawScore < this.config.precision * 0.7) {
+            this.inHysteresis = false;
+          }
+          // Reset consecutive counter while in hysteresis to avoid double-counting
+          this.consecutiveCount = 0;
+        } else if (rawScore >= effectivePrecision) {
           this.consecutiveCount += 1;
         } else {
           this.consecutiveCount = 0;
         }
 
-        // Confirmed match — notify backend only when consecutive threshold is met
+        // Confirmed match — reset counter and enter hysteresis
         if (this.consecutiveCount >= this.config.consecutiveHits) {
           this.consecutiveCount = 0;
-          this.reportScore(result.bestScore, result.frameDelta);
+          this.inHysteresis = true;
         }
 
-        // Report live score to the frontend for confidence badge display
-        const state = this.consecutiveCount > 0 ? "match_active" : "idle";
-        this.onScoreCallback?.(result.bestScore, state);
+        // Report the smoothed score for live confidence display,
+        // but the backend uses the raw score for state machine decisions.
+        this.reportScore(this.smoothedScore, result.frameDelta);
 
-        this.pollIntervalMs = this.computeNextInterval(result.bestScore, result.frameDelta);
+        // Notify live score callback for UI updates
+        const state = this.inHysteresis ? "cooldown" : rawScore >= effectivePrecision ? "match" : "idle";
+        this.scoreCallback?.(this.smoothedScore, state);
+
+        this.pollIntervalMs = this.computeNextInterval(rawScore, result.frameDelta);
       } catch {
         // Detection error — back off to avoid tight error loops
         this.pollIntervalMs = MAX_POLL_MS;

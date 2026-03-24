@@ -10,7 +10,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon,
-  Type, Loader2, ScanText, Play,
+  Type, Loader2, ScanText, Play, ShieldBan,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { MatchedRegion } from "../../types";
@@ -156,7 +156,7 @@ export function TemplateEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { recognize, isRecognizing, ocrError } = useOCR(ocrLang);
+  const { recognize, isRecognizing, ocrError } = useOCR({ backend: "onnx", lang: ocrLang });
 
   // Track the actual rendered image area within the object-contain container.
   const [imageBounds, setImageBounds] = useState<{
@@ -562,30 +562,42 @@ export function TemplateEditor({
             }}
           >
             {/* Existing regions */}
-            {snapshotWidth > 0 && regions.map((r, i) => (
-              <div
-                key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
-                className={`absolute border-[3px] pointer-events-none transition-colors ${
-                  r.type === "text"
-                    ? "border-purple-500 bg-purple-500/30"
-                    : "border-accent-blue bg-accent-blue/30"
-                }`}
-                style={{
-                  left: `${(r.rect.x / snapshotWidth) * 100}%`,
-                  top: `${(r.rect.y / snapshotHeight) * 100}%`,
-                  width: `${(r.rect.w / snapshotWidth) * 100}%`,
-                  height: `${(r.rect.h / snapshotHeight) * 100}%`,
-                }}
-              >
-                <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
-                  <strong className={r.type === "text" ? "text-purple-400" : "text-accent-blue"}>#{i + 1}</strong>
-                  {r.type === "text" ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" /> : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />}
-                  {r.type === "text" && r.expected_text ? (
-                    <span className="opacity-80 ml-1 truncate max-w-15">"{r.expected_text}"</span>
-                  ) : null}
+            {snapshotWidth > 0 && regions.map((r, i) => {
+              const isNeg = r.polarity === "negative";
+              return (
+                <div
+                  key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
+                  className={`absolute border-[3px] pointer-events-none transition-colors ${
+                    isNeg
+                      ? "border-red-500 bg-red-500/20 border-dashed"
+                      : r.type === "text"
+                        ? "border-purple-500 bg-purple-500/30"
+                        : "border-accent-blue bg-accent-blue/30"
+                  }`}
+                  style={{
+                    left: `${(r.rect.x / snapshotWidth) * 100}%`,
+                    top: `${(r.rect.y / snapshotHeight) * 100}%`,
+                    width: `${(r.rect.w / snapshotWidth) * 100}%`,
+                    height: `${(r.rect.h / snapshotHeight) * 100}%`,
+                  }}
+                >
+                  <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
+                    <strong className={isNeg ? "text-red-400" : r.type === "text" ? "text-purple-400" : "text-accent-blue"}>#{i + 1}</strong>
+                    {isNeg ? (
+                      <ShieldBan className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-red-400" />
+                    ) : r.type === "text" ? (
+                      <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+                    ) : (
+                      <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+                    )}
+                    {isNeg && <span className="text-red-400 font-bold">NOT</span>}
+                    {!isNeg && r.type === "text" && r.expected_text ? (
+                      <span className="opacity-80 ml-1 truncate max-w-15">"{r.expected_text}"</span>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
             {/* Current drawing box */}
             {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
@@ -639,20 +651,29 @@ export function TemplateEditor({
       {/* Region List Editor */}
       {phase === "snapshot" && regions.length > 0 && (
         <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-3 mb-2 max-h-32 2xl:max-h-40 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
-          {regions.map((r, i) => (
-            <div key={`region-edit-${r.type}-${r.rect.x}-${r.rect.y}-${i}`} className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-2 shadow-lg hover:border-accent-blue/50 transition-colors">
-              <span className={`font-mono font-bold w-5 shrink-0 ${r.type === "text" ? "text-purple-400" : "text-accent-blue"}`}>
+          {regions.map((r, i) => {
+            const isNeg = r.polarity === "negative";
+            return (
+            <div key={`region-edit-${r.type}-${r.rect.x}-${r.rect.y}-${i}`} className={`flex items-center gap-2 bg-bg-card border rounded-lg px-3 py-2 shadow-lg transition-colors ${isNeg ? "border-red-500/50 hover:border-red-400" : "border-border-subtle hover:border-accent-blue/50"}`}>
+              <span className={`font-mono font-bold w-5 shrink-0 ${isNeg ? "text-red-400" : r.type === "text" ? "text-purple-400" : "text-accent-blue"}`}>
                 #{i + 1}
               </span>
-              <select
-                className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
-                value={r.type}
-                onChange={(e) => updateRegion(i, { type: e.target.value as "image" | "text" })}
-              >
-                <option value="image">{t("templateEditor.regionImage")}</option>
-                <option value="text">{t("templateEditor.regionText")} (OCR)</option>
-              </select>
-              {r.type === "text" && (
+              {!isNeg && (
+                <select
+                  className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
+                  value={r.type}
+                  onChange={(e) => updateRegion(i, { type: e.target.value as "image" | "text" })}
+                >
+                  <option value="image">{t("templateEditor.regionImage")}</option>
+                  <option value="text">{t("templateEditor.regionText")} (OCR)</option>
+                </select>
+              )}
+              {isNeg && (
+                <span className="text-xs 2xl:text-sm text-red-400 font-medium px-1">
+                  {t("templateEditor.negativeRegion")}
+                </span>
+              )}
+              {!isNeg && r.type === "text" && (
                 <>
                   <input
                     type="text"
@@ -677,6 +698,13 @@ export function TemplateEditor({
               )}
               <div className="w-px h-6 bg-border-subtle mx-1"></div>
               <button
+                title={isNeg ? t("templateEditor.setPositive") : t("templateEditor.setNegative")}
+                onClick={() => updateRegion(i, { polarity: isNeg ? "positive" : "negative" })}
+                className={`transition-colors p-1 ${isNeg ? "text-red-400 hover:text-green-400" : "text-text-muted hover:text-red-400"}`}
+              >
+                <ShieldBan className="w-4 h-4 2xl:w-5 2xl:h-5" />
+              </button>
+              <button
                 title={t("templateEditor.deleteRegion")}
                 onClick={() => deleteRegion(i)}
                 className="text-text-muted hover:text-red-400 transition-colors p-1"
@@ -684,7 +712,8 @@ export function TemplateEditor({
                  <Trash2 className="w-4 h-4 2xl:w-5 2xl:h-5" />
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

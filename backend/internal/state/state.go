@@ -72,9 +72,10 @@ type HotkeyMap struct {
 
 // MatchedRegion defines a bounding box within a template and its match criteria.
 type MatchedRegion struct {
-	Type         string       `json:"type"`          // "image" | "text"
-	ExpectedText string       `json:"expected_text"` // used if Type == "text"
+	Type         string       `json:"type"`                   // "image" | "text"
+	ExpectedText string       `json:"expected_text"`          // used if Type == "text"
 	Rect         DetectorRect `json:"rect"`
+	Polarity     string       `json:"polarity,omitempty"`     // "positive" (default) | "negative"
 }
 
 // DetectorTemplate bundles a saved screenshot and its defined regions.

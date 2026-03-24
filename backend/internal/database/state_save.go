@@ -712,12 +712,13 @@ func saveNewTemplateRegions(tx *sql.Tx, pokemon []state.Pokemon) error {
 // insertRegions inserts a slice of MatchedRegion rows for a given template ID.
 func insertRegions(tx *sql.Tx, templateID int64, regions []state.MatchedRegion) error {
 	for i, r := range regions {
+		isNeg := r.Polarity == "negative"
 		if _, err := tx.Exec(`
 			INSERT INTO template_regions (template_id, type, expected_text,
-				rect_x, rect_y, rect_w, rect_h, sort_order)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				rect_x, rect_y, rect_w, rect_h, sort_order, is_negative)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			templateID, r.Type, r.ExpectedText,
-			r.Rect.X, r.Rect.Y, r.Rect.W, r.Rect.H, i,
+			r.Rect.X, r.Rect.Y, r.Rect.W, r.Rect.H, i, boolToInt(isNeg),
 		); err != nil {
 			return fmt.Errorf("insert region for template %d: %w", templateID, err)
 		}

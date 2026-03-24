@@ -451,6 +451,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "templateEditor.ocrHint":
       "Text-Regionen werden per OCR mit dem erwarteten Text verglichen.",
     "templateEditor.deleteRegion": "Region löschen",
+    "templateEditor.negativeRegion": "Negativ (unterdrückt Treffer)",
+    "templateEditor.setNegative": "Als negative Region markieren",
+    "templateEditor.setPositive": "Als positive Region markieren",
     "templateEditor.regionN": "Region",
 
     // ── Region Picker ──
@@ -625,6 +628,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.adaptiveCooldownMin": "Min. Cooldown (s)",
     "detector.relativeRegions": "Relative Regionen",
     "detector.relativeRegionsDesc": "Template-Regionen proportional skalieren wenn sich die Fenstergröße ändert",
+    "detector.cpuFallbackWarning": "WebGPU nicht verfügbar — Erkennung läuft auf CPU (langsamer, reduzierte Genauigkeit)",
+    "detector.adaptiveThreshold": "Adaptiver Schwellenwert",
+    "detector.adaptiveThresholdDesc": "Passt den Schwellenwert automatisch basierend auf der Regionsgröße an",
 
     // ── Detector: Re-Match & Replay ──
     "detector.rematchReplay": "Re-Match & Replay",
@@ -1092,6 +1098,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "templateEditor.ocrHint":
       "Text regions are matched against the expected text via OCR.",
     "templateEditor.deleteRegion": "Delete Region",
+    "templateEditor.negativeRegion": "Negative (suppresses match)",
+    "templateEditor.setNegative": "Mark as negative region",
+    "templateEditor.setPositive": "Mark as positive region",
     "templateEditor.regionN": "Region",
 
     // ── Region Picker ──
@@ -1265,6 +1274,9 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.adaptiveCooldownMin": "Min. cooldown (s)",
     "detector.relativeRegions": "Relative Regions",
     "detector.relativeRegionsDesc": "Scale template regions proportionally when the window size changes",
+    "detector.cpuFallbackWarning": "WebGPU unavailable — detection running on CPU (slower, reduced accuracy)",
+    "detector.adaptiveThreshold": "Adaptive threshold",
+    "detector.adaptiveThresholdDesc": "Automatically adjusts threshold based on region size",
 
     // ── Detector: Re-Match & Replay ──
     "detector.rematchReplay": "Re-Match & Replay",
