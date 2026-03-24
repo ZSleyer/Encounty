@@ -10,6 +10,7 @@ interface CaptureSource {
 
 interface ElectronAPI {
   isElectron: true;
+  apiBaseUrl: string;
   isWayland: boolean;
   platform: 'win32' | 'linux';
   minimize(): void;

@@ -18,13 +18,8 @@ interface CaptureSource {
 const isWayland = process.platform === 'linux' &&
   (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
 
-// Inject the API base URL so the frontend can reach the Go backend.
-// In production (encounty:// protocol), API calls go to http://localhost:8080.
-// In dev mode (loaded from Vite at localhost:5173), the Vite proxy handles
-// /api and /ws, so the base must be empty.
 const isDevMode = process.argv.includes('--dev') ||
   (globalThis as any).location?.port === '5173';
-(globalThis as any).__ENCOUNTY_API_BASE__ = isDevMode ? '' : 'http://localhost:8080';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
