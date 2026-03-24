@@ -63,10 +63,16 @@ export class DetectionLoop {
   private lastScore = 0;
   private rafId: number | null = null;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
+  private onScoreCallback: ((score: number, state: string) => void) | null = null;
 
   constructor(pokemonId: string, detector: Detector) {
     this.pokemonId = pokemonId;
     this.detector = detector;
+  }
+
+  /** Register a callback for live score updates (called every detection cycle). */
+  onScore(cb: (score: number, state: string) => void): void {
+    this.onScoreCallback = cb;
   }
 
   /** Load or replace templates for matching. */
@@ -141,14 +147,15 @@ export class DetectionLoop {
           this.consecutiveCount = 0;
         }
 
-        // Confirmed match — notify backend with match flag
+        // Confirmed match — notify backend only when consecutive threshold is met
         if (this.consecutiveCount >= this.config.consecutiveHits) {
           this.consecutiveCount = 0;
+          this.reportScore(result.bestScore, result.frameDelta);
         }
 
-        // Report every detection result so the backend can broadcast
-        // detector_status with live confidence to the frontend.
-        this.reportScore(result.bestScore, result.frameDelta);
+        // Report live score to the frontend for confidence badge display
+        const state = this.consecutiveCount > 0 ? "match_active" : "idle";
+        this.onScoreCallback?.(result.bestScore, state);
 
         this.pollIntervalMs = this.computeNextInterval(result.bestScore, result.frameDelta);
       } catch {

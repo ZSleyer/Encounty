@@ -277,21 +277,17 @@ function matchTemplate(
     const frameRw = Math.max(4, Math.round(r.w * scaleX));
     const frameRh = Math.max(4, Math.round(r.h * scaleY));
 
-    // Crop the region from the frame
-    const frameCrop = cropGrayscale(tmpCtx, frameRx, frameRy, frameRw, frameRh, maxDim);
-    // Crop the region from the template (using original pixel data)
-    const tmplCrop = cropTemplateRegion(tmpl, r.x, r.y, r.w, r.h, maxDim);
+    // Crop the region from frame and template at the SAME target size
+    // for direct block-SSIM comparison (no sliding window).
+    const [dw, dh] = fitDimensions(r.w, r.h, maxDim);
+    const frameCrop = cropGrayscale(tmpCtx, frameRx, frameRy, frameRw, frameRh, dw, dh);
+    const tmplCrop = cropTemplateGray(tmpl, r.x, r.y, r.w, r.h, dw, dh);
     if (!tmplCrop) continue;
 
-    const score = ncc(
-      frameCrop.gray, frameCrop.width, frameCrop.height,
-      tmplCrop.gray, tmplCrop.width, tmplCrop.height,
-      tmplCrop.mean, tmplCrop.stdDev,
-    );
+    const score = blockSSIM(frameCrop.gray, tmplCrop, dw, dh);
 
     evaluated++;
     if (score < minScore) minScore = score;
-    // Early exit: if any region is below a reasonable threshold, skip the rest
     if (minScore < 0.3) return minScore;
   }
 
@@ -320,16 +316,14 @@ function matchWholeTemplate(
   );
 }
 
-/** Crop a region from a canvas context and convert to grayscale. */
+/** Crop a region from a canvas context, scale to target size, convert to grayscale. */
 function cropGrayscale(
   ctx: OffscreenCanvasRenderingContext2D,
   x: number, y: number, w: number, h: number,
-  maxDim: number,
+  dw: number, dh: number,
 ): { gray: Float32Array; width: number; height: number } {
-  const [dw, dh] = fitDimensions(w, h, maxDim);
   const cropCanvas = new OffscreenCanvas(dw, dh);
   const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true })!;
-  // Draw the region scaled down to maxDim
   cropCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, dw, dh);
   const pixels = cropCtx.getImageData(0, 0, dw, dh).data;
   const n = dw * dh;
@@ -340,40 +334,90 @@ function cropGrayscale(
   return { gray, width: dw, height: dh };
 }
 
-/** Crop a region from a template's gray data and downscale. */
-function cropTemplateRegion(
+/** Crop a region from a template's gray data and scale to target size. */
+function cropTemplateGray(
   tmpl: TemplateData,
   rx: number, ry: number, rw: number, rh: number,
-  maxDim: number,
-): GrayTemplate | null {
+  dw: number, dh: number,
+): Float32Array | null {
   if (!tmpl.gray || rw < 4 || rh < 4) return null;
-  const [dw, dh] = fitDimensions(rw, rh, maxDim);
   const n = dw * dh;
   const gray = new Float32Array(n);
   const scaleX = rw / dw;
   const scaleY = rh / dh;
 
-  let sum = 0;
   for (let y = 0; y < dh; y++) {
     for (let x = 0; x < dw; x++) {
       const sx = Math.min(Math.floor(x * scaleX) + rx, tmpl.width - 1);
       const sy = Math.min(Math.floor(y * scaleY) + ry, tmpl.height - 1);
-      const v = tmpl.gray[sy * tmpl.width + sx];
-      gray[y * dw + x] = v;
-      sum += v;
+      gray[y * dw + x] = tmpl.gray[sy * tmpl.width + sx];
+    }
+  }
+  return gray;
+}
+
+/**
+ * Block-based SSIM for direct 1:1 region comparison.
+ *
+ * Divides both crops into 32x32 blocks, computes SSIM per block, and returns
+ * the median score. This is much more discriminative than global NCC because
+ * it catches local mismatches that global statistics would average out.
+ */
+function blockSSIM(
+  frameCrop: Float32Array,
+  tmplCrop: Float32Array,
+  w: number,
+  h: number,
+): number {
+  const blockSize = 32;
+  const L = 255;
+  const c1 = (0.01 * L) ** 2;
+  const c2 = (0.03 * L) ** 2;
+
+  const blocksX = Math.max(1, Math.floor(w / blockSize));
+  const blocksY = Math.max(1, Math.floor(h / blockSize));
+  const scores: number[] = [];
+
+  for (let by = 0; by < blocksY; by++) {
+    for (let bx = 0; bx < blocksX; bx++) {
+      const ox = bx * blockSize;
+      const oy = by * blockSize;
+      const bw = Math.min(blockSize, w - ox);
+      const bh = Math.min(blockSize, h - oy);
+      if (bw < 4 || bh < 4) continue;
+
+      const bn = bw * bh;
+      let fSum = 0, tSum = 0, fSum2 = 0, tSum2 = 0, ftSum = 0;
+      for (let y = 0; y < bh; y++) {
+        for (let x = 0; x < bw; x++) {
+          const idx = (oy + y) * w + (ox + x);
+          const fv = frameCrop[idx];
+          const tv = tmplCrop[idx];
+          fSum += fv; tSum += tv;
+          fSum2 += fv * fv; tSum2 += tv * tv;
+          ftSum += fv * tv;
+        }
+      }
+
+      const fMean = fSum / bn;
+      const tMean = tSum / bn;
+      const fVar = Math.max(0, fSum2 / bn - fMean * fMean);
+      const tVar = Math.max(0, tSum2 / bn - tMean * tMean);
+      const cov = ftSum / bn - fMean * tMean;
+      const fStd = Math.sqrt(fVar);
+      const tStd = Math.sqrt(tVar);
+
+      const lum = (2 * fMean * tMean + c1) / (fMean * fMean + tMean * tMean + c1);
+      const con = (2 * fStd * tStd + c2) / (fVar + tVar + c2);
+      const str = (cov + c2 / 2) / (fStd * tStd + c2 / 2);
+
+      scores.push(Math.max(0, lum * con * str));
     }
   }
 
-  const mean = sum / n;
-  let varSum = 0;
-  for (let i = 0; i < n; i++) {
-    const d = gray[i] - mean;
-    varSum += d * d;
-  }
-  const stdDev = Math.sqrt(varSum / n);
-  if (stdDev < 1e-6) return null;
-
-  return { gray, width: dw, height: dh, mean, stdDev };
+  if (scores.length === 0) return 0;
+  scores.sort((a, b) => a - b);
+  return scores[Math.floor(scores.length * 0.5)]; // Median
 }
 
 /**

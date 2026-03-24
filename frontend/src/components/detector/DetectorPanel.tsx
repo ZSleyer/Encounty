@@ -94,7 +94,7 @@ export function DetectorPanel({
 }: DetectorPanelProps) {
   const { t } = useI18n();
   const { push: pushToast } = useToast();
-  const { appState } = useCounterStore();
+  const { appState, setDetectorStatus, clearDetectorStatus } = useCounterStore();
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -598,6 +598,12 @@ export function DetectorPanel({
       consecutiveHits: cfg.consecutive_hits,
     });
 
+    // Wire up live score reporting to the Zustand store so the confidence
+    // badge updates in real-time without a backend roundtrip.
+    loop.onScore((score, state) => {
+      setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 });
+    });
+
     // Start the loop — it reads frames from the capture service video element
     loop.start(() => capture.getVideoElement(pokemon.id));
     loopRef.current = loop;
@@ -607,6 +613,7 @@ export function DetectorPanel({
     // Stop the browser-side detection loop first
     loopRef.current?.stop();
     loopRef.current = null;
+    clearDetectorStatus(pokemon.id);
     try { await fetch(apiUrl(`/api/detector/${pokemon.id}/stop`), { method: "POST" }); } catch { /* ignore */ }
   };
 
