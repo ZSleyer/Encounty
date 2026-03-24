@@ -317,6 +317,10 @@ if (gotTheLock) {
 // so the screen capture detection loop keeps running at full speed.
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 
+// WebGPU: override GPU blocklist so NVIDIA works on Linux
+app.commandLine.appendSwitch('disable-gpu-blocklist');
+app.commandLine.appendSwitch('enable-unsafe-webgpu');
+
 // Wayland-specific Chromium flags
 if (isWayland) {
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
@@ -334,20 +338,16 @@ app.setPath('userData', path.join(app.getPath('userData'), 'electron'));
 app.on('ready', async () => {
   Menu.setApplicationMenu(null);
 
-  // Allow media (camera/mic) and display-capture permissions
+  // Allow media, display-capture, and WebGPU permissions
+  const allowedPermissions = new Set(['media', 'display-capture', 'webgpu', 'clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     console.log('[Electron] Permission request:', permission);
-    if (permission === 'media' || permission === 'display-capture') {
-      callback(true);
-      return;
-    }
-    callback(false);
+    callback(allowedPermissions.has(permission));
   });
 
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
     console.log('[Electron] Permission check:', permission);
-    if (permission === 'media' || (permission as string) === 'display-capture') return true;
-    return false;
+    return allowedPermissions.has(permission as string);
   });
 
   // Auto-grant camera device permissions so re-selecting the same camera

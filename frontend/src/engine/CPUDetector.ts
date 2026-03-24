@@ -8,6 +8,9 @@
 
 import type { DetectResult, TemplateData } from "./WebGPUDetector";
 
+/** Source type accepted by CPUDetector: video element or transferable bitmap. */
+type FrameSource = HTMLVideoElement | ImageBitmap;
+
 // ---------------------------------------------------------------------------
 // CPUDetector
 // ---------------------------------------------------------------------------
@@ -122,7 +125,7 @@ export class CPUDetector {
    * computes pixel delta for deduplication, and runs NCC against each template.
    */
   async detect(
-    source: HTMLVideoElement,
+    source: FrameSource,
     templates: TemplateData[],
     config: {
       precision: number;
@@ -193,12 +196,12 @@ export class CPUDetector {
    * grayscale in 0-255 range (matching Go implementation).
    */
   private captureGrayscale(
-    source: HTMLVideoElement,
+    source: FrameSource,
     crop: { x: number; y: number; w: number; h: number } | undefined,
     maxDim: number,
   ): { gray: Float32Array; width: number; height: number } {
-    const srcW = source.videoWidth;
-    const srcH = source.videoHeight;
+    const srcW = source instanceof ImageBitmap ? source.width : source.videoWidth;
+    const srcH = source instanceof ImageBitmap ? source.height : source.videoHeight;
     const cx = crop?.x ?? 0;
     const cy = crop?.y ?? 0;
     const cw = crop?.w ?? srcW;
@@ -248,7 +251,7 @@ interface GrayTemplate {
  * Matches the Go MatchWithRegions logic.
  */
 function matchTemplate(
-  source: HTMLVideoElement,
+  source: FrameSource,
   tmpl: TemplateData,
   frameGray: { gray: Float32Array; width: number; height: number },
   maxDim: number,
@@ -267,8 +270,8 @@ function matchTemplate(
 
   // We need the full-resolution frame pixels for region cropping.
   // Use a temporary canvas to grab the video at its native resolution.
-  const srcW = source.videoWidth;
-  const srcH = source.videoHeight;
+  const srcW = source instanceof ImageBitmap ? source.width : source.videoWidth;
+  const srcH = source instanceof ImageBitmap ? source.height : source.videoHeight;
   if (srcW === 0 || srcH === 0) return 0;
 
   const tmpCanvas = new OffscreenCanvas(srcW, srcH);

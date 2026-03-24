@@ -652,6 +652,8 @@ function PreparingScreen() {
 
 /** Gated shell that shows the license dialog on first launch. */
 function LicenseGate() {
+  const location = useLocation();
+  const isOverlay = location.pathname.startsWith("/overlay");
   const [serverReady, setServerReady] = useState<boolean | null>(null);
   const [status, setStatus] = useState<"loading" | "pending" | "accepted">("loading");
 
@@ -715,7 +717,7 @@ function LicenseGate() {
   return (
     <CaptureServiceProvider>
       <AppShell />
-      <ToastContainer />
+      {!isOverlay && <ToastContainer />}
     </CaptureServiceProvider>
   );
 }

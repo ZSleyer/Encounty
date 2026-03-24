@@ -134,7 +134,7 @@ export function DetectorPreview({
             </div>
           )}
           {/* Confidence overlay badge */}
-          {isRunning && confidence != null && stream && (
+          {isRunning && confidence != null && confidence > 0.01 && stream && (
             <div
               className={`absolute top-2 right-2 px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold backdrop-blur-sm ${confidenceBadgeClass(confidence, cfg.precision || 0.8)}`}
             >

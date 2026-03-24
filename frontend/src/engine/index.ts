@@ -7,6 +7,7 @@
 
 export { WebGPUDetector } from "./WebGPUDetector";
 export { CPUDetector } from "./CPUDetector";
+export { WorkerDetector } from "./WorkerDetector";
 export { OnnxOCR } from "./OnnxOCR";
 export type { DetectResult, TemplateData } from "./WebGPUDetector";
 

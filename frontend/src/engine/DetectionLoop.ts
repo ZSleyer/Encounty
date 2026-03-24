@@ -51,7 +51,7 @@ interface DetectionLoopConfig {
 // --- Adaptive polling constants ----------------------------------------------
 
 /** Fastest polling interval in ms (when score is near threshold). */
-const MIN_POLL_MS = 30;
+const MIN_POLL_MS = 150;
 /** Slowest polling interval in ms (when scene is static). */
 const MAX_POLL_MS = 500;
 /** Default starting interval in ms. */
@@ -62,12 +62,15 @@ const DEFAULT_POLL_MS = 100;
 /** Weight for the newest score in the exponential moving average. */
 const EMA_ALPHA = 0.3;
 
+/** Scores below this floor are mapped to zero to suppress metric noise. */
+const NOISE_FLOOR = 0.15;
+
 // --- DetectionLoop -----------------------------------------------------------
 
 /** Per-pokemon detection loop that runs WebGPU/CPU template matching in the browser. */
 export class DetectionLoop {
-  private pokemonId: string;
-  private detector: Detector;
+  private readonly pokemonId: string;
+  private readonly detector: Detector;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private templates: any[] = [];
   private config: DetectionLoopConfig = {
@@ -79,8 +82,8 @@ export class DetectionLoop {
   private running = false;
   private pollIntervalMs = DEFAULT_POLL_MS;
   private consecutiveCount = 0;
+  private missCount = 0;
   private lastScore = 0;
-  private rafId: number | null = null;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   /** Smoothed score (EMA) used for live confidence display. */
@@ -91,6 +94,10 @@ export class DetectionLoop {
 
   /** Optional callback for live score reporting. */
   private scoreCallback: ((score: number, state: string) => void) | null = null;
+
+  // --- Throttle state for scoreCallback (UI store updates) -----------------
+  private lastScoreCallbackTime = 0;
+  private lastCallbackState = "";
 
   constructor(pokemonId: string, detector: Detector) {
     this.pokemonId = pokemonId;
@@ -120,20 +127,19 @@ export class DetectionLoop {
     if (this.running) return;
     this.running = true;
     this.consecutiveCount = 0;
+    this.missCount = 0;
     this.lastScore = 0;
     this.smoothedScore = 0;
     this.inHysteresis = false;
     this.pollIntervalMs = DEFAULT_POLL_MS;
+    this.lastScoreCallbackTime = 0;
+    this.lastCallbackState = "";
     this.runLoop(getVideo);
   }
 
   /** Stop the detection loop. */
   stop(): void {
     this.running = false;
-    if (this.rafId !== null) {
-      cancelAnimationFrame(this.rafId);
-      this.rafId = null;
-    }
     if (this.timeoutId !== null) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
@@ -165,8 +171,9 @@ export class DetectionLoop {
     if (!this.running) return;
 
     const video = getVideo();
+    const hasValidInput = video && video.videoWidth > 0 && video.videoHeight > 0 && this.templates.length > 0;
 
-    if (video && video.videoWidth > 0 && video.videoHeight > 0 && this.templates.length > 0) {
+    if (hasValidInput) {
       try {
         const result: DetectorResult = await this.detector.detect(
           video,
@@ -178,44 +185,28 @@ export class DetectionLoop {
           },
         );
 
-        const rawScore = result.bestScore;
-        this.lastScore = rawScore;
+        const adjusted = this.applyNoiseFloor(result.bestScore);
+        this.lastScore = adjusted;
+        this.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * this.smoothedScore;
 
-        // Update the smoothed score (EMA) for live confidence display
-        this.smoothedScore = EMA_ALPHA * rawScore + (1 - EMA_ALPHA) * this.smoothedScore;
+        // Periodic score logging for debugging (every ~2s)
+        if (Math.random() < 0.1) {
+          console.log(`[Detection] raw=${result.bestScore.toFixed(3)} adj=${adjusted.toFixed(3)} smooth=${this.smoothedScore.toFixed(3)} poll=${this.pollIntervalMs}ms`);
+        }
 
         const effectivePrecision = this.computeEffectivePrecision();
+        const wasInHysteresis = this.inHysteresis;
+        this.updateMatchState(adjusted, effectivePrecision);
 
-        // Hysteresis: after a confirmed match, require the score to drop
-        // well below the threshold before allowing a new match sequence
-        if (this.inHysteresis) {
-          if (rawScore < this.config.precision * 0.7) {
-            this.inHysteresis = false;
-          }
-          // Reset consecutive counter while in hysteresis to avoid double-counting
-          this.consecutiveCount = 0;
-        } else if (rawScore >= effectivePrecision) {
-          this.consecutiveCount += 1;
-        } else {
-          this.consecutiveCount = 0;
+        // Only notify the backend when a match is confirmed (hysteresis just entered)
+        if (this.inHysteresis && !wasInHysteresis) {
+          this.reportMatch(this.smoothedScore, result.frameDelta);
         }
 
-        // Confirmed match — reset counter and enter hysteresis
-        if (this.consecutiveCount >= this.config.consecutiveHits) {
-          this.consecutiveCount = 0;
-          this.inHysteresis = true;
-        }
-
-        // Report the smoothed score for live confidence display,
-        // but the backend uses the raw score for state machine decisions.
-        this.reportScore(this.smoothedScore, result.frameDelta);
-
-        // Notify live score callback for UI updates
-        const state = this.inHysteresis ? "cooldown" : rawScore >= effectivePrecision ? "match" : "idle";
-        this.scoreCallback?.(this.smoothedScore, state);
-
-        this.pollIntervalMs = this.computeNextInterval(rawScore, result.frameDelta);
-      } catch {
+        this.emitScoreCallback(adjusted, effectivePrecision);
+        this.pollIntervalMs = this.computeNextInterval(adjusted, result.frameDelta);
+      } catch (err) {
+        console.error("[Detection] Error:", err);
         // Detection error — back off to avoid tight error loops
         this.pollIntervalMs = MAX_POLL_MS;
       }
@@ -223,13 +214,83 @@ export class DetectionLoop {
 
     if (!this.running) return;
 
-    // Schedule next iteration: use rAF for frame sync, then setTimeout for interval timing
+    // Schedule next iteration via setTimeout only — no requestAnimationFrame
+    // needed since detection doesn't require frame sync and rAF callbacks
+    // block the browser's rendering pipeline while the async detect() runs.
     this.timeoutId = setTimeout(() => {
       if (!this.running) return;
-      this.rafId = requestAnimationFrame(() => {
-        this.runLoop(getVideo);
-      });
+      this.runLoop(getVideo);
     }, this.pollIntervalMs);
+  }
+
+  /**
+   * Suppress metric noise by remapping low scores to zero.
+   *
+   * The hybrid metric fusion (SSIM+Pearson+MAD+Histogram+dHash) produces
+   * 0.15-0.30 even for unrelated frames due to coarse histogram bins and
+   * MAD normalization. This linear remap eliminates that visual noise.
+   */
+  private applyNoiseFloor(raw: number): number {
+    if (raw <= NOISE_FLOOR) return 0;
+    return (raw - NOISE_FLOOR) / (1 - NOISE_FLOOR);
+  }
+
+  /**
+   * Update hysteresis and consecutive-hit state after scoring a frame.
+   *
+   * After a confirmed match, hysteresis blocks re-triggering until the
+   * score drops well below the threshold (70% of precision).
+   *
+   * Uses a "near-consecutive" approach: a single below-threshold frame
+   * between match frames is tolerated (miss counter) because short
+   * encounter animations can produce intermittent low scores between
+   * high-score frames at typical polling rates.
+   */
+  private updateMatchState(adjusted: number, effectivePrecision: number): void {
+    if (this.inHysteresis) {
+      if (adjusted < this.config.precision * 0.7) {
+        this.inHysteresis = false;
+      }
+      this.consecutiveCount = 0;
+      this.missCount = 0;
+    } else if (adjusted >= effectivePrecision) {
+      this.consecutiveCount += 1;
+      this.missCount = 0;
+    } else if (this.consecutiveCount > 0 && this.missCount < 1) {
+      // Tolerate a single below-threshold frame between match frames
+      this.missCount += 1;
+    } else {
+      this.consecutiveCount = 0;
+      this.missCount = 0;
+    }
+
+    if (this.consecutiveCount >= this.config.consecutiveHits) {
+      this.consecutiveCount = 0;
+      this.missCount = 0;
+      this.inHysteresis = true;
+    }
+  }
+
+  /** Throttled UI callback — fires at most 4 times/second unless the state changes. */
+  private emitScoreCallback(adjusted: number, effectivePrecision: number): void {
+    if (!this.scoreCallback) return;
+
+    let state: string;
+    if (this.inHysteresis) {
+      state = "cooldown";
+    } else if (adjusted >= effectivePrecision) {
+      state = "match";
+    } else {
+      state = "idle";
+    }
+
+    const now = performance.now();
+    const stateChanged = state !== this.lastCallbackState;
+    if (!stateChanged && now - this.lastScoreCallbackTime < 250) return;
+
+    this.lastScoreCallbackTime = now;
+    this.lastCallbackState = state;
+    this.scoreCallback(this.smoothedScore, state);
   }
 
   /**
@@ -251,14 +312,56 @@ export class DetectionLoop {
     return Math.round(Math.max(MIN_POLL_MS, Math.min(MAX_POLL_MS, interval)));
   }
 
-  /** POST the current detection score to the backend for state machine processing. */
-  private reportScore(score: number, frameDelta: number): void {
-    fetch(apiUrl(`/api/detector/${this.pokemonId}/match`), {
+  /**
+   * Increment the encounter counter when a match is confirmed.
+   *
+   * Calls the REST increment endpoint directly instead of the detector
+   * score endpoint, because the frontend already confirmed the match
+   * via its own consecutive-hits + hysteresis logic.
+   */
+  private reportMatch(_score: number, _frameDelta: number): void {
+    console.log(`[Detection] Match confirmed for ${this.pokemonId} — incrementing counter`);
+    fetch(apiUrl(`/api/pokemon/${this.pokemonId}/increment`), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ score, frame_delta: frameDelta }),
     }).catch(() => {
       // Non-critical — backend may be temporarily unreachable
     });
   }
+}
+
+// --- Global loop registry ----------------------------------------------------
+
+/**
+ * Module-level registry of active detection loops, keyed by pokemon ID.
+ *
+ * Survives React component unmount/remount cycles so loops persist across
+ * tab switches and page navigation. Components use getActiveLoop / stopLoop
+ * to interact with running loops without needing a component-level ref.
+ */
+const activeLoops = new Map<string, DetectionLoop>();
+
+/** Register a loop in the global registry (replaces any existing loop for the same pokemon). */
+export function registerLoop(pokemonId: string, loop: DetectionLoop): void {
+  const existing = activeLoops.get(pokemonId);
+  if (existing) existing.stop();
+  activeLoops.set(pokemonId, loop);
+}
+
+/** Get the active loop for a pokemon, or null if none is running. */
+export function getActiveLoop(pokemonId: string): DetectionLoop | null {
+  return activeLoops.get(pokemonId) ?? null;
+}
+
+/** Stop and remove the loop for a pokemon. */
+export function stopLoop(pokemonId: string): void {
+  const loop = activeLoops.get(pokemonId);
+  if (loop) {
+    loop.stop();
+    activeLoops.delete(pokemonId);
+  }
+}
+
+/** Check if a detection loop is running for a pokemon. */
+export function isLoopRunning(pokemonId: string): boolean {
+  return activeLoops.has(pokemonId);
 }

@@ -44,6 +44,7 @@ import { ConfirmModal } from "../components/shared/ConfirmModal";
 import { SetEncounterModal } from "../components/shared/SetEncounterModal";
 import { StatisticsPanel } from "../components/shared/StatisticsPanel";
 import { DetectorPanel } from "../components/detector/DetectorPanel";
+import { isLoopRunning } from "../engine/DetectionLoop";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
@@ -391,7 +392,10 @@ export function Dashboard() {
       onConfirm: () => send("reset", { pokemon_id: id }),
     });
   };
-  const handleActivate = (id: string) => setViewedPokemonId(id);
+  const handleActivate = (id: string) => {
+    setViewedPokemonId(id);
+    setRightPanelTab("counter");
+  };
   const handleDelete = (id: string) => {
     setConfirmConfig({
       isOpen: true,
@@ -900,7 +904,7 @@ export function Dashboard() {
             key={pokemon.id}
             pokemon={pokemon}
             onConfigChange={(cfg) => handleDetectorConfigChange(pokemon.id, cfg)}
-            isRunning={detectorStatus[pokemon.id] !== undefined}
+            isRunning={detectorStatus[pokemon.id] !== undefined || isLoopRunning(pokemon.id)}
             confidence={detectorStatus[pokemon.id]?.confidence ?? 0}
             detectorState={detectorStatus[pokemon.id]?.state ?? "idle"}
           />
