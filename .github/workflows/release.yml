@@ -70,7 +70,6 @@ jobs:
         env:
           GOOS: linux
           GOARCH: amd64
-          CGO_ENABLED: 0
         run: |
           mkdir -p ./frontend
           cp -r ../frontend/dist ./frontend/
