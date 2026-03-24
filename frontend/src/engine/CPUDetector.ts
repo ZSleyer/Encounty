@@ -278,16 +278,57 @@ function matchTemplate(
     const frameRh = Math.max(4, Math.round(r.h * scaleY));
 
     // Crop the region from frame and template at the SAME target size
-    // for direct block-SSIM comparison (no sliding window).
     const [dw, dh] = fitDimensions(r.w, r.h, maxDim);
-    const frameCrop = cropGrayscale(tmpCtx, frameRx, frameRy, frameRw, frameRh, dw, dh);
     const tmplCrop = cropTemplateGray(tmpl, r.x, r.y, r.w, r.h, dw, dh);
     if (!tmplCrop) continue;
 
-    const score = blockSSIM(frameCrop.gray, tmplCrop, dw, dh);
+    // Adaptive block size based on region dimensions
+    const regionMinDim = Math.min(dw, dh);
+    let adaptiveBlockSize: number;
+    if (regionMinDim < 64) {
+      adaptiveBlockSize = 8;
+    } else if (regionMinDim <= 256) {
+      adaptiveBlockSize = 16;
+    } else {
+      adaptiveBlockSize = 32;
+    }
+
+    // Sliding window: try offsets ±4px (step 2) and keep the best match
+    let bestRegionScore = 0;
+    const slideStep = 2;
+    const slideRange = 4;
+
+    for (let dy = -slideRange; dy <= slideRange; dy += slideStep) {
+      for (let dx = -slideRange; dx <= slideRange; dx += slideStep) {
+        const ox = Math.max(0, Math.min(frameRx + dx, srcW - frameRw));
+        const oy = Math.max(0, Math.min(frameRy + dy, srcH - frameRh));
+
+        const frameCrop = cropGrayscale(tmpCtx, ox, oy, frameRw, frameRh, dw, dh);
+
+        // Block-SSIM with adaptive block size
+        const ssimScore = blockSSIM(frameCrop.gray, tmplCrop, dw, dh, adaptiveBlockSize);
+
+        // Global NCC (Pearson correlation) between the two crops
+        const nccScore = pearsonCorrelation(frameCrop.gray, tmplCrop);
+
+        // Histogram correlation on the current sliding-window crop
+        const histScore = histogramCorrelation(frameCrop.gray, tmplCrop);
+
+        // Perceptual difference hash for structural content verification
+        const dhashScore = dHashSimilarity(frameCrop.gray, dw, dh, tmplCrop, dw, dh);
+
+        // Mean Absolute Difference for pixel-level fidelity verification
+        const madScore = madSimilarity(frameCrop.gray, tmplCrop);
+
+        // Hybrid: weighted combination of SSIM, NCC, MAD, histogram, and dHash
+        const combined = 0.3 * ssimScore + 0.25 * nccScore + 0.2 * madScore + 0.15 * histScore + 0.1 * dhashScore;
+
+        if (combined > bestRegionScore) bestRegionScore = combined;
+      }
+    }
 
     evaluated++;
-    if (score < minScore) minScore = score;
+    if (bestRegionScore < minScore) minScore = bestRegionScore;
     if (minScore < 0.3) return minScore;
   }
 
@@ -357,9 +398,145 @@ function cropTemplateGray(
 }
 
 /**
+ * Pearson correlation coefficient between two same-sized grayscale buffers.
+ *
+ * Returns a value in [0, 1] (negative correlations are clamped to 0).
+ * Used as a global NCC measure for hybrid scoring alongside block-SSIM.
+ */
+function pearsonCorrelation(a: Float32Array, b: Float32Array): number {
+  const n = a.length;
+  let sumA = 0, sumB = 0, sumA2 = 0, sumB2 = 0, sumAB = 0;
+  for (let i = 0; i < n; i++) {
+    sumA += a[i]; sumB += b[i];
+    sumA2 += a[i] * a[i]; sumB2 += b[i] * b[i];
+    sumAB += a[i] * b[i];
+  }
+  const meanA = sumA / n, meanB = sumB / n;
+  const varA = sumA2 / n - meanA * meanA;
+  const varB = sumB2 / n - meanB * meanB;
+  const cov = sumAB / n - meanA * meanB;
+  const denom = Math.sqrt(varA) * Math.sqrt(varB);
+  if (denom < 1e-6) return 0;
+  return Math.max(0, cov / denom);
+}
+
+/**
+ * Histogram correlation between two grayscale buffers.
+ *
+ * Computes 64-bin gray histograms for both images and returns their
+ * correlation coefficient. Used as a fast pre-filter to reject frames
+ * where the overall brightness distribution is clearly different from
+ * the template, even if local pixel structures partially match.
+ */
+function histogramCorrelation(a: Float32Array, b: Float32Array): number {
+  const BINS = 64;
+  const histA = new Float64Array(BINS);
+  const histB = new Float64Array(BINS);
+  const scale = BINS / 256; // pixel values are 0-255
+
+  for (let i = 0; i < a.length; i++) {
+    const binA = Math.min(Math.floor(a[i] * scale), BINS - 1);
+    const binB = Math.min(Math.floor(b[i] * scale), BINS - 1);
+    histA[binA]++;
+    histB[binB]++;
+  }
+
+  // Normalize histograms
+  const nA = a.length || 1;
+  const nB = b.length || 1;
+  for (let i = 0; i < BINS; i++) {
+    histA[i] /= nA;
+    histB[i] /= nB;
+  }
+
+  // Correlation coefficient (OpenCV HISTCMP_CORREL)
+  let meanA = 0, meanB = 0;
+  for (let i = 0; i < BINS; i++) {
+    meanA += histA[i];
+    meanB += histB[i];
+  }
+  meanA /= BINS;
+  meanB /= BINS;
+
+  let cov = 0, varA = 0, varB = 0;
+  for (let i = 0; i < BINS; i++) {
+    const da = histA[i] - meanA;
+    const db = histB[i] - meanB;
+    cov += da * db;
+    varA += da * da;
+    varB += db * db;
+  }
+
+  const denom = Math.sqrt(varA * varB);
+  if (denom < 1e-12) return 0;
+  return Math.max(0, cov / denom);
+}
+
+/**
+ * Mean Absolute Difference similarity between two same-sized grayscale buffers.
+ *
+ * Returns 1 - (MAD / 128), clamped to [0, 1]. A score of 1.0 means identical
+ * pixels, 0.0 means average difference >= 128 gray levels. MAD directly measures
+ * pixel-level fidelity and catches false positives from structurally similar but
+ * content-different frames that fool correlation-based metrics.
+ */
+function madSimilarity(a: Float32Array, b: Float32Array): number {
+  const n = a.length;
+  if (n === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < n; i++) {
+    sum += Math.abs(a[i] - b[i]);
+  }
+  return Math.max(0, 1 - sum / (n * 128));
+}
+
+/**
+ * Perceptual difference hash (dHash) similarity between two grayscale buffers.
+ *
+ * Computes a 64-bit fingerprint for each image by resizing to 9x8 and comparing
+ * adjacent pixels. Returns 1 - (hammingDistance / 64), so 1.0 = identical and
+ * 0.0 = maximally different. dHash is robust to small changes in brightness,
+ * contrast, and aspect ratio while being sensitive to structural content changes.
+ */
+function dHashSimilarity(a: Float32Array, w1: number, h1: number, b: Float32Array, w2: number, h2: number): number {
+  const hashA = computeDHash(a, w1, h1);
+  const hashB = computeDHash(b, w2, h2);
+
+  // Hamming distance: count differing bits
+  let dist = 0;
+  for (let i = 0; i < 8; i++) {
+    let xor = hashA[i] ^ hashB[i];
+    while (xor) { dist++; xor &= xor - 1; } // Brian Kernighan bit count
+  }
+  return 1 - dist / 64;
+}
+
+/** Compute 64-bit dHash: resize to 9x8, compare adjacent horizontal pixels. */
+function computeDHash(gray: Float32Array, w: number, h: number): Uint8Array {
+  // Nearest-neighbor resize to 9x8
+  const hash = new Uint8Array(8); // 8 bytes = 64 bits
+  const scaleX = w / 9;
+  const scaleY = h / 8;
+
+  for (let y = 0; y < 8; y++) {
+    let byte = 0;
+    const sy = Math.min(Math.floor(y * scaleY), h - 1);
+    for (let x = 0; x < 8; x++) {
+      const sx1 = Math.min(Math.floor(x * scaleX), w - 1);
+      const sx2 = Math.min(Math.floor((x + 1) * scaleX), w - 1);
+      const left = gray[sy * w + sx1];
+      const right = gray[sy * w + sx2];
+      if (left > right) byte |= (1 << (7 - x));
+    }
+    hash[y] = byte;
+  }
+  return hash;
+}
+
+/**
  * Block-based SSIM for direct 1:1 region comparison.
  *
- * Divides both crops into 32x32 blocks, computes SSIM per block, and returns
+ * Divides both crops into blocks, computes SSIM per block, and returns
  * the median score. This is much more discriminative than global NCC because
  * it catches local mismatches that global statistics would average out.
  */
@@ -368,8 +545,8 @@ function blockSSIM(
   tmplCrop: Float32Array,
   w: number,
   h: number,
+  blockSize: number = 32,
 ): number {
-  const blockSize = 32;
   const L = 255;
   const c1 = (0.01 * L) ** 2;
   const c2 = (0.03 * L) ** 2;

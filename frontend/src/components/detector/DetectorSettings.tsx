@@ -25,7 +25,7 @@ export type DetectorSettingsProps = Readonly<{
 // ── Default config ───────────────────────────────────────────────────────────
 
 const DEFAULT_CONFIG = {
-  precision: 0.8,
+  precision: 0.55,
   consecutive_hits: 1,
   cooldown_sec: 8,
   change_threshold: 0.15,

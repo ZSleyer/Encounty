@@ -1,20 +1,29 @@
 /**
- * WebGPUDetector — GPU-accelerated NCC template matching engine.
+ * WebGPUDetector — GPU-accelerated template matching engine.
  *
  * Implements a wgpu-style compute pipeline in the browser using the
- * WebGPU API. The pipeline stages are:
+ * WebGPU API. Two matching strategies are supported:
  *
+ * **Sliding-window NCC** (templates without regions):
  * 1. Upload video frame to GPU texture (zero-copy via copyExternalImageToTexture)
  * 2. Preprocess: RGBA texture -> grayscale f32 buffer (crop + bilinear downscale)
  * 3. Pixel delta: compare two 64x64 grayscale buffers for frame deduplication
  * 4. NCC: brute-force normalized cross-correlation at all candidate positions
  * 5. Reduce-max: parallel tree reduction to find the best NCC score
+ *
+ * **Region-based Block-SSIM + Pearson hybrid** (templates with regions):
+ * 1. Upload video frame and crop each defined region via the preprocess pipeline
+ * 2. Block-SSIM: GPU compute shader divides each region into blocks, computes
+ *    per-block SSIM, and returns the median score
+ * 3. Pearson: CPU-side Pearson correlation between frame and template region
+ * 4. Hybrid score = 0.3 * SSIM + 0.25 * Pearson + 0.2 * MAD + 0.15 * histogram + 0.1 * dHash, min across all regions
  */
 
 import preprocessShader from "./shaders/preprocess.wgsl?raw";
 import nccShader from "./shaders/ncc.wgsl?raw";
 import pixelDeltaShader from "./shaders/pixel_delta.wgsl?raw";
 import reduceMaxShader from "./shaders/reduce_max.wgsl?raw";
+import blockSsimShader from "./shaders/block_ssim.wgsl?raw";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -54,6 +63,14 @@ export interface TemplateData {
     type: string;
     rect: { x: number; y: number; w: number; h: number };
   }>;
+  /** Pre-cropped region buffers for Block-SSIM + Pearson hybrid matching (WebGPU only). */
+  regionCrops?: Array<{
+    buffer: GPUBuffer;
+    width: number;
+    height: number;
+    rect: { x: number; y: number; w: number; h: number };
+    blockSize: number;
+  }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -88,15 +105,17 @@ const DELTA_NORM = DELTA_DIM * DELTA_DIM * 255 * 1000;
  * ```
  */
 export class WebGPUDetector {
-  private device: GPUDevice;
-  private preprocessPipeline: GPUComputePipeline;
-  private preprocessBGL: GPUBindGroupLayout;
-  private nccPipeline: GPUComputePipeline;
-  private nccBGL: GPUBindGroupLayout;
-  private deltaPipeline: GPUComputePipeline;
-  private deltaBGL: GPUBindGroupLayout;
-  private reducePipeline: GPUComputePipeline;
-  private reduceBGL: GPUBindGroupLayout;
+  private readonly device: GPUDevice;
+  private readonly preprocessPipeline: GPUComputePipeline;
+  private readonly preprocessBGL: GPUBindGroupLayout;
+  private readonly nccPipeline: GPUComputePipeline;
+  private readonly nccBGL: GPUBindGroupLayout;
+  private readonly deltaPipeline: GPUComputePipeline;
+  private readonly deltaBGL: GPUBindGroupLayout;
+  private readonly reducePipeline: GPUComputePipeline;
+  private readonly reduceBGL: GPUBindGroupLayout;
+  private readonly blockSsimPipeline: GPUComputePipeline;
+  private readonly blockSsimBGL: GPUBindGroupLayout;
   private destroyed = false;
 
   private constructor(
@@ -110,6 +129,8 @@ export class WebGPUDetector {
       deltaBGL: GPUBindGroupLayout;
       reduce: GPUComputePipeline;
       reduceBGL: GPUBindGroupLayout;
+      blockSsim: GPUComputePipeline;
+      blockSsimBGL: GPUBindGroupLayout;
     },
   ) {
     this.device = device;
@@ -121,6 +142,8 @@ export class WebGPUDetector {
     this.deltaBGL = pipelines.deltaBGL;
     this.reducePipeline = pipelines.reduce;
     this.reduceBGL = pipelines.reduceBGL;
+    this.blockSsimPipeline = pipelines.blockSsim;
+    this.blockSsimBGL = pipelines.blockSsimBGL;
   }
 
   /** Check whether WebGPU is available in the current browser. */
@@ -172,9 +195,6 @@ export class WebGPUDetector {
     if (source instanceof HTMLVideoElement) {
       width = source.videoWidth;
       height = source.videoHeight;
-    } else if (source instanceof HTMLCanvasElement) {
-      width = source.width;
-      height = source.height;
     } else {
       width = source.width;
       height = source.height;
@@ -212,7 +232,7 @@ export class WebGPUDetector {
   preprocess(
     texture: GPUTexture,
     crop?: { x: number; y: number; w: number; h: number },
-    maxDim?: number,
+    maxDim = 320,
   ): { buffer: GPUBuffer; width: number; height: number } {
     const srcW = texture.width;
     const srcH = texture.height;
@@ -220,7 +240,7 @@ export class WebGPUDetector {
     const cropY = crop?.y ?? 0;
     const cropW = crop?.w ?? srcW;
     const cropH = crop?.h ?? srcH;
-    const md = maxDim ?? 320;
+    const md = maxDim;
 
     const [dstW, dstH] = fitDimensions(cropW, cropH, md);
 
@@ -394,6 +414,74 @@ export class WebGPUDetector {
   }
 
   /**
+   * Region-based Block-SSIM + Pearson hybrid matching.
+   *
+   * For each defined region, crops the corresponding area from the live frame,
+   * computes GPU-accelerated Block-SSIM and CPU Pearson correlation, then
+   * combines them as a 50/50 hybrid score. The final result is the minimum
+   * score across all regions (AND-logic: every region must match).
+   */
+  private async regionHybridMatch(
+    frameTexture: GPUTexture,
+    template: TemplateData,
+  ): Promise<number> {
+    const regionCrops = template.regionCrops!;
+    let minScore = 1;
+
+    // Scale region coordinates from template space to frame (video) space
+    const frameW = frameTexture.width;
+    const frameH = frameTexture.height;
+    const scaleX = frameW / template.width;
+    const scaleY = frameH / template.height;
+
+    for (const regionCrop of regionCrops) {
+      const { rect, width: rw, height: rh, blockSize, buffer: tmplBuf } = regionCrop;
+
+      // Map template-space rect to frame-space crop coordinates
+      const frameCrop = {
+        x: Math.round(rect.x * scaleX),
+        y: Math.round(rect.y * scaleY),
+        w: Math.max(4, Math.round(rect.w * scaleX)),
+        h: Math.max(4, Math.round(rect.h * scaleY)),
+      };
+
+      // Crop the frame region and downscale to match template crop dimensions
+      const { buffer: frameCropBuf } = this.preprocess(frameTexture, frameCrop, Math.max(rw, rh));
+
+      // GPU Block-SSIM
+      const ssimMedian = await this.blockSsimMatch(
+        frameCropBuf,
+        tmplBuf,
+        rw,
+        rh,
+        blockSize,
+      );
+
+      // CPU Pearson: read back both region buffers
+      const frameData = await this.readBufferF32(frameCropBuf, rw * rh);
+      const tmplData = await this.readBufferF32(tmplBuf, rw * rh);
+      const pearson = this.pearsonFromBuffers(frameData, tmplData);
+
+      frameCropBuf.destroy();
+
+      // Histogram correlation as a third scoring component
+      const histCorr = this.histogramCorrelation(frameData, tmplData);
+
+      // Perceptual difference hash for structural content verification
+      const dhashScore = this.dHashSimilarity(frameData, rw, rh, tmplData, rw, rh);
+
+      // Mean Absolute Difference for pixel-level fidelity verification
+      const madScore = this.madSimilarity(frameData, tmplData);
+
+      // Hybrid score: weighted combination of SSIM, Pearson, MAD, histogram, and dHash, clamped to [0, 1]
+      const hybrid = Math.max(0, Math.min(1, 0.3 * ssimMedian + 0.25 * pearson + 0.2 * madScore + 0.15 * histCorr + 0.1 * dhashScore));
+      minScore = Math.min(minScore, hybrid);
+    }
+
+    return minScore;
+  }
+
+  /**
    * Load an image as a GPU-ready grayscale template.
    *
    * Converts the image to grayscale, computes mean and standard deviation,
@@ -464,14 +552,26 @@ export class WebGPUDetector {
       "template_gray",
     );
 
+    // Pre-crop each region from the template for Block-SSIM hybrid matching
+    const regionList = regions ?? [];
+    let regionCrops: TemplateData["regionCrops"];
+
+    if (regionList.length > 0) {
+      regionCrops = regionList.map((region) =>
+        this.cropRegionToGpu(gray, width, region.rect),
+      );
+    }
+
     return {
       grayscaleBuffer,
+      gray,
       width,
       height,
       mean,
       stdDev,
       pixelCount: n,
-      regions: regions ?? [],
+      regions: regionList,
+      regionCrops,
     };
   }
 
@@ -496,30 +596,52 @@ export class WebGPUDetector {
       throw new Error("No templates provided");
     }
 
-    // Upload and preprocess the current frame
+    // Check whether any template uses region-based matching
+    const needsRegionMatch = templates.some(
+      (t) => t.regions.length > 0 && t.regionCrops && t.regionCrops.length > 0,
+    );
+
+    // Upload the current frame; keep the texture alive for region crop passes
     const texture = this.uploadVideoFrame(source);
     const { buffer: frameBuf, width: frameW, height: frameH } =
       this.preprocess(texture, config.crop, config.maxDim);
-    texture.destroy();
+
+    if (!needsRegionMatch) {
+      texture.destroy();
+    }
 
     // Compute pixel delta for frame deduplication
-    let frameDelta = 1.0;
+    let frameDelta = 1;
     if (config.previousFrame) {
       frameDelta = await this.pixelDelta(config.previousFrame, frameBuf);
     }
 
-    // NCC match against each template, track the best
+    // Match against each template, using region-based hybrid or sliding-window NCC
     let bestScore = 0;
     let bestIndex = 0;
 
     for (let i = 0; i < templates.length; i++) {
-      const score = await this.nccMatch(frameBuf, templates[i], frameW, frameH);
+      const tmpl = templates[i];
+      const hasRegions =
+        tmpl.regions.length > 0 && tmpl.regionCrops && tmpl.regionCrops.length > 0;
+
+      let score: number;
+      if (hasRegions) {
+        score = await this.regionHybridMatch(texture, tmpl);
+      } else {
+        score = await this.nccMatch(frameBuf, tmpl, frameW, frameH);
+      }
+
       if (score > bestScore) {
         bestScore = score;
         bestIndex = i;
       }
       // Early exit if we already exceed precision
       if (bestScore >= config.precision) break;
+    }
+
+    if (needsRegionMatch) {
+      texture.destroy();
     }
 
     return {
@@ -529,6 +651,216 @@ export class WebGPUDetector {
       templateIndex: bestIndex,
       frameBuffer: frameBuf,
     };
+  }
+
+  /**
+   * Compute Block-SSIM between two same-sized grayscale GPU buffers.
+   * Returns the median SSIM score across all blocks.
+   */
+  async blockSsimMatch(
+    frameCropBuf: GPUBuffer,
+    tmplCropBuf: GPUBuffer,
+    width: number,
+    height: number,
+    blockSize: number,
+  ): Promise<number> {
+    const blocksX = Math.floor(width / blockSize);
+    const blocksY = Math.floor(height / blockSize);
+    const totalBlocks = blocksX * blocksY;
+
+    if (totalBlocks <= 0) return 0;
+
+    const paramsBuf = this.createBufferWithData(
+      new Uint32Array([width, height, blockSize, 0]),
+      GPUBufferUsage.UNIFORM,
+      "ssim_params",
+    );
+
+    const scoresBuf = this.device.createBuffer({
+      label: "ssim_scores",
+      size: totalBlocks * 4,
+      usage:
+        GPUBufferUsage.STORAGE |
+        GPUBufferUsage.COPY_SRC |
+        GPUBufferUsage.COPY_DST,
+    });
+
+    const bindGroup = this.device.createBindGroup({
+      label: "block_ssim_bg",
+      layout: this.blockSsimBGL,
+      entries: [
+        { binding: 0, resource: { buffer: frameCropBuf } },
+        { binding: 1, resource: { buffer: tmplCropBuf } },
+        { binding: 2, resource: { buffer: paramsBuf } },
+        { binding: 3, resource: { buffer: scoresBuf } },
+      ],
+    });
+
+    const encoder = this.device.createCommandEncoder({
+      label: "ssim_encoder",
+    });
+    const pass = encoder.beginComputePass({ label: "ssim_pass" });
+    pass.setPipeline(this.blockSsimPipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.dispatchWorkgroups(totalBlocks, 1, 1);
+    pass.end();
+    this.device.queue.submit([encoder.finish()]);
+
+    // Read all scores back to CPU and compute median
+    const scoresData = await this.readBufferF32(scoresBuf, totalBlocks);
+    paramsBuf.destroy();
+    scoresBuf.destroy();
+
+    const sorted = Array.from(scoresData).sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
+  }
+
+  /**
+   * Compute Pearson correlation coefficient between two f32 arrays.
+   *
+   * Currently runs on the CPU after reading back GPU buffers. A GPU shader
+   * implementation can replace this in the future for higher throughput.
+   */
+  private pearsonFromBuffers(a: Float32Array, b: Float32Array): number {
+    const n = a.length;
+    if (n === 0 || n !== b.length) return 0;
+
+    let sumA = 0;
+    let sumB = 0;
+    for (let i = 0; i < n; i++) {
+      sumA += a[i];
+      sumB += b[i];
+    }
+    const meanA = sumA / n;
+    const meanB = sumB / n;
+
+    let cov = 0;
+    let varA = 0;
+    let varB = 0;
+    for (let i = 0; i < n; i++) {
+      const da = a[i] - meanA;
+      const db = b[i] - meanB;
+      cov += da * db;
+      varA += da * da;
+      varB += db * db;
+    }
+
+    const denom = Math.sqrt(varA * varB);
+    if (denom < 1e-12) return 0;
+    return cov / denom;
+  }
+
+  /**
+   * Histogram correlation between two grayscale buffers.
+   *
+   * Computes 64-bin gray histograms for both images and returns their
+   * Pearson correlation coefficient. Values are expected in [0, 1] range
+   * (WebGPU normalised grayscale).
+   */
+  private histogramCorrelation(a: Float32Array, b: Float32Array): number {
+    const BINS = 64;
+    const histA = new Float64Array(BINS);
+    const histB = new Float64Array(BINS);
+    const scale = BINS; // values are 0-1, so bin = floor(value * BINS)
+
+    for (let i = 0; i < a.length; i++) {
+      const binA = Math.min(Math.floor(a[i] * scale), BINS - 1);
+      const binB = Math.min(Math.floor(b[i] * scale), BINS - 1);
+      histA[binA]++;
+      histB[binB]++;
+    }
+
+    // Normalize histograms
+    const nA = a.length || 1;
+    const nB = b.length || 1;
+    for (let i = 0; i < BINS; i++) {
+      histA[i] /= nA;
+      histB[i] /= nB;
+    }
+
+    // Correlation coefficient (OpenCV HISTCMP_CORREL)
+    let meanA = 0, meanB = 0;
+    for (let i = 0; i < BINS; i++) {
+      meanA += histA[i];
+      meanB += histB[i];
+    }
+    meanA /= BINS;
+    meanB /= BINS;
+
+    let covH = 0, varHA = 0, varHB = 0;
+    for (let i = 0; i < BINS; i++) {
+      const da = histA[i] - meanA;
+      const db = histB[i] - meanB;
+      covH += da * db;
+      varHA += da * da;
+      varHB += db * db;
+    }
+
+    const denomH = Math.sqrt(varHA * varHB);
+    if (denomH < 1e-12) return 0;
+    return Math.max(0, covH / denomH);
+  }
+
+  /**
+   * Perceptual difference hash (dHash) similarity between two grayscale buffers.
+   *
+   * Computes a 64-bit fingerprint for each image by resizing to 9x8 and comparing
+   * adjacent pixels. Returns 1 - (hammingDistance / 64), so 1.0 = identical and
+   * 0.0 = maximally different. Works on [0, 1] range values from GPU readback since
+   * only relative magnitudes between adjacent pixels matter.
+   */
+  /**
+   * Mean Absolute Difference similarity between two same-sized grayscale buffers.
+   *
+   * Returns 1 - (MAD / 0.5), clamped to [0, 1]. WebGPU grayscale is in [0, 1]
+   * range, so max meaningful difference is ~0.5 for normalization. MAD directly
+   * measures pixel-level fidelity and catches false positives from structurally
+   * similar but content-different frames that fool correlation-based metrics.
+   */
+  private madSimilarity(a: Float32Array, b: Float32Array): number {
+    const n = a.length;
+    if (n === 0) return 0;
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      sum += Math.abs(a[i] - b[i]);
+    }
+    // WebGPU grayscale is [0,1], so max diff is 1.0, normalize by 0.5
+    return Math.max(0, 1 - sum / (n * 0.5));
+  }
+
+  private dHashSimilarity(a: Float32Array, w1: number, h1: number, b: Float32Array, w2: number, h2: number): number {
+    const hashA = this.computeDHash(a, w1, h1);
+    const hashB = this.computeDHash(b, w2, h2);
+
+    // Hamming distance: count differing bits
+    let dist = 0;
+    for (let i = 0; i < 8; i++) {
+      let xor = hashA[i] ^ hashB[i];
+      while (xor) { dist++; xor &= xor - 1; } // Brian Kernighan bit count
+    }
+    return 1 - dist / 64;
+  }
+
+  /** Compute 64-bit dHash: resize to 9x8, compare adjacent horizontal pixels. */
+  private computeDHash(gray: Float32Array, w: number, h: number): Uint8Array {
+    // Nearest-neighbor resize to 9x8
+    const hash = new Uint8Array(8); // 8 bytes = 64 bits
+    const scaleX = w / 9;
+    const scaleY = h / 8;
+
+    for (let y = 0; y < 8; y++) {
+      let byte = 0;
+      const sy = Math.min(Math.floor(y * scaleY), h - 1);
+      for (let x = 0; x < 8; x++) {
+        const sx1 = Math.min(Math.floor(x * scaleX), w - 1);
+        const sx2 = Math.min(Math.floor((x + 1) * scaleX), w - 1);
+        const left = gray[sy * w + sx1];
+        const right = gray[sy * w + sx2];
+        if (left > right) byte |= (1 << (7 - x));
+      }
+      hash[y] = byte;
+    }
+    return hash;
   }
 
   /** Release all GPU resources held by this detector. */
@@ -678,6 +1010,46 @@ export class WebGPUDetector {
       compute: { module: reduceModule, entryPoint: "main" },
     });
 
+    // --- Block-SSIM pipeline ------------------------------------------------
+    const blockSsimModule = device.createShaderModule({
+      label: "block_ssim.wgsl",
+      code: blockSsimShader,
+    });
+
+    const blockSsimBGL = device.createBindGroupLayout({
+      label: "block_ssim_bgl",
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: "read-only-storage" },
+        },
+        {
+          binding: 1,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: "read-only-storage" },
+        },
+        {
+          binding: 2,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: "uniform" },
+        },
+        {
+          binding: 3,
+          visibility: GPUShaderStage.COMPUTE,
+          buffer: { type: "storage" },
+        },
+      ],
+    });
+
+    const blockSsim = device.createComputePipeline({
+      label: "block_ssim_pipeline",
+      layout: device.createPipelineLayout({
+        bindGroupLayouts: [blockSsimBGL],
+      }),
+      compute: { module: blockSsimModule, entryPoint: "main" },
+    });
+
     return {
       preprocess,
       preprocessBGL,
@@ -687,6 +1059,8 @@ export class WebGPUDetector {
       deltaBGL,
       reduce,
       reduceBGL,
+      blockSsim,
+      blockSsimBGL,
     };
   }
 
@@ -787,6 +1161,57 @@ export class WebGPUDetector {
     return result;
   }
 
+  /** Read `count` f32 values from a storage buffer back to the CPU. */
+  private async readBufferF32(
+    src: GPUBuffer,
+    count: number,
+  ): Promise<Float32Array> {
+    const byteSize = count * 4;
+    const staging = this.device.createBuffer({
+      label: "staging_f32_array",
+      size: byteSize,
+      usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    });
+
+    const encoder = this.device.createCommandEncoder({
+      label: "readback_f32_array",
+    });
+    encoder.copyBufferToBuffer(src, 0, staging, 0, byteSize);
+    this.device.queue.submit([encoder.finish()]);
+
+    await staging.mapAsync(GPUMapMode.READ);
+    const result = new Float32Array(staging.getMappedRange()).slice();
+    staging.unmap();
+    staging.destroy();
+    return result;
+  }
+
+  /**
+   * Crop a rectangular region from the full grayscale template and upload it
+   * to a GPU storage buffer for Block-SSIM hybrid matching.
+   */
+  private cropRegionToGpu(
+    gray: Float32Array,
+    templateWidth: number,
+    rect: { x: number; y: number; w: number; h: number },
+  ): NonNullable<TemplateData["regionCrops"]>[number] {
+    const { x, y, w, h } = rect;
+    const cropGray = new Float32Array(w * h);
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col++) {
+        cropGray[row * w + col] = gray[(y + row) * templateWidth + (x + col)];
+      }
+    }
+    const buffer = this.createBufferWithData(
+      cropGray,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      `template_region_${x}_${y}`,
+    );
+    const minSide = Math.min(w, h);
+    const blockSize = adaptiveBlockSize(minSide);
+    return { buffer, width: w, height: h, rect: { x, y, w, h }, blockSize };
+  }
+
   /** Create a GPU buffer initialised with the given typed array data. */
   private createBufferWithData(
     data: ArrayBufferView,
@@ -814,6 +1239,13 @@ export class WebGPUDetector {
 /** Integer division rounding up. */
 function divCeil(a: number, b: number): number {
   return Math.ceil(a / b);
+}
+
+/** Choose SSIM block size based on the smaller region dimension. */
+function adaptiveBlockSize(minSide: number): number {
+  if (minSide >= 64) return 16;
+  if (minSide >= 32) return 8;
+  return 4;
 }
 
 /**

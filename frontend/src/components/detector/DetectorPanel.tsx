@@ -35,7 +35,7 @@ const DEFAULT_CONFIG: DetectorConfig = {
   region: { x: 0, y: 0, w: 0, h: 0 },
   window_title: "",
   templates: [],
-  precision: 0.8,
+  precision: 0.55,
   consecutive_hits: 1,
   cooldown_sec: 8,
   change_threshold: 0.15,
