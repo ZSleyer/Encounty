@@ -24,6 +24,11 @@ var migrations = []migration{
 		description: "baseline schema with legacy tables and normalized v2",
 		fn:          migrateBaseline,
 	},
+	{
+		version:     2,
+		description: "add columns introduced after initial baseline",
+		fn:          migrateAddMissingColumns,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -138,5 +143,24 @@ func migrateBaseline(tx *sql.Tx) error {
 		_, _ = tx.Exec(s)
 	}
 
+	return nil
+}
+
+// migrateAddMissingColumns re-runs the idempotent ALTER TABLE statements from
+// migrateBaseline so that databases which already completed migration 1 (before
+// these columns were added to the baseline) pick them up.
+func migrateAddMissingColumns(tx *sql.Tx) error {
+	stmts := []string{
+		`ALTER TABLE detector_templates ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`,
+		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3`,
+		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
+		`ALTER TABLE detector_configs ADD COLUMN relative_regions INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
+		`ALTER TABLE template_regions ADD COLUMN is_negative INTEGER NOT NULL DEFAULT 0`,
+	}
+	for _, s := range stmts {
+		_, _ = tx.Exec(s)
+	}
 	return nil
 }

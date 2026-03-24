@@ -1,5 +1,20 @@
 components:
   schemas:
+    backgrounds.backgroundUploadRequest:
+      properties:
+        image_base64:
+          type: string
+      type: object
+    backgrounds.filenameResponse:
+      properties:
+        filename:
+          type: string
+      type: object
+    backup.restoreResponse:
+      properties:
+        ok:
+          type: boolean
+      type: object
     database.EncounterStats:
       properties:
         first_at:
@@ -37,17 +52,88 @@ components:
           type: string
         platform:
           type: string
-        sidecar_available:
-          type: boolean
-        sidecar_match_support:
-          description: sidecar can do capture+match
-          type: boolean
         supports_camera:
           type: boolean
         supports_screen_capture:
           type: boolean
         supports_window_capture:
           type: boolean
+      type: object
+    detector.detectorRunResponse:
+      properties:
+        ok:
+          type: boolean
+        running:
+          type: boolean
+      type: object
+    detector.detectorStatusEntry:
+      properties:
+        pokemon_id:
+          type: string
+        running:
+          type: boolean
+      type: object
+    detector.importResponse:
+      properties:
+        imported:
+          type: integer
+      type: object
+    detector.importTemplatesRequest:
+      properties:
+        source_pokemon_id:
+          type: string
+      type: object
+    detector.matchSubmitRequest:
+      properties:
+        frame_delta:
+          type: number
+        score:
+          type: number
+      type: object
+    detector.matchSubmitResponse:
+      properties:
+        confidence:
+          type: number
+        matched:
+          type: boolean
+        poll_ms:
+          type: integer
+      type: object
+    detector.okResponse:
+      properties:
+        ok:
+          type: boolean
+      type: object
+    detector.templateUploadRequest:
+      properties:
+        imageBase64:
+          type: string
+        regions:
+          items:
+            $ref: '#/components/schemas/state.MatchedRegion'
+          type: array
+          uniqueItems: false
+      type: object
+    detector.templateUploadResponse:
+      properties:
+        index:
+          type: integer
+        template_db_id:
+          type: integer
+      type: object
+    games.pokedexSyncResponse:
+      properties:
+        added:
+          type: integer
+        namesUpdated:
+          type: integer
+        new:
+          items:
+            type: string
+          type: array
+          uniqueItems: false
+        total:
+          type: integer
       type: object
     gamesync.GameEntry:
       properties:
@@ -68,6 +154,11 @@ components:
           type: integer
         updated:
           type: integer
+      type: object
+    httputil.ErrResp:
+      properties:
+        error:
+          type: string
       type: object
     licenses.Entry:
       properties:
@@ -109,168 +200,46 @@ components:
         sprite_id:
           type: integer
       type: object
-    server.BackgroundUploadRequest:
-      properties:
-        image_base64:
-          type: string
-      type: object
-    server.CountResponse:
+    pokemon.countResponse:
       properties:
         count:
           type: integer
       type: object
-    server.DetectorRunResponse:
+    pokemon.setEncountersRequest:
       properties:
-        ok:
-          type: boolean
-        running:
-          type: boolean
+        count:
+          type: integer
       type: object
-    server.FilenameResponse:
-      properties:
-        filename:
-          type: string
-      type: object
-    server.HotkeyUpdateResponse:
+    settings.hotkeyUpdateResponse:
       properties:
         action:
           type: string
         key:
           type: string
       type: object
-    server.HotkeysStatusResponse:
+    settings.hotkeysStatusResponse:
       properties:
         available:
           type: boolean
       type: object
-    server.ImportResponse:
-      properties:
-        imported:
-          type: integer
-      type: object
-    server.ImportTemplatesRequest:
-      properties:
-        source_pokemon_id:
-          type: string
-      type: object
-    server.LicenseAcceptResponse:
-      properties:
-        license_accepted:
-          type: boolean
-      type: object
-    server.MatchFrameResponse:
-      properties:
-        confidence:
-          type: number
-        match:
-          type: boolean
-        state:
-          type: string
-      type: object
-    server.OverlayStateResponse:
-      properties:
-        active_id:
-          type: string
-        active_pokemon:
-          $ref: '#/components/schemas/state.Pokemon'
-      type: object
-    server.PathResponse:
+    settings.pathResponse:
       properties:
         path:
           type: string
       type: object
-    server.PokedexSyncResponse:
-      properties:
-        added:
-          type: integer
-        namesUpdated:
-          type: integer
-        new:
-          items:
-            type: string
-          type: array
-          uniqueItems: false
-        total:
-          type: integer
-      type: object
-    server.ReadyStatusResponse:
-      properties:
-        ready:
-          type: boolean
-      type: object
-    server.RestoreResponse:
-      properties:
-        ok:
-          type: boolean
-      type: object
-    server.SetConfigPathRequest:
+    settings.setConfigPathRequest:
       properties:
         path:
           type: string
       type: object
-    server.SetEncountersRequest:
-      properties:
-        count:
-          type: integer
-      type: object
-    server.SpriteTemplateRequest:
-      properties:
-        sprite_url:
-          type: string
-      type: object
-    server.StatusResponse:
+    settings.statusResponse:
       properties:
         status:
           type: string
       type: object
-    server.TemplateUploadRequest:
-      properties:
-        imageBase64:
-          type: string
-        regions:
-          items:
-            $ref: '#/components/schemas/state.MatchedRegion'
-          type: array
-          uniqueItems: false
-      type: object
-    server.TemplateUploadResponse:
-      properties:
-        index:
-          type: integer
-        template_db_id:
-          type: integer
-      type: object
-    server.UpdateApplyRequest:
-      properties:
-        download_url:
-          type: string
-      type: object
-    server.UpdateHotkeyRequest:
+    settings.updateHotkeyRequest:
       properties:
         key:
-          type: string
-      type: object
-    server.VersionResponse:
-      properties:
-        build_date:
-          type: string
-        commit:
-          type: string
-        display:
-          type: string
-        version:
-          type: string
-      type: object
-    server.detectorStatusEntry:
-      properties:
-        pokemon_id:
-          type: string
-        running:
-          type: boolean
-      type: object
-    server.errResp:
-      properties:
-        error:
           type: string
       type: object
     state.AppState:
@@ -372,8 +341,16 @@ components:
           $ref: '#/components/schemas/state.DetectorRect'
         relative_regions:
           type: boolean
+        rematch_enabled:
+          type: boolean
+        rematch_threshold_offset:
+          type: number
+        rematch_window_sec:
+          type: integer
+        replay_buffer_sec:
+          type: integer
         source_type:
-          description: '"screen_region" | "window" | "browser_camera" | "browser_display"'
+          description: '"screen_region" | "window" | "camera"'
           type: string
         templates:
           description: replaces TemplatePaths
@@ -464,6 +441,9 @@ components:
       properties:
         expected_text:
           description: used if Type == "text"
+          type: string
+        polarity:
+          description: '"positive" (default) | "negative"'
           type: string
         rect:
           $ref: '#/components/schemas/state.DetectorRect'
@@ -742,6 +722,49 @@ components:
         overlay_editor:
           type: boolean
       type: object
+    system.licenseAcceptResponse:
+      properties:
+        license_accepted:
+          type: boolean
+      type: object
+    system.overlayStateResponse:
+      properties:
+        active_id:
+          type: string
+        active_pokemon:
+          $ref: '#/components/schemas/state.Pokemon'
+      type: object
+    system.readyStatusResponse:
+      properties:
+        ready:
+          type: boolean
+      type: object
+    system.statusResponse:
+      properties:
+        status:
+          type: string
+      type: object
+    system.versionResponse:
+      properties:
+        build_date:
+          type: string
+        commit:
+          type: string
+        display:
+          type: string
+        version:
+          type: string
+      type: object
+    update.statusResponse:
+      properties:
+        status:
+          type: string
+      type: object
+    update.updateApplyRequest:
+      properties:
+        download_url:
+          type: string
+      type: object
     updater.UpdateInfo:
       properties:
         available:
@@ -836,7 +859,7 @@ paths:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/server.BackgroundUploadRequest'
+              - $ref: '#/components/schemas/backgrounds.backgroundUploadRequest'
                 description: Base64-encoded image
                 summary: body
         description: Base64-encoded image
@@ -846,7 +869,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.FilenameResponse'
+                $ref: '#/components/schemas/backgrounds.filenameResponse'
           description: OK
         "400":
           content:
@@ -875,6 +898,85 @@ paths:
       summary: Download a backup ZIP
       tags:
       - system
+  /detector/{id}/browser/start:
+    post:
+      parameters:
+      - description: Pokemon ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/detector.okResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Not Found
+        "405":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: Method Not Allowed
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Service Unavailable
+      summary: Start a browser-driven detector for a Pokemon
+      tags:
+      - detector
+  /detector/{id}/browser/stop:
+    post:
+      parameters:
+      - description: Pokemon ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/detector.okResponse'
+          description: OK
+        "405":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: Method Not Allowed
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Service Unavailable
+      summary: Stop a browser-driven detector for a Pokemon
+      tags:
+      - detector
   /detector/{id}/config:
     get:
       parameters:
@@ -900,13 +1002,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Get or set detector config for a Pokemon
       tags:
@@ -935,13 +1037,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Get or set detector config for a Pokemon
       tags:
@@ -966,7 +1068,7 @@ paths:
           content:
             application/zip:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Export templates as ZIP
       tags:
@@ -986,7 +1088,7 @@ paths:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/server.ImportTemplatesRequest'
+              - $ref: '#/components/schemas/detector.importTemplatesRequest'
                 description: Source Pokemon ID
                 summary: body
         description: Source Pokemon ID
@@ -996,19 +1098,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.ImportResponse'
+                $ref: '#/components/schemas/detector.importResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Import templates from another Pokemon
       tags:
@@ -1038,24 +1140,24 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.ImportResponse'
+                $ref: '#/components/schemas/detector.importResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Import templates from uploaded ZIP
       tags:
       - detector
-  /detector/{id}/match_frame:
+  /detector/{id}/match:
     post:
       parameters:
       - description: Pokemon ID
@@ -1066,30 +1168,47 @@ paths:
           type: string
       requestBody:
         content:
-          image/jpeg:
+          application/json:
             schema:
-              format: binary
-              type: string
+              oneOf:
+              - type: object
+              - $ref: '#/components/schemas/detector.matchSubmitRequest'
+                description: Match score
+                summary: body
+        description: Match score
+        required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.MatchFrameResponse'
+                $ref: '#/components/schemas/detector.matchSubmitResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
-      summary: Submit a browser-captured frame for matching
+        "405":
+          content:
+            application/json:
+              schema:
+                type: string
+          description: Method Not Allowed
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Service Unavailable
+      summary: Submit a WebGPU match score for a Pokemon
       tags:
       - detector
   /detector/{id}/sprite_template:
@@ -1105,36 +1224,36 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-              - $ref: '#/components/schemas/server.SpriteTemplateRequest'
-                description: Optional sprite URL override
-                summary: body
-        description: Optional sprite URL override
+              type: object
+          text/plain:
+            schema:
+              title: body
+              type: object
+        description: Optional sprite URL override (sprite_url field)
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.TemplateUploadResponse'
+                $ref: '#/components/schemas/detector.templateUploadResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Create template from Pokemon sprite
       tags:
@@ -1153,25 +1272,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.DetectorRunResponse'
+                $ref: '#/components/schemas/detector.detectorRunResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Start detection for a Pokemon
       tags:
@@ -1190,7 +1309,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.DetectorRunResponse'
+                $ref: '#/components/schemas/detector.detectorRunResponse'
           description: OK
       summary: Stop detection for a Pokemon
       tags:
@@ -1221,13 +1340,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Get, delete or update a detector template
       tags:
@@ -1257,13 +1376,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Get, delete or update a detector template
       tags:
@@ -1293,13 +1412,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Get, delete or update a detector template
       tags:
@@ -1319,7 +1438,7 @@ paths:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/server.TemplateUploadRequest'
+              - $ref: '#/components/schemas/detector.templateUploadRequest'
                 description: Base64 image and regions
                 summary: body
         description: Base64 image and regions
@@ -1329,25 +1448,25 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.TemplateUploadResponse'
+                $ref: '#/components/schemas/detector.templateUploadResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Upload a new template image
       tags:
@@ -1391,7 +1510,7 @@ paths:
           content:
             image/jpeg:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Capture primary monitor screenshot
       tags:
@@ -1404,7 +1523,7 @@ paths:
             application/json:
               schema:
                 items:
-                  $ref: '#/components/schemas/server.detectorStatusEntry'
+                  $ref: '#/components/schemas/detector.detectorStatusEntry'
                 type: array
           description: OK
       summary: List running detector IDs
@@ -1453,7 +1572,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Sync games from PokeAPI
       tags:
@@ -1483,7 +1602,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
       summary: Update all hotkeys
       tags:
@@ -1504,7 +1623,7 @@ paths:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/server.UpdateHotkeyRequest'
+              - $ref: '#/components/schemas/settings.updateHotkeyRequest'
                 description: New key binding
                 summary: body
         description: New key binding
@@ -1514,19 +1633,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.HotkeyUpdateResponse'
+                $ref: '#/components/schemas/settings.hotkeyUpdateResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Update a single hotkey
       tags:
@@ -1539,7 +1658,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.StatusResponse'
+                $ref: '#/components/schemas/settings.statusResponse'
           description: OK
       summary: Pause hotkeys
       tags:
@@ -1552,7 +1671,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.StatusResponse'
+                $ref: '#/components/schemas/settings.statusResponse'
           description: OK
       summary: Resume hotkeys
       tags:
@@ -1565,7 +1684,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.HotkeysStatusResponse'
+                $ref: '#/components/schemas/settings.hotkeysStatusResponse'
           description: OK
       summary: Get hotkey status
       tags:
@@ -1593,7 +1712,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.LicenseAcceptResponse'
+                $ref: '#/components/schemas/system.licenseAcceptResponse'
           description: OK
       summary: Accept license
       tags:
@@ -1621,7 +1740,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.OverlayStateResponse'
+                $ref: '#/components/schemas/system.overlayStateResponse'
           description: OK
       summary: Get overlay state
       tags:
@@ -1641,7 +1760,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Get the Pokedex
       tags:
@@ -1671,7 +1790,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
       summary: Create a new Pokemon
       tags:
@@ -1693,7 +1812,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Delete a Pokemon
       tags:
@@ -1729,13 +1848,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Update a Pokemon
       tags:
@@ -1757,7 +1876,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Activate a Pokemon
       tags:
@@ -1779,7 +1898,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Complete a Pokemon hunt
       tags:
@@ -1799,13 +1918,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.CountResponse'
+                $ref: '#/components/schemas/pokemon.countResponse'
           description: OK
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Decrement encounter count
       tags:
@@ -1825,13 +1944,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.CountResponse'
+                $ref: '#/components/schemas/pokemon.countResponse'
           description: OK
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Increment encounter count
       tags:
@@ -1853,7 +1972,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Unlink Pokemon overlay
       tags:
@@ -1875,7 +1994,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Reset encounter count
       tags:
@@ -1896,7 +2015,7 @@ paths:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/server.SetEncountersRequest'
+              - $ref: '#/components/schemas/pokemon.setEncountersRequest'
                 description: Encounter count to set
                 summary: body
         description: Encounter count to set
@@ -1906,19 +2025,19 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.CountResponse'
+                $ref: '#/components/schemas/pokemon.countResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Set encounter count
       tags:
@@ -1940,7 +2059,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Reset Pokemon timer
       tags:
@@ -1962,7 +2081,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Start Pokemon timer
       tags:
@@ -1984,7 +2103,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Stop Pokemon timer
       tags:
@@ -2006,7 +2125,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Not Found
       summary: Uncomplete a Pokemon hunt
       tags:
@@ -2020,7 +2139,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.StatusResponse'
+                $ref: '#/components/schemas/system.statusResponse'
           description: OK
       summary: Quit application
       tags:
@@ -2034,7 +2153,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.StatusResponse'
+                $ref: '#/components/schemas/system.statusResponse'
           description: OK
       summary: Restart application
       tags:
@@ -2057,7 +2176,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.RestoreResponse'
+                $ref: '#/components/schemas/backup.restoreResponse'
           description: OK
         "400":
           content:
@@ -2114,7 +2233,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
       summary: Update settings
       tags:
@@ -2128,7 +2247,7 @@ paths:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/server.SetConfigPathRequest'
+              - $ref: '#/components/schemas/settings.setConfigPathRequest'
                 description: New config path
                 summary: body
         description: New config path
@@ -2138,13 +2257,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.PathResponse'
+                $ref: '#/components/schemas/settings.pathResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
       summary: Set config directory path
       tags:
@@ -2177,13 +2296,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
         "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Service Unavailable
       summary: Get statistics overview
       tags:
@@ -2210,13 +2329,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
         "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Service Unavailable
       summary: Get Pokemon encounter stats
       tags:
@@ -2228,7 +2347,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.ReadyStatusResponse'
+                $ref: '#/components/schemas/system.readyStatusResponse'
           description: OK
       summary: Check server readiness
       tags:
@@ -2240,13 +2359,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.PokedexSyncResponse'
+                $ref: '#/components/schemas/games.pokedexSyncResponse'
           description: OK
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Sync Pokedex from PokeAPI
       tags:
@@ -2259,7 +2378,7 @@ paths:
             schema:
               oneOf:
               - type: object
-              - $ref: '#/components/schemas/server.UpdateApplyRequest'
+              - $ref: '#/components/schemas/update.updateApplyRequest'
                 description: Download URL
                 summary: body
         description: Download URL
@@ -2269,13 +2388,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.StatusResponse'
+                $ref: '#/components/schemas/update.statusResponse'
           description: OK
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Bad Request
       summary: Apply a downloaded update
       tags:
@@ -2293,7 +2412,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.errResp'
+                $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Check for available updates
       tags:
@@ -2306,7 +2425,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/server.VersionResponse'
+                $ref: '#/components/schemas/system.versionResponse'
           description: OK
       summary: Get version info
       tags:

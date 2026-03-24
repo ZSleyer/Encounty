@@ -33,7 +33,7 @@ frontend:
 frontend-build: frontend
 
 swagger:
-	cd backend && swag init -g main.go --parseDependency --parseInternal -o docs --v3.1
+	cd backend && $(shell go env GOPATH)/bin/swag init -g main.go --parseDependency --parseInternal -o docs --v3.1
 
 build: swagger build-linux build-windows
 all: build

@@ -79,8 +79,8 @@ func (h *handler) backgroundsDir() (string, error) {
 // @Tags         backgrounds
 // @Accept       json
 // @Produce      json
-// @Param        body body BackgroundUploadRequest true "Base64-encoded image"
-// @Success      200 {object} FilenameResponse
+// @Param        body body backgroundUploadRequest true "Base64-encoded image"
+// @Success      200 {object} filenameResponse
 // @Failure      400 {string} string
 // @Failure      500 {string} string
 // @Router       /backgrounds/upload [post]

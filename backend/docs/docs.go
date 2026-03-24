@@ -8,6 +8,30 @@ const docTemplate = `{
     "schemes": {{ marshal .Schemes }},
     "components": {
         "schemas": {
+            "backgrounds.backgroundUploadRequest": {
+                "properties": {
+                    "image_base64": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "backgrounds.filenameResponse": {
+                "properties": {
+                    "filename": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "backup.restoreResponse": {
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
             "database.EncounterStats": {
                 "properties": {
                     "first_at": {
@@ -64,13 +88,6 @@ const docTemplate = `{
                     "platform": {
                         "type": "string"
                     },
-                    "sidecar_available": {
-                        "type": "boolean"
-                    },
-                    "sidecar_match_support": {
-                        "description": "sidecar can do capture+match",
-                        "type": "boolean"
-                    },
                     "supports_camera": {
                         "type": "boolean"
                     },
@@ -79,6 +96,124 @@ const docTemplate = `{
                     },
                     "supports_window_capture": {
                         "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.detectorRunResponse": {
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    },
+                    "running": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.detectorStatusEntry": {
+                "properties": {
+                    "pokemon_id": {
+                        "type": "string"
+                    },
+                    "running": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.importResponse": {
+                "properties": {
+                    "imported": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.importTemplatesRequest": {
+                "properties": {
+                    "source_pokemon_id": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.matchSubmitRequest": {
+                "properties": {
+                    "frame_delta": {
+                        "type": "number"
+                    },
+                    "score": {
+                        "type": "number"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.matchSubmitResponse": {
+                "properties": {
+                    "confidence": {
+                        "type": "number"
+                    },
+                    "matched": {
+                        "type": "boolean"
+                    },
+                    "poll_ms": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.okResponse": {
+                "properties": {
+                    "ok": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "detector.templateUploadRequest": {
+                "properties": {
+                    "imageBase64": {
+                        "type": "string"
+                    },
+                    "regions": {
+                        "items": {
+                            "$ref": "#/components/schemas/state.MatchedRegion"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "detector.templateUploadResponse": {
+                "properties": {
+                    "index": {
+                        "type": "integer"
+                    },
+                    "template_db_id": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "games.pokedexSyncResponse": {
+                "properties": {
+                    "added": {
+                        "type": "integer"
+                    },
+                    "namesUpdated": {
+                        "type": "integer"
+                    },
+                    "new": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "total": {
+                        "type": "integer"
                     }
                 },
                 "type": "object"
@@ -110,6 +245,14 @@ const docTemplate = `{
                     },
                     "updated": {
                         "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "httputil.ErrResp": {
+                "properties": {
+                    "error": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -175,15 +318,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "server.BackgroundUploadRequest": {
-                "properties": {
-                    "image_base64": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "server.CountResponse": {
+            "pokemon.countResponse": {
                 "properties": {
                     "count": {
                         "type": "integer"
@@ -191,26 +326,15 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "server.DetectorRunResponse": {
+            "pokemon.setEncountersRequest": {
                 "properties": {
-                    "ok": {
-                        "type": "boolean"
-                    },
-                    "running": {
-                        "type": "boolean"
+                    "count": {
+                        "type": "integer"
                     }
                 },
                 "type": "object"
             },
-            "server.FilenameResponse": {
-                "properties": {
-                    "filename": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "server.HotkeyUpdateResponse": {
+            "settings.hotkeyUpdateResponse": {
                 "properties": {
                     "action": {
                         "type": "string"
@@ -221,7 +345,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "server.HotkeysStatusResponse": {
+            "settings.hotkeysStatusResponse": {
                 "properties": {
                     "available": {
                         "type": "boolean"
@@ -229,56 +353,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "server.ImportResponse": {
-                "properties": {
-                    "imported": {
-                        "type": "integer"
-                    }
-                },
-                "type": "object"
-            },
-            "server.ImportTemplatesRequest": {
-                "properties": {
-                    "source_pokemon_id": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "server.LicenseAcceptResponse": {
-                "properties": {
-                    "license_accepted": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "server.MatchFrameResponse": {
-                "properties": {
-                    "confidence": {
-                        "type": "number"
-                    },
-                    "match": {
-                        "type": "boolean"
-                    },
-                    "state": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "server.OverlayStateResponse": {
-                "properties": {
-                    "active_id": {
-                        "type": "string"
-                    },
-                    "active_pokemon": {
-                        "$ref": "#/components/schemas/state.Pokemon"
-                    }
-                },
-                "type": "object"
-            },
-            "server.PathResponse": {
+            "settings.pathResponse": {
                 "properties": {
                     "path": {
                         "type": "string"
@@ -286,44 +361,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "server.PokedexSyncResponse": {
-                "properties": {
-                    "added": {
-                        "type": "integer"
-                    },
-                    "namesUpdated": {
-                        "type": "integer"
-                    },
-                    "new": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "uniqueItems": false
-                    },
-                    "total": {
-                        "type": "integer"
-                    }
-                },
-                "type": "object"
-            },
-            "server.ReadyStatusResponse": {
-                "properties": {
-                    "ready": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "server.RestoreResponse": {
-                "properties": {
-                    "ok": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "server.SetConfigPathRequest": {
+            "settings.setConfigPathRequest": {
                 "properties": {
                     "path": {
                         "type": "string"
@@ -331,23 +369,7 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "server.SetEncountersRequest": {
-                "properties": {
-                    "count": {
-                        "type": "integer"
-                    }
-                },
-                "type": "object"
-            },
-            "server.SpriteTemplateRequest": {
-                "properties": {
-                    "sprite_url": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "server.StatusResponse": {
+            "settings.statusResponse": {
                 "properties": {
                     "status": {
                         "type": "string"
@@ -355,79 +377,9 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "server.TemplateUploadRequest": {
-                "properties": {
-                    "imageBase64": {
-                        "type": "string"
-                    },
-                    "regions": {
-                        "items": {
-                            "$ref": "#/components/schemas/state.MatchedRegion"
-                        },
-                        "type": "array",
-                        "uniqueItems": false
-                    }
-                },
-                "type": "object"
-            },
-            "server.TemplateUploadResponse": {
-                "properties": {
-                    "index": {
-                        "type": "integer"
-                    },
-                    "template_db_id": {
-                        "type": "integer"
-                    }
-                },
-                "type": "object"
-            },
-            "server.UpdateApplyRequest": {
-                "properties": {
-                    "download_url": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "server.UpdateHotkeyRequest": {
+            "settings.updateHotkeyRequest": {
                 "properties": {
                     "key": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "server.VersionResponse": {
-                "properties": {
-                    "build_date": {
-                        "type": "string"
-                    },
-                    "commit": {
-                        "type": "string"
-                    },
-                    "display": {
-                        "type": "string"
-                    },
-                    "version": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "server.detectorStatusEntry": {
-                "properties": {
-                    "pokemon_id": {
-                        "type": "string"
-                    },
-                    "running": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "server.errResp": {
-                "properties": {
-                    "error": {
                         "type": "string"
                     }
                 },
@@ -575,8 +527,20 @@ const docTemplate = `{
                     "relative_regions": {
                         "type": "boolean"
                     },
+                    "rematch_enabled": {
+                        "type": "boolean"
+                    },
+                    "rematch_threshold_offset": {
+                        "type": "number"
+                    },
+                    "rematch_window_sec": {
+                        "type": "integer"
+                    },
+                    "replay_buffer_sec": {
+                        "type": "integer"
+                    },
                     "source_type": {
-                        "description": "\"screen_region\" | \"window\" | \"browser_camera\" | \"browser_display\"",
+                        "description": "\"screen_region\" | \"window\" | \"camera\"",
                         "type": "string"
                     },
                     "templates": {
@@ -702,6 +666,10 @@ const docTemplate = `{
                 "properties": {
                     "expected_text": {
                         "description": "used if Type == \"text\"",
+                        "type": "string"
+                    },
+                    "polarity": {
+                        "description": "\"positive\" (default) | \"negative\"",
                         "type": "string"
                     },
                     "rect": {
@@ -1115,6 +1083,74 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "system.licenseAcceptResponse": {
+                "properties": {
+                    "license_accepted": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "system.overlayStateResponse": {
+                "properties": {
+                    "active_id": {
+                        "type": "string"
+                    },
+                    "active_pokemon": {
+                        "$ref": "#/components/schemas/state.Pokemon"
+                    }
+                },
+                "type": "object"
+            },
+            "system.readyStatusResponse": {
+                "properties": {
+                    "ready": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "system.statusResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "system.versionResponse": {
+                "properties": {
+                    "build_date": {
+                        "type": "string"
+                    },
+                    "commit": {
+                        "type": "string"
+                    },
+                    "display": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "update.statusResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "update.updateApplyRequest": {
+                "properties": {
+                    "download_url": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "updater.UpdateInfo": {
                 "properties": {
                     "available": {
@@ -1155,7 +1191,7 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/server.BackgroundUploadRequest",
+                                        "$ref": "#/components/schemas/backgrounds.backgroundUploadRequest",
                                         "summary": "body",
                                         "description": "Base64-encoded image"
                                     }
@@ -1171,7 +1207,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.FilenameResponse"
+                                    "$ref": "#/components/schemas/backgrounds.filenameResponse"
                                 }
                             }
                         },
@@ -1392,7 +1428,7 @@ const docTemplate = `{
                         "content": {
                             "image/jpeg": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1413,7 +1449,7 @@ const docTemplate = `{
                             "application/json": {
                                 "schema": {
                                     "items": {
-                                        "$ref": "#/components/schemas/server.detectorStatusEntry"
+                                        "$ref": "#/components/schemas/detector.detectorStatusEntry"
                                     },
                                     "type": "array"
                                 }
@@ -1446,6 +1482,137 @@ const docTemplate = `{
                     }
                 },
                 "summary": "List visible top-level windows",
+                "tags": [
+                    "detector"
+                ]
+            }
+        },
+        "/detector/{id}/browser/start": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/detector.okResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "405": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "Method Not Allowed"
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Service Unavailable"
+                    }
+                },
+                "summary": "Start a browser-driven detector for a Pokemon",
+                "tags": [
+                    "detector"
+                ]
+            }
+        },
+        "/detector/{id}/browser/stop": {
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/detector.okResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "405": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "Method Not Allowed"
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Service Unavailable"
+                    }
+                },
+                "summary": "Stop a browser-driven detector for a Pokemon",
                 "tags": [
                     "detector"
                 ]
@@ -1488,7 +1655,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1498,7 +1665,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1546,7 +1713,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1556,7 +1723,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1597,7 +1764,7 @@ const docTemplate = `{
                         "content": {
                             "application/zip": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1632,7 +1799,7 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/server.ImportTemplatesRequest",
+                                        "$ref": "#/components/schemas/detector.importTemplatesRequest",
                                         "summary": "body",
                                         "description": "Source Pokemon ID"
                                     }
@@ -1648,7 +1815,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.ImportResponse"
+                                    "$ref": "#/components/schemas/detector.importResponse"
                                 }
                             }
                         },
@@ -1658,7 +1825,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1668,7 +1835,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1716,7 +1883,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.ImportResponse"
+                                    "$ref": "#/components/schemas/detector.importResponse"
                                 }
                             }
                         },
@@ -1726,7 +1893,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1736,7 +1903,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1749,7 +1916,7 @@ const docTemplate = `{
                 ]
             }
         },
-        "/detector/{id}/match_frame": {
+        "/detector/{id}/match": {
             "post": {
                 "parameters": [
                     {
@@ -1764,20 +1931,30 @@ const docTemplate = `{
                 ],
                 "requestBody": {
                     "content": {
-                        "image/jpeg": {
+                        "application/json": {
                             "schema": {
-                                "format": "binary",
-                                "type": "string"
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/detector.matchSubmitRequest",
+                                        "summary": "body",
+                                        "description": "Match score"
+                                    }
+                                ]
                             }
                         }
-                    }
+                    },
+                    "description": "Match score",
+                    "required": true
                 },
                 "responses": {
                     "200": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.MatchFrameResponse"
+                                    "$ref": "#/components/schemas/detector.matchSubmitResponse"
                                 }
                             }
                         },
@@ -1787,7 +1964,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1797,14 +1974,34 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
                         "description": "Not Found"
+                    },
+                    "405": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "description": "Method Not Allowed"
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Service Unavailable"
                     }
                 },
-                "summary": "Submit a browser-captured frame for matching",
+                "summary": "Submit a WebGPU match score for a Pokemon",
                 "tags": [
                     "detector"
                 ]
@@ -1827,27 +2024,24 @@ const docTemplate = `{
                     "content": {
                         "application/json": {
                             "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/server.SpriteTemplateRequest",
-                                        "summary": "body",
-                                        "description": "Optional sprite URL override"
-                                    }
-                                ]
+                                "type": "object"
+                            }
+                        },
+                        "text/plain": {
+                            "schema": {
+                                "title": "body",
+                                "type": "object"
                             }
                         }
                     },
-                    "description": "Optional sprite URL override"
+                    "description": "Optional sprite URL override (sprite_url field)"
                 },
                 "responses": {
                     "200": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.TemplateUploadResponse"
+                                    "$ref": "#/components/schemas/detector.templateUploadResponse"
                                 }
                             }
                         },
@@ -1857,7 +2051,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1867,7 +2061,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1877,7 +2071,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1908,7 +2102,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.DetectorRunResponse"
+                                    "$ref": "#/components/schemas/detector.detectorRunResponse"
                                 }
                             }
                         },
@@ -1918,7 +2112,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1928,7 +2122,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1938,7 +2132,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -1969,7 +2163,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.DetectorRunResponse"
+                                    "$ref": "#/components/schemas/detector.detectorRunResponse"
                                 }
                             }
                         },
@@ -2019,7 +2213,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2029,7 +2223,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2077,7 +2271,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2087,7 +2281,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2135,7 +2329,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2145,7 +2339,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2180,7 +2374,7 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/server.TemplateUploadRequest",
+                                        "$ref": "#/components/schemas/detector.templateUploadRequest",
                                         "summary": "body",
                                         "description": "Base64 image and regions"
                                     }
@@ -2196,7 +2390,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.TemplateUploadResponse"
+                                    "$ref": "#/components/schemas/detector.templateUploadResponse"
                                 }
                             }
                         },
@@ -2206,7 +2400,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2216,7 +2410,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2226,7 +2420,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2281,7 +2475,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2332,7 +2526,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2353,7 +2547,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.StatusResponse"
+                                    "$ref": "#/components/schemas/settings.statusResponse"
                                 }
                             }
                         },
@@ -2374,7 +2568,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.StatusResponse"
+                                    "$ref": "#/components/schemas/settings.statusResponse"
                                 }
                             }
                         },
@@ -2395,7 +2589,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.HotkeysStatusResponse"
+                                    "$ref": "#/components/schemas/settings.hotkeysStatusResponse"
                                 }
                             }
                         },
@@ -2431,7 +2625,7 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/server.UpdateHotkeyRequest",
+                                        "$ref": "#/components/schemas/settings.updateHotkeyRequest",
                                         "summary": "body",
                                         "description": "New key binding"
                                     }
@@ -2447,7 +2641,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.HotkeyUpdateResponse"
+                                    "$ref": "#/components/schemas/settings.hotkeyUpdateResponse"
                                 }
                             }
                         },
@@ -2457,7 +2651,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2467,7 +2661,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2512,7 +2706,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.LicenseAcceptResponse"
+                                    "$ref": "#/components/schemas/system.licenseAcceptResponse"
                                 }
                             }
                         },
@@ -2557,7 +2751,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.OverlayStateResponse"
+                                    "$ref": "#/components/schemas/system.overlayStateResponse"
                                 }
                             }
                         },
@@ -2590,7 +2784,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2641,7 +2835,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2676,7 +2870,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2736,7 +2930,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2746,7 +2940,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2781,7 +2975,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2816,7 +3010,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2848,7 +3042,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.CountResponse"
+                                    "$ref": "#/components/schemas/pokemon.countResponse"
                                 }
                             }
                         },
@@ -2858,7 +3052,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2890,7 +3084,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.CountResponse"
+                                    "$ref": "#/components/schemas/pokemon.countResponse"
                                 }
                             }
                         },
@@ -2900,7 +3094,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2935,7 +3129,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -2970,7 +3164,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3006,7 +3200,7 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/server.SetEncountersRequest",
+                                        "$ref": "#/components/schemas/pokemon.setEncountersRequest",
                                         "summary": "body",
                                         "description": "Encounter count to set"
                                     }
@@ -3022,7 +3216,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.CountResponse"
+                                    "$ref": "#/components/schemas/pokemon.countResponse"
                                 }
                             }
                         },
@@ -3032,7 +3226,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3042,7 +3236,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3077,7 +3271,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3112,7 +3306,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3147,7 +3341,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3182,7 +3376,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3203,7 +3397,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.StatusResponse"
+                                    "$ref": "#/components/schemas/system.statusResponse"
                                 }
                             }
                         },
@@ -3224,7 +3418,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.StatusResponse"
+                                    "$ref": "#/components/schemas/system.statusResponse"
                                 }
                             }
                         },
@@ -3261,7 +3455,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.RestoreResponse"
+                                    "$ref": "#/components/schemas/backup.restoreResponse"
                                 }
                             }
                         },
@@ -3356,7 +3550,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3381,7 +3575,7 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/server.SetConfigPathRequest",
+                                        "$ref": "#/components/schemas/settings.setConfigPathRequest",
                                         "summary": "body",
                                         "description": "New config path"
                                     }
@@ -3397,7 +3591,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.PathResponse"
+                                    "$ref": "#/components/schemas/settings.pathResponse"
                                 }
                             }
                         },
@@ -3407,7 +3601,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3459,7 +3653,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3469,7 +3663,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3511,7 +3705,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3521,7 +3715,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3541,7 +3735,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.ReadyStatusResponse"
+                                    "$ref": "#/components/schemas/system.readyStatusResponse"
                                 }
                             }
                         },
@@ -3561,7 +3755,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.PokedexSyncResponse"
+                                    "$ref": "#/components/schemas/games.pokedexSyncResponse"
                                 }
                             }
                         },
@@ -3571,7 +3765,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3595,7 +3789,7 @@ const docTemplate = `{
                                         "type": "object"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/server.UpdateApplyRequest",
+                                        "$ref": "#/components/schemas/update.updateApplyRequest",
                                         "summary": "body",
                                         "description": "Download URL"
                                     }
@@ -3611,7 +3805,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.StatusResponse"
+                                    "$ref": "#/components/schemas/update.statusResponse"
                                 }
                             }
                         },
@@ -3621,7 +3815,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3651,7 +3845,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.errResp"
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
                                 }
                             }
                         },
@@ -3672,7 +3866,7 @@ const docTemplate = `{
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/server.VersionResponse"
+                                    "$ref": "#/components/schemas/system.versionResponse"
                                 }
                             }
                         },
