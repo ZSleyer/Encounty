@@ -1,0 +1,1566 @@
+// Package detector tests the HTTP handlers for detector lifecycle,
+// configuration, template management, and browser-driven detection.
+package detector
+
+import (
+	"archive/zip"
+	"bytes"
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
+	"image"
+	"image/color"
+	"image/png"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"github.com/zsleyer/encounty/backend/internal/detector"
+	"github.com/zsleyer/encounty/backend/internal/state"
+)
+
+// Duplicated string literals extracted for SonarQube S1192 compliance.
+const (
+	msgWant200     = "status = %d, want 200"
+	msgWant200Body = "status = %d, want 200, body = %s"
+	msgWant400     = "status = %d, want 400"
+	msgWant404     = "status = %d, want 404"
+	msgWant405     = "status = %d, want 405"
+	msgWant503     = "status = %d, want 503"
+
+	hdrContentType = "Content-Type"
+
+	pathConfig             = "/api/detector/p1/config"
+	pathTemplate0          = "/api/detector/p1/template/0"
+	pathTemplateUpload     = "/api/detector/p1/template_upload"
+	pathStart              = "/api/detector/p1/start"
+	pathStop               = "/api/detector/p1/stop"
+	pathMatch              = "/api/detector/p1/match"
+	pathExportTemplates    = "/api/detector/p1/export_templates"
+	pathImportTemplatesTgt = "/api/detector/tgt/import_templates"
+	pathImportFile         = "/api/detector/p1/import_templates_file"
+
+	zipMetadataJSON = "metadata.json"
+	zipTemplate0PNG = "template_0.png"
+)
+
+// --- Mock types --------------------------------------------------------------
+
+// mockDetectorDB implements DetectorStore with in-memory storage.
+type mockDetectorDB struct {
+	images  map[int64][]byte
+	nextID  int64
+	failOn  string // "load", "save", "delete" to simulate errors
+}
+
+func newMockDetectorDB() *mockDetectorDB {
+	return &mockDetectorDB{images: make(map[int64][]byte), nextID: 1}
+}
+
+// LoadTemplateImage returns stored image data or an error if not found.
+func (m *mockDetectorDB) LoadTemplateImage(templateDBID int64) ([]byte, error) {
+	if m.failOn == "load" {
+		return nil, fmt.Errorf("mock load error")
+	}
+	data, ok := m.images[templateDBID]
+	if !ok {
+		return nil, fmt.Errorf("template %d not found", templateDBID)
+	}
+	return data, nil
+}
+
+// SaveTemplateImage stores image data and returns a new ID.
+func (m *mockDetectorDB) SaveTemplateImage(pokemonID string, imageData []byte, sortOrder int) (int64, error) {
+	if m.failOn == "save" {
+		return 0, fmt.Errorf("mock save error")
+	}
+	id := m.nextID
+	m.nextID++
+	m.images[id] = imageData
+	return id, nil
+}
+
+// DeleteTemplateImage removes stored image data.
+func (m *mockDetectorDB) DeleteTemplateImage(templateDBID int64) error {
+	if m.failOn == "delete" {
+		return fmt.Errorf("mock delete error")
+	}
+	delete(m.images, templateDBID)
+	return nil
+}
+
+// testDeps implements the Deps interface for isolated handler testing.
+type testDeps struct {
+	stateMgr      *state.Manager
+	detectorMgr   *detector.Manager
+	detectorDB    *mockDetectorDB
+	configDir     string
+	broadcasts    []broadcastCall
+	stateBroadcN  int
+}
+
+// broadcastCall records a Broadcast invocation.
+type broadcastCall struct {
+	MsgType string
+	Payload any
+}
+
+func (d *testDeps) StateManager() *state.Manager     { return d.stateMgr }
+func (d *testDeps) DetectorMgr() *detector.Manager    { return d.detectorMgr }
+func (d *testDeps) DetectorDB() DetectorStore          { return d.detectorDB }
+func (d *testDeps) ConfigDir() string                  { return d.configDir }
+func (d *testDeps) BroadcastState()                    { d.stateBroadcN++ }
+func (d *testDeps) Broadcast(msgType string, payload any) {
+	d.broadcasts = append(d.broadcasts, broadcastCall{MsgType: msgType, Payload: payload})
+}
+
+// --- Helpers -----------------------------------------------------------------
+
+// newTestMux creates a test HTTP mux with detector routes, a real state
+// manager, and a mock detector DB.
+func newTestMux(t *testing.T) (*http.ServeMux, *testDeps) {
+	t.Helper()
+	dir := t.TempDir()
+	sm := state.NewManager(dir)
+	db := newMockDetectorDB()
+	// no-op broadcast callback for test mock — detector.Manager requires
+	// a non-nil function but no messages need to be handled in tests.
+	mgr := detector.NewManager(sm, func(string, any) {
+		// no-op: tests do not consume broadcast messages
+	}, dir)
+
+	deps := &testDeps{
+		stateMgr:    sm,
+		detectorMgr: mgr,
+		detectorDB:  db,
+		configDir:   dir,
+	}
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, deps)
+	return mux, deps
+}
+
+// newTestMuxNilDetector creates a mux where DetectorMgr() returns nil.
+func newTestMuxNilDetector(t *testing.T) (*http.ServeMux, *testDeps) {
+	t.Helper()
+	dir := t.TempDir()
+	sm := state.NewManager(dir)
+	db := newMockDetectorDB()
+
+	deps := &testDeps{
+		stateMgr:    sm,
+		detectorMgr: nil,
+		detectorDB:  db,
+		configDir:   dir,
+	}
+	mux := http.NewServeMux()
+	RegisterRoutes(mux, deps)
+	return mux, deps
+}
+
+// addTestPokemon adds a Pokemon with the given ID and name to the state.
+func addTestPokemon(t *testing.T, deps *testDeps, id, name string) {
+	t.Helper()
+	deps.stateMgr.AddPokemon(state.Pokemon{
+		ID:        id,
+		Name:      name,
+		CreatedAt: time.Now(),
+	})
+}
+
+// addTestPokemonWithConfig adds a Pokemon with a pre-set detector config.
+func addTestPokemonWithConfig(t *testing.T, deps *testDeps, id, name string, cfg *state.DetectorConfig) {
+	t.Helper()
+	addTestPokemon(t, deps, id, name)
+	deps.stateMgr.SetDetectorConfig(id, cfg)
+}
+
+// makePNGBytes creates a minimal valid PNG image and returns its bytes.
+func makePNGBytes(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	for x := range 4 {
+		for y := range 4 {
+			img.Set(x, y, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+// jsonBody marshals v as JSON and returns a reader.
+func jsonBody(t *testing.T, v any) *bytes.Buffer {
+	t.Helper()
+	data, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bytes.NewBuffer(data)
+}
+
+// decodeJSON reads the response body into v.
+func decodeJSON(t *testing.T, body io.Reader, v any) {
+	t.Helper()
+	if err := json.NewDecoder(body).Decode(v); err != nil {
+		t.Fatalf("failed to decode JSON: %v", err)
+	}
+}
+
+// --- Status ------------------------------------------------------------------
+
+func TestStatusReturnsEmptyArrayWhenNoDetectors(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/status", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	var entries []detectorStatusEntry
+	decodeJSON(t, w.Body, &entries)
+	if len(entries) != 0 {
+		t.Errorf("len(entries) = %d, want 0", len(entries))
+	}
+}
+
+func TestStatusNilManager(t *testing.T) {
+	mux, _ := newTestMuxNilDetector(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/status", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	var entries []detectorStatusEntry
+	decodeJSON(t, w.Body, &entries)
+	if len(entries) != 0 {
+		t.Errorf("len(entries) = %d, want 0", len(entries))
+	}
+}
+
+// --- Capabilities ------------------------------------------------------------
+
+func TestCapabilitiesReturnsJSON(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/capabilities", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	ct := w.Header().Get(hdrContentType)
+	if ct != "application/json" {
+		t.Errorf("Content-Type = %q, want application/json", ct)
+	}
+
+	var caps detector.Capabilities
+	decodeJSON(t, w.Body, &caps)
+	if caps.Platform == "" {
+		t.Error("platform should not be empty")
+	}
+}
+
+// --- Windows -----------------------------------------------------------------
+
+func TestListWindowsReturnsJSON(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/windows", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	// On non-Windows platforms ListWindows returns nil, which is encoded as [].
+	var sources []detector.SourceInfo
+	decodeJSON(t, w.Body, &sources)
+	// We cannot assert the count since it is platform-dependent.
+}
+
+// --- Cameras -----------------------------------------------------------------
+
+func TestListCamerasReturnsJSON(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/cameras", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	var sources []detector.SourceInfo
+	decodeJSON(t, w.Body, &sources)
+}
+
+// --- Dispatch 404 paths ------------------------------------------------------
+
+func TestDispatchMissingAction(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	// Only an ID, no action segment
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestDispatchUnknownAction(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/nonexistent", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestDispatchTemplateMissingIndex(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/template", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestDispatchBrowserMissingSubaction(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/browser", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestDispatchBrowserUnknownSubaction(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/browser/unknown", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+// --- Config GET / POST -------------------------------------------------------
+
+func TestConfigGetNoPokemon(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/nonexistent/config", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestConfigGetNoConfig(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodGet, pathConfig, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	var cfg state.DetectorConfig
+	decodeJSON(t, w.Body, &cfg)
+	// Zero-value config should be returned
+	if cfg.Enabled {
+		t.Error("expected Enabled to be false for missing config")
+	}
+}
+
+func TestConfigGetWithConfig(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Enabled:    true,
+		SourceType: "screen_region",
+		Precision:  0.9,
+	})
+
+	req := httptest.NewRequest(http.MethodGet, pathConfig, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	var cfg state.DetectorConfig
+	decodeJSON(t, w.Body, &cfg)
+	if !cfg.Enabled {
+		t.Error("expected Enabled=true")
+	}
+	if cfg.Precision != 0.9 {
+		t.Errorf("Precision = %f, want 0.9", cfg.Precision)
+	}
+}
+
+func TestConfigPostSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	body := jsonBody(t, state.DetectorConfig{
+		Enabled:    true,
+		SourceType: "window",
+		Precision:  0.85,
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathConfig, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	// Verify config was set
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p == nil || p.DetectorConfig == nil {
+		t.Fatal("pokemon or config nil after POST")
+	}
+	if !p.DetectorConfig.Enabled {
+		t.Error("Enabled should be true")
+	}
+	if p.DetectorConfig.SourceType != "window" {
+		t.Errorf("SourceType = %q, want window", p.DetectorConfig.SourceType)
+	}
+	if deps.stateBroadcN == 0 {
+		t.Error("expected BroadcastState to be called")
+	}
+}
+
+func TestConfigPostNotFound(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	body := jsonBody(t, state.DetectorConfig{Enabled: true})
+	req := httptest.NewRequest(http.MethodPost, "/api/detector/missing/config", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestConfigPostInvalidJSON(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodPost, pathConfig, bytes.NewBufferString("{invalid"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestConfigMethodNotAllowed(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodDelete, pathConfig, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+// --- Template GET / DELETE / PATCH -------------------------------------------
+
+func TestTemplateGetFromDB(t *testing.T) {
+	mux, deps := newTestMux(t)
+	pngData := makePNGBytes(t)
+
+	// Store a template image in the mock DB
+	dbID, err := deps.detectorDB.SaveTemplateImage("p1", pngData, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: dbID, Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, pathTemplate0, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	ct := w.Header().Get(hdrContentType)
+	if ct != "image/png" {
+		t.Errorf("Content-Type = %q, want image/png", ct)
+	}
+	if w.Body.Len() == 0 {
+		t.Error("expected non-empty body")
+	}
+}
+
+func TestTemplateGetNoImageData(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, pathTemplate0, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestTemplateGetInvalidIndex(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/template/abc", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestTemplateGetOutOfRange(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/template/5", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestTemplateGetNoPokemon(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/missing/template/0", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestTemplateGetNoConfig(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodGet, pathTemplate0, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	// Pokemon has no DetectorConfig, so it returns 404
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestTemplateDelete(t *testing.T) {
+	mux, deps := newTestMux(t)
+	pngData := makePNGBytes(t)
+	dbID, _ := deps.detectorDB.SaveTemplateImage("p1", pngData, 0)
+
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: dbID, Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodDelete, pathTemplate0, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	// Verify template was removed from config
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p == nil || p.DetectorConfig == nil {
+		t.Fatal("pokemon or config nil after DELETE")
+	}
+	if len(p.DetectorConfig.Templates) != 0 {
+		t.Errorf("templates count = %d, want 0", len(p.DetectorConfig.Templates))
+	}
+
+	// Verify image was deleted from DB
+	if _, ok := deps.detectorDB.images[dbID]; ok {
+		t.Error("expected template image to be deleted from DB")
+	}
+
+	if deps.stateBroadcN == 0 {
+		t.Error("expected BroadcastState to be called")
+	}
+}
+
+func TestTemplatePatchRegions(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1, Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	body := jsonBody(t, map[string]any{
+		"regions": []state.MatchedRegion{
+			{Type: "image", Rect: state.DetectorRect{X: 10, Y: 20, W: 100, H: 200}},
+			{Type: "text", ExpectedText: "Pikachu"},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if len(p.DetectorConfig.Templates[0].Regions) != 2 {
+		t.Errorf("regions count = %d, want 2", len(p.DetectorConfig.Templates[0].Regions))
+	}
+}
+
+func TestTemplatePatchEnabled(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1},
+		},
+	})
+
+	enabled := false
+	body := jsonBody(t, map[string]any{"enabled": enabled})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.DetectorConfig.Templates[0].Enabled == nil || *p.DetectorConfig.Templates[0].Enabled {
+		t.Error("expected Enabled to be false after PATCH")
+	}
+}
+
+func TestTemplatePatchInvalidJSON(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{{TemplateDBID: 1}},
+	})
+
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, bytes.NewBufferString("{bad"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestTemplateMethodNotAllowed(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{{TemplateDBID: 1}},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplate0, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+func TestTemplateGetDBError(t *testing.T) {
+	mux, deps := newTestMux(t)
+	deps.detectorDB.failOn = "load"
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 99, Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, pathTemplate0, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+}
+
+// --- Template Upload ---------------------------------------------------------
+
+func TestTemplateUploadSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	pngData := makePNGBytes(t)
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	body := jsonBody(t, map[string]any{
+		"imageBase64": b64,
+		"regions":     []state.MatchedRegion{{Type: "image"}},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	var resp templateUploadResponse
+	decodeJSON(t, w.Body, &resp)
+	if resp.Index != 0 {
+		t.Errorf("index = %d, want 0", resp.Index)
+	}
+	if resp.TemplateDBID == 0 {
+		t.Error("expected non-zero TemplateDBID")
+	}
+
+	// Verify config was updated
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.DetectorConfig == nil || len(p.DetectorConfig.Templates) != 1 {
+		t.Fatal("expected 1 template after upload")
+	}
+}
+
+func TestTemplateUploadWithDataURLPrefix(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	pngData := makePNGBytes(t)
+	b64 := "data:image/png;base64," + base64.StdEncoding.EncodeToString(pngData)
+	body := jsonBody(t, map[string]any{
+		"imageBase64": b64,
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+}
+
+func TestTemplateUploadNotFound(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	body := jsonBody(t, map[string]string{"imageBase64": "aaa"})
+	req := httptest.NewRequest(http.MethodPost, "/api/detector/missing/template_upload", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestTemplateUploadInvalidBase64(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	body := jsonBody(t, map[string]string{"imageBase64": "!!!invalid!!!"})
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestTemplateUploadInvalidImage(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	b64 := base64.StdEncoding.EncodeToString([]byte("not an image"))
+	body := jsonBody(t, map[string]string{"imageBase64": b64})
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestTemplateUploadMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, pathTemplateUpload, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+func TestTemplateUploadDBSaveError(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+	deps.detectorDB.failOn = "save"
+
+	pngData := makePNGBytes(t)
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	body := jsonBody(t, map[string]any{"imageBase64": b64})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+}
+
+func TestTemplateUploadBadJSON(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload,
+		bytes.NewBufferString("not json"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+// --- Browser Detector Start / Stop -------------------------------------------
+
+func TestBrowserDetectorStartSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Precision: 0.9,
+	})
+
+	body := jsonBody(t, map[string]any{
+		"precision":        0.85,
+		"consecutive_hits": 3,
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathStart, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	// Verify a browser detector was created
+	bd := deps.detectorMgr.GetBrowserDetector("p1")
+	if bd == nil {
+		t.Error("expected browser detector to be created")
+	}
+
+	// Verify initial detector_status was broadcast
+	found := false
+	for _, bc := range deps.broadcasts {
+		if bc.MsgType == "detector_status" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected detector_status broadcast on start")
+	}
+}
+
+func TestBrowserDetectorStartViaBrowserPath(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/detector/p1/browser/start",
+		bytes.NewBufferString("{}"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+}
+
+func TestBrowserDetectorStartNoPokemon(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/detector/missing/start",
+		bytes.NewBufferString("{}"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestBrowserDetectorStartNilManager(t *testing.T) {
+	mux, deps := newTestMuxNilDetector(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodPost, pathStart,
+		bytes.NewBufferString("{}"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf(msgWant503, w.Code)
+	}
+}
+
+func TestBrowserDetectorStartMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, pathStart, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+func TestBrowserDetectorStopSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	// Start a browser detector first
+	deps.detectorMgr.GetOrCreateBrowserDetector("p1", state.DetectorConfig{})
+
+	req := httptest.NewRequest(http.MethodPost, pathStop, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	// Verify it was stopped
+	bd := deps.detectorMgr.GetBrowserDetector("p1")
+	if bd != nil {
+		t.Error("expected browser detector to be nil after stop")
+	}
+}
+
+func TestBrowserDetectorStopViaBrowserPath(t *testing.T) {
+	mux, deps := newTestMux(t)
+	deps.detectorMgr.GetOrCreateBrowserDetector("p1", state.DetectorConfig{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/detector/p1/browser/stop", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+}
+
+func TestBrowserDetectorStopNilManager(t *testing.T) {
+	mux, _ := newTestMuxNilDetector(t)
+
+	req := httptest.NewRequest(http.MethodPost, pathStop, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf(msgWant503, w.Code)
+	}
+}
+
+func TestBrowserDetectorStopMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, pathStop, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+// --- Match Submit ------------------------------------------------------------
+
+func TestMatchSubmitSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	// Create a browser detector with low precision for easy matching
+	deps.detectorMgr.GetOrCreateBrowserDetector("p1", state.DetectorConfig{
+		Precision:       0.5,
+		ConsecutiveHits: 1,
+		CooldownSec:     0,
+	})
+
+	body := jsonBody(t, matchSubmitRequest{Score: 0.95, FrameDelta: 0.1})
+	req := httptest.NewRequest(http.MethodPost, pathMatch, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	var resp matchSubmitResponse
+	decodeJSON(t, w.Body, &resp)
+	// First score starts counting but may not match immediately depending on
+	// edge detection (needs low-to-high transition).
+	// The response should at least be valid JSON.
+	if resp.PollMs == 0 {
+		t.Error("expected non-zero PollMs")
+	}
+
+	// Verify detector_status was broadcast
+	found := false
+	for _, bc := range deps.broadcasts {
+		if bc.MsgType == "detector_status" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected detector_status broadcast")
+	}
+}
+
+func TestMatchSubmitNoBrowserDetector(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	body := jsonBody(t, matchSubmitRequest{Score: 0.5})
+	req := httptest.NewRequest(http.MethodPost, pathMatch, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestMatchSubmitNilManager(t *testing.T) {
+	mux, _ := newTestMuxNilDetector(t)
+
+	body := jsonBody(t, matchSubmitRequest{Score: 0.5})
+	req := httptest.NewRequest(http.MethodPost, "/api/detector/missing/match", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf(msgWant503, w.Code)
+	}
+}
+
+func TestMatchSubmitInvalidJSON(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPost, pathMatch,
+		bytes.NewBufferString("{bad"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestMatchSubmitMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, pathMatch, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+func TestMatchSubmitTriggersIncrement(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	// Use consecutive_hits=1 and precision=0.5 for a quick match.
+	deps.detectorMgr.GetOrCreateBrowserDetector("p1", state.DetectorConfig{
+		Precision:       0.5,
+		ConsecutiveHits: 1,
+		CooldownSec:     1,
+	})
+
+	// First score: low (establishes "below" baseline)
+	body1 := jsonBody(t, matchSubmitRequest{Score: 0.1, FrameDelta: 0.1})
+	req1 := httptest.NewRequest(http.MethodPost, pathMatch, body1)
+	w1 := httptest.NewRecorder()
+	mux.ServeHTTP(w1, req1)
+
+	// Second score: high (low-to-high transition triggers match)
+	body2 := jsonBody(t, matchSubmitRequest{Score: 0.95, FrameDelta: 0.1})
+	req2 := httptest.NewRequest(http.MethodPost, pathMatch, body2)
+	w2 := httptest.NewRecorder()
+	mux.ServeHTTP(w2, req2)
+
+	if w2.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w2.Code)
+	}
+
+	var resp matchSubmitResponse
+	decodeJSON(t, w2.Body, &resp)
+	if !resp.Matched {
+		t.Error("expected match after low-to-high transition")
+	}
+
+	// Verify encounter was incremented
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.Encounters != 1 {
+		t.Errorf("encounters = %d, want 1", p.Encounters)
+	}
+
+	// Verify detector_match was broadcast
+	found := false
+	for _, bc := range deps.broadcasts {
+		if bc.MsgType == "detector_match" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected detector_match broadcast on confirmed match")
+	}
+}
+
+// --- Export Templates --------------------------------------------------------
+
+func TestExportTemplatesSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	pngData := makePNGBytes(t)
+	dbID, _ := deps.detectorDB.SaveTemplateImage("p1", pngData, 0)
+
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{
+				TemplateDBID: dbID,
+				Regions:      []state.MatchedRegion{{Type: "image", Rect: state.DetectorRect{X: 0, Y: 0, W: 4, H: 4}}},
+			},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, pathExportTemplates, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	ct := w.Header().Get(hdrContentType)
+	if ct != "application/zip" {
+		t.Errorf("Content-Type = %q, want application/zip", ct)
+	}
+
+	// Verify the ZIP is valid and contains metadata.json + a PNG
+	zr, err := zip.NewReader(bytes.NewReader(w.Body.Bytes()), int64(w.Body.Len()))
+	if err != nil {
+		t.Fatalf("invalid ZIP: %v", err)
+	}
+
+	names := make(map[string]bool)
+	for _, f := range zr.File {
+		names[f.Name] = true
+	}
+	if !names[zipMetadataJSON] {
+		t.Error("metadata.json missing from export ZIP")
+	}
+	if !names[zipTemplate0PNG] {
+		t.Error("template_0.png missing from export ZIP")
+	}
+}
+
+func TestExportTemplatesNoPokemon(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/missing/export_templates", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestExportTemplatesNoConfig(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodGet, pathExportTemplates, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestExportTemplatesMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPost, pathExportTemplates, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+// --- Import Templates (from another Pokemon) ---------------------------------
+
+func TestImportTemplatesSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	pngData := makePNGBytes(t)
+	dbID, _ := deps.detectorDB.SaveTemplateImage("src", pngData, 0)
+
+	// Source Pokemon with a template
+	addTestPokemonWithConfig(t, deps, "src", "Charmander", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: dbID, Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	// Target Pokemon with no templates
+	addTestPokemon(t, deps, "tgt", "Pikachu")
+
+	body := jsonBody(t, importTemplatesRequest{SourcePokemonID: "src"})
+	req := httptest.NewRequest(http.MethodPost, pathImportTemplatesTgt, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	var resp importResponse
+	decodeJSON(t, w.Body, &resp)
+	if resp.Imported != 1 {
+		t.Errorf("imported = %d, want 1", resp.Imported)
+	}
+
+	// Verify template was copied to the target
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "tgt")
+	if p.DetectorConfig == nil || len(p.DetectorConfig.Templates) != 1 {
+		t.Fatal("expected 1 template on target after import")
+	}
+}
+
+func TestImportTemplatesTargetNotFound(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	body := jsonBody(t, importTemplatesRequest{SourcePokemonID: "src"})
+	req := httptest.NewRequest(http.MethodPost, "/api/detector/missing/import_templates", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestImportTemplatesSourceNoTemplates(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "src", "Charmander")
+	addTestPokemon(t, deps, "tgt", "Pikachu")
+
+	body := jsonBody(t, importTemplatesRequest{SourcePokemonID: "src"})
+	req := httptest.NewRequest(http.MethodPost, pathImportTemplatesTgt, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestImportTemplatesMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/import_templates", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+func TestImportTemplatesInvalidJSON(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "tgt", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodPost, pathImportTemplatesTgt,
+		bytes.NewBufferString("{bad"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+// --- Import Templates from File (ZIP) ----------------------------------------
+
+func TestImportTemplatesFileSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	pngData := makePNGBytes(t)
+
+	// Build a valid ZIP with metadata.json and a template PNG
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+
+	meta := []templateImportMeta{
+		{
+			Filename: zipTemplate0PNG,
+			Regions:  []state.MatchedRegion{{Type: "image", Rect: state.DetectorRect{W: 4, H: 4}}},
+		},
+	}
+	metaJSON, _ := json.Marshal(meta)
+	fw, _ := zw.Create(zipMetadataJSON)
+	_, _ = fw.Write(metaJSON)
+	fw2, _ := zw.Create(zipTemplate0PNG)
+	_, _ = fw2.Write(pngData)
+	_ = zw.Close()
+
+	// Build multipart form
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	ff, _ := mw.CreateFormFile("file", "templates.encounty-templates")
+	_, _ = ff.Write(zipBuf.Bytes())
+	_ = mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, pathImportFile, &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	var resp importResponse
+	decodeJSON(t, w.Body, &resp)
+	if resp.Imported != 1 {
+		t.Errorf("imported = %d, want 1", resp.Imported)
+	}
+}
+
+func TestImportTemplatesFileNoPokemon(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	pngData := makePNGBytes(t)
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	meta := []templateImportMeta{{Filename: zipTemplate0PNG}}
+	metaJSON, _ := json.Marshal(meta)
+	fw, _ := zw.Create(zipMetadataJSON)
+	_, _ = fw.Write(metaJSON)
+	fw2, _ := zw.Create(zipTemplate0PNG)
+	_, _ = fw2.Write(pngData)
+	_ = zw.Close()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	ff, _ := mw.CreateFormFile("file", "templates.zip")
+	_, _ = ff.Write(zipBuf.Bytes())
+	_ = mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/detector/missing/import_templates_file", &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestImportTemplatesFileNoFile(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodPost, pathImportFile,
+		bytes.NewBufferString(""))
+	req.Header.Set(hdrContentType, "multipart/form-data; boundary=xxx")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestImportTemplatesFileNoMetadata(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	// ZIP without metadata.json
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	fw, _ := zw.Create("other.txt")
+	_, _ = fw.Write([]byte("no metadata"))
+	_ = zw.Close()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	ff, _ := mw.CreateFormFile("file", "templates.zip")
+	_, _ = ff.Write(zipBuf.Bytes())
+	_ = mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, pathImportFile, &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestImportTemplatesFileMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, pathImportFile, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+// --- downscaleImage ----------------------------------------------------------
+
+func TestDownscaleImageNoOp(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 800, 600))
+	result := downscaleImage(img, 1920)
+	if result.Bounds().Dx() != 800 {
+		t.Errorf("width = %d, want 800 (should not be scaled)", result.Bounds().Dx())
+	}
+}
+
+func TestDownscaleImageScales(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 3840, 2160))
+	result := downscaleImage(img, 1920)
+	if result.Bounds().Dx() != 1920 {
+		t.Errorf("width = %d, want 1920", result.Bounds().Dx())
+	}
+	// Aspect ratio should be preserved: 2160 * 1920 / 3840 = 1080
+	if result.Bounds().Dy() != 1080 {
+		t.Errorf("height = %d, want 1080", result.Bounds().Dy())
+	}
+}
+
+// --- findPokemon helper ------------------------------------------------------
+
+func TestFindPokemonFound(t *testing.T) {
+	st := state.AppState{
+		Pokemon: []state.Pokemon{
+			{ID: "p1", Name: "Pikachu"},
+			{ID: "p2", Name: "Charmander"},
+		},
+	}
+	p := findPokemon(st, "p2")
+	if p == nil {
+		t.Fatal("expected to find p2")
+	}
+	if p.Name != "Charmander" {
+		t.Errorf("name = %q, want Charmander", p.Name)
+	}
+}
+
+func TestFindPokemonNotFound(t *testing.T) {
+	st := state.AppState{
+		Pokemon: []state.Pokemon{{ID: "p1", Name: "Pikachu"}},
+	}
+	p := findPokemon(st, "missing")
+	if p != nil {
+		t.Error("expected nil for missing pokemon")
+	}
+}
