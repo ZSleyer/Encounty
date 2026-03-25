@@ -71,23 +71,23 @@ Pull requests are welcome! Whether it's translations, new features, or bug fixes
 | Tool | Version | Notes |
 |------|---------|-------|
 | Go | 1.25+ | Backend API server |
-| Node.js | 22+ | Frontend build |
+| Node.js | 22+ | Frontend build and Electron |
 | Yarn | any | Package manager (`npm install -g yarn`) |
 | Make | any | Build orchestration |
 
 ### Architecture
 
-Encounty uses a two-process architecture:
+Encounty uses a two-process architecture with all detection running in the browser:
 
-- **Go backend** — pure API server and state coordinator (`/api/*`, `/ws`); hotkeys, file output, overlay serving, SQLite persistence
-- **Electron** — desktop shell with browser-based capture and WebGPU detection; manages the Go process lifecycle
+- **Go backend** — pure API server and state coordinator (`/api/*`, `/ws`); hotkeys, file output, SQLite persistence, and frontend asset serving for OBS overlays
+- **Electron** — desktop shell that manages the Go process lifecycle and hosts the browser-based capture and detection engine
 
-The frontend handles capture (via `getDisplayMedia` / `getUserMedia`), NCC template matching (via WebGPU compute shaders), and live preview — all in the browser with near-zero CPU overhead.
+The frontend captures screen, window, or camera feeds via `getDisplayMedia` / `getUserMedia`, runs NCC template matching through WebGPU compute shaders, and renders live previews — all with near-zero CPU overhead. In production, the Go backend also serves the frontend SPA so OBS can load overlays directly from `http://localhost:8080/overlay/{id}`.
 
 ```text
 backend/          Go API server (REST + WebSocket)
   internal/
-    server/       HTTP handlers (split by domain)
+    server/       HTTP handlers, SPA serving, Swagger UI
     detector/     Browser detector state machine (score-based)
     gamesync/     Game catalogue + PokéAPI sync
     pokedex/      Pokédex data + GraphQL sync
