@@ -61,6 +61,32 @@ func NewBrowserDetector(cfg state.DetectorConfig) *BrowserDetector {
 	}
 }
 
+// scoreParams bundles the resolved detection parameters passed between the
+// SubmitScore entry point and per-phase handlers, avoiding long parameter lists.
+type scoreParams struct {
+	Precision           float64
+	ConsecutiveHits     int
+	CooldownSec         int
+	AdaptiveCooldownMin int
+	BasePollMs          int
+	MinPollMs           int
+	MaxPollMs           int
+}
+
+// resolveParams derives effective detection parameters from the config,
+// applying defaults where the config values are zero.
+func (bd *BrowserDetector) resolveParams() scoreParams {
+	return scoreParams{
+		Precision:           floatOrDefault(bd.cfg.Precision, defaultPrecision),
+		ConsecutiveHits:     intOrDefault(bd.cfg.ConsecutiveHits, defaultConsecutiveHits),
+		CooldownSec:         intOrDefault(bd.cfg.CooldownSec, defaultCooldownSec),
+		AdaptiveCooldownMin: intOrDefault(bd.cfg.AdaptiveCooldownMin, 3),
+		BasePollMs:          intOrDefault(bd.cfg.PollIntervalMs, defaultPollIntervalMs),
+		MinPollMs:           intOrDefault(bd.cfg.MinPollMs, defaultMinPollMs),
+		MaxPollMs:           intOrDefault(bd.cfg.MaxPollMs, defaultMaxPollMs),
+	}
+}
+
 // SubmitScore runs one iteration of the detection state machine against a
 // pre-computed NCC score from the browser's WebGPU engine. bestScore is the
 // highest NCC score across all templates (0.0-1.0); frameDelta is the
@@ -70,30 +96,24 @@ func (bd *BrowserDetector) SubmitScore(bestScore, frameDelta float64) BrowserMat
 	bd.mu.Lock()
 	defer bd.mu.Unlock()
 
-	precision := floatOrDefault(bd.cfg.Precision, defaultPrecision)
-	consecutiveHits := intOrDefault(bd.cfg.ConsecutiveHits, defaultConsecutiveHits)
-	cooldownSec := intOrDefault(bd.cfg.CooldownSec, defaultCooldownSec)
-	adaptiveCooldownMin := intOrDefault(bd.cfg.AdaptiveCooldownMin, 3)
-	basePollMs := intOrDefault(bd.cfg.PollIntervalMs, defaultPollIntervalMs)
-	minPollMs := intOrDefault(bd.cfg.MinPollMs, defaultMinPollMs)
-	maxPollMs := intOrDefault(bd.cfg.MaxPollMs, defaultMaxPollMs)
+	p := bd.resolveParams()
 
 	matched := false
 	var pollMs int
 
 	switch bd.phase {
 	case stateIdle:
-		matched, pollMs = bd.processIdleScore(bestScore, frameDelta, precision, consecutiveHits, cooldownSec, basePollMs, minPollMs, maxPollMs)
+		matched, pollMs = bd.processIdleScore(bestScore, frameDelta, p)
 
 	case stateMatchActive:
 		// Transition immediately to cooldown on the next submission.
 		bd.phase = stateCooldown
-		bd.cooldownEnd = time.Now().Add(time.Duration(cooldownSec) * time.Second)
+		bd.cooldownEnd = time.Now().Add(time.Duration(p.CooldownSec) * time.Second)
 		bd.cooldownStartTime = time.Now()
-		pollMs = basePollMs
+		pollMs = p.BasePollMs
 
 	case stateCooldown:
-		pollMs = bd.processCooldownScore(bestScore, precision, adaptiveCooldownMin, basePollMs)
+		pollMs = bd.processCooldownScore(bestScore, p)
 	}
 
 	bd.lastBestScore = bestScore
@@ -109,8 +129,8 @@ func (bd *BrowserDetector) SubmitScore(bestScore, frameDelta float64) BrowserMat
 // processIdleScore evaluates a score during the idle phase and transitions to
 // stateMatchActive when enough consecutive hits are confirmed. Returns whether
 // a match was confirmed and the suggested poll interval in milliseconds.
-func (bd *BrowserDetector) processIdleScore(bestScore, frameDelta, precision float64, consecutiveHits, cooldownSec, basePollMs, minPollMs, maxPollMs int) (bool, int) {
-	above := bestScore >= precision
+func (bd *BrowserDetector) processIdleScore(bestScore, frameDelta float64, p scoreParams) (bool, int) {
+	above := bestScore >= p.Precision
 
 	if above && !bd.prevAbove {
 		bd.consecCount = 1
@@ -125,22 +145,22 @@ func (bd *BrowserDetector) processIdleScore(bestScore, frameDelta, precision flo
 	var pollMs int
 	switch {
 	case above || bestScore > 0.5:
-		pollMs = minPollMs
+		pollMs = p.MinPollMs
 	case frameDelta > 0.05:
-		pollMs = minPollMs
+		pollMs = p.MinPollMs
 	case frameDelta > 0.01:
-		pollMs = basePollMs
+		pollMs = p.BasePollMs
 	default:
-		pollMs = maxPollMs
+		pollMs = p.MaxPollMs
 	}
 
-	if bd.consecCount >= consecutiveHits {
+	if bd.consecCount >= p.ConsecutiveHits {
 		bd.consecCount = 0
 		bd.prevAbove = false
-		bd.cooldownEnd = time.Now().Add(time.Duration(cooldownSec) * time.Second)
+		bd.cooldownEnd = time.Now().Add(time.Duration(p.CooldownSec) * time.Second)
 		bd.cooldownStartTime = time.Now()
 		bd.phase = stateMatchActive
-		slog.Debug("Browser detector match confirmed", "cooldown_sec", cooldownSec)
+		slog.Debug("Browser detector match confirmed", "cooldown_sec", p.CooldownSec)
 		return true, pollMs
 	}
 
@@ -149,10 +169,10 @@ func (bd *BrowserDetector) processIdleScore(bestScore, frameDelta, precision flo
 
 // processCooldownScore checks whether the cooldown period has elapsed and
 // transitions back to idle. Returns the suggested poll interval.
-func (bd *BrowserDetector) processCooldownScore(bestScore, precision float64, adaptiveCooldownMin, basePollMs int) int {
+func (bd *BrowserDetector) processCooldownScore(bestScore float64, p scoreParams) int {
 	if bd.cfg.AdaptiveCooldown {
-		minElapsed := time.Since(bd.cooldownStartTime) >= time.Duration(adaptiveCooldownMin)*time.Second
-		if minElapsed && bestScore < precision {
+		minElapsed := time.Since(bd.cooldownStartTime) >= time.Duration(p.AdaptiveCooldownMin)*time.Second
+		if minElapsed && bestScore < p.Precision {
 			bd.phase = stateIdle
 			bd.prevAbove = true
 			bd.consecCount = 0
@@ -163,7 +183,7 @@ func (bd *BrowserDetector) processCooldownScore(bestScore, precision float64, ad
 		bd.consecCount = 0
 	}
 
-	return basePollMs
+	return p.BasePollMs
 }
 
 // UpdateConfig replaces the detection configuration. This allows tuning

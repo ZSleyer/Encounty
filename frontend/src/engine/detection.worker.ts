@@ -19,7 +19,11 @@ const templates: Map<number, TemplateData> = new Map();
 
 // --- Message handler ---------------------------------------------------------
 
-ctx.onmessage = async (e: MessageEvent) => {
+ctx.onmessage = (e: MessageEvent) => {
+  void handleMessage(e);
+};
+
+async function handleMessage(e: MessageEvent): Promise<void> {
   const msg = e.data;
 
   switch (msg.cmd) {
@@ -71,4 +75,4 @@ ctx.onmessage = async (e: MessageEvent) => {
       ctx.postMessage({ cmd: "destroy", ok: true });
       break;
   }
-};
+}

@@ -6,7 +6,7 @@
  * In Vite dev mode, the proxy handles /api and /ws, so the base is empty.
  */
 
-const API_BASE: string = window.electronAPI?.apiBaseUrl ?? "";
+const API_BASE: string = globalThis.electronAPI?.apiBaseUrl ?? "";
 
 /** Build a full URL for an API endpoint path (e.g. "/api/state"). */
 export function apiUrl(path: string): string {

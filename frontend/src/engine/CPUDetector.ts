@@ -31,8 +31,8 @@ type FrameSource = HTMLVideoElement | ImageBitmap;
  * ```
  */
 export class CPUDetector {
-  private canvas: OffscreenCanvas;
-  private ctx: OffscreenCanvasRenderingContext2D;
+  private readonly canvas: OffscreenCanvas;
+  private readonly ctx: OffscreenCanvasRenderingContext2D;
   private previousGray: Float32Array | null = null;
 
   constructor() {
@@ -142,8 +142,8 @@ export class CPUDetector {
     const frameGray = this.captureGrayscale(source, config.crop, maxDim);
 
     // Pixel delta for frame deduplication
-    let frameDelta = 1.0;
-    if (this.previousGray && this.previousGray.length === frameGray.gray.length) {
+    let frameDelta = 1;
+    if (this.previousGray?.length === frameGray.gray.length) {
       frameDelta = pixelDelta(this.previousGray, frameGray.gray);
     }
     this.previousGray = frameGray.gray;
@@ -164,9 +164,6 @@ export class CPUDetector {
       );
       if (negRegions.length > 0 && score > 0) {
         // Score negative regions using the same hybrid match pipeline
-        const posRegions = tmpl.regions.filter(
-          (r) => r.polarity !== "negative",
-        );
         const negativeTmpl = { ...tmpl, regions: negRegions };
         const negScore = matchTemplate(source, negativeTmpl, frameGray, maxDim, config.crop);
         score = score * Math.max(0, 1 - negScore);
@@ -242,6 +239,56 @@ interface GrayTemplate {
   stdDev: number;
 }
 
+/** Select adaptive block size for SSIM based on region dimensions. */
+function adaptiveBlockSizeForRegion(dw: number, dh: number): number {
+  const regionMinDim = Math.min(dw, dh);
+  if (regionMinDim < 64) return 8;
+  if (regionMinDim <= 256) return 16;
+  return 32;
+}
+
+/** Region geometry for sliding window scoring. */
+interface SlidingWindowRegion {
+  frameRx: number; frameRy: number;
+  frameRw: number; frameRh: number;
+  srcW: number; srcH: number;
+  dw: number; dh: number;
+}
+
+/** Compute the best hybrid score for a single region using a sliding window search. */
+function scoreRegionSlidingWindow(
+  tmpCtx: OffscreenCanvasRenderingContext2D,
+  tmplCrop: Float32Array,
+  region: SlidingWindowRegion,
+  blockSize: number,
+): number {
+  const { frameRx, frameRy, frameRw, frameRh, srcW, srcH, dw, dh } = region;
+  let bestRegionScore = 0;
+  const slideStep = 2;
+  const slideRange = 4;
+
+  for (let dy = -slideRange; dy <= slideRange; dy += slideStep) {
+    for (let dx = -slideRange; dx <= slideRange; dx += slideStep) {
+      const ox = Math.max(0, Math.min(frameRx + dx, srcW - frameRw));
+      const oy = Math.max(0, Math.min(frameRy + dy, srcH - frameRh));
+
+      const frameCrop = cropGrayscale(tmpCtx, ox, oy, frameRw, frameRh, dw, dh);
+
+      const ssimScore = blockSSIM(frameCrop.gray, tmplCrop, dw, dh, blockSize);
+      const nccScore = pearsonCorrelation(frameCrop.gray, tmplCrop);
+      const histScore = histogramCorrelation(frameCrop.gray, tmplCrop);
+      const dhashScore = dHashSimilarity(frameCrop.gray, dw, dh, tmplCrop, dw, dh);
+      const madScore = madSimilarity(frameCrop.gray, tmplCrop);
+
+      // Hybrid: weighted combination of SSIM, NCC, MAD, histogram, and dHash
+      const combined = 0.3 * ssimScore + 0.25 * nccScore + 0.2 * madScore + 0.15 * histScore + 0.1 * dhashScore;
+      if (combined > bestRegionScore) bestRegionScore = combined;
+    }
+  }
+
+  return bestRegionScore;
+}
+
 /**
  * Match a single template against a video frame, respecting region definitions.
  *
@@ -264,12 +311,7 @@ function matchTemplate(
     return matchWholeTemplate(frameGray, tmpl, maxDim);
   }
 
-  // Region-scoped matching (AND-logic across all regions)
-  let minScore = 1.0;
-  let evaluated = 0;
-
   // We need the full-resolution frame pixels for region cropping.
-  // Use a temporary canvas to grab the video at its native resolution.
   const srcW = source instanceof ImageBitmap ? source.width : source.videoWidth;
   const srcH = source instanceof ImageBitmap ? source.height : source.videoHeight;
   if (srcW === 0 || srcH === 0) return 0;
@@ -279,71 +321,32 @@ function matchTemplate(
   if (!tmpCtx) return 0;
   tmpCtx.drawImage(source, 0, 0, srcW, srcH);
 
-  // Template original dimensions (before any downscale) to map region rects
-  const tmplW = tmpl.width;
-  const tmplH = tmpl.height;
+  const scaleX = srcW / tmpl.width;
+  const scaleY = srcH / tmpl.height;
+
+  // Region-scoped matching (AND-logic across all regions)
+  let minScore = 1;
+  let evaluated = 0;
 
   for (const region of regions) {
     if (region.type !== "image") continue;
 
     const r = region.rect;
-    // Scale region rect from template coords to frame coords
-    const scaleX = srcW / tmplW;
-    const scaleY = srcH / tmplH;
     const frameRx = Math.round(r.x * scaleX);
     const frameRy = Math.round(r.y * scaleY);
     const frameRw = Math.max(4, Math.round(r.w * scaleX));
     const frameRh = Math.max(4, Math.round(r.h * scaleY));
 
-    // Crop the region from frame and template at the SAME target size
     const [dw, dh] = fitDimensions(r.w, r.h, maxDim);
     const tmplCrop = cropTemplateGray(tmpl, r.x, r.y, r.w, r.h, dw, dh);
     if (!tmplCrop) continue;
 
-    // Adaptive block size based on region dimensions
-    const regionMinDim = Math.min(dw, dh);
-    let adaptiveBlockSize: number;
-    if (regionMinDim < 64) {
-      adaptiveBlockSize = 8;
-    } else if (regionMinDim <= 256) {
-      adaptiveBlockSize = 16;
-    } else {
-      adaptiveBlockSize = 32;
-    }
-
-    // Sliding window: try offsets ±4px (step 2) and keep the best match
-    let bestRegionScore = 0;
-    const slideStep = 2;
-    const slideRange = 4;
-
-    for (let dy = -slideRange; dy <= slideRange; dy += slideStep) {
-      for (let dx = -slideRange; dx <= slideRange; dx += slideStep) {
-        const ox = Math.max(0, Math.min(frameRx + dx, srcW - frameRw));
-        const oy = Math.max(0, Math.min(frameRy + dy, srcH - frameRh));
-
-        const frameCrop = cropGrayscale(tmpCtx, ox, oy, frameRw, frameRh, dw, dh);
-
-        // Block-SSIM with adaptive block size
-        const ssimScore = blockSSIM(frameCrop.gray, tmplCrop, dw, dh, adaptiveBlockSize);
-
-        // Global NCC (Pearson correlation) between the two crops
-        const nccScore = pearsonCorrelation(frameCrop.gray, tmplCrop);
-
-        // Histogram correlation on the current sliding-window crop
-        const histScore = histogramCorrelation(frameCrop.gray, tmplCrop);
-
-        // Perceptual difference hash for structural content verification
-        const dhashScore = dHashSimilarity(frameCrop.gray, dw, dh, tmplCrop, dw, dh);
-
-        // Mean Absolute Difference for pixel-level fidelity verification
-        const madScore = madSimilarity(frameCrop.gray, tmplCrop);
-
-        // Hybrid: weighted combination of SSIM, NCC, MAD, histogram, and dHash
-        const combined = 0.3 * ssimScore + 0.25 * nccScore + 0.2 * madScore + 0.15 * histScore + 0.1 * dhashScore;
-
-        if (combined > bestRegionScore) bestRegionScore = combined;
-      }
-    }
+    const blockSize = adaptiveBlockSizeForRegion(dw, dh);
+    const bestRegionScore = scoreRegionSlidingWindow(
+      tmpCtx, tmplCrop,
+      { frameRx, frameRy, frameRw, frameRh, srcW, srcH, dw, dh },
+      blockSize,
+    );
 
     evaluated++;
     if (bestRegionScore < minScore) minScore = bestRegionScore;
@@ -351,7 +354,6 @@ function matchTemplate(
   }
 
   if (evaluated === 0) {
-    // No image regions evaluated — fall back to whole-template
     return matchWholeTemplate(frameGray, tmpl, maxDim);
   }
 
@@ -365,14 +367,10 @@ function matchWholeTemplate(
   maxDim: number,
 ): number {
   if (tmpl.width <= 128 && tmpl.height <= 128) {
-    return matchMultiScale(frameGray.gray, frameGray.width, frameGray.height, tmpl, maxDim);
+    return matchMultiScale(frameGray.gray, frameGray.width, frameGray.height, tmpl);
   }
   const tmplGray = downscaleTemplate(tmpl, maxDim);
-  return ncc(
-    frameGray.gray, frameGray.width, frameGray.height,
-    tmplGray.gray, tmplGray.width, tmplGray.height,
-    tmplGray.mean, tmplGray.stdDev,
-  );
+  return ncc(frameGray.gray, frameGray.width, frameGray.height, tmplGray);
 }
 
 /** Crop a region from a canvas context, scale to target size, convert to grayscale. */
@@ -624,7 +622,7 @@ function blockSSIM(
  */
 function matchMultiScale(
   frameGray: Float32Array, fw: number, fh: number,
-  tmpl: TemplateData, frameDim: number,
+  tmpl: TemplateData,
 ): number {
   const minDim = 12;
   const maxDim = Math.min(fw, fh);
@@ -635,43 +633,26 @@ function matchMultiScale(
   for (let targetDim = minDim; targetDim <= maxDim; targetDim += step) {
     const scaled = downscaleTemplate(tmpl, targetDim);
     if (scaled.width < 4 || scaled.height < 4) continue;
-    const score = ncc(
-      frameGray, fw, fh,
-      scaled.gray, scaled.width, scaled.height,
-      scaled.mean, scaled.stdDev,
-    );
+    const score = ncc(frameGray, fw, fh, scaled);
     if (score > best) best = score;
     // Early exit when score is high enough
     if (best >= 0.95) break;
   }
 
-  // Suppress falsely low results from the ignore parameter
-  void frameDim;
   return best;
 }
 
-/**
- * Compute NCC between a frame and a template using integral images.
- *
- * Both frame and template are grayscale arrays in the 0-255 range.
- * Returns the best NCC score in [0, 1].
- */
-function ncc(
-  frame: Float32Array,
-  fw: number,
-  fh: number,
-  tmpl: Float32Array,
-  tw: number,
-  th: number,
-  tmplMean: number,
-  tmplStd: number,
-): number {
-  if (tw > fw || th > fh || tw < 4 || th < 4) return 0;
-  if (tmplStd < 1e-9) return 0;
+/** Integral image pair (sum and sum-of-squares) for a grayscale frame. */
+interface IntegralImages {
+  ii: Float64Array;
+  ii2: Float64Array;
+  stride: number;
+}
 
-  const n = tw * th;
-
-  // Build integral images for the frame
+/** Build integral images (sum and sum-of-squares) for a grayscale frame. */
+function buildIntegralImages(
+  frame: Float32Array, fw: number, fh: number,
+): IntegralImages {
   const stride = fw + 1;
   const ii = new Float64Array(stride * (fh + 1));
   const ii2 = new Float64Array(stride * (fh + 1));
@@ -689,7 +670,54 @@ function ncc(
     }
   }
 
-  // Slide the template across all valid positions
+  return { ii, ii2, stride };
+}
+
+/** Compute cross-correlation between a frame patch and a template at position (fx, fy). */
+function crossCorrelation(
+  frame: Float32Array, fw: number,
+  tmpl: NccTemplate,
+  fx: number, fy: number,
+  pMean: number,
+): number {
+  const { gray, width: tw, height: th, mean: tmplMean } = tmpl;
+  let cc = 0;
+  for (let ty = 0; ty < th; ty++) {
+    for (let tx = 0; tx < tw; tx++) {
+      const fv = frame[(fy + ty) * fw + (fx + tx)] - pMean;
+      const tv = gray[ty * tw + tx] - tmplMean;
+      cc += fv * tv;
+    }
+  }
+  return cc;
+}
+
+/** Grouped template parameters for NCC computation. */
+interface NccTemplate {
+  gray: Float32Array;
+  width: number;
+  height: number;
+  mean: number;
+  stdDev: number;
+}
+
+/**
+ * Compute NCC between a frame and a template using integral images.
+ *
+ * Both frame and template are grayscale arrays in the 0-255 range.
+ * Returns the best NCC score in [0, 1].
+ */
+function ncc(
+  frame: Float32Array, fw: number, fh: number,
+  tmpl: NccTemplate,
+): number {
+  const { width: tw, height: th, stdDev: tmplStd } = tmpl;
+  if (tw > fw || th > fh || tw < 4 || th < 4) return 0;
+  if (tmplStd < 1e-9) return 0;
+
+  const n = tw * th;
+  const { ii, ii2, stride } = buildIntegralImages(frame, fw, fh);
+
   let best = 0;
 
   for (let fy = 0; fy <= fh - th; fy++) {
@@ -713,16 +741,7 @@ function ncc(
       const pStd = Math.sqrt(pVar);
       if (pStd < 1e-9) continue;
 
-      // Cross-correlation
-      let cc = 0;
-      for (let ty = 0; ty < th; ty++) {
-        for (let tx = 0; tx < tw; tx++) {
-          const fv = frame[(fy + ty) * fw + (fx + tx)] - pMean;
-          const tv = tmpl[ty * tw + tx] - tmplMean;
-          cc += fv * tv;
-        }
-      }
-
+      const cc = crossCorrelation(frame, fw, tmpl, fx, fy, pMean);
       const val = cc / (n * pStd * tmplStd);
       if (val > best) best = val;
     }

@@ -13,7 +13,7 @@ import type { TemplateData } from "./WebGPUDetector";
 
 /** Worker-based CPU detection that offloads matching to a background thread. */
 export class WorkerDetector {
-  private worker: Worker;
+  private readonly worker: Worker;
   private ready = false;
   private nextTemplateId = 0;
   private pendingDetect: {
@@ -67,7 +67,7 @@ export class WorkerDetector {
       };
       detector.worker.onerror = (err) => {
         clearTimeout(timeout);
-        reject(err);
+        reject(new Error(err.message || "Worker initialization failed"));
       };
       worker.postMessage({ cmd: "init" });
     });

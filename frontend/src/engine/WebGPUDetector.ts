@@ -243,9 +243,6 @@ export class WebGPUDetector {
     if (source instanceof HTMLVideoElement) {
       width = source.videoWidth;
       height = source.videoHeight;
-    } else if (source instanceof HTMLCanvasElement) {
-      width = source.width;
-      height = source.height;
     } else {
       width = source.width;
       height = source.height;
@@ -283,7 +280,7 @@ export class WebGPUDetector {
   preprocess(
     texture: GPUTexture,
     crop?: { x: number; y: number; w: number; h: number },
-    maxDim?: number,
+    maxDim = 320,
   ): { buffer: GPUBuffer; width: number; height: number } {
     const srcW = texture.width;
     const srcH = texture.height;
@@ -291,9 +288,8 @@ export class WebGPUDetector {
     const cropY = crop?.y ?? 0;
     const cropW = crop?.w ?? srcW;
     const cropH = crop?.h ?? srcH;
-    const md = maxDim ?? 320;
 
-    const [dstW, dstH] = fitDimensions(cropW, cropH, md);
+    const [dstW, dstH] = fitDimensions(cropW, cropH, maxDim);
 
     // Uniform buffer: 8 u32 values = 32 bytes
     const paramsData = new Uint32Array([
@@ -551,58 +547,38 @@ export class WebGPUDetector {
       // 2. Pearson NCC
       const pearsonOutBuf = this.createScalarOutputBuffer(`pearson_out_${ri}`);
       buffersToDestroy.push(pearsonOutBuf);
-      this.encodeMetricPass(
-        encoder,
-        this.pearsonNccPipeline,
-        this.pearsonNccBGL,
-        frameCropBuf,
-        tmplBuf,
-        metricParamsBuf,
-        pearsonOutBuf,
-        `pearson_pass_${ri}`,
-      );
+      this.encodeMetricPass(encoder, {
+        pipeline: this.pearsonNccPipeline, bgl: this.pearsonNccBGL,
+        frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
+        outBuf: pearsonOutBuf, label: `pearson_pass_${ri}`,
+      });
 
       // 3. MAD
       const madOutBuf = this.createScalarOutputBuffer(`mad_out_${ri}`);
       buffersToDestroy.push(madOutBuf);
-      this.encodeMetricPass(
-        encoder,
-        this.madPipeline,
-        this.madBGL,
-        frameCropBuf,
-        tmplBuf,
-        metricParamsBuf,
-        madOutBuf,
-        `mad_pass_${ri}`,
-      );
+      this.encodeMetricPass(encoder, {
+        pipeline: this.madPipeline, bgl: this.madBGL,
+        frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
+        outBuf: madOutBuf, label: `mad_pass_${ri}`,
+      });
 
       // 4. Histogram correlation
       const histOutBuf = this.createScalarOutputBuffer(`hist_out_${ri}`);
       buffersToDestroy.push(histOutBuf);
-      this.encodeMetricPass(
-        encoder,
-        this.histogramPipeline,
-        this.histogramBGL,
-        frameCropBuf,
-        tmplBuf,
-        metricParamsBuf,
-        histOutBuf,
-        `hist_pass_${ri}`,
-      );
+      this.encodeMetricPass(encoder, {
+        pipeline: this.histogramPipeline, bgl: this.histogramBGL,
+        frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
+        outBuf: histOutBuf, label: `hist_pass_${ri}`,
+      });
 
       // 5. dHash
       const dhashOutBuf = this.createScalarOutputBuffer(`dhash_out_${ri}`);
       buffersToDestroy.push(dhashOutBuf);
-      this.encodeMetricPass(
-        encoder,
-        this.dhashPipeline,
-        this.dhashBGL,
-        frameCropBuf,
-        tmplBuf,
-        metricParamsBuf,
-        dhashOutBuf,
-        `dhash_pass_${ri}`,
-      );
+      this.encodeMetricPass(encoder, {
+        pipeline: this.dhashPipeline, bgl: this.dhashBGL,
+        frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
+        outBuf: dhashOutBuf, label: `dhash_pass_${ri}`,
+      });
 
       // Submit all 5 metric dispatches
       this.device.queue.submit([encoder.finish()]);
@@ -813,7 +789,7 @@ export class WebGPUDetector {
     }
 
     // Compute pixel delta for frame deduplication
-    let frameDelta = 1.0;
+    let frameDelta = 1;
     if (config.previousFrame) {
       frameDelta = await this.pixelDelta(config.previousFrame, frameBuf);
     }
@@ -837,23 +813,10 @@ export class WebGPUDetector {
         (_, idx) => tmpl.regions[idx]?.polarity === "negative",
       );
 
-      let score: number;
-      if (hasRegions && positiveRegionCrops && positiveRegionCrops.length > 0) {
-        const positiveTmpl = { ...tmpl, regionCrops: positiveRegionCrops };
-        score = await this.regionHybridMatch(texture, positiveTmpl);
-      } else if (hasRegions) {
-        // All regions are negative — use NCC as base score
-        score = await this.nccMatch(frameBuf, tmpl, frameW, frameH);
-      } else {
-        score = await this.nccMatch(frameBuf, tmpl, frameW, frameH);
-      }
-
-      // Apply negative region penalty: high match on negative region suppresses detection
-      if (negativeRegionCrops && negativeRegionCrops.length > 0 && score > 0) {
-        const negativeTmpl = { ...tmpl, regionCrops: negativeRegionCrops };
-        const negScore = await this.regionHybridMatch(texture, negativeTmpl);
-        score = score * Math.max(0, 1 - negScore);
-      }
+      const score = await this.scoreTemplate(
+        tmpl, { texture, buf: frameBuf, w: frameW, h: frameH },
+        hasRegions, positiveRegionCrops, negativeRegionCrops,
+      );
 
       if (score > bestScore) {
         bestScore = score;
@@ -874,6 +837,39 @@ export class WebGPUDetector {
       templateIndex: bestIndex,
       frameBuffer: frameBuf,
     };
+  }
+
+  /**
+   * Score a single template against the current frame.
+   *
+   * Chooses the region-based hybrid pipeline when positive regions exist,
+   * otherwise falls back to sliding-window NCC. Applies negative region
+   * penalty when applicable.
+   */
+  private async scoreTemplate(
+    tmpl: TemplateData,
+    frame: { texture: GPUTexture; buf: GPUBuffer; w: number; h: number },
+    hasRegions: boolean | undefined,
+    positiveRegionCrops: TemplateData["regionCrops"],
+    negativeRegionCrops: TemplateData["regionCrops"],
+  ): Promise<number> {
+    const { texture, buf: frameBuf, w: frameW, h: frameH } = frame;
+    let score: number;
+    if (hasRegions && positiveRegionCrops && positiveRegionCrops.length > 0) {
+      const positiveTmpl = { ...tmpl, regionCrops: positiveRegionCrops };
+      score = await this.regionHybridMatch(texture, positiveTmpl);
+    } else {
+      score = await this.nccMatch(frameBuf, tmpl, frameW, frameH);
+    }
+
+    // Apply negative region penalty: high match on negative region suppresses detection
+    if (negativeRegionCrops && negativeRegionCrops.length > 0 && score > 0) {
+      const negativeTmpl = { ...tmpl, regionCrops: negativeRegionCrops };
+      const negScore = await this.regionHybridMatch(texture, negativeTmpl);
+      score = score * Math.max(0, 1 - negScore);
+    }
+
+    return score;
   }
 
   /** Release all GPU resources held by this detector. */
@@ -1350,31 +1346,33 @@ export class WebGPUDetector {
    */
   private encodeMetricPass(
     encoder: GPUCommandEncoder,
-    pipeline: GPUComputePipeline,
-    bgl: GPUBindGroupLayout,
-    frameBuf: GPUBuffer,
-    tmplBuf: GPUBuffer,
-    paramsBuf: GPUBuffer,
-    outBuf: GPUBuffer,
-    label: string,
+    pass: {
+      pipeline: GPUComputePipeline;
+      bgl: GPUBindGroupLayout;
+      frameBuf: GPUBuffer;
+      tmplBuf: GPUBuffer;
+      paramsBuf: GPUBuffer;
+      outBuf: GPUBuffer;
+      label: string;
+    },
   ): void {
     const bindGroup = this.device.createBindGroup({
-      label: `${label}_bg`,
-      layout: bgl,
+      label: `${pass.label}_bg`,
+      layout: pass.bgl,
       entries: [
-        { binding: 0, resource: { buffer: frameBuf } },
-        { binding: 1, resource: { buffer: tmplBuf } },
-        { binding: 2, resource: { buffer: paramsBuf } },
-        { binding: 3, resource: { buffer: outBuf } },
+        { binding: 0, resource: { buffer: pass.frameBuf } },
+        { binding: 1, resource: { buffer: pass.tmplBuf } },
+        { binding: 2, resource: { buffer: pass.paramsBuf } },
+        { binding: 3, resource: { buffer: pass.outBuf } },
       ],
     });
 
-    const pass = encoder.beginComputePass({ label });
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
+    const computePass = encoder.beginComputePass({ label: pass.label });
+    computePass.setPipeline(pass.pipeline);
+    computePass.setBindGroup(0, bindGroup);
     // Single workgroup of 256 threads for all metric shaders
-    pass.dispatchWorkgroups(1, 1, 1);
-    pass.end();
+    computePass.dispatchWorkgroups(1, 1, 1);
+    computePass.end();
   }
 
   /**

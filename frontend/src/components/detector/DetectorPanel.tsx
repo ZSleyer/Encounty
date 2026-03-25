@@ -24,7 +24,7 @@ import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { getSpriteUrl } from "../../utils/sprites";
 import { apiUrl } from "../../utils/api";
 import { WebGPUDetector, CPUDetector, WorkerDetector } from "../../engine";
-import { DetectionLoop, registerLoop, stopLoop, isLoopRunning, getActiveLoop } from "../../engine/DetectionLoop";
+import { DetectionLoop, registerLoop, stopLoop, getActiveLoop } from "../../engine/DetectionLoop";
 import type { Detector, TemplateData } from "../../engine";
 
 // --- Default config ----------------------------------------------------------

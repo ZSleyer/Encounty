@@ -23,6 +23,10 @@ const (
 	// defaultRetryAfter is the fallback delay when a 429 response lacks a
 	// parseable Retry-After header.
 	defaultRetryAfter = 5 * time.Second
+
+	// fmtHTTPStatus is the format string for HTTP error messages containing
+	// the status code and URL.
+	fmtHTTPStatus = "HTTP %d from %s"
 )
 
 // FetchJSON performs an HTTP request and decodes the JSON response into v.
@@ -131,7 +135,7 @@ func doFetchJSON(client *http.Client, url, method string, body io.Reader, v any)
 	if resp.StatusCode == http.StatusTooManyRequests {
 		delay := parseRetryAfter(resp.Header.Get("Retry-After"))
 		return &retryableError{
-			err:    fmt.Errorf("HTTP %d from %s", resp.StatusCode, url),
+			err:    fmt.Errorf(fmtHTTPStatus, resp.StatusCode, url),
 			delay:  delay,
 			logMsg: "Rate limited, retrying",
 			logAttrs: []any{
@@ -144,7 +148,7 @@ func doFetchJSON(client *http.Client, url, method string, body io.Reader, v any)
 	// 5xx — server error with exponential backoff.
 	if resp.StatusCode >= 500 && resp.StatusCode < 600 {
 		return &retryableError{
-			err:    fmt.Errorf("HTTP %d from %s", resp.StatusCode, url),
+			err:    fmt.Errorf(fmtHTTPStatus, resp.StatusCode, url),
 			delay:  0, // filled by caller based on attempt
 			logMsg: "Server error, retrying",
 			logAttrs: []any{
@@ -155,7 +159,7 @@ func doFetchJSON(client *http.Client, url, method string, body io.Reader, v any)
 	}
 
 	// Other 4xx — non-retriable.
-	return fmt.Errorf("HTTP %d from %s", resp.StatusCode, url)
+	return fmt.Errorf(fmtHTTPStatus, resp.StatusCode, url)
 }
 
 // parseRetryAfter parses the Retry-After header value as a number of seconds.

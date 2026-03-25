@@ -122,6 +122,91 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     notify();
   }, [notify]);
 
+  // --- Stream acquisition helpers ---------------------------------------------
+
+  /** Acquire a display stream via getDisplayMedia. Throws if unavailable. */
+  const acquireDisplayStream = async (
+    sourceId?: string,
+  ): Promise<MediaStream> => {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      throw new Error("getDisplayMedia not available. Ensure context is secure (HTTPS/localhost).");
+    }
+    // In Electron with a pre-selected source, tell main process first
+    if (sourceId && globalThis.electronAPI) {
+      await globalThis.electronAPI.selectCaptureSource(sourceId);
+    }
+    return navigator.mediaDevices.getDisplayMedia({
+      video: { displaySurface: "window" },
+      audio: false,
+    });
+  };
+
+  /** Acquire a stream from a local dev video file. Throws if sourceId is missing. */
+  const acquireDevVideoStream = async (
+    sourceId: string | undefined,
+    sourceLabel: string | undefined,
+  ): Promise<{ stream: MediaStream; label: string }> => {
+    if (!sourceId) throw new Error("No video file selected");
+    const devVideo = document.createElement("video");
+    devVideo.src = sourceId;
+    devVideo.loop = true;
+    devVideo.muted = true;
+    devVideo.playsInline = true;
+    devVideo.autoplay = true;
+    await devVideo.play();
+    // captureStream creates a MediaStream from the <video> element
+    const stream = (devVideo as HTMLVideoElement & { captureStream(): MediaStream }).captureStream();
+    // Keep the source video alive by attaching it to the hidden container
+    devVideo.style.cssText = "width:1px;height:1px;pointer-events:none;position:fixed;top:-9999px";
+    containerRef.current?.appendChild(devVideo);
+    return { stream, label: sourceLabel || "Dev Video" };
+  };
+
+  /** Acquire a camera stream via getUserMedia. Throws if unavailable. */
+  const acquireCameraStream = async (
+    sourceId?: string,
+  ): Promise<MediaStream> => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("getUserMedia not available. Ensure context is secure (HTTPS/localhost).");
+    }
+    const videoConstraints: MediaTrackConstraints | boolean = sourceId
+      ? { deviceId: { exact: sourceId } }
+      : true;
+    return navigator.mediaDevices.getUserMedia({
+      video: videoConstraints,
+      audio: false,
+    });
+  };
+
+  /** Create a hidden video element, attach the stream, and wait for the first real frame. */
+  const attachStreamToVideo = async (stream: MediaStream): Promise<HTMLVideoElement> => {
+    const videoEl = document.createElement("video");
+    videoEl.autoplay = true;
+    videoEl.playsInline = true;
+    videoEl.muted = true;
+    videoEl.style.cssText = "width:1px;height:1px;pointer-events:none";
+    containerRef.current?.appendChild(videoEl);
+    videoEl.srcObject = stream;
+    videoEl.play().catch(() => {});
+
+    // Wait for first frame
+    await new Promise<void>((resolve) => {
+      const onFrame = () => {
+        videoEl.removeEventListener("loadeddata", onFrame);
+        resolve();
+      };
+      if (videoEl.readyState >= 2) resolve();
+      else videoEl.addEventListener("loadeddata", onFrame);
+    });
+
+    if (isGreenFrame(videoEl, scratchCanvasRef.current)) {
+      // First frame is a green GPU artifact — wait briefly for a real frame
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    return videoEl;
+  };
+
   // --- Public API ------------------------------------------------------------
 
   const startCapture = useCallback(async (
@@ -145,89 +230,19 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
 
       if (existingStream) {
         stream = existingStream;
-        if (!label) {
-          label = stream.getVideoTracks()[0]?.label ?? "";
-        }
+        if (!label) label = stream.getVideoTracks()[0]?.label ?? "";
       } else if (sourceType === "browser_display") {
-        if (!navigator.mediaDevices?.getDisplayMedia) {
-          captureErrorRef.current = "getDisplayMedia not available. Ensure context is secure (HTTPS/localhost).";
-          notify();
-          return;
-        }
-        // In Electron with a pre-selected source, tell main process first
-        if (sourceId && globalThis.electronAPI) {
-          await globalThis.electronAPI.selectCaptureSource(sourceId);
-        }
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: { displaySurface: "window" },
-          audio: false,
-        });
+        stream = await acquireDisplayStream(sourceId);
       } else if (sourceType === "dev_video") {
-        // Dev mode: play a local video file in a loop and capture its stream.
-        // sourceId contains the object URL of the selected file.
-        if (!sourceId) {
-          captureErrorRef.current = "No video file selected";
-          notify();
-          return;
-        }
-        const devVideo = document.createElement("video");
-        devVideo.src = sourceId;
-        devVideo.loop = true;
-        devVideo.muted = true;
-        devVideo.playsInline = true;
-        devVideo.autoplay = true;
-        await devVideo.play();
-        // captureStream creates a MediaStream from the <video> element
-        stream = (devVideo as HTMLVideoElement & { captureStream(): MediaStream }).captureStream();
-        label = sourceLabel || "Dev Video";
-        // Keep the source video alive by attaching it to the hidden container
-        devVideo.style.cssText = "width:1px;height:1px;pointer-events:none;position:fixed;top:-9999px";
-        containerRef.current?.appendChild(devVideo);
+        const result = await acquireDevVideoStream(sourceId, sourceLabel);
+        stream = result.stream;
+        label = result.label;
       } else {
-        if (!navigator.mediaDevices?.getUserMedia) {
-          captureErrorRef.current = "getUserMedia not available. Ensure context is secure (HTTPS/localhost).";
-          notify();
-          return;
-        }
-        const videoConstraints: MediaTrackConstraints | boolean = sourceId
-          ? { deviceId: { exact: sourceId } }
-          : true;
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: videoConstraints,
-          audio: false,
-        });
-        if (!label) {
-          label = stream.getVideoTracks()[0]?.label ?? "";
-        }
+        stream = await acquireCameraStream(sourceId);
+        if (!label) label = stream.getVideoTracks()[0]?.label ?? "";
       }
 
-      // Create hidden video element for the stream
-      const videoEl = document.createElement("video");
-      videoEl.autoplay = true;
-      videoEl.playsInline = true;
-      videoEl.muted = true;
-      videoEl.style.cssText = "width:1px;height:1px;pointer-events:none";
-      containerRef.current?.appendChild(videoEl);
-      videoEl.srcObject = stream;
-      videoEl.play().catch(() => {});
-
-      // Wait for first frame then check for green frame artifact
-      await new Promise<void>((resolve) => {
-        const onFrame = () => {
-          videoEl.removeEventListener("loadeddata", onFrame);
-          resolve();
-        };
-        if (videoEl.readyState >= 2) {
-          resolve();
-        } else {
-          videoEl.addEventListener("loadeddata", onFrame);
-        }
-      });
-
-      if (isGreenFrame(videoEl, scratchCanvasRef.current)) {
-        // First frame is a green GPU artifact — wait briefly for a real frame
-        await new Promise((r) => setTimeout(r, 200));
-      }
+      const videoEl = await attachStreamToVideo(stream);
 
       const entry: CaptureEntry = {
         pokemonId,

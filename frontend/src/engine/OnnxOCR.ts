@@ -58,7 +58,7 @@ export class OnnxOCR {
   private dictionary: string[] = [];
   private initialized = false;
   private initializing: Promise<void> | null = null;
-  private useWebGPU: boolean;
+  private readonly useWebGPU: boolean;
 
   private constructor(useWebGPU: boolean) {
     this.useWebGPU = useWebGPU;
@@ -170,7 +170,7 @@ export class OnnxOCR {
     }
 
     // Sort boxes top-to-bottom, left-to-right for reading order
-    boxes.sort((a, b) => (a.y !== b.y ? a.y - b.y : a.x - b.x));
+    boxes.sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
 
     // Recognize each box
     const parts: string[] = [];
@@ -277,8 +277,8 @@ export class OnnxOCR {
   private ctcDecode(output: ort.Tensor): string {
     const data = output.data as Float32Array;
     const dims = output.dims;
-    const timesteps = dims[1] as number;
-    const numClasses = dims[2] as number;
+    const timesteps = dims[1];
+    const numClasses = dims[2];
 
     let prevIdx = -1;
     const chars: string[] = [];
@@ -328,7 +328,7 @@ function preprocessForDetection(imageData: ImageData): {
   const { width: origW, height: origH } = imageData;
 
   // Compute resize dimensions (max side = DET_MAX_SIDE)
-  const ratio = Math.min(DET_MAX_SIDE / origW, DET_MAX_SIDE / origH, 1.0);
+  const ratio = Math.min(DET_MAX_SIDE / origW, DET_MAX_SIDE / origH, 1);
   let resW = Math.round(origW * ratio);
   let resH = Math.round(origH * ratio);
 
@@ -457,13 +457,15 @@ function extractBoxesFromProbMap(
     { minX: number; minY: number; maxX: number; maxY: number }
   >();
 
+  const grid: FloodFillGrid = { binary, labels, w: mapW, h: mapH };
+
   for (let y = 0; y < mapH; y++) {
     for (let x = 0; x < mapW; x++) {
       const idx = y * mapW + x;
       if (binary[idx] === 1 && labels[idx] === 0) {
         const label = nextLabel++;
         const bounds = { minX: x, minY: y, maxX: x, maxY: y };
-        floodFill(binary, labels, mapW, mapH, x, y, label, bounds);
+        floodFill(grid, x, y, label, bounds);
         componentBounds.set(label, bounds);
       }
     }
@@ -491,19 +493,25 @@ function extractBoxesFromProbMap(
   return boxes;
 }
 
+/** Grid data used by the flood-fill algorithm. */
+interface FloodFillGrid {
+  binary: Uint8Array;
+  labels: Int32Array;
+  w: number;
+  h: number;
+}
+
 /**
  * Iterative flood fill using a stack to avoid call-stack overflow on large regions.
  */
 function floodFill(
-  binary: Uint8Array,
-  labels: Int32Array,
-  w: number,
-  h: number,
+  grid: FloodFillGrid,
   startX: number,
   startY: number,
   label: number,
   bounds: { minX: number; minY: number; maxX: number; maxY: number },
 ): void {
+  const { binary, labels, w, h } = grid;
   const stack: Array<[number, number]> = [[startX, startY]];
 
   while (stack.length > 0) {

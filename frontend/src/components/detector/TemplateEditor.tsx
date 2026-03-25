@@ -259,8 +259,8 @@ export function TemplateEditor({
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [phase, replayBuffer.frameCount]);
 
   // --- Snapshot and replay handlers ------------------------------------------
@@ -315,8 +315,8 @@ export function TemplateEditor({
     setErrorMsg(null);
   };
 
-  /** Go back to live video from replay — restarts the replay buffer. */
-  const handleBackToLive = () => {
+  /** Clear all state and return to live video, restarting the replay buffer. */
+  const returnToLive = () => {
     setPhase("video");
     setSelectedFrameIndex(0);
     setCurrentBox(null);
@@ -325,15 +325,11 @@ export function TemplateEditor({
     replayBuffer.restart();
   };
 
+  /** Go back to live video from replay — restarts the replay buffer. */
+  const handleBackToLive = returnToLive;
+
   /** Reset the snapshot and go back to live video — restarts the replay buffer. */
-  const resetSnapshot = () => {
-    setPhase("video");
-    setSelectedFrameIndex(0);
-    setCurrentBox(null);
-    setRegions([]);
-    setErrorMsg(null);
-    replayBuffer.restart();
-  };
+  const resetSnapshot = returnToLive;
 
   // --- Region drawing --------------------------------------------------------
 
@@ -564,16 +560,25 @@ export function TemplateEditor({
             {/* Existing regions */}
             {snapshotWidth > 0 && regions.map((r, i) => {
               const isNeg = r.polarity === "negative";
+              const isText = r.type === "text";
+
+              const negBorder = "border-red-500 bg-red-500/20 border-dashed";
+              const posBorder = isText ? "border-purple-500 bg-purple-500/30" : "border-accent-blue bg-accent-blue/30";
+              const borderStyle = isNeg ? negBorder : posBorder;
+
+              const posLabelColor = isText ? "text-purple-400" : "text-accent-blue";
+              const labelColor = isNeg ? "text-red-400" : posLabelColor;
+
+              const posIcon = isText
+                ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+                : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />;
+              const regionIcon = isNeg
+                ? <ShieldBan className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-red-400" />
+                : posIcon;
               return (
                 <div
                   key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
-                  className={`absolute border-[3px] pointer-events-none transition-colors ${
-                    isNeg
-                      ? "border-red-500 bg-red-500/20 border-dashed"
-                      : r.type === "text"
-                        ? "border-purple-500 bg-purple-500/30"
-                        : "border-accent-blue bg-accent-blue/30"
-                  }`}
+                  className={`absolute border-[3px] pointer-events-none transition-colors ${borderStyle}`}
                   style={{
                     left: `${(r.rect.x / snapshotWidth) * 100}%`,
                     top: `${(r.rect.y / snapshotHeight) * 100}%`,
@@ -582,14 +587,8 @@ export function TemplateEditor({
                   }}
                 >
                   <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
-                    <strong className={isNeg ? "text-red-400" : r.type === "text" ? "text-purple-400" : "text-accent-blue"}>#{i + 1}</strong>
-                    {isNeg ? (
-                      <ShieldBan className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-red-400" />
-                    ) : r.type === "text" ? (
-                      <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-                    ) : (
-                      <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-                    )}
+                    <strong className={labelColor}>#{i + 1}</strong>
+                    {regionIcon}
                     {isNeg && <span className="text-red-400 font-bold">NOT</span>}
                     {!isNeg && r.type === "text" && r.expected_text ? (
                       <span className="opacity-80 ml-1 truncate max-w-15">"{r.expected_text}"</span>
@@ -653,9 +652,11 @@ export function TemplateEditor({
         <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-3 mb-2 max-h-32 2xl:max-h-40 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
           {regions.map((r, i) => {
             const isNeg = r.polarity === "negative";
+            const textOrAccent = r.type === "text" ? "text-purple-400" : "text-accent-blue";
+            const editLabelColor = isNeg ? "text-red-400" : textOrAccent;
             return (
             <div key={`region-edit-${r.type}-${r.rect.x}-${r.rect.y}-${i}`} className={`flex items-center gap-2 bg-bg-card border rounded-lg px-3 py-2 shadow-lg transition-colors ${isNeg ? "border-red-500/50 hover:border-red-400" : "border-border-subtle hover:border-accent-blue/50"}`}>
-              <span className={`font-mono font-bold w-5 shrink-0 ${isNeg ? "text-red-400" : r.type === "text" ? "text-purple-400" : "text-accent-blue"}`}>
+              <span className={`font-mono font-bold w-5 shrink-0 ${editLabelColor}`}>
                 #{i + 1}
               </span>
               {!isNeg && (

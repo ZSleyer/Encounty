@@ -90,7 +90,7 @@ export function useReplayBuffer(
     if (videoElement && videoElement.readyState >= 2 && canvasRef.current) {
       const canvas = canvasRef.current;
       const captureFrame = () => {
-        if (!videoElement || videoElement.videoWidth === 0 || videoElement.videoHeight === 0) return;
+        if (videoElement.videoWidth === 0 || videoElement.videoHeight === 0) return;
         if (canvas.width !== videoElement.videoWidth) canvas.width = videoElement.videoWidth;
         if (canvas.height !== videoElement.videoHeight) canvas.height = videoElement.videoHeight;
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -104,7 +104,7 @@ export function useReplayBuffer(
         setFrameCount(filledRef.current);
       };
       setIsBuffering(true);
-      intervalRef.current = window.setInterval(captureFrame, captureIntervalMs);
+      intervalRef.current = globalThis.setInterval(captureFrame, captureIntervalMs);
     }
   }, [videoElement, maxFrames, captureIntervalMs]);
 
@@ -166,7 +166,7 @@ export function useReplayBuffer(
 
     const startCapture = () => {
       setIsBuffering(true);
-      intervalRef.current = window.setInterval(captureFrame, captureIntervalMs);
+      intervalRef.current = globalThis.setInterval(captureFrame, captureIntervalMs);
     };
 
     // Wait for the video to be ready before starting capture

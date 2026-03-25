@@ -49,6 +49,69 @@ function isCaptureCard(label: string): boolean {
   return CAPTURE_CARD_KEYWORDS.some((kw) => lower.includes(kw));
 }
 
+// --- Selection helpers --------------------------------------------------------
+
+/** Stop all camera streams except the one with the given device ID. */
+function stopOtherCameraStreams(cameras: CameraDevice[], keepDeviceId: string): void {
+  for (const cam of cameras) {
+    if (cam.deviceId !== keepDeviceId) {
+      cam.stream.getTracks().forEach((t) => t.stop());
+    }
+  }
+}
+
+/** Stop all camera streams unconditionally. */
+function stopAllCameraStreams(cameras: CameraDevice[]): void {
+  for (const cam of cameras) {
+    cam.stream.getTracks().forEach((t) => t.stop());
+  }
+}
+
+/** Build a SelectedSource from a camera device, stopping other streams. */
+function selectCamera(
+  cameras: CameraDevice[],
+  deviceId: string,
+  onSelect: (source: SelectedSource) => void,
+): boolean {
+  const cam = cameras.find((c) => c.deviceId === deviceId);
+  if (!cam) return false;
+  stopOtherCameraStreams(cameras, deviceId);
+  onSelect({ type: "camera", sourceId: cam.deviceId, label: cam.label, stream: cam.stream });
+  return true;
+}
+
+/** Build a SelectedSource from a capture source, stopping all camera streams. */
+function selectCaptureSource(
+  captureSources: CaptureSource[],
+  cameras: CameraDevice[],
+  sourceId: string,
+  onSelect: (source: SelectedSource) => void,
+): boolean {
+  const src = captureSources.find((s) => s.id === sourceId);
+  if (!src) return false;
+  stopAllCameraStreams(cameras);
+  const type = src.id.startsWith("screen:") ? "screen" : "window";
+  onSelect({ type, sourceId: src.id, label: src.name });
+  return true;
+}
+
+/** Open a live preview stream for a single camera device, returning null on failure. */
+async function openCameraDevice(device: MediaDeviceInfo): Promise<CameraDevice | null> {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: device.deviceId } },
+      audio: false,
+    });
+    return {
+      deviceId: device.deviceId,
+      label: device.label || `Camera ${device.deviceId.slice(0, 8)}`,
+      stream,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // --- Grid sub-components -----------------------------------------------------
 
 /** Renders the camera device grid, or a "no sources" message when empty. */
@@ -197,6 +260,8 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   // Source data
   const [captureSources, setCaptureSources] = useState<CaptureSource[]>([]);
   const [cameras, setCameras] = useState<CameraDevice[]>([]);
+  const camerasRef = useRef(cameras);
+  camerasRef.current = cameras;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -239,19 +304,8 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
       // Create a live preview stream for each camera
       const cameraEntries: CameraDevice[] = [];
       for (const device of videoInputs) {
-        try {
-          const cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: device.deviceId } },
-            audio: false,
-          });
-          cameraEntries.push({
-            deviceId: device.deviceId,
-            label: device.label || `Camera ${device.deviceId.slice(0, 8)}`,
-            stream: cameraStream,
-          });
-        } catch {
-          // Skip cameras that fail to open
-        }
+        const entry = await openCameraDevice(device);
+        if (entry) cameraEntries.push(entry);
       }
       setCameras(cameraEntries);
     } catch {
@@ -272,12 +326,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   // Cleanup camera streams on unmount
   useEffect(() => {
     return () => {
-      setCameras((prev) => {
-        for (const cam of prev) {
-          cam.stream.getTracks().forEach((t) => t.stop());
-        }
-        return prev;
-      });
+      stopAllCameraStreams(camerasRef.current);
     };
   }, []);
 
@@ -309,10 +358,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   // --- Handlers --------------------------------------------------------------
 
   const handleCancel = () => {
-    // Stop all camera preview streams on cancel
-    for (const cam of cameras) {
-      cam.stream.getTracks().forEach((t) => t.stop());
-    }
+    stopAllCameraStreams(cameras);
     dialogRef.current?.close();
     onClose();
   };
@@ -320,28 +366,10 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   /** Resolve the selected source and invoke the onSelect callback. */
   const handleSelect = () => {
     if (!selectedId) return;
-
     if (activeTab === "cameras") {
-      const cam = cameras.find((c) => c.deviceId === selectedId);
-      if (cam) {
-        // Stop all OTHER camera streams, keep the selected one for reuse
-        for (const other of cameras) {
-          if (other.deviceId !== selectedId) {
-            other.stream.getTracks().forEach((t) => t.stop());
-          }
-        }
-        onSelect({ type: "camera", sourceId: cam.deviceId, label: cam.label, stream: cam.stream });
-      }
+      selectCamera(cameras, selectedId, onSelect);
     } else {
-      const src = captureSources.find((s) => s.id === selectedId);
-      if (src) {
-        // Stop all camera streams since we are selecting a screen/window
-        for (const cam of cameras) {
-          cam.stream.getTracks().forEach((t) => t.stop());
-        }
-        const type = src.id.startsWith("screen:") ? "screen" : "window";
-        onSelect({ type, sourceId: src.id, label: src.name });
-      }
+      selectCaptureSource(captureSources, cameras, selectedId, onSelect);
     }
   };
 
@@ -350,27 +378,9 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
     setSelectedId(id);
     setTimeout(() => {
       if (activeTab === "cameras") {
-        const cam = cameras.find((c) => c.deviceId === id);
-        if (cam) {
-          for (const other of cameras) {
-            if (other.deviceId !== id) {
-              other.stream.getTracks().forEach((t) => t.stop());
-            }
-          }
-          onSelect({ type: "camera", sourceId: cam.deviceId, label: cam.label, stream: cam.stream });
-        }
+        selectCamera(cameras, id, onSelect);
       } else {
-        const src = captureSources.find((s) => s.id === id);
-        if (src) {
-          for (const cam of cameras) {
-            cam.stream.getTracks().forEach((t) => t.stop());
-          }
-          onSelect({
-            type: src.id.startsWith("screen:") ? "screen" : "window",
-            sourceId: src.id,
-            label: src.name,
-          });
-        }
+        selectCaptureSource(captureSources, cameras, id, onSelect);
       }
     }, 0);
   };
@@ -381,6 +391,39 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   }, [activeTab]);
 
   // --- Render ----------------------------------------------------------------
+
+  /** Render the appropriate content grid based on loading state and active tab. */
+  const renderContentGrid = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center h-48">
+          <RefreshCw className="w-5 h-5 text-text-muted animate-spin" />
+          <span className="ml-2 text-xs text-text-muted">{t("sourcePicker.refreshing")}</span>
+        </div>
+      );
+    }
+    if (activeTab === "cameras") {
+      return (
+        <CameraGrid
+          cameras={cameras}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onDoubleClick={handleDoubleClick}
+          videoRefsMap={videoRefsMap}
+          t={t}
+        />
+      );
+    }
+    return (
+      <SourceGrid
+        sources={filteredSources}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onDoubleClick={handleDoubleClick}
+        t={t}
+      />
+    );
+  };
 
   return (
     <dialog
@@ -423,37 +466,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
 
       {/* Content grid */}
       <div className="px-5 pb-3 min-h-65 max-h-100 overflow-y-auto">
-        {(() => {
-          if (loading) {
-            return (
-              <div className="flex items-center justify-center h-48">
-                <RefreshCw className="w-5 h-5 text-text-muted animate-spin" />
-                <span className="ml-2 text-xs text-text-muted">{t("sourcePicker.refreshing")}</span>
-              </div>
-            );
-          }
-          if (activeTab === "cameras") {
-            return (
-              <CameraGrid
-                cameras={cameras}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onDoubleClick={handleDoubleClick}
-                videoRefsMap={videoRefsMap}
-                t={t}
-              />
-            );
-          }
-          return (
-            <SourceGrid
-              sources={filteredSources}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onDoubleClick={handleDoubleClick}
-              t={t}
-            />
-          );
-        })()}
+        {renderContentGrid()}
       </div>
 
       {/* Footer buttons */}

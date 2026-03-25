@@ -48,7 +48,7 @@ import { isLoopRunning } from "../engine/DetectionLoop";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry } from "../types";
+import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry, AppState } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
@@ -294,6 +294,19 @@ function useHotkeyPause(activeTab: string) {
   }, [activeTab]);
 }
 
+/** Resolves detector dot styling and title for a sidebar Pokemon sprite. */
+function resolveDetectorDot(
+  detectorStatus: Record<string, { state?: string; confidence?: number }>,
+  pokemonId: string,
+  t: (key: string) => string,
+): { dotClass: string; title: string } {
+  const isMatch = detectorStatus[pokemonId]?.state === "match_active";
+  const isRunning = !!detectorStatus[pokemonId];
+  if (isMatch) return { dotClass: "bg-accent-green", title: t("detector.stateMatch") };
+  if (isRunning) return { dotClass: "bg-accent-blue animate-pulse", title: t("detector.stateIdle") };
+  return { dotClass: "bg-text-faint/40", title: t("detector.stopped") };
+}
+
 /** Registers a global Cmd+K / Ctrl+K shortcut that focuses the given ref. */
 function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
   useEffect(() => {
@@ -309,6 +322,41 @@ function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
 }
 
 type SidebarTab = "active" | "archived";
+
+/** Apply a new overlay mode to the given Pokemon, handling confirmation and state updates. */
+async function applyOverlayMode(
+  newMode: "default" | "custom",
+  pokemon: Pokemon,
+  appState: AppState,
+  t: (key: string) => string,
+  updateOverlay: (id: string, mode: OverlayMode, overlay: OverlaySettings | null) => Promise<void>,
+  setOverlay: (o: OverlaySettings) => void,
+) {
+  const currentMode = pokemon.overlay_mode || "default";
+  const needsConfirm = currentMode === "custom" && newMode !== "custom";
+  if (needsConfirm && !confirm(t("overlay.confirmModeChange"))) return;
+
+  if (newMode === "default") {
+    await updateOverlay(pokemon.id, "default", null);
+    setOverlay(appState.settings.overlay);
+  } else if (newMode === "custom") {
+    const resolved = resolveOverlay(pokemon, appState.pokemon, appState.settings.overlay);
+    setOverlay(resolved);
+    await updateOverlay(pokemon.id, "custom", resolved);
+  }
+}
+
+/** Loading spinner shown while the WebSocket connection is pending. */
+function DashboardLoader({ label }: Readonly<{ label: string }>) {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <div className="w-12 h-12 border-2 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-text-muted">{label}</p>
+      </div>
+    </div>
+  );
+}
 
 export function Dashboard() {
   const { appState, flashPokemon, detectorStatus } = useCounterStore();
@@ -479,24 +527,10 @@ export function Dashboard() {
   /** Switch overlay mode for the currently viewed Pokemon. */
   const handleModeChange = async (newMode: "default" | "custom") => {
     if (!viewedPokemon) return;
-    const currentMode = viewedPokemon.overlay_mode || "default";
-
-    // Warn when leaving custom mode — bail if user cancels
-    const needsConfirm = currentMode === "custom" && newMode !== "custom";
-    if (needsConfirm && !confirm(t("overlay.confirmModeChange"))) return;
-
-    if (newMode === "default") {
-      await updatePokemonOverlay(viewedPokemon.id, "default", null);
-      setCurrentOverlay(appState!.settings.overlay);
-    } else if (newMode === "custom") {
-      const resolved = resolveOverlay(
-        viewedPokemon,
-        appState!.pokemon,
-        appState!.settings.overlay,
-      );
-      setCurrentOverlay(resolved);
-      await updatePokemonOverlay(viewedPokemon.id, "custom", resolved);
-    }
+    await applyOverlayMode(
+      newMode, viewedPokemon, appState!, t,
+      updatePokemonOverlay, setCurrentOverlay,
+    );
   };
 
   /** Save the current custom overlay for the viewed Pokemon. */
@@ -513,16 +547,7 @@ export function Dashboard() {
     setOverlayDirty(true);
   };
 
-  if (!appState) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="w-12 h-12 border-2 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-text-muted">{t("nav.connecting")}</p>
-        </div>
-      </div>
-    );
-  }
+  if (!appState) return <DashboardLoader label={t("nav.connecting")} />;
 
   // --- Derived State ---
 
@@ -547,6 +572,30 @@ export function Dashboard() {
   );
 
   const FALLBACK = SPRITE_FALLBACK;
+
+  /** Handle sidebar card clicks with Ctrl/Shift multi-select support. */
+  const handleCardClick = (e: React.MouseEvent, pokemonId: string, idx: number) => {
+    if (e.ctrlKey || e.metaKey) {
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(pokemonId)) next.delete(pokemonId);
+        else next.add(pokemonId);
+        return next;
+      });
+      lastSelectedIdx.current = idx;
+    } else if (e.shiftKey && lastSelectedIdx.current !== null) {
+      const from = Math.min(lastSelectedIdx.current, idx);
+      const to = Math.max(lastSelectedIdx.current, idx);
+      setSelectedIds(prev => {
+        const next = new Set(prev);
+        for (let i = from; i <= to; i++) next.add(displayList[i].id);
+        return next;
+      });
+    } else {
+      if (selectedIds.size > 0) setSelectedIds(new Set());
+      handleActivate(pokemonId);
+    }
+  };
 
   /** Renders the empty-list placeholder based on current search query and sidebar tab. */
   const renderEmptyList = () => {
@@ -1192,31 +1241,7 @@ export function Dashboard() {
                           handleActivate(p.id);
                         }
                       }}
-                      onClick={(e) => {
-                        if (e.ctrlKey || e.metaKey) {
-                          // Ctrl+Click: toggle single item
-                          setSelectedIds(prev => {
-                            const next = new Set(prev);
-                            if (next.has(p.id)) next.delete(p.id);
-                            else next.add(p.id);
-                            return next;
-                          });
-                          lastSelectedIdx.current = idx;
-                        } else if (e.shiftKey && lastSelectedIdx.current !== null) {
-                          // Shift+Click: range select
-                          const from = Math.min(lastSelectedIdx.current, idx);
-                          const to = Math.max(lastSelectedIdx.current, idx);
-                          setSelectedIds(prev => {
-                            const next = new Set(prev);
-                            for (let i = from; i <= to; i++) next.add(displayList[i].id);
-                            return next;
-                          });
-                        } else {
-                          // Normal click: activate pokemon, clear selection
-                          if (selectedIds.size > 0) setSelectedIds(new Set());
-                          handleActivate(p.id);
-                        }
-                      }}
+                      onClick={(e) => handleCardClick(e, p.id, idx)}
                       className="flex items-center gap-3 w-full text-left bg-transparent border-none p-0 cursor-pointer"
                     >
                     <div className="w-9 h-9 2xl:w-11 2xl:h-11 shrink-0 relative">
@@ -1234,28 +1259,11 @@ export function Dashboard() {
                         </div>
                       )}
                       {hasDetectorReady(p) && (() => {
-                        const isMatch = detectorStatus[p.id]?.state === "match_active";
-                        const isRunning = !!detectorStatus[p.id];
-                        let detectorDotClass: string;
-                        if (isMatch) {
-                          detectorDotClass = "bg-accent-green";
-                        } else if (isRunning) {
-                          detectorDotClass = "bg-accent-blue animate-pulse";
-                        } else {
-                          detectorDotClass = "bg-text-faint/40";
-                        }
-                        let detectorTitle: string;
-                        if (isMatch) {
-                          detectorTitle = t("detector.stateMatch");
-                        } else if (isRunning) {
-                          detectorTitle = t("detector.stateIdle");
-                        } else {
-                          detectorTitle = t("detector.stopped");
-                        }
+                        const { dotClass, title: dotTitle } = resolveDetectorDot(detectorStatus, p.id, t);
                         return (
                         <div
-                          className={`absolute -top-0.5 -left-0.5 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full border border-bg-secondary ${detectorDotClass}`}
-                          title={detectorTitle}
+                          className={`absolute -top-0.5 -left-0.5 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full border border-bg-secondary ${dotClass}`}
+                          title={dotTitle}
                         />
                         );
                       })()}

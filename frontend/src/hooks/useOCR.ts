@@ -128,39 +128,57 @@ export function useOCR(
     setActiveBackend(backend);
   }, [backend]);
 
+  /** Attempt recognition via the ONNX backend. Returns the text or null if unavailable. */
+  const tryOnnxRecognize = async (
+    source: HTMLCanvasElement | string,
+  ): Promise<string | null> => {
+    const onnx = await getOnnxInstance();
+    if (!onnx) return null;
+    const imageData = sourceToImageData(source);
+    return onnx.recognizeCropped(imageData);
+  };
+
+  /** Run Tesseract recognition as fallback. */
+  const tesseractRecognize = async (
+    source: HTMLCanvasElement | string,
+    lang: string,
+  ): Promise<string> => {
+    const worker = await getWorker(lang);
+    const { data } = await worker.recognize(source);
+    return data.text.trim();
+  };
+
+  /** Core recognition logic: try ONNX, then fall back to Tesseract. */
+  const runRecognition = async (
+    source: HTMLCanvasElement | string,
+    lang: string,
+  ): Promise<{ text: string; usedBackend: OcrBackend }> => {
+    if (backend === "onnx") {
+      const text = await tryOnnxRecognize(source);
+      if (text !== null) return { text, usedBackend: "onnx" };
+    }
+    return { text: await tesseractRecognize(source, lang), usedBackend: "tesseract" };
+  };
+
   const recognize = useCallback(
     async (
       source: HTMLCanvasElement | string,
       lang = defaultLang,
     ): Promise<string> => {
-      if (isMounted.current) setIsRecognizing(true);
-      if (isMounted.current) setOcrError(null);
+      const mounted = () => isMounted.current;
+      if (mounted()) setIsRecognizing(true);
+      if (mounted()) setOcrError(null);
 
       try {
-        // Try ONNX backend first (if requested)
-        if (backend === "onnx") {
-          const onnx = await getOnnxInstance();
-          if (onnx) {
-            const imageData = sourceToImageData(source);
-            const text = await onnx.recognizeCropped(imageData);
-            if (isMounted.current) setActiveBackend("onnx");
-            return text;
-          }
-          // ONNX unavailable — fall through to tesseract
-          if (isMounted.current) setActiveBackend("tesseract");
-        }
-
-        // Tesseract fallback
-        const worker = await getWorker(lang);
-        const { data } = await worker.recognize(source);
-        return data.text.trim();
+        const { text, usedBackend } = await runRecognition(source, lang);
+        if (mounted()) setActiveBackend(usedBackend);
+        return text;
       } catch (e: unknown) {
-        const msg =
-          e instanceof Error ? e.message : String(e) || "OCR failed";
-        if (isMounted.current) setOcrError(msg);
+        const msg = e instanceof Error ? e.message : String(e) || "OCR failed";
+        if (mounted()) setOcrError(msg);
         return "";
       } finally {
-        if (isMounted.current) setIsRecognizing(false);
+        if (mounted()) setIsRecognizing(false);
       }
     },
     [backend, defaultLang],
