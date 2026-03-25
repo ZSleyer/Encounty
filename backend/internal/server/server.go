@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
@@ -43,6 +46,7 @@ type Server struct {
 	db           *database.DB
 	ready        atomic.Bool
 	devMode      bool
+	frontendDir  string
 	setupPending atomic.Bool
 }
 
@@ -59,6 +63,7 @@ type Config struct {
 	DetectorMgr *detector.Manager
 	DB          *database.DB
 	DevMode     bool
+	FrontendDir string
 }
 
 // New creates a Server from cfg, registers all HTTP routes, and starts the
@@ -75,6 +80,7 @@ func New(cfg Config) *Server {
 		detectorMgr: cfg.DetectorMgr,
 		db:          cfg.DB,
 		devMode:     cfg.DevMode,
+		frontendDir: cfg.FrontendDir,
 	}
 
 	// Wire hotkey actions to state changes
@@ -105,6 +111,32 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	update.RegisterRoutes(mux, s)
 	detectorhandler.RegisterRoutes(mux, s)
 	mux.Handle("/swagger/", swaggerHandler())
+
+	if s.frontendDir != "" {
+		mux.HandleFunc("/", s.serveFrontend)
+	}
+}
+
+// serveFrontend serves frontend assets from the configured directory.
+// Non-file paths fall back to index.html for SPA client-side routing.
+func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
+	// Skip API, WebSocket, and Swagger routes (they have their own handlers,
+	// but guard here as well for safety).
+	if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/ws" || strings.HasPrefix(r.URL.Path, "/swagger/") {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Try to serve the exact file from the frontend directory.
+	filePath := filepath.Join(s.frontendDir, filepath.Clean(r.URL.Path))
+	if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+		http.ServeFile(w, r, filePath)
+		return
+	}
+
+	// SPA fallback: serve index.html for client-side routing.
+	indexPath := filepath.Join(s.frontendDir, "index.html")
+	http.ServeFile(w, r, indexPath)
 }
 
 // StateManager returns the in-memory state manager.

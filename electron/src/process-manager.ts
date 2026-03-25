@@ -15,7 +15,8 @@ export class GoProcessManager extends EventEmitter {
 
     console.log(`[GoProcessManager] Starting Go backend: ${binaryPath}`);
 
-    this.process = spawn(binaryPath, [], {
+    const frontendDir = this.getFrontendDistPath();
+    this.process = spawn(binaryPath, ['--frontend-dir', frontendDir], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, ENCOUNTY_ELECTRON: '1' }
     });
@@ -69,6 +70,14 @@ export class GoProcessManager extends EventEmitter {
         console.error('[GoProcessManager] Restart failed:', err);
       });
     }, this.RESTART_DELAY);
+  }
+
+  /** Returns the path to the frontend dist directory for overlay serving. */
+  private getFrontendDistPath(): string {
+    if (app.isPackaged) {
+      return path.join(process.resourcesPath, 'frontend-dist');
+    }
+    return path.join(__dirname, '..', '..', 'frontend', 'dist');
   }
 
   private getBinaryPath(): string {

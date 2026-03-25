@@ -197,7 +197,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
 
 function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   const [copied, setCopied] = useState(false);
-  const baseUrl = globalThis.location.origin;
+  const baseUrl = apiUrl("") || globalThis.location.origin;
   const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
 
   const copy = (url: string) => {
@@ -740,20 +740,21 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           {LAYERS.filter(key => key !== "title" || activePokemon?.title).map((key) => {
             const el = localSettings[key] as OverlayElementBase;
             return (
-              <button
-                type="button"
+              <div
                 key={key}
-                onClick={() => setSelectedEl(key)}
-                className={`flex items-center justify-between px-2 py-1.5 rounded cursor-pointer transition-colors w-full text-left ${
+                className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full ${
                   selectedEl === key
                     ? "bg-accent-blue/20 border border-accent-blue/40"
                     : "hover:bg-bg-hover border border-transparent"
                 }`}
-                style={{ background: "none" }}
               >
-                <span className="text-xs 2xl:text-sm text-text-primary">
+                <button
+                  type="button"
+                  onClick={() => setSelectedEl(key)}
+                  className="flex-1 text-left text-xs 2xl:text-sm text-text-primary cursor-pointer bg-transparent border-none p-0"
+                >
                   {ELEMENT_LABELS[key]}
-                </span>
+                </button>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -796,7 +797,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                     )}
                   </button>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>

@@ -53,6 +53,7 @@ func formatVersionDisplay(ver, cmt string) string {
 
 func main() {
 	devMode := flag.Bool("dev", false, "Development mode (manual setup, no auto-sync)")
+	frontendDir := flag.String("frontend-dir", "", "Path to frontend dist directory (enables overlay serving)")
 	logLevel := flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	showVersion := flag.Bool("version", false, "Show version information")
 	flag.BoolVar(showVersion, "v", false, "Show version information")
@@ -103,6 +104,7 @@ func main() {
 		DetectorMgr: detectorMgr,
 		DB:          db,
 		DevMode:     *devMode,
+		FrontendDir: *frontendDir,
 	})
 
 	broadcastFn = srv.Broadcast
