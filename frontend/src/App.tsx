@@ -883,6 +883,12 @@ function LicenseGate() {
       .catch(() => setStatus("pending"));
   }, [readyStatus]);
 
+  // Overlay routes skip the entire gate flow (license, setup, sync) — they
+  // only need the WebSocket state stream which AppShell already provides.
+  if (isOverlay) {
+    return <AppShell />;
+  }
+
   // Server readiness unknown yet — show loading spinner
   if (readyStatus === null) {
     return (
@@ -927,7 +933,7 @@ function LicenseGate() {
   return (
     <CaptureServiceProvider>
       <AppShell />
-      {!isOverlay && <ToastContainer />}
+      <ToastContainer />
     </CaptureServiceProvider>
   );
 }

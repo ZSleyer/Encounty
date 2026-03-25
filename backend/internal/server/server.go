@@ -119,6 +119,9 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 
 // serveFrontend serves frontend assets from the configured directory.
 // Non-file paths fall back to index.html for SPA client-side routing.
+// The fallback injects a <base href="/"> tag so that relative asset paths
+// (produced by Vite's base: "./") resolve correctly for nested routes like
+// /overlay/{id} when loaded in OBS.
 func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 	// Skip API, WebSocket, and Swagger routes (they have their own handlers,
 	// but guard here as well for safety).
@@ -134,9 +137,40 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// SPA fallback: serve index.html for client-side routing.
+	// SPA fallback: read index.html once and inject <base href="/"> so that
+	// relative asset URLs (./assets/...) resolve from the root, not from
+	// the current path (which breaks for /overlay/{id} in OBS).
+	s.serveIndexWithBase(w, r)
+}
+
+// indexHTML caches the patched index.html content to avoid re-reading on
+// every SPA fallback request. Populated lazily by serveIndexWithBase.
+var indexHTML atomic.Value
+
+// serveIndexWithBase reads index.html from the frontend directory, injects a
+// <base href="/"> tag after <head>, and serves it with the correct content type.
+func (s *Server) serveIndexWithBase(w http.ResponseWriter, _ *http.Request) {
+	if cached, ok := indexHTML.Load().([]byte); ok && len(cached) > 0 {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(cached)
+		return
+	}
+
 	indexPath := filepath.Join(s.frontendDir, "index.html")
-	http.ServeFile(w, r, indexPath)
+	raw, err := os.ReadFile(indexPath)
+	if err != nil {
+		http.Error(w, "index.html not found", http.StatusNotFound)
+		return
+	}
+
+	// Inject <base href="/"> right after the opening <head> tag so all
+	// relative URLs resolve from the root.
+	patched := strings.Replace(string(raw), "<head>", `<head><base href="/">`, 1)
+	data := []byte(patched)
+	indexHTML.Store(data)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data)
 }
 
 // StateManager returns the in-memory state manager.

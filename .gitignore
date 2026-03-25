@@ -20,6 +20,7 @@ node_modules/
 
 # Frontend
 frontend/dist/
+frontend/.vite/
 backend/frontend/
 
 # Config & state (user data)
