@@ -152,7 +152,7 @@ var indexHTML atomic.Value
 func (s *Server) serveIndexWithBase(w http.ResponseWriter, _ *http.Request) {
 	if cached, ok := indexHTML.Load().([]byte); ok && len(cached) > 0 {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(cached)
+		_, _ = w.Write(cached)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (s *Server) serveIndexWithBase(w http.ResponseWriter, _ *http.Request) {
 	indexHTML.Store(data)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // StateManager returns the in-memory state manager.
