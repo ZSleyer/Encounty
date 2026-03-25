@@ -12,9 +12,18 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  build:
-    name: Build & Release
+  test:
+    name: Test
+    uses: ./.github/workflows/test.yml
+
+  lint:
+    name: Lint
+    uses: ./.github/workflows/lint.yml
+
+  release:
+    name: Build & Publish
     runs-on: ubuntu-latest
+    needs: [test, lint]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
