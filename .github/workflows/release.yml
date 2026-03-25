@@ -124,11 +124,24 @@ jobs:
             echo "publish_flag=always" >> $GITHUB_OUTPUT
           fi
 
+      - name: Delete existing pre-release (overwrite mode)
+        if: steps.prerelease.outputs.is_pre == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release delete "$VERSION" --yes --cleanup-tag 2>/dev/null || true
+
+      - name: Recreate tag at current commit (pre-release overwrite)
+        if: steps.prerelease.outputs.is_pre == 'true'
+        run: |
+          git tag -f "$VERSION"
+          git push origin "$VERSION" --force
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           prerelease: ${{ steps.prerelease.outputs.is_pre == 'true' }}
+          body: ${{ steps.prerelease.outputs.is_pre == 'true' && format('> **Note:** Pre-releases are overwritten on every build. Compare the commit hash to check if you have the latest version.\n>\n> Commit: `{0}`', github.sha) || '' }}
 
       - name: Package & Publish Electron Linux
         working-directory: electron
