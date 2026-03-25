@@ -1,0 +1,45 @@
+name: Coverage Badges
+
+on:
+  workflow_call:
+    inputs:
+      backend-coverage:
+        required: true
+        type: string
+      frontend-coverage:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Push to badges branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout badges branch
+        uses: actions/checkout@v4
+        with:
+          ref: badges
+
+      - name: Generate Badge JSON
+        run: |
+          badge_color() {
+            local pct=$1
+            if (( $(echo "$pct >= 80" | bc -l) )); then echo "brightgreen"
+            elif (( $(echo "$pct >= 60" | bc -l) )); then echo "yellow"
+            else echo "red"; fi
+          }
+          be="${{ inputs.backend-coverage }}"
+          fe="${{ inputs.frontend-coverage }}"
+          echo "{\"schemaVersion\":1,\"label\":\"backend coverage\",\"message\":\"${be}%\",\"color\":\"$(badge_color "$be")\"}" > backend-coverage.json
+          echo "{\"schemaVersion\":1,\"label\":\"frontend coverage\",\"message\":\"${fe}%\",\"color\":\"$(badge_color "$fe")\"}" > frontend-coverage.json
+
+      - name: Push Badges
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add backend-coverage.json frontend-coverage.json
+          git diff --cached --quiet || git commit -m "update coverage badges [skip ci]"
+          git push origin badges

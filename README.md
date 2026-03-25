@@ -1,6 +1,8 @@
 # Encounty
 
 ![CI](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml/badge.svg?branch=main)
+![Backend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ZSleyer/Encounty/badges/backend-coverage.json)
+![Frontend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ZSleyer/Encounty/badges/frontend-coverage.json)
 ![License: AGPL-3.0](https://img.shields.io/github/license/ZSleyer/Encounty)
 ![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)
 ![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)
@@ -68,12 +70,12 @@ Pull requests are welcome! Whether it's translations, new features, or bug fixes
 
 ### Prerequisites
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Go | 1.25+ | Backend API server |
-| Node.js | 22+ | Frontend build and Electron |
-| Yarn | any | Package manager (`npm install -g yarn`) |
-| Make | any | Build orchestration |
+| Tool    | Version | Notes                                   |
+| ------- | ------- | --------------------------------------- |
+| Go      | 1.25+   | Backend API server                      |
+| Node.js | 22+     | Frontend build and Electron             |
+| Yarn    | any     | Package manager (`npm install -g yarn`) |
+| Make    | any     | Build orchestration                     |
 
 ### Architecture
 

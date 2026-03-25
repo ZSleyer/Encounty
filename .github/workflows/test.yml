@@ -1,0 +1,88 @@
+name: Test
+
+on:
+  workflow_call:
+    outputs:
+      backend-coverage:
+        description: Backend test coverage percentage
+        value: ${{ jobs.backend.outputs.coverage }}
+      frontend-coverage:
+        description: Frontend test coverage percentage
+        value: ${{ jobs.frontend.outputs.coverage }}
+
+jobs:
+  backend:
+    name: Go Backend
+    runs-on: ubuntu-latest
+    outputs:
+      coverage: ${{ steps.coverage.outputs.total }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+
+      - name: Run Tests
+        working-directory: backend
+        run: go test -v -coverprofile=coverage.out ./internal/... -count=1
+
+      - name: Generate Coverage Report
+        working-directory: backend
+        run: |
+          go tool cover -func=coverage.out > coverage.txt
+          go tool cover -html=coverage.out -o coverage.html
+
+      - name: Extract Coverage
+        id: coverage
+        working-directory: backend
+        run: |
+          total=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: |
+            backend/coverage.out
+            backend/coverage.txt
+            backend/coverage.html
+
+  frontend:
+    name: React Frontend
+    runs-on: ubuntu-latest
+    outputs:
+      coverage: ${{ steps.coverage.outputs.total }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Dependencies
+        working-directory: frontend
+        run: yarn install
+
+      - name: Run Tests
+        working-directory: frontend
+        run: yarn test --run --coverage
+
+      - name: Extract Coverage
+        id: coverage
+        working-directory: frontend
+        run: |
+          total=$(node -e "const c=require('./coverage/coverage-summary.json').total;const avg=(c.lines.pct+c.statements.pct+c.functions.pct+c.branches.pct)/4;console.log(avg.toFixed(1))")
+          echo "total=$total" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/

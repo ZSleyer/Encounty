@@ -9,144 +9,26 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  test-backend:
-    name: Backend Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  test:
+    name: Test
+    uses: ./.github/workflows/test.yml
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: backend/go.sum
+  lint:
+    name: Lint
+    uses: ./.github/workflows/lint.yml
 
-      - name: Run Tests
-        working-directory: backend
-        run: go test -v -coverprofile=coverage.out ./internal/... -count=1
+  build:
+    name: Build
+    needs: [test, lint]
+    uses: ./.github/workflows/build.yml
 
-      - name: Generate Coverage Report
-        working-directory: backend
-        run: |
-          go tool cover -func=coverage.out > coverage.txt
-          go tool cover -html=coverage.out -o coverage.html
-
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-coverage
-          path: |
-            backend/coverage.out
-            backend/coverage.txt
-            backend/coverage.html
-
-  test-frontend:
-    name: Frontend Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install Dependencies
-        working-directory: frontend
-        run: yarn install
-
-      - name: Run Tests
-        working-directory: frontend
-        run: yarn test --run --coverage
-
-      - name: Upload Coverage Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: frontend/coverage/
-
-  lint-backend:
-    name: Lint Backend
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: backend/go.sum
-
-      - name: Create frontend/dist stub for go:embed
-        run: mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          version: v2.11.3
-          working-directory: backend
-
-  lint-frontend:
-    name: Lint Frontend
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install Dependencies
-        working-directory: frontend
-        run: yarn install
-
-      - name: Type Check
-        working-directory: frontend
-        run: npx tsc --noEmit
-
-  build-verification:
-    name: Build Verification
-    runs-on: ubuntu-latest
-    needs: [test-backend, test-frontend, lint-backend, lint-frontend]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-          cache-dependency-path: backend/go.sum
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Build Frontend
-        working-directory: frontend
-        run: |
-          yarn install
-          yarn build
-
-      - name: Build Backend (Linux)
-        run: make build-linux
-
-      - name: Build Electron
-        working-directory: electron
-        run: |
-          yarn install
-          yarn build
-
-      - name: Verify Artifacts
-        run: |
-          echo "Checking built artifacts..."
-          test -f encounty-linux || (echo "Backend binary not found" && exit 1)
-          test -d frontend/dist || (echo "Frontend dist not found" && exit 1)
-          test -d electron/dist || (echo "Electron dist not found" && exit 1)
-          echo "All artifacts verified successfully"
+  badges:
+    name: Coverage Badges
+    needs: [test]
+    if: github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/badges.yml
+    permissions:
+      contents: write
+    with:
+      backend-coverage: ${{ needs.test.outputs.backend-coverage }}
+      frontend-coverage: ${{ needs.test.outputs.frontend-coverage }}
