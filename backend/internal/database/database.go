@@ -390,6 +390,119 @@ func (d *DB) HasGames() bool {
 	return n == 1
 }
 
+// PokedexSpeciesRow represents one species in the pokedex_species table.
+type PokedexSpeciesRow struct {
+	ID        int
+	Canonical string
+	NamesJSON []byte
+}
+
+// PokedexFormRow represents one alternate form in the pokedex_forms table.
+type PokedexFormRow struct {
+	SpeciesID int
+	Canonical string
+	SpriteID  int
+	NamesJSON []byte
+}
+
+// SavePokedex replaces all rows in the pokedex tables within a transaction.
+func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) error {
+	tx, err := d.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Delete child table first to respect foreign key constraints.
+	if _, err := tx.Exec(`DELETE FROM pokedex_forms`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM pokedex_species`); err != nil {
+		return err
+	}
+
+	speciesStmt, err := tx.Prepare(`INSERT INTO pokedex_species (id, canonical, names_json) VALUES (?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = speciesStmt.Close() }()
+	for _, s := range species {
+		if _, err := speciesStmt.Exec(s.ID, s.Canonical, string(s.NamesJSON)); err != nil {
+			return err
+		}
+	}
+
+	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, names_json) VALUES (?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = formStmt.Close() }()
+	for _, f := range forms {
+		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, string(f.NamesJSON)); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
+// LoadPokedex returns all species and form rows from the database.
+func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
+	speciesRows, err := d.db.Query(`SELECT id, canonical, names_json FROM pokedex_species ORDER BY id`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = speciesRows.Close() }()
+	var species []PokedexSpeciesRow
+	for speciesRows.Next() {
+		var s PokedexSpeciesRow
+		var names string
+		if err := speciesRows.Scan(&s.ID, &s.Canonical, &names); err != nil {
+			return nil, nil, err
+		}
+		s.NamesJSON = []byte(names)
+		species = append(species, s)
+	}
+	if err := speciesRows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, names_json FROM pokedex_forms ORDER BY species_id, id`)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer func() { _ = formRows.Close() }()
+	var forms []PokedexFormRow
+	for formRows.Next() {
+		var f PokedexFormRow
+		var names string
+		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &names); err != nil {
+			return nil, nil, err
+		}
+		f.NamesJSON = []byte(names)
+		forms = append(forms, f)
+	}
+	if err := formRows.Err(); err != nil {
+		return nil, nil, err
+	}
+
+	return species, forms, nil
+}
+
+// HasPokedex reports whether the pokedex_species table contains any rows.
+func (d *DB) HasPokedex() bool {
+	var n int
+	_ = d.db.QueryRow(`SELECT 1 FROM pokedex_species LIMIT 1`).Scan(&n)
+	return n == 1
+}
+
+// PokedexCount returns the number of species in the pokedex_species table.
+func (d *DB) PokedexCount() int {
+	var n int
+	_ = d.db.QueryRow(`SELECT COUNT(*) FROM pokedex_species`).Scan(&n)
+	return n
+}
+
 func mustAtoi(s string) int {
 	n := 0
 	for _, c := range s {

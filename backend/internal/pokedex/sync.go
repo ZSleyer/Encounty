@@ -3,20 +3,17 @@
 package pokedex
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+	"log/slog"
 	"strconv"
 	"strings"
+
+	"github.com/zsleyer/encounty/backend/internal/httputil"
 )
 
 const (
 	// pokeAPIGraphQL is the PokéAPI GraphQL v1beta2 endpoint.
 	pokeAPIGraphQL = "https://graphql.pokeapi.co/v1beta2"
-
-	// contentTypeJSON is the MIME type for JSON request bodies.
-	contentTypeJSON = "application/json"
 
 	// langJaHrkt is the PokéAPI language code for Japanese Katakana.
 	langJaHrkt = "ja-Hrkt"
@@ -44,39 +41,53 @@ var ignoredFormSubstrings = []string{
 	"-gmax", "-totem", "-cap", "-starter", "cosplay", "battle-bond",
 }
 
-// SyncResult carries aggregated statistics from a PokéAPI sync run.
-type SyncResult struct {
-	Total        int      `json:"total"`
-	Added        int      `json:"added"`
-	NamesUpdated int      `json:"namesUpdated"`
-	New          []string `json:"new"`
-}
+// ProgressFn reports sync progress. step describes the current phase
+// (e.g. "species", "forms", "names", "form_names") and detail provides
+// optional extra information.
+type ProgressFn func(step string, detail string)
 
 // SyncFromPokeAPI downloads the latest species, forms, and localized names
 // from PokéAPI and merges them into the given current slice. It returns
-// sync statistics and the updated slice.
-func SyncFromPokeAPI(current []Entry) (SyncResult, []Entry, error) {
-	// Build index of existing canonical names
+// sync statistics and the updated slice. When progress is non-nil it is
+// called at the start of each phase.
+func SyncFromPokeAPI(current []Entry, progress ProgressFn) (SyncResult, []Entry, error) {
+	// Build index of existing canonical names.
 	existing := make(map[string]bool, len(current))
 	for _, e := range current {
 		existing[e.Canonical] = true
 	}
 
 	// Fetch and merge new base species from the REST API.
+	callProgress(progress, "species", "")
 	added, err := fetchAndMergeNewSpecies(&current, existing)
 	if err != nil {
 		return SyncResult{}, nil, err
 	}
 
 	// Fetch and merge alternate forms via GraphQL.
-	formAdded := fetchAndMergeForms(&current)
-	added = append(added, formAdded...)
+	callProgress(progress, "forms", "")
+	formAdded, err := fetchAndMergeForms(&current)
+	if err != nil {
+		slog.Warn("Pokédex sync: forms fetch failed, continuing", "error", err)
+	} else {
+		added = append(added, formAdded...)
+	}
 
 	// Fetch and apply localized species names via GraphQL.
-	namesUpdated := fetchAndApplySpeciesNames(&current)
+	callProgress(progress, "names", "")
+	namesUpdated, err := fetchAndApplySpeciesNames(&current)
+	if err != nil {
+		slog.Warn("Pokédex sync: species names fetch failed, continuing", "error", err)
+	}
 
 	// Fetch and apply localized form names via GraphQL.
-	namesUpdated += fetchAndApplyFormNames(&current)
+	callProgress(progress, "form_names", "")
+	formNamesUpdated, err := fetchAndApplyFormNames(&current)
+	if err != nil {
+		slog.Warn("Pokédex sync: form names fetch failed, continuing", "error", err)
+	} else {
+		namesUpdated += formNamesUpdated
+	}
 
 	result := SyncResult{
 		Total:        len(current),
@@ -85,6 +96,13 @@ func SyncFromPokeAPI(current []Entry) (SyncResult, []Entry, error) {
 		New:          added,
 	}
 	return result, current, nil
+}
+
+// callProgress invokes the progress callback if it is non-nil.
+func callProgress(fn ProgressFn, step, detail string) {
+	if fn != nil {
+		fn(step, detail)
+	}
 }
 
 // fetchAndMergeNewSpecies fetches the full Pokémon list from PokéAPI's REST
@@ -100,20 +118,9 @@ func fetchAndMergeNewSpecies(current *[]Entry, existing map[string]bool) ([]stri
 		Results []pokeAPIEntry `json:"results"`
 	}
 
-	resp, err := http.Get("https://pokeapi.co/api/v2/pokemon?limit=10000") //nolint:noctx
-	if err != nil {
-		return nil, fmt.Errorf("PokeAPI unavailable: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
 	var apiList pokeAPIList
-	if err := json.Unmarshal(body, &apiList); err != nil {
-		return nil, fmt.Errorf("failed to parse PokeAPI response: %w", err)
+	if err := httputil.GetJSON("https://pokeapi.co/api/v2/pokemon?limit=10000", &apiList); err != nil {
+		return nil, fmt.Errorf("PokeAPI unavailable: %w", err)
 	}
 
 	var added []string
@@ -160,13 +167,8 @@ func isIgnoredForm(name string) bool {
 // fetchAndMergeForms fetches alternate Pokémon forms (ID > 10000) from the
 // PokéAPI GraphQL endpoint and appends new forms to the matching species in
 // current. It returns the canonical names of newly added forms.
-func fetchAndMergeForms(current *[]Entry) []string {
+func fetchAndMergeForms(current *[]Entry) ([]string, error) {
 	q := `{"query":"query{pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id}}"}`
-	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = resp.Body.Close() }()
 
 	var glForms struct {
 		Data struct {
@@ -177,8 +179,8 @@ func fetchAndMergeForms(current *[]Entry) []string {
 			} `json:"pokemon"`
 		} `json:"data"`
 	}
-	if json.NewDecoder(resp.Body).Decode(&glForms) != nil {
-		return nil
+	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &glForms); err != nil {
+		return nil, fmt.Errorf("fetch forms: %w", err)
 	}
 
 	specIndex := make(map[int]int, len(*current))
@@ -210,27 +212,22 @@ func fetchAndMergeForms(current *[]Entry) []string {
 			added = append(added, f.Name)
 		}
 	}
-	return added
+	return added, nil
 }
 
 // fetchAndApplySpeciesNames fetches localized species names from the PokéAPI
 // GraphQL endpoint and applies them to the entries in current. It returns the
 // number of individual name values that changed.
-func fetchAndApplySpeciesNames(current *[]Entry) int {
+func fetchAndApplySpeciesNames(current *[]Entry) (int, error) {
 	q := `{"query":"query{pokemonspeciesname(where:{language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){name pokemon_species_id language{name}}}"}`
-	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
-	if err != nil {
-		return 0
-	}
-	defer func() { _ = resp.Body.Close() }()
 
 	var glResp struct {
 		Data struct {
 			Names []speciesNameRow `json:"pokemonspeciesname"`
 		} `json:"data"`
 	}
-	if json.NewDecoder(resp.Body).Decode(&glResp) != nil {
-		return 0
+	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &glResp); err != nil {
+		return 0, fmt.Errorf("fetch species names: %w", err)
 	}
 
 	namesMap := buildSpeciesTranslationMap(glResp.Data.Names)
@@ -252,7 +249,7 @@ func fetchAndApplySpeciesNames(current *[]Entry) int {
 			(*current)[i].Names[l] = n
 		}
 	}
-	return namesUpdated
+	return namesUpdated, nil
 }
 
 // speciesNameRow is a single row from the PokéAPI species-name GraphQL query.
@@ -294,25 +291,20 @@ func shouldSkipJaKatakana(langKey, apiLang string, existing map[string]string) b
 // fetchAndApplyFormNames fetches localized form names from the PokéAPI GraphQL
 // endpoint and applies them to the form entries in current. It returns the
 // number of individual name values that changed.
-func fetchAndApplyFormNames(current *[]Entry) int {
+func fetchAndApplyFormNames(current *[]Entry) (int, error) {
 	q := `{"query":"query{pokemonformname(where:{language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){pokemonform{name} language{name} pokemon_name name}}"}`
-	resp, err := http.Post(pokeAPIGraphQL, contentTypeJSON, strings.NewReader(q))
-	if err != nil {
-		return 0
-	}
-	defer func() { _ = resp.Body.Close() }()
 
 	var glResp struct {
 		Data struct {
 			Names []formNameRow `json:"pokemonformname"`
 		} `json:"data"`
 	}
-	if json.NewDecoder(resp.Body).Decode(&glResp) != nil {
-		return 0
+	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &glResp); err != nil {
+		return 0, fmt.Errorf("fetch form names: %w", err)
 	}
 
 	formNamesMap := buildFormTranslationMap(glResp.Data.Names)
-	return applyFormTranslations(current, formNamesMap)
+	return applyFormTranslations(current, formNamesMap), nil
 }
 
 // applyFormTranslations merges the fetched form name translations into the

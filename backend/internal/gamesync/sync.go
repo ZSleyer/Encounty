@@ -6,13 +6,12 @@ package gamesync
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
+	"github.com/zsleyer/encounty/backend/internal/httputil"
 )
 
 const pokeAPIBase = "https://pokeapi.co/api/v2"
@@ -113,21 +112,11 @@ type apiVersionGroup struct {
 	} `json:"generation"`
 }
 
-// ----------------------------------------------------------------------------
+// ProgressFn reports sync progress. step describes the current operation,
+// current and total indicate numeric progress (0/0 when unknown).
+type ProgressFn func(step string, current, total int)
 
-func fetchAPIJSON(url string, v any) error {
-	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(url)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(body, v)
-}
+// ----------------------------------------------------------------------------
 
 // vgInfo caches the generation number and platform for a version-group.
 type vgInfo struct {
@@ -136,13 +125,14 @@ type vgInfo struct {
 }
 
 // SyncFromPokeAPI fetches all game versions from the PokeAPI and merges
-// new or missing-language entries into the database.
-func SyncFromPokeAPI(store GamesStore) (GamesSyncResult, error) {
+// new or missing-language entries into the database. When progress is
+// non-nil it is called after each processed version to report progress.
+func SyncFromPokeAPI(store GamesStore, progress ProgressFn) (GamesSyncResult, error) {
 	result := GamesSyncResult{}
 
 	raw := loadExistingGames(store)
 
-	if err := syncVersions(raw, &result); err != nil {
+	if err := syncVersions(raw, &result, progress); err != nil {
 		return result, err
 	}
 
@@ -154,7 +144,7 @@ func SyncFromPokeAPI(store GamesStore) (GamesSyncResult, error) {
 	if err := persistGames(store, raw); err != nil {
 		return result, err
 	}
-	InvalidateCache()
+	invalidateCacheUnlocked()
 	slog.Info("SyncGames: sync complete", "added", result.Added, "updated", result.Updated)
 	return result, nil
 }
@@ -182,19 +172,26 @@ func loadExistingGames(store GamesStore) map[string]rawGameEntry {
 
 // syncVersions fetches the full version list from the PokeAPI and processes
 // each version, merging localised names into the raw game map.
-func syncVersions(raw map[string]rawGameEntry, result *GamesSyncResult) error {
+func syncVersions(raw map[string]rawGameEntry, result *GamesSyncResult, progress ProgressFn) error {
 	var vList apiVersionList
-	if err := fetchAPIJSON(pokeAPIBase+"/version/?limit=200", &vList); err != nil {
+	if err := httputil.GetJSON(pokeAPIBase+"/version/?limit=200", &vList); err != nil {
 		return fmt.Errorf("fetch version list: %w", err)
 	}
 
 	vgCache := map[string]vgInfo{}
+	processed := 0
+	total := len(vList.Results)
 	for _, v := range vList.Results {
 		if syncSkip[v.Name] {
+			processed++
 			continue
 		}
 		if err := processVersion(v.Name, v.URL, raw, vgCache, result); err != nil {
 			slog.Debug("SyncGames: skipping version", "name", v.Name, "error", err)
+		}
+		processed++
+		if progress != nil {
+			progress("version", processed, total)
 		}
 	}
 	return nil
@@ -206,7 +203,7 @@ func processVersion(name, url string, raw map[string]rawGameEntry, vgCache map[s
 	ourKey := "pokemon-" + name
 
 	var detail apiVersion
-	if err := fetchAPIJSON(url, &detail); err != nil {
+	if err := httputil.GetJSON(url, &detail); err != nil {
 		return err
 	}
 	time.Sleep(60 * time.Millisecond) // be polite to PokeAPI
@@ -224,7 +221,7 @@ func fetchGeneration(vgName string, vgCache map[string]vgInfo) vgInfo {
 		return cached
 	}
 	var vg apiVersionGroup
-	if err := fetchAPIJSON(pokeAPIBase+"/version-group/"+vgName+"/", &vg); err == nil {
+	if err := httputil.GetJSON(pokeAPIBase+"/version-group/"+vgName+"/", &vg); err == nil {
 		gen := syncGenNumber[vg.Generation.Name]
 		platform := syncGenPlatform[gen]
 		if ov, ok := syncVGPlatform[vgName]; ok {

@@ -15,6 +15,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/fileoutput"
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
 	"github.com/zsleyer/encounty/backend/internal/gamesync"
+	"github.com/zsleyer/encounty/backend/internal/pokedex"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/backgrounds"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/backup"
 	detectorhandler "github.com/zsleyer/encounty/backend/internal/server/handler/detector"
@@ -30,17 +31,19 @@ import (
 // Server wires together the HTTP multiplexer, WebSocket hub, hotkey manager,
 // file-output writer, and state manager into a single runnable unit.
 type Server struct {
-	state       *state.Manager
-	hub         *Hub
-	hotkeyMgr   hotkeys.Manager
-	fileWriter  *fileoutput.Writer
-	httpServer  *http.Server
-	version     string
-	commit      string
-	buildDate   string
-	detectorMgr *detector.Manager
-	db          *database.DB
-	ready       atomic.Bool
+	state        *state.Manager
+	hub          *Hub
+	hotkeyMgr    hotkeys.Manager
+	fileWriter   *fileoutput.Writer
+	httpServer   *http.Server
+	version      string
+	commit       string
+	buildDate    string
+	detectorMgr  *detector.Manager
+	db           *database.DB
+	ready        atomic.Bool
+	devMode      bool
+	setupPending atomic.Bool
 }
 
 // Config carries all dependencies needed to construct a Server.
@@ -55,6 +58,7 @@ type Config struct {
 	ConfigDir   string
 	DetectorMgr *detector.Manager
 	DB          *database.DB
+	DevMode     bool
 }
 
 // New creates a Server from cfg, registers all HTTP routes, and starts the
@@ -70,6 +74,7 @@ func New(cfg Config) *Server {
 		buildDate:   cfg.BuildDate,
 		detectorMgr: cfg.DetectorMgr,
 		db:          cfg.DB,
+		devMode:     cfg.DevMode,
 	}
 
 	// Wire hotkey actions to state changes
@@ -115,6 +120,16 @@ func (s *Server) VersionInfo() (version, commit, buildDate string) {
 // IsReady reports whether the server has finished initial setup.
 func (s *Server) IsReady() bool {
 	return s.ready.Load()
+}
+
+// IsDevMode reports whether the server was started in development mode.
+func (s *Server) IsDevMode() bool {
+	return s.devMode
+}
+
+// IsSetupPending reports whether initial setup is waiting for user action.
+func (s *Server) IsSetupPending() bool {
+	return s.setupPending.Load()
 }
 
 // ConfigDir returns the active configuration directory path.
@@ -172,6 +187,11 @@ func dbAs[T any](db *database.DB) T {
 // handler sub-package can load and sync game metadata without depending on
 // the concrete *database.DB type. Returns nil when no database is configured.
 func (s *Server) GamesDB() gamesync.GamesStore { return dbAs[gamesync.GamesStore](s.db) }
+
+// PokedexDB returns the database handle as a pokedex.PokedexStore so the
+// games handler sub-package can load and sync Pokédex data without depending
+// on the concrete *database.DB type. Returns nil when no database is configured.
+func (s *Server) PokedexDB() pokedex.PokedexStore { return dbAs[pokedex.PokedexStore](s.db) }
 
 // StatsDB returns the database handle as a stats.StatsQuerier so the stats
 // handler sub-package can query encounter statistics without depending on
@@ -393,16 +413,126 @@ func (s *Server) handleHotkeyNext() {
 	s.broadcastState()
 }
 
-// InitAsync runs initial setup tasks (games loading) in the background
-// and marks the server as ready when complete. It broadcasts a
-// "system_ready" WebSocket event to notify connected clients.
+// syncProgress is the WebSocket payload for "sync_progress" events sent
+// during InitAsync to inform connected clients about data-loading phases.
+type syncProgress struct {
+	Phase   string `json:"phase"`
+	Step    string `json:"step"`
+	Message string `json:"message"`
+	Error   string `json:"error,omitempty"`
+}
+
+// InitAsync runs initial setup tasks (games and Pokédex loading) in the
+// background and marks the server as ready when complete. In dev mode it
+// skips auto-sync and waits for the user to choose online or offline
+// setup via the /api/setup/* endpoints. Progress is reported via
+// "sync_progress" WebSocket events; a final "system_ready" event is
+// broadcast once all phases have finished.
 func (s *Server) InitAsync() {
 	go func() {
-		_ = games.LoadGames(s)
-		s.ready.Store(true)
-		s.hub.BroadcastRaw("system_ready", map[string]bool{"ready": true})
-		slog.Info("Server initialization complete")
+		// In dev mode, skip auto-sync and let the user choose.
+		if s.devMode {
+			s.setupPending.Store(true)
+			s.ready.Store(true)
+			s.hub.BroadcastRaw("system_ready", map[string]any{
+				"ready": true, "setup_pending": true, "dev_mode": true,
+			})
+			slog.Info("Dev mode: waiting for manual setup")
+			return
+		}
+
+		s.runInitialSync()
 	}()
+}
+
+// runInitialSync performs the games and Pokédex synchronisation. It
+// broadcasts progress via WebSocket and marks the server as ready on
+// completion. When the API is unreachable it sends a sync_error event
+// so the frontend can offer the offline fallback.
+func (s *Server) runInitialSync() {
+	// Phase 1: Games
+	slog.Info("InitAsync: starting games sync")
+	s.hub.BroadcastRaw("sync_progress", syncProgress{
+		Phase: "games", Step: "syncing", Message: "Syncing game database...",
+	})
+	_ = games.LoadGames(s)
+	slog.Info("InitAsync: games sync complete")
+
+	// Phase 2: Pokédex
+	store := s.PokedexDB()
+	if pokedex.NeedsSync(store) {
+		slog.Info("InitAsync: starting Pokédex sync")
+		s.hub.BroadcastRaw("sync_progress", syncProgress{
+			Phase: "pokedex", Step: "syncing", Message: "Syncing Pokédex...",
+		})
+		s.syncPokedex(store)
+	} else {
+		slog.Info("InitAsync: Pokédex already up to date")
+		_ = pokedex.LoadPokedex(store)
+	}
+
+	s.setupPending.Store(false)
+	s.ready.Store(true)
+	s.hub.BroadcastRaw("system_ready", map[string]bool{"ready": true})
+	slog.Info("Server initialization complete")
+}
+
+// RunSetupOnline triggers an online sync from the setup endpoint.
+func (s *Server) RunSetupOnline() {
+	s.setupPending.Store(false)
+	s.ready.Store(false)
+	go s.runInitialSync()
+}
+
+// RunSetupOffline seeds games and Pokédex from embedded fallback data.
+func (s *Server) RunSetupOffline() error {
+	slog.Info("Setup: seeding from embedded fallback data")
+	if err := gamesync.SeedFromFallback(s.GamesDB()); err != nil {
+		return fmt.Errorf("seed games: %w", err)
+	}
+	if err := pokedex.SeedFromFallback(s.PokedexDB()); err != nil {
+		return fmt.Errorf("seed pokédex: %w", err)
+	}
+	s.setupPending.Store(false)
+	s.ready.Store(true)
+	s.hub.BroadcastRaw("system_ready", map[string]bool{"ready": true})
+	slog.Info("Setup: offline seeding complete")
+	return nil
+}
+
+// syncPokedex performs a full Pokédex sync from PokéAPI and persists the
+// result to the database. Progress updates are broadcast via the WebSocket
+// hub so the frontend can display a loading indicator.
+func (s *Server) syncPokedex(store pokedex.PokedexStore) {
+	var current []pokedex.Entry
+
+	progress := func(step, detail string) {
+		slog.Info("Pokédex sync progress", "step", step)
+		s.hub.BroadcastRaw("sync_progress", syncProgress{
+			Phase:   "pokedex",
+			Step:    step,
+			Message: "Syncing Pokédex – " + step + "...",
+		})
+	}
+
+	result, updated, err := pokedex.SyncFromPokeAPI(current, progress)
+	if err != nil {
+		slog.Error("Pokédex sync failed", "error", err)
+		s.hub.BroadcastRaw("sync_progress", syncProgress{
+			Phase: "pokedex",
+			Step:  "error",
+			Error: err.Error(),
+		})
+		return
+	}
+
+	species, forms := pokedex.EntriesToRows(updated)
+	if err := store.SavePokedex(species, forms); err != nil {
+		slog.Error("Failed to save Pokédex", "error", err)
+		return
+	}
+	pokedex.InvalidateCache()
+	slog.Info("Pokédex sync complete", "total", result.Total, "added", result.Added, "names_updated", result.NamesUpdated)
 }
 
 // corsMiddleware adds permissive CORS headers so the Vite dev server (port

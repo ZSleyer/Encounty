@@ -23,6 +23,14 @@ type Deps interface {
 	VersionInfo() (version, commit, buildDate string)
 	// IsReady reports whether the server has finished initial setup.
 	IsReady() bool
+	// IsDevMode reports whether the server was started in development mode.
+	IsDevMode() bool
+	// IsSetupPending reports whether initial setup is waiting for user action.
+	IsSetupPending() bool
+	// RunSetupOnline triggers an online sync from PokeAPI.
+	RunSetupOnline()
+	// RunSetupOffline seeds the database from embedded fallback data.
+	RunSetupOffline() error
 	// BroadcastState sends the current state to all connected WebSocket clients.
 	BroadcastState()
 	// StopHotkeys stops the global hotkey listener.
@@ -43,7 +51,9 @@ type versionResponse struct {
 
 // readyStatusResponse reports server readiness for initial data loading.
 type readyStatusResponse struct {
-	Ready bool `json:"ready"`
+	Ready        bool `json:"ready"`
+	DevMode      bool `json:"dev_mode"`
+	SetupPending bool `json:"setup_pending"`
 }
 
 // statusResponse carries a single status string.
@@ -76,6 +86,8 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("/api/licenses", h.handleLicenses)
 	mux.HandleFunc("/api/license/accept", h.handleAcceptLicense)
 	mux.HandleFunc("GET /api/status/ready", h.handleReadyStatus)
+	mux.HandleFunc("POST /api/setup/online", h.handleSetupOnline)
+	mux.HandleFunc("POST /api/setup/offline", h.handleSetupOffline)
 	mux.HandleFunc("/api/quit", h.handleQuit)
 	mux.HandleFunc("/api/restart", h.handleRestart)
 	mux.HandleFunc("/api/overlay/state", h.handleOverlayState)
@@ -177,8 +189,28 @@ func (h *handler) handleAcceptLicense(w http.ResponseWriter, r *http.Request) {
 // @Router       /status/ready [get]
 func (h *handler) handleReadyStatus(w http.ResponseWriter, _ *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, readyStatusResponse{
-		Ready: h.deps.IsReady(),
+		Ready:        h.deps.IsReady(),
+		DevMode:      h.deps.IsDevMode(),
+		SetupPending: h.deps.IsSetupPending(),
 	})
+}
+
+// handleSetupOnline triggers an online sync from PokeAPI.
+// POST /api/setup/online
+func (h *handler) handleSetupOnline(w http.ResponseWriter, _ *http.Request) {
+	h.deps.RunSetupOnline()
+	httputil.WriteJSON(w, http.StatusOK, statusResponse{Status: "sync started"})
+}
+
+// handleSetupOffline seeds the database from embedded fallback data.
+// POST /api/setup/offline
+func (h *handler) handleSetupOffline(w http.ResponseWriter, _ *http.Request) {
+	if err := h.deps.RunSetupOffline(); err != nil {
+		slog.Error("Offline setup failed", "error", err)
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	httputil.WriteJSON(w, http.StatusOK, statusResponse{Status: "offline setup complete"})
 }
 
 // handleQuit performs a graceful shutdown: saves state, stops hotkeys, and

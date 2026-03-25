@@ -4,7 +4,6 @@
 package games
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -18,6 +17,7 @@ import (
 // layer, keeping this package decoupled from the server package.
 type Deps interface {
 	GamesDB() gamesync.GamesStore
+	PokedexDB() pokedex.PokedexStore
 	ConfigDir() string
 }
 
@@ -42,6 +42,13 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 // (e.g. from InitAsync).
 func LoadGames(d Deps) []gamesync.GameEntry {
 	return gamesync.LoadGames(d.GamesDB())
+}
+
+// LoadPokedex triggers the initial Pokédex load, populating the in-memory
+// cache. It is intended to be called during server startup (e.g. from
+// InitAsync).
+func LoadPokedex(d Deps) []pokedex.Entry {
+	return pokedex.LoadPokedex(d.PokedexDB())
 }
 
 // handleGetGames returns the games list sorted by generation. GET /api/games
@@ -86,7 +93,7 @@ func (h *handler) handleSyncGames(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	result, err := gamesync.SyncFromPokeAPI(h.deps.GamesDB())
+	result, err := gamesync.SyncFromPokeAPI(h.deps.GamesDB(), nil)
 	if err != nil {
 		slog.Error("Games sync error", "error", err)
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
@@ -103,34 +110,32 @@ type pokedexSyncResponse struct {
 	New          []string `json:"new"`
 }
 
-// handleGetPokedex serves the pokemon list (configDir first, then source fallbacks).
+// handleGetPokedex returns the full Pokédex from the database cache.
 //
 // @Summary      Get the Pokedex
 // @Tags         pokedex
 // @Produce      json
 // @Success      200 {array} pokedex.Entry
-// @Failure      500 {object} httputil.ErrResp
 // @Router       /pokedex [get]
 func (h *handler) handleGetPokedex(w http.ResponseWriter, _ *http.Request) {
-	data, err := pokedex.ReadJSON(h.deps.ConfigDir())
-	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: "could not load pokedex: " + err.Error()})
-		return
+	entries := pokedex.LoadPokedex(h.deps.PokedexDB())
+	if entries == nil {
+		entries = []pokedex.Entry{}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-	_, _ = w.Write(data)
+	httputil.WriteJSON(w, http.StatusOK, entries)
 }
 
-// handleSyncPokemon downloads the latest pokemon list from PokeAPI and saves
-// it to the config directory. It delegates to the pokedex package for fetching
-// and merging species, forms, and localized names.
+// handleSyncPokemon triggers a full Pokédex sync from PokéAPI and persists
+// the result to the database. It loads the current entries for merging so
+// that existing data is preserved.
 //
 // @Summary      Sync Pokedex from PokeAPI
 // @Tags         pokedex
 // @Produce      json
 // @Success      200 {object} pokedexSyncResponse
+// @Failure      405
 // @Failure      500 {object} httputil.ErrResp
+// @Failure      503 {object} httputil.ErrResp
 // @Router       /sync/pokemon [post]
 func (h *handler) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -138,28 +143,23 @@ func (h *handler) handleSyncPokemon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentData, err := pokedex.ReadJSON(h.deps.ConfigDir())
-	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: "could not load current pokedex: " + err.Error()})
-		return
+	current := pokedex.LoadPokedex(h.deps.PokedexDB())
+	if current == nil {
+		current = []pokedex.Entry{}
 	}
 
-	var current []pokedex.Entry
-	if err := json.Unmarshal(currentData, &current); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: "could not parse current pokedex: " + err.Error()})
-		return
-	}
-
-	result, updated, err := pokedex.SyncFromPokeAPI(current)
+	result, updated, err := pokedex.SyncFromPokeAPI(current, nil)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusServiceUnavailable, httputil.ErrResp{Error: err.Error()})
 		return
 	}
 
-	if err := pokedex.WriteJSON(h.deps.ConfigDir(), updated); err != nil {
+	species, forms := pokedex.EntriesToRows(updated)
+	if err := h.deps.PokedexDB().SavePokedex(species, forms); err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	pokedex.InvalidateCache()
 
 	slog.Info("Pokedex sync complete", "added", result.Added, "names_updated", result.NamesUpdated)
 	httputil.WriteJSON(w, http.StatusOK, pokedexSyncResponse{

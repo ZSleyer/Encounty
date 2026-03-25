@@ -56,6 +56,13 @@ func InvalidateCache() {
 	gamesMu.Unlock()
 }
 
+// invalidateCacheUnlocked clears the cache without acquiring the mutex.
+// It must only be called while gamesMu is already held (e.g. from
+// SyncFromPokeAPI called within loadGamesFromDB).
+func invalidateCacheUnlocked() {
+	cachedGames = nil
+}
+
 // loadGamesFromDB loads games from the database, triggering a PokeAPI sync
 // if the database is empty.
 func loadGamesFromDB(store GamesStore) []GameEntry {
@@ -73,7 +80,7 @@ func loadGamesFromDB(store GamesStore) []GameEntry {
 	// Database is empty — trigger initial sync from PokeAPI
 	if store != nil {
 		slog.Info("No games in database, syncing from PokeAPI...")
-		result, err := SyncFromPokeAPI(store)
+		result, err := SyncFromPokeAPI(store, nil)
 		if err != nil {
 			slog.Warn("Initial games sync failed", "error", err)
 			return nil

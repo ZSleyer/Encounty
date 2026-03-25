@@ -52,9 +52,7 @@ func formatVersionDisplay(ver, cmt string) string {
 }
 
 func main() {
-	// --dev is accepted for backward compatibility but no longer changes behaviour
-	// now that the Go binary is a pure API server.
-	flag.Bool("dev", false, "Development mode (no-op, kept for compatibility)")
+	devMode := flag.Bool("dev", false, "Development mode (manual setup, no auto-sync)")
 	logLevel := flag.String("log-level", "info", "Log level: debug, info, warn, error")
 	showVersion := flag.Bool("version", false, "Show version information")
 	flag.BoolVar(showVersion, "v", false, "Show version information")
@@ -104,6 +102,7 @@ func main() {
 		ConfigDir:   configDir,
 		DetectorMgr: detectorMgr,
 		DB:          db,
+		DevMode:     *devMode,
 	})
 
 	broadcastFn = srv.Broadcast
@@ -131,6 +130,9 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 	}
 
 	effectiveDir := stateMgr.GetConfigDir()
+	if err := os.MkdirAll(effectiveDir, 0755); err != nil {
+		slog.Warn("Could not create config directory", "error", err)
+	}
 	dbPath := filepath.Join(effectiveDir, "encounty.db")
 	db, err := database.Open(dbPath)
 	if err != nil {

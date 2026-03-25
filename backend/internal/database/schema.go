@@ -234,6 +234,23 @@ var schemaV2 = []string{
 		FOREIGN KEY (game_key) REFERENCES games(key) ON DELETE CASCADE
 	)`,
 
+	// ── Pokedex species ─────────────────────────────────────────────────
+	`CREATE TABLE IF NOT EXISTS pokedex_species (
+		id         INTEGER PRIMARY KEY,
+		canonical  TEXT    NOT NULL UNIQUE,
+		names_json TEXT    NOT NULL DEFAULT '{}'
+	)`,
+
+	// ── Pokedex forms (alternate forms per species) ──────────────────────
+	`CREATE TABLE IF NOT EXISTS pokedex_forms (
+		id         INTEGER PRIMARY KEY AUTOINCREMENT,
+		species_id INTEGER NOT NULL,
+		canonical  TEXT    NOT NULL UNIQUE,
+		sprite_id  INTEGER NOT NULL DEFAULT 0,
+		names_json TEXT    NOT NULL DEFAULT '{}',
+		FOREIGN KEY (species_id) REFERENCES pokedex_species(id) ON DELETE CASCADE
+	)`,
+
 	// ── Indexes ──────────────────────────────────────────────────────────
 	`CREATE INDEX IF NOT EXISTS idx_overlay_owner ON overlay_settings(owner_type, owner_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_elements_overlay ON overlay_elements(overlay_id)`,
@@ -243,4 +260,5 @@ var schemaV2 = []string{
 	`CREATE INDEX IF NOT EXISTS idx_template_regions_tmpl ON template_regions(template_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_detection_log_pokemon ON detection_log(pokemon_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_game_names_key ON game_names(game_key)`,
+	`CREATE INDEX IF NOT EXISTS idx_pokedex_forms_species ON pokedex_forms(species_id)`,
 }

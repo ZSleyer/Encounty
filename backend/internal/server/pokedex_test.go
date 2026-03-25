@@ -5,31 +5,43 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/pokedex"
 )
 
-// fixturePokedexJSON returns a minimal valid pokemon.json for testing.
-func fixturePokedexJSON() []byte {
-	return []byte(`[
-		{"id":1,"canonical":"bulbasaur","names":{"en":"Bulbasaur","de":"Bisasam"}},
-		{"id":4,"canonical":"charmander","names":{"en":"Charmander","de":"Glumanda"}},
-		{"id":25,"canonical":"pikachu","names":{"en":"Pikachu","de":"Pikachu"},"forms":[
-			{"canonical":"pikachu-alola","names":{"en":"Alolan Pikachu"},"sprite_id":10100}
-		]}
-	]`)
+// seedTestPokedex inserts fixture data into the database.
+func seedTestPokedex(t *testing.T, db *database.DB) {
+	t.Helper()
+	species := []database.PokedexSpeciesRow{
+		{ID: 1, Canonical: "bulbasaur", NamesJSON: []byte(`{"en":"Bulbasaur","de":"Bisasam"}`)},
+		{ID: 4, Canonical: "charmander", NamesJSON: []byte(`{"en":"Charmander","de":"Glumanda"}`)},
+		{ID: 25, Canonical: "pikachu", NamesJSON: []byte(`{"en":"Pikachu","de":"Pikachu"}`)},
+	}
+	forms := []database.PokedexFormRow{
+		{SpeciesID: 25, Canonical: "pikachu-alola", SpriteID: 10100, NamesJSON: []byte(`{"en":"Alolan Pikachu"}`)},
+	}
+	if err := db.SavePokedex(species, forms); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestPokedexHandleGetPokedex(t *testing.T) {
 	srv := newTestServer(t)
-	configDir := srv.state.GetConfigDir()
 
-	if err := os.WriteFile(filepath.Join(configDir, pokedex.Filename), fixturePokedexJSON(), 0644); err != nil {
+	// Open a test database and seed Pokédex data.
+	db, err := database.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = db.Close() })
+	srv.db = db
+	seedTestPokedex(t, db)
+
+	// Clear any cached data from previous tests.
+	pokedex.InvalidateCache()
 
 	mux := http.NewServeMux()
 	srv.registerRoutes(mux)
@@ -47,11 +59,6 @@ func TestPokedexHandleGetPokedex(t *testing.T) {
 		t.Errorf("Content-Type = %q, want application/json", ct)
 	}
 
-	cc := w.Header().Get("Cache-Control")
-	if cc == "" {
-		t.Error("expected Cache-Control header")
-	}
-
 	var entries []pokedex.Entry
 	if err := json.Unmarshal(w.Body.Bytes(), &entries); err != nil {
 		t.Fatal(err)
@@ -59,6 +66,16 @@ func TestPokedexHandleGetPokedex(t *testing.T) {
 	if len(entries) != 3 {
 		t.Errorf("expected 3 entries, got %d", len(entries))
 	}
+
+	// Verify forms are attached.
+	for _, e := range entries {
+		if e.Canonical == "pikachu" && len(e.Forms) != 1 {
+			t.Errorf("pikachu: expected 1 form, got %d", len(e.Forms))
+		}
+	}
+
+	// Clean up cache for other tests.
+	pokedex.InvalidateCache()
 }
 
 func TestPokedexSyncMethodNotAllowed(t *testing.T) {
