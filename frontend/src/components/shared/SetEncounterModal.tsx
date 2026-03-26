@@ -66,7 +66,7 @@ export function SetEncounterModal({ pokemon, onSave, onClose }: Readonly<SetEnco
           min={0}
           value={count}
           onChange={(e) => setCount(Math.max(0, Number.parseInt(e.target.value, 10) || 0))}
-          onKeyDown={(e) => e.key === "Enter" && handleSave()}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
           className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums"
         />
       </div>

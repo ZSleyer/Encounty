@@ -22,7 +22,7 @@ describe("WindowControls", () => {
   it("renders nothing when electronAPI is not available", () => {
     vi.stubGlobal("electronAPI", undefined);
     const { container } = render(<WindowControls />);
-    expect(container.firstChild).toBeNull();
+    expect(container.querySelector("button")).toBeNull();
   });
 
   it("renders minimize, maximize, and close buttons", () => {

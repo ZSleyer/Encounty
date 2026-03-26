@@ -23,9 +23,9 @@ import { DetectorSettings } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { getSpriteUrl } from "../../utils/sprites";
 import { apiUrl } from "../../utils/api";
-import { WebGPUDetector, CPUDetector, WorkerDetector } from "../../engine";
-import { DetectionLoop, registerLoop, stopLoop, getActiveLoop } from "../../engine/DetectionLoop";
-import type { Detector, TemplateData } from "../../engine";
+import { getActiveLoop } from "../../engine/DetectionLoop";
+import { ensureDetector, getDetectorBackend, startDetectionForPokemon, stopDetectionForPokemon } from "../../engine/startDetection";
+import type { DetectionLoop } from "../../engine/DetectionLoop";
 
 // --- Default config ----------------------------------------------------------
 
@@ -46,47 +46,6 @@ const DEFAULT_CONFIG: DetectorConfig = {
   adaptive_cooldown_min: 3,
   relative_regions: false,
 };
-
-// --- Module-level detector singleton -----------------------------------------
-
-/** Shared detector instance, persists across component remounts. */
-let sharedDetector: Detector | null = null;
-let sharedDetectorBackend: "gpu" | "cpu" | null = null;
-let detectorInitPromise: Promise<void> | null = null;
-
-/** Initialize the detector once (idempotent). Resolves when ready. */
-function ensureDetector(): Promise<void> {
-  if (sharedDetector) return Promise.resolve();
-  if (detectorInitPromise) return detectorInitPromise;
-
-  detectorInitPromise = (async () => {
-    try {
-      sharedDetector = await WebGPUDetector.create();
-      sharedDetectorBackend = "gpu";
-      console.log("[Detector] Using WebGPU backend");
-    } catch (gpuErr) {
-      console.warn("[Detector] WebGPU unavailable:", gpuErr);
-      try {
-        if (WorkerDetector.isAvailable()) {
-          sharedDetector = await WorkerDetector.create();
-          console.log("[Detector] Using Worker backend (CPU offloaded)");
-        } else if (CPUDetector.isAvailable()) {
-          sharedDetector = new CPUDetector();
-          console.log("[Detector] Using main-thread CPU backend");
-        }
-        sharedDetectorBackend = "cpu";
-      } catch (cpuErr) {
-        if (CPUDetector.isAvailable()) {
-          sharedDetector = new CPUDetector();
-          sharedDetectorBackend = "cpu";
-        }
-        console.warn("[Detector] Worker failed, main-thread fallback:", cpuErr);
-      }
-    }
-  })();
-
-  return detectorInitPromise;
-}
 
 // --- Props -------------------------------------------------------------------
 
@@ -185,7 +144,7 @@ export function DetectorPanel({
   // Per-pokemon detection loop (local ref for the currently viewed pokemon)
   const loopRef = useRef<DetectionLoop | null>(null);
   // Backend type for the CPU fallback warning
-  const [detectorBackend, setDetectorBackend] = useState<"gpu" | "cpu" | null>(sharedDetectorBackend);
+  const [detectorBackend, setDetectorBackend] = useState<"gpu" | "cpu" | null>(getDetectorBackend());
 
   const capture = useCaptureService();
   // Subscribe to capture version changes so we re-render when streams start/stop
@@ -309,7 +268,7 @@ export function DetectorPanel({
   // --- Detector singleton initialization (fires once globally) ---------------
 
   useEffect(() => {
-    ensureDetector().then(() => setDetectorBackend(sharedDetectorBackend));
+    ensureDetector().then(() => setDetectorBackend(getDetectorBackend()));
   }, []);
 
   // Detection loops persist across tab switches. On remount, re-attach the
@@ -582,79 +541,31 @@ export function DetectorPanel({
 
   /** Create and start the browser-side DetectionLoop for this pokemon. */
   const startDetectionLoop = async () => {
-    // Stop any existing loop for this pokemon (via registry + local ref)
-    stopLoop(pokemon.id);
     loopRef.current = null;
+    setDetectorBackend(getDetectorBackend());
 
-    // Ensure the shared detector singleton is ready
-    await ensureDetector();
-    setDetectorBackend(sharedDetectorBackend);
+    const loop = await startDetectionForPokemon({
+      pokemonId: pokemon.id,
+      templates,
+      config: cfg,
+      getVideoElement: () => capture.getVideoElement(pokemon.id),
+      onScore: (score, state) => {
+        setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 });
+      },
+    });
 
-    const detector = sharedDetector;
-    if (!detector) {
-      setErrorMsg("Detection engine failed to initialize");
-      return;
-    }
-    const loop = new DetectionLoop(pokemon.id, detector);
-
-    // Load template images from the backend and prepare them for detection
-    const enabledTemplates = templates
-      .map((t, i) => ({ template: t, index: i }))
-      .filter(({ template: tmpl }) => tmpl.enabled !== false);
-
-    const loadedTemplates: TemplateData[] = [];
-    for (const { template: tmpl, index } of enabledTemplates) {
-      try {
-        const imgResp = await fetch(apiUrl(`/api/detector/${pokemon.id}/template/${index}`));
-        if (!imgResp.ok) continue;
-        const blob = await imgResp.blob();
-        const bmp = await createImageBitmap(blob);
-        const templateData = await detector.loadTemplate(bmp, tmpl.regions);
-        bmp.close();
-        if (templateData) loadedTemplates.push(templateData);
-      } catch {
-        // Skip templates that fail to load
-      }
-    }
-
-    if (loadedTemplates.length === 0) {
+    if (!loop) {
       setErrorMsg(t("detector.errNoTemplates"));
       return;
     }
 
-    loop.loadTemplates(loadedTemplates);
-
-    // Collect all regions from enabled templates for adaptive threshold computation
-    const allRegions = templates
-      .filter((tmpl) => tmpl.enabled !== false)
-      .flatMap((tmpl) => tmpl.regions.map((r) => ({ rect: r.rect })));
-
-    loop.updateConfig({
-      precision: cfg.precision,
-      changeThreshold: cfg.change_threshold,
-      consecutiveHits: cfg.consecutive_hits,
-      adaptiveThreshold: cfg.adaptive_threshold,
-      regions: allRegions,
-    });
-
-    // Wire up live score reporting to the Zustand store so the confidence
-    // badge updates in real-time without a backend roundtrip.
-    loop.onScore((score, state) => {
-      setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 });
-    });
-
-    // Start the loop — it reads frames from the capture service video element
-    loop.start(() => capture.getVideoElement(pokemon.id));
     loopRef.current = loop;
-    registerLoop(pokemon.id, loop);
   };
 
   const handleStop = async () => {
-    // Stop via the global registry (works even after component remount)
-    stopLoop(pokemon.id);
+    stopDetectionForPokemon(pokemon.id);
     loopRef.current = null;
     clearDetectorStatus(pokemon.id);
-    try { await fetch(apiUrl(`/api/detector/${pokemon.id}/stop`), { method: "POST" }); } catch { /* ignore */ }
   };
 
   // --- Settings handlers -----------------------------------------------------

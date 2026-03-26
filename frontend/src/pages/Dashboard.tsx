@@ -46,11 +46,13 @@ import { SetEncounterModal } from "../components/shared/SetEncounterModal";
 import { StatisticsPanel } from "../components/shared/StatisticsPanel";
 import { DetectorPanel } from "../components/detector/DetectorPanel";
 import { isLoopRunning } from "../engine/DetectionLoop";
+import { startDetectionForPokemon, stopDetectionForPokemon } from "../engine/startDetection";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry, AppState } from "../types";
 import { useI18n } from "../contexts/I18nContext";
+import { useCaptureService } from "../contexts/CaptureServiceContext";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
@@ -371,8 +373,9 @@ function DashboardLoader({ label }: Readonly<{ label: string }>) {
 }
 
 export function Dashboard() {
-  const { appState, flashPokemon, detectorStatus } = useCounterStore();
+  const { appState, flashPokemon, detectorStatus, setDetectorStatus, clearDetectorStatus } = useCounterStore();
   const { t } = useI18n();
+  const capture = useCaptureService();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPokemon, setEditingPokemon] = useState<Pokemon | null>(null);
   const [imgError, setImgError] = useState<Record<string, boolean>>({});
@@ -1113,15 +1116,29 @@ export function Dashboard() {
             for (const p of sel) {
               const mode = p.hunt_mode || "both";
               if (mode !== "detector" && !p.timer_started_at) send("timer_start", { pokemon_id: p.id });
-              if (mode !== "timer" && hasDetectorReady(p) && !detectorStatus[p.id]) {
-                void fetch(apiUrl(`/api/detector/${p.id}/start`), { method: "POST" }).catch(() => {});
+              if (mode !== "timer" && hasDetectorReady(p) && !detectorStatus[p.id] && capture.isCapturing(p.id)) {
+                const cfg = p.detector_config;
+                if (cfg) {
+                  void fetch(apiUrl(`/api/detector/${p.id}/start`), { method: "POST" }).then(() =>
+                    startDetectionForPokemon({
+                      pokemonId: p.id,
+                      templates: cfg.templates || [],
+                      config: cfg,
+                      getVideoElement: () => capture.getVideoElement(p.id),
+                      onScore: (score, state) => setDetectorStatus(p.id, { state, confidence: score, poll_ms: 100 }),
+                    }),
+                  ).catch(() => {});
+                }
               }
             }
           };
           const stopAll = () => {
             for (const p of sel) {
               if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id });
-              if (detectorStatus[p.id]) void fetch(apiUrl(`/api/detector/${p.id}/stop`), { method: "POST" }).catch(() => {});
+              if (detectorStatus[p.id]) {
+                stopDetectionForPokemon(p.id);
+                clearDetectorStatus(p.id);
+              }
             }
           };
           const setHuntMode = (mode: "both" | "timer" | "detector") => {
@@ -1500,11 +1517,25 @@ export function Dashboard() {
                         onClick={() => {
                           if (anyRunning) {
                             if (timerRunning) send("timer_stop", { pokemon_id: p.id });
-                            if (detRunning) void fetch(apiUrl(`/api/detector/${p.id}/stop`), { method: "POST" }).catch(() => {});
+                            if (detRunning) {
+                              stopDetectionForPokemon(p.id);
+                              clearDetectorStatus(p.id);
+                            }
                           } else {
                             if (huntMode !== "detector" && !p.timer_started_at) send("timer_start", { pokemon_id: p.id });
-                            if (huntMode !== "timer" && detReady && !detectorStatus[p.id]) {
-                              void fetch(apiUrl(`/api/detector/${p.id}/start`), { method: "POST" }).catch(() => {});
+                            if (huntMode !== "timer" && detReady && !detectorStatus[p.id] && capture.isCapturing(p.id)) {
+                              const cfg = p.detector_config;
+                              if (cfg) {
+                                void fetch(apiUrl(`/api/detector/${p.id}/start`), { method: "POST" }).then(() =>
+                                  startDetectionForPokemon({
+                                    pokemonId: p.id,
+                                    templates: cfg.templates || [],
+                                    config: cfg,
+                                    getVideoElement: () => capture.getVideoElement(p.id),
+                                    onScore: (score, state) => setDetectorStatus(p.id, { state, confidence: score, poll_ms: 100 }),
+                                  }),
+                                ).catch(() => {});
+                              }
                             }
                           }
                         }}

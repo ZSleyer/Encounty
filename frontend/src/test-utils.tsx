@@ -8,6 +8,7 @@ import { BrowserRouter } from "react-router";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { I18nProvider } from "./contexts/I18nContext";
 import { ToastProvider } from "./contexts/ToastContext";
+import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
 import type { AppState, Pokemon, OverlaySettings } from "./types";
 
 /** Wraps children with all application providers for component testing. */
@@ -16,7 +17,9 @@ function AllProviders({ children }: Readonly<{ children: React.ReactNode }>) {
     <BrowserRouter>
       <ThemeProvider>
         <I18nProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <CaptureServiceProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </CaptureServiceProvider>
         </I18nProvider>
       </ThemeProvider>
     </BrowserRouter>

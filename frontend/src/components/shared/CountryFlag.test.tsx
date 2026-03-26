@@ -11,7 +11,7 @@ describe("CountryFlag", () => {
 
   it("renders nothing for an unknown language code", () => {
     const { container } = render(<CountryFlag code="xx" />);
-    expect(container.innerHTML).toBe("");
+    expect(container.querySelector("svg")).toBeNull();
   });
 
   it("renders GB flag for 'en' code", () => {

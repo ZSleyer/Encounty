@@ -6,7 +6,7 @@
  * On Wayland + Electron display capture, the modal is skipped entirely and the
  * caller falls through to the native PipeWire/xdg-desktop-portal picker.
  */
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type RefObject } from "react";
 import { X, Monitor, AppWindow, Camera, RefreshCw } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 
@@ -72,9 +72,11 @@ function selectCamera(
   cameras: CameraDevice[],
   deviceId: string,
   onSelect: (source: SelectedSource) => void,
+  selectedStreamRef?: RefObject<MediaStream | null>,
 ): boolean {
   const cam = cameras.find((c) => c.deviceId === deviceId);
   if (!cam) return false;
+  if (selectedStreamRef) selectedStreamRef.current = cam.stream;
   stopOtherCameraStreams(cameras, deviceId);
   onSelect({ type: "camera", sourceId: cam.deviceId, label: cam.label, stream: cam.stream });
   return true;
@@ -264,6 +266,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   camerasRef.current = cameras;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const selectedStreamRef = useRef<MediaStream | null>(null);
 
   // Track refs for camera video elements
   const videoRefsMap = useRef<Map<string, HTMLVideoElement>>(new Map());
@@ -323,10 +326,14 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
     }
   }, [sourceType, fetchSources, fetchCameras]);
 
-  // Cleanup camera streams on unmount
+  // Cleanup camera streams on unmount — skip the stream handed off to the capture service
   useEffect(() => {
     return () => {
-      stopAllCameraStreams(camerasRef.current);
+      for (const cam of camerasRef.current) {
+        if (cam.stream !== selectedStreamRef.current) {
+          cam.stream.getTracks().forEach((t) => t.stop());
+        }
+      }
     };
   }, []);
 
@@ -367,7 +374,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
   const handleSelect = () => {
     if (!selectedId) return;
     if (activeTab === "cameras") {
-      selectCamera(cameras, selectedId, onSelect);
+      selectCamera(cameras, selectedId, onSelect, selectedStreamRef);
     } else {
       selectCaptureSource(captureSources, cameras, selectedId, onSelect);
     }
@@ -378,7 +385,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
     setSelectedId(id);
     setTimeout(() => {
       if (activeTab === "cameras") {
-        selectCamera(cameras, id, onSelect);
+        selectCamera(cameras, id, onSelect, selectedStreamRef);
       } else {
         selectCaptureSource(captureSources, cameras, id, onSelect);
       }
