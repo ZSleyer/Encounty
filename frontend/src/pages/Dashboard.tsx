@@ -366,7 +366,8 @@ function DashboardLoader({ label }: Readonly<{ label: string }>) {
 }
 
 /** Copies the OBS Browser Source URL for a Pokémon using the global overlay. */
-function OverlayBrowserSourceButton({ pokemonId, compact }: Readonly<{ pokemonId: string; compact?: boolean }>) {
+/** Inline readonly URL input with copy button for OBS Browser Source. */
+function OverlayUrlInput({ pokemonId }: Readonly<{ pokemonId: string }>) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const baseUrl = apiUrl("") || globalThis.location.origin;
@@ -379,19 +380,43 @@ function OverlayBrowserSourceButton({ pokemonId, compact }: Readonly<{ pokemonId
     });
   };
 
-  if (compact) {
-    return (
+  return (
+    <div className="flex items-center gap-0 shrink min-w-0 max-w-xs">
+      <input
+        type="text"
+        readOnly
+        value={pokemonUrl}
+        className="min-w-0 flex-1 bg-bg-primary border border-border-subtle border-r-0 rounded-l-lg px-2 py-0.5 text-[10px] font-mono text-text-faint outline-none truncate"
+        onFocus={(e) => e.target.select()}
+      />
       <button
         onClick={copy}
-        title={pokemonUrl}
         aria-label={t("aria.copyObsUrl")}
-        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
+        className={`px-2 py-0.5 rounded-r-lg border border-border-subtle text-[10px] font-semibold transition-colors ${
+          copied
+            ? "bg-green-500/10 border-green-500/20 text-green-400"
+            : "bg-bg-primary text-text-muted hover:text-text-primary hover:border-accent-blue/30"
+        }`}
       >
-        {copied ? <Check className="w-3 h-3 text-accent-green" /> : <Monitor className="w-3 h-3" />}
-        {copied ? t("overlay.urlCopied") : t("overlay.obsUrl")}
+        {copied ? <Check className="w-3 h-3" /> : <Monitor className="w-3 h-3" />}
       </button>
-    );
-  }
+    </div>
+  );
+}
+
+/** Large OBS URL button for the global overlay placeholder screen. */
+function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const baseUrl = apiUrl("") || globalThis.location.origin;
+  const pokemonUrl = `${baseUrl}/overlay/${pokemonId}`;
+
+  const copy = () => {
+    navigator.clipboard.writeText(pokemonUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <button
@@ -741,14 +766,15 @@ export function Dashboard() {
       <div className="w-full h-full flex flex-col min-h-0">
         {/* Control bar — slim top bar, matches detector control bar style */}
         <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-card border-b border-border-subtle shrink-0">
-          {/* Mode toggle */}
+          {/* Left: Status + mode + name + OBS URL */}
           <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${modeBase === "custom" ? "bg-purple-400" : "bg-accent-blue"}`} />
-          <span className="text-xs font-semibold text-text-secondary">
+          <span className="text-xs font-semibold text-text-secondary shrink-0">
             {modeBase === "custom" ? t("overlay.modeCustom") : t("overlay.global")}
           </span>
+          <span className="text-sm font-medium text-text-secondary truncate shrink-0">{pokemon.name}</span>
 
-          {/* Pokemon name */}
-          <span className="text-sm font-medium text-text-secondary truncate">{pokemon.name}</span>
+          {/* OBS URL inline input + copy */}
+          <OverlayUrlInput pokemonId={pokemon.id} />
 
           {/* Saved indicator */}
           {modeBase === "custom" && overlaySaved && (
@@ -761,11 +787,11 @@ export function Dashboard() {
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Mode switch buttons */}
+          {/* Right: Mode switch + Import + Save */}
           <button
             onClick={() => handleModeChange("default")}
             title={t("dash.tooltipOverlayGlobal")}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors shrink-0 ${
               modeBase === "default"
                 ? "bg-accent-blue/15 text-accent-blue"
                 : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -777,7 +803,7 @@ export function Dashboard() {
           <button
             onClick={() => handleModeChange("custom")}
             title={t("dash.tooltipOverlayCustom")}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors shrink-0 ${
               modeBase === "custom"
                 ? "bg-purple-500/15 text-purple-400"
                 : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -789,7 +815,7 @@ export function Dashboard() {
 
           {/* Import dropdown (custom mode only) */}
           {modeBase === "custom" && (
-            <div className="relative group">
+            <div className="relative group shrink-0">
               <button className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
                 <Download className="w-3 h-3" />
                 {t("overlay.import")}
@@ -815,15 +841,12 @@ export function Dashboard() {
             <button
               onClick={saveCurrentOverlay}
               disabled={!overlayDirty || overlaySaving}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-[11px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-[11px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             >
               {saveIcon}
               {t("overlay.save")}
             </button>
           )}
-
-          {/* OBS Browser Source URL */}
-          <OverlayBrowserSourceButton pokemonId={pokemon.id} compact />
         </div>
 
         {/* Content */}
