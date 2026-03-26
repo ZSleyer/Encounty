@@ -6,7 +6,7 @@
  * always has something to render, independent of tracked hunts.
  */
 import { useState, useEffect } from "react";
-import { Save, RefreshCw, Keyboard, Layers } from "lucide-react";
+import { Save, RefreshCw, Keyboard, Layers, Monitor, Copy } from "lucide-react";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { OverlaySettings, Pokemon } from "../types";
@@ -49,6 +49,17 @@ export function OverlayEditorPage() {
   const [saved, setSaved] = useState(false);
 
   const [previewPokemon] = useState(() => makePreviewPokemon());
+
+  const [obsCopied, setObsCopied] = useState(false);
+  const obsBaseUrl = apiUrl("") || globalThis.location.origin;
+  const obsUrl = `${obsBaseUrl}/overlay/global`;
+
+  const copyObsUrl = () => {
+    navigator.clipboard.writeText(obsUrl).then(() => {
+      setObsCopied(true);
+      setTimeout(() => setObsCopied(false), 2000);
+    });
+  };
 
   const [isInitialised, setInitialised] = useState(false);
   useEffect(() => {
@@ -99,15 +110,27 @@ export function OverlayEditorPage() {
         </span>
 
         <div className="ml-auto flex items-center gap-3">
+          {/* OBS Browser Source URL */}
+          <button
+            onClick={copyObsUrl}
+            title={obsUrl}
+            aria-label={t("aria.copyObsUrl")}
+            className="flex items-center gap-1.5 text-xs px-3 py-1 rounded-lg border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+          >
+            <Monitor className="w-4 h-4" />
+            {obsCopied ? "Kopiert!" : "OBS URL"}
+            <Copy className="w-4 h-4 text-text-faint" />
+          </button>
+
           {/* Hotkeys paused badge */}
           <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">
-            <Keyboard className="w-3.5 h-3.5" /> {t("settings.hotkeysPaused")}
+            <Keyboard className="w-4 h-4" /> {t("settings.hotkeysPaused")}
           </span>
 
           {/* Saved indicator */}
           {saved && (
             <span className="flex items-center gap-1.5 text-xs text-accent-green">
-              <Save className="w-3.5 h-3.5" /> {t("settings.saved")}
+              <Save className="w-4 h-4" /> {t("settings.saved")}
             </span>
           )}
 
@@ -115,6 +138,7 @@ export function OverlayEditorPage() {
           <button
             onClick={saveOverlay}
             disabled={!overlayDirty || overlaySaving}
+            aria-label={t("aria.saveOverlay")}
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {overlaySaving ? (
@@ -128,7 +152,7 @@ export function OverlayEditorPage() {
       </div>
 
       {/* Editor */}
-      <div className="flex-1 min-h-0 overflow-auto">
+      <main id="main-content" className="flex-1 min-h-0 overflow-auto">
         <OverlayEditor
           settings={currentOverlay}
           activePokemon={previewPokemon}
@@ -137,7 +161,7 @@ export function OverlayEditorPage() {
             setOverlayDirty(true);
           }}
         />
-      </div>
+      </main>
     </div>
   );
 }

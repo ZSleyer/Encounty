@@ -8,21 +8,7 @@ import {
   Copy,
   ExternalLink,
   RotateCcw,
-  Plus,
-  Minus,
-  RefreshCw,
-  Grid3X3,
-  Magnet,
-  Undo2,
-  Redo2,
-  ZoomIn,
-  ZoomOut,
-  MousePointer2,
-  Hand,
-  Maximize,
-  Upload,
-  Trash2,
-  HelpCircle,
+  Settings,
 } from "lucide-react";
 import { EditorTutorial } from "./EditorTutorial";
 import {
@@ -35,8 +21,6 @@ import type { Pokemon } from "../../types";
 import { useHistory } from "../../hooks/useHistory";
 import { Guide } from "../../hooks/useSnapping";
 import { useI18n } from "../../contexts/I18nContext";
-import { NumSlider } from "./controls/NumSlider";
-import { ColorSwatch } from "./controls/ColorSwatch";
 import { ColorPickerModal } from "./controls/ColorPickerModal";
 import { GradientEditorModal } from "./controls/GradientEditorModal";
 import { ShadowEditorModal, type ShadowConfirmParams } from "./controls/ShadowEditorModal";
@@ -44,6 +28,9 @@ import { OutlineEditorModal } from "./controls/OutlineEditorModal";
 import { TextColorEditorModal } from "./controls/TextColorEditorModal";
 import { OverlayCanvas } from "./OverlayCanvas";
 import { OverlayPropertyPanel } from "./OverlayPropertyPanel";
+import { VerticalToolbar } from "./VerticalToolbar";
+import { FloatingPropertiesPanel } from "./FloatingPropertiesPanel";
+import { useDraggableWindow } from "../../hooks/useDraggableWindow";
 import { apiUrl } from "../../utils/api";
 
 interface Props {
@@ -195,7 +182,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   },
 };
 
-function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
+export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   const [copied, setCopied] = useState(false);
   const baseUrl = apiUrl("") || globalThis.location.origin;
   const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
@@ -267,12 +254,24 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   const [isDragging, setIsDragging] = useState(false);
 
   // Zoom + Pan (Phase 4) — scroll-based
-  const [activeTool, setActiveTool] = useState<"pointer" | "hand">("pointer");
+  const [activeTool, setActiveTool] = useState<"pointer" | "hand" | "zoom">("pointer");
   const [spaceHeld, setSpaceHeld] = useState(false);
+  const [altHeld, setAltHeld] = useState(false);
   const pendingScroll = useRef<{ left: number; top: number } | null>(null);
   const zoomRef = useRef(1);
   const panDragStart = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
   const [isPanDragging, setIsPanDragging] = useState(false);
+  const zoomDragStart = useRef<{ clientX: number; zoom: number; anchorMx: number; anchorMy: number } | null>(null);
+  const [isZoomDragging, setIsZoomDragging] = useState(false);
+
+  // Right panel split — draggable divider between properties and layers
+  const [propertiesHeight, setPropertiesHeight] = useState(() => {
+    try {
+      const stored = localStorage.getItem("encounty_editor_split");
+      return stored ? Number(stored) : 500;
+    } catch { return 500; }
+  });
+  const dividerDragRef = useRef<{ startY: number; startHeight: number } | null>(null);
 
   // Tutorial
   const [showTutorial, setShowTutorial] = useState(false);
@@ -280,11 +279,19 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   // Canvas background for testing (transparent = checkered, white, black)
   const [canvasBg, setCanvasBg] = useState<"transparent" | "white" | "black">("transparent");
 
+  // Floating canvas settings panel
+  const [propertiesPanelOpen, setPropertiesPanelOpen] = useState(false);
+  const [propertiesPanelTab, setPropertiesPanelTab] = useState<"element" | "canvas">("element");
+  const { position: panelPosition, handleMouseDown: handlePanelDragStart } = useDraggableWindow({
+    storageKey: "encounty_properties_panel_pos",
+    defaultPosition: { x: window.innerWidth - 320, y: 80 },
+  });
+
   const bgPreviewUrl = localSettings.background_image
     ? apiUrl(`/api/backgrounds/${localSettings.background_image}`)
     : "";
 
-  const effectiveTool = (activeTool === "hand" || spaceHeld) ? "hand" : "pointer";
+  const effectiveTool = spaceHeld ? "hand" : activeTool;
 
   // Background image upload state
   const [bgUploading, setBgUploading] = useState(false);
@@ -584,8 +591,23 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   // Keyboard navigation + spacebar for hand tool
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isInput = ["INPUT", "SELECT", "TEXTAREA"].includes(tag);
+
+      if (e.key === "Alt") {
+        setAltHeld(true);
+        return;
+      }
+
+      if (!isInput) {
+        if (e.key === "v" || e.key === "V") { setActiveTool("pointer"); return; }
+        if (e.key === "h" || e.key === "H") { setActiveTool("hand"); return; }
+        if (e.key === "z" || e.key === "Z") { setActiveTool("zoom"); return; }
+        if (e.key === "Enter") { setPropertiesPanelOpen(true); return; }
+      }
+
       // Space for hand tool (not in input/select/textarea)
-      if (e.code === "Space" && !["INPUT", "SELECT", "TEXTAREA"].includes((e.target as HTMLElement)?.tagName)) {
+      if (e.code === "Space" && !isInput) {
         e.preventDefault();
         setSpaceHeld(true);
         return;
@@ -594,6 +616,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       handleElementKeys(e);
     };
     const upHandler = (e: KeyboardEvent) => {
+      if (e.key === "Alt") {
+        setAltHeld(false);
+      }
       if (e.code === "Space") {
         setSpaceHeld(false);
       }
@@ -626,6 +651,27 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     const x = Math.round(vx / effectiveScale);
     const y = Math.round(vy / effectiveScale);
     setMousePos({ x, y });
+
+    // Zoom drag — smooth zoom by horizontal mouse movement
+    if (isZoomDragging && zoomDragStart.current) {
+      const dx = e.clientX - zoomDragStart.current.clientX;
+      const newZoom = Math.min(4, Math.max(0.1, zoomDragStart.current.zoom * Math.pow(2, dx / 200)));
+      // Re-anchor scroll so the original click point stays fixed
+      const anchor = zoomDragStart.current;
+      const newEs = canvasScale * newZoom;
+      const oldEs = canvasScale * zoomRef.current;
+      const pad = getPadding();
+      const vxBefore = container.scrollLeft + anchor.anchorMx;
+      const vyBefore = container.scrollTop + anchor.anchorMy;
+      const cx = (vxBefore - pad.x) / oldEs;
+      const cy = (vyBefore - pad.y) / oldEs;
+      const newVx = cx * newEs + pad.x;
+      const newVy = cy * newEs + pad.y;
+      pendingScroll.current = { left: newVx - anchor.anchorMx, top: newVy - anchor.anchorMy };
+      setZoom(newZoom);
+      return;
+    }
+
     // Pan dragging via scroll
     if (isPanDragging && panDragStart.current) {
       container.scrollLeft = panDragStart.current.sl - (e.clientX - panDragStart.current.x);
@@ -634,6 +680,20 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (effectiveTool === "zoom") {
+      e.preventDefault();
+      const container = canvasContainerRef.current;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      zoomDragStart.current = {
+        clientX: e.clientX,
+        zoom: zoomRef.current,
+        anchorMx: e.clientX - rect.left,
+        anchorMy: e.clientY - rect.top,
+      };
+      setIsZoomDragging(true);
+      return;
+    }
     if (effectiveTool === "hand") {
       e.preventDefault();
       const container = canvasContainerRef.current;
@@ -644,11 +704,48 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   };
 
   const handleCanvasMouseUp = () => {
+    if (isZoomDragging) {
+      setIsZoomDragging(false);
+      zoomDragStart.current = null;
+    }
     if (isPanDragging) {
       setIsPanDragging(false);
       panDragStart.current = null;
     }
   };
+
+  /** Zoom towards/away from a specific screen point (for zoom tool clicks). */
+  const handleZoomAtPoint = useCallback((clientX: number, clientY: number, direction: "in" | "out") => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const mx = clientX - rect.left;
+    const my = clientY - rect.top;
+    const oldZoom = zoomRef.current;
+    const factor = direction === "in" ? 1.5 : 1 / 1.5;
+    const newZoom = Math.min(4, Math.max(0.1, oldZoom * factor));
+    if (newZoom === oldZoom) return;
+
+    const pad = getPadding();
+    const vxBefore = container.scrollLeft + mx;
+    const vyBefore = container.scrollTop + my;
+    const oldEs = canvasScale * oldZoom;
+    const cx = (vxBefore - pad.x) / oldEs;
+    const cy = (vyBefore - pad.y) / oldEs;
+    const newEs = canvasScale * newZoom;
+    const newVx = cx * newEs + pad.x;
+    const newVy = cy * newEs + pad.y;
+
+    pendingScroll.current = { left: newVx - mx, top: newVy - my };
+    setZoom(newZoom);
+  }, [canvasScale, getPadding]);
+
+  /** Opens the floating properties panel for a specific element. */
+  const openPropertiesForElement = useCallback((key: ElementKey) => {
+    setSelectedEl(key);
+    setPropertiesPanelTab("element");
+    setPropertiesPanelOpen(true);
+  }, []);
 
   // Fit-to-view: reset zoom and center canvas via scroll
   const fitToView = () => {
@@ -718,530 +815,69 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     }
   };
 
+  /** Starts dragging the divider between properties and layers panels. */
+  const startDividerDrag = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dividerDragRef.current = { startY: e.clientY, startHeight: propertiesHeight };
+    const onMove = (ev: MouseEvent) => {
+      if (!dividerDragRef.current) return;
+      const dy = ev.clientY - dividerDragRef.current.startY;
+      const newH = Math.max(100, Math.min(dividerDragRef.current.startHeight + dy, window.innerHeight - 200));
+      setPropertiesHeight(newH);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      setPropertiesHeight(h => { try { localStorage.setItem("encounty_editor_split", String(h)); } catch {} return h; });
+      dividerDragRef.current = null;
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [propertiesHeight]);
+
   return (
-    <div className={`flex gap-3 pt-4 px-4 min-h-0 h-full ${compact ? "pb-2" : "pb-8"}`}>
-      {/* LEFT SIDEBAR: Layers & Canvas */}
-      <div className={`w-56 2xl:w-64 shrink-0 flex flex-col gap-3 min-h-0 ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
-        {/* Layers Panel */}
-        <div data-tutorial="layers" className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 flex-1 min-h-0 overflow-y-auto">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs 2xl:text-sm font-semibold text-text-secondary uppercase tracking-wider">
-              Ebenen
-            </p>
-            <button
-              onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
-              title={t("tooltip.editor.resetLayout")}
-              className="flex items-center gap-1 px-1.5 py-1 2xl:px-2 2xl:py-1.5 rounded text-[10px] 2xl:text-xs text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-            >
-              <RotateCcw className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-              Reset
-            </button>
-          </div>
-          {LAYERS.filter(key => key !== "title" || activePokemon?.title).map((key) => {
-            const el = localSettings[key] as OverlayElementBase;
-            return (
-              <div
-                key={key}
-                className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full ${
-                  selectedEl === key
-                    ? "bg-accent-blue/20 border border-accent-blue/40"
-                    : "hover:bg-bg-hover border border-transparent"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelectedEl(key)}
-                  className="flex-1 text-left text-xs 2xl:text-sm text-text-primary cursor-pointer bg-transparent border-none p-0"
-                >
-                  {ELEMENT_LABELS[key]}
-                </button>
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    title={t("tooltip.editor.moveUp")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveLayer(key, "up");
-                    }}
-                    className="text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    <ChevronUp className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    title={t("tooltip.editor.moveDown")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveLayer(key, "down");
-                    }}
-                    className="text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      update({
-                        ...localSettings,
-                        [key]: { ...el, visible: !el.visible },
-                      });
-                    }}
-                    className="text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    {el.visible ? (
-                      <Eye className="w-3 h-3" />
-                    ) : (
-                      <EyeOff className="w-3 h-3" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+    <div className={`flex min-h-0 h-full ${compact ? "pb-2" : ""}`}>
+      {/* Left vertical toolbar */}
+      <VerticalToolbar
+        activeTool={activeTool}
+        onToolChange={setActiveTool}
+        showGrid={showGrid}
+        onToggleGrid={() => setShowGrid((v) => !v)}
+        snapEnabled={snapEnabled}
+        onToggleSnap={() => setSnapEnabled((v) => !v)}
+        gridSize={gridSize}
+        onGridSizeChange={setGridSize}
+        canUndo={history.canUndo}
+        canRedo={history.canRedo}
+        onUndo={() => {
+          if (history.canUndo) {
+            history.undo();
+            setLocalSettings(history.current);
+            onUpdate(history.current);
+          }
+        }}
+        onRedo={() => {
+          if (history.canRedo) {
+            history.redo();
+            setLocalSettings(history.current);
+            onUpdate(history.current);
+          }
+        }}
+        onFitToView={fitToView}
+        canvasBg={canvasBg}
+        onCanvasBgChange={setCanvasBg}
+        zoom={zoom}
+        mousePos={mousePos}
+        activePokemon={!!activePokemon}
+        currentCount={currentCount}
+        onTestIncrement={testIncrement}
+        onTestDecrement={testDecrement}
+        onTestReset={testReset}
+        onShowTutorial={() => setShowTutorial(true)}
+      />
 
-        {/* Canvas Settings Panel */}
-        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 space-y-2 shrink-0">
-          <p className="text-[10px] 2xl:text-xs text-text-muted font-semibold uppercase tracking-wider mb-2">
-            Canvas
-          </p>
-
-          {/* Size */}
-          <NumSlider
-            label="Breite"
-            value={localSettings.canvas_width}
-            min={100}
-            max={1920}
-            step={10}
-            onChange={(v) => updateField("canvas_width", v)}
-          />
-          <NumSlider
-            label="Höhe"
-            value={localSettings.canvas_height}
-            min={50}
-            max={1080}
-            step={10}
-            onChange={(v) => updateField("canvas_height", v)}
-          />
-
-          {/* Hintergrund Animation */}
-          <label className="block">
-            <span className="text-[10px] 2xl:text-xs text-text-muted">
-              Hintergrund-Animation
-            </span>
-            <select
-              value={localSettings.background_animation ?? "none"}
-              onChange={(e) => updateField("background_animation", e.target.value)}
-              className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
-            >
-              <option value="none">Keine</option>
-              <option value="waves">Wellen (Homebrew)</option>
-              <option value="gradient-shift">Farbverlauf</option>
-              <option value="pulse-bg">Pulsieren</option>
-              <option value="shimmer-bg">Schimmern</option>
-              <option value="particles">Partikel</option>
-            </select>
-          </label>
-
-          {/* Animation speed */}
-          {(localSettings.background_animation ?? "none") !== "none" && (
-            <NumSlider
-              label={`Geschwindigkeit ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
-              value={localSettings.background_animation_speed ?? 1}
-              min={0.1}
-              max={3}
-              step={0.1}
-              onChange={(v) => updateField("background_animation_speed", v)}
-            />
-          )}
-
-          {/* Hintergrundbild */}
-          <div>
-            <span className="text-[10px] 2xl:text-xs text-text-muted">
-              Hintergrundbild
-            </span>
-            <div className="flex items-center gap-1.5 mt-1">
-              <button
-                title={t("tooltip.editor.uploadBackground")}
-                onClick={handleBgUpload}
-                disabled={bgUploading}
-                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
-              >
-                <Upload className="w-3 h-3" />
-                {bgUploading ? "..." : "Hochladen"}
-              </button>
-              {localSettings.background_image && (
-                <button
-                  title={t("tooltip.editor.removeBackground")}
-                  onClick={handleBgRemove}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-colors"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Entfernen
-                </button>
-              )}
-            </div>
-            {localSettings.background_image && (
-              <>
-                <div
-                  className="mt-1.5 w-full h-12 rounded border border-border-subtle bg-bg-primary overflow-hidden"
-                  style={{
-                    backgroundImage: `url(${bgPreviewUrl})`,
-                    backgroundSize: "cover",
-                    backgroundPosition: "center",
-                  }}
-                />
-                <select
-                  value={localSettings.background_image_fit ?? "cover"}
-                  onChange={(e) => updateField("background_image_fit", e.target.value as "cover" | "contain" | "stretch" | "tile")}
-                  className="w-full bg-bg-secondary border border-border-subtle rounded px-2 py-1 2xl:px-2.5 2xl:py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
-                >
-                  <option value="cover">Cover</option>
-                  <option value="contain">Contain</option>
-                  <option value="stretch">Stretch</option>
-                  <option value="tile">Kacheln</option>
-                </select>
-              </>
-            )}
-          </div>
-
-          {/* Hintergrund Farbe & Transparenz */}
-          <div
-            className={
-              localSettings.hidden ? "opacity-30 pointer-events-none" : ""
-            }
-          >
-            <div>
-              <span className="text-[10px] 2xl:text-xs text-text-muted mb-1 block">Hintergrund</span>
-              <ColorSwatch
-                color={localSettings.background_color}
-                label={localSettings.background_color}
-                onClick={() =>
-                  openColorPicker(localSettings.background_color, (c) =>
-                    updateField("background_color", c),
-                  )
-                }
-              />
-            </div>
-            <div className="mt-2">
-              <label htmlFor="background-opacity" className="text-[10px] 2xl:text-xs text-text-muted">
-                Deckkraft {Math.round(localSettings.background_opacity * 100)}%
-              </label>
-              <input
-                id="background-opacity"
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={localSettings.background_opacity}
-                onChange={(e) =>
-                  updateField("background_opacity", Number(e.target.value))
-                }
-                className="w-full h-1 accent-accent-blue"
-              />
-            </div>
-            <div className="mt-2">
-              <label htmlFor="blur" className="text-[10px] 2xl:text-xs text-text-muted">
-                Blur {localSettings.blur}px
-              </label>
-              <input
-                id="blur"
-                type="range"
-                min={0}
-                max={30}
-                value={localSettings.blur}
-                onChange={(e) => updateField("blur", Number(e.target.value))}
-                className="w-full h-1 accent-accent-blue"
-              />
-            </div>
-          </div>
-
-          {/* Radius */}
-          <div>
-            <label htmlFor="border-radius" className="text-[10px] 2xl:text-xs text-text-muted">
-              Radius {localSettings.border_radius}px
-            </label>
-            <input
-              id="border-radius"
-              type="range"
-              min={0}
-              max={60}
-              value={localSettings.border_radius}
-              onChange={(e) =>
-                updateField("border_radius", Number(e.target.value))
-              }
-              className="w-full h-1 accent-accent-blue"
-            />
-          </div>
-
-          {/* Kontur */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={localSettings.show_border}
-              onChange={(e) => updateField("show_border", e.target.checked)}
-              className="accent-accent-blue"
-            />
-            <span className="text-[10px] 2xl:text-xs text-text-secondary">Kontur</span>
-          </label>
-          {localSettings.show_border && (
-            <div
-              className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}
-            >
-              <div>
-                <span className="text-[10px] 2xl:text-xs text-text-muted mb-1 block">
-                  Kontur Farbe
-                </span>
-                <ColorSwatch
-                  color={(() => {
-                    const c = localSettings.border_color;
-                    if (c?.startsWith("#")) return c;
-                    return "#ffffff";
-                  })()}
-                  label={localSettings.border_color}
-                  onClick={() =>
-                    openColorPicker(
-                      (() => {
-                        const c = localSettings.border_color;
-                        if (c?.startsWith("#")) return c;
-                        return "#ffffff";
-                      })(),
-                      (c) => updateField("border_color", c),
-                    )
-                  }
-                />
-              </div>
-              <div>
-                <label htmlFor="border-width" className="text-[10px] 2xl:text-xs text-text-muted">
-                  Kontur Stärke {localSettings.border_width ?? 2}px
-                </label>
-                <input
-                  id="border-width"
-                  type="range"
-                  min={1}
-                  max={8}
-                  step={1}
-                  value={localSettings.border_width ?? 2}
-                  onChange={(e) =>
-                    updateField("border_width", Number(e.target.value))
-                  }
-                  className="w-full h-1 accent-accent-blue"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Versteckt */}
-          <label className="flex items-center gap-2 cursor-pointer pt-1">
-            <input
-              type="checkbox"
-              checked={localSettings.hidden ?? false}
-              onChange={(e) => updateField("hidden", e.target.checked)}
-              className="accent-accent-blue"
-            />
-            <span className="text-[10px] 2xl:text-xs text-text-secondary">Versteckt</span>
-          </label>
-        </div>
-      </div>
-
-      {/* CENTER: Toolbar + Canvas */}
-      <div className="flex-1 flex flex-col gap-2 min-w-0">
-        {/* Toolbar */}
-        <div data-tutorial="toolbar" className="flex items-center gap-2 px-3 py-2 bg-bg-secondary rounded-xl border border-border-subtle shrink-0">
-          {/* Animation test controls */}
-          <span className="text-[10px] 2xl:text-xs text-text-muted mr-1">
-            Animations-Test:
-          </span>
-          <button
-            onClick={testIncrement}
-            disabled={!activePokemon}
-            title={t("tooltip.editor.previewIncrement")}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-green hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Plus className="w-3 h-3" /> 1
-          </button>
-          <button
-            onClick={testDecrement}
-            disabled={!activePokemon}
-            title={t("tooltip.editor.previewDecrement")}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-accent-yellow hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Minus className="w-3 h-3" /> 1
-          </button>
-          <button
-            onClick={testReset}
-            disabled={!activePokemon}
-            title={t("tooltip.editor.previewReset")}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-bg-hover hover:bg-bg-hover/80 text-text-secondary hover:text-text-primary text-xs font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <RefreshCw className="w-3 h-3" /> 0
-          </button>
-
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-
-          {/* Grid toggle */}
-          <button
-            onClick={() => setShowGrid((v) => !v)}
-            title={t("tooltip.editor.grid")}
-            className={`p-1.5 rounded transition-colors ${showGrid ? "text-accent-blue bg-accent-blue/10" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
-          >
-            <Grid3X3 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-
-          {/* Snap toggle */}
-          <button
-            onClick={() => setSnapEnabled((v) => !v)}
-            title={t("tooltip.editor.snap")}
-            className={`p-1.5 rounded transition-colors ${snapEnabled ? "text-accent-blue bg-accent-blue/10" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
-          >
-            <Magnet className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-
-          {/* Grid size */}
-          {showGrid && (
-            <select
-              value={gridSize}
-              onChange={(e) => setGridSize(Number(e.target.value))}
-              className="text-xs bg-bg-card border border-border-subtle rounded px-1.5 py-0.5 text-text-primary outline-none"
-            >
-              <option value={8}>8px</option>
-              <option value={16}>16px</option>
-              <option value={32}>32px</option>
-            </select>
-          )}
-
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-
-          {/* Undo/Redo */}
-          <button
-            onClick={() => {
-              if (history.canUndo) {
-                history.undo();
-                setLocalSettings(history.current);
-                onUpdate(history.current);
-              }
-            }}
-            disabled={!history.canUndo}
-            title={t("tooltip.editor.undo")}
-            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Undo2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-          <button
-            onClick={() => {
-              if (history.canRedo) {
-                history.redo();
-                setLocalSettings(history.current);
-                onUpdate(history.current);
-              }
-            }}
-            disabled={!history.canRedo}
-            title={t("tooltip.editor.redo")}
-            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Redo2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-
-          {/* Pointer / Hand / Fit tools */}
-          <button
-            onClick={() => setActiveTool("pointer")}
-            title={t("tooltip.editor.pointer")}
-            className={`p-1.5 rounded transition-colors ${activeTool === "pointer" ? "text-accent-blue bg-accent-blue/20" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
-          >
-            <MousePointer2 className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-          <button
-            onClick={() => setActiveTool("hand")}
-            title={t("tooltip.editor.hand")}
-            className={`p-1.5 rounded transition-colors ${activeTool === "hand" ? "text-accent-blue bg-accent-blue/20" : "text-text-muted hover:text-text-primary hover:bg-bg-hover"}`}
-          >
-            <Hand className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-          <button
-            onClick={fitToView}
-            title={t("tooltip.editor.fitView")}
-            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-          >
-            <Maximize className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-
-          {/* Zoom */}
-          <button
-            onClick={() => setZoom((z) => Math.max(0.1, z - 0.1))}
-            title={t("tooltip.editor.zoomOut")}
-            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-          >
-            <ZoomOut className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-          <span className="text-[10px] 2xl:text-xs text-text-muted w-8 2xl:w-10 text-center">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            onClick={() => setZoom((z) => Math.min(4, z + 0.1))}
-            title={t("tooltip.editor.zoomIn")}
-            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-          >
-            <ZoomIn className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-
-          <div className="w-px h-4 bg-border-subtle mx-1" />
-
-          {/* Canvas background toggle */}
-          <div className="flex border border-border-subtle rounded overflow-hidden">
-            {(["transparent", "white", "black"] as const).map((bg) => {
-              const whiteOrBlack = bg === "white" ? t("tooltip.editor.bgWhite") : t("tooltip.editor.bgBlack");
-              const bgTitle = bg === "transparent" ? t("tooltip.editor.bgTransparent") : whiteOrBlack;
-
-              return (
-              <button
-                key={bg}
-                onClick={() => setCanvasBg(bg)}
-                title={bgTitle}
-                className={`px-1.5 py-1 text-[10px] 2xl:text-xs ${canvasBg === bg ? "bg-accent-blue/20 text-accent-blue" : "text-text-muted hover:bg-bg-hover"}`}
-              >
-                <div
-                  className="w-3 h-3 rounded-sm border border-border-subtle"
-                  style={{
-                    background: bg === "transparent"
-                      ? "repeating-conic-gradient(#666 0% 25%, #999 0% 50%) 50% / 6px 6px"
-                      : bg,
-                  }}
-                />
-              </button>
-              );
-            })}
-          </div>
-
-          {/* Mouse position — same height as toolbar buttons */}
-          <span className="ml-auto flex items-center text-[10px] 2xl:text-xs text-text-faint font-mono leading-none py-1">
-            X: {mousePos.x} Y: {mousePos.y}
-          </span>
-          {activePokemon && (
-            <span className="flex items-center text-[10px] 2xl:text-xs text-text-faint leading-none py-1">
-              {currentCount} (Vorschau)
-            </span>
-          )}
-          {!activePokemon && (
-            <span className="flex items-center text-[10px] 2xl:text-xs text-text-faint leading-none py-1">
-              Kein aktives Pokémon
-            </span>
-          )}
-          <button
-            onClick={() => setShowTutorial(true)}
-            title={t("tooltip.editor.showTutorial")}
-            className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-          >
-            <HelpCircle className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
-          </button>
-        </div>
-
-        {/* Canvas */}
+      {/* Center: Canvas (takes all remaining space) */}
+      <div className="flex-1 min-w-0 flex flex-col p-2">
         <OverlayCanvas
           localSettings={localSettings}
           selectedEl={selectedEl}
@@ -1259,6 +895,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           activePokemon={activePokemon}
           readOnly={readOnly}
           canvasContainerRef={canvasContainerRef}
+          altHeld={altHeld}
           onMouseMove={handleCanvasMouseMove}
           onMouseDown={handleCanvasMouseDown}
           onMouseUp={handleCanvasMouseUp}
@@ -1266,13 +903,140 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           onDragStateChange={setIsDragging}
           onGuidesChange={setGuides}
           onUpdate={update}
+          onZoomAtPoint={handleZoomAtPoint}
+          onDoubleClickElement={openPropertiesForElement}
         />
       </div>
 
-      {/* RIGHT SIDEBAR: Properties & OBS */}
-      <div className={`w-72 2xl:w-80 shrink-0 flex flex-col gap-3 min-h-0 ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
-        {/* Properties Panel */}
-        <OverlayPropertyPanel
+      {/* Right panel: Properties (top) + Layers (bottom) with draggable divider */}
+      <div className={`w-72 shrink-0 flex flex-col min-h-0 bg-bg-secondary border-l border-border-subtle ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
+        {/* Properties section (top, resizable) */}
+        <div style={{ height: propertiesHeight }} className="overflow-y-auto shrink-0" data-tutorial="properties">
+          <div className="px-4 py-3">
+            <OverlayPropertyPanel
+              localSettings={localSettings}
+              selectedEl={selectedEl}
+              updateSelectedEl={updateSelectedEl}
+              readOnly={readOnly}
+              embedded
+              onUpdate={update}
+              openColorPicker={openColorPicker}
+              openOutlineEditor={openOutlineEditor}
+              openShadowEditor={openShadowEditor}
+              openTextColorEditor={openTextColorEditor}
+              fireTest={fireTest}
+            />
+          </div>
+        </div>
+
+        {/* Draggable divider */}
+        <div
+          onMouseDown={startDividerDrag}
+          className="h-1.5 shrink-0 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors"
+          title="Ziehen zum Ändern der Größe"
+        />
+
+        {/* Layers section (bottom, fills remaining space) */}
+        <div data-tutorial="layers" className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-1">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
+              Ebenen
+            </h3>
+            <button
+              onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
+              title={t("tooltip.editor.resetLayout")}
+              className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </button>
+          </div>
+          {LAYERS.filter(key => key !== "title" || activePokemon?.title).map((key) => {
+            const el = localSettings[key] as OverlayElementBase;
+            return (
+              <div
+                key={key}
+                onClick={() => setSelectedEl(key)}
+                className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full cursor-pointer ${
+                  selectedEl === key
+                    ? "bg-accent-blue/20 border border-accent-blue/40"
+                    : "hover:bg-bg-hover border border-transparent"
+                }`}
+              >
+                <span className="text-xs text-text-primary">
+                  {ELEMENT_LABELS[key]}
+                </span>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    title={t("tooltip.editor.moveUp")}
+                    aria-label={t("tooltip.editor.moveUp")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveLayer(key, "up");
+                    }}
+                    className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    <ChevronUp className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    title={t("tooltip.editor.moveDown")}
+                    aria-label={t("tooltip.editor.moveDown")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveLayer(key, "down");
+                    }}
+                    className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                    aria-label={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      update({
+                        ...localSettings,
+                        [key]: { ...el, visible: !el.visible },
+                      });
+                    }}
+                    className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    {el.visible ? (
+                      <Eye className="w-3 h-3" />
+                    ) : (
+                      <EyeOff className="w-3 h-3" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Canvas Settings button */}
+          <button
+            aria-label={t("aria.canvasSettings")}
+            onClick={() => {
+              setPropertiesPanelTab("canvas");
+              setPropertiesPanelOpen(true);
+            }}
+            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors mt-2"
+          >
+            <Settings className="w-3 h-3" />
+            Canvas
+          </button>
+        </div>
+      </div>
+
+      {/* Floating Canvas Settings Panel (only for canvas settings) */}
+      {propertiesPanelOpen && (
+        <FloatingPropertiesPanel
+          activeTab={propertiesPanelTab}
+          onTabChange={setPropertiesPanelTab}
+          onClose={() => setPropertiesPanelOpen(false)}
+          position={panelPosition}
+          onDragStart={handlePanelDragStart}
           localSettings={localSettings}
           selectedEl={selectedEl}
           updateSelectedEl={updateSelectedEl}
@@ -1283,13 +1047,13 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           openShadowEditor={openShadowEditor}
           openTextColorEditor={openTextColorEditor}
           fireTest={fireTest}
+          updateField={updateField}
+          bgPreviewUrl={bgPreviewUrl}
+          bgUploading={bgUploading}
+          onBgUpload={handleBgUpload}
+          onBgRemove={handleBgRemove}
         />
-
-        {/* OBS Source Panel */}
-        <div className="bg-bg-secondary rounded-xl border border-border-subtle p-3 shrink-0">
-          <OBSSourceHint pokemonId={activePokemon?.id} />
-        </div>
-      </div>
+      )}
 
       {/* Tutorial overlay */}
       {showTutorial && (
@@ -1301,7 +1065,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         />
       )}
 
-      {/* --- Shared modal instances --- */}
+      {/* --- Shared modal instances (unchanged) --- */}
       {colorPickerTarget && (
         <ColorPickerModal
           color={colorPickerTarget.currentColor}

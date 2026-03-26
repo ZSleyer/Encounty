@@ -81,6 +81,7 @@ export function PokemonCard({
           <span
             className={`absolute top-2 left-2 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full ${cls} ${pulse ? "animate-pulse" : ""}`}
             title={title}
+            aria-hidden="true"
           />
         );
       })() : null}
@@ -91,6 +92,7 @@ export function PokemonCard({
           <div
             className="bg-accent-blue rounded-md p-1.5 shadow-sm"
             title={t("dash.tooltipSetActive")}
+            aria-hidden="true"
           >
             <Star className="w-3.5 h-3.5 text-white fill-white" />
           </div>
@@ -102,6 +104,7 @@ export function PokemonCard({
           }}
           className="p-1.5 rounded-md bg-bg-secondary/80 hover:bg-accent-blue hover:text-white text-text-secondary backdrop-blur-sm transition-colors"
           title={t("dash.tooltipEdit")}
+          aria-label={t("dash.tooltipEdit")}
         >
           <Edit2 className="w-3.5 h-3.5" />
         </button>
@@ -161,6 +164,7 @@ export function PokemonCard({
             }}
             className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
             title={t("dash.tooltipDecrement")}
+            aria-label={t("dash.tooltipDecrement")}
           >
             <Minus className="w-4 h-4" />
           </button>
@@ -171,6 +175,7 @@ export function PokemonCard({
             }}
             className="flex flex-col items-center justify-center rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
             title={t("dash.tooltipIncrement")}
+            aria-label={t("dash.tooltipIncrement")}
           >
             <Plus className="w-5 h-5 mb-0.5" />
           </button>
@@ -181,6 +186,7 @@ export function PokemonCard({
             }}
             className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-red-400 transition-colors"
             title={t("dash.tooltipReset")}
+            aria-label={t("dash.tooltipReset")}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
@@ -194,6 +200,7 @@ export function PokemonCard({
               onDelete(pokemon.id);
             }}
             title={t("dash.tooltipDelete")}
+            aria-label={t("dash.tooltipDelete")}
             className="flex-1 py-1.5 rounded-md text-xs font-medium text-text-muted hover:text-red-400 border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all"
           >
             Löschen

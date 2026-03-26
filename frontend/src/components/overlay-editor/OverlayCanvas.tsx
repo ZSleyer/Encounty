@@ -16,7 +16,8 @@ interface OverlayCanvasProps {
   readonly snapEnabled: boolean;
   readonly guides: Guide[];
   readonly isDragging: boolean;
-  readonly effectiveTool: "pointer" | "hand";
+  readonly altHeld?: boolean;
+  readonly effectiveTool: "pointer" | "hand" | "zoom";
   readonly isPanDragging: boolean;
   readonly canvasBg: "transparent" | "white" | "black";
   readonly testTrigger: { element: ElementKey; n: number; reverse?: boolean };
@@ -28,6 +29,8 @@ interface OverlayCanvasProps {
   readonly onMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
   readonly onMouseUp: () => void;
   readonly onSelectElement: (key: ElementKey) => void;
+  readonly onDoubleClickElement?: (key: ElementKey) => void;
+  readonly onZoomAtPoint?: (clientX: number, clientY: number, direction: "in" | "out") => void;
   readonly onDragStateChange: (dragging: boolean) => void;
   readonly onGuidesChange: (guides: Guide[]) => void;
   readonly onUpdate: (settings: OverlaySettings) => void;
@@ -230,33 +233,33 @@ export function ResizeHandle({
 }>) {
   const posStyles: Record<ResizeDir, React.CSSProperties> = {
     n: {
-      top: -4,
+      top: -10,
       left: "50%",
       transform: "translateX(-50%)",
       cursor: "n-resize",
     },
     s: {
-      bottom: -4,
+      bottom: -10,
       left: "50%",
       transform: "translateX(-50%)",
       cursor: "s-resize",
     },
     e: {
-      right: -4,
+      right: -10,
       top: "50%",
       transform: "translateY(-50%)",
       cursor: "e-resize",
     },
     w: {
-      left: -4,
+      left: -10,
       top: "50%",
       transform: "translateY(-50%)",
       cursor: "w-resize",
     },
-    ne: { top: -4, right: -4, cursor: "ne-resize" },
-    nw: { top: -4, left: -4, cursor: "nw-resize" },
-    se: { bottom: -4, right: -4, cursor: "se-resize" },
-    sw: { bottom: -4, left: -4, cursor: "sw-resize" },
+    ne: { top: -10, right: -10, cursor: "ne-resize" },
+    nw: { top: -10, left: -10, cursor: "nw-resize" },
+    se: { bottom: -10, right: -10, cursor: "se-resize" },
+    sw: { bottom: -10, left: -10, cursor: "sw-resize" },
   };
   return (
     // Resize handles are mouse-only canvas controls; aria-hidden suppresses S6848
@@ -266,8 +269,8 @@ export function ResizeHandle({
       onMouseDown={onResizeStart(dir)}
       style={{
         position: "absolute",
-        width: 8,
-        height: 8,
+        width: 20,
+        height: 20,
         background: "#3b82f6",
         border: "1px solid white",
         borderRadius: 2,
@@ -292,12 +295,15 @@ export function OverlayCanvas({
   testTrigger,
   fakeCount,
   activePokemon,
+  altHeld,
   readOnly,
   canvasContainerRef,
   onMouseMove,
   onMouseDown,
   onMouseUp,
   onSelectElement,
+  onDoubleClickElement,
+  onZoomAtPoint,
   onDragStateChange,
   onGuidesChange,
   onUpdate,
@@ -322,8 +328,10 @@ export function OverlayCanvas({
     ? { ...activePokemon, encounters: fakeCount ?? activePokemon.encounters ?? 0 }
     : undefined;
 
-  const handCursor = isPanDragging ? "grabbing" : "grab";
-  const canvasCursor = effectiveTool === "hand" ? handCursor : "default";
+  const canvasCursor =
+    effectiveTool === "hand" ? (isPanDragging ? "grabbing" : "grab") :
+    effectiveTool === "zoom" ? (altHeld ? "zoom-out" : "zoom-in") :
+    "default";
   const bgColorMap: Record<string, string | undefined> = { white: "#ffffff", black: "#000000" };
   const canvasBgColor = bgColorMap[canvasBg];
 
@@ -444,12 +452,18 @@ export function OverlayCanvas({
                 type="button"
                 key={key}
                 tabIndex={0}
+                aria-label={`Element: ${key}`}
                 onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelectElement(key); } }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onDoubleClickElement?.(key);
+                }}
                 onMouseDown={(e) => {
-                  if (effectiveTool === "hand") return;
+                  if (effectiveTool === "hand" || effectiveTool === "zoom") return;
                   onSelectElement(key);
                   onDragStart(e);
                 }}
+                className="focus-visible:ring-2 focus-visible:ring-accent-blue focus-visible:ring-offset-1"
                 style={{
                   position: "absolute",
                   left: el.x,
@@ -457,7 +471,7 @@ export function OverlayCanvas({
                   width: el.width,
                   height: el.height,
                   zIndex: 50 + el.z_index,
-                  cursor: effectiveTool === "hand" ? "inherit" : "move",
+                  cursor: effectiveTool === "hand" || effectiveTool === "zoom" ? "inherit" : "move",
                   border: isSelected
                     ? "2px solid #3b82f6"
                     : "2px solid transparent",

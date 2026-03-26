@@ -82,12 +82,13 @@ export function EditorTutorial({ onComplete }: Props) {
   const tooltipStyle: React.CSSProperties = rect
     ? {
         position: "fixed",
-        left: Math.min(rect.left, globalThis.innerWidth - 340),
+        left: Math.max(8, Math.min(rect.left, globalThis.innerWidth - 340)),
         top: rect.bottom + pad + 8 > globalThis.innerHeight - 100
           ? rect.top - pad - 120
           : rect.bottom + pad + 8,
         zIndex: 10002,
-        width: 320,
+        maxWidth: "min(320px, 85vw)",
+        width: "auto",
       }
     : { display: "none" };
 
@@ -143,13 +144,13 @@ export function EditorTutorial({ onComplete }: Props) {
             {current.text}
           </p>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-text-faint">
+            <span className="text-xs text-text-muted">
               {step + 1}/{STEPS.length}
             </span>
             <div className="flex gap-2">
               <button
                 onClick={skip}
-                className="px-3 py-1 rounded text-xs text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+                className="px-3 py-1 rounded text-xs text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors"
               >
                 Überspringen
               </button>

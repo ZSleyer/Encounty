@@ -79,7 +79,7 @@ function UpdateNotification({
 }>) {
   const { t } = useI18n();
   return (
-    <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+    <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn" role="alert">
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
         <div className="w-14 h-14 rounded-full bg-accent-blue/15 flex items-center justify-center">
           <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
@@ -248,17 +248,8 @@ function AppShell() {
     }
   };
 
-  // Warn user when closing the tab while backend is still running.
-  // Shows the browser's native "Leave page?" dialog as a last resort.
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isConnected && !quitting && !restarting && updateState === "idle" && !globalThis.electronAPI) {
-        e.preventDefault();
-      }
-    };
-    globalThis.addEventListener("beforeunload", handleBeforeUnload);
-    return () => globalThis.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isConnected, quitting, restarting, updateState]);
+  // Reload/close warning disabled — Electron handles window lifecycle,
+  // and in dev mode the native dialog interferes with HMR and testing.
 
   // Intercept Ctrl+W / Cmd+W to show custom warning modal instead of closing
   useEffect(() => {
@@ -393,6 +384,9 @@ function AppShell() {
 
   return (
     <div className="flex flex-col h-screen bg-transparent text-text-primary overflow-hidden relative">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-accent-blue focus:text-white focus:rounded-lg focus:text-sm">
+        {t("aria.skipToContent")}
+      </a>
       {/* Close-tab warning modal */}
       {showCloseWarning && (
         <div className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
@@ -498,7 +492,7 @@ function AppShell() {
       {/* ── Footer ───────────────────────────────────────────── */}
       <div className="shrink-0">
         <div className="footer-line" />
-        <footer className="h-8 2xl:h-10 px-5 grid grid-cols-3 items-center text-[10px] 2xl:text-xs text-text-faint select-none">
+        <footer className="h-8 2xl:h-10 px-5 grid grid-cols-3 items-center text-xs text-text-faint select-none">
           {/* Left: Build Info + Build Date + Update Badge */}
           <div className="flex items-center justify-start gap-2">
             <span className="font-semibold tracking-wide text-text-muted">
@@ -615,6 +609,7 @@ function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
   return (
     <Link
       to={to}
+      aria-current={isActive ? "page" : undefined}
       className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs 2xl:text-sm font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
         isActive
           ? "text-accent-blue"

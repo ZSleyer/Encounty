@@ -94,6 +94,7 @@ function PokemonTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
             onClick={() => send("timer_stop", { pokemon_id: pokemon.id })}
             className="p-1.5 rounded-lg bg-accent-yellow/20 hover:bg-accent-yellow/30 text-accent-yellow transition-colors"
             title={t("timer.stop")}
+            aria-label={t("aria.timerPause")}
           >
             <Pause className="w-3.5 h-3.5" />
           </button>
@@ -102,6 +103,7 @@ function PokemonTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
             onClick={() => send("timer_start", { pokemon_id: pokemon.id })}
             className="p-1.5 rounded-lg bg-accent-green/20 hover:bg-accent-green/30 text-accent-green transition-colors"
             title={t("timer.start")}
+            aria-label={t("aria.timerStart")}
           >
             <Play className="w-3.5 h-3.5" />
           </button>
@@ -110,6 +112,7 @@ function PokemonTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
           onClick={() => send("timer_reset", { pokemon_id: pokemon.id })}
           className="p-1.5 rounded-lg bg-bg-card hover:bg-bg-hover text-text-muted hover:text-text-primary border border-border-subtle transition-colors"
           title={t("timer.reset")}
+          aria-label={t("aria.timerReset")}
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
@@ -895,7 +898,7 @@ export function Dashboard() {
         </button>
 
         {/* Solid Counter Card */}
-        <div className="bg-bg-card rounded-3xl px-16 py-8 2xl:px-20 2xl:py-10 text-center border border-border-subtle shadow-md min-w-85 relative group">
+        <div className="bg-bg-card rounded-3xl px-16 py-8 2xl:px-20 2xl:py-10 text-center border border-border-subtle shadow-md min-w-85 relative group" aria-live="polite">
           <div
             className="text-7xl 2xl:text-8xl font-black tabular-nums leading-none tracking-tight text-text-primary"
           >
@@ -1158,7 +1161,7 @@ export function Dashboard() {
                 </button>
                 <button
                   onClick={() => setShowHuntMenu((v) => !v)}
-                  className="p-0.5 -ml-0.5 text-text-faint hover:text-text-muted transition-colors"
+                  className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
                   title={t("sidebar.both")}
                 >
                   <ChevronDown className="w-3 h-3" />
@@ -1308,7 +1311,7 @@ export function Dashboard() {
                           {p.encounters} {t("dash.enc")}
                         </span>
                         {p.game && (
-                          <span className="text-[10px] text-text-faint uppercase">
+                          <span className="text-[10px] text-text-muted uppercase">
                             {formatGame(p.game)}
                           </span>
                         )}
@@ -1366,7 +1369,7 @@ export function Dashboard() {
       </aside>
       <div className="glow-line-v shrink-0" />
 
-      <main className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
+      <main id="main-content" className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
 
         {viewedPokemon ? (
           <div className="flex flex-col h-full w-full">

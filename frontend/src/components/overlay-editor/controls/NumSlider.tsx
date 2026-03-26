@@ -10,6 +10,7 @@ export function NumInput({
   step = 1,
   onChange,
   className,
+  ariaLabel,
 }: Readonly<{
   value: number;
   min?: number;
@@ -17,6 +18,7 @@ export function NumInput({
   step?: number;
   onChange: (v: number) => void;
   className?: string;
+  ariaLabel?: string;
 }>) {
   const { t } = useI18n();
   const clamp = (v: number) => {
@@ -33,7 +35,7 @@ export function NumInput({
         type="button"
         title={t("tooltip.common.decrement")}
         onClick={() => onChange(clamp(value - step))}
-        className="px-1.5 2xl:px-2 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm 2xl:text-base leading-none shrink-0"
+        className="px-2.5 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm leading-none shrink-0"
       >
         −
       </button>
@@ -43,6 +45,7 @@ export function NumInput({
         min={min}
         max={max}
         step={step}
+        aria-label={ariaLabel ?? `${value}`}
         onChange={(e) => onChange(Number(e.target.value))}
         className="flex-1 min-w-0 bg-transparent text-[10px] 2xl:text-xs text-text-primary text-center outline-none py-0.5 2xl:py-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
@@ -50,7 +53,7 @@ export function NumInput({
         type="button"
         title={t("tooltip.common.increment")}
         onClick={() => onChange(clamp(value + step))}
-        className="px-1.5 2xl:px-2 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm 2xl:text-base leading-none shrink-0"
+        className="px-2.5 self-stretch flex items-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm leading-none shrink-0"
       >
         +
       </button>
@@ -84,6 +87,7 @@ export function NumSlider({
           max={max}
           step={step}
           onChange={onChange}
+          ariaLabel={label}
           className="w-20 2xl:w-24"
         />
       </div>

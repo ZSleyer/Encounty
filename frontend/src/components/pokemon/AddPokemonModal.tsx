@@ -264,6 +264,7 @@ export function AddPokemonModal({
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
+      aria-modal="true"
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-lg 2xl:max-w-xl animate-slide-in backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-5">
@@ -273,6 +274,7 @@ export function AddPokemonModal({
         <button
           onClick={handleCancel}
           className="text-text-muted hover:text-text-primary transition-colors"
+          aria-label={t("aria.close")}
         >
           <X className="w-5 h-5" />
         </button>
@@ -334,10 +336,11 @@ export function AddPokemonModal({
         </div>
 
         {suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-52 2xl:max-h-64 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-52 2xl:max-h-64 overflow-y-auto" role="listbox">
             {suggestions.map((s) => (
               <button
                 key={s.canonical}
+                role="option"
                 onClick={() => selectPokemon(s)}
                 className="w-full text-left px-4 py-2 text-sm 2xl:text-base hover:bg-bg-hover transition-colors flex items-center justify-between"
               >

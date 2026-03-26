@@ -539,6 +539,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "tooltip.editor.alignRight": "Rechts ausrichten",
     "tooltip.editor.showTutorial": "Tutorial anzeigen",
 
+    // ── Aria Labels ──
+    "aria.close": "Schließen",
+    "aria.skipToContent": "Zum Inhalt springen",
+    "aria.copyObsUrl": "OBS URL kopieren",
+    "aria.saveOverlay": "Overlay speichern",
+    "aria.canvasSettings": "Canvas-Einstellungen",
+    "aria.elementProperties": "Element-Eigenschaften",
+    "aria.properties": "Eigenschaften",
+    "aria.gridSize": "Rastergröße",
+    "aria.labelText": "Label-Text",
+    "aria.timerStart": "Timer starten",
+    "aria.timerPause": "Timer pausieren",
+    "aria.timerReset": "Timer zurücksetzen",
+
     // ── Tooltips: Dashboard ──
     "dash.tooltipIncrement": "Encounter hinzufügen (+1)",
     "dash.tooltipDecrement": "Encounter entfernen (-1)",
@@ -1200,6 +1214,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "tooltip.editor.alignCenter": "Align center",
     "tooltip.editor.alignRight": "Align right",
     "tooltip.editor.showTutorial": "Show tutorial",
+
+    // ── Aria Labels ──
+    "aria.close": "Close",
+    "aria.skipToContent": "Skip to content",
+    "aria.copyObsUrl": "Copy OBS URL",
+    "aria.saveOverlay": "Save overlay",
+    "aria.canvasSettings": "Canvas settings",
+    "aria.elementProperties": "Element properties",
+    "aria.properties": "Properties",
+    "aria.gridSize": "Grid size",
+    "aria.labelText": "Label text",
+    "aria.timerStart": "Start timer",
+    "aria.timerPause": "Pause timer",
+    "aria.timerReset": "Reset timer",
 
     // ── Tooltips: Dashboard ──
     "dash.tooltipIncrement": "Add encounter (+1)",

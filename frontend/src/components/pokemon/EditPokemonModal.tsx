@@ -337,6 +337,7 @@ export function EditPokemonModal({
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
+      aria-modal="true"
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-lg 2xl:max-w-xl animate-slide-in backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-5">
@@ -346,6 +347,7 @@ export function EditPokemonModal({
         <button
           onClick={handleCancel}
           className="text-text-muted hover:text-text-primary transition-colors"
+          aria-label={t("aria.close")}
         >
           <X className="w-5 h-5" />
         </button>

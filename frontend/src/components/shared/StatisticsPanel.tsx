@@ -88,11 +88,12 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
           <h3 className="text-sm font-semibold text-text-primary">
             {t("stats.chartTitle")}
           </h3>
-          <div className="flex gap-1 bg-bg-secondary rounded-lg p-0.5">
+          <div className="flex gap-1 bg-bg-secondary rounded-lg p-0.5" role="group" aria-label={t("stats.chartTitle")}>
             {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
               <button
                 key={iv}
                 onClick={() => setInterval(iv)}
+                aria-pressed={interval === iv}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                   interval === iv
                     ? "bg-accent-blue text-white"
@@ -105,37 +106,39 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
           </div>
         </div>
         {chartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: "#94a3b8" }}
-                tickFormatter={(v: string) => {
-                  if (interval === "hour") return v.slice(11, 16);
-                  if (interval === "week") return v;
-                  return v.slice(5);
-                }}
-              />
-              <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={40} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1e293b",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="count"
-                stroke="#3b82f6"
-                fill="#3b82f6"
-                fillOpacity={0.15}
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div role="img" aria-label={t("stats.chartTitle")}>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10, fill: "#94a3b8" }}
+                  tickFormatter={(v: string) => {
+                    if (interval === "hour") return v.slice(11, 16);
+                    if (interval === "week") return v;
+                    return v.slice(5);
+                  }}
+                />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={40} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1e293b",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="#3b82f6"
+                  fill="#3b82f6"
+                  fillOpacity={0.15}
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         ) : (
           <div className="flex items-center justify-center h-50 text-text-faint text-sm">
             {t("stats.noData")}
@@ -149,15 +152,16 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
           {t("stats.recentHistory")}
         </h3>
         {history.length > 0 ? (
-          <div className="space-y-1 max-h-64 overflow-y-auto">
+          <div className="space-y-1 max-h-64 overflow-y-auto" role="list">
             {history.map((e) => (
               <div
                 key={e.id}
+                role="listitem"
                 className="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-bg-hover text-xs transition-colors"
               >
-                <span className="text-text-muted">
+                <time dateTime={e.timestamp} className="text-text-muted">
                   {new Date(e.timestamp).toLocaleString()}
-                </span>
+                </time>
                 <span
                   className={`font-mono font-semibold ${
                     e.delta > 0 ? "text-accent-green" : "text-accent-red"

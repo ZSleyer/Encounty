@@ -22,20 +22,20 @@ export function HotkeyPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-transparent">
+    <main id="main-content" className="flex-1 flex flex-col min-h-0 bg-transparent">
       <div className="switch-waves-container">
         <div className="switch-waves" />
       </div>
       <div className="flex-1 min-h-0 overflow-auto p-6 relative z-10">
         <div className="max-w-xl mx-auto space-y-6">
         <section className="glass-card rounded-2xl p-6">
-          <h2 className="text-sm font-semibold text-text-primary mb-6">
+          <h1 className="text-sm font-semibold text-text-primary mb-6">
             {t("settings.hotkeysTitle")}
-          </h2>
+          </h1>
           <HotkeySettings hotkeys={hotkeys} onUpdate={setHotkeys} />
         </section>
       </div>
       </div>
-    </div>
+    </main>
   );
 }

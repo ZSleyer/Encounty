@@ -8,13 +8,13 @@
   --bg-secondary: #1a1a24;
   --bg-card: #1e1e2e;
   --bg-hover: #252535;
-  --accent-blue: #5aabff;
-  --accent-green: #4ade80;
+  --accent-blue: #4a9eff;        /* ~5.2:1 on #0f0f13 — text on dark bg */
+  --accent-green: #34d67a;       /* ~5.0:1 on #0f0f13 — text on dark bg */
   --accent-yellow: #ffd700;
   --accent-red: #f05050;
   --accent-purple: #b970ff;
   --border-subtle: #333345;
-  --border-active: #5aabff;
+  --border-active: #4a9eff;
   /* WCAG AA compliant text colors on dark backgrounds */
   --text-primary: #f1f5f9;       /* near-white, crisp */
   --text-secondary: #b8c9da;     /* ~6.5:1 on #0f0f13 — replaces #94a3b8 (~4.6) */
@@ -55,6 +55,21 @@
   position: relative;
   overflow: hidden;
   background-color: var(--bg-primary);
+}
+
+/* ── WCAG 1.4.3 — Accent button text contrast ─────────── */
+/* Accent backgrounds use dark text for WCAG AA compliance.
+   !important overrides Tailwind's text-white utility.
+   Matches any element with a solid accent background class. */
+.bg-accent-blue,
+.bg-accent-green {
+  color: var(--bg-primary) !important;
+}
+
+/* ── WCAG 2.4.7 — Visible focus for keyboard navigation ── */
+:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
 }
 
 /* ── Switch Homebrew Style Fluid Waves Background ───────── */

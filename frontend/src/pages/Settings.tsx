@@ -44,15 +44,20 @@ interface LicenseEntry {
 function Toggle({
   enabled,
   onChange,
+  label,
   color = "bg-accent-green/80",
 }: Readonly<{
   enabled: boolean;
   onChange: () => void;
+  label?: string;
   color?: string;
 }>) {
   return (
     <button
       onClick={onChange}
+      role="switch"
+      aria-checked={enabled}
+      aria-label={label}
       className={`relative w-12 h-6 2xl:w-14 2xl:h-7 rounded-full transition-colors flex items-center px-1 shrink-0 ${
         enabled ? color : "bg-bg-secondary border border-border-subtle"
       }`}
@@ -310,12 +315,13 @@ export function Settings() {
   const show = (id: string) => visibleSections.includes(id);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-transparent">
+    <main id="main-content" className="flex-1 flex flex-col min-h-0 bg-transparent">
       <div className="switch-waves-container">
         <div className="switch-waves" />
       </div>
       <div className="flex-1 min-h-0 overflow-auto p-6 relative z-10">
         <div className="max-w-2xl 2xl:max-w-3xl mx-auto space-y-6">
+          <h1 className="sr-only">{t("settings.title")}</h1>
           {/* ── Search ───────────────────────────────────────── */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-faint pointer-events-none" />
@@ -325,11 +331,13 @@ export function Settings() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("settings.search")}
+              aria-label={t("settings.search")}
               className="w-full bg-bg-secondary border border-border-subtle rounded-xl pl-9 pr-4 py-2.5 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
             />
             {search && (
               <button
                 onClick={() => setSearch("")}
+                aria-label={t("settings.clearSearch") || "Clear search"}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-text-faint hover:text-text-muted transition-colors"
               >
                 <span className="text-xs">Esc</span>
@@ -366,6 +374,7 @@ export function Settings() {
                   }
                   min={1024}
                   max={65535}
+                  aria-label={t("settings.port")}
                   className="w-28 2xl:w-32 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary outline-none focus:border-accent-blue/50 transition-colors text-right"
                 />
               </div>
@@ -386,6 +395,7 @@ export function Settings() {
                 <Toggle
                   enabled={settings.auto_save}
                   onChange={() => setSettings({ ...settings, auto_save: !settings.auto_save })}
+                  label={t("settings.autoSave")}
                 />
               </div>
             </section>
@@ -410,6 +420,8 @@ export function Settings() {
                 <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
                   <button
                     onClick={() => { if (theme !== "dark") toggleTheme(); }}
+                    aria-label={t("settings.themeDark")}
+                    aria-pressed={theme === "dark"}
                     className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                       theme === "dark"
                         ? "bg-accent-blue/15 text-accent-blue"
@@ -420,6 +432,8 @@ export function Settings() {
                   </button>
                   <button
                     onClick={() => { if (theme !== "light") toggleTheme(); }}
+                    aria-label={t("settings.themeLight")}
+                    aria-pressed={theme === "light"}
                     className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                       theme === "light"
                         ? "bg-accent-blue/15 text-accent-blue"
@@ -474,6 +488,7 @@ export function Settings() {
                 <Toggle
                   enabled={settings.crisp_sprites ?? false}
                   onChange={() => setCrispSprites(!(settings.crisp_sprites ?? false))}
+                  label={t("settings.crispSprites")}
                   color="bg-accent-blue/80"
                 />
               </div>
@@ -493,6 +508,7 @@ export function Settings() {
                 <Toggle
                   enabled={settings.ui_animations ?? true}
                   onChange={() => setUIAnimations(!(settings.ui_animations ?? true))}
+                  label={t("settings.uiAnimations")}
                   color="bg-accent-blue/80"
                 />
               </div>
@@ -545,6 +561,7 @@ export function Settings() {
                   onChange={() =>
                     setSettings({ ...settings, output_enabled: !settings.output_enabled })
                   }
+                  label={t("settings.sectionOutput")}
                   color="bg-accent-yellow/80"
                 />
               </div>
@@ -681,6 +698,7 @@ export function Settings() {
                       defaultValue={appState.data_path}
                       id="config-path-input"
                       placeholder={appState.data_path}
+                      aria-label={t("settings.dataPath")}
                       className="flex-1 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
                     />
                     <button
@@ -733,6 +751,7 @@ export function Settings() {
                   ref={restoreInputRef}
                   type="file"
                   accept=".zip"
+                  aria-label={t("settings.restoreBtn")}
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0];
@@ -897,6 +916,6 @@ export function Settings() {
           <div className="h-2" />
         </div>
       </div>
-    </div>
+    </main>
   );
 }
