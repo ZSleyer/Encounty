@@ -115,11 +115,6 @@ type DetectorConfig struct {
 	MaxPollMs       int                `json:"max_poll_ms"`            // slowest adaptive poll interval (static screen), default 500
 	AdaptiveCooldown    bool           `json:"adaptive_cooldown"`
 	AdaptiveCooldownMin int            `json:"adaptive_cooldown_min"` // Minimum seconds, default 3
-	RelativeRegions     bool           `json:"relative_regions"`
-	RematchEnabled         bool        `json:"rematch_enabled"`
-	RematchThresholdOffset float64     `json:"rematch_threshold_offset"`
-	RematchWindowSec       int         `json:"rematch_window_sec"`
-	ReplayBufferSec        int         `json:"replay_buffer_sec"`
 	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 

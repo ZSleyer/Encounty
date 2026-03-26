@@ -29,15 +29,11 @@ const (
 	msgWant400     = "status = %d, want 400"
 	msgWant404     = "status = %d, want 404"
 	msgWant405     = "status = %d, want 405"
-	msgWant503     = "status = %d, want 503"
-
 	hdrContentType = "Content-Type"
 
 	pathConfig             = "/api/detector/p1/config"
 	pathTemplate0          = "/api/detector/p1/template/0"
 	pathTemplateUpload     = "/api/detector/p1/template_upload"
-	pathStart              = "/api/detector/p1/start"
-	pathStop               = "/api/detector/p1/stop"
 	pathMatch              = "/api/detector/p1/match"
 	pathExportTemplates    = "/api/detector/p1/export_templates"
 	pathImportTemplatesTgt = "/api/detector/tgt/import_templates"
@@ -92,14 +88,38 @@ func (m *mockDetectorDB) DeleteTemplateImage(templateDBID int64) error {
 	return nil
 }
 
+// mockEncounterLogger records encounter log calls for verification.
+type mockEncounterLogger struct {
+	calls []encounterLogCall
+}
+
+// encounterLogCall records a single LogEncounter invocation.
+type encounterLogCall struct {
+	PokemonID   string
+	PokemonName string
+	Delta       int
+	CountAfter  int
+	Source      string
+}
+
+// LogEncounter stores the call for later inspection.
+func (m *mockEncounterLogger) LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string) error {
+	m.calls = append(m.calls, encounterLogCall{
+		PokemonID: pokemonID, PokemonName: pokemonName,
+		Delta: delta, CountAfter: countAfter, Source: source,
+	})
+	return nil
+}
+
 // testDeps implements the Deps interface for isolated handler testing.
 type testDeps struct {
-	stateMgr      *state.Manager
-	detectorMgr   *detector.Manager
-	detectorDB    *mockDetectorDB
-	configDir     string
-	broadcasts    []broadcastCall
-	stateBroadcN  int
+	stateMgr          *state.Manager
+	detectorMgr       *detector.Manager
+	detectorDB        *mockDetectorDB
+	encounterLogger   *mockEncounterLogger
+	configDir         string
+	broadcasts        []broadcastCall
+	stateBroadcN      int
 }
 
 // broadcastCall records a Broadcast invocation.
@@ -108,11 +128,12 @@ type broadcastCall struct {
 	Payload any
 }
 
-func (d *testDeps) StateManager() *state.Manager     { return d.stateMgr }
-func (d *testDeps) DetectorMgr() *detector.Manager    { return d.detectorMgr }
-func (d *testDeps) DetectorDB() DetectorStore          { return d.detectorDB }
-func (d *testDeps) ConfigDir() string                  { return d.configDir }
-func (d *testDeps) BroadcastState()                    { d.stateBroadcN++ }
+func (d *testDeps) StateManager() *state.Manager                { return d.stateMgr }
+func (d *testDeps) DetectorMgr() *detector.Manager              { return d.detectorMgr }
+func (d *testDeps) DetectorDB() DetectorStore                   { return d.detectorDB }
+func (d *testDeps) DetectorEncounterLogger() EncounterLogger    { return d.encounterLogger }
+func (d *testDeps) ConfigDir() string                           { return d.configDir }
+func (d *testDeps) BroadcastState()                             { d.stateBroadcN++ }
 func (d *testDeps) Broadcast(msgType string, payload any) {
 	d.broadcasts = append(d.broadcasts, broadcastCall{MsgType: msgType, Payload: payload})
 }
@@ -126,17 +147,14 @@ func newTestMux(t *testing.T) (*http.ServeMux, *testDeps) {
 	dir := t.TempDir()
 	sm := state.NewManager(dir)
 	db := newMockDetectorDB()
-	// no-op broadcast callback for test mock — detector.Manager requires
-	// a non-nil function but no messages need to be handled in tests.
-	mgr := detector.NewManager(sm, func(string, any) {
-		// no-op: tests do not consume broadcast messages
-	}, dir)
+	mgr := detector.NewManager(sm, dir)
 
 	deps := &testDeps{
-		stateMgr:    sm,
-		detectorMgr: mgr,
-		detectorDB:  db,
-		configDir:   dir,
+		stateMgr:        sm,
+		detectorMgr:     mgr,
+		detectorDB:      db,
+		encounterLogger: &mockEncounterLogger{},
+		configDir:       dir,
 	}
 	mux := http.NewServeMux()
 	RegisterRoutes(mux, deps)
@@ -151,10 +169,11 @@ func newTestMuxNilDetector(t *testing.T) (*http.ServeMux, *testDeps) {
 	db := newMockDetectorDB()
 
 	deps := &testDeps{
-		stateMgr:    sm,
-		detectorMgr: nil,
-		detectorDB:  db,
-		configDir:   dir,
+		stateMgr:        sm,
+		detectorMgr:     nil,
+		detectorDB:      db,
+		encounterLogger: &mockEncounterLogger{},
+		configDir:       dir,
 	}
 	mux := http.NewServeMux()
 	RegisterRoutes(mux, deps)
@@ -212,44 +231,6 @@ func decodeJSON(t *testing.T, body io.Reader, v any) {
 	}
 }
 
-// --- Status ------------------------------------------------------------------
-
-func TestStatusReturnsEmptyArrayWhenNoDetectors(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/detector/status", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-
-	var entries []detectorStatusEntry
-	decodeJSON(t, w.Body, &entries)
-	if len(entries) != 0 {
-		t.Errorf("len(entries) = %d, want 0", len(entries))
-	}
-}
-
-func TestStatusNilManager(t *testing.T) {
-	mux, _ := newTestMuxNilDetector(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/detector/status", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-
-	var entries []detectorStatusEntry
-	decodeJSON(t, w.Body, &entries)
-	if len(entries) != 0 {
-		t.Errorf("len(entries) = %d, want 0", len(entries))
-	}
-}
-
 // --- Capabilities ------------------------------------------------------------
 
 func TestCapabilitiesReturnsJSON(t *testing.T) {
@@ -273,42 +254,6 @@ func TestCapabilitiesReturnsJSON(t *testing.T) {
 	if caps.Platform == "" {
 		t.Error("platform should not be empty")
 	}
-}
-
-// --- Windows -----------------------------------------------------------------
-
-func TestListWindowsReturnsJSON(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/detector/windows", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-
-	// On non-Windows platforms ListWindows returns nil, which is encoded as [].
-	var sources []detector.SourceInfo
-	decodeJSON(t, w.Body, &sources)
-	// We cannot assert the count since it is platform-dependent.
-}
-
-// --- Cameras -----------------------------------------------------------------
-
-func TestListCamerasReturnsJSON(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/detector/cameras", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-
-	var sources []detector.SourceInfo
-	decodeJSON(t, w.Body, &sources)
 }
 
 // --- Dispatch 404 paths ------------------------------------------------------
@@ -342,30 +287,6 @@ func TestDispatchTemplateMissingIndex(t *testing.T) {
 	mux, _ := newTestMux(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/template", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf(msgWant404, w.Code)
-	}
-}
-
-func TestDispatchBrowserMissingSubaction(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/browser", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf(msgWant404, w.Code)
-	}
-}
-
-func TestDispatchBrowserUnknownSubaction(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/browser/unknown", nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -905,169 +826,11 @@ func TestTemplateUploadBadJSON(t *testing.T) {
 	}
 }
 
-// --- Browser Detector Start / Stop -------------------------------------------
-
-func TestBrowserDetectorStartSuccess(t *testing.T) {
-	mux, deps := newTestMux(t)
-	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
-		Precision: 0.9,
-	})
-
-	body := jsonBody(t, map[string]any{
-		"precision":        0.85,
-		"consecutive_hits": 3,
-	})
-
-	req := httptest.NewRequest(http.MethodPost, pathStart, body)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
-	}
-
-	// Verify a browser detector was created
-	bd := deps.detectorMgr.GetBrowserDetector("p1")
-	if bd == nil {
-		t.Error("expected browser detector to be created")
-	}
-
-	// Verify initial detector_status was broadcast
-	found := false
-	for _, bc := range deps.broadcasts {
-		if bc.MsgType == "detector_status" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("expected detector_status broadcast on start")
-	}
-}
-
-func TestBrowserDetectorStartViaBrowserPath(t *testing.T) {
-	mux, deps := newTestMux(t)
-	addTestPokemon(t, deps, "p1", "Pikachu")
-
-	req := httptest.NewRequest(http.MethodPost, "/api/detector/p1/browser/start",
-		bytes.NewBufferString("{}"))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-}
-
-func TestBrowserDetectorStartNoPokemon(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/detector/missing/start",
-		bytes.NewBufferString("{}"))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf(msgWant404, w.Code)
-	}
-}
-
-func TestBrowserDetectorStartNilManager(t *testing.T) {
-	mux, deps := newTestMuxNilDetector(t)
-	addTestPokemon(t, deps, "p1", "Pikachu")
-
-	req := httptest.NewRequest(http.MethodPost, pathStart,
-		bytes.NewBufferString("{}"))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusServiceUnavailable {
-		t.Errorf(msgWant503, w.Code)
-	}
-}
-
-func TestBrowserDetectorStartMethodNotAllowed(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodGet, pathStart, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf(msgWant405, w.Code)
-	}
-}
-
-func TestBrowserDetectorStopSuccess(t *testing.T) {
-	mux, deps := newTestMux(t)
-
-	// Start a browser detector first
-	deps.detectorMgr.GetOrCreateBrowserDetector("p1", state.DetectorConfig{})
-
-	req := httptest.NewRequest(http.MethodPost, pathStop, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-
-	// Verify it was stopped
-	bd := deps.detectorMgr.GetBrowserDetector("p1")
-	if bd != nil {
-		t.Error("expected browser detector to be nil after stop")
-	}
-}
-
-func TestBrowserDetectorStopViaBrowserPath(t *testing.T) {
-	mux, deps := newTestMux(t)
-	deps.detectorMgr.GetOrCreateBrowserDetector("p1", state.DetectorConfig{})
-
-	req := httptest.NewRequest(http.MethodPost, "/api/detector/p1/browser/stop", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-}
-
-func TestBrowserDetectorStopNilManager(t *testing.T) {
-	mux, _ := newTestMuxNilDetector(t)
-
-	req := httptest.NewRequest(http.MethodPost, pathStop, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusServiceUnavailable {
-		t.Errorf(msgWant503, w.Code)
-	}
-}
-
-func TestBrowserDetectorStopMethodNotAllowed(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodGet, pathStop, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf(msgWant405, w.Code)
-	}
-}
-
 // --- Match Submit ------------------------------------------------------------
 
 func TestMatchSubmitSuccess(t *testing.T) {
 	mux, deps := newTestMux(t)
 	addTestPokemon(t, deps, "p1", "Pikachu")
-
-	// Create a browser detector with low precision for easy matching
-	deps.detectorMgr.GetOrCreateBrowserDetector("p1", state.DetectorConfig{
-		Precision:       0.5,
-		ConsecutiveHits: 1,
-		CooldownSec:     0,
-	})
 
 	body := jsonBody(t, matchSubmitRequest{Score: 0.95, FrameDelta: 0.1})
 	req := httptest.NewRequest(http.MethodPost, pathMatch, body)
@@ -1080,50 +843,51 @@ func TestMatchSubmitSuccess(t *testing.T) {
 
 	var resp matchSubmitResponse
 	decodeJSON(t, w.Body, &resp)
-	// First score starts counting but may not match immediately depending on
-	// edge detection (needs low-to-high transition).
-	// The response should at least be valid JSON.
-	if resp.PollMs == 0 {
-		t.Error("expected non-zero PollMs")
+	if !resp.Matched {
+		t.Error("expected Matched=true")
+	}
+	if resp.Confidence != 0.95 {
+		t.Errorf("Confidence = %f, want 0.95", resp.Confidence)
 	}
 
-	// Verify detector_status was broadcast
+	// Verify encounter was incremented
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.Encounters != 1 {
+		t.Errorf("encounters = %d, want 1", p.Encounters)
+	}
+
+	// Verify detector_match was broadcast
 	found := false
 	for _, bc := range deps.broadcasts {
-		if bc.MsgType == "detector_status" {
+		if bc.MsgType == "detector_match" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Error("expected detector_status broadcast")
+		t.Error("expected detector_match broadcast")
+	}
+
+	// Verify encounter was logged
+	if len(deps.encounterLogger.calls) != 1 {
+		t.Fatalf("encounterLogger calls = %d, want 1", len(deps.encounterLogger.calls))
+	}
+	if deps.encounterLogger.calls[0].Source != "detector" {
+		t.Errorf("source = %q, want detector", deps.encounterLogger.calls[0].Source)
 	}
 }
 
-func TestMatchSubmitNoBrowserDetector(t *testing.T) {
-	mux, deps := newTestMux(t)
-	addTestPokemon(t, deps, "p1", "Pikachu")
-
-	body := jsonBody(t, matchSubmitRequest{Score: 0.5})
-	req := httptest.NewRequest(http.MethodPost, pathMatch, body)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf(msgWant404, w.Code)
-	}
-}
-
-func TestMatchSubmitNilManager(t *testing.T) {
-	mux, _ := newTestMuxNilDetector(t)
+func TestMatchSubmitNoPokemon(t *testing.T) {
+	mux, _ := newTestMux(t)
 
 	body := jsonBody(t, matchSubmitRequest{Score: 0.5})
 	req := httptest.NewRequest(http.MethodPost, "/api/detector/missing/match", body)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
-	if w.Code != http.StatusServiceUnavailable {
-		t.Errorf(msgWant503, w.Code)
+	if w.Code != http.StatusNotFound {
+		t.Errorf(msgWant404, w.Code)
 	}
 }
 
@@ -1149,59 +913,6 @@ func TestMatchSubmitMethodNotAllowed(t *testing.T) {
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf(msgWant405, w.Code)
-	}
-}
-
-func TestMatchSubmitTriggersIncrement(t *testing.T) {
-	mux, deps := newTestMux(t)
-	addTestPokemon(t, deps, "p1", "Pikachu")
-
-	// Use consecutive_hits=1 and precision=0.5 for a quick match.
-	deps.detectorMgr.GetOrCreateBrowserDetector("p1", state.DetectorConfig{
-		Precision:       0.5,
-		ConsecutiveHits: 1,
-		CooldownSec:     1,
-	})
-
-	// First score: low (establishes "below" baseline)
-	body1 := jsonBody(t, matchSubmitRequest{Score: 0.1, FrameDelta: 0.1})
-	req1 := httptest.NewRequest(http.MethodPost, pathMatch, body1)
-	w1 := httptest.NewRecorder()
-	mux.ServeHTTP(w1, req1)
-
-	// Second score: high (low-to-high transition triggers match)
-	body2 := jsonBody(t, matchSubmitRequest{Score: 0.95, FrameDelta: 0.1})
-	req2 := httptest.NewRequest(http.MethodPost, pathMatch, body2)
-	w2 := httptest.NewRecorder()
-	mux.ServeHTTP(w2, req2)
-
-	if w2.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w2.Code)
-	}
-
-	var resp matchSubmitResponse
-	decodeJSON(t, w2.Body, &resp)
-	if !resp.Matched {
-		t.Error("expected match after low-to-high transition")
-	}
-
-	// Verify encounter was incremented
-	st := deps.stateMgr.GetState()
-	p := findPokemon(st, "p1")
-	if p.Encounters != 1 {
-		t.Errorf("encounters = %d, want 1", p.Encounters)
-	}
-
-	// Verify detector_match was broadcast
-	found := false
-	for _, bc := range deps.broadcasts {
-		if bc.MsgType == "detector_match" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Error("expected detector_match broadcast on confirmed match")
 	}
 }
 

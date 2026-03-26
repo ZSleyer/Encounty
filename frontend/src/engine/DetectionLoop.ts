@@ -46,6 +46,16 @@ interface DetectionLoopConfig {
   adaptiveThreshold?: boolean;
   /** Template regions used for adaptive threshold computation. */
   regions?: Region[];
+  /** Base polling interval in ms (default: DEFAULT_POLL_MS). */
+  pollIntervalMs?: number;
+  /** Fastest adaptive polling interval in ms (default: MIN_POLL_MS). */
+  minPollMs?: number;
+  /** Slowest adaptive polling interval in ms (default: MAX_POLL_MS). */
+  maxPollMs?: number;
+  /** Multiplier for hysteresis exit threshold (default: 0.7). */
+  hysteresisFactor?: number;
+  /** Minimum seconds before hysteresis can exit (default: 0). */
+  cooldownSec?: number;
 }
 
 // --- Adaptive polling constants ----------------------------------------------
@@ -81,10 +91,18 @@ export class DetectionLoop {
 
   private running = false;
   private pollIntervalMs = DEFAULT_POLL_MS;
+  private minPollMs = MIN_POLL_MS;
+  private maxPollMs = MAX_POLL_MS;
+  private hysteresisFactor = 0.7;
+  private cooldownSec = 0;
+  private hysteresisEnteredAt = 0;
   private consecutiveCount = 0;
   private missCount = 0;
   private lastScore = 0;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  /** Pending template replacement — picked up at the start of the next loop iteration. */
+  private pendingTemplates: TemplateData[] | null = null;
 
   /** Smoothed score (EMA) used for live confidence display. */
   private smoothedScore = 0;
@@ -104,9 +122,13 @@ export class DetectionLoop {
     this.detector = detector;
   }
 
-  /** Load or replace templates for matching. */
+  /** Load or replace templates for matching. Safe to call while the loop is running. */
   loadTemplates(templates: TemplateData[]): void {
-    this.templates = templates;
+    if (this.running) {
+      this.pendingTemplates = templates;
+    } else {
+      this.templates = templates;
+    }
   }
 
   /** Register a callback for live score updates. */
@@ -117,6 +139,11 @@ export class DetectionLoop {
   /** Update detection configuration (partial merge). */
   updateConfig(config: Partial<DetectionLoopConfig>): void {
     this.config = { ...this.config, ...config };
+    if (config.pollIntervalMs !== undefined) this.pollIntervalMs = config.pollIntervalMs;
+    if (config.minPollMs !== undefined) this.minPollMs = config.minPollMs;
+    if (config.maxPollMs !== undefined) this.maxPollMs = config.maxPollMs;
+    if (config.hysteresisFactor !== undefined) this.hysteresisFactor = config.hysteresisFactor;
+    if (config.cooldownSec !== undefined) this.cooldownSec = config.cooldownSec;
   }
 
   /**
@@ -131,7 +158,8 @@ export class DetectionLoop {
     this.lastScore = 0;
     this.smoothedScore = 0;
     this.inHysteresis = false;
-    this.pollIntervalMs = DEFAULT_POLL_MS;
+    this.hysteresisEnteredAt = 0;
+    this.pollIntervalMs = this.config.pollIntervalMs ?? DEFAULT_POLL_MS;
     this.lastScoreCallbackTime = 0;
     this.lastCallbackState = "";
     this.runLoop(getVideo);
@@ -170,6 +198,12 @@ export class DetectionLoop {
   private async runLoop(getVideo: () => HTMLVideoElement | null): Promise<void> {
     if (!this.running) return;
 
+    // Apply pending template swap at a safe point (between iterations)
+    if (this.pendingTemplates) {
+      this.templates = this.pendingTemplates;
+      this.pendingTemplates = null;
+    }
+
     const video = getVideo();
     const hasValidInput = video && video.videoWidth > 0 && video.videoHeight > 0 && this.templates.length > 0;
 
@@ -200,7 +234,7 @@ export class DetectionLoop {
 
         // Only notify the backend when a match is confirmed (hysteresis just entered)
         if (this.inHysteresis && !wasInHysteresis) {
-          this.reportMatch(this.smoothedScore, result.frameDelta);
+          this.reportMatch(adjusted, result.frameDelta);
         }
 
         this.emitScoreCallback(adjusted, effectivePrecision);
@@ -208,7 +242,7 @@ export class DetectionLoop {
       } catch (err) {
         console.error("[Detection] Error:", err);
         // Detection error — back off to avoid tight error loops
-        this.pollIntervalMs = MAX_POLL_MS;
+        this.pollIntervalMs = this.maxPollMs;
       }
     }
 
@@ -248,7 +282,9 @@ export class DetectionLoop {
    */
   private updateMatchState(adjusted: number, effectivePrecision: number): void {
     if (this.inHysteresis) {
-      if (adjusted < this.config.precision * 0.7) {
+      const belowThreshold = adjusted < this.config.precision * this.hysteresisFactor;
+      const cooldownElapsed = Date.now() - this.hysteresisEnteredAt >= this.cooldownSec * 1000;
+      if (belowThreshold && cooldownElapsed) {
         this.inHysteresis = false;
       }
       this.consecutiveCount = 0;
@@ -268,6 +304,7 @@ export class DetectionLoop {
       this.consecutiveCount = 0;
       this.missCount = 0;
       this.inHysteresis = true;
+      this.hysteresisEnteredAt = Date.now();
     }
   }
 
@@ -301,15 +338,17 @@ export class DetectionLoop {
    */
   private computeNextInterval(score: number, _delta: number): number {
     const { precision } = this.config;
+    const min = this.minPollMs;
+    const max = this.maxPollMs;
 
     // How close the score is to the threshold (0 = far, 1 = at/above threshold)
     const proximity = Math.min(score / Math.max(precision, 0.01), 1);
 
     // Exponential interpolation: fast when close to match, slow when far
     const t = proximity * proximity;
-    const interval = MAX_POLL_MS - t * (MAX_POLL_MS - MIN_POLL_MS);
+    const interval = max - t * (max - min);
 
-    return Math.round(Math.max(MIN_POLL_MS, Math.min(MAX_POLL_MS, interval)));
+    return Math.round(Math.max(min, Math.min(max, interval)));
   }
 
   /**
@@ -319,10 +358,12 @@ export class DetectionLoop {
    * score endpoint, because the frontend already confirmed the match
    * via its own consecutive-hits + hysteresis logic.
    */
-  private reportMatch(_score: number, _frameDelta: number): void {
-    console.log(`[Detection] Match confirmed for ${this.pokemonId} — incrementing counter`);
-    fetch(apiUrl(`/api/pokemon/${this.pokemonId}/increment`), {
+  private reportMatch(score: number, frameDelta: number): void {
+    console.log(`[Detection] Match confirmed for ${this.pokemonId} — reporting to backend`);
+    fetch(apiUrl(`/api/detector/${this.pokemonId}/match`), {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ score, frame_delta: frameDelta }),
     }).catch(() => {
       // Non-critical — backend may be temporarily unreachable
     });

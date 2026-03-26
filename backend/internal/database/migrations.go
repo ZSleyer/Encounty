@@ -29,6 +29,11 @@ var migrations = []migration{
 		description: "add columns introduced after initial baseline",
 		fn:          migrateAddMissingColumns,
 	},
+	{
+		version:     3,
+		description: "drop legacy relative_regions column from detector_configs",
+		fn:          migrateDropLegacyColumns,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -135,7 +140,6 @@ func migrateBaseline(tx *sql.Tx) error {
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3`,
 		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
-		`ALTER TABLE detector_configs ADD COLUMN relative_regions INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
 		`ALTER TABLE template_regions ADD COLUMN is_negative INTEGER NOT NULL DEFAULT 0`,
 	}
@@ -155,12 +159,20 @@ func migrateAddMissingColumns(tx *sql.Tx) error {
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3`,
 		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
-		`ALTER TABLE detector_configs ADD COLUMN relative_regions INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
 		`ALTER TABLE template_regions ADD COLUMN is_negative INTEGER NOT NULL DEFAULT 0`,
 	}
 	for _, s := range stmts {
 		_, _ = tx.Exec(s)
 	}
+	return nil
+}
+
+// migrateDropLegacyColumns removes detector config columns that are no longer
+// used after the native backend detector engine was removed. Errors are ignored
+// because the column may not exist on fresh databases where the schema was
+// already created without it.
+func migrateDropLegacyColumns(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE detector_configs DROP COLUMN relative_regions`)
 	return nil
 }
