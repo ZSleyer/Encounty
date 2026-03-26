@@ -65,20 +65,19 @@ export function DetectorSettings({
               onChange={(e) => onUpdate({ precision: Number.parseFloat(e.target.value) })}
               className="w-full accent-accent-blue"
             />
-            <p className="text-[10px] text-text-faint mt-0.5">{t("detector.precisionDesc")}</p>
+            <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.precisionDesc")}</p>
           </div>
 
           {/* Grid: cooldown + hits */}
           <div className="grid grid-cols-2 gap-3">
-            <div className={cfg.adaptive_cooldown ? "opacity-50" : ""}>
+            <div>
               <label htmlFor="det-cooldown" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.cooldown")}</label>
               <input
-                id="det-cooldown" type="number" min={1} max={120} value={cfg.cooldown_sec}
-                onChange={(e) => onUpdate({ cooldown_sec: Number.parseInt(e.target.value, 10) || 1 })}
-                disabled={cfg.adaptive_cooldown}
-                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50 disabled:cursor-not-allowed disabled:opacity-60"
+                id="det-cooldown" type="number" min={0} max={120} value={cfg.cooldown_sec}
+                onChange={(e) => onUpdate({ cooldown_sec: Number.parseInt(e.target.value, 10) || 0 })}
+                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
               />
-              <p className="text-[10px] text-text-faint mt-0.5">{t("detector.cooldownDesc")}</p>
+              <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.cooldownDesc")}</p>
             </div>
             <div>
               <label htmlFor="det-hits" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.hits")}</label>
@@ -87,14 +86,18 @@ export function DetectorSettings({
                 onChange={(e) => onUpdate({ consecutive_hits: Number.parseInt(e.target.value, 10) || 1 })}
                 className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
               />
-              <p className="text-[10px] text-text-faint mt-0.5">{t("detector.hitsDesc")}</p>
+              <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.hitsDesc")}</p>
             </div>
           </div>
+          {/* Hysteresis explanation */}
+          <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
+            {t("detector.cooldownHint").replace("{pct}", "70")}
+          </p>
 
           {/* Adaptive Polling section */}
           <div className="border-t border-border-subtle pt-3">
             <p className="text-xs 2xl:text-sm text-text-muted font-semibold mb-1">{t("detector.adaptivePolling")}</p>
-            <p className="text-[10px] text-text-faint mb-3">{t("detector.adaptivePollingDesc")}</p>
+            <p className="text-[11px] leading-relaxed text-text-muted mb-3">{t("detector.adaptivePollingDesc")}</p>
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label htmlFor="det-base-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.basePoll")}</label>
@@ -103,7 +106,7 @@ export function DetectorSettings({
                   onChange={(e) => onUpdate({ poll_interval_ms: Number.parseInt(e.target.value, 10) || 50 })}
                   className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
                 />
-                <p className="text-[10px] text-text-faint mt-0.5">{t("detector.basePollDesc")}</p>
+                <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.basePollDesc")}</p>
               </div>
               <div>
                 <label htmlFor="det-min-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.minPoll")}</label>
@@ -112,7 +115,7 @@ export function DetectorSettings({
                   onChange={(e) => onUpdate({ min_poll_ms: Number.parseInt(e.target.value, 10) || 30 })}
                   className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
                 />
-                <p className="text-[10px] text-text-faint mt-0.5">{t("detector.minPollDesc")}</p>
+                <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.minPollDesc")}</p>
               </div>
               <div>
                 <label htmlFor="det-max-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.maxPoll")}</label>
@@ -121,7 +124,7 @@ export function DetectorSettings({
                   onChange={(e) => onUpdate({ max_poll_ms: Number.parseInt(e.target.value, 10) || 500 })}
                   className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
                 />
-                <p className="text-[10px] text-text-faint mt-0.5">{t("detector.maxPollDesc")}</p>
+                <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.maxPollDesc")}</p>
               </div>
             </div>
           </div>
@@ -137,7 +140,7 @@ export function DetectorSettings({
                 <button
                   onClick={onApplyDefaults}
                   title={t("detector.tooltipApplyDefaults")}
-                  className="px-2 py-0.5 rounded text-[11px] font-medium border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
+                  className="px-2 py-0.5 rounded text-xs font-medium border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
                 >
                   {t("detector.applyDefaults")}
                 </button>
@@ -145,49 +148,19 @@ export function DetectorSettings({
             </div>
           )}
 
-          {/* Experimental: Adaptive Cooldown */}
+          {/* Experimental Features */}
           <div className="border-t border-border-subtle pt-3">
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1">
               <FlaskConical className="w-3.5 h-3.5 text-amber-400" />
               <p className="text-xs 2xl:text-sm text-text-muted font-semibold">{t("detector.experimental")}</p>
               <span className="px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/30 rounded text-[10px] font-semibold text-amber-400 uppercase tracking-wide">
                 Beta
               </span>
             </div>
-            <div className="space-y-2">
-              <div className="flex items-start gap-2">
-                <input
-                  id="det-adaptive-cooldown"
-                  type="checkbox"
-                  checked={cfg.adaptive_cooldown ?? false}
-                  onChange={(e) => onUpdate({ adaptive_cooldown: e.target.checked })}
-                  className="mt-0.5 accent-amber-400"
-                />
-                <div className="flex-1">
-                  <label htmlFor="det-adaptive-cooldown" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
-                    {t("detector.adaptiveCooldown")}
-                  </label>
-                  <p className="text-[10px] text-text-faint mt-0.5">{t("detector.adaptiveCooldownDesc")}</p>
-                </div>
-              </div>
-              {cfg.adaptive_cooldown && (
-                <div className="ml-5 pl-2 border-l border-border-subtle">
-                  <label htmlFor="det-adaptive-cooldown-min" className="block text-xs 2xl:text-sm text-text-muted mb-1">
-                    {t("detector.adaptiveCooldownMin")}
-                  </label>
-                  <input
-                    id="det-adaptive-cooldown-min"
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={cfg.adaptive_cooldown_min ?? 3}
-                    onChange={(e) => onUpdate({ adaptive_cooldown_min: Number.parseInt(e.target.value, 10) || 3 })}
-                    className="w-24 bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-amber-400/50"
-                  />
-                  <p className="text-[10px] text-text-faint mt-0.5">Minimum seconds in cooldown (1-30)</p>
-                </div>
-              )}
-            </div>
+            <p className="text-[11px] leading-relaxed text-text-muted mb-3">{t("detector.experimentalHint")}</p>
+
+            <div className="space-y-3">
+              {/* Adaptive Threshold — independent of cooldown */}
               <div className="flex items-start gap-2">
                 <input
                   id="det-adaptive-threshold"
@@ -200,115 +173,51 @@ export function DetectorSettings({
                   <label htmlFor="det-adaptive-threshold" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
                     {t("detector.adaptiveThreshold")}
                   </label>
-                  <p className="text-[10px] text-text-faint mt-0.5">{t("detector.adaptiveThresholdDesc")}</p>
+                  <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.adaptiveThresholdDesc")}</p>
                 </div>
               </div>
+
+              {/* Adaptive Cooldown — replaces fixed cooldown */}
               <div className="flex items-start gap-2">
                 <input
-                  id="det-relative-regions"
+                  id="det-adaptive-cooldown"
                   type="checkbox"
-                  checked={cfg.relative_regions ?? false}
-                  onChange={(e) => onUpdate({ relative_regions: e.target.checked })}
+                  checked={cfg.adaptive_cooldown ?? false}
+                  onChange={(e) => onUpdate({ adaptive_cooldown: e.target.checked })}
                   className="mt-0.5 accent-amber-400"
                 />
                 <div className="flex-1">
-                  <label htmlFor="det-relative-regions" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
-                    {t("detector.relativeRegions")}
+                  <label htmlFor="det-adaptive-cooldown" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
+                    {t("detector.adaptiveCooldown")}
                   </label>
-                  <p className="text-[10px] text-text-faint mt-0.5">{t("detector.relativeRegionsDesc")}</p>
+                  <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.adaptiveCooldownDesc")}</p>
                 </div>
               </div>
-          </div>
-
-          {/* Re-Match & Replay section */}
-          <div className="border-t border-border-subtle pt-3">
-            <p className="text-xs 2xl:text-sm text-text-muted font-semibold mb-1">
-              {t("detector.rematchReplay")}
-            </p>
-            <p className="text-[10px] text-text-faint mb-3">
-              {t("detector.rematchReplayDesc")}
-            </p>
-
-            {/* Toggle: Re-Match enabled */}
-            <div className="flex items-start gap-2 mb-3">
-              <input
-                id="det-rematch-enabled" type="checkbox"
-                checked={cfg.rematch_enabled ?? true}
-                onChange={(e) => onUpdate({ rematch_enabled: e.target.checked })}
-                className="mt-0.5 accent-accent-blue"
-              />
-              <div className="flex-1">
-                <label htmlFor="det-rematch-enabled" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
-                  {t("detector.rematchEnabled")}
-                </label>
-                <p className="text-[10px] text-text-faint mt-0.5">{t("detector.rematchEnabledDesc")}</p>
-              </div>
+              {cfg.adaptive_cooldown && (
+                <div className="ml-5 pl-2 border-l border-amber-500/30">
+                  <label htmlFor="det-adaptive-cooldown-min" className="block text-xs 2xl:text-sm text-text-muted mb-1">
+                    {t("detector.adaptiveCooldownMin")}
+                  </label>
+                  <input
+                    id="det-adaptive-cooldown-min"
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={cfg.adaptive_cooldown_min ?? 3}
+                    onChange={(e) => onUpdate({ adaptive_cooldown_min: Number.parseInt(e.target.value, 10) || 3 })}
+                    className="w-24 bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-amber-400/50"
+                  />
+                  <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.adaptiveCooldownMinDesc")}</p>
+                </div>
+              )}
             </div>
-
-            {cfg.rematch_enabled !== false && (
-              <div className="space-y-3 ml-5 pl-2 border-l border-border-subtle">
-                {/* Rematch threshold offset slider */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label htmlFor="det-rematch-offset" className="text-xs 2xl:text-sm text-text-muted">
-                      {t("detector.rematchOffset")}
-                    </label>
-                    <span className="text-xs 2xl:text-sm text-text-secondary font-mono">
-                      {((cfg.rematch_threshold_offset ?? 0.05) * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <input
-                    id="det-rematch-offset" type="range" min={0.01} max={0.15} step={0.01}
-                    value={cfg.rematch_threshold_offset ?? 0.05}
-                    onChange={(e) => onUpdate({ rematch_threshold_offset: Number.parseFloat(e.target.value) })}
-                    className="w-full accent-accent-blue"
-                  />
-                </div>
-
-                {/* Re-match window slider */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label htmlFor="det-rematch-window" className="text-xs 2xl:text-sm text-text-muted">
-                      {t("detector.rematchWindow")}
-                    </label>
-                    <span className="text-xs 2xl:text-sm text-text-secondary font-mono">
-                      {cfg.rematch_window_sec ?? 5}s
-                    </span>
-                  </div>
-                  <input
-                    id="det-rematch-window" type="range" min={1} max={30} step={1}
-                    value={cfg.rematch_window_sec ?? 5}
-                    onChange={(e) => onUpdate({ rematch_window_sec: Number.parseInt(e.target.value, 10) })}
-                    className="w-full accent-accent-blue"
-                  />
-                </div>
-
-                {/* Replay buffer duration slider */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label htmlFor="det-replay-buffer" className="text-xs 2xl:text-sm text-text-muted">
-                      {t("detector.replayBuffer")}
-                    </label>
-                    <span className="text-xs 2xl:text-sm text-text-secondary font-mono">
-                      {cfg.replay_buffer_sec ?? 30}s
-                    </span>
-                  </div>
-                  <input
-                    id="det-replay-buffer" type="range" min={10} max={120} step={5}
-                    value={cfg.replay_buffer_sec ?? 30}
-                    onChange={(e) => onUpdate({ replay_buffer_sec: Number.parseInt(e.target.value, 10) })}
-                    className="w-full accent-accent-blue"
-                  />
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Save + Reset */}
           <div className="flex items-center justify-between pt-2 border-t border-border-subtle">
             <button
               onClick={onReset}
-              className="text-[11px] text-text-muted hover:text-text-primary transition-colors underline underline-offset-2"
+              className="text-xs text-text-muted hover:text-text-primary transition-colors underline underline-offset-2"
             >
               {t("detector.resetSettings")}
             </button>
