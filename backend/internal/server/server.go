@@ -353,12 +353,11 @@ func (s *Server) StateGetState() state.AppState { return s.state.GetState() }
 // StateScheduleSave enqueues a deferred state save.
 func (s *Server) StateScheduleSave() { s.state.ScheduleSave() }
 
-// DetectorStopper returns the detector manager as a DetectorStopper, or nil.
+// DetectorStopper returns nil — native detection has been removed. The
+// interface is retained so the pokemon handler can still check and no-op
+// when deleting a Pokemon.
 func (s *Server) DetectorStopper() pokemonhandler.DetectorStopper {
-	if s.detectorMgr == nil {
-		return nil
-	}
-	return s.detectorMgr
+	return nil
 }
 
 // EncounterLogger returns the database as an EncounterLogger, or nil.
@@ -383,6 +382,13 @@ func (s *Server) DetectorDB() detectorhandler.DetectorStore {
 	return dbAs[detectorhandler.DetectorStore](s.db)
 }
 
+// DetectorEncounterLogger returns the database as a detectorhandler.EncounterLogger
+// so the detector match handler can persist encounter events. Returns nil when
+// no database is configured.
+func (s *Server) DetectorEncounterLogger() detectorhandler.EncounterLogger {
+	return dbAs[detectorhandler.EncounterLogger](s.db)
+}
+
 // Start begins accepting HTTP connections. Blocks until the server is shut
 // down; returns http.ErrServerClosed on a clean shutdown.
 func (s *Server) Start() error {
@@ -391,12 +397,8 @@ func (s *Server) Start() error {
 }
 
 // Shutdown gracefully stops the HTTP server, waiting up to ctx's deadline
-// for in-flight requests to complete. If a detector manager is wired, all
-// running detectors are stopped before the HTTP server shuts down.
+// for in-flight requests to complete.
 func (s *Server) Shutdown(ctx context.Context) error {
-	if s.detectorMgr != nil {
-		s.detectorMgr.StopAll()
-	}
 	return s.httpServer.Shutdown(ctx)
 }
 

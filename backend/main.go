@@ -86,11 +86,8 @@ func main() {
 	}
 	hotkeyMgr := initHotkeys(stateMgr)
 
-	// Detector manager — broadcast function is wired after server creation.
-	var broadcastFn detector.BroadcastFunc = func(msgType string, payload any) { /* replaced after server init */ }
-	detectorMgr := detector.NewManager(stateMgr, func(msgType string, payload any) {
-		broadcastFn(msgType, payload)
-	}, configDir)
+	// Detector manager — holds references for config/template management.
+	detectorMgr := detector.NewManager(stateMgr, configDir)
 
 	srv := server.New(server.Config{
 		Port:        port,
@@ -107,7 +104,6 @@ func main() {
 		FrontendDir: *frontendDir,
 	})
 
-	broadcastFn = srv.Broadcast
 	srv.InitAsync()
 
 	startGracefulShutdown(srv, hotkeyMgr, db, stateMgr)
