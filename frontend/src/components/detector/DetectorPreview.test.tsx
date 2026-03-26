@@ -108,19 +108,7 @@ describe("DetectorPreview", () => {
     expect(screen.queryByText(/92\.0%/)).not.toBeInTheDocument();
   });
 
-  it("renders detection log entries when present", () => {
-    const logEntries: DetectionLogEntry[] = [
-      { at: "2024-06-01T12:00:00Z", confidence: 0.92 },
-      { at: "2024-06-01T12:01:00Z", confidence: 0.88 },
-    ];
-    renderPreview({
-      pokemon: makePokemon({
-        detector_config: makeDetectorConfig({ detection_log: logEntries }),
-      }),
-    });
-    expect(screen.getByText("92.0%")).toBeInTheDocument();
-    expect(screen.getByText("88.0%")).toBeInTheDocument();
-  });
+  // Detection log was moved from DetectorPreview to DetectorPanel's right panel tabs
 
   it("renders with browser_camera source type selected", () => {
     renderPreview({

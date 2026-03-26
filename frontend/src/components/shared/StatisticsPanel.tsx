@@ -59,7 +59,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   return (
     <div className="w-full space-y-6 pb-8">
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard
           icon={<BarChart3 className="w-4 h-4 text-accent-blue" />}
           label={t("stats.total")}
@@ -82,104 +82,107 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
         />
       </div>
 
-      {/* Chart */}
-      <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-text-primary">
-            {t("stats.chartTitle")}
-          </h3>
-          <div className="flex gap-1 bg-bg-secondary rounded-lg p-0.5" role="group" aria-label={t("stats.chartTitle")}>
-            {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
-              <button
-                key={iv}
-                onClick={() => setInterval(iv)}
-                aria-pressed={interval === iv}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
-                  interval === iv
-                    ? "bg-accent-blue text-white"
-                    : "text-text-muted hover:text-text-primary"
-                }`}
-              >
-                {t(`stats.interval.${iv}`)}
-              </button>
-            ))}
-          </div>
-        </div>
-        {chartData.length > 0 ? (
-          <div role="img" aria-label={t("stats.chartTitle")}>
-            <ResponsiveContainer width="100%" height={200}>
-              <AreaChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis
-                  dataKey="label"
-                  tick={{ fontSize: 10, fill: "#94a3b8" }}
-                  tickFormatter={(v: string) => {
-                    if (interval === "hour") return v.slice(11, 16);
-                    if (interval === "week") return v;
-                    return v.slice(5);
-                  }}
-                />
-                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={40} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#1e293b",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="count"
-                  stroke="#3b82f6"
-                  fill="#3b82f6"
-                  fillOpacity={0.15}
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <div className="flex items-center justify-center h-50 text-text-faint text-sm">
-            {t("stats.noData")}
-          </div>
-        )}
-      </div>
-
-      {/* Recent History */}
-      <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">
-          {t("stats.recentHistory")}
-        </h3>
-        {history.length > 0 ? (
-          <div className="space-y-1 max-h-64 overflow-y-auto" role="list">
-            {history.map((e) => (
-              <div
-                key={e.id}
-                role="listitem"
-                className="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-bg-hover text-xs transition-colors"
-              >
-                <time dateTime={e.timestamp} className="text-text-muted">
-                  {new Date(e.timestamp).toLocaleString()}
-                </time>
-                <span
-                  className={`font-mono font-semibold ${
-                    e.delta > 0 ? "text-accent-green" : "text-accent-red"
+      {/* Chart + History (side-by-side on xl) */}
+      <div className="xl:grid xl:grid-cols-[2fr_1fr] xl:gap-6 space-y-6 xl:space-y-0">
+        {/* Chart */}
+        <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-text-primary">
+              {t("stats.chartTitle")}
+            </h3>
+            <div className="flex gap-1 bg-bg-secondary rounded-lg p-0.5" role="group" aria-label={t("stats.chartTitle")}>
+              {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
+                <button
+                  key={iv}
+                  onClick={() => setInterval(iv)}
+                  aria-pressed={interval === iv}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                    interval === iv
+                      ? "bg-accent-blue text-white"
+                      : "text-text-muted hover:text-text-primary"
                   }`}
                 >
-                  {e.delta > 0 ? "+" : ""}
-                  {e.delta}
-                </span>
-                <span className="text-text-secondary tabular-nums">
-                  → {e.count_after}
-                </span>
-                <span className="text-text-faint">{e.source}</span>
-              </div>
-            ))}
+                  {t(`stats.interval.${iv}`)}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : (
-          <p className="text-text-faint text-xs">{t("stats.noHistory")}</p>
-        )}
+          {chartData.length > 0 ? (
+            <div role="img" aria-label={t("stats.chartTitle")} className="h-[200px] lg:h-[300px] xl:h-[350px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: "#94a3b8" }}
+                    tickFormatter={(v: string) => {
+                      if (interval === "hour") return v.slice(11, 16);
+                      if (interval === "week") return v;
+                      return v.slice(5);
+                    }}
+                  />
+                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={40} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#1e293b",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#3b82f6"
+                    fill="#3b82f6"
+                    fillOpacity={0.15}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-50 text-text-faint text-sm">
+              {t("stats.noData")}
+            </div>
+          )}
+        </div>
+
+        {/* Recent History */}
+        <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">
+            {t("stats.recentHistory")}
+          </h3>
+          {history.length > 0 ? (
+            <div className="space-y-1 max-h-96 xl:max-h-[500px] overflow-y-auto" role="list">
+              {history.map((e) => (
+                <div
+                  key={e.id}
+                  role="listitem"
+                  className="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-bg-hover text-xs transition-colors"
+                >
+                  <time dateTime={e.timestamp} className="text-text-muted">
+                    {new Date(e.timestamp).toLocaleString()}
+                  </time>
+                  <span
+                    className={`font-mono font-semibold ${
+                      e.delta > 0 ? "text-accent-green" : "text-accent-red"
+                    }`}
+                  >
+                    {e.delta > 0 ? "+" : ""}
+                    {e.delta}
+                  </span>
+                  <span className="text-text-secondary tabular-nums">
+                    → {e.count_after}
+                  </span>
+                  <span className="text-text-faint">{e.source}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-text-faint text-xs">{t("stats.noHistory")}</p>
+          )}
+        </div>
       </div>
     </div>
   );

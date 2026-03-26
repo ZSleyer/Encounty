@@ -170,6 +170,7 @@ export function DetectorPanel({
   const [addingSprite, setAddingSprite] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [rightTab, setRightTab] = useState<"templates" | "log" | "settings">("templates");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Per-pokemon detection loop (local ref for the currently viewed pokemon)
@@ -726,48 +727,37 @@ export function DetectorPanel({
           onChange={handleDevVideoFile}
         />
       )}
-      <div className="space-y-5">
-        {/* --- Header with Tutorial button ----------------------------------- */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text-secondary">
-            {t("detector.title")}
-          </h2>
-          <button
-            onClick={handleShowTutorial}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-            title={t("tooltip.editor.showTutorial")}
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            Tutorial
-          </button>
-        </div>
 
-        {/* --- Control bar --------------------------------------------------- */}
-        <div
-          data-detector-tutorial="controls"
-          className={`flex items-center gap-3 rounded-xl px-4 py-3 shadow-sm transition-colors bg-bg-card border ${
-          showAsRunning && detectorState === "match_active"
-            ? "border-green-500/30"
-            : "border-border-subtle"
-        }`}>
+      <div className="flex flex-col h-full">
+        {/* Control Bar — slim top bar */}
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-card border-b border-border-subtle shrink-0">
           {/* Status indicator */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className={`inline-block w-2.5 h-2.5 2xl:w-3 2xl:h-3 rounded-full shrink-0 ${dotClass} ${pulse || isStarting ? "animate-pulse" : ""}`} />
-            <span className={`text-xs 2xl:text-sm font-semibold truncate ${(() => {
-              if (detectorState === "match_active") return "text-green-400";
-              return showAsRunning ? "text-accent-blue" : "text-text-muted";
-            })()}`}>
-              {(() => {
-                if (isStarting) return t("detector.starting");
-                if (isRunning) return stateLabel(detectorState, isRunning, t);
-                return t("detector.stopped");
-              })()}
-            </span>
-          </div>
+          <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${dotClass} ${pulse || isStarting ? "animate-pulse" : ""}`} />
+          <span className={`text-xs font-semibold truncate ${(() => {
+            if (detectorState === "match_active") return "text-green-400";
+            return showAsRunning ? "text-accent-blue" : "text-text-muted";
+          })()}`}>
+            {(() => {
+              if (isStarting) return t("detector.starting");
+              if (isRunning) return stateLabel(detectorState, isRunning, t);
+              return t("detector.stopped");
+            })()}
+          </span>
 
-          {/* Confidence indicator */}
+          {/* Pokemon name */}
+          <span className="text-sm font-medium text-text-secondary truncate">{pokemon.name}</span>
+
+          {/* CPU fallback badge */}
+          {detectorBackend === "cpu" && (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 shrink-0" title={t("detector.cpuFallbackWarning")}>
+              <AlertTriangle className="w-3 h-3" />
+              CPU
+            </span>
+          )}
+
+          {/* Confidence bar — only when running */}
           {isRunning && (
-            <div className="flex items-center gap-2 flex-1">
+            <div className="flex items-center gap-2 flex-1 max-w-xs">
               <div className="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-150 ${
@@ -782,6 +772,9 @@ export function DetectorPanel({
             </div>
           )}
 
+          {/* Spacer */}
+          <div className="flex-1" />
+
           {/* Start / Stop button */}
           <button
             onClick={isRunning ? handleStop : handleStart}
@@ -790,202 +783,261 @@ export function DetectorPanel({
               if (!isRunning && !canStart) return isCapturing ? t("detector.errNoTemplates") : t("detector.errNoStream");
               return isRunning ? t("detector.tooltipStop") : t("detector.tooltipStart");
             })()}
+            aria-label={isRunning ? t("detector.stop") : t("detector.start")}
             className={(() => {
-              const base = "px-5 py-1.5 2xl:px-6 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-bold transition-colors border shrink-0 flex items-center gap-1.5";
+              const base = "px-4 py-1.5 rounded-lg text-xs font-bold transition-colors border shrink-0 flex items-center gap-1.5";
               if (isRunning) return `${base} bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20`;
-              if (isStarting) return `${base} bg-accent-blue/50 border-accent-blue/50 text-white cursor-wait`;
-              if (canStart) return `${base} bg-accent-blue border-accent-blue text-white hover:bg-accent-blue/90`;
+              if (isStarting) return `${base} bg-accent-blue/50 border-accent-blue/50 cursor-wait`;
+              if (canStart) return `${base} bg-accent-blue border-accent-blue hover:bg-accent-blue/90`;
               return `${base} bg-bg-hover border-border-subtle text-text-muted cursor-not-allowed opacity-60`;
             })()}
           >
             {isStarting && <Loader2 className="w-3 h-3 animate-spin" />}
             {isRunning ? t("detector.stop") : t("detector.start")}
           </button>
+
+          {/* Tutorial button */}
+          <button
+            onClick={handleShowTutorial}
+            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+            title={t("tooltip.editor.showTutorial")}
+            aria-label="Tutorial"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* --- Error banner -------------------------------------------------- */}
+        {/* Error/Warning banners */}
         {errorMsg && (
           <button
             type="button"
-            className="flex items-start gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-xs text-red-400 cursor-pointer w-full text-left"
+            className="flex items-start gap-2 px-4 py-2 bg-red-500/10 border-b border-red-500/30 text-xs text-red-400 cursor-pointer w-full text-left shrink-0"
             onClick={() => setErrorMsg(null)}
           >
             <span className="flex-1">{errorMsg}</span>
             <span className="shrink-0 opacity-60">{"\u2715"}</span>
           </button>
         )}
-
-        {/* --- CPU fallback warning ------------------------------------------ */}
-        {detectorBackend === "cpu" && (
-          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-400 text-sm">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
-            <span>{t("detector.cpuFallbackWarning")}</span>
-          </div>
-        )}
-
-        {/* --- Preview Component --------------------------------------------- */}
-        <DetectorPreview
-          pokemon={pokemon}
-          cfg={cfg}
-          onSourceTypeChange={(sourceType) => setCfg((prev) => ({ ...prev, source_type: sourceType as DetectorConfig["source_type"] }))}
-          onStartCapture={startCapture}
-          onStopCapture={stopCapture}
-          isRunning={isRunning}
-          confidence={confidence}
-        />
-
-        {/* --- Templates ----------------------------------------------------- */}
-        <div
-          data-detector-tutorial="templates"
-          className="bg-bg-card border border-border-subtle rounded-xl shadow-sm p-4"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">
-              {t("detector.templates")}
-              {templates.length > 0 && (
-                <span className="ml-1.5 bg-accent-blue/20 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-full">
-                  {templates.length}
-                </span>
-              )}
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  if (!stream) { setErrorMsg(t("detector.errNoStream")); return; }
-                  setShowAddTemplate(true);
-                }}
-                title={t("detector.tooltipAddFromVideo")}
-                className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
-              >
-                <Plus className="w-3 h-3" />
-                {t("detector.addFromVideo")}
-              </button>
-              {hasGameSprite && (
-                <button
-                  onClick={handleAddSpriteTemplate}
-                  disabled={addingSprite}
-                  title={t("detector.tooltipAddFromSprite")}
-                  className="flex items-center gap-1 px-2.5 py-1 2xl:px-3 2xl:py-1.5 rounded-lg text-[11px] 2xl:text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors disabled:opacity-50"
-                >
-                  {addingSprite ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
-                  ) : (
-                    <Sparkles className="w-3 h-3" />
-                  )}
-                  {t("detector.addFromSprite")}
-                </button>
-              )}
-              {/* More menu (import/export) */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowMoreMenu((v) => !v)}
-                  className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
-                  title={t("detector.more")}
-                >
-                  <MoreHorizontal className="w-3.5 h-3.5" />
-                </button>
-                {showMoreMenu && (
-                  <>
-                    <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMoreMenu(false)} aria-label="Close menu" />
-                    <div className="absolute right-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-45">
-                      {templates.length > 0 && (
-                        <button
-                          onClick={handleExportTemplates}
-                          className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          {t("detector.exportTemplates")}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => { setShowImportModal(true); setShowMoreMenu(false); }}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                      >
-                        <Upload className="w-3.5 h-3.5" />
-                        {t("detector.importFromPokemon")}
-                      </button>
-                      <button
-                        onClick={() => { fileInputRef.current?.click(); setShowMoreMenu(false); }}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                      >
-                        <FileDown className="w-3.5 h-3.5" />
-                        {t("detector.importFromFile")}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".encounty-templates,.zip"
-                className="hidden"
-                onChange={handleImportFromFile}
-              />
-            </div>
+        {/* Main content — fills remaining height */}
+        <div className="flex-1 min-h-0 flex gap-4 p-4">
+          {/* Left: Preview — takes most space */}
+          <div className="flex-1 min-w-0">
+            <DetectorPreview
+              pokemon={pokemon}
+              cfg={cfg}
+              onSourceTypeChange={(sourceType) => setCfg((prev) => ({ ...prev, source_type: sourceType as DetectorConfig["source_type"] }))}
+              onStartCapture={startCapture}
+              onStopCapture={stopCapture}
+              isRunning={isRunning}
+              confidence={confidence}
+            />
           </div>
 
-          {templates.length > 0 ? (
-            <div className="grid grid-cols-4 2xl:grid-cols-5 gap-2">
-              {templates.map((tmpl, index) => (
-                <div key={`template-${tmpl.image_path}-${index}`} className="relative group">
-                  <img
-                    src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
-                    alt={`Template ${index + 1}`}
-                    className={`w-full aspect-square object-contain rounded-lg border border-border-subtle bg-bg-primary transition-all ${
-                      tmpl.enabled === false ? "opacity-40 grayscale" : ""
-                    }`}
-                  />
-                  {/* Region count badge */}
-                  {(tmpl.regions?.length ?? 0) > 0 && (
-                    <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded font-mono">
-                      {tmpl.regions.length}R
+          {/* Right: Tabbed panel — Templates | Log | Settings */}
+          <div className="w-80 xl:w-96 shrink-0 flex flex-col min-h-0 bg-bg-card border border-border-subtle rounded-xl shadow-sm overflow-hidden" data-detector-tutorial="templates">
+            {/* Tab bar */}
+            <div className="flex shrink-0 border-b border-border-subtle">
+              {([["templates", t("detector.templates")], ["log", t("detector.logTitle")], ["settings", t("detector.settingsTitle")]] as const).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setRightTab(tab)}
+                  className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
+                    rightTab === tab
+                      ? "text-accent-blue border-b-2 border-accent-blue bg-accent-blue/5"
+                      : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                  }`}
+                >
+                  {label}
+                  {tab === "templates" && templates.length > 0 && (
+                    <span className="ml-1 text-[10px] bg-accent-blue/20 text-accent-blue px-1 py-0.5 rounded-full">
+                      {templates.length}
                     </span>
                   )}
-                  {/* Overlay buttons on hover */}
-                  <div className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button
-                      onClick={() => handleToggleTemplate(index)}
-                      className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-amber-500 transition-colors"
-                      title={tmpl.enabled === false ? t("detector.enableTemplate") : t("detector.disableTemplate")}
-                    >
-                      {tmpl.enabled === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                    </button>
-                    <button
-                      onClick={() => handleEditTemplate(index)}
-                      className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-accent-blue transition-colors"
-                      title={t("detector.editTemplate")}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTemplate(index)}
-                      className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-red-500 transition-colors"
-                      title={t("detector.deleteTemplate")}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+                </button>
               ))}
             </div>
-          ) : (
-            <p className="text-xs text-text-faint text-center py-4">
-              {t("detector.noTemplates")}
-            </p>
-          )}
-        </div>
 
-        {/* --- Settings Component -------------------------------------------- */}
-        <DetectorSettings
-          cfg={cfg}
-          onUpdate={updateCfg}
-          onSave={handleSaveSettings}
-          onReset={handleResetSettings}
-          settingsDirty={settingsDirty}
-          activePreset={activePreset}
-          onApplyDefaults={handleApplyDefaultsWithDirty}
-        />
+            {/* Tab content */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4">
+              {rightTab === "templates" && (
+                <>
+                  {/* Template action buttons */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <button
+                      onClick={() => {
+                        if (!stream) { setErrorMsg(t("detector.errNoStream")); return; }
+                        setShowAddTemplate(true);
+                      }}
+                      title={t("detector.tooltipAddFromVideo")}
+                      aria-label={t("detector.tooltipAddFromVideo")}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-accent-blue hover:bg-accent-blue/90 transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
+                      {t("detector.addFromVideo")}
+                    </button>
+                    {hasGameSprite && (
+                      <button
+                        onClick={handleAddSpriteTemplate}
+                        disabled={addingSprite}
+                        title={t("detector.tooltipAddFromSprite")}
+                        aria-label={t("detector.tooltipAddFromSprite")}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors disabled:opacity-50"
+                      >
+                        {addingSprite ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3 h-3" />
+                        )}
+                        {t("detector.addFromSprite")}
+                      </button>
+                    )}
+                    {/* More menu */}
+                    <div className="relative ml-auto">
+                      <button
+                        onClick={() => setShowMoreMenu((v) => !v)}
+                        className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
+                        title={t("detector.more")}
+                        aria-label={t("detector.more")}
+                      >
+                        <MoreHorizontal className="w-3.5 h-3.5" />
+                      </button>
+                      {showMoreMenu && (
+                        <>
+                          <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMoreMenu(false)} aria-label="Close menu" />
+                          <div className="absolute right-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-45">
+                            {templates.length > 0 && (
+                              <button
+                                onClick={handleExportTemplates}
+                                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                {t("detector.exportTemplates")}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => { setShowImportModal(true); setShowMoreMenu(false); }}
+                              className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                            >
+                              <Upload className="w-3.5 h-3.5" />
+                              {t("detector.importFromPokemon")}
+                            </button>
+                            <button
+                              onClick={() => { fileInputRef.current?.click(); setShowMoreMenu(false); }}
+                              className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                            >
+                              <FileDown className="w-3.5 h-3.5" />
+                              {t("detector.importFromFile")}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".encounty-templates,.zip"
+                      className="hidden"
+                      onChange={handleImportFromFile}
+                    />
+                  </div>
+                  {/* Template grid */}
+                  {templates.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {templates.map((tmpl, index) => (
+                        <div key={`template-${tmpl.image_path}-${index}`} className="relative group">
+                          <img
+                            src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
+                            alt={`Template ${index + 1}`}
+                            className={`w-full aspect-square object-contain rounded-lg border border-border-subtle bg-bg-primary transition-all ${
+                              tmpl.enabled === false ? "opacity-40 grayscale" : ""
+                            }`}
+                          />
+                          {/* Region count badge */}
+                          {(tmpl.regions?.length ?? 0) > 0 && (
+                            <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded font-mono">
+                              {tmpl.regions.length}R
+                            </span>
+                          )}
+                          {/* Overlay buttons on hover */}
+                          <div className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleToggleTemplate(index)}
+                              className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-amber-500 transition-colors"
+                              title={tmpl.enabled === false ? t("detector.enableTemplate") : t("detector.disableTemplate")}
+                            >
+                              {tmpl.enabled === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                            <button
+                              onClick={() => handleEditTemplate(index)}
+                              className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-accent-blue transition-colors"
+                              title={t("detector.editTemplate")}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTemplate(index)}
+                              className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-red-500 transition-colors"
+                              title={t("detector.deleteTemplate")}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-text-faint text-center py-4">
+                      {t("detector.noTemplates")}
+                    </p>
+                  )}
+                </>
+              )}
+
+              {rightTab === "log" && (
+                <div className="space-y-0.5">
+                  {(() => {
+                    const log = pokemon.detector_config?.detection_log;
+                    if (!log || log.length === 0) {
+                      return (
+                        <p className="text-xs text-text-faint text-center py-4">
+                          {t("detector.noLogEntries")}
+                        </p>
+                      );
+                    }
+                    return [...log].reverse().map((entry, i) => (
+                      <div key={`log-${entry.at}-${i}`} className="flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-bg-hover transition-colors">
+                        <time className="text-text-faint font-mono shrink-0">
+                          {new Date(entry.at).toLocaleTimeString()}
+                        </time>
+                        <span className={`font-mono shrink-0 ${
+                          entry.confidence >= cfg.precision ? "text-green-400" : "text-text-muted"
+                        }`}>
+                          {(entry.confidence * 100).toFixed(1)}%
+                        </span>
+                        {entry.confidence >= cfg.precision && (
+                          <span className="text-green-400 font-semibold">Match</span>
+                        )}
+                      </div>
+                    ));
+                  })()}
+                </div>
+              )}
+
+              {rightTab === "settings" && (
+                <DetectorSettings
+                  cfg={cfg}
+                  onUpdate={updateCfg}
+                  onSave={handleSaveSettings}
+                  onReset={handleResetSettings}
+                  settingsDirty={settingsDirty}
+                  activePreset={activePreset}
+                  onApplyDefaults={handleApplyDefaultsWithDirty}
+                  embedded
+                />
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* --- Template Editor: Add from Video --------------------------------- */}

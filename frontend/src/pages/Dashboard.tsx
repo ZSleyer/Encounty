@@ -37,6 +37,7 @@ import {
   BarChart3,
   Check,
   Monitor,
+  Target,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
@@ -840,9 +841,9 @@ export function Dashboard() {
   /** Renders the counter tab with sprite, encounter buttons, timer, and stats. */
   const renderCounterTab = (pokemon: Pokemon) => (
     <>
-      {/* Archived banner */}
+      {/* Caught banner */}
       {pokemon.completed_at && (
-        <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-12">
+        <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-8">
           <Trophy className="w-4 h-4" />
           <span className="font-bold">{t("dash.caughtBanner")}</span>
           <span className="w-px h-3 bg-accent-green/30" />
@@ -855,10 +856,9 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Solid Card for Sprite */}
-      <div className="relative w-full aspect-2/1 max-h-75 mb-8 mt-12 flex items-center justify-center">
-        {/* Clean, no-glow sprite container */}
-        <div className="relative z-10 p-8 flex flex-col items-center">
+      {/* Sprite + Name */}
+      <div className="relative w-full max-h-64 mb-4 mt-8 flex items-center justify-center">
+        <div className="relative z-10 flex flex-col items-center">
           <img
             src={
               imgError[pokemon.id] || !pokemon.sprite_url
@@ -872,45 +872,61 @@ export function Dashboard() {
                 [pokemon.id]: true,
               }))
             }
-            className="pokemon-sprite w-56 h-56 2xl:w-64 2xl:h-64 object-contain relative z-10 drop-shadow-xl transition-transform duration-300 hover:scale-110"
+            className="pokemon-sprite w-48 h-48 2xl:w-56 2xl:h-56 object-contain drop-shadow-xl transition-transform duration-300 hover:scale-110"
           />
         </div>
-        {/* Pokemon Name Overlay */}
-        <h2 className="absolute -bottom-2 text-4xl 2xl:text-5xl font-black text-text-primary capitalize tracking-wide drop-shadow-md z-20">
-          {pokemon.name}
-        </h2>
       </div>
+      <h2 className="text-3xl 2xl:text-4xl font-black text-text-primary capitalize tracking-wide drop-shadow-md text-center mb-2">
+        {pokemon.name}
+      </h2>
+
+      {/* Timer — integrated below name */}
+      <PokemonTimer pokemon={pokemon} send={send} />
 
       {/* Main Counter Section */}
-      <div className="flex items-center gap-6 mt-8 w-full justify-center">
+      <div className="flex items-center gap-4 2xl:gap-6 mt-6 w-full justify-center">
         {/* Minus Button */}
         <button
           onClick={() => !pokemon.completed_at && handleDecrement(pokemon.id)}
           disabled={!!pokemon.completed_at}
-          className="flex items-center justify-center w-16 h-16 2xl:w-20 2xl:h-20 rounded-2xl bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label={`−${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
+          className="flex items-center justify-center w-14 h-14 2xl:w-18 2xl:h-18 rounded-2xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-muted hover:text-accent-blue transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           title={`−${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
         >
           {pokemon.step && pokemon.step > 1 ? (
             <span className="text-lg font-bold">−{pokemon.step}</span>
           ) : (
-            <Minus className="w-8 h-8" />
+            <Minus className="w-7 h-7" />
           )}
         </button>
 
-        {/* Solid Counter Card */}
-        <div className="bg-bg-card rounded-3xl px-16 py-8 2xl:px-20 2xl:py-10 text-center border border-border-subtle shadow-md min-w-85 relative group" aria-live="polite">
+        {/* Counter Card — enhanced with subtle glow */}
+        <div className="bg-bg-card rounded-3xl px-12 py-6 2xl:px-16 2xl:py-8 text-center border border-border-subtle shadow-lg min-w-72 relative group" aria-live="polite">
           <div
-            className="text-7xl 2xl:text-8xl font-black tabular-nums leading-none tracking-tight text-text-primary"
+            className="text-6xl 2xl:text-7xl font-black tabular-nums leading-none tracking-tight text-text-primary"
           >
             {pokemon.encounters.toLocaleString()}
           </div>
           {!pokemon.completed_at && (
             <button
               onClick={() => setSetEncounterPokemon(pokemon)}
-              className="absolute top-3 right-3 p-1.5 rounded-lg bg-bg-hover/0 hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
+              className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
               title={t("dash.setEncounters")}
+              aria-label={t("dash.setEncounters")}
             >
               <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {/* Reset link — subtle, inside counter card */}
+          {!pokemon.completed_at && (
+            <button
+              onClick={() => handleReset(pokemon.id)}
+              className="mt-3 text-[11px] text-text-faint hover:text-text-muted transition-colors flex items-center gap-1 mx-auto"
+              title={t("tooltip.common.reset")}
+              aria-label={t("tooltip.common.reset")}
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset
             </button>
           )}
         </div>
@@ -919,43 +935,38 @@ export function Dashboard() {
         <button
           onClick={() => !pokemon.completed_at && handleIncrement(pokemon.id)}
           disabled={!!pokemon.completed_at}
-          className="flex items-center justify-center w-20 h-20 2xl:w-24 2xl:h-24 rounded-2xl bg-accent-green border border-transparent hover:bg-accent-green/90 text-white transition-all active:scale-95 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+          aria-label={`+${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
+          className="flex items-center justify-center w-18 h-18 2xl:w-22 2xl:h-22 rounded-2xl bg-accent-green hover:bg-accent-green/90 transition-all active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           title={`+${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
         >
           {pokemon.step && pokemon.step > 1 ? (
             <span className="text-2xl font-bold">+{pokemon.step}</span>
           ) : (
-            <Plus className="w-10 h-10 stroke-[3px]" />
+            <Plus className="w-9 h-9 stroke-[3px]" />
           )}
         </button>
       </div>
 
-      {/* Reset Button */}
-      {!pokemon.completed_at && (
-        <button
-           onClick={() => handleReset(pokemon.id)}
-           className="mt-6 flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-bg-card border border-border-subtle hover:bg-bg-hover text-text-muted hover:text-text-primary transition-all shadow-sm text-xs font-semibold"
-         >
-           <RotateCcw className="w-4 h-4" />
-           Reset Counter
-         </button>
-      )}
-
-      {/* Per-Pokemon Timer */}
-      <PokemonTimer pokemon={pokemon} send={send} />
-
-      {/* Bottom Statistics Cards */}
-      <div className="grid grid-cols-2 gap-6 mt-12 w-full max-w-xl mx-auto">
-        {/* Encounter */}
-        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
-          <div className="text-text-muted text-[11px] 2xl:text-xs font-bold uppercase tracking-widest mb-1">{t("dash.phase") || "Encounter"}</div>
-          <div className="text-xl 2xl:text-2xl font-black text-text-primary">{pokemon.encounters.toLocaleString()}</div>
+      {/* Bottom Statistics Cards — with icons */}
+      <div className="grid grid-cols-2 gap-4 mt-10 w-full max-w-lg mx-auto">
+        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center shrink-0">
+            <Zap className="w-5 h-5 text-accent-blue" />
+          </div>
+          <div>
+            <div className="text-text-muted text-[10px] font-bold uppercase tracking-widest">{t("dash.phase") || "Encounter"}</div>
+            <div className="text-lg font-black text-text-primary tabular-nums">{pokemon.encounters.toLocaleString()}</div>
+          </div>
         </div>
-        {/* Odds */}
-        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-5 flex flex-col items-center justify-center hover:bg-bg-hover transition-colors">
-          <div className="text-text-muted text-[11px] 2xl:text-xs font-bold uppercase tracking-widest mb-1">{t("dash.odds") || "Odds"}</div>
-          <div className="text-xl 2xl:text-2xl font-black text-accent-blue">
-            {oddsDisplay}
+        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-accent-purple/10 flex items-center justify-center shrink-0">
+            <Target className="w-5 h-5 text-accent-purple" />
+          </div>
+          <div>
+            <div className="text-text-muted text-[10px] font-bold uppercase tracking-widest">{t("dash.odds") || "Odds"}</div>
+            <div className="text-lg font-black text-accent-blue tabular-nums">
+              {oddsDisplay}
+            </div>
           </div>
         </div>
       </div>
@@ -968,19 +979,7 @@ export function Dashboard() {
 
     if (rightPanelTab === "detector") {
       return (
-        <div className="w-full">
-          <div className="text-center mb-6">
-             <h2 className="text-2xl font-semibold text-text-primary mb-2 flex items-center justify-center gap-2">
-                <Eye className="w-6 h-6 text-accent-blue" />
-                {t("dash.tabDetector")}: {pokemon.name}
-             </h2>
-             <p className="text-sm text-text-muted max-w-md mx-auto">
-                {t("detector.tabHint")}
-             </p>
-             <p className="text-xs text-text-faint mt-1 max-w-md mx-auto">
-                {t("dash.detectorHint")}
-             </p>
-          </div>
+        <div className="w-full h-full">
           <DetectorPanel
             key={pokemon.id}
             pokemon={pokemon}
@@ -999,7 +998,7 @@ export function Dashboard() {
 
     if (rightPanelTab === "statistics") {
       return (
-        <div className="w-full max-w-3xl mx-auto">
+        <div className="w-full">
           <StatisticsPanel pokemonId={pokemon.id} />
         </div>
       );
@@ -1010,11 +1009,17 @@ export function Dashboard() {
 
   /** Renders the scrollable inner work area with the active tab content. */
   const renderScrollableContent = (pokemon: Pokemon) => {
-    const overlayOrDefault = rightPanelTab === "overlay" ? "max-w-full mt-0" : "max-w-2xl mt-0 pb-16";
-    const innerMaxWidth = rightPanelTab === "counter" ? "max-w-3xl mt-0" : overlayOrDefault;
-    const outerOverflow = rightPanelTab === "overlay" ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8";
+    const getInnerMaxWidth = () => {
+      if (rightPanelTab === "counter") return "max-w-3xl mt-0";
+      if (rightPanelTab === "overlay") return "max-w-full mt-0";
+      if (rightPanelTab === "statistics") return "max-w-full mt-0 pb-16";
+      if (rightPanelTab === "detector") return "max-w-full mt-0";
+      return "max-w-2xl mt-0 pb-16";
+    };
+    const innerMaxWidth = getInnerMaxWidth();
+    const outerOverflow = (rightPanelTab === "overlay" || rightPanelTab === "detector") ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8";
     const outerJustify = rightPanelTab === "counter" ? "justify-center" : "justify-start";
-    const innerHeight = rightPanelTab === "overlay" ? "h-full" : "";
+    const innerHeight = (rightPanelTab === "overlay" || rightPanelTab === "detector") ? "h-full" : "";
 
     return (
       <div className={`flex-1 flex flex-col items-center relative z-10 w-full ${outerOverflow} ${outerJustify}`}>

@@ -1,8 +1,8 @@
 /**
  * DetectorPreview.tsx — Live preview and detection status display.
  *
- * Shows the current capture/video frame preview, detection status indicators
- * (confidence badge, match status), and the detection log entries.
+ * Shows the current capture/video frame preview with detection status
+ * indicators (confidence badge, match status).
  * Uses the CaptureService for browser-native MediaStream rendering.
  */
 import { useEffect, useRef } from "react";
@@ -64,12 +64,12 @@ export function DetectorPreview({
   }, [stream]);
 
   return (
-    <div className="space-y-5">
-      {/* --- Source + Preview ------------------------------------------------- */}
-      <div className="bg-bg-card border border-border-subtle rounded-xl overflow-hidden shadow-sm">
+    <div className="h-full flex flex-col">
+      <div className="flex-1 min-h-0 bg-bg-card border border-border-subtle rounded-xl overflow-hidden flex flex-col">
+        {/* Source header */}
         <div
           data-detector-tutorial="source"
-          className="flex items-center justify-between px-4 py-2.5 border-b border-border-subtle"
+          className="flex items-center justify-between px-3 py-2 border-b border-border-subtle shrink-0"
         >
           <span className="text-xs text-text-muted font-semibold uppercase tracking-wider">
             {t("detector.source")}
@@ -115,9 +115,10 @@ export function DetectorPreview({
             )}
           </div>
         </div>
+        {/* Video — fills remaining space */}
         <div
           data-detector-tutorial="preview"
-          className="relative w-full aspect-video bg-black"
+          className="flex-1 min-h-0 relative bg-black"
         >
           {stream ? (
             <video
@@ -125,12 +126,12 @@ export function DetectorPreview({
               autoPlay
               playsInline
               muted
-              className="w-full h-full object-contain"
+              className="absolute inset-0 w-full h-full object-contain"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center">
-              <Camera className="w-10 h-10 2xl:w-12 2xl:h-12 text-white/20 mb-2" />
-              <p className="text-xs text-white/30">{t("detector.noStream")}</p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-text-faint gap-2">
+              <Camera className="w-10 h-10 opacity-30" />
+              <span className="text-xs">{t("detector.noStream")}</span>
             </div>
           )}
           {/* Confidence overlay badge */}
@@ -143,33 +144,6 @@ export function DetectorPreview({
           )}
         </div>
       </div>
-
-      {/* --- Detection log ---------------------------------------------------- */}
-      {(pokemon.detector_config?.detection_log?.length ?? 0) > 0 && (
-        <div className="bg-bg-card border border-border-subtle rounded-xl shadow-sm p-4">
-          <span className="block text-xs text-text-muted font-semibold uppercase tracking-wider mb-2">
-            {t("detector.logTitle")}
-          </span>
-          <div className="space-y-0.5 max-h-32 overflow-y-auto">
-            {[...(pokemon.detector_config?.detection_log ?? [])]
-              .reverse()
-              .slice(0, 10)
-              .map((entry, i) => (
-                <div
-                  key={`log-${entry.at}-${i}`}
-                  className="flex items-center justify-between text-[11px]"
-                >
-                  <span className="text-text-muted font-mono">
-                    {new Date(entry.at).toLocaleTimeString()}
-                  </span>
-                  <span className="text-green-400 font-mono">
-                    {(entry.confidence * 100).toFixed(1)}%
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

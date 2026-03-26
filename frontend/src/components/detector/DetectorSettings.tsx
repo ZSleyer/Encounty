@@ -20,6 +20,7 @@ export type DetectorSettingsProps = Readonly<{
   settingsDirty: boolean;
   activePreset?: HuntTypePreset;
   onApplyDefaults?: () => void;
+  embedded?: boolean;
 }>;
 
 // ── Default config ───────────────────────────────────────────────────────────
@@ -44,28 +45,14 @@ export function DetectorSettings({
   settingsDirty,
   activePreset,
   onApplyDefaults,
+  embedded,
 }: DetectorSettingsProps) {
   const { t } = useI18n();
   const [showSettings, setShowSettings] = useState(false);
 
-  return (
-    <div
-      data-detector-tutorial="settings"
-      className="bg-bg-card border border-border-subtle rounded-xl shadow-sm overflow-hidden"
-    >
-      <button
-        onClick={() => setShowSettings((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-bg-hover transition-colors"
-      >
-        <span className="flex items-center gap-2 text-xs text-text-muted font-semibold uppercase tracking-wider">
-          <Settings className="w-3.5 h-3.5" />
-          {t("detector.settings")}
-        </span>
-        <ChevronDown className={`w-4 h-4 text-text-muted transition-transform ${showSettings ? "rotate-180" : ""}`} />
-      </button>
-
-      {showSettings && (
-        <div className="px-4 pb-4 space-y-3 border-t border-border-subtle pt-3">
+  /** The shared settings content rendered in both embedded and collapsible modes. */
+  const settingsContent = (
+    <div className={embedded ? "space-y-3" : "px-4 pb-4 space-y-3 border-t border-border-subtle pt-3"}>
           {/* Precision slider */}
           <div>
             <div className="flex items-center justify-between mb-1">
@@ -339,7 +326,29 @@ export function DetectorSettings({
             </button>
           </div>
         </div>
-      )}
+  );
+
+  if (embedded) {
+    return settingsContent;
+  }
+
+  return (
+    <div
+      data-detector-tutorial="settings"
+      className="bg-bg-card border border-border-subtle rounded-xl shadow-sm overflow-hidden"
+    >
+      <button
+        onClick={() => setShowSettings((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-bg-hover transition-colors"
+      >
+        <span className="flex items-center gap-2 text-xs text-text-muted font-semibold uppercase tracking-wider">
+          <Settings className="w-3.5 h-3.5" />
+          {t("detector.settings")}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-text-muted transition-transform ${showSettings ? "rotate-180" : ""}`} />
+      </button>
+
+      {showSettings && settingsContent}
     </div>
   );
 }
