@@ -181,6 +181,8 @@ func (h *handler) handleDetectorCapabilities(w http.ResponseWriter, _ *http.Requ
 //	/api/detector/{id}/template/{n}
 //	/api/detector/{id}/template_upload
 //	/api/detector/{id}/sprite_template
+//	/api/detector/{id}/templates          (DELETE — clear all)
+//	/api/detector/{id}/detection_log      (DELETE — clear log)
 //	/api/detector/{id}/start
 //	/api/detector/{id}/stop
 //	/api/detector/{id}/export_templates
@@ -224,6 +226,10 @@ func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request)
 		h.handleImportTemplatesFile(w, r, id)
 	case "import_templates":
 		h.handleImportTemplates(w, r, id)
+	case "templates":
+		h.handleClearAllTemplates(w, r, id)
+	case "detection_log":
+		h.handleClearDetectionLog(w, r, id)
 	case "match":
 		h.handleMatchSubmit(w, r, id)
 	case "browser":

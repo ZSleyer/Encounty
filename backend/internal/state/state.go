@@ -1032,3 +1032,33 @@ func (m *Manager) AppendDetectionLog(id string, confidence float64) {
 		return
 	}
 }
+
+// ClearDetectionLog removes all detection log entries for the given Pokemon.
+// No-ops silently if the Pokémon or its DetectorConfig does not exist.
+func (m *Manager) ClearDetectionLog(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		p := &m.state.Pokemon[i]
+		if p.ID == id && p.DetectorConfig != nil {
+			p.DetectorConfig.DetectionLog = nil
+			go m.notify()
+			return
+		}
+	}
+}
+
+// ClearAllTemplates removes all templates for the given Pokemon.
+// No-ops silently if the Pokémon or its DetectorConfig does not exist.
+func (m *Manager) ClearAllTemplates(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		p := &m.state.Pokemon[i]
+		if p.ID == id && p.DetectorConfig != nil {
+			p.DetectorConfig.Templates = nil
+			go m.notify()
+			return
+		}
+	}
+}

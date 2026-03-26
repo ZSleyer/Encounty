@@ -671,6 +671,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.importFileSuccess": "{count} Template(s) aus Datei importiert",
     "detector.errInvalidFile": "Ungültige Template-Datei",
     "detector.more": "Mehr",
+    "detector.clearTemplates": "Alle Templates löschen",
+    "detector.clearLog": "Verlauf löschen",
     "detector.resizeDivider": "Größe ändern",
     "detector.resetLayout": "Layout zurücksetzen",
 
@@ -1380,6 +1382,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.importFileSuccess": "Imported {count} template(s) from file",
     "detector.errInvalidFile": "Invalid template file",
     "detector.more": "More",
+    "detector.clearTemplates": "Clear All Templates",
+    "detector.clearLog": "Clear Log",
     "detector.resizeDivider": "Resize",
     "detector.resetLayout": "Reset layout",
 

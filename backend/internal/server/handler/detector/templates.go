@@ -407,3 +407,56 @@ func fetchSpriteImage(spriteURL string) (image.Image, error) {
 	}
 	return img, nil
 }
+
+// handleClearAllTemplates removes all templates for a Pokemon.
+// DELETE /api/detector/{id}/templates
+func (h *handler) handleClearAllTemplates(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodDelete {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	sm := h.deps.StateManager()
+	st := sm.GetState()
+	var pokemon *state.Pokemon
+	for i := range st.Pokemon {
+		if st.Pokemon[i].ID == id {
+			pokemon = &st.Pokemon[i]
+			break
+		}
+	}
+	if pokemon == nil || pokemon.DetectorConfig == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// Delete template images from DB/disk
+	db := h.deps.DetectorDB()
+	for _, tmpl := range pokemon.DetectorConfig.Templates {
+		if tmpl.TemplateDBID > 0 && db != nil {
+			_ = db.DeleteTemplateImage(tmpl.TemplateDBID)
+		} else if tmpl.ImagePath != "" {
+			absPath := filepath.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath)
+			_ = os.Remove(absPath)
+		}
+	}
+
+	sm.ClearAllTemplates(id)
+	sm.ScheduleSave()
+	h.deps.BroadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleClearDetectionLog removes all detection log entries for a Pokemon.
+// DELETE /api/detector/{id}/detection_log
+func (h *handler) handleClearDetectionLog(w http.ResponseWriter, r *http.Request, id string) {
+	if r.Method != http.MethodDelete {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	sm := h.deps.StateManager()
+	sm.ClearDetectionLog(id)
+	sm.ScheduleSave()
+	h.deps.BroadcastState()
+	w.WriteHeader(http.StatusNoContent)
+}

@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   X, Plus, Pencil, Sparkles, Loader2, HelpCircle, Eye, EyeOff,
-  MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, RotateCcw,
+  MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, RotateCcw, Trash2,
 } from "lucide-react";
 import { DetectorConfig, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
@@ -960,6 +960,21 @@ export function DetectorPanel({
                             <FileDown className="w-3.5 h-3.5" />
                             {t("detector.importFromFile")}
                           </button>
+                          {templates.length > 0 && (
+                            <>
+                              <div className="my-1 border-t border-border-subtle" />
+                              <button
+                                onClick={() => {
+                                  void fetch(apiUrl(`/api/detector/${pokemon.id}/templates`), { method: "DELETE" }).catch(() => {});
+                                  setShowMoreMenu(false);
+                                }}
+                                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-500/10 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                {t("detector.clearTemplates")}
+                              </button>
+                            </>
+                          )}
                         </div>
                       </>
                     )}
@@ -1046,7 +1061,7 @@ export function DetectorPanel({
               />
 
               {/* Log + Settings tabs */}
-              <div className="flex shrink-0 border-b border-border-subtle">
+              <div className="flex shrink-0 border-b border-border-subtle items-center">
                 {([["log", t("detector.logTitle")], ["settings", t("detector.settingsTitle")]] as const).map(([tab, label]) => (
                   <button
                     key={tab}
@@ -1060,6 +1075,18 @@ export function DetectorPanel({
                     {label}
                   </button>
                 ))}
+                {rightTab === "log" && (pokemon.detector_config?.detection_log?.length ?? 0) > 0 && (
+                  <button
+                    onClick={() => {
+                      void fetch(apiUrl(`/api/detector/${pokemon.id}/detection_log`), { method: "DELETE" }).catch(() => {});
+                    }}
+                    title={t("detector.clearLog")}
+                    aria-label={t("detector.clearLog")}
+                    className="p-1.5 mr-1 text-text-muted hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
               </div>
 
               {/* Tab content */}
