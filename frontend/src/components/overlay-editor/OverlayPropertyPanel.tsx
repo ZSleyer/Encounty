@@ -1,4 +1,4 @@
-import { Play, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
+import { Play, AlignLeft, AlignCenter, AlignRight, Upload, Trash2 } from "lucide-react";
 import {
   OverlaySettings,
   OverlayElementBase,
@@ -15,13 +15,14 @@ interface OpenShadowEditorParams extends ShadowConfirmParams {
   readonly onConfirm: (params: ShadowConfirmParams) => void;
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
 
 const ELEMENT_LABELS: Record<ElementKey, string> = {
   sprite: "Sprite",
   name: "Name",
   title: "Titel",
   counter: "Zähler",
+  canvas: "Canvas",
 };
 
 const POPULAR_FONTS = [
@@ -274,6 +275,10 @@ interface OverlayPropertyPanelProps {
     onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
   ) => void;
   readonly fireTest: (element: ElementKey, reverse?: boolean) => void;
+  readonly bgPreviewUrl?: string;
+  readonly bgUploading?: boolean;
+  readonly onBgUpload?: () => void;
+  readonly onBgRemove?: () => void;
 }
 
 export function OverlayPropertyPanel({
@@ -288,6 +293,10 @@ export function OverlayPropertyPanel({
   openShadowEditor,
   openColorPicker,
   fireTest,
+  bgPreviewUrl,
+  bgUploading,
+  onBgUpload,
+  onBgRemove,
 }: OverlayPropertyPanelProps) {
   const { t } = useI18n();
   const update = (s: OverlaySettings) => {
@@ -305,7 +314,236 @@ export function OverlayPropertyPanel({
         </p>
       </div>
 
+      {/* Canvas properties */}
+      {selectedEl === "canvas" && (
+        <div className="space-y-2">
+          <NumSlider
+            label="Breite"
+            value={localSettings.canvas_width}
+            min={100}
+            max={1920}
+            step={10}
+            onChange={(v) => update({ ...localSettings, canvas_width: v })}
+          />
+          <NumSlider
+            label="Höhe"
+            value={localSettings.canvas_height}
+            min={50}
+            max={1080}
+            step={10}
+            onChange={(v) => update({ ...localSettings, canvas_height: v })}
+          />
+
+          {/* Background animation */}
+          <label className="block">
+            <span className="text-xs text-text-muted">
+              Hintergrund-Animation
+            </span>
+            <select
+              value={localSettings.background_animation ?? "none"}
+              onChange={(e) => update({ ...localSettings, background_animation: e.target.value })}
+              className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
+            >
+              <option value="none">Keine</option>
+              <option value="waves">Wellen (Homebrew)</option>
+              <option value="gradient-shift">Farbverlauf</option>
+              <option value="pulse-bg">Pulsieren</option>
+              <option value="shimmer-bg">Schimmern</option>
+              <option value="particles">Partikel</option>
+            </select>
+          </label>
+
+          {/* Animation speed */}
+          {(localSettings.background_animation ?? "none") !== "none" && (
+            <NumSlider
+              label={`Geschwindigkeit ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
+              value={localSettings.background_animation_speed ?? 1}
+              min={0.1}
+              max={3}
+              step={0.1}
+              onChange={(v) => update({ ...localSettings, background_animation_speed: v })}
+            />
+          )}
+
+          {/* Background image upload */}
+          {onBgUpload && (
+            <div>
+              <span className="text-xs text-text-muted">
+                Hintergrundbild
+              </span>
+              <div className="flex items-center gap-1.5 mt-1">
+                <button
+                  title={t("tooltip.editor.uploadBackground")}
+                  onClick={onBgUpload}
+                  disabled={bgUploading}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+                >
+                  <Upload className="w-3 h-3" />
+                  {bgUploading ? "..." : "Hochladen"}
+                </button>
+                {localSettings.background_image && onBgRemove && (
+                  <button
+                    title={t("tooltip.editor.removeBackground")}
+                    onClick={onBgRemove}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Entfernen
+                  </button>
+                )}
+              </div>
+              {localSettings.background_image && bgPreviewUrl && (
+                <>
+                  <div
+                    className="mt-1.5 w-full h-12 rounded border border-border-subtle bg-bg-primary overflow-hidden"
+                    style={{
+                      backgroundImage: `url(${bgPreviewUrl})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  />
+                  <select
+                    value={localSettings.background_image_fit ?? "cover"}
+                    onChange={(e) =>
+                      update({
+                        ...localSettings,
+                        background_image_fit: e.target.value as "cover" | "contain" | "stretch" | "tile",
+                      })
+                    }
+                    className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
+                  >
+                    <option value="cover">Cover</option>
+                    <option value="contain">Contain</option>
+                    <option value="stretch">Stretch</option>
+                    <option value="tile">Kacheln</option>
+                  </select>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Background color, opacity, and blur */}
+          <div className={localSettings.hidden ? "opacity-30 pointer-events-none" : ""}>
+            <div>
+              <span className="text-xs text-text-muted mb-1 block">
+                Hintergrund
+              </span>
+              <ColorSwatch
+                color={localSettings.background_color}
+                label={localSettings.background_color}
+                onClick={() =>
+                  openColorPicker(localSettings.background_color, (c) =>
+                    update({ ...localSettings, background_color: c }),
+                  )
+                }
+              />
+            </div>
+            <div className="mt-2">
+              <label htmlFor="pp-background-opacity" className="text-xs text-text-muted">
+                Deckkraft {Math.round(localSettings.background_opacity * 100)}%
+              </label>
+              <input
+                id="pp-background-opacity"
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={localSettings.background_opacity}
+                onChange={(e) => update({ ...localSettings, background_opacity: Number(e.target.value) })}
+                className="w-full h-1.5 accent-accent-blue"
+              />
+            </div>
+            <div className="mt-2">
+              <label htmlFor="pp-blur" className="text-xs text-text-muted">
+                Blur {localSettings.blur}px
+              </label>
+              <input
+                id="pp-blur"
+                type="range"
+                min={0}
+                max={30}
+                value={localSettings.blur}
+                onChange={(e) => update({ ...localSettings, blur: Number(e.target.value) })}
+                className="w-full h-1.5 accent-accent-blue"
+              />
+            </div>
+          </div>
+
+          {/* Border radius */}
+          <div>
+            <label htmlFor="pp-border-radius" className="text-xs text-text-muted">
+              Radius {localSettings.border_radius}px
+            </label>
+            <input
+              id="pp-border-radius"
+              type="range"
+              min={0}
+              max={60}
+              value={localSettings.border_radius}
+              onChange={(e) => update({ ...localSettings, border_radius: Number(e.target.value) })}
+              className="w-full h-1.5 accent-accent-blue"
+            />
+          </div>
+
+          {/* Border toggle + settings */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={localSettings.show_border}
+              onChange={(e) => update({ ...localSettings, show_border: e.target.checked })}
+              className="accent-accent-blue"
+            />
+            <span className="text-xs text-text-secondary">Kontur</span>
+          </label>
+          {localSettings.show_border && (
+            <div
+              className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}
+            >
+              <div>
+                <span className="text-xs text-text-muted mb-1 block">
+                  Kontur Farbe
+                </span>
+                <ColorSwatch
+                  color={(() => {
+                    const c = localSettings.border_color;
+                    if (c?.startsWith("#")) return c;
+                    return "#ffffff";
+                  })()}
+                  label={localSettings.border_color}
+                  onClick={() =>
+                    openColorPicker(
+                      (() => {
+                        const c = localSettings.border_color;
+                        if (c?.startsWith("#")) return c;
+                        return "#ffffff";
+                      })(),
+                      (c) => update({ ...localSettings, border_color: c }),
+                    )
+                  }
+                />
+              </div>
+              <div>
+                <label htmlFor="pp-border-width" className="text-xs text-text-muted">
+                  Kontur Stärke {localSettings.border_width ?? 2}px
+                </label>
+                <input
+                  id="pp-border-width"
+                  type="range"
+                  min={1}
+                  max={8}
+                  step={1}
+                  value={localSettings.border_width ?? 2}
+                  onChange={(e) => update({ ...localSettings, border_width: Number(e.target.value) })}
+                  className="w-full h-1.5 accent-accent-blue"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Position & Size — compact Photoshop style */}
+      {selectedEl !== "canvas" && (
       <div className="space-y-1.5 mb-4">
         <div className="flex gap-2">
           <label className="flex items-center gap-1 flex-1">
@@ -359,6 +597,7 @@ export function OverlayPropertyPanel({
           Pfeiltasten: 1px | Shift: 10px | Tab: wechseln
         </p>
       </div>
+      )}
 
       {/* Element-specific properties */}
       {selectedEl === "sprite" && (

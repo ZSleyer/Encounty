@@ -8,7 +8,6 @@ import {
   Copy,
   ExternalLink,
   RotateCcw,
-  Settings,
 } from "lucide-react";
 import { EditorTutorial } from "./EditorTutorial";
 import {
@@ -42,13 +41,14 @@ interface Props {
   compact?: boolean;
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
 
 const ELEMENT_LABELS: Record<ElementKey, string> = {
   sprite: "Sprite",
   name: "Name",
   title: "Titel",
   counter: "Zähler",
+  canvas: "Canvas",
 };
 
 const DEFAULT_TEXT_STYLE: TextStyle = {
@@ -281,7 +281,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   // Floating canvas settings panel
   const [propertiesPanelOpen, setPropertiesPanelOpen] = useState(false);
-  const [propertiesPanelTab, setPropertiesPanelTab] = useState<"element" | "canvas">("element");
   const { position: panelPosition, handleMouseDown: handlePanelDragStart } = useDraggableWindow({
     storageKey: "encounty_properties_panel_pos",
     defaultPosition: { x: window.innerWidth - 320, y: 80 },
@@ -512,6 +511,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   const updateSelectedEl = useCallback(
     (patch: Partial<OverlayElementBase>) => {
+      if (selectedEl === "canvas") return;
       const el = localSettings[selectedEl] as OverlayElementBase;
       update({ ...localSettings, [selectedEl]: { ...el, ...patch } });
     },
@@ -520,9 +520,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   const effectiveScale = canvasScale * zoom;
 
-  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter"];
+  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter", "canvas"];
 
   const moveLayer = (key: ElementKey, dir: "up" | "down") => {
+    if (key === "canvas") return;
     const el = localSettings[key] as OverlayElementBase;
     const delta = dir === "up" ? 1 : -1;
     update({
@@ -558,7 +559,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   /** Handles arrow-key nudging and element selection shortcuts. Returns true if the event was handled. */
   const handleElementKeys = useCallback((e: KeyboardEvent): boolean => {
-    if (!selectedEl) return false;
+    if (!selectedEl || selectedEl === "canvas") return false;
     const el = localSettings[selectedEl] as OverlayElementBase;
     const step = e.shiftKey ? 10 : 1;
 
@@ -743,7 +744,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   /** Opens the floating properties panel for a specific element. */
   const openPropertiesForElement = useCallback((key: ElementKey) => {
     setSelectedEl(key);
-    setPropertiesPanelTab("element");
     setPropertiesPanelOpen(true);
   }, []);
 
@@ -925,6 +925,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               openShadowEditor={openShadowEditor}
               openTextColorEditor={openTextColorEditor}
               fireTest={fireTest}
+              bgPreviewUrl={bgPreviewUrl}
+              bgUploading={bgUploading}
+              onBgUpload={handleBgUpload}
+              onBgRemove={handleBgRemove}
             />
           </div>
         </div>
@@ -965,90 +969,121 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               <RotateCcw className="w-3 h-3" />
             </button>
           </div>
-          {LAYERS.filter(key => key !== "title" || activePokemon?.title).map((key) => {
-            const el = localSettings[key] as OverlayElementBase;
-            return (
-              <div
-                key={key}
-                onClick={() => setSelectedEl(key)}
-                className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full cursor-pointer ${
-                  selectedEl === key
-                    ? "bg-accent-blue/20 border border-accent-blue/40"
-                    : "hover:bg-bg-hover border border-transparent"
-                }`}
-              >
-                <span className="text-xs text-text-primary">
-                  {ELEMENT_LABELS[key]}
-                </span>
-                <div className="flex items-center gap-0.5">
-                  <button
-                    type="button"
-                    title={t("tooltip.editor.moveUp")}
-                    aria-label={t("tooltip.editor.moveUp")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveLayer(key, "up");
-                    }}
-                    className="p-1 text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    <ChevronUp className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    title={t("tooltip.editor.moveDown")}
-                    aria-label={t("tooltip.editor.moveDown")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveLayer(key, "down");
-                    }}
-                    className="p-1 text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                    aria-label={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      update({
-                        ...localSettings,
-                        [key]: { ...el, visible: !el.visible },
-                      });
-                    }}
-                    className="p-1 text-text-muted hover:text-text-primary transition-colors"
-                  >
-                    {el.visible ? (
-                      <Eye className="w-3 h-3" />
-                    ) : (
-                      <EyeOff className="w-3 h-3" />
-                    )}
-                  </button>
+          {LAYERS.filter(key => key !== "title" || activePokemon?.title)
+            .filter(key => key !== "canvas")
+            .map((key) => {
+              const el = localSettings[key] as OverlayElementBase;
+              return (
+                <div
+                  key={key}
+                  onClick={() => setSelectedEl(key)}
+                  className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full cursor-pointer ${
+                    selectedEl === key
+                      ? "bg-accent-blue/20 border border-accent-blue/40"
+                      : "hover:bg-bg-hover border border-transparent"
+                  }`}
+                >
+                  <span className="text-xs text-text-primary">
+                    {ELEMENT_LABELS[key]}
+                  </span>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      title={t("tooltip.editor.moveUp")}
+                      aria-label={t("tooltip.editor.moveUp")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveLayer(key, "up");
+                      }}
+                      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                    >
+                      <ChevronUp className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      title={t("tooltip.editor.moveDown")}
+                      aria-label={t("tooltip.editor.moveDown")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveLayer(key, "down");
+                      }}
+                      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                      aria-label={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        update({
+                          ...localSettings,
+                          [key]: { ...el, visible: !el.visible },
+                        });
+                      }}
+                      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                    >
+                      {el.visible ? (
+                        <Eye className="w-3 h-3" />
+                      ) : (
+                        <EyeOff className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {/* Canvas Settings button */}
-          <button
-            aria-label={t("aria.canvasSettings")}
-            onClick={() => {
-              setPropertiesPanelTab("canvas");
-              setPropertiesPanelOpen(true);
-            }}
-            className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded text-[10px] bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors mt-2"
+          {/* Canvas layer — always at bottom */}
+          <div
+            onClick={() => setSelectedEl("canvas")}
+            className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full cursor-pointer ${
+              selectedEl === "canvas"
+                ? "bg-accent-blue/20 border border-accent-blue/40"
+                : "hover:bg-bg-hover border border-transparent"
+            }`}
           >
-            <Settings className="w-3 h-3" />
-            Canvas
-          </button>
+            <span className="text-xs text-text-primary">Canvas</span>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                disabled
+                className="p-1 text-text-faint cursor-not-allowed"
+              >
+                <ChevronUp className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                disabled
+                className="p-1 text-text-faint cursor-not-allowed"
+              >
+                <ChevronDown className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                title={!localSettings.hidden ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                aria-label={!localSettings.hidden ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  update({ ...localSettings, hidden: !localSettings.hidden });
+                }}
+                className="p-1 text-text-muted hover:text-text-primary transition-colors"
+              >
+                {!localSettings.hidden ? (
+                  <Eye className="w-3 h-3" />
+                ) : (
+                  <EyeOff className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Floating Canvas Settings Panel (only for canvas settings) */}
+      {/* Floating properties panel */}
       {propertiesPanelOpen && (
         <FloatingPropertiesPanel
-          activeTab={propertiesPanelTab}
-          onTabChange={setPropertiesPanelTab}
           onClose={() => setPropertiesPanelOpen(false)}
           position={panelPosition}
           onDragStart={handlePanelDragStart}
@@ -1062,7 +1097,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           openShadowEditor={openShadowEditor}
           openTextColorEditor={openTextColorEditor}
           fireTest={fireTest}
-          updateField={updateField}
           bgPreviewUrl={bgPreviewUrl}
           bgUploading={bgUploading}
           onBgUpload={handleBgUpload}

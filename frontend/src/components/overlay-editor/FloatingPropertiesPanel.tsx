@@ -1,6 +1,6 @@
 /**
- * FloatingPropertiesPanel — A draggable floating panel with two tabs:
- * "Element" (delegates to OverlayPropertyPanel) and "Canvas" (canvas-level settings).
+ * FloatingPropertiesPanel — A draggable floating panel that delegates to
+ * OverlayPropertyPanel for element and canvas properties.
  */
 
 import type { ReactNode } from "react";
@@ -21,13 +21,17 @@ interface OpenShadowEditorParams extends ShadowConfirmParams {
   readonly onConfirm: (params: ShadowConfirmParams) => void;
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
+
+const ELEMENT_LABELS: Record<ElementKey, string> = {
+  sprite: "Sprite",
+  name: "Name",
+  title: "Titel",
+  counter: "Zähler",
+  canvas: "Canvas",
+};
 
 interface FloatingPropertiesPanelProps {
-  /** Currently active tab. */
-  readonly activeTab: "element" | "canvas";
-  /** Called when the user switches tabs. */
-  readonly onTabChange: (tab: "element" | "canvas") => void;
   /** Called when the user clicks the close button. */
   readonly onClose: () => void;
 
@@ -68,11 +72,7 @@ interface FloatingPropertiesPanelProps {
   ) => void;
   readonly fireTest: (element: ElementKey, reverse?: boolean) => void;
 
-  // --- Canvas tab props ---
-  readonly updateField: <K extends keyof OverlaySettings>(
-    field: K,
-    value: OverlaySettings[K],
-  ) => void;
+  // --- Canvas props (passed through to OverlayPropertyPanel) ---
   readonly bgPreviewUrl: string;
   readonly bgUploading: boolean;
   readonly onBgUpload: () => void;
@@ -84,8 +84,6 @@ interface FloatingPropertiesPanelProps {
 
 /** Floating, draggable properties panel for the overlay editor. */
 export function FloatingPropertiesPanel({
-  activeTab,
-  onTabChange,
   onClose,
   position,
   onDragStart,
@@ -99,7 +97,6 @@ export function FloatingPropertiesPanel({
   openShadowEditor,
   openTextColorEditor,
   fireTest,
-  updateField,
   bgPreviewUrl,
   bgUploading,
   onBgUpload,
@@ -124,31 +121,9 @@ export function FloatingPropertiesPanel({
       >
         <GripVertical className="w-3 h-3 text-text-faint" />
 
-        {/* Tab buttons */}
-        <div className="flex gap-1 flex-1">
-          <button
-            aria-label={t("aria.elementProperties")}
-            onClick={() => onTabChange("element")}
-            className={
-              activeTab === "element"
-                ? "text-xs px-2 py-1 rounded bg-accent-blue/20 text-accent-blue"
-                : "text-xs px-2 py-1 rounded text-text-muted hover:text-text-primary"
-            }
-          >
-            Element
-          </button>
-          <button
-            aria-label={t("aria.canvasSettings")}
-            onClick={() => onTabChange("canvas")}
-            className={
-              activeTab === "canvas"
-                ? "text-xs px-2 py-1 rounded bg-accent-blue/20 text-accent-blue"
-                : "text-xs px-2 py-1 rounded text-text-muted hover:text-text-primary"
-            }
-          >
-            Canvas
-          </button>
-        </div>
+        <span className="text-xs text-text-secondary flex-1">
+          {ELEMENT_LABELS[selectedEl] ?? "Element"}
+        </span>
 
         {/* Close */}
         <button
@@ -162,39 +137,30 @@ export function FloatingPropertiesPanel({
 
       {/* Scrollable content area */}
       <div className="overflow-y-auto flex-1 min-h-0">
-        {activeTab === "element" ? (
-          <div className="p-3">
-            <OverlayPropertyPanel
-              localSettings={localSettings}
-              selectedEl={selectedEl}
-              updateSelectedEl={updateSelectedEl}
-              readOnly={readOnly}
-              onUpdate={onUpdate}
-              openColorPicker={openColorPicker}
-              openOutlineEditor={openOutlineEditor}
-              openShadowEditor={openShadowEditor}
-              openTextColorEditor={openTextColorEditor}
-              fireTest={fireTest}
-            />
-
-            {obsSourceHint && (
-              <div className="mt-3 pt-3 border-t border-border-subtle">
-                {obsSourceHint}
-              </div>
-            )}
-          </div>
-        ) : (
-          <CanvasTab
+        <div className="p-3">
+          <OverlayPropertyPanel
             localSettings={localSettings}
-            updateField={updateField}
+            selectedEl={selectedEl}
+            updateSelectedEl={updateSelectedEl}
+            readOnly={readOnly}
+            onUpdate={onUpdate}
             openColorPicker={openColorPicker}
+            openOutlineEditor={openOutlineEditor}
+            openShadowEditor={openShadowEditor}
+            openTextColorEditor={openTextColorEditor}
+            fireTest={fireTest}
             bgPreviewUrl={bgPreviewUrl}
             bgUploading={bgUploading}
             onBgUpload={onBgUpload}
             onBgRemove={onBgRemove}
-            t={t}
           />
-        )}
+
+          {obsSourceHint && (
+            <div className="mt-3 pt-3 border-t border-border-subtle">
+              {obsSourceHint}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

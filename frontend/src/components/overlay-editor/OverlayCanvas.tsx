@@ -4,7 +4,9 @@ import { Overlay } from "../../pages/Overlay";
 import type { Pokemon } from "../../types";
 import { Guide, useSnapping } from "../../hooks/useSnapping";
 
-type ElementKey = "sprite" | "name" | "title" | "counter";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
+/** Element keys that correspond to draggable overlay elements in OverlaySettings. */
+type DraggableElementKey = "sprite" | "name" | "title" | "counter";
 type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 interface OverlayCanvasProps {
@@ -37,7 +39,7 @@ interface OverlayCanvasProps {
 }
 
 interface UseElementDragOptions {
-  readonly elementKey: ElementKey;
+  readonly elementKey: DraggableElementKey;
   readonly settings: OverlaySettings;
   readonly onUpdate: (s: OverlaySettings) => void;
   readonly canvasScale: number;
@@ -309,7 +311,7 @@ export function OverlayCanvas({
   onUpdate,
   snapEnabled,
 }: OverlayCanvasProps) {
-  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter"];
+  const LAYERS: DraggableElementKey[] = ["sprite", "name", "title", "counter"];
 
   const dragOpts = { settings: localSettings, onUpdate, canvasScale: effectiveScale, onDragStateChange, onGuidesChange, snapEnabled, gridSize };
   const spriteHandlers = useElementDrag({ elementKey: "sprite", ...dragOpts });
@@ -317,7 +319,7 @@ export function OverlayCanvas({
   const titleHandlers = useElementDrag({ elementKey: "title", ...dragOpts });
   const counterHandlers = useElementDrag({ elementKey: "counter", ...dragOpts });
 
-  const handlers: Record<ElementKey, ReturnType<typeof useElementDrag>> = {
+  const handlers: Record<DraggableElementKey, ReturnType<typeof useElementDrag>> = {
     sprite: spriteHandlers,
     name: nameHandlers,
     title: titleHandlers,
@@ -508,7 +510,7 @@ export function OverlayCanvas({
           })}
 
           {/* Drag tooltip showing dimensions */}
-          {isDragging && selectedEl && (
+          {isDragging && selectedEl && selectedEl !== "canvas" && (
             <div
               className="absolute pointer-events-none bg-black/80 text-white text-[10px] px-2 py-0.5 rounded font-mono"
               style={{
