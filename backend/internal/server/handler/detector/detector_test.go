@@ -161,25 +161,6 @@ func newTestMux(t *testing.T) (*http.ServeMux, *testDeps) {
 	return mux, deps
 }
 
-// newTestMuxNilDetector creates a mux where DetectorMgr() returns nil.
-func newTestMuxNilDetector(t *testing.T) (*http.ServeMux, *testDeps) {
-	t.Helper()
-	dir := t.TempDir()
-	sm := state.NewManager(dir)
-	db := newMockDetectorDB()
-
-	deps := &testDeps{
-		stateMgr:        sm,
-		detectorMgr:     nil,
-		detectorDB:      db,
-		encounterLogger: &mockEncounterLogger{},
-		configDir:       dir,
-	}
-	mux := http.NewServeMux()
-	RegisterRoutes(mux, deps)
-	return mux, deps
-}
-
 // addTestPokemon adds a Pokemon with the given ID and name to the state.
 func addTestPokemon(t *testing.T, deps *testDeps, id, name string) {
 	t.Helper()
