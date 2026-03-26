@@ -36,7 +36,6 @@ import {
   Timer,
   BarChart3,
   Check,
-  Monitor,
   Target,
 } from "lucide-react";
 import { Link } from "react-router";
@@ -54,7 +53,9 @@ import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry, AppSt
 import { useI18n } from "../contexts/I18nContext";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
+import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 import { apiUrl } from "../utils/api";
+import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 
 // --- Timer helpers ---
 
@@ -232,6 +233,10 @@ function computeOddsDisplay(pokemon: Pokemon | null, games: GameEntry[]): string
   const METHOD_ODDS: Record<string, string> = {
     masuda: "683", radar: "~200", horde: "~820",
     sos: "683", outbreak: `${baseDenom}`, sandwich: "683",
+    dynamax_adventure: "100", max_raid: `${baseDenom}`,
+    chain_fishing: "~100", friend_safari: "819",
+    dexnav: "~512", ultra_wormhole: "~3",
+    catch_combo: "~273", tera_raid: `${baseDenom}`,
   };
   return `1/${METHOD_ODDS[ht] ?? baseDenom}`;
 }
@@ -362,71 +367,6 @@ function DashboardLoader({ label }: Readonly<{ label: string }>) {
         <p className="text-text-muted">{label}</p>
       </div>
     </div>
-  );
-}
-
-/** Copies the OBS Browser Source URL for a Pokémon using the global overlay. */
-/** Inline readonly URL input with copy button for OBS Browser Source. */
-function OverlayUrlInput({ pokemonId }: Readonly<{ pokemonId: string }>) {
-  const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
-  const baseUrl = apiUrl("") || globalThis.location.origin;
-  const pokemonUrl = `${baseUrl}/overlay/${pokemonId}`;
-
-  const copy = () => {
-    navigator.clipboard.writeText(pokemonUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  return (
-    <div className="flex items-center gap-0 shrink min-w-0 max-w-xs">
-      <input
-        type="text"
-        readOnly
-        value={pokemonUrl}
-        className="min-w-0 flex-1 bg-bg-primary border border-border-subtle border-r-0 rounded-l-lg px-2 py-0.5 text-[10px] font-mono text-text-faint outline-none truncate"
-        onFocus={(e) => e.target.select()}
-      />
-      <button
-        onClick={copy}
-        aria-label={t("aria.copyObsUrl")}
-        className={`px-2 py-0.5 rounded-r-lg border border-border-subtle text-[10px] font-semibold transition-colors ${
-          copied
-            ? "bg-green-500/10 border-green-500/20 text-green-400"
-            : "bg-bg-primary text-text-muted hover:text-text-primary hover:border-accent-blue/30"
-        }`}
-      >
-        {copied ? <Check className="w-3 h-3" /> : <Monitor className="w-3 h-3" />}
-      </button>
-    </div>
-  );
-}
-
-/** Large OBS URL button for the global overlay placeholder screen. */
-function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
-  const { t } = useI18n();
-  const [copied, setCopied] = useState(false);
-  const baseUrl = apiUrl("") || globalThis.location.origin;
-  const pokemonUrl = `${baseUrl}/overlay/${pokemonId}`;
-
-  const copy = () => {
-    navigator.clipboard.writeText(pokemonUrl).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  return (
-    <button
-      onClick={copy}
-      title={pokemonUrl}
-      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-subtle text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-    >
-      {copied ? <Check className="w-3.5 h-3.5 text-accent-green" /> : <Monitor className="w-3.5 h-3.5" />}
-      {copied ? t("overlay.urlCopied") : t("overlay.obsUrl")}
-    </button>
   );
 }
 
@@ -766,15 +706,8 @@ export function Dashboard() {
       <div className="w-full h-full flex flex-col min-h-0">
         {/* Control bar — slim top bar, matches detector control bar style */}
         <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-card border-b border-border-subtle shrink-0">
-          {/* Left: Status + mode + name + OBS URL */}
-          <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${modeBase === "custom" ? "bg-purple-400" : "bg-accent-blue"}`} />
-          <span className="text-xs font-semibold text-text-secondary shrink-0">
-            {modeBase === "custom" ? t("overlay.modeCustom") : t("overlay.global")}
-          </span>
-          <span className="text-sm font-medium text-text-secondary truncate shrink-0">{pokemon.name}</span>
-
-          {/* OBS URL inline input + copy */}
-          <OverlayUrlInput pokemonId={pokemon.id} />
+          {/* Left: OBS URL */}
+          <OverlayBrowserSourceButton pokemonId={pokemon.id} />
 
           {/* Saved indicator */}
           {modeBase === "custom" && overlaySaved && (
@@ -787,39 +720,39 @@ export function Dashboard() {
           {/* Spacer */}
           <div className="flex-1" />
 
-          {/* Right: Mode switch + Import + Save */}
+          {/* Right: Mode switch + Import + Save — matched to OBS button size */}
           <button
             onClick={() => handleModeChange("default")}
             title={t("dash.tooltipOverlayGlobal")}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors shrink-0 ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
               modeBase === "default"
                 ? "bg-accent-blue/15 text-accent-blue"
                 : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
             }`}
           >
-            <Globe className="w-3 h-3" />
+            <Globe className="w-3.5 h-3.5" />
             {t("overlay.global")}
           </button>
           <button
             onClick={() => handleModeChange("custom")}
             title={t("dash.tooltipOverlayCustom")}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors shrink-0 ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
               modeBase === "custom"
                 ? "bg-purple-500/15 text-purple-400"
                 : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
             }`}
           >
-            <Pencil className="w-3 h-3" />
+            <Pencil className="w-3.5 h-3.5" />
             {t("overlay.modeCustom")}
           </button>
 
           {/* Import dropdown (custom mode only) */}
           {modeBase === "custom" && (
             <div className="relative group shrink-0">
-              <button className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
-                <Download className="w-3 h-3" />
+              <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
+                <Download className="w-3.5 h-3.5" />
                 {t("overlay.import")}
-                <ChevronDown className="w-2.5 h-2.5" />
+                <ChevronDown className="w-3 h-3" />
               </button>
               <div className="absolute right-0 top-full mt-1 w-52 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 max-h-60 overflow-y-auto">
                 <button
@@ -841,7 +774,7 @@ export function Dashboard() {
             <button
               onClick={saveCurrentOverlay}
               disabled={!overlayDirty || overlaySaving}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-[11px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             >
               {saveIcon}
               {t("overlay.save")}
@@ -1450,74 +1383,84 @@ export function Dashboard() {
         {viewedPokemon ? (
           <div className="flex flex-col h-full w-full">
             {/* Top Bar (übergeordnet, scrollt nicht mit) */}
-            <header className="flex-none px-4 py-2 flex items-center gap-2 border-b border-border-subtle bg-bg-card z-50 relative">
+            <header className="flex-none px-4 py-2 border-b border-border-subtle bg-bg-card z-50 relative grid grid-cols-[1fr_auto_1fr] items-center gap-3">
 
-              {/* 1. Tabs */}
-              <div className="flex bg-bg-card rounded-xl border border-border-subtle p-0.5 shadow-sm shrink-0">
-                <button
-                  onClick={() => setRightPanelTab("counter")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    rightPanelTab === "counter"
-                      ? "bg-accent-blue text-white shadow"
-                      : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                  }`}
-                >
-                  {t("dash.tabCounter")}
-                </button>
-                {!viewedPokemon.completed_at && (
+              {/* Left: Tabs */}
+              <div className="flex justify-start">
+                <div className="flex bg-bg-card rounded-xl border border-border-subtle p-0.5 shadow-sm">
                   <button
-                    onClick={() => setRightPanelTab("detector")}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                      rightPanelTab === "detector"
+                    onClick={() => setRightPanelTab("counter")}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                      rightPanelTab === "counter"
                         ? "bg-accent-blue text-white shadow"
                         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
                     }`}
                   >
-                    <Eye className="w-3.5 h-3.5" />
-                    {t("dash.tabDetector")}
-                    {detectorStatus[viewedPokemon.id]?.state === "match_active" && (
-                      <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
-                    )}
+                    {t("dash.tabCounter")}
                   </button>
-                )}
-                <button
-                  onClick={() => setRightPanelTab("overlay")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                    rightPanelTab === "overlay"
-                      ? "bg-accent-blue text-white shadow"
-                      : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                  }`}
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                  {t("dash.tabOverlay")}
-                </button>
-                <button
-                  onClick={() => setRightPanelTab("statistics")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                    rightPanelTab === "statistics"
-                      ? "bg-accent-blue text-white shadow"
-                      : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                  }`}
-                >
-                  <BarChart3 className="w-3.5 h-3.5" />
-                  {t("dash.tabStatistics")}
-                </button>
+                  {!viewedPokemon.completed_at && (
+                    <button
+                      onClick={() => setRightPanelTab("detector")}
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                        rightPanelTab === "detector"
+                          ? "bg-accent-blue text-white shadow"
+                          : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                      }`}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      {t("dash.tabDetector")}
+                      {detectorStatus[viewedPokemon.id]?.state === "match_active" && (
+                        <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
+                      )}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setRightPanelTab("overlay")}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      rightPanelTab === "overlay"
+                        ? "bg-accent-blue text-white shadow"
+                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    {t("dash.tabOverlay")}
+                  </button>
+                  <button
+                    onClick={() => setRightPanelTab("statistics")}
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      rightPanelTab === "statistics"
+                        ? "bg-accent-blue text-white shadow"
+                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                    }`}
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    {t("dash.tabStatistics")}
+                  </button>
+                </div>
               </div>
 
-              {/* Spacer */}
-              <div className="flex-1 min-w-2" />
-
-              {/* 2. Game badge — compact pill, hidden text on small screens */}
-              {viewedPokemon.game && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle text-text-muted shrink-0">
-                  <Gamepad2 className="w-3.5 h-3.5" />
-                  <span className="text-[11px] uppercase tracking-wider font-semibold hidden lg:inline truncate max-w-24">
-                    {formatGame(viewedPokemon.game)}
-                  </span>
+              {/* Center: Pokemon sprite + name + game badge — always centered via grid */}
+              <div className="flex items-center gap-2 justify-center">
+                <TrimmedBoxSprite
+                  canonicalName={viewedPokemon.canonical_name}
+                  spriteType={viewedPokemon.sprite_type}
+                  alt={viewedPokemon.name}
+                  className="h-10 w-auto"
+                />
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-sm font-bold text-text-primary leading-tight">{viewedPokemon.name}</span>
+                  {viewedPokemon.game && (
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted leading-tight truncate max-w-28">
+                      {formatGame(viewedPokemon.game)}
+                    </span>
+                  )}
                 </div>
-              )}
+              </div>
 
-              {/* 3. Hunt start/stop — combined button with dropdown */}
+              {/* Right: Hunt + action buttons */}
+              <div className="flex items-center gap-2 justify-end">
+
+              {/* Hunt start/stop — combined button with dropdown */}
               {!viewedPokemon.completed_at && (() => {
                 const p = viewedPokemon;
                 const timerRunning = !!p.timer_started_at;
@@ -1662,6 +1605,7 @@ export function Dashboard() {
                 <Trash2 className="w-3.5 h-3.5" />
                 <span className="hidden xl:inline">{t("dash.delete")}</span>
               </button>
+              </div>
             </header>
 
             {/* SCROLLABLE INNER WORK AREA — overlay tab uses full height without scroll */}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Search, Globe, AlertTriangle, Sparkles } from "lucide-react";
+import { X, Search, Globe, AlertTriangle, Sparkles, ChevronDown, Package, Film, Box, Palette } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { GameEntry } from "../../types";
 import {
@@ -12,7 +12,10 @@ import {
   bestAvailableStyle,
   getPokemonGeneration,
 } from "../../utils/sprites";
-import { getGameName } from "../../utils/games";
+import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
+import { getGameName, ALL_LANGUAGES } from "../../utils/games";
+import { getAvailableHuntMethods } from "../../utils/huntTypes";
+import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
 
 type Props = Readonly<{
@@ -90,9 +93,10 @@ export function AddPokemonModal({
   } | null>(null);
   const [customSprite, setCustomSprite] = useState("");
   const [spriteType, setSpriteType] = useState<SpriteType>("shiny");
-  const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>("classic");
+  const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>("box");
 
   const [title, setTitle] = useState("");
+  const [showCustomSprite, setShowCustomSprite] = useState(false);
 
   const [games, setGames] = useState<GameEntry[]>([]);
   const [selectedGame, setSelectedGame] = useState("");
@@ -260,20 +264,25 @@ export function AddPokemonModal({
       return acc;
     }, {});
 
+  // --- Input class reused across form fields ---
+  const inputClass =
+    "w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors";
+
   return (
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
       aria-modal="true"
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-lg 2xl:max-w-xl animate-slide-in backdrop:bg-black/70"
+      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
     >
+      {/* --- Header --- */}
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg 2xl:text-xl font-bold text-text-primary">
+        <h2 className="text-lg font-bold text-text-primary">
           {t("modal.addTitle")}
         </h2>
         <button
           onClick={handleCancel}
-          className="text-text-muted hover:text-text-primary transition-colors"
+          className="text-text-muted hover:text-text-primary transition-colors p-1.5"
           aria-label={t("aria.close")}
         >
           <X className="w-5 h-5" />
@@ -287,265 +296,341 @@ export function AddPokemonModal({
         </div>
       )}
 
-      <div className="flex items-center gap-2 mb-4">
-        <Globe className="w-4 h-4 text-text-muted" />
-        <span className="text-xs text-text-muted">{t("modal.language")}:</span>
-        {availableLangs.map((lang) => (
-          <button
-            key={lang}
-            onClick={() => {
-              setLanguage(lang);
-              if (selected) {
-                const searchList = buildSearchList(allPokemon);
-                const fullP = searchList.find(
-                  (p) =>
-                    p.spriteId === selected.spriteId &&
-                    p.canonical === selected.canonical,
-                );
-                if (fullP) {
-                  setQuery(getPkmnName(fullP, lang));
-                  setSelected({ ...selected, name: getPkmnName(fullP, lang) });
-                }
-              }
-            }}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors border ${
-              language === lang
-                ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
-                : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
-            }`}
-          >
-            {lang.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
-      <div className="relative mb-4">
-        <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2">
-          <Search className="w-4 h-4 text-text-muted shrink-0" />
-          <input
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setSelected(null);
-            }}
-            placeholder={t("modal.searchPokemon")}
-            className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-sm 2xl:text-base"
-          />
-        </div>
-
-        {suggestions.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-52 2xl:max-h-64 overflow-y-auto" role="listbox">
-            {suggestions.map((s) => (
-              <button
-                key={s.canonical}
-                role="option"
-                onClick={() => selectPokemon(s)}
-                className="w-full text-left px-4 py-2 text-sm 2xl:text-base hover:bg-bg-hover transition-colors flex items-center justify-between"
-              >
-                <span
-                  className={`capitalize ${s.isForm ? "text-text-secondary pl-3 border-l border-border-subtle" : "text-text-primary"}`}
-                >
-                  {getPkmnName(s, language)}
-                </span>
-                <span className="text-text-muted text-xs italic">
-                  {s.canonical}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {selected && (
-        <div className="flex items-center gap-4 bg-bg-secondary rounded-lg p-4 mb-4">
-          <div className="w-20 h-20 2xl:w-24 2xl:h-24 bg-bg-primary rounded-lg flex items-center justify-center shrink-0">
-            {selected.sprite ? (
-              <img
-                src={customSprite || selected.sprite}
-                alt={activeName}
-                className="w-full h-full object-contain"
-                style={
-                  spriteStyle === "classic"
-                    ? { imageRendering: "pixelated" }
-                    : undefined
-                }
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  if (!img.src.endsWith("/0.png")) {
-                    img.src = SPRITE_FALLBACK;
+      {/* --- Two-column grid --- */}
+      <div className="grid grid-cols-[260px_1fr] gap-6">
+        {/* --- Left Column: Pokemon Identity --- */}
+        <div className="bg-bg-secondary rounded-xl p-4 flex flex-col gap-4">
+          {/* Sprite area */}
+          <div className="flex flex-col items-center gap-2">
+            {selected ? (
+              <>
+                <TrimmedBoxSprite
+                  canonicalName={selected.canonical}
+                  spriteType={spriteType}
+                  alt={activeName}
+                  className="h-28 w-auto mx-auto"
+                />
+                <img
+                  src={customSprite || selected.sprite}
+                  alt={activeName}
+                  className="h-16 w-auto mx-auto pokemon-sprite"
+                  style={
+                    spriteStyle === "box"
+                      ? { imageRendering: "pixelated" }
+                      : undefined
                   }
-                }}
-              />
+                  onError={(e) => {
+                    const img = e.currentTarget;
+                    if (!img.src.endsWith("/0.png")) {
+                      img.src = SPRITE_FALLBACK;
+                    }
+                  }}
+                />
+              </>
             ) : (
-              <span className="text-3xl text-text-faint">?</span>
+              <div className="h-28 flex items-center justify-center">
+                <span className="text-5xl text-text-faint select-none">?</span>
+              </div>
             )}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold text-text-primary text-lg">{activeName}</p>
-            <p className="text-xs text-text-muted capitalize">
-              {selected.canonical}
-            </p>
+
+          {/* Pokemon name + canonical */}
+          <div className="text-center">
+            {selected ? (
+              <>
+                <p className="font-bold text-text-primary text-base">{activeName}</p>
+                <p className="text-xs text-text-muted capitalize">#{selected.canonical}</p>
+              </>
+            ) : (
+              <p className="text-sm text-text-faint">{t("modal.searchPokemon")}</p>
+            )}
+          </div>
+
+          {/* Sprite style — 2x2 grid with preview images */}
+          <div>
+            <span className="block text-xs text-text-muted mb-2">
+              {t("modal.spriteStyle")}:
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              {SPRITE_STYLES.map((s) => {
+                const available = isSpriteStyleAvailable(s.key, selectedGameGen);
+                const previewUrl = selected
+                  ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, s.key, selected.canonical)
+                  : "";
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => available && setSpriteStyle(s.key)}
+                    disabled={!available}
+                    title={
+                      available
+                        ? s.desc
+                        : `${t("modal.notAvailable")} ${selectedGameGen}`
+                    }
+                    className={(() => {
+                      const base = "flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border";
+                      if (!available) return `${base} bg-bg-primary/50 text-text-faint border-border-subtle/50 cursor-not-allowed opacity-40`;
+                      const isActive = spriteStyle === s.key;
+                      return isActive
+                        ? `${base} bg-accent-blue/10 text-accent-blue border-accent-blue/30 ring-1 ring-accent-blue/30`
+                        : `${base} bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary`;
+                    })()}
+                  >
+                    {previewUrl ? (
+                      <img
+                        src={previewUrl}
+                        alt={s.label}
+                        className="h-10 w-10 object-contain pokemon-sprite"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          if (!img.src.endsWith("/0.png")) {
+                            img.src = SPRITE_FALLBACK;
+                          }
+                        }}
+                      />
+                    ) : (
+                      <span className="flex items-center justify-center h-10 w-10 text-lg text-text-faint">?</span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      {s.key === "box" && <Package className="w-3 h-3" />}
+                      {s.key === "animated" && <Film className="w-3 h-3" />}
+                      {s.key === "3d" && <Box className="w-3 h-3" />}
+                      {s.key === "artwork" && <Palette className="w-3 h-3" />}
+                      {t(`modal.sprite${s.key === "3d" ? "3d" : s.key.charAt(0).toUpperCase() + s.key.slice(1)}`)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Shiny / Normal toggle */}
+          <div>
+            <span className="block text-xs text-text-muted mb-2">
+              {t("modal.variant")}:
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              {(["shiny", "normal"] as SpriteType[]).map((tp) => (
+                <button
+                  key={tp}
+                  onClick={() => setSpriteType(tp)}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                    spriteType === tp
+                      ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
+                      : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
+                  }`}
+                >
+                  {tp === "shiny" && <Sparkles className="w-3.5 h-3.5" />}
+                  <span>{tp === "shiny" ? "Shiny" : "Normal"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Language selector */}
+          <div className="mt-auto">
+            <label className="flex items-center gap-2 mb-2" htmlFor="lang-select-add">
+              <Globe className="w-3.5 h-3.5 text-text-muted" />
+              <span className="text-xs text-text-muted">{t("modal.language")}</span>
+            </label>
+            <div className="flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-2">
+              <CountryFlag code={language} />
+              <select
+                id="lang-select-add"
+                value={language}
+                onChange={(e) => {
+                  const lang = e.target.value;
+                  setLanguage(lang);
+                  if (selected) {
+                    const searchList = buildSearchList(allPokemon);
+                    const fullP = searchList.find(
+                      (p) =>
+                        p.spriteId === selected.spriteId &&
+                        p.canonical === selected.canonical,
+                    );
+                    if (fullP) {
+                      setQuery(getPkmnName(fullP, lang));
+                      setSelected({ ...selected, name: getPkmnName(fullP, lang) });
+                    }
+                  }
+                }}
+                className="flex-1 bg-transparent text-sm text-text-primary outline-none"
+              >
+                {availableLangs.map((lang) => {
+                  const info = ALL_LANGUAGES.find((l) => l.code === lang);
+                  return (
+                    <option key={lang} value={lang}>
+                      {info?.label ?? lang.toUpperCase()}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Sprite style — with generation-aware availability */}
-      <div className="mb-4">
-        <span className="block text-xs text-text-muted mb-2">
-          {t("modal.spriteStyle")}:
-        </span>
-        <div className="grid grid-cols-4 gap-2">
-          {SPRITE_STYLES.map((s) => {
-            const available = isSpriteStyleAvailable(s.key, selectedGameGen);
-            return (
-              <button
-                key={s.key}
-                onClick={() => available && setSpriteStyle(s.key)}
-                disabled={!available}
-                title={
-                  available
-                    ? s.desc
-                    : `${t("modal.notAvailable")} ${selectedGameGen}`
-                }
-                className={(() => {
-                  const base = "flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border";
-                  if (!available) return `${base} bg-bg-primary/50 text-text-faint border-border-subtle/50 cursor-not-allowed opacity-40`;
-                  const isActive = spriteStyle === s.key;
-                  return isActive
-                    ? `${base} bg-accent-blue/10 text-accent-blue border-accent-blue/30`
-                    : `${base} bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary`;
-                })()}
-              >
-                <span className="text-sm">{s.label}</span>
-                <span className="text-[10px] text-text-faint leading-tight text-center">
-                  {s.desc}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <span className="block text-xs text-text-muted mb-2">
-          {t("modal.variant")}:
-        </span>
-        <div className="flex gap-3">
-          {(["shiny", "normal"] as SpriteType[]).map((tp) => (
-            <label key={tp} className="flex items-center gap-2 cursor-pointer">
+        {/* --- Right Column: Form Fields --- */}
+        <div className="flex flex-col gap-4">
+          {/* Section: Pokemon search */}
+          <div className="relative">
+            <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2">
+              <Search className="w-4 h-4 text-text-muted shrink-0" />
               <input
-                type="radio"
-                name="sprite-type"
-                value={tp}
-                checked={spriteType === tp}
-                onChange={() => setSpriteType(tp)}
-                className="accent-accent-blue"
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSelected(null);
+                }}
+                placeholder={t("modal.searchPokemon")}
+                className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-sm"
               />
-              <span
-                className={`text-sm capitalize flex items-center gap-1 ${spriteType === tp ? "text-text-primary" : "text-text-muted"}`}
+            </div>
+
+            {suggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-52 overflow-y-auto">
+                {suggestions.map((s) => (
+                  <button
+                    key={s.canonical}
+                    onClick={() => selectPokemon(s)}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-3 ${
+                      s.isForm ? "pl-6" : ""
+                    }`}
+                  >
+                    <TrimmedBoxSprite
+                      canonicalName={s.canonical}
+                      alt={getPkmnName(s, language)}
+                      className="h-7 w-auto shrink-0"
+                    />
+                    <span
+                      className={`capitalize ${s.isForm ? "text-text-secondary" : "text-text-primary"}`}
+                    >
+                      {getPkmnName(s, language)}
+                    </span>
+                    <span className="ml-auto text-xs text-text-muted">
+                      {s.canonical}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="border-b border-border-subtle" />
+
+          {/* Section: Game + Title */}
+          <div className="flex flex-col gap-3">
+            <div>
+              <label
+                htmlFor="game-select-add"
+                className="block text-xs text-text-muted mb-1"
               >
-                {tp === "shiny" && <Sparkles className="w-3.5 h-3.5" />}
-                {tp === "shiny" ? "Shiny" : "Normal"}
-              </span>
+                {t("modal.game")}
+              </label>
+              <select
+                id="game-select-add"
+                value={selectedGame}
+                onChange={(e) => setSelectedGame(e.target.value)}
+                className={inputClass}
+              >
+                <option value="">{t("modal.noGame")}</option>
+                {Object.entries(genGroups).map(([gen, entries]) => (
+                  <optgroup key={gen} label={`${t("modal.generation")} ${gen}`}>
+                    {entries.map((g) => (
+                      <option key={g.key} value={g.key}>
+                        {getGameName(g, [language, ...activeLanguages, "en"])}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="title-add"
+                className="block text-xs text-text-muted mb-1"
+              >
+                {t("modal.titleLabel")}
+              </label>
+              <input
+                id="title-add"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder={t("modal.titlePlaceholder")}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {/* Section: Hunt-Type */}
+          <div>
+            <label
+              htmlFor="hunt-type-select-add"
+              className="block text-xs text-text-muted mb-1"
+            >
+              {t("huntType.label")}
             </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <label
-          htmlFor="custom-sprite-add"
-          className="block text-xs text-text-muted mb-1"
-        >
-          {t("modal.customSprite")}
-        </label>
-        <input
-          id="custom-sprite-add"
-          type="url"
-          value={customSprite}
-          onChange={(e) => setCustomSprite(e.target.value)}
-          placeholder="https://…"
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
-        />
-      </div>
-
-      <div className="mb-4">
-        <label
-          htmlFor="game-select-add"
-          className="block text-xs text-text-muted mb-1"
-        >
-          {t("modal.game")}
-        </label>
-        <select
-          id="game-select-add"
-          value={selectedGame}
-          onChange={(e) => setSelectedGame(e.target.value)}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
-        >
-          <option value="">{t("modal.noGame")}</option>
-          {Object.entries(genGroups).map(([gen, entries]) => (
-            <optgroup key={gen} label={`${t("modal.generation")} ${gen}`}>
-              {entries.map((g) => (
-                <option key={g.key} value={g.key}>
-                  {getGameName(g, [language, ...activeLanguages, "en"])}
+            <select
+              id="hunt-type-select-add"
+              value={huntType}
+              onChange={(e) => setHuntType(e.target.value)}
+              className={inputClass}
+            >
+              {getAvailableHuntMethods(selectedGameGen).map((m) => (
+                <option key={m.key} value={m.key}>
+                  {t(`huntType.${m.key}`)}
                 </option>
               ))}
-            </optgroup>
-          ))}
-        </select>
+            </select>
+          </div>
+
+          {/* Divider */}
+          <div className="border-b border-border-subtle" />
+
+          {/* Section: Custom Sprite URL — collapsible */}
+          <div>
+            <button
+              onClick={() => setShowCustomSprite((prev) => !prev)}
+              className="flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors p-1.5"
+              aria-label={t("modal.customSprite")}
+            >
+              <ChevronDown
+                className={`w-4 h-4 transition-transform ${showCustomSprite ? "rotate-0" : "-rotate-90"}`}
+              />
+              <span>{t("modal.customSprite")}</span>
+            </button>
+            {showCustomSprite && (
+              <div className="mt-2">
+                <input
+                  id="custom-sprite-add"
+                  type="url"
+                  value={customSprite}
+                  onChange={(e) => setCustomSprite(e.target.value)}
+                  placeholder="https://…"
+                  className={inputClass}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="mb-4">
-        <label
-          htmlFor="title-add"
-          className="block text-xs text-text-muted mb-1"
-        >
-          {t("modal.titleLabel")}
-        </label>
-        <input
-          id="title-add"
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t("modal.titlePlaceholder")}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
-        />
-      </div>
-
-      <div className="mb-5">
-        <label
-          htmlFor="hunt-type-select-add"
-          className="block text-xs text-text-muted mb-1"
-        >
-          {t("huntType.label")}
-        </label>
-        <select
-          id="hunt-type-select-add"
-          value={huntType}
-          onChange={(e) => setHuntType(e.target.value)}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
-        >
-          {(["encounter", "soft_reset", "masuda", "fossil", "gift", "radar", "horde", "sos", "outbreak", "sandwich"] as const).map((key) => (
-            <option key={key} value={key}>
-              {t(`huntType.${key}`)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="flex gap-3">
+      {/* --- Footer --- */}
+      <div className="flex gap-3 mt-6">
         <button
           onClick={handleCancel}
-          className="flex-1 py-2 2xl:py-2.5 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm 2xl:text-base"
+          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           {t("modal.cancel")}
         </button>
         <button
           onClick={handleAdd}
           disabled={!selected}
-          className="flex-1 py-2 2xl:py-2.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm 2xl:text-base transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {t("modal.add")}
         </button>

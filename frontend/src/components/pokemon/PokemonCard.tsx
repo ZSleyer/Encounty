@@ -119,7 +119,7 @@ export function PokemonCard({
             alt={pokemon.name}
             className="w-full h-full object-contain pixelated relative z-10 drop-shadow-lg"
             style={
-              (pokemon.sprite_style && pokemon.sprite_style !== "classic")
+              (pokemon.sprite_style && (pokemon.sprite_style as string) !== "classic" && pokemon.sprite_style !== "box")
                 ? undefined
                 : { imageRendering: "pixelated" as const }
             }

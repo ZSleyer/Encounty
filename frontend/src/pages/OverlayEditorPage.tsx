@@ -6,13 +6,14 @@
  * always has something to render, independent of tracked hunts.
  */
 import { useState, useEffect } from "react";
-import { Save, RefreshCw, Keyboard, Layers, Monitor, Check } from "lucide-react";
+import { Save, RefreshCw, Keyboard, Layers } from "lucide-react";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { OverlaySettings, Pokemon } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { getSpriteUrl } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
+import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 
 /** Hardcoded preview Pokemon for the default layout editor. */
 function makePreviewPokemon(): Pokemon {
@@ -24,7 +25,7 @@ function makePreviewPokemon(): Pokemon {
       255,
       "pokemon-white2",
       "shiny",
-      "classic",
+      "box",
       "torchic",
     ),
     sprite_type: "shiny",
@@ -49,17 +50,6 @@ export function OverlayEditorPage() {
   const [saved, setSaved] = useState(false);
 
   const [previewPokemon] = useState(() => makePreviewPokemon());
-
-  const [obsCopied, setObsCopied] = useState(false);
-  const obsBaseUrl = apiUrl("") || globalThis.location.origin;
-  const obsUrl = `${obsBaseUrl}/overlay/global`;
-
-  const copyObsUrl = () => {
-    navigator.clipboard.writeText(obsUrl).then(() => {
-      setObsCopied(true);
-      setTimeout(() => setObsCopied(false), 2000);
-    });
-  };
 
   const [isInitialised, setInitialised] = useState(false);
   useEffect(() => {
@@ -111,15 +101,7 @@ export function OverlayEditorPage() {
 
         <div className="ml-auto flex items-center gap-3">
           {/* OBS Browser Source URL */}
-          <button
-            onClick={copyObsUrl}
-            title={obsUrl}
-            aria-label={t("aria.copyObsUrl")}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-subtle text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-          >
-            {obsCopied ? <Check className="w-3.5 h-3.5 text-accent-green" /> : <Monitor className="w-3.5 h-3.5" />}
-            {obsCopied ? t("overlay.urlCopied") : t("overlay.obsUrl")}
-          </button>
+          <OverlayBrowserSourceButton pokemonId="global" />
 
           {/* Hotkeys paused badge */}
           <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">

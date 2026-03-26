@@ -460,8 +460,8 @@ export function DetectorPanel({
     try {
       const spriteId = pokedexSpriteId ?? pokemon.canonical_name;
       const variants: { type: "normal" | "shiny"; url: string }[] = [
-        { type: "normal", url: getSpriteUrl(spriteId, pokemon.game, "normal", "classic", pokemon.canonical_name) },
-        { type: "shiny", url: getSpriteUrl(spriteId, pokemon.game, "shiny", "classic", pokemon.canonical_name) },
+        { type: "normal", url: getSpriteUrl(spriteId, pokemon.game, "normal", "box", pokemon.canonical_name) },
+        { type: "shiny", url: getSpriteUrl(spriteId, pokemon.game, "shiny", "box", pokemon.canonical_name) },
       ];
 
       let addedCount = 0;

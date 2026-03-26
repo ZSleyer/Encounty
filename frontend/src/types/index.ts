@@ -11,7 +11,7 @@ export interface Pokemon {
   canonical_name: string; // English PokéAPI slug
   sprite_url: string;
   sprite_type: "normal" | "shiny";
-  sprite_style?: "classic" | "animated" | "3d" | "artwork";
+  sprite_style?: "box" | "animated" | "3d" | "artwork";
   encounters: number;
   step?: number; // Increment/decrement step size (default 1)
   is_active: boolean;

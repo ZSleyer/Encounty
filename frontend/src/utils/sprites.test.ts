@@ -9,6 +9,8 @@ import {
 const POKEAPI_BASE =
   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
+const POKESPRITE_BASE =
+  "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8";
 
 describe("getSpriteUrl", () => {
   describe("animated style", () => {
@@ -52,168 +54,168 @@ describe("getSpriteUrl", () => {
     });
   });
 
-  describe("classic style — Gen 1", () => {
+  describe("box style (legacy fallback) — Gen 1", () => {
     it("returns Gen 1 red/blue sprite (ignores shiny flag)", () => {
-      const url = getSpriteUrl(25, "pokemon-red", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-red", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-i/red-blue/transparent/25.png`,
       );
     });
 
     it("returns Gen 1 yellow sprite", () => {
-      const url = getSpriteUrl(25, "pokemon-yellow", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-yellow", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-i/yellow/transparent/25.png`,
       );
     });
 
     it("does not match firered as Gen 1 red", () => {
-      const url = getSpriteUrl(25, "pokemon-firered", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-firered", "shiny", "box");
       expect(url).toContain("generation-iii/firered-leafgreen");
     });
   });
 
-  describe("classic style — Gen 2", () => {
+  describe("box style (legacy fallback) — Gen 2", () => {
     it("returns crystal sprite with shiny subfolder", () => {
-      const url = getSpriteUrl(25, "pokemon-crystal", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-crystal", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-ii/crystal/transparent/shiny/25.png`,
       );
     });
 
     it("returns gold sprite (normal)", () => {
-      const url = getSpriteUrl(25, "pokemon-gold", "normal", "classic");
+      const url = getSpriteUrl(25, "pokemon-gold", "normal", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-ii/gold/transparent/25.png`,
       );
     });
 
     it("does not match heartgold as Gen 2 gold", () => {
-      const url = getSpriteUrl(25, "pokemon-heartgold", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-heartgold", "shiny", "box");
       expect(url).toContain("generation-iv/heartgold-soulsilver");
     });
 
     it("returns silver sprite (normal)", () => {
-      const url = getSpriteUrl(25, "pokemon-silver", "normal", "classic");
+      const url = getSpriteUrl(25, "pokemon-silver", "normal", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-ii/silver/transparent/25.png`,
       );
     });
 
     it("returns silver sprite (shiny)", () => {
-      const url = getSpriteUrl(25, "pokemon-silver", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-silver", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-ii/silver/transparent/shiny/25.png`,
       );
     });
 
     it("does not match soulsilver as Gen 2 silver", () => {
-      const url = getSpriteUrl(25, "pokemon-soulsilver", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-soulsilver", "shiny", "box");
       expect(url).toContain("generation-iv/heartgold-soulsilver");
     });
   });
 
-  describe("classic style — Gen 3", () => {
+  describe("box style (legacy fallback) — Gen 3", () => {
     it("returns emerald sprite", () => {
-      const url = getSpriteUrl(25, "pokemon-emerald", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-emerald", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-iii/emerald/shiny/25.png`,
       );
     });
 
     it("returns firered/leafgreen sprite", () => {
-      const url = getSpriteUrl(25, "pokemon-leafgreen", "normal", "classic");
+      const url = getSpriteUrl(25, "pokemon-leafgreen", "normal", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-iii/firered-leafgreen/25.png`,
       );
     });
 
     it("returns ruby-sapphire sprite for ruby", () => {
-      const url = getSpriteUrl(25, "pokemon-ruby", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-ruby", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/shiny/25.png`,
       );
     });
 
     it("does not match omega-ruby as Gen 3 ruby", () => {
-      const url = getSpriteUrl(25, "pokemon-omega-ruby", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-omega-ruby", "shiny", "box");
       // Should fall through to Gen 6+ default (Showdown dex)
       expect(url).toContain(SHOWDOWN_BASE);
     });
 
     it("returns sapphire sprite (normal)", () => {
-      const url = getSpriteUrl(25, "pokemon-sapphire", "normal", "classic");
+      const url = getSpriteUrl(25, "pokemon-sapphire", "normal", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/25.png`,
       );
     });
 
     it("returns sapphire sprite (shiny)", () => {
-      const url = getSpriteUrl(25, "pokemon-sapphire", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-sapphire", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-iii/ruby-sapphire/shiny/25.png`,
       );
     });
 
     it("does not match alpha-sapphire as Gen 3 sapphire", () => {
-      const url = getSpriteUrl(25, "pokemon-alpha-sapphire", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-alpha-sapphire", "shiny", "box");
       expect(url).toContain(SHOWDOWN_BASE);
     });
   });
 
-  describe("classic style — Gen 4", () => {
+  describe("box style (legacy fallback) — Gen 4", () => {
     it("returns diamond-pearl sprite", () => {
-      const url = getSpriteUrl(25, "pokemon-diamond", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-diamond", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-iv/diamond-pearl/shiny/25.png`,
       );
     });
 
     it("returns platinum sprite", () => {
-      const url = getSpriteUrl(25, "pokemon-platinum", "normal", "classic");
+      const url = getSpriteUrl(25, "pokemon-platinum", "normal", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-iv/platinum/25.png`,
       );
     });
 
     it("returns heartgold-soulsilver sprite", () => {
-      const url = getSpriteUrl(25, "pokemon-soulsilver", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-soulsilver", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-iv/heartgold-soulsilver/shiny/25.png`,
       );
     });
 
-    it("handles BDSP — shiny uses Showdown dex", () => {
-      const url = getSpriteUrl(25, "pokemon-brilliant-diamond", "shiny", "classic", "pikachu");
-      expect(url).toBe(`${SHOWDOWN_BASE}/dex-shiny/pikachu.png`);
+    it("handles BDSP — shiny uses pokesprite box sprite", () => {
+      const url = getSpriteUrl(25, "pokemon-brilliant-diamond", "shiny", "box", "pikachu");
+      expect(url).toBe(`${POKESPRITE_BASE}/shiny/pikachu.png`);
     });
 
     it("handles BDSP — normal uses Gen VIII path", () => {
-      const url = getSpriteUrl(25, "pokemon-brilliant-diamond", "normal", "classic");
+      const url = getSpriteUrl(25, "pokemon-brilliant-diamond", "normal", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-viii/brilliant-diamond-shining-pearl/25.png`,
       );
     });
   });
 
-  describe("classic style — Gen 5", () => {
+  describe("box style (legacy fallback) — Gen 5", () => {
     it("returns animated black-white sprite (gif)", () => {
-      const url = getSpriteUrl(25, "pokemon-black", "shiny", "classic");
+      const url = getSpriteUrl(25, "pokemon-black", "shiny", "box");
       expect(url).toBe(
         `${POKEAPI_BASE}/versions/generation-v/black-white/animated/shiny/25.gif`,
       );
     });
   });
 
-  describe("classic style — Gen 6+ fallback", () => {
-    it("falls back to Showdown dex for unknown/gen6+ games", () => {
-      const url = getSpriteUrl(25, "pokemon-x", "shiny", "classic", "pikachu");
-      expect(url).toBe(`${SHOWDOWN_BASE}/dex-shiny/pikachu.png`);
+  describe("box style — Gen 6+ uses pokesprite", () => {
+    it("returns pokesprite box sprite for gen6+ games (shiny)", () => {
+      const url = getSpriteUrl(25, "pokemon-x", "shiny", "box", "pikachu");
+      expect(url).toBe(`${POKESPRITE_BASE}/shiny/pikachu.png`);
     });
 
-    it("falls back to Showdown dex normal", () => {
-      const url = getSpriteUrl(25, "pokemon-x", "normal", "classic", "pikachu");
-      expect(url).toBe(`${SHOWDOWN_BASE}/dex/pikachu.png`);
+    it("returns pokesprite box sprite for gen6+ games (normal)", () => {
+      const url = getSpriteUrl(25, "pokemon-x", "normal", "box", "pikachu");
+      expect(url).toBe(`${POKESPRITE_BASE}/regular/pikachu.png`);
     });
   });
 
@@ -228,28 +230,22 @@ describe("getSpriteUrl", () => {
       expect(url).toBe(`${POKEAPI_BASE}/other/official-artwork/10162.png`);
     });
 
-    it("classic style uses default shiny path for form IDs > 10000", () => {
-      const url = getSpriteUrl(37, "pokemon-red", "shiny", "classic", "vulpix-alola");
-      expect(url).toBe(`${POKEAPI_BASE}/shiny/10103.png`);
+    it("box style uses pokesprite for regional forms (shiny)", () => {
+      const url = getSpriteUrl(37, "pokemon-red", "shiny", "box", "vulpix-alola");
+      expect(url).toBe(`${POKESPRITE_BASE}/shiny/vulpix-alola.png`);
     });
 
-    it("classic style uses default normal path for form IDs > 10000", () => {
-      const url = getSpriteUrl(37, "pokemon-red", "normal", "classic", "vulpix-alola");
-      expect(url).toBe(`${POKEAPI_BASE}/10103.png`);
+    it("box style uses pokesprite for regional forms (normal)", () => {
+      const url = getSpriteUrl(37, "pokemon-red", "normal", "box", "vulpix-alola");
+      expect(url).toBe(`${POKESPRITE_BASE}/regular/vulpix-alola.png`);
     });
   });
 });
 
 describe("isSpriteStyleAvailable", () => {
-  it("returns true for classic in Gen 1-5", () => {
-    for (const gen of [1, 2, 3, 4, 5]) {
-      expect(isSpriteStyleAvailable("classic", gen)).toBe(true);
-    }
-  });
-
-  it("returns false for classic in Gen 6+", () => {
-    for (const gen of [6, 7, 8, 9]) {
-      expect(isSpriteStyleAvailable("classic", gen)).toBe(false);
+  it("returns true for box in any generation", () => {
+    for (const gen of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+      expect(isSpriteStyleAvailable("box", gen)).toBe(true);
     }
   });
 
@@ -261,7 +257,7 @@ describe("isSpriteStyleAvailable", () => {
   });
 
   it("returns true for all styles when generation is null or undefined", () => {
-    for (const style of ["classic", "animated", "3d", "artwork"] as const) {
+    for (const style of ["box", "animated", "3d", "artwork"] as const) {
       expect(isSpriteStyleAvailable(style, null)).toBe(true);
       expect(isSpriteStyleAvailable(style, undefined)).toBe(true);
     }
@@ -274,17 +270,16 @@ describe("isSpriteStyleAvailable", () => {
 
 describe("bestAvailableStyle", () => {
   it("returns the preferred style when available", () => {
-    expect(bestAvailableStyle("classic", 3)).toBe("classic");
+    expect(bestAvailableStyle("box", 3)).toBe("box");
     expect(bestAvailableStyle("animated", 9)).toBe("animated");
   });
 
-  it("falls back from classic when Gen 6+", () => {
-    // Classic is unavailable for Gen 6, should fall back to animated
-    expect(bestAvailableStyle("classic", 6)).toBe("animated");
+  it("returns box for any generation since box is always available", () => {
+    expect(bestAvailableStyle("box", 6)).toBe("box");
   });
 
   it("returns preferred for null generation", () => {
-    expect(bestAvailableStyle("classic", null)).toBe("classic");
+    expect(bestAvailableStyle("box", null)).toBe("box");
   });
 });
 
@@ -295,6 +290,6 @@ describe("SPRITE_STYLES", () => {
 
   it("contains all expected keys", () => {
     const keys = SPRITE_STYLES.map((s) => s.key);
-    expect(keys).toEqual(["classic", "animated", "3d", "artwork"]);
+    expect(keys).toEqual(["box", "animated", "3d", "artwork"]);
   });
 });

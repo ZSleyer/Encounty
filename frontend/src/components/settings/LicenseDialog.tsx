@@ -11,6 +11,7 @@ import { useI18n } from "../../contexts/I18nContext";
 import { LOCALES, type Locale } from "../../utils/i18n";
 import { AGPLV3_LICENSE } from "../../utils/agplv3";
 import { apiUrl } from "../../utils/api";
+import { CountryFlag } from "../shared/CountryFlag";
 
 /** Accept the license via the backend API. */
 async function acceptLicenseAPI(): Promise<void> {
@@ -77,13 +78,14 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
               <button
                 key={l.code}
                 onClick={() => switchLocale(l.code)}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                   locale === l.code
                     ? "bg-accent-blue text-white"
                     : "bg-bg-hover text-text-muted hover:text-text-primary"
                 }`}
               >
-                {l.flag} {l.label}
+                <CountryFlag code={l.code} />
+                {l.label}
               </button>
             ))}
           </div>

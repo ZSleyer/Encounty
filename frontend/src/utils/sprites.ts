@@ -1,12 +1,20 @@
 export type SpriteType = "normal" | "shiny";
-export type SpriteStyle = "classic" | "animated" | "3d" | "artwork";
+export type SpriteStyle = "box" | "animated" | "3d" | "artwork";
 
 const POKEAPI_BASE =
   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
 const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
+const POKESPRITE_BASE =
+  "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8";
 
 /** Placeholder sprite (PokeAPI's "unknown Pokémon" silhouette) used when a sprite fails to load. */
 export const SPRITE_FALLBACK = `${POKEAPI_BASE}/0.png`;
+
+/** Returns a small box sprite URL from pokesprite for use in compact UI elements. */
+export function getBoxSpriteUrl(canonicalName: string, spriteType: SpriteType = "shiny"): string {
+  const variant = spriteType === "shiny" ? "shiny" : "regular";
+  return `${POKESPRITE_BASE}/${variant}/${canonicalName}.png`;
+}
 
 /**
  * Canonical name to correct PokeAPI numeric ID for regional forms.
@@ -78,29 +86,29 @@ export interface SpriteStyleOption {
 /** All sprite style options with availability info. */
 export const SPRITE_STYLES: SpriteStyleOption[] = [
   {
-    key: "classic",
-    label: "🎮 Klassisch",
-    desc: "Pixel-Sprites je Spiel",
-    minGen: 1,
-    maxGen: 5, // Gen 6+ have no pixel sprites
+    key: "box",
+    label: "Box",
+    desc: "Pokésprite Box-Sprites",
+    minGen: null,
+    maxGen: null,
   },
   {
     key: "animated",
-    label: "✨ Animiert",
+    label: "Animiert",
     desc: "Showdown GIFs",
-    minGen: null, // works for all
+    minGen: null,
     maxGen: null,
   },
   {
     key: "3d",
-    label: "🏠 3D Home",
+    label: "3D Home",
     desc: "HD-Render",
     minGen: null,
     maxGen: null,
   },
   {
     key: "artwork",
-    label: "🎨 Artwork",
+    label: "Artwork",
     desc: "Offizielle Illustrationen",
     minGen: null,
     maxGen: null,
@@ -133,12 +141,12 @@ export function bestAvailableStyle(
   generation: number | null | undefined,
 ): SpriteStyle {
   if (isSpriteStyleAvailable(preferred, generation)) return preferred;
-  // Fallback order: animated > 3d > artwork > classic
+  // Fallback order: animated > 3d > artwork > box
   for (const fallback of [
     "animated",
     "3d",
     "artwork",
-    "classic",
+    "box",
   ] as SpriteStyle[]) {
     if (isSpriteStyleAvailable(fallback, generation)) return fallback;
   }
@@ -148,7 +156,7 @@ export function bestAvailableStyle(
 /**
  * Returns the sprite URL for a Pokémon based on the sprite style, type, game, and ID/name.
  *
- * - classic:  version-specific PokeAPI sprites (pixelated, Gen 1-5 only)
+ * - box:      Pokésprite box sprites (trimmed pixel art, all Pokémon)
  * - animated: Pokémon Showdown animated GIFs (all Pokémon)
  * - 3d:       Pokémon Home 3D renders (high-quality PNG)
  * - artwork:  Official Ken Sugimori / official artwork from PokeAPI
@@ -157,7 +165,7 @@ export function getSpriteUrl(
   pokemonId: number | string,
   gameKey: string,
   spriteType: SpriteType = "shiny",
-  spriteStyle: SpriteStyle = "classic",
+  spriteStyle: SpriteStyle = "box",
   canonicalName?: string,
 ): string {
   const shiny = spriteType === "shiny";
@@ -178,7 +186,12 @@ export function getSpriteUrl(
     return getOfficialArtworkUrl(resolvedId, shiny);
   }
 
-  // ── Classic: version-specific PokeAPI sprites ────────────────────────
+  // ── Box: pokesprite box sprites ──────────────────────────────────────
+  if (canonicalName) {
+    return getBoxSpriteUrl(canonicalName, spriteType);
+  }
+
+  // Legacy fallback for "classic" or missing canonical name
   return getClassicSpriteUrl(resolvedId, gameKey, shiny, canonicalName);
 }
 
