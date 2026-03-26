@@ -339,6 +339,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "overlay.defaultTitle": "Standard-Layout",
     "overlay.confirmModeChange":
       "Eigene Layout-Einstellungen gehen verloren. Fortfahren?",
+    "overlay.import": "Importieren",
+    "overlay.globalLayout": "Globales Layout",
+    "overlay.saved": "Gespeichert",
+    "overlay.save": "Speichern",
+    "overlay.usesGlobalDesc":
+      "Dieses Pokémon nutzt das globale Layout.",
+    "overlay.globalChangeNote":
+      "Änderungen am globalen Layout gelten für alle Pokémon ohne eigenes Layout.",
+    "overlay.editGlobal": "Layout bearbeiten",
 
     // ── Detector Panel ──
     "detector.title": "Auto-Erkennung",
@@ -1027,6 +1036,15 @@ const translations: Record<Locale, Record<string, string>> = {
     "overlay.defaultTitle": "Default Layout",
     "overlay.confirmModeChange":
       "Custom layout settings will be lost. Continue?",
+    "overlay.import": "Import",
+    "overlay.globalLayout": "Global Layout",
+    "overlay.saved": "Saved",
+    "overlay.save": "Save",
+    "overlay.usesGlobalDesc":
+      "This Pokémon uses the global layout.",
+    "overlay.globalChangeNote":
+      "Changes to the global layout apply to all Pokémon without a custom layout.",
+    "overlay.editGlobal": "Edit layout",
 
     // ── Detector Panel ──
     "detector.title": "Auto-Detection",

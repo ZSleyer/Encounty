@@ -723,9 +723,9 @@ export function Dashboard() {
       : <Save className="w-3.5 h-3.5" />;
 
     return (
-      <div className="w-full h-full flex flex-col min-h-0 px-4 pt-4">
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 mb-3 shrink-0">
+      <div className="w-full h-full flex flex-col min-h-0">
+        {/* Toolbar — slim bar */}
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border-subtle shrink-0">
           {/* Mode toggle — two icon buttons */}
           <button
             onClick={() => handleModeChange("default")}
@@ -737,7 +737,7 @@ export function Dashboard() {
             }`}
           >
             <Globe className="w-3.5 h-3.5" />
-            Global
+            {t("overlay.global")}
           </button>
           <button
             onClick={() => handleModeChange("custom")}
@@ -749,7 +749,7 @@ export function Dashboard() {
             }`}
           >
             <Pencil className="w-3.5 h-3.5" />
-            Eigenes
+            {t("overlay.modeCustom")}
           </button>
 
           {/* Spacer */}
@@ -760,7 +760,7 @@ export function Dashboard() {
             <div className="relative group">
               <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-all">
                 <Download className="w-3.5 h-3.5" />
-                Importieren
+                {t("overlay.import")}
                 <ChevronDown className="w-3 h-3" />
               </button>
               <div className="absolute right-0 top-full mt-1 w-52 bg-bg-card border border-border-subtle rounded-xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 max-h-60 overflow-y-auto">
@@ -769,7 +769,7 @@ export function Dashboard() {
                   className="w-full text-left px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors flex items-center gap-2"
                 >
                   <Globe className="w-3.5 h-3.5 text-text-muted" />
-                  Globales Layout
+                  {t("overlay.globalLayout")}
                 </button>
                 {appState?.pokemon
                   .filter((p) => p.id !== pokemon.id && p.overlay)
@@ -783,7 +783,7 @@ export function Dashboard() {
             <>
               {overlaySaved && (
                 <span className="flex items-center gap-1 text-[11px] text-accent-green">
-                  <Save className="w-3 h-3" /> Gespeichert
+                  <Save className="w-3 h-3" /> {t("overlay.saved")}
                 </span>
               )}
               <button
@@ -792,7 +792,7 @@ export function Dashboard() {
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saveIcon}
-                Speichern
+                {t("overlay.save")}
               </button>
             </>
           )}
@@ -804,10 +804,10 @@ export function Dashboard() {
             <div className="text-center space-y-4 max-w-sm">
               <Globe className="w-10 h-10 text-text-muted mx-auto" />
               <p className="text-sm text-text-secondary">
-                Dieses Pokémon nutzt das <strong>globale Layout</strong>.
+                {t("overlay.usesGlobalDesc")}
               </p>
               <p className="text-xs text-text-muted leading-relaxed">
-                Änderungen am globalen Layout gelten für alle Pokémon ohne eigenes Layout.
+                {t("overlay.globalChangeNote")}
               </p>
               <div className="flex items-center justify-center gap-2 pt-1">
                 <Link
@@ -815,7 +815,7 @@ export function Dashboard() {
                   className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-blue hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
-                  Layout bearbeiten
+                  {t("overlay.editGlobal")}
                 </Link>
                 <GlobalOverlayBrowserSource pokemonId={pokemon.id} />
               </div>
