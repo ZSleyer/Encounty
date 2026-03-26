@@ -1,9 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, makePokemon } from "../../test-utils";
-import userEvent from "@testing-library/user-event";
+import { describe, it, expect } from "vitest";
+import { render } from "../../test-utils";
+import { makePokemon } from "../../test-utils";
 import { DetectorPreview, DetectorPreviewProps } from "./DetectorPreview";
 import { CaptureServiceProvider } from "../../contexts/CaptureServiceContext";
-import { DetectorConfig, DetectionLogEntry } from "../../types";
+import { DetectorConfig } from "../../types";
 
 /** Minimal DetectorConfig fixture. */
 function makeDetectorConfig(overrides?: Partial<DetectorConfig>): DetectorConfig {
@@ -29,9 +29,6 @@ function renderPreview(overrides?: Partial<DetectorPreviewProps>) {
   const props: DetectorPreviewProps = {
     pokemon: makePokemon(),
     cfg: makeDetectorConfig(),
-    onSourceTypeChange: vi.fn(),
-    onStartCapture: vi.fn(),
-    onStopCapture: vi.fn(),
     isRunning: false,
     confidence: 0,
     ...overrides,
@@ -47,74 +44,28 @@ function renderPreview(overrides?: Partial<DetectorPreviewProps>) {
 describe("DetectorPreview", () => {
   it("renders without crashing", () => {
     renderPreview();
-    // Source header area should be present (uses data-detector-tutorial="source")
-    const sourceSection = document.querySelector('[data-detector-tutorial="source"]');
-    expect(sourceSection).toBeInTheDocument();
+    const previewSection = document.querySelector('[data-detector-tutorial="preview"]');
+    expect(previewSection).toBeInTheDocument();
   });
 
   it("shows placeholder when no stream is available", () => {
     renderPreview();
-    // Placeholder area is the preview div with a Camera icon and text
     const previewSection = document.querySelector('[data-detector-tutorial="preview"]');
     expect(previewSection).toBeInTheDocument();
     // No <video> element should be rendered
     expect(previewSection?.querySelector("video")).toBeNull();
   });
 
-  it("shows connect button when no stream is active", () => {
-    renderPreview();
-    // Only one button when not connected
-    const buttons = screen.getAllByRole("button");
-    expect(buttons).toHaveLength(1);
-  });
-
-  it("calls onStartCapture when connect button is clicked", async () => {
-    const user = userEvent.setup();
-    const { props } = renderPreview();
-    const connectBtn = screen.getByRole("button");
-    await user.click(connectBtn);
-    expect(props.onStartCapture).toHaveBeenCalledOnce();
-  });
-
-  it("renders source type selector with correct value", () => {
-    renderPreview({
-      cfg: makeDetectorConfig({ source_type: "browser_display" }),
-    });
-    const select = screen.getByRole("combobox");
-    expect(select).toBeInTheDocument();
-    expect(select).toHaveValue("browser_display");
-  });
-
-  it("calls onSourceTypeChange when source type is changed", async () => {
-    const user = userEvent.setup();
-    const { props } = renderPreview();
-    const select = screen.getByRole("combobox");
-    await user.selectOptions(select, "browser_camera");
-    expect(props.onSourceTypeChange).toHaveBeenCalledWith("browser_camera");
-  });
-
   it("does not show confidence badge when not running", () => {
     renderPreview({ isRunning: false, confidence: 0.95 });
     // Confidence badge requires isRunning + stream + confidence > 0.01
-    expect(screen.queryByText(/95\.0%/)).not.toBeInTheDocument();
+    expect(document.querySelector('[data-detector-tutorial="preview"]')?.textContent).not.toContain("95.0%");
   });
 
   it("does not show detection log when no entries exist", () => {
     renderPreview({
       pokemon: makePokemon({ detector_config: makeDetectorConfig({ detection_log: [] }) }),
     });
-    // No log section should be rendered
-    // The only font-mono elements should be from the combobox area, not log entries
-    expect(screen.queryByText(/92\.0%/)).not.toBeInTheDocument();
-  });
-
-  // Detection log was moved from DetectorPreview to DetectorPanel's right panel tabs
-
-  it("renders with browser_camera source type selected", () => {
-    renderPreview({
-      cfg: makeDetectorConfig({ source_type: "browser_camera" }),
-    });
-    const select = screen.getByRole("combobox");
-    expect(select).toHaveValue("browser_camera");
+    expect(document.querySelector('[data-detector-tutorial="preview"]')?.textContent).not.toContain("92.0%");
   });
 });

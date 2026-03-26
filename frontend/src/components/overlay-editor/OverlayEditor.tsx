@@ -932,9 +932,24 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         {/* Draggable divider */}
         <div
           onMouseDown={startDividerDrag}
-          className="h-1.5 shrink-0 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors"
-          title="Ziehen zum Ändern der Größe"
-        />
+          className="h-1.5 shrink-0 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors relative group"
+          role="separator"
+          aria-label={t("overlay.resizeDivider")}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setPropertiesHeight(500);
+              try { localStorage.removeItem("encounty_editor_split"); } catch {}
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-bg-secondary border border-border-subtle rounded px-1 py-0 text-[9px] text-text-muted hover:text-text-primary transition-opacity z-10"
+            title={t("tooltip.editor.resetLayout")}
+            aria-label={t("tooltip.editor.resetLayout")}
+          >
+            <RotateCcw className="w-2.5 h-2.5" />
+          </button>
+        </div>
 
         {/* Layers section (bottom, fills remaining space) */}
         <div data-tutorial="layers" className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-1">

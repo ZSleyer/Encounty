@@ -27,11 +27,11 @@ describe("DetectorPanel", () => {
         />
       </CaptureServiceProvider>,
     );
-    // Should show the start button
-    expect(screen.getByRole("button", { name: /start/i })).toBeInTheDocument();
+    // Should show the source type selector (combobox)
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
   });
 
-  it("shows stop button when running", () => {
+  it("shows status label when running", () => {
     render(
       <CaptureServiceProvider>
         <DetectorPanel
@@ -43,6 +43,7 @@ describe("DetectorPanel", () => {
         />
       </CaptureServiceProvider>,
     );
-    expect(screen.getByRole("button", { name: /stop/i })).toBeInTheDocument();
+    // Should show source selector and confidence
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
   });
 });

@@ -312,7 +312,7 @@ function AppShell() {
     } else if (msg.type === "encounter_reset") {
       handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "0", t("app.counterReset") || "Zähler zurückgesetzt");
     } else if (msg.type === "pokemon_completed") {
-      handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "✔", t("app.pokemonCompleted") || "Jagd erfolgreich abgeschlossen!");
+      handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "✔", t("app.pokemonCompleted") || "Hunt erfolgreich abgeschlossen!");
     } else if (msg.type === "pokemon_deleted") {
       handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "🗑", t("app.pokemonDeleted") || "Pokémon entfernt");
     } else if (msg.type === "detector_status") {

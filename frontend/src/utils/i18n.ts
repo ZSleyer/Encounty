@@ -29,7 +29,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "app.closeWarningQuit": "Beenden und schließen",
     "app.quitMessage": "Encounty wurde beendet. Du kannst diesen Tab jetzt schließen.",
     "app.counterReset": "Zähler zurückgesetzt",
-    "app.pokemonCompleted": "Jagd erfolgreich abgeschlossen!",
+    "app.pokemonCompleted": "Hunt erfolgreich abgeschlossen!",
     "app.pokemonDeleted": "Pokémon entfernt",
     "app.preparing": "Encounty wird vorbereitet…",
     "app.preparingHint": "Spieldaten werden zum ersten Mal synchronisiert. Das kann einen Moment dauern.",
@@ -82,7 +82,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.addNew": "Neues Pokémon hinzufügen",
     "dash.search": "Suchen…",
     "dash.searchShortcut": "Suchen… (Ctrl+K)",
-    "dash.tabCounter": "Zähler",
+    "dash.tabCounter": "Encounter",
     "dash.tabDetector": "Auto Erkennung",
     "dash.tabOverlay": "Overlay",
     "dash.hotkeyHint": "Hotkeys gelten nur für das aktive Pokémon.",
@@ -99,7 +99,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "dash.reactivate": "Reaktivieren",
     "dash.enc": "enc.",
     "dash.phase": "Encounter",
-    "dash.odds": "Chancen",
+    "dash.odds": "Odds",
     "dash.hotkeyTarget": "Hotkey-Ziel festlegen",
     "dash.hotkeyTargetActive": "Hotkeys wirken auf dieses Pokémon",
 
@@ -180,7 +180,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "stats.noHistory": "Noch keine Ereignisse aufgezeichnet",
 
     // ── Hunt Types ──
-    "huntType.label": "Jagd-Methode",
+    "huntType.label": "Hunt-Methode",
     "huntType.encounter": "Zufallsbegegnung",
     "huntType.soft_reset": "Soft Reset",
     "huntType.masuda": "Masuda-Methode",
@@ -191,7 +191,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "huntType.sos": "Notruf-Kette",
     "huntType.outbreak": "Massenausbruch",
     "huntType.sandwich": "Sandwich-Methode",
-    "huntType.odds": "Chancen",
+    "huntType.odds": "Odds",
 
     // ── Settings ──
     "settings.title": "Einstellungen",
@@ -248,6 +248,7 @@ const translations: Record<Locale, Record<string, string>> = {
       "Dekorative Animationen in der Benutzeroberfläche (Welleneffekte, Leuchtlinien). Deaktivieren für bessere Leistung auf schwächerer Hardware.",
 
     // ── Overlay Editor ──
+    "overlay.resizeDivider": "Größe ändern",
     "overlay.pokemonUrl": "Pokémon Overlay-URL",
     "overlay.activeUrl": "Aktives Overlay (wechselt mit aktivem Pokémon)",
     "overlay.layers": "Ebenen",
@@ -354,8 +355,12 @@ const translations: Record<Locale, Record<string, string>> = {
     "sidebar.timerOnly": "Nur Timer",
     "sidebar.detectorOnly": "Nur Erkennung",
     "sidebar.both": "Beides",
-    "sidebar.startHunt": "Jagd starten",
-    "sidebar.stopHunt": "Jagd stoppen",
+    "sidebar.startHunt": "Hunt starten",
+    "sidebar.stopHunt": "Hunt stoppen",
+    "sidebar.startTimer": "Timer starten",
+    "sidebar.stopTimer": "Timer stoppen",
+    "sidebar.startDetector": "Erkennung starten",
+    "sidebar.stopDetector": "Erkennung stoppen",
     "sidebar.detectorNotReady": "Keine Templates konfiguriert",
     "detector.sourceClassic": "Screen Region (Classic)",
     "detector.sourceCamera": "Kamera / OBS Virtual Camera",
@@ -402,7 +407,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.interval": "Intervall (ms)",
     "detector.save": "Speichern",
     "detector.reset": "Zurücksetzen",
-    "detector.odds": "Chancen",
+    "detector.odds": "Odds",
     "detector.applyDefaults": "Defaults",
     "detector.applyDefaultsTitle":
       "Cooldown und Treffer auf Preset-Werte zurücksetzen",
@@ -554,6 +559,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "aria.timerStart": "Timer starten",
     "aria.timerPause": "Timer pausieren",
     "aria.timerReset": "Timer zurücksetzen",
+    "aria.odds": "Wahrscheinlichkeit",
 
     // ── Tooltips: Dashboard ──
     "dash.tooltipIncrement": "Encounter hinzufügen (+1)",
@@ -614,7 +620,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "detectorTutorial.step3Title": "Templates",
     "detectorTutorial.step3Text": "Erstelle Templates vom Pokémon das erkannt werden soll. Du kannst aus dem Live-Video oder vom Sprite erstellen.",
     "detectorTutorial.step4Title": "Einstellungen",
-    "detectorTutorial.step4Text": "Passe Genauigkeit, Cooldown und Polling-Intervall an. Nutze 'Defaults' um optimale Werte für deine Jagd-Methode zu laden.",
+    "detectorTutorial.step4Text": "Passe Genauigkeit, Cooldown und Polling-Intervall an. Nutze 'Defaults' um optimale Werte für deine Hunt-Methode zu laden.",
     "detectorTutorial.step5Title": "Start/Stop",
     "detectorTutorial.step5Text": "Wenn Templates erstellt sind, klicke auf 'Erkennung starten'. Der Zähler erhöht sich automatisch bei Übereinstimmungen!",
     "detectorTutorial.skip": "Überspringen",
@@ -642,6 +648,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.importFileSuccess": "{count} Template(s) aus Datei importiert",
     "detector.errInvalidFile": "Ungültige Template-Datei",
     "detector.more": "Mehr",
+    "detector.resizeDivider": "Größe ändern",
+    "detector.resetLayout": "Layout zurücksetzen",
 
     // ── Detector: Confidence ──
     "detector.confidence": "Konfidenz",
@@ -930,6 +938,7 @@ const translations: Record<Locale, Record<string, string>> = {
       "Decorative animations in the interface (wave effects, glow lines). Disable for better performance on weaker hardware.",
 
     // ── Overlay Editor ──
+    "overlay.resizeDivider": "Resize",
     "overlay.pokemonUrl": "Pokémon Overlay URL",
     "overlay.activeUrl": "Active Overlay (follows active Pokémon)",
     "overlay.layers": "Layers",
@@ -1036,6 +1045,10 @@ const translations: Record<Locale, Record<string, string>> = {
     "sidebar.both": "Both",
     "sidebar.startHunt": "Start hunt",
     "sidebar.stopHunt": "Stop hunt",
+    "sidebar.startTimer": "Start timer",
+    "sidebar.stopTimer": "Stop timer",
+    "sidebar.startDetector": "Start detection",
+    "sidebar.stopDetector": "Stop detection",
     "sidebar.detectorNotReady": "No templates configured",
     "detector.sourceClassic": "Screen Region (Classic)",
     "detector.sourceCamera": "Camera / OBS Virtual Camera",
@@ -1232,6 +1245,7 @@ const translations: Record<Locale, Record<string, string>> = {
     "aria.timerStart": "Start timer",
     "aria.timerPause": "Pause timer",
     "aria.timerReset": "Reset timer",
+    "aria.odds": "Probability",
 
     // ── Tooltips: Dashboard ──
     "dash.tooltipIncrement": "Add encounter (+1)",
@@ -1320,6 +1334,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "detector.importFileSuccess": "Imported {count} template(s) from file",
     "detector.errInvalidFile": "Invalid template file",
     "detector.more": "More",
+    "detector.resizeDivider": "Resize",
+    "detector.resetLayout": "Reset layout",
 
     // ── Detector: Confidence ──
     "detector.confidence": "Confidence",

@@ -48,7 +48,7 @@ type Pokemon struct {
 	DetectorConfig *DetectorConfig `json:"detector_config,omitempty"`
 	TimerStartedAt  *time.Time     `json:"timer_started_at,omitempty"`
 	TimerAccumulatedMs int64       `json:"timer_accumulated_ms"`
-	HuntMode           string      `json:"hunt_mode,omitempty"`    // "both" | "timer" | "detector" (default "both")
+	HuntMode           string      `json:"hunt_mode"`              // "both" | "timer" | "detector" (default "both")
 }
 
 // Session records one time-boxed encounter run for a single Pokémon.
@@ -511,6 +511,8 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	if update.Game != "" {
 		dst.Game = update.Game
 	}
+	// Always update HuntMode (allow clearing to "" which means "both")
+	dst.HuntMode = update.HuntMode
 }
 
 // applyOverlayUpdate handles overlay and overlay-mode changes, clearing the

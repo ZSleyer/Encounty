@@ -168,10 +168,12 @@ function SidebarTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
   );
 }
 
-function huntButtonClass(anyRunning: boolean, canStart: boolean): string {
-  if (anyRunning) return "text-accent-green hover:text-accent-yellow hover:bg-accent-yellow/10";
-  if (canStart) return "text-text-muted hover:text-accent-green hover:bg-accent-green/10";
-  return "opacity-30 cursor-not-allowed text-text-muted";
+function huntButtonClass(anyRunning: boolean, canStart: boolean, mode: string): string {
+  if (anyRunning) return "text-red-400 hover:text-red-300 hover:bg-red-500/10";
+  if (!canStart) return "opacity-30 cursor-not-allowed text-text-muted";
+  if (mode === "detector") return "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10";
+  if (mode === "timer") return "text-accent-green hover:text-accent-green hover:bg-accent-green/10";
+  return "text-accent-blue hover:text-accent-blue hover:bg-accent-blue/10";
 }
 
 /** Resolves the overlay settings for a given viewed Pokemon. */
@@ -401,6 +403,7 @@ export function Dashboard() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const lastSelectedIdx = useRef<number | null>(null);
   const [showHuntMenu, setShowHuntMenu] = useState(false);
+  const [showHeaderHuntMenu, setShowHeaderHuntMenu] = useState(false);
 
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector" | "overlay" | "statistics">("counter");
@@ -958,7 +961,7 @@ export function Dashboard() {
             <div className="text-lg font-black text-text-primary tabular-nums">{pokemon.encounters.toLocaleString()}</div>
           </div>
         </div>
-        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors">
+        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors" title={t("aria.odds")}>
           <div className="w-10 h-10 rounded-xl bg-accent-purple/10 flex items-center justify-center shrink-0">
             <Target className="w-5 h-5 text-accent-purple" />
           </div>
@@ -1150,6 +1153,23 @@ export function Dashboard() {
             setShowHuntMenu(false);
           };
 
+          const sidebarLabel = (() => {
+            if (anyRunning) {
+              if (currentMode === "timer") return t("sidebar.stopTimer");
+              if (currentMode === "detector") return t("sidebar.stopDetector");
+              return t("sidebar.stopHunt");
+            }
+            if (currentMode === "timer") return t("sidebar.startTimer");
+            if (currentMode === "detector") return t("sidebar.startDetector");
+            return t("sidebar.startHunt");
+          })();
+
+          const sidebarIcon = (() => {
+            if (currentMode === "timer") return <Timer className="w-3.5 h-3.5" />;
+            if (currentMode === "detector") return <Eye className="w-3.5 h-3.5" />;
+            return anyRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />;
+          })();
+
           return (
             <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle">
               {/* Combined Play / Pause */}
@@ -1158,16 +1178,16 @@ export function Dashboard() {
                   disabled={!canStart && !anyRunning}
                   onClick={() => { if (anyRunning) stopAll(); else startAll(); }}
                   className={`p-1.5 rounded-lg transition-colors ${
-                    huntButtonClass(anyRunning, canStart)
+                    huntButtonClass(anyRunning, canStart, currentMode)
                   }`}
-                  title={anyRunning ? t("sidebar.stopHunt") : t("sidebar.startHunt")}
+                  title={sidebarLabel}
                 >
-                  {anyRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                  {sidebarIcon}
                 </button>
                 <button
                   onClick={() => setShowHuntMenu((v) => !v)}
                   className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-                  title={t("sidebar.both")}
+                  title={sidebarLabel}
                 >
                   <ChevronDown className="w-3 h-3" />
                 </button>
@@ -1379,110 +1399,218 @@ export function Dashboard() {
         {viewedPokemon ? (
           <div className="flex flex-col h-full w-full">
             {/* Top Bar (übergeordnet, scrollt nicht mit) */}
-            <header className="flex-none px-6 md:px-8 py-5 flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle bg-bg-card z-50 relative shadow-md">
-              
-              {/* Left: Tabs */}
-              <div className="flex-[1_1_auto] md:flex-1 flex justify-start min-w-0 order-2 md:order-1">
-                <div className="flex bg-bg-card rounded-xl border border-border-subtle p-1 shadow-sm shrink-0">
+            <header className="flex-none px-4 py-2 flex items-center gap-2 border-b border-border-subtle bg-bg-card z-50 relative">
+
+              {/* 1. Tabs */}
+              <div className="flex bg-bg-card rounded-xl border border-border-subtle p-0.5 shadow-sm shrink-0">
+                <button
+                  onClick={() => setRightPanelTab("counter")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    rightPanelTab === "counter"
+                      ? "bg-accent-blue text-white shadow"
+                      : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                  }`}
+                >
+                  {t("dash.tabCounter")}
+                </button>
+                {!viewedPokemon.completed_at && (
                   <button
-                    onClick={() => setRightPanelTab("counter")}
-                    className={`px-6 py-1.5 2xl:px-7 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold transition-all ${
-                      rightPanelTab === "counter"
+                    onClick={() => setRightPanelTab("detector")}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      rightPanelTab === "detector"
                         ? "bg-accent-blue text-white shadow"
                         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
                     }`}
                   >
-                    {t("dash.tabCounter")}
+                    <Eye className="w-3.5 h-3.5" />
+                    {t("dash.tabDetector")}
+                    {detectorStatus[viewedPokemon.id]?.state === "match_active" && (
+                      <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
+                    )}
                   </button>
-                  {!viewedPokemon.completed_at && (
-                    <button
-                      onClick={() => setRightPanelTab("detector")}
-                      className={`px-6 py-1.5 2xl:px-7 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold transition-all flex items-center gap-1.5 ${
-                        rightPanelTab === "detector"
-                          ? "bg-accent-blue text-white shadow"
-                          : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                      }`}
-                    >
-                      <Eye className="w-3.5 h-3.5" />
-                      {t("dash.tabDetector")}
-                      {detectorStatus[viewedPokemon.id]?.state === "match_active" && (
-                        <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
-                      )}
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setRightPanelTab("overlay")}
-                    className={`px-6 py-1.5 2xl:px-7 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold transition-all flex items-center gap-1.5 ${
-                      rightPanelTab === "overlay"
-                        ? "bg-accent-blue text-white shadow"
-                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                    }`}
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    {t("dash.tabOverlay")}
-                  </button>
-                  <button
-                    onClick={() => setRightPanelTab("statistics")}
-                    className={`px-6 py-1.5 2xl:px-7 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold transition-all flex items-center gap-1.5 ${
-                      rightPanelTab === "statistics"
-                        ? "bg-accent-blue text-white shadow"
-                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                    }`}
-                  >
-                    <BarChart3 className="w-3.5 h-3.5" />
-                    {t("dash.tabStatistics")}
-                  </button>
+                )}
+                <button
+                  onClick={() => setRightPanelTab("overlay")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    rightPanelTab === "overlay"
+                      ? "bg-accent-blue text-white shadow"
+                      : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                  }`}
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  {t("dash.tabOverlay")}
+                </button>
+                <button
+                  onClick={() => setRightPanelTab("statistics")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                    rightPanelTab === "statistics"
+                      ? "bg-accent-blue text-white shadow"
+                      : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+                  }`}
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  {t("dash.tabStatistics")}
+                </button>
+              </div>
+
+              {/* Spacer */}
+              <div className="flex-1 min-w-2" />
+
+              {/* 2. Game badge — compact pill, hidden text on small screens */}
+              {viewedPokemon.game && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle text-text-muted shrink-0">
+                  <Gamepad2 className="w-3.5 h-3.5" />
+                  <span className="text-[11px] uppercase tracking-wider font-semibold hidden lg:inline truncate max-w-24">
+                    {formatGame(viewedPokemon.game)}
+                  </span>
                 </div>
-              </div>
+              )}
 
-              {/* Center: Game Badge */}
-              <div className="flex shrink-0 items-center justify-center order-1 w-full md:w-auto md:order-2">
-                {viewedPokemon.game && (
-                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm text-text-muted">
-                    <Gamepad2 className="w-4 h-4" />
-                    <span className="text-xs uppercase tracking-wider font-semibold truncate max-w-30 md:max-w-none">
-                      {formatGame(viewedPokemon.game)}
-                    </span>
+              {/* 3. Hunt start/stop — combined button with dropdown */}
+              {!viewedPokemon.completed_at && (() => {
+                const p = viewedPokemon;
+                const timerRunning = !!p.timer_started_at;
+                const detRunning = !!detectorStatus[p.id];
+                const detReady = hasDetectorReady(p);
+                const huntMode = p.hunt_mode || "both";
+                const anyRunning = timerRunning || detRunning;
+
+                const buttonLabel = (() => {
+                  if (anyRunning) {
+                    if (huntMode === "timer") return t("sidebar.stopTimer");
+                    if (huntMode === "detector") return t("sidebar.stopDetector");
+                    return t("sidebar.stopHunt");
+                  }
+                  if (huntMode === "timer") return t("sidebar.startTimer");
+                  if (huntMode === "detector") return t("sidebar.startDetector");
+                  return t("sidebar.startHunt");
+                })();
+
+                const modeIcon = (() => {
+                  if (huntMode === "timer") return <Timer className="w-3.5 h-3.5" />;
+                  if (huntMode === "detector") return <Eye className="w-3.5 h-3.5" />;
+                  return anyRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />;
+                })();
+
+                const bgColor = (() => {
+                  if (anyRunning) return "bg-red-500/15";
+                  if (huntMode === "detector") return "bg-purple-600";
+                  if (huntMode === "timer") return "bg-accent-green";
+                  return "bg-accent-blue";
+                })();
+
+                return (
+                  <div className="relative shrink-0">
+                    <div className={`flex items-center rounded-full overflow-hidden ${bgColor}`}>
+                      <button
+                        onClick={() => {
+                          if (anyRunning) {
+                            if (timerRunning) send("timer_stop", { pokemon_id: p.id });
+                            if (detRunning) void fetch(apiUrl(`/api/detector/${p.id}/stop`), { method: "POST" }).catch(() => {});
+                          } else {
+                            if (huntMode !== "detector" && !p.timer_started_at) send("timer_start", { pokemon_id: p.id });
+                            if (huntMode !== "timer" && detReady && !detectorStatus[p.id]) {
+                              void fetch(apiUrl(`/api/detector/${p.id}/start`), { method: "POST" }).catch(() => {});
+                            }
+                          }
+                        }}
+                        className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-bold transition-colors ${
+                          anyRunning
+                            ? "text-red-400 hover:bg-red-500/20"
+                            : "text-white hover:bg-white/10"
+                        }`}
+                        aria-label={buttonLabel}
+                      >
+                        {modeIcon}
+                        <span className="hidden sm:inline">{buttonLabel}</span>
+                      </button>
+                      <div className={`w-px h-4 ${anyRunning ? "bg-red-400/30" : "bg-white/20"}`} />
+                      <button
+                        onClick={() => setShowHeaderHuntMenu((v) => !v)}
+                        className={`px-1.5 py-1.5 transition-colors ${
+                          anyRunning
+                            ? "text-red-400 hover:bg-red-500/20"
+                            : "text-white hover:bg-white/10"
+                        }`}
+                        aria-label={t("sidebar.both")}
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </div>
+                    {showHeaderHuntMenu && (
+                      <>
+                        <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHeaderHuntMenu(false)} aria-label={t("aria.close")} />
+                        <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
+                          {[
+                            { mode: "both" as const, icon: <><Timer className="w-3.5 h-3.5" /><Eye className="w-3.5 h-3.5 -ml-1" /></>, label: t("sidebar.both") },
+                            { mode: "timer" as const, icon: <Timer className="w-3.5 h-3.5" />, label: t("sidebar.timerOnly") },
+                            { mode: "detector" as const, icon: <Eye className="w-3.5 h-3.5" />, label: t("sidebar.detectorOnly"), disabled: !detReady && !detRunning },
+                          ].map(({ mode, icon, label, disabled }) => (
+                            <button
+                              key={mode}
+                              onClick={() => {
+                                if (p.hunt_mode !== mode) {
+                                  void fetch(apiUrl(`/api/pokemon/${p.id}`), {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({ ...p, hunt_mode: mode }),
+                                  }).catch(() => {});
+                                }
+                                setShowHeaderHuntMenu(false);
+                              }}
+                              disabled={disabled}
+                              className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            >
+                              {icon}
+                              {label}
+                              {huntMode === mode && <Check className="ml-auto w-3 h-3 text-accent-green" />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
 
-              {/* Right: Action row (Edit / Catch / Delete) */}
-              <div className="flex-[1_1_auto] md:flex-1 flex justify-end gap-2 shrink-0 order-3 md:order-3">
+              {/* 4. Action buttons — compact, text hidden on small screens */}
+              <button
+                onClick={() => setEditingPokemon(viewedPokemon)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary text-xs font-semibold transition-colors"
+                aria-label={t("dash.edit")}
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">{t("dash.edit")}</span>
+              </button>
+
+              {viewedPokemon.completed_at ? (
                 <button
-                  onClick={() => setEditingPokemon(viewedPokemon)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm hover:border-accent-blue/40 text-text-muted hover:text-text-primary text-xs font-semibold transition-all hover:bg-bg-hover"
+                  onClick={() => handleUncomplete(viewedPokemon.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-yellow/40 text-text-muted hover:text-accent-yellow text-xs font-semibold transition-colors"
+                  aria-label={t("dash.reactivate")}
                 >
-                  <Edit2 className="w-3.5 h-3.5" />
-                  {t("dash.edit")}
+                  <Undo2 className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">{t("dash.reactivate")}</span>
                 </button>
-
-                {viewedPokemon.completed_at ? (
-                  <button
-                    onClick={() => handleUncomplete(viewedPokemon.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle hover:border-accent-yellow/40 text-text-muted hover:text-accent-yellow text-xs font-semibold shadow-sm transition-all hover:bg-bg-hover"
-                  >
-                    <Undo2 className="w-3.5 h-3.5" />
-                    {t("dash.reactivate")}
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleComplete(viewedPokemon.id)}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent-green text-white shadow-sm hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-all"
-                  >
-                    <PartyPopper className="w-3.5 h-3.5" />
-                    {t("dash.caught")}
-                  </button>
-                )}
-
+              ) : (
                 <button
-                  onClick={() => handleDelete(viewedPokemon.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-bg-card border border-border-subtle shadow-sm hover:border-accent-red/40 text-text-muted hover:text-accent-red text-xs font-semibold transition-all hover:bg-bg-hover"
+                  onClick={() => handleComplete(viewedPokemon.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-green text-white hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-colors"
+                  aria-label={t("dash.caught")}
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  {t("dash.delete")}
+                  <PartyPopper className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">{t("dash.caught")}</span>
                 </button>
-              </div>
+              )}
+
+              <button
+                onClick={() => handleDelete(viewedPokemon.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-red/40 text-text-muted hover:text-accent-red text-xs font-semibold transition-colors"
+                aria-label={t("dash.delete")}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">{t("dash.delete")}</span>
+              </button>
             </header>
 
             {/* SCROLLABLE INNER WORK AREA — overlay tab uses full height without scroll */}
