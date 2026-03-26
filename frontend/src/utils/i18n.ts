@@ -337,6 +337,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "overlay.readOnlyHint":
       "Layout ist schreibgeschützt (verknüpft)",
     "overlay.defaultTitle": "Standard-Layout",
+    "overlay.obsUrl": "OBS URL",
+    "overlay.urlCopied": "Kopiert!",
     "overlay.confirmModeChange":
       "Eigene Layout-Einstellungen gehen verloren. Fortfahren?",
     "overlay.import": "Importieren",
@@ -1034,6 +1036,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "overlay.editDefault": "Edit Default Layout",
     "overlay.readOnlyHint": "Layout is read-only (linked)",
     "overlay.defaultTitle": "Default Layout",
+    "overlay.obsUrl": "OBS URL",
+    "overlay.urlCopied": "Copied!",
     "overlay.confirmModeChange":
       "Custom layout settings will be lost. Continue?",
     "overlay.import": "Import",

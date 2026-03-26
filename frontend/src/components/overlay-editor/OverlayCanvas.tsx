@@ -233,33 +233,33 @@ export function ResizeHandle({
 }>) {
   const posStyles: Record<ResizeDir, React.CSSProperties> = {
     n: {
-      top: -10,
+      top: -6,
       left: "50%",
       transform: "translateX(-50%)",
       cursor: "n-resize",
     },
     s: {
-      bottom: -10,
+      bottom: -6,
       left: "50%",
       transform: "translateX(-50%)",
       cursor: "s-resize",
     },
     e: {
-      right: -10,
+      right: -6,
       top: "50%",
       transform: "translateY(-50%)",
       cursor: "e-resize",
     },
     w: {
-      left: -10,
+      left: -6,
       top: "50%",
       transform: "translateY(-50%)",
       cursor: "w-resize",
     },
-    ne: { top: -10, right: -10, cursor: "ne-resize" },
-    nw: { top: -10, left: -10, cursor: "nw-resize" },
-    se: { bottom: -10, right: -10, cursor: "se-resize" },
-    sw: { bottom: -10, left: -10, cursor: "sw-resize" },
+    ne: { top: -6, right: -6, cursor: "ne-resize" },
+    nw: { top: -6, left: -6, cursor: "nw-resize" },
+    se: { bottom: -6, right: -6, cursor: "se-resize" },
+    sw: { bottom: -6, left: -6, cursor: "sw-resize" },
   };
   return (
     // Resize handles are mouse-only canvas controls; aria-hidden suppresses S6848
@@ -269,8 +269,8 @@ export function ResizeHandle({
       onMouseDown={onResizeStart(dir)}
       style={{
         position: "absolute",
-        width: 20,
-        height: 20,
+        width: 12,
+        height: 12,
         background: "#3b82f6",
         border: "1px solid white",
         borderRadius: 2,
