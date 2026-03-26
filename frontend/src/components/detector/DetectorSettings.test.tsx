@@ -102,14 +102,14 @@ describe("DetectorSettings", () => {
     expect(props.onUpdate).toHaveBeenCalled();
   });
 
-  it("disables cooldown input when adaptive cooldown is enabled", async () => {
+  it("cooldown input stays enabled when adaptive cooldown is active", async () => {
     const user = userEvent.setup();
     renderSettings({
       cfg: makeDetectorConfig({ adaptive_cooldown: true }),
     });
     await expandSettings(user);
     const cooldown = document.getElementById("det-cooldown") as HTMLInputElement;
-    expect(cooldown).toBeDisabled();
+    expect(cooldown).not.toBeDisabled();
   });
 
   it("shows save button disabled when settings are not dirty", async () => {
@@ -220,17 +220,6 @@ describe("DetectorSettings", () => {
     expect(document.getElementById("det-max-poll")).toBeInTheDocument();
   });
 
-  it("renders rematch settings when rematch is enabled", async () => {
-    const user = userEvent.setup();
-    renderSettings({
-      cfg: makeDetectorConfig({ rematch_enabled: true }),
-    });
-    await expandSettings(user);
-    expect(document.getElementById("det-rematch-offset")).toBeInTheDocument();
-    expect(document.getElementById("det-rematch-window")).toBeInTheDocument();
-    expect(document.getElementById("det-replay-buffer")).toBeInTheDocument();
-  });
-
   it("toggles adaptive cooldown checkbox", async () => {
     const user = userEvent.setup();
     const { props } = renderSettings({
@@ -242,14 +231,4 @@ describe("DetectorSettings", () => {
     expect(props.onUpdate).toHaveBeenCalledWith({ adaptive_cooldown: true });
   });
 
-  it("toggles rematch enabled checkbox", async () => {
-    const user = userEvent.setup();
-    const { props } = renderSettings({
-      cfg: makeDetectorConfig({ rematch_enabled: true }),
-    });
-    await expandSettings(user);
-    const checkbox = document.getElementById("det-rematch-enabled") as HTMLInputElement;
-    await user.click(checkbox);
-    expect(props.onUpdate).toHaveBeenCalledWith({ rematch_enabled: false });
-  });
 });

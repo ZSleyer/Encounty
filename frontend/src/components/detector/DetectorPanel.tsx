@@ -24,7 +24,7 @@ import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { getSpriteUrl } from "../../utils/sprites";
 import { apiUrl } from "../../utils/api";
 import { getActiveLoop } from "../../engine/DetectionLoop";
-import { ensureDetector, getDetectorBackend, startDetectionForPokemon, stopDetectionForPokemon } from "../../engine/startDetection";
+import { ensureDetector, getDetectorBackend, startDetectionForPokemon, stopDetectionForPokemon, reloadDetectionTemplates } from "../../engine/startDetection";
 import type { DetectionLoop } from "../../engine/DetectionLoop";
 
 // --- Default config ----------------------------------------------------------
@@ -44,7 +44,6 @@ const DEFAULT_CONFIG: DetectorConfig = {
   max_poll_ms: 500,
   adaptive_cooldown: false,
   adaptive_cooldown_min: 3,
-  relative_regions: false,
 };
 
 // --- Props -------------------------------------------------------------------
@@ -353,6 +352,17 @@ export function DetectorPanel({
         const nextCfg = { ...cfg, templates: newTemplates };
         setCfg(nextCfg);
         onConfigChange(nextCfg);
+
+        // Hot-reload templates in the running detection loop
+        const loaded = await reloadDetectionTemplates(pokemon.id, newTemplates);
+        if (loaded >= 0) {
+          pushToast({
+            type: "success",
+            title: newEnabled
+              ? t("detector.templateEnabled")
+              : t("detector.templateDisabled"),
+          });
+        }
       }
     } catch { /* ignore */ }
   };
@@ -1003,7 +1013,15 @@ export function DetectorPanel({
               {/* Tab content */}
               <div className="flex-1 min-h-0 overflow-y-auto p-4">
                 {rightTab === "log" && (
-                  <div className="space-y-0.5">
+                  <div className="space-y-1.5">
+                    {/* Precision threshold context */}
+                    {(pokemon.detector_config?.detection_log?.length ?? 0) > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 mb-1 text-[10px] text-text-faint">
+                        <span>{t("detector.precision")}: {(cfg.precision * 100).toFixed(0)}%</span>
+                        <span>·</span>
+                        <span>{pokemon.detector_config?.detection_log?.length ?? 0} {t("detector.logEntryCount")}</span>
+                      </div>
+                    )}
                     {(() => {
                       const log = pokemon.detector_config?.detection_log;
                       if (!log || log.length === 0) {
@@ -1013,21 +1031,47 @@ export function DetectorPanel({
                           </p>
                         );
                       }
-                      return [...log].reverse().map((entry, i) => (
-                        <div key={`log-${entry.at}-${i}`} className="flex items-center gap-2 px-2 py-1 rounded text-xs hover:bg-bg-hover transition-colors">
-                          <time className="text-text-faint font-mono shrink-0">
-                            {new Date(entry.at).toLocaleTimeString()}
-                          </time>
-                          <span className={`font-mono shrink-0 ${
-                            entry.confidence >= cfg.precision ? "text-green-400" : "text-text-muted"
-                          }`}>
-                            {(entry.confidence * 100).toFixed(1)}%
-                          </span>
-                          {entry.confidence >= cfg.precision && (
-                            <span className="text-green-400 font-semibold">Match</span>
-                          )}
-                        </div>
-                      ));
+                      return [...log].reverse().map((entry, i) => {
+                        const pct = Math.min(entry.confidence * 100, 100);
+                        const isMatch = entry.confidence >= cfg.precision;
+                        return (
+                          <div
+                            key={`log-${entry.at}-${i}`}
+                            className={`relative rounded-lg px-3 py-2 text-xs transition-colors overflow-hidden ${
+                              isMatch ? "bg-green-500/8 border border-green-500/20" : "bg-bg-primary border border-border-subtle"
+                            }`}
+                          >
+                            {/* Confidence bar background */}
+                            <div
+                              className={`absolute inset-y-0 left-0 transition-all duration-300 ${
+                                isMatch ? "bg-green-500/10" : "bg-accent-blue/5"
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                            {/* Content */}
+                            <div className="relative flex items-center gap-2">
+                              {isMatch && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                              )}
+                              <span className={`font-mono font-bold shrink-0 ${
+                                isMatch ? "text-green-400" : "text-text-muted"
+                              }`}>
+                                {pct.toFixed(1)}%
+                              </span>
+                              <span className="text-text-faint">·</span>
+                              <time className="text-text-faint font-mono shrink-0">
+                                {new Date(entry.at).toLocaleTimeString()}
+                              </time>
+                              <div className="flex-1" />
+                              {isMatch && (
+                                <span className="text-[10px] font-bold text-green-400 uppercase tracking-wider">
+                                  Match
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      });
                     })()}
                   </div>
                 )}

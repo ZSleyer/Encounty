@@ -8,7 +8,7 @@
  */
 import { WebGPUDetector, CPUDetector, WorkerDetector } from "../engine";
 import type { Detector, TemplateData } from "../engine";
-import { DetectionLoop, registerLoop, stopLoop } from "./DetectionLoop";
+import { DetectionLoop, registerLoop, stopLoop, getActiveLoop } from "./DetectionLoop";
 import { apiUrl } from "../utils/api";
 import type { DetectorConfig, DetectorTemplate } from "../types";
 
@@ -127,6 +127,11 @@ export async function startDetectionForPokemon({
     consecutiveHits: config.consecutive_hits,
     adaptiveThreshold: config.adaptive_threshold,
     regions: allRegions,
+    pollIntervalMs: config.poll_interval_ms,
+    minPollMs: config.min_poll_ms,
+    maxPollMs: config.max_poll_ms,
+    hysteresisFactor: 0.7,
+    cooldownSec: config.cooldown_sec,
   });
 
   loop.onScore(onScore);
@@ -134,6 +139,47 @@ export async function startDetectionForPokemon({
   registerLoop(pokemonId, loop);
 
   return loop;
+}
+
+/**
+ * Reload templates into a running detection loop without stopping it.
+ *
+ * Fetches enabled template images from the backend and injects them
+ * into the loop via the safe pendingTemplates swap. Returns the number
+ * of templates loaded, or -1 if no loop is running.
+ */
+export async function reloadDetectionTemplates(
+  pokemonId: string,
+  templates: DetectorTemplate[],
+): Promise<number> {
+  const loop = getActiveLoop(pokemonId);
+  if (!loop) return -1;
+
+  await ensureDetector();
+  const detector = sharedDetector;
+  if (!detector) return -1;
+
+  const enabledTemplates = templates
+    .map((t, i) => ({ template: t, index: i }))
+    .filter(({ template: tmpl }) => tmpl.enabled !== false);
+
+  const loadedTemplates: TemplateData[] = [];
+  for (const { template: tmpl, index } of enabledTemplates) {
+    try {
+      const imgResp = await fetch(apiUrl(`/api/detector/${pokemonId}/template/${index}`));
+      if (!imgResp.ok) continue;
+      const blob = await imgResp.blob();
+      const bmp = await createImageBitmap(blob);
+      const templateData = await detector.loadTemplate(bmp, tmpl.regions);
+      bmp.close();
+      if (templateData) loadedTemplates.push(templateData);
+    } catch {
+      // Skip templates that fail to load
+    }
+  }
+
+  loop.loadTemplates(loadedTemplates);
+  return loadedTemplates.length;
 }
 
 /**

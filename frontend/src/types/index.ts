@@ -126,11 +126,6 @@ export interface DetectorConfig {
   max_poll_ms: number;       // slowest adaptive interval (static screen)
   adaptive_cooldown?: boolean;
   adaptive_cooldown_min?: number;
-  relative_regions?: boolean;
-  rematch_enabled?: boolean;
-  rematch_threshold_offset?: number;   // 0.01–0.15
-  rematch_window_sec?: number;         // 1–30
-  replay_buffer_sec?: number;          // 10–120
   adaptive_threshold?: boolean;        // auto-adjust precision based on region size (default: true)
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
   ocr_backend?: "onnx" | "tesseract";  // OCR engine: ONNX (GPU) or tesseract (CPU fallback)
