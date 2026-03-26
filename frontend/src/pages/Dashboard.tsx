@@ -36,6 +36,7 @@ import {
   Timer,
   BarChart3,
   Check,
+  Monitor,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
@@ -355,6 +356,31 @@ function DashboardLoader({ label }: Readonly<{ label: string }>) {
         <p className="text-text-muted">{label}</p>
       </div>
     </div>
+  );
+}
+
+/** Copies the OBS Browser Source URL for a Pokémon using the global overlay. */
+function GlobalOverlayBrowserSource({ pokemonId }: Readonly<{ pokemonId: string }>) {
+  const [copied, setCopied] = useState(false);
+  const baseUrl = apiUrl("") || globalThis.location.origin;
+  const pokemonUrl = `${baseUrl}/overlay/${pokemonId}`;
+
+  const copy = () => {
+    navigator.clipboard.writeText(pokemonUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <button
+      onClick={copy}
+      title={pokemonUrl}
+      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-subtle text-xs font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-accent-green" /> : <Monitor className="w-3.5 h-3.5" />}
+      {copied ? "URL kopiert!" : "OBS URL kopieren"}
+    </button>
   );
 }
 
@@ -768,21 +794,24 @@ export function Dashboard() {
         {/* Content */}
         {modeBase === "default" && currentOverlay && (
           <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-            <div className="text-center space-y-3 max-w-sm">
-              <Globe className="w-10 h-10 text-text-muted/40 mx-auto" />
+            <div className="text-center space-y-4 max-w-sm">
+              <Globe className="w-10 h-10 text-text-muted mx-auto" />
               <p className="text-sm text-text-secondary">
                 Dieses Pokémon nutzt das <strong>globale Layout</strong>.
               </p>
               <p className="text-xs text-text-muted leading-relaxed">
                 Änderungen am globalen Layout gelten für alle Pokémon ohne eigenes Layout.
               </p>
-              <Link
-                to="/overlay-editor"
-                className="inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-lg bg-accent-blue hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-                Globales Layout bearbeiten
-              </Link>
+              <div className="flex items-center justify-center gap-2 pt-1">
+                <Link
+                  to="/overlay-editor"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-blue hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Layout bearbeiten
+                </Link>
+                <GlobalOverlayBrowserSource pokemonId={pokemon.id} />
+              </div>
             </div>
           </div>
         )}
