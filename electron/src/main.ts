@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, Menu, session, desktopCapturer, ipcMain, shell, systemPreferences, protocol, net } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { GoProcessManager } from './process-manager';
+import { BACKEND_PORT } from './config';
 import path from 'node:path';
 import fs from 'node:fs';
 
@@ -158,7 +159,7 @@ async function startApp(): Promise<void> {
       goProcess = new GoProcessManager();
 
       // Check for zombie backend process before starting a new one
-      const port = 8192;
+      const port = BACKEND_PORT;
       const portInUse = await GoProcessManager.checkPort(port);
 
       if (portInUse) {

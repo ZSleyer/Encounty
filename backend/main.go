@@ -72,7 +72,7 @@ func main() {
 
 	stateMgr, db := initStateAndDB(configDir)
 
-	port := 8192
+	port := server.DefaultPort
 
 	st := stateMgr.GetState()
 	fileWriter := initFileWriter(st, configDir)

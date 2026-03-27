@@ -2,7 +2,7 @@
  * api.ts — Centralized API URL construction.
  *
  * In Electron production, the preload exposes apiBaseUrl via contextBridge
- * (set to "http://localhost:8192") so API calls reach the Go backend.
+ * (set dynamically from BACKEND_PORT) so API calls reach the Go backend.
  * In Vite dev mode, the proxy handles /api and /ws, so the base is empty.
  */
 

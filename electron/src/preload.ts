@@ -6,6 +6,7 @@
  * without having direct access to Node or Electron internals.
  */
 import { contextBridge, ipcRenderer } from 'electron';
+import { BACKEND_PORT } from './config';
 
 interface CaptureSource {
   id: string;
@@ -23,7 +24,7 @@ const isDevMode = process.argv.includes('--dev') ||
 
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
-  apiBaseUrl: isDevMode ? '' : 'http://localhost:8192',
+  apiBaseUrl: isDevMode ? '' : `http://localhost:${BACKEND_PORT}`,
   isWayland,
   platform: process.platform as 'win32' | 'linux',
 

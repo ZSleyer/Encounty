@@ -34,7 +34,7 @@ export class GoProcessManager extends EventEmitter {
       console.log('[Go]', output.trim());
 
       // Check if server is ready
-      if (output.includes('Server listening on :8192')) {
+      if (output.includes('Server listening')) {
         this.emit('ready');
       }
     });

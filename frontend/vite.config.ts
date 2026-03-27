@@ -2,6 +2,9 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
+/** Backend port — must match backend/internal/server/port.go DefaultPort. */
+const BACKEND_PORT = 8192;
+
 export default defineConfig({
   base: "./",
   plugins: [react(), tailwindcss()],
@@ -11,9 +14,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      "/api": "http://localhost:8192",
+      "/api": `http://localhost:${BACKEND_PORT}`,
       "/ws": {
-        target: "ws://localhost:8192",
+        target: `ws://localhost:${BACKEND_PORT}`,
         ws: true,
         configure: (proxy) => {
           proxy.on("error", (err: Error) => {
