@@ -19,18 +19,46 @@ let sharedDetector: Detector | null = null;
 let sharedDetectorBackend: "gpu" | "cpu" | null = null;
 let detectorInitPromise: Promise<void> | null = null;
 
+/** When true, skip WebGPU and use CPU detector even if GPU is available. */
+let forceCPUMode = false;
+
+/**
+ * Set forced CPU mode. Destroys the current detector so the next
+ * ensureDetector() call re-initializes with the chosen backend.
+ */
+export function setForceCPU(force: boolean): void {
+  if (force === forceCPUMode) return;
+  forceCPUMode = force;
+  // Invalidate current detector so next ensureDetector() re-creates it
+  sharedDetector = null;
+  sharedDetectorBackend = null;
+  detectorInitPromise = null;
+}
+
+/** Return whether force-CPU mode is active. */
+export function isForceCPU(): boolean {
+  return forceCPUMode;
+}
+
 /** Initialize the detector once (idempotent). Resolves when ready. */
 export function ensureDetector(): Promise<void> {
   if (sharedDetector) return Promise.resolve();
   if (detectorInitPromise) return detectorInitPromise;
 
   detectorInitPromise = (async () => {
-    try {
-      sharedDetector = await WebGPUDetector.create();
-      sharedDetectorBackend = "gpu";
-      console.log("[Detector] Using WebGPU backend");
-    } catch (gpuErr) {
-      console.warn("[Detector] WebGPU unavailable:", gpuErr);
+    // Attempt WebGPU unless force-CPU mode is active
+    if (!forceCPUMode) {
+      try {
+        sharedDetector = await WebGPUDetector.create();
+        sharedDetectorBackend = "gpu";
+        console.log("[Detector] Using WebGPU backend");
+      } catch (gpuErr) {
+        console.warn("[Detector] WebGPU unavailable:", gpuErr);
+      }
+    }
+
+    // CPU fallback if WebGPU was skipped or failed
+    if (!sharedDetector) {
       try {
         if (WorkerDetector.isAvailable()) {
           sharedDetector = await WorkerDetector.create();
@@ -66,7 +94,7 @@ export interface StartDetectionOptions {
   templates: DetectorTemplate[];
   config: DetectorConfig;
   getVideoElement: () => HTMLVideoElement | null;
-  onScore: (score: number, state: string) => void;
+  onScore: (score: number, state: string, cooldownRemainingMs?: number) => void;
 }
 
 /**

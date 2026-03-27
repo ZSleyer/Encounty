@@ -111,7 +111,7 @@ export class DetectionLoop {
   private inHysteresis = false;
 
   /** Optional callback for live score reporting. */
-  private scoreCallback: ((score: number, state: string) => void) | null = null;
+  private scoreCallback: ((score: number, state: string, cooldownRemainingMs?: number) => void) | null = null;
 
   // --- Throttle state for scoreCallback (UI store updates) -----------------
   private lastScoreCallbackTime = 0;
@@ -132,7 +132,7 @@ export class DetectionLoop {
   }
 
   /** Register a callback for live score updates. */
-  onScore(cb: (score: number, state: string) => void): void {
+  onScore(cb: (score: number, state: string, cooldownRemainingMs?: number) => void): void {
     this.scoreCallback = cb;
   }
 
@@ -327,7 +327,15 @@ export class DetectionLoop {
 
     this.lastScoreCallbackTime = now;
     this.lastCallbackState = state;
-    this.scoreCallback(this.smoothedScore, state);
+
+    let cooldownRemainingMs: number | undefined;
+    if (this.inHysteresis && this.cooldownSec > 0) {
+      const elapsed = Date.now() - this.hysteresisEnteredAt;
+      const total = this.cooldownSec * 1000;
+      cooldownRemainingMs = Math.max(0, total - elapsed);
+    }
+
+    this.scoreCallback(this.smoothedScore, state, cooldownRemainingMs);
   }
 
   /**
