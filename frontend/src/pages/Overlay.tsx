@@ -698,7 +698,7 @@ export function Overlay({
       })()}
 
       {/* Title — outer div holds position + idle (stable, no key), inner span holds trigger (keyed) */}
-      {settings.title?.visible && activePokemon.title && (() => {
+      {settings.title?.visible && (activePokemon.title || !!previewSettings) && (() => {
           const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
           const titleJustifyContent = alignToJustify[settings.title.style.text_align] ?? "flex-start";
           const outlinePadding = settings.title.style.outline_type === "solid" ? settings.title.style.outline_width * 2 + 1 : 0;
@@ -732,7 +732,7 @@ export function Overlay({
                 animationDirection: channels.title.reverse ? "reverse" : undefined,
               }}
             >
-              {activePokemon.title}
+              {activePokemon.title || "Titel"}
             </span>
           </div>
           );

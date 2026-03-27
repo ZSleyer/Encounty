@@ -444,7 +444,7 @@ export function OverlayCanvas({
           )}
 
           {/* Drag/resize overlays for each element */}
-          {!readOnly && LAYERS.filter(key => key !== "title" || (localSettings.title && activePokemon?.title)).map((key) => {
+          {!readOnly && LAYERS.map((key) => {
             const el = localSettings[key] as OverlayElementBase;
             if (!el.visible) return null;
             const { onDragStart, onResizeStart } = handlers[key];

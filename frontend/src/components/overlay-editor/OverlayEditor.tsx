@@ -132,7 +132,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     trigger_enter: "fade-in",
   },
   title: {
-    visible: true,
+    visible: false,
     x: 200,
     y: 60,
     width: 300,
@@ -969,7 +969,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               <RotateCcw className="w-3 h-3" />
             </button>
           </div>
-          {LAYERS.filter(key => key !== "title" || activePokemon?.title)
+          {LAYERS
             .filter(key => key !== "canvas")
             .map((key) => {
               const el = localSettings[key] as OverlayElementBase;
