@@ -7,6 +7,8 @@ interface TrimmedBoxSpriteProps {
   readonly spriteType?: SpriteType;
   readonly alt: string;
   readonly className?: string;
+  /** When true, renders nothing instead of the fallback sprite on failure. */
+  readonly hideOnFail?: boolean;
 }
 
 /**
@@ -15,7 +17,7 @@ interface TrimmedBoxSpriteProps {
  * then displays only the trimmed region — so all Pokemon appear consistently sized
  * and centered regardless of their position within the 68x56 sprite sheet cell.
  */
-export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, className = "" }: TrimmedBoxSpriteProps) {
+export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, className = "", hideOnFail = false }: TrimmedBoxSpriteProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
 
@@ -72,6 +74,7 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
   }, [canonicalName, spriteType]);
 
   if (failed) {
+    if (hideOnFail) return null;
     return <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite ${className}`} />;
   }
 

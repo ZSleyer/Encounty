@@ -1,5 +1,5 @@
 export type SpriteType = "normal" | "shiny";
-export type SpriteStyle = "box" | "animated" | "3d" | "artwork";
+export type SpriteStyle = "box" | "animated" | "3d" | "artwork" | "classic";
 
 const POKEAPI_BASE =
   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
@@ -9,6 +9,11 @@ const POKESPRITE_BASE =
 
 /** Placeholder sprite (PokeAPI's "unknown Pokémon" silhouette) used when a sprite fails to load. */
 export const SPRITE_FALLBACK = `${POKEAPI_BASE}/0.png`;
+
+/** Small default PokeAPI sprite — available for all generations including Gen 9. */
+export function getDefaultSpriteUrl(pokemonId: number | string): string {
+  return `${POKEAPI_BASE}/${pokemonId}.png`;
+}
 
 /**
  * Default-form suffixes that Pokesprite omits from filenames.
@@ -24,8 +29,8 @@ const DEFAULT_FORM_SUFFIXES = [
   "-combat-breed", "-green-plumage", "-zero",
 ];
 
-/** Normalize a canonical name for Pokesprite box sprites. */
-function normalizeForPokesprite(name: string): string {
+/** Normalize a canonical name by stripping default-form suffixes. */
+function normalizeDefaultForm(name: string): string {
   for (const suffix of DEFAULT_FORM_SUFFIXES) {
     if (name.endsWith(suffix)) return name.slice(0, -suffix.length);
   }
@@ -35,7 +40,7 @@ function normalizeForPokesprite(name: string): string {
 /** Returns a small box sprite URL from pokesprite for use in compact UI elements. */
 export function getBoxSpriteUrl(canonicalName: string, spriteType: SpriteType = "shiny"): string {
   const variant = spriteType === "shiny" ? "shiny" : "regular";
-  const normalized = normalizeForPokesprite(canonicalName);
+  const normalized = normalizeDefaultForm(canonicalName);
   return `${POKESPRITE_BASE}/${variant}/${normalized}.png`;
 }
 
@@ -113,7 +118,7 @@ export const SPRITE_STYLES: SpriteStyleOption[] = [
     label: "Box",
     desc: "Pokésprite Box-Sprites",
     minGen: null,
-    maxGen: null,
+    maxGen: 8,
   },
   {
     key: "animated",
@@ -135,6 +140,13 @@ export const SPRITE_STYLES: SpriteStyleOption[] = [
     desc: "Offizielle Illustrationen",
     minGen: null,
     maxGen: null,
+  },
+  {
+    key: "classic",
+    label: "Classic",
+    desc: "Spielspezifische Pixel-Sprites",
+    minGen: null,
+    maxGen: 5,
   },
 ];
 
@@ -164,11 +176,12 @@ export function bestAvailableStyle(
   generation: number | null | undefined,
 ): SpriteStyle {
   if (isSpriteStyleAvailable(preferred, generation)) return preferred;
-  // Fallback order: animated > 3d > artwork > box
+  // Fallback order: animated > 3d > artwork > classic > box
   for (const fallback of [
     "animated",
     "3d",
     "artwork",
+    "classic",
     "box",
   ] as SpriteStyle[]) {
     if (isSpriteStyleAvailable(fallback, generation)) return fallback;
@@ -194,6 +207,12 @@ export function getSpriteUrl(
   const shiny = spriteType === "shiny";
   const resolvedId = resolvePokeApiId(pokemonId, canonicalName);
 
+  // ── Classic (game-specific pixel sprites) ────────────────────────────
+  if (spriteStyle === "classic") {
+    const effectiveGameKey = gameKey || defaultGameKeyForGeneration(resolvedId);
+    return getClassicSpriteUrl(resolvedId, effectiveGameKey, shiny, canonicalName);
+  }
+
   // ── Animated (Pokémon Showdown GIFs) ─────────────────────────────────
   if (spriteStyle === "animated") {
     return getShowdownAnimatedUrl(resolvedId, canonicalName, shiny);
@@ -218,6 +237,11 @@ export function getSpriteUrl(
   return getClassicSpriteUrl(resolvedId, gameKey, shiny, canonicalName);
 }
 
+/** Convert a name to a Showdown sprite ID (lowercase, non-alphanumeric removed). */
+function toShowdownId(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
 /**
  * Animated GIF sprite from Pokémon Showdown.
  * Uses canonical name (e.g. "bulbasaur", "charizard-mega-x").
@@ -228,7 +252,7 @@ function getShowdownAnimatedUrl(
   shiny = false,
 ): string {
   const name = canonicalName || String(pokemonId);
-  const slug = name.toLowerCase();
+  const slug = toShowdownId(normalizeDefaultForm(name));
   const dir = shiny ? "ani-shiny" : "ani";
   return `${SHOWDOWN_BASE}/${dir}/${slug}.gif`;
 }
@@ -307,7 +331,7 @@ const CLASSIC_SPRITE_RULES: ClassicSpriteRule[] = [
     match: (k) => k.includes("brilliant") || k.includes("shining") || k === "pokemon-bd" || k === "pokemon-sp",
     url: (id, sp, cn) => {
       if (sp) {
-        const slug = (cn || String(id)).toLowerCase();
+        const slug = toShowdownId(normalizeDefaultForm((cn || String(id)).toLowerCase()));
         return `${SHOWDOWN_BASE}/dex-shiny/${slug}.png`;
       }
       return `${POKEAPI_BASE}/versions/generation-viii/brilliant-diamond-shining-pearl/${id}.png`;
@@ -331,6 +355,23 @@ const CLASSIC_SPRITE_RULES: ClassicSpriteRule[] = [
     url: (id, sp) => `${POKEAPI_BASE}/versions/generation-v/black-white/animated/${sp}${id}.gif`,
   },
 ];
+
+/**
+ * Returns the default game key for a Pokemon based on its generation.
+ * Used when "classic" style is selected but no specific game is chosen,
+ * so the sprite defaults to the first game the Pokemon appeared in.
+ */
+function defaultGameKeyForGeneration(pokemonId: number): string {
+  const gen = getPokemonGeneration(pokemonId);
+  switch (gen) {
+    case 1: return "pokemon-red";
+    case 2: return "pokemon-gold";
+    case 3: return "pokemon-ruby";
+    case 4: return "pokemon-diamond";
+    case 5: return "pokemon-black";
+    default: return "";
+  }
+}
 
 /**
  * Classic version-specific sprite from PokeAPI GitHub (Gen 1-5 only).
@@ -361,7 +402,7 @@ function getClassicSpriteUrl(
   }
 
   // Gen 6+ / default — fallback to Showdown dex renders
-  const slug = (canonicalName || String(pokemonId)).toLowerCase();
+  const slug = toShowdownId(normalizeDefaultForm((canonicalName || String(pokemonId)).toLowerCase()));
   return shiny
     ? `${SHOWDOWN_BASE}/dex-shiny/${slug}.png`
     : `${SHOWDOWN_BASE}/dex/${slug}.png`;

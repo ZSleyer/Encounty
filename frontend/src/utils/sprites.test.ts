@@ -243,10 +243,11 @@ describe("getSpriteUrl", () => {
 });
 
 describe("isSpriteStyleAvailable", () => {
-  it("returns true for box in any generation", () => {
-    for (const gen of [1, 2, 3, 4, 5, 6, 7, 8, 9]) {
+  it("returns true for box in Gen 1-8", () => {
+    for (const gen of [1, 2, 3, 4, 5, 6, 7, 8]) {
       expect(isSpriteStyleAvailable("box", gen)).toBe(true);
     }
+    expect(isSpriteStyleAvailable("box", 9)).toBe(false);
   });
 
   it("returns true for animated/3d/artwork for any generation", () => {
@@ -284,12 +285,12 @@ describe("bestAvailableStyle", () => {
 });
 
 describe("SPRITE_STYLES", () => {
-  it("has exactly 4 entries", () => {
-    expect(SPRITE_STYLES).toHaveLength(4);
+  it("has exactly 5 entries", () => {
+    expect(SPRITE_STYLES).toHaveLength(5);
   });
 
   it("contains all expected keys", () => {
     const keys = SPRITE_STYLES.map((s) => s.key);
-    expect(keys).toEqual(["box", "animated", "3d", "artwork"]);
+    expect(keys).toEqual(["box", "animated", "3d", "artwork", "classic"]);
   });
 });
