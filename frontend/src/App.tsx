@@ -478,16 +478,22 @@ function AppShell() {
       <div className="glow-line-h shrink-0" />
 
       {/* ── Main content ─────────────────────────────────────── */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/hotkeys" element={<HotkeyPage />} />
-          <Route path="/overlay-editor" element={<OverlayEditorPage />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/overlay/:pokemonId" element={<Overlay />} />
-          <Route path="/overlay" element={<Overlay />} />
-        </Routes>
+      {/* Dashboard stays mounted when navigating to overlay editor */}
+      <div className={location.pathname === "/" ? "flex-1 overflow-hidden flex flex-col" : "hidden"}>
+        <Dashboard />
       </div>
+      {location.pathname !== "/" && (
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <Routes>
+            <Route path="/" element={null} />
+            <Route path="/hotkeys" element={<HotkeyPage />} />
+            <Route path="/overlay-editor" element={<OverlayEditorPage />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/overlay/:pokemonId" element={<Overlay />} />
+            <Route path="/overlay" element={<Overlay />} />
+          </Routes>
+        </div>
+      )}
 
       {/* ── Footer ───────────────────────────────────────────── */}
       <div className="shrink-0">
@@ -854,7 +860,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
 /** Gated shell that shows the license dialog on first launch. */
 function LicenseGate() {
   const location = useLocation();
-  const isOverlay = location.pathname.startsWith("/overlay");
+  const isOverlay = location.pathname === "/overlay" || location.pathname.startsWith("/overlay/");
   const [readyStatus, setReadyStatus] = useState<ReadyStatus | null>(null);
   const [status, setStatus] = useState<"loading" | "pending" | "accepted">("loading");
 
