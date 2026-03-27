@@ -122,11 +122,14 @@ func (h *handler) handleTemplateDelete(w http.ResponseWriter, id string, n int, 
 	httputil.WriteJSON(w, http.StatusOK, okResponse{OK: true})
 }
 
-// handleTemplatePatch updates the regions and/or enabled flag for an existing template.
+// handleTemplatePatch updates the regions, enabled flag, and/or name for an existing template.
+// When enabling a template, all other templates for the same Pokemon are disabled
+// to enforce single-active semantics.
 func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id string, n int, pokemon *state.Pokemon) {
 	type patchBody struct {
 		Regions []state.MatchedRegion `json:"regions,omitempty"`
 		Enabled *bool                 `json:"enabled,omitempty"`
+		Name    *string               `json:"name,omitempty"`
 	}
 	var body patchBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -144,8 +147,20 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 	if body.Regions != nil {
 		cfg2.Templates[n].Regions = body.Regions
 	}
+	if body.Name != nil {
+		cfg2.Templates[n].Name = *body.Name
+	}
 	if body.Enabled != nil {
 		cfg2.Templates[n].Enabled = body.Enabled
+		// Enforce single-active: when enabling a template, disable all others.
+		if *body.Enabled {
+			f := false
+			for i := range cfg2.Templates {
+				if i != n {
+					cfg2.Templates[i].Enabled = &f
+				}
+			}
+		}
 	}
 	sm := h.deps.StateManager()
 	sm.SetDetectorConfig(id, &cfg2)
@@ -187,7 +202,7 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		cfg = *pokemon.DetectorConfig
 	}
 
-	pngBytes, regions, err := parseTemplateUpload(r)
+	pngBytes, regions, uploadName, err := parseTemplateUpload(r)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
@@ -203,11 +218,26 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	tmpl := state.DetectorTemplate{Regions: regions}
 	sortOrder := len(cfg.Templates)
+	t := true
+	tmplName := uploadName
+	if tmplName == "" {
+		tmplName = fmt.Sprintf("Template %d", sortOrder+1)
+	}
+	tmpl := state.DetectorTemplate{
+		Name:    tmplName,
+		Regions: regions,
+		Enabled: &t,
+	}
 	if err := h.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
+	}
+
+	// Deactivate all existing templates so only the new one is active.
+	f := false
+	for i := range cfg.Templates {
+		cfg.Templates[i].Enabled = &f
 	}
 
 	cfg.Templates = append(cfg.Templates, tmpl)
@@ -222,15 +252,16 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 type templateUploadRequest struct {
 	ImageBase64 string                `json:"imageBase64"`
 	Regions     []state.MatchedRegion `json:"regions"`
+	Name        string                `json:"name,omitempty"`
 }
 
 // parseTemplateUpload reads and validates the base64-encoded image from the
-// request body, returning the re-encoded PNG bytes and regions.
-func parseTemplateUpload(r *http.Request) ([]byte, []state.MatchedRegion, error) {
+// request body, returning the re-encoded PNG bytes, regions, and optional name.
+func parseTemplateUpload(r *http.Request) ([]byte, []state.MatchedRegion, string, error) {
 	r.Body = http.MaxBytesReader(nil, r.Body, 20<<20)
 	var req templateUploadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, nil, fmt.Errorf("failed to parse json body")
+		return nil, nil, "", fmt.Errorf("failed to parse json body")
 	}
 
 	b64data := req.ImageBase64
@@ -239,19 +270,19 @@ func parseTemplateUpload(r *http.Request) ([]byte, []state.MatchedRegion, error)
 	}
 	imgData, err := base64.StdEncoding.DecodeString(b64data)
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid base64 image data")
+		return nil, nil, "", fmt.Errorf("invalid base64 image data")
 	}
 
 	img, _, err := image.Decode(bytes.NewReader(imgData))
 	if err != nil {
-		return nil, nil, fmt.Errorf("invalid image format: %v", err)
+		return nil, nil, "", fmt.Errorf("invalid image format: %v", err)
 	}
 
 	pngBytes, err := encodePNG(img)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", err
 	}
-	return pngBytes, req.Regions, nil
+	return pngBytes, req.Regions, req.Name, nil
 }
 
 // encodePNG encodes an image to PNG and returns the bytes.
@@ -359,15 +390,24 @@ func (h *handler) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Re
 
 	b := img.Bounds()
 	sortOrder := len(cfg.Templates)
+	t := true
 	tmpl := state.DetectorTemplate{
+		Name: fmt.Sprintf("Template %d", sortOrder+1),
 		Regions: []state.MatchedRegion{
 			{Type: "image", Rect: state.DetectorRect{X: 0, Y: 0, W: b.Dx(), H: b.Dy()}},
 		},
+		Enabled: &t,
 	}
 
 	if err := h.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
 		return
+	}
+
+	// Deactivate all existing templates so only the new one is active.
+	f := false
+	for i := range cfg.Templates {
+		cfg.Templates[i].Enabled = &f
 	}
 
 	cfg.Templates = append(cfg.Templates, tmpl)

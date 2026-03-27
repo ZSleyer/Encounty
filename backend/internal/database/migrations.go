@@ -34,6 +34,16 @@ var migrations = []migration{
 		description: "drop legacy relative_regions column from detector_configs",
 		fn:          migrateDropLegacyColumns,
 	},
+	{
+		version:     4,
+		description: "add name column to detector_templates",
+		fn:          migrateAddTemplateName,
+	},
+	{
+		version:     5,
+		description: "drop unused browser_port column from settings",
+		fn:          migrateDropBrowserPort,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -174,5 +184,21 @@ func migrateAddMissingColumns(tx *sql.Tx) error {
 // already created without it.
 func migrateDropLegacyColumns(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE detector_configs DROP COLUMN relative_regions`)
+	return nil
+}
+
+// migrateAddTemplateName adds the name column to detector_templates so each
+// template can have a user-visible label. Errors are ignored because the column
+// may already exist on fresh databases.
+func migrateAddTemplateName(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN name TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateDropBrowserPort removes the browser_port column from the settings
+// table. The port is now a hardcoded constant (8192) in main.go.
+// Errors are ignored because the column may not exist on fresh databases.
+func migrateDropBrowserPort(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE settings DROP COLUMN browser_port`)
 	return nil
 }

@@ -83,6 +83,7 @@ type MatchedRegion struct {
 // it is excluded from JSON serialisation to avoid bloating WebSocket messages.
 type DetectorTemplate struct {
 	TemplateDBID int64           `json:"template_db_id,omitempty"` // DB primary key
+	Name         string          `json:"name"`                     // user-visible template name
 	ImagePath    string          `json:"image_path,omitempty"`     // legacy filesystem path
 	ImageData    []byte          `json:"-"`                        // PNG bytes, loaded on demand
 	Regions      []MatchedRegion `json:"regions"`
@@ -253,7 +254,6 @@ type Settings struct {
 	OutputEnabled bool            `json:"output_enabled"`
 	OutputDir     string          `json:"output_dir"`
 	AutoSave      bool            `json:"auto_save"`
-	BrowserPort  int             `json:"browser_port"`
 	Languages    []string        `json:"languages"`                // active game-name languages; default ["de","en"]
 	CrispSprites bool            `json:"crisp_sprites"`
 	UIAnimations bool            `json:"ui_animations"`
@@ -317,7 +317,6 @@ func NewManager(configDir string) *Manager {
 				OutputEnabled: false,
 				OutputDir:     filepath.Join(configDir, "output"),
 				AutoSave:      true,
-				BrowserPort:   8080,
 				Languages:    []string{"de", "en"},
 				CrispSprites: true,
 				UIAnimations: true,

@@ -112,21 +112,20 @@ func saveHotkeyRow(tx *sql.Tx, h *state.HotkeyMap) error {
 // saveSettingsRow upserts the singleton settings row including tutorial flags.
 func saveSettingsRow(tx *sql.Tx, s *state.Settings) error {
 	if _, err := tx.Exec(`
-		INSERT INTO settings (id, output_enabled, output_dir, auto_save, browser_port,
+		INSERT INTO settings (id, output_enabled, output_dir, auto_save,
 			crisp_sprites, ui_animations, config_path, tutorial_overlay_editor, tutorial_auto_detection)
-		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			output_enabled          = excluded.output_enabled,
 			output_dir              = excluded.output_dir,
 			auto_save               = excluded.auto_save,
-			browser_port            = excluded.browser_port,
 			crisp_sprites           = excluded.crisp_sprites,
 			ui_animations           = excluded.ui_animations,
 			config_path             = excluded.config_path,
 			tutorial_overlay_editor = excluded.tutorial_overlay_editor,
 			tutorial_auto_detection = excluded.tutorial_auto_detection`,
 		boolToInt(s.OutputEnabled), s.OutputDir,
-		boolToInt(s.AutoSave), s.BrowserPort,
+		boolToInt(s.AutoSave),
 		boolToInt(s.CrispSprites), boolToInt(s.UIAnimations), s.ConfigPath,
 		boolToInt(s.TutorialSeen.OverlayEditor),
 		boolToInt(s.TutorialSeen.AutoDetection),
@@ -599,16 +598,16 @@ func upsertPokemonTemplates(tx *sql.Tx, pokemonID string, templates []state.Dete
 		enabledVal := boolToInt(tmpl.Enabled == nil || *tmpl.Enabled)
 		if tmpl.TemplateDBID > 0 {
 			if _, err := tx.Exec(
-				`UPDATE detector_templates SET sort_order = ?, enabled = ? WHERE id = ?`,
-				sortOrder, enabledVal, tmpl.TemplateDBID,
+				`UPDATE detector_templates SET name = ?, sort_order = ?, enabled = ? WHERE id = ?`,
+				tmpl.Name, sortOrder, enabledVal, tmpl.TemplateDBID,
 			); err != nil {
 				return fmt.Errorf("update template sort_order %d: %w", tmpl.TemplateDBID, err)
 			}
 			referencedIDs[tmpl.TemplateDBID] = true
 		} else if tmpl.ImageData != nil {
 			res, err := tx.Exec(
-				`INSERT INTO detector_templates (pokemon_id, image_data, sort_order, enabled) VALUES (?, ?, ?, ?)`,
-				pokemonID, tmpl.ImageData, sortOrder, enabledVal,
+				`INSERT INTO detector_templates (pokemon_id, image_data, name, sort_order, enabled) VALUES (?, ?, ?, ?, ?)`,
+				pokemonID, tmpl.ImageData, tmpl.Name, sortOrder, enabledVal,
 			)
 			if err != nil {
 				return fmt.Errorf("insert new template for %q: %w", pokemonID, err)

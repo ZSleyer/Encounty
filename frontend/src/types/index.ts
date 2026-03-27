@@ -108,6 +108,7 @@ export interface DetectorTemplate {
   image_path: string;
   regions: MatchedRegion[];
   enabled?: boolean;
+  name?: string;
 }
 
 /** DetectorConfig holds all auto-detection settings for a single Pokémon hunt. */
@@ -264,7 +265,6 @@ export interface Settings {
   output_enabled: boolean;
   output_dir: string;
   auto_save: boolean;
-  browser_port: number;
   languages: string[]; // active language codes for game names
   crisp_sprites?: boolean;
   ui_animations?: boolean;

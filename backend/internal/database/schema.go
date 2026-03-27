@@ -32,7 +32,6 @@ var schemaV2 = []string{
 		output_enabled          INTEGER NOT NULL DEFAULT 0,
 		output_dir              TEXT    NOT NULL DEFAULT '',
 		auto_save               INTEGER NOT NULL DEFAULT 1,
-		browser_port            INTEGER NOT NULL DEFAULT 8080,
 		crisp_sprites           INTEGER NOT NULL DEFAULT 1,
 		ui_animations           INTEGER NOT NULL DEFAULT 1,
 		config_path             TEXT    NOT NULL DEFAULT '',
@@ -195,6 +194,7 @@ var schemaV2 = []string{
 		id         INTEGER PRIMARY KEY AUTOINCREMENT,
 		pokemon_id TEXT    NOT NULL,
 		image_data BLOB   NOT NULL,
+		name       TEXT    NOT NULL DEFAULT '',
 		sort_order INTEGER NOT NULL DEFAULT 0,
 		enabled    INTEGER NOT NULL DEFAULT 1,
 		FOREIGN KEY (pokemon_id) REFERENCES detector_configs(pokemon_id) ON DELETE CASCADE

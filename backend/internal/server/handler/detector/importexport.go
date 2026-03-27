@@ -22,8 +22,10 @@ type importResponse struct {
 }
 
 // importTemplatesRequest is the body for POST /api/detector/{id}/import_templates.
+// When TemplateIndices is non-empty, only the templates at those indices are imported.
 type importTemplatesRequest struct {
 	SourcePokemonID string `json:"source_pokemon_id"`
+	TemplateIndices []int  `json:"template_indices,omitempty"`
 }
 
 // handleImportTemplates copies all templates from a source Pokemon to the target.
@@ -78,7 +80,20 @@ func (h *handler) handleImportTemplates(w http.ResponseWriter, r *http.Request, 
 
 	db := h.deps.DetectorDB()
 	imported := 0
-	for _, srcTmpl := range source.DetectorConfig.Templates {
+
+	// Build the set of templates to import (all or specific indices)
+	srcTemplates := source.DetectorConfig.Templates
+	if len(body.TemplateIndices) > 0 {
+		filtered := make([]state.DetectorTemplate, 0, len(body.TemplateIndices))
+		for _, idx := range body.TemplateIndices {
+			if idx >= 0 && idx < len(srcTemplates) {
+				filtered = append(filtered, srcTemplates[idx])
+			}
+		}
+		srcTemplates = filtered
+	}
+
+	for _, srcTmpl := range srcTemplates {
 		// Load image data from DB
 		if srcTmpl.TemplateDBID <= 0 || db == nil {
 			continue
@@ -89,7 +104,12 @@ func (h *handler) handleImportTemplates(w http.ResponseWriter, r *http.Request, 
 		}
 
 		sortOrder := len(targetCfg.Templates)
+		name := srcTmpl.Name
+		if name == "" {
+			name = fmt.Sprintf("Template %d", sortOrder+1)
+		}
 		newTmpl := state.DetectorTemplate{
+			Name:    name,
 			Regions: make([]state.MatchedRegion, len(srcTmpl.Regions)),
 			Enabled: srcTmpl.Enabled,
 		}
@@ -101,6 +121,9 @@ func (h *handler) handleImportTemplates(w http.ResponseWriter, r *http.Request, 
 		targetCfg.Templates = append(targetCfg.Templates, newTmpl)
 		imported++
 	}
+
+	// Enforce single-active: activate the first imported template, deactivate all others.
+	activateFirstTemplate(targetCfg.Templates)
 
 	sm.SetDetectorConfig(targetID, &targetCfg)
 	sm.ScheduleSave()
@@ -135,6 +158,7 @@ func (h *handler) handleExportTemplates(w http.ResponseWriter, r *http.Request, 
 
 	type exportMeta struct {
 		Filename string                `json:"filename"`
+		Name     string                `json:"name"`
 		Regions  []state.MatchedRegion `json:"regions"`
 		Enabled  *bool                 `json:"enabled,omitempty"`
 	}
@@ -154,6 +178,7 @@ func (h *handler) handleExportTemplates(w http.ResponseWriter, r *http.Request, 
 		filename := fmt.Sprintf("template_%d.png", i)
 		metadata = append(metadata, exportMeta{
 			Filename: filename,
+			Name:     tmpl.Name,
 			Regions:  tmpl.Regions,
 			Enabled:  tmpl.Enabled,
 		})
@@ -185,6 +210,7 @@ func (h *handler) handleExportTemplates(w http.ResponseWriter, r *http.Request, 
 // templateImportMeta describes one template entry in an export ZIP's metadata.json.
 type templateImportMeta struct {
 	Filename string                `json:"filename"`
+	Name     string                `json:"name"`
 	Regions  []state.MatchedRegion `json:"regions"`
 	Enabled  *bool                 `json:"enabled,omitempty"`
 }
@@ -312,6 +338,8 @@ func collectZipPNGs(zr *zip.Reader) map[string][]byte {
 
 // importTemplatesFromMeta stores templates described by metadata entries,
 // looking up their PNG data in pngMap. Returns the count of templates imported.
+// After import, single-active semantics are enforced by activating the first
+// template and deactivating all others.
 func (h *handler) importTemplatesFromMeta(pokemonID string, metadata []templateImportMeta, pngMap map[string][]byte, targetCfg *state.DetectorConfig) int {
 	imported := 0
 	for _, meta := range metadata {
@@ -323,12 +351,34 @@ func (h *handler) importTemplatesFromMeta(pokemonID string, metadata []templateI
 			continue
 		}
 		sortOrder := len(targetCfg.Templates)
-		newTmpl := state.DetectorTemplate{Regions: meta.Regions, Enabled: meta.Enabled}
+		name := meta.Name
+		if name == "" {
+			name = fmt.Sprintf("Template %d", sortOrder+1)
+		}
+		newTmpl := state.DetectorTemplate{Name: name, Regions: meta.Regions, Enabled: meta.Enabled}
 		if err := h.storeTemplateImage(pokemonID, pngBytes, sortOrder, &newTmpl); err != nil {
 			continue
 		}
 		targetCfg.Templates = append(targetCfg.Templates, newTmpl)
 		imported++
 	}
+
+	// Enforce single-active: activate the first template, deactivate all others.
+	activateFirstTemplate(targetCfg.Templates)
+
 	return imported
+}
+
+// activateFirstTemplate enables the first template in the slice and disables
+// all others, enforcing single-active semantics.
+func activateFirstTemplate(templates []state.DetectorTemplate) {
+	if len(templates) == 0 {
+		return
+	}
+	t := true
+	f := false
+	templates[0].Enabled = &t
+	for i := 1; i < len(templates); i++ {
+		templates[i].Enabled = &f
+	}
 }
