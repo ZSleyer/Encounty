@@ -24,13 +24,15 @@ export type TemplateEditorProps = Readonly<{
   stream?: MediaStream;
   onClose: () => void;
   /** Called when saving a new template (new-template mode). */
-  onSaveTemplate?: (payload: { imageBase64: string; regions: MatchedRegion[] }) => Promise<void>;
+  onSaveTemplate?: (payload: { imageBase64: string; regions: MatchedRegion[]; name?: string }) => Promise<void>;
   /** Called when updating regions of an existing template (edit mode). */
-  onUpdateRegions?: (regions: MatchedRegion[]) => void | Promise<void>;
+  onUpdateRegions?: (regions: MatchedRegion[], name?: string) => void | Promise<void>;
   /** Pre-load an existing template image by URL (edit mode). */
   initialImageUrl?: string;
   /** Pre-load existing regions (edit mode). */
   initialRegions?: MatchedRegion[];
+  /** Initial template name for edit mode. */
+  initialName?: string;
   /** Pokemon name -- pre-fills expected_text when switching a region to type "text". */
   pokemonName?: string;
   /** Tesseract language code for OCR auto-recognition (e.g. "deu", "eng"). */
@@ -126,6 +128,7 @@ export function TemplateEditor({
   onUpdateRegions,
   initialImageUrl,
   initialRegions,
+  initialName,
   pokemonName,
   ocrLang = "eng",
 }: TemplateEditorProps) {
@@ -139,6 +142,7 @@ export function TemplateEditor({
 
   const [phase, setPhase] = useState<Phase>("video");
   const [selectedFrameIndex, setSelectedFrameIndex] = useState(0);
+  const [templateName, setTemplateName] = useState(initialName ?? "");
 
   // Browser-based replay buffer capturing from the stream at 60fps
   const replayBuffer = useReplayBuffer(stream ? videoEl : null, 30, 60);
@@ -458,11 +462,12 @@ export function TemplateEditor({
     setIsSaving(true);
     setErrorMsg(null);
     try {
+      const trimmedName = templateName.trim() || undefined;
       if (onUpdateRegions) {
-        await onUpdateRegions(finalRegions);
+        await onUpdateRegions(finalRegions, trimmedName);
       } else if (onSaveTemplate) {
         const base64Data = canvasRef.current.toDataURL("image/png");
-        await onSaveTemplate({ imageBase64: base64Data, regions: finalRegions });
+        await onSaveTemplate({ imageBase64: base64Data, regions: finalRegions, name: trimmedName });
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to save template";
@@ -495,7 +500,7 @@ export function TemplateEditor({
   // --- Render ----------------------------------------------------------------
 
   const modalContent = (
-    <div className="fixed inset-0 z-100 bg-black/95 flex flex-col items-center justify-center p-4 md:p-8 backdrop-blur-sm">
+    <div className="fixed inset-0 z-100 bg-black/95 flex flex-col items-center justify-center p-4 md:p-6 backdrop-blur-sm overflow-y-auto">
       <button
         onClick={onClose}
         className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors z-110"
@@ -503,14 +508,25 @@ export function TemplateEditor({
         <X className="w-6 h-6 2xl:w-7 2xl:h-7" />
       </button>
 
-      <div className="text-white text-center mb-4 mt-8 shrink-0">
+      <div className="text-white text-center mb-2 mt-4 shrink-0">
         <h2 className="text-xl 2xl:text-2xl font-bold mb-1">{heading}</h2>
-        <p className="text-sm 2xl:text-base text-gray-400">{hint}</p>
+        <p className="text-sm 2xl:text-base text-gray-400 mb-2">{hint}</p>
+        {/* Template name input — always visible in snapshot/edit phase */}
+        {(phase === "snapshot" || isEditMode) && (
+          <input
+            type="text"
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            placeholder={t("templateEditor.templateName")}
+            className="mx-auto w-full max-w-xs px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 outline-none focus:border-accent-blue/50 transition-colors text-center"
+            aria-label={t("templateEditor.templateName")}
+          />
+        )}
       </div>
 
       <div
         ref={containerRef}
-        className={`relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[60vh] 2xl:max-h-[65vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-6 flex items-center justify-center select-none touch-none ${
+        className={`relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-3 flex items-center justify-center select-none touch-none ${
           phase === "snapshot" ? "cursor-crosshair" : "cursor-default"
         }`}
         onMouseDown={phase === "snapshot" ? onPointerDown : undefined}
@@ -647,9 +663,11 @@ export function TemplateEditor({
         </div>
       )}
 
+
+
       {/* Region List Editor */}
       {phase === "snapshot" && regions.length > 0 && (
-        <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-3 mb-2 max-h-32 2xl:max-h-40 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
+        <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-2 mb-2 max-h-28 2xl:max-h-36 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
           {regions.map((r, i) => {
             const isNeg = r.polarity === "negative";
             const textOrAccent = r.type === "text" ? "text-purple-400" : "text-accent-blue";
@@ -720,7 +738,7 @@ export function TemplateEditor({
 
       {/* Hints below region list */}
       {phase === "snapshot" && (
-        <div className="w-full max-w-4xl px-4 mb-4 flex flex-col items-center gap-1">
+        <div className="w-full max-w-4xl px-4 mb-2 flex flex-col items-center gap-1">
           {regions.length === 0 && (
             <p className="text-xs 2xl:text-sm text-text-muted text-center">
               {t("templateEditor.noRegions")}
