@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, session, desktopCapturer, ipcMain, shell, systemPreferences, protocol, net } from 'electron';
+import { app, BrowserWindow, dialog, Menu, session, desktopCapturer, ipcMain, shell, systemPreferences, protocol, net } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { GoProcessManager } from './process-manager';
 import path from 'node:path';
@@ -156,6 +156,36 @@ async function startApp(): Promise<void> {
     // In production, spawn the bundled Go binary.
     if (!isDev) {
       goProcess = new GoProcessManager();
+
+      // Check for zombie backend process before starting a new one
+      const port = 8192;
+      const portInUse = await GoProcessManager.checkPort(port);
+
+      if (portInUse) {
+        const stalePid = goProcess.readStalePid();
+        const zombiePid = stalePid || GoProcessManager.findProcessOnPort(port);
+
+        if (zombiePid) {
+          const { response } = await dialog.showMessageBox({
+            type: 'warning',
+            title: 'Encounty',
+            message: 'Ein Encounty-Backend läuft bereits.',
+            detail: `Prozess ${zombiePid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
+            buttons: ['Ersetzen', 'Beenden'],
+            defaultId: 0,
+            cancelId: 1,
+          });
+
+          if (response === 0) {
+            await GoProcessManager.killProcess(zombiePid);
+            // Wait briefly for port to be released
+            await new Promise(r => setTimeout(r, 1000));
+          } else {
+            app.quit();
+            return;
+          }
+        }
+      }
 
       // Wait for backend to be ready
       await new Promise<void>((resolve, reject) => {
