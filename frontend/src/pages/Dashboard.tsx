@@ -56,6 +56,7 @@ import { useCaptureService } from "../contexts/CaptureServiceContext";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
+
 import { apiUrl } from "../utils/api";
 import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 
@@ -1463,6 +1464,7 @@ export function Dashboard() {
                   spriteType={viewedPokemon.sprite_type}
                   alt={viewedPokemon.name}
                   className="h-10 w-auto"
+                  hideOnFail
                 />
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm font-bold text-text-primary leading-tight">{viewedPokemon.name}</span>
