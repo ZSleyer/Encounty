@@ -19,7 +19,7 @@ type Props = Readonly<{
 /** Returns Tailwind dot colour + pulse flag based on detector status. */
 function detectorDotClass(entry: DetectorStatusEntry, t: (key: string) => string): { cls: string; pulse: boolean; title: string } {
   switch (entry.state) {
-    case "match_active":
+    case "match":
       return { cls: "bg-green-400", pulse: false, title: t("dash.tooltipDetectorMatch") };
     case "cooldown":
       return { cls: "bg-amber-400", pulse: false, title: t("dash.tooltipDetectorCooldown") };

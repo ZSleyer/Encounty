@@ -7,10 +7,10 @@
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  X, Plus, Pencil, Sparkles, Loader2, HelpCircle, Eye, EyeOff,
-  MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, RotateCcw, Trash2,
+  X, Plus, Pencil, HelpCircle,
+  MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, Trash2,
 } from "lucide-react";
-import { DetectorConfig, GameEntry, HuntTypePreset, Pokemon, DetectorTemplate, MatchedRegion, Settings as SettingsType } from "../../types";
+import { DetectorConfig, HuntTypePreset, Pokemon, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
 import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
@@ -21,10 +21,10 @@ import { SourcePickerModal, SelectedSource } from "./SourcePickerModal";
 import { DetectorPreview } from "./DetectorPreview";
 import { DetectorSettings } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
-import { getSpriteUrl } from "../../utils/sprites";
+import { ConfirmModal } from "../shared/ConfirmModal";
 import { apiUrl } from "../../utils/api";
 import { getActiveLoop } from "../../engine/DetectionLoop";
-import { ensureDetector, getDetectorBackend, startDetectionForPokemon, stopDetectionForPokemon, reloadDetectionTemplates } from "../../engine/startDetection";
+import { ensureDetector, getDetectorBackend, setForceCPU, isForceCPU, startDetectionForPokemon, stopDetectionForPokemon, reloadDetectionTemplates } from "../../engine/startDetection";
 import type { DetectionLoop } from "../../engine/DetectionLoop";
 
 // --- Default config ----------------------------------------------------------
@@ -61,7 +61,7 @@ export type DetectorPanelProps = Readonly<{
 function stateDotClass(state: string, running: boolean): { dot: string; pulse: boolean } {
   if (!running) return { dot: "bg-text-muted", pulse: false };
   switch (state) {
-    case "match_active": return { dot: "bg-green-400", pulse: false };
+    case "match": return { dot: "bg-green-400", pulse: false };
     case "cooldown": return { dot: "bg-amber-400", pulse: false };
     default: return { dot: "bg-accent-blue", pulse: true };
   }
@@ -70,7 +70,7 @@ function stateDotClass(state: string, running: boolean): { dot: string; pulse: b
 function stateLabel(state: string, running: boolean, t: (k: string) => string): string {
   if (!running) return "\u2013";
   switch (state) {
-    case "match_active": return t("detector.stateMatch");
+    case "match": return t("detector.stateMatch");
     case "cooldown": return t("detector.stateCooldown");
     default: return t("detector.stateIdle");
   }
@@ -95,6 +95,7 @@ export function DetectorPanel({
   const { push: pushToast } = useToast();
   const { appState, setDetectorStatus, clearDetectorStatus } = useCounterStore();
 
+  const [cooldownRemaining, setCooldownRemaining] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
@@ -113,8 +114,9 @@ export function DetectorPanel({
       max_poll_ms: saved.max_poll_ms || DEFAULT_CONFIG.max_poll_ms,
     };
   });
-  const [templates, setTemplates] = useState<DetectorTemplate[]>(
-    () => pokemon.detector_config?.templates || [],
+  const templates = useMemo(
+    () => pokemon.detector_config?.templates ?? [],
+    [pokemon.detector_config?.templates],
   );
 
   // Source picker state
@@ -123,11 +125,11 @@ export function DetectorPanel({
   // Template editor state
   const [showAddTemplate, setShowAddTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<{
-    index: number; url: string; regions: MatchedRegion[];
+    index: number; url: string; regions: MatchedRegion[]; dbId?: number; name?: string;
   } | null>(null);
-  const [addingSprite, setAddingSprite] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ index: number; name: string } | null>(null);
   const [rightTab, setRightTab] = useState<"log" | "settings">("log");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -144,6 +146,8 @@ export function DetectorPanel({
   const loopRef = useRef<DetectionLoop | null>(null);
   // Backend type for the CPU fallback warning
   const [detectorBackend, setDetectorBackend] = useState<"gpu" | "cpu" | null>(getDetectorBackend());
+  // Dev-only: force CPU backend toggle
+  const [isCpuForced, setIsCpuForced] = useState(isForceCPU());
 
   const capture = useCaptureService();
   // Subscribe to capture version changes so we re-render when streams start/stop
@@ -214,12 +218,11 @@ export function DetectorPanel({
     if (capture.captureError) setErrorMsg(capture.captureError);
   }, [capture.captureError]);
 
-  // Re-sync when the pokemon prop changes externally.
+  // Re-sync config settings when switching to a different pokemon.
   useEffect(() => {
     const saved = pokemon.detector_config;
     if (!saved) {
       setCfg({ ...DEFAULT_CONFIG });
-      setTemplates([]);
       return;
     }
     setCfg({
@@ -232,26 +235,34 @@ export function DetectorPanel({
       min_poll_ms: saved.min_poll_ms || DEFAULT_CONFIG.min_poll_ms,
       max_poll_ms: saved.max_poll_ms || DEFAULT_CONFIG.max_poll_ms,
     });
-    setTemplates(saved.templates || []);
-  }, [pokemon.id, pokemon.detector_config]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pokemon.id]);
 
-  // --- Hunt-type presets + games data ----------------------------------------
+  // Sync cfg settings from backend when detector_config changes externally
+  // (e.g. from another client or WebSocket broadcast). Skip while the user
+  // is editing settings locally (dirty state) to avoid overwriting their input.
+  useEffect(() => {
+    if (settingsDirty) return;
+    const saved = pokemon.detector_config;
+    if (!saved) return;
+    setCfg(prev => ({
+      ...prev,
+      precision: saved.precision || DEFAULT_CONFIG.precision,
+      consecutive_hits: saved.consecutive_hits || DEFAULT_CONFIG.consecutive_hits,
+      cooldown_sec: saved.cooldown_sec || DEFAULT_CONFIG.cooldown_sec,
+      poll_interval_ms: saved.poll_interval_ms || DEFAULT_CONFIG.poll_interval_ms,
+      min_poll_ms: saved.min_poll_ms || DEFAULT_CONFIG.min_poll_ms,
+      max_poll_ms: saved.max_poll_ms || DEFAULT_CONFIG.max_poll_ms,
+    }));
+  }, [pokemon.detector_config, settingsDirty]);
+
+  // --- Hunt-type presets ----------------------------------------------------
 
   const [huntTypePresets, setHuntTypePresets] = useState<HuntTypePreset[]>([]);
-  const [games, setGames] = useState<GameEntry[]>([]);
-  const [pokedex, setPokedex] = useState<{ id: number; canonical: string; forms?: { canonical: string; sprite_id: number }[] }[]>([]);
   useEffect(() => {
     fetch(apiUrl("/api/hunt-types"))
       .then((r) => r.json())
       .then((data) => setHuntTypePresets(data as HuntTypePreset[]))
-      .catch(() => {});
-    fetch(apiUrl("/api/games"))
-      .then((r) => r.json())
-      .then((data) => setGames(data as GameEntry[]))
-      .catch(() => {});
-    fetch(apiUrl("/api/pokedex"))
-      .then((r) => r.json())
-      .then((data) => setPokedex(data))
       .catch(() => {});
   }, []);
 
@@ -275,33 +286,13 @@ export function DetectorPanel({
   useEffect(() => {
     const existing = getActiveLoop(pokemon.id);
     if (existing) {
-      existing.onScore((score, state) => {
+      existing.onScore((score, state, cooldownMs) => {
         setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 });
+        setCooldownRemaining(cooldownMs != null && cooldownMs > 0 ? cooldownMs : null);
       });
       loopRef.current = existing;
     }
   }, [pokemon.id, setDetectorStatus]);
-
-  // Determine the game's generation for sprite availability.
-  const pokemonGame = useMemo(
-    () => games.find((g) => g.key === pokemon.game),
-    [games, pokemon.game],
-  );
-  const hasGameSprite = (pokemonGame?.generation ?? 0) <= 5 && pokemonGame != null;
-
-  // Resolve canonical_name to numeric sprite ID for sprite URL generation.
-  const pokedexSpriteId = useMemo(() => {
-    if (!pokemon.canonical_name || pokedex.length === 0) return null;
-    for (const entry of pokedex) {
-      if (entry.canonical === pokemon.canonical_name) return entry.id;
-      if (entry.forms) {
-        for (const form of entry.forms) {
-          if (form.canonical === pokemon.canonical_name) return form.sprite_id;
-        }
-      }
-    }
-    return null;
-  }, [pokemon.canonical_name, pokedex]);
 
   const activePreset = useMemo(
     () => huntTypePresets.find((p) => p.key === pokemon.hunt_type),
@@ -322,69 +313,62 @@ export function DetectorPanel({
   const handleDeleteTemplate = async (index: number) => {
     try {
       const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/template/${index}`), { method: "DELETE" });
-      if (res.ok) {
-        const newTemplates = templates.filter((_, i) => i !== index);
-        setTemplates(newTemplates);
-        const nextCfg = { ...cfg, templates: newTemplates };
-        setCfg(nextCfg);
-        onConfigChange(nextCfg);
-      } else {
-        setErrorMsg(t("detector.errDeleteTemplate"));
-      }
+      if (!res.ok) setErrorMsg(t("detector.errDeleteTemplate"));
     } catch { setErrorMsg(t("detector.errDeleteTemplate")); }
   };
 
-  const handleToggleTemplate = async (index: number) => {
-    const tmpl = templates[index];
-    if (!tmpl) return;
-    const newEnabled = tmpl.enabled === false;
+  /** PATCH with a single retry on network failure (TypeError). */
+  const patchWithRetry = async (url: string, body: unknown): Promise<Response> => {
     try {
-      const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/template/${index}`), {
+      return await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: newEnabled }),
+        body: JSON.stringify(body),
       });
-      if (res.ok) {
-        const newTemplates = templates.map((t, i) =>
-          i === index ? { ...t, enabled: newEnabled } : t,
-        );
-        setTemplates(newTemplates);
-        const nextCfg = { ...cfg, templates: newTemplates };
-        setCfg(nextCfg);
-        onConfigChange(nextCfg);
-
-        // Hot-reload templates in the running detection loop
-        const loaded = await reloadDetectionTemplates(pokemon.id, newTemplates);
-        if (loaded >= 0) {
-          pushToast({
-            type: "success",
-            title: newEnabled
-              ? t("detector.templateEnabled")
-              : t("detector.templateDisabled"),
-          });
-        }
-      }
-    } catch { /* ignore */ }
+    } catch {
+      // Network error — retry once after 500ms
+      await new Promise(r => setTimeout(r, 500));
+      return fetch(url, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    }
   };
 
-  const handleSaveNewTemplate = async (payload: { imageBase64: string; regions: MatchedRegion[] }) => {
+  /** Activate the clicked template (backend disables all others). */
+  const handleToggleTemplate = async (index: number) => {
+    try {
+      const res = await patchWithRetry(
+        apiUrl(`/api/detector/${pokemon.id}/template/${index}`),
+        { enabled: true },
+      );
+      if (!res.ok) {
+        pushToast({ type: "error", title: t("detector.errSaveFailed") });
+        return;
+      }
+      // Hot-reload detection loop if running
+      if (isRunning && loopRef.current) {
+        // Use latest templates from store after the WebSocket update
+        setTimeout(() => {
+          const latest = pokemon.detector_config?.templates ?? [];
+          reloadDetectionTemplates(pokemon.id, latest);
+        }, 200);
+      }
+    } catch (err) {
+      const msg = err instanceof TypeError ? t("detector.errNetworkFailed") : t("detector.errSaveFailed");
+      pushToast({ type: "error", title: msg });
+    }
+  };
+
+  /** Update local editing state for template name. */
+  const handleSaveNewTemplate = async (payload: { imageBase64: string; regions: MatchedRegion[]; name?: string }) => {
     const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/template_upload`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     if (res.ok) {
-      const data = (await res.json()) as { index?: number; template_db_id?: number };
-      const tmpl: DetectorTemplate = {
-        image_path: "",
-        template_db_id: data.template_db_id ?? 0,
-        regions: payload.regions,
-      };
-      const newTemplates = [...templates, tmpl];
-      setTemplates(newTemplates);
-      const nextCfg = { ...cfg, templates: newTemplates };
-      setCfg(nextCfg);
-      onConfigChange(nextCfg);
       setErrorMsg(null);
       setShowAddTemplate(false);
     } else {
@@ -400,84 +384,63 @@ export function DetectorPanel({
       index,
       url: apiUrl(`/api/detector/${pokemon.id}/template/${index}`),
       regions: tmpl.regions || [],
+      dbId: tmpl.template_db_id,
+      name: tmpl.name,
     });
   };
 
-  const handleUpdateRegions = async (regions: MatchedRegion[]) => {
+  const handleUpdateRegions = async (regions: MatchedRegion[], name?: string) => {
     if (!editingTemplate) return;
-    const res = await fetch(
-      apiUrl(`/api/detector/${pokemon.id}/template/${editingTemplate.index}`),
-      { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ regions }) },
-    );
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({})) as { error?: string };
-      throw new Error(body.error ?? "Failed to update template");
+
+    // Validate index — fall back to lookup by template_db_id if out of range
+    let targetIndex = editingTemplate.index;
+    if (targetIndex >= templates.length) {
+      const correctedIndex = templates.findIndex(tmpl => tmpl.template_db_id === editingTemplate.dbId);
+      if (correctedIndex === -1) {
+        pushToast({ type: "error", title: t("detector.errTemplateNotFound") });
+        return;
+      }
+      targetIndex = correctedIndex;
     }
-    const newTemplates = templates.map((t, i) =>
-      i === editingTemplate.index ? { ...t, regions } : t,
-    );
-    setTemplates(newTemplates);
-    const nextCfg = { ...cfg, templates: newTemplates };
-    setCfg(nextCfg);
-    onConfigChange(nextCfg);
-    setEditingTemplate(null);
+
+    const patchData: Record<string, unknown> = { regions };
+    if (name !== undefined) patchData.name = name;
+
+    try {
+      const res = await patchWithRetry(
+        apiUrl(`/api/detector/${pokemon.id}/template/${targetIndex}`),
+        patchData,
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? t("detector.errSaveFailed"));
+      }
+      setEditingTemplate(null);
+      // Hot-reload detection loop if running
+      if (isRunning && loopRef.current) {
+        setTimeout(() => {
+          const latest = pokemon.detector_config?.templates ?? [];
+          reloadDetectionTemplates(pokemon.id, latest);
+        }, 200);
+      }
+    } catch (err) {
+      const msg = err instanceof TypeError ? t("detector.errNetworkFailed") : (err instanceof Error ? err.message : t("detector.errSaveFailed"));
+      pushToast({ type: "error", title: msg });
+    }
   };
 
-  const handleAddSpriteTemplate = async () => {
-    setAddingSprite(true);
-    setErrorMsg(null);
+  const handleImportFromPokemon = async (sourcePokemonId: string, templateIndices?: number[]) => {
     try {
-      const spriteId = pokedexSpriteId ?? pokemon.canonical_name;
-      const variants: { type: "normal" | "shiny"; url: string }[] = [
-        { type: "normal", url: getSpriteUrl(spriteId, pokemon.game, "normal", "box", pokemon.canonical_name) },
-        { type: "shiny", url: getSpriteUrl(spriteId, pokemon.game, "shiny", "box", pokemon.canonical_name) },
-      ];
-
-      let addedCount = 0;
-      let newTemplates = [...templates];
-      for (const variant of variants) {
-        const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/sprite_template`), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sprite_url: variant.url }),
-        });
-        if (res.ok) {
-          const data = await res.json() as { path?: string };
-          if (data.path) {
-            newTemplates.push({ image_path: data.path, regions: [] });
-            addedCount++;
-          }
-        }
-      }
-
-      if (addedCount > 0) {
-        setTemplates(newTemplates);
-        const nextCfg = { ...cfg, templates: newTemplates };
-        setCfg(nextCfg);
-        onConfigChange(nextCfg);
-      } else {
-        setErrorMsg(t("detector.errCaptureFailed"));
-      }
-    } catch { setErrorMsg(t("detector.errCaptureFailed")); }
-    finally { setAddingSprite(false); }
-  };
-
-  const handleImportFromPokemon = async (sourcePokemonId: string) => {
-    try {
+      const body: Record<string, unknown> = { source_pokemon_id: sourcePokemonId };
+      if (templateIndices?.length) body.template_indices = templateIndices;
       const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/import_templates`), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ source_pokemon_id: sourcePokemonId }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         const data = await res.json() as { imported: number };
         pushToast({ type: "success", title: t("detector.importSuccess").replace("{count}", String(data.imported)) });
-        const stateRes = await fetch(apiUrl(`/api/detector/${pokemon.id}/config`));
-        if (stateRes.ok) {
-          const config = await stateRes.json() as DetectorConfig;
-          setTemplates(config.templates || []);
-          setCfg((prev) => ({ ...prev, templates: config.templates || [] }));
-        }
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
         pushToast({ type: "error", title: body.error ?? "Import failed" });
@@ -505,12 +468,6 @@ export function DetectorPanel({
       if (res.ok) {
         const data = await res.json() as { imported: number };
         pushToast({ type: "success", title: t("detector.importFileSuccess").replace("{count}", String(data.imported)) });
-        const stateRes = await fetch(apiUrl(`/api/detector/${pokemon.id}/config`));
-        if (stateRes.ok) {
-          const config = await stateRes.json() as DetectorConfig;
-          setTemplates(config.templates || []);
-          setCfg((prev) => ({ ...prev, templates: config.templates || [] }));
-        }
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
         pushToast({ type: "error", title: body.error ?? t("detector.errInvalidFile") });
@@ -559,8 +516,9 @@ export function DetectorPanel({
       templates,
       config: cfg,
       getVideoElement: () => capture.getVideoElement(pokemon.id),
-      onScore: (score, state) => {
+      onScore: (score, state, cooldownMs) => {
         setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 });
+        setCooldownRemaining(cooldownMs != null && cooldownMs > 0 ? cooldownMs : null);
       },
     });
 
@@ -576,6 +534,7 @@ export function DetectorPanel({
     stopDetectionForPokemon(pokemon.id);
     loopRef.current = null;
     clearDetectorStatus(pokemon.id);
+    setCooldownRemaining(null);
   };
 
   // --- Settings handlers -----------------------------------------------------
@@ -638,6 +597,22 @@ export function DetectorPanel({
     setShowTutorial(true);
   };
 
+  /** Dev-only: toggle between GPU and CPU detector backend. */
+  const handleToggleBackend = async () => {
+    // Stop current detection if running
+    if (isRunning) {
+      stopDetectionForPokemon(pokemon.id);
+      loopRef.current = null;
+      clearDetectorStatus(pokemon.id);
+    }
+    const newForce = !isCpuForced;
+    setForceCPU(newForce);
+    setIsCpuForced(newForce);
+    // Re-initialize detector with new backend
+    await ensureDetector();
+    setDetectorBackend(getDetectorBackend());
+  };
+
   /** Starts dragging the divider between templates and log/settings panels. */
   const startDetectorDividerDrag = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -684,12 +659,18 @@ export function DetectorPanel({
           {/* Status indicator */}
           <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${dotClass} ${pulse || isStarting ? "animate-pulse" : ""}`} />
           <span className={`text-xs font-semibold truncate ${(() => {
-            if (detectorState === "match_active") return "text-green-400";
+            if (detectorState === "match") return "text-green-400";
             return showAsRunning ? "text-accent-blue" : "text-text-muted";
           })()}`}>
             {(() => {
               if (isStarting) return t("detector.starting");
-              if (isRunning) return stateLabel(detectorState, isRunning, t);
+              if (isRunning) {
+                const label = stateLabel(detectorState, isRunning, t);
+                if (detectorState === "cooldown" && cooldownRemaining != null) {
+                  return `${label} (${Math.ceil(cooldownRemaining / 1000)}s)`;
+                }
+                return label;
+              }
               return t("detector.stopped");
             })()}
           </span>
@@ -703,6 +684,27 @@ export function DetectorPanel({
               <AlertTriangle className="w-3 h-3" />
               CPU
             </span>
+          )}
+
+          {/* Dev-only: GPU/CPU backend toggle */}
+          {import.meta.env.DEV && (
+            <button
+              onClick={handleToggleBackend}
+              className="flex items-center gap-0.5 h-5 rounded-full text-[10px] font-medium border shrink-0 transition-colors overflow-hidden"
+              style={{
+                borderColor: "rgba(148,163,184,0.2)",
+                backgroundColor: "rgba(148,163,184,0.05)",
+              }}
+              title={`Switch to ${detectorBackend === "gpu" ? "CPU" : "GPU"} backend`}
+              aria-label={`Switch to ${detectorBackend === "gpu" ? "CPU" : "GPU"} backend`}
+            >
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
+                detectorBackend === "gpu" ? "bg-green-500/20 text-green-400" : "text-text-faint"
+              }`}>GPU</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
+                detectorBackend !== "gpu" ? "bg-yellow-500/20 text-yellow-400" : "text-text-faint"
+              }`}>CPU</span>
+            </button>
           )}
 
           {/* Error badge — inline compact pill */}
@@ -821,43 +823,42 @@ export function DetectorPanel({
                       if (!stream) { setErrorMsg(t("detector.errNoStream")); return; }
                       setShowAddTemplate(true);
                     }}
-                    title={t("detector.tooltipAddFromVideo")}
+                    disabled={isRunning}
+                    title={isRunning ? t("detector.disabledWhileRunning") : t("detector.tooltipAddFromVideo")}
                     aria-label={t("detector.tooltipAddFromVideo")}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-accent-blue hover:bg-accent-blue/90 transition-colors"
+                    aria-disabled={isRunning || undefined}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-accent-blue hover:bg-accent-blue/90 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <Plus className="w-3 h-3" />
                     {t("detector.addFromVideo")}
                   </button>
-                  {hasGameSprite && (
-                    <button
-                      onClick={handleAddSpriteTemplate}
-                      disabled={addingSprite}
-                      title={t("detector.tooltipAddFromSprite")}
-                      aria-label={t("detector.tooltipAddFromSprite")}
-                      className="flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors disabled:opacity-50"
-                    >
-                      {addingSprite ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Sparkles className="w-3 h-3" />
-                      )}
-                      {t("detector.addFromSprite")}
-                    </button>
-                  )}
-                  {/* More menu */}
+                  <button
+                    onClick={() => setShowImportModal(true)}
+                    disabled={isRunning}
+                    title={isRunning ? t("detector.disabledWhileRunning") : t("detector.importFromPokemon")}
+                    aria-label={t("detector.importFromPokemon")}
+                    aria-disabled={isRunning || undefined}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <Upload className="w-3 h-3" />
+                    {t("detector.importTemplates")}
+                  </button>
+                  {/* More menu — export, file import, clear */}
                   <div className="relative">
                     <button
                       onClick={() => setShowMoreMenu((v) => !v)}
-                      className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
-                      title={t("detector.more")}
+                      disabled={isRunning}
+                      className={`p-1.5 rounded-lg bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
+                      title={isRunning ? t("detector.disabledWhileRunning") : t("detector.more")}
                       aria-label={t("detector.more")}
+                      aria-disabled={isRunning || undefined}
                     >
                       <MoreHorizontal className="w-3.5 h-3.5" />
                     </button>
                     {showMoreMenu && (
                       <>
-                        <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMoreMenu(false)} aria-label="Close menu" />
-                        <div className="absolute right-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-45">
+                        <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMoreMenu(false)} aria-label={t("aria.close")} />
+                        <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-48">
                           {templates.length > 0 && (
                             <button
                               onClick={handleExportTemplates}
@@ -867,13 +868,6 @@ export function DetectorPanel({
                               {t("detector.exportTemplates")}
                             </button>
                           )}
-                          <button
-                            onClick={() => { setShowImportModal(true); setShowMoreMenu(false); }}
-                            className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                          >
-                            <Upload className="w-3.5 h-3.5" />
-                            {t("detector.importFromPokemon")}
-                          </button>
                           <button
                             onClick={() => { fileInputRef.current?.click(); setShowMoreMenu(false); }}
                             className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
@@ -907,17 +901,6 @@ export function DetectorPanel({
                     className="hidden"
                     onChange={handleImportFromFile}
                   />
-                  <button
-                    onClick={() => {
-                      setTemplatesHeight(300);
-                      try { localStorage.removeItem("encounty_detector_split"); } catch {}
-                    }}
-                    className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
-                    title={t("detector.resetLayout")}
-                    aria-label={t("detector.resetLayout")}
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                  </button>
                 </div>
               </div>
               {/* Template grid */}
@@ -925,44 +908,65 @@ export function DetectorPanel({
                 {templates.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2">
                     {templates.map((tmpl, index) => (
-                      <div key={`template-${tmpl.image_path}-${index}`} className="relative group">
-                        <img
-                          src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
-                          alt={`Template ${index + 1}`}
-                          className={`w-full aspect-square object-contain rounded-lg border border-border-subtle bg-bg-primary transition-all ${
-                            tmpl.enabled === false ? "opacity-40 grayscale" : ""
-                          }`}
-                        />
-                        {/* Region count badge */}
-                        {(tmpl.regions?.length ?? 0) > 0 && (
-                          <span className="absolute bottom-1 left-1 bg-black/70 text-white text-[9px] px-1 py-0.5 rounded font-mono">
-                            {tmpl.regions.length}R
-                          </span>
-                        )}
-                        {/* Overlay buttons on hover */}
-                        <div className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => handleToggleTemplate(index)}
-                            className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-amber-500 transition-colors"
-                            title={tmpl.enabled === false ? t("detector.enableTemplate") : t("detector.disableTemplate")}
-                          >
-                            {tmpl.enabled === false ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                          <button
-                            onClick={() => handleEditTemplate(index)}
-                            className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-accent-blue transition-colors"
-                            title={t("detector.editTemplate")}
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTemplate(index)}
-                            className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-red-500 transition-colors"
-                            title={t("detector.deleteTemplate")}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
+                      <div
+                        key={`template-${tmpl.image_path}-${index}`}
+                        className={`relative group rounded-md overflow-hidden transition-all cursor-pointer ${
+                          tmpl.enabled !== false
+                            ? "ring-2 ring-accent-blue bg-bg-primary"
+                            : "ring-1 ring-border-subtle bg-bg-primary opacity-60"
+                        }`}
+                        onClick={() => handleToggleTemplate(index)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleToggleTemplate(index); } }}
+                        aria-label={`${tmpl.name || `Template ${index + 1}`} — ${t("detector.setActiveTemplate")}`}
+                      >
+                        {/* Radio indicator for active selection */}
+                        <div className="absolute top-1 left-1 z-10 pointer-events-none">
+                          <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                            tmpl.enabled !== false ? "border-accent-blue bg-accent-blue" : "border-text-muted bg-transparent"
+                          }`}>
+                            {tmpl.enabled !== false && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
                         </div>
+
+                        {/* Thumbnail — fixed 16:9 container with centered image */}
+                        <div className="relative w-full aspect-video bg-black/40">
+                          <img
+                            src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
+                            alt={tmpl.name || `Template ${index + 1}`}
+                            className="absolute inset-0 w-full h-full object-contain"
+                          />
+                        </div>
+
+                        {/* Template name — read-only display */}
+                        <div className="px-1.5 py-0.5 bg-bg-primary">
+                          <span className="block text-[10px] text-text-secondary truncate">
+                            {tmpl.name || `Template ${index + 1}`}
+                          </span>
+                        </div>
+
+                        {/* Hover overlay with edit/delete buttons — hidden while detection is running */}
+                        {!isRunning && (
+                          <div className="absolute inset-0 bg-black/50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleEditTemplate(index); }}
+                              className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-accent-blue transition-colors pointer-events-auto"
+                              title={t("detector.editTemplate")}
+                              aria-label={t("detector.editTemplate")}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ index, name: tmpl.name || `Template ${index + 1}` }); }}
+                              className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-red-500 transition-colors pointer-events-auto"
+                              title={t("detector.deleteTemplate")}
+                              aria-label={t("detector.deleteTemplate")}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1086,6 +1090,7 @@ export function DetectorPanel({
                     activePreset={activePreset}
                     onApplyDefaults={handleApplyDefaultsWithDirty}
                     embedded
+                    disabled={isRunning}
                   />
                 )}
               </div>
@@ -1109,6 +1114,7 @@ export function DetectorPanel({
         <TemplateEditor
           initialImageUrl={editingTemplate.url}
           initialRegions={editingTemplate.regions}
+          initialName={editingTemplate.name}
           pokemonName={pokemon.name}
           ocrLang={pokemonOcrLang}
           onClose={() => setEditingTemplate(null)}
@@ -1136,6 +1142,17 @@ export function DetectorPanel({
           currentPokemonId={pokemon.id}
           onImport={handleImportFromPokemon}
           onClose={() => setShowImportModal(false)}
+        />
+      )}
+
+      {deleteConfirm && (
+        <ConfirmModal
+          title={t("detector.confirmDeleteTitle")}
+          message={t("detector.confirmDeleteTemplate").replace("{name}", deleteConfirm.name)}
+          confirmLabel={t("detector.deleteTemplate")}
+          isDestructive
+          onConfirm={() => { handleDeleteTemplate(deleteConfirm.index); setDeleteConfirm(null); }}
+          onClose={() => setDeleteConfirm(null)}
         />
       )}
     </>

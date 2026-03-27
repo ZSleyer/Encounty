@@ -10,7 +10,7 @@ import { create } from 'zustand'
 import { AppState, Pokemon } from '../types'
 
 export interface DetectorStatusEntry {
-  state: string;      // "idle" | "match_active" | "cooldown"
+  state: string;      // "idle" | "match" | "cooldown"
   confidence: number; // 0.0–1.0
   poll_ms: number;
 }

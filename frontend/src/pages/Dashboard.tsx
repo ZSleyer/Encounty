@@ -314,7 +314,7 @@ function resolveDetectorDot(
   pokemonId: string,
   t: (key: string) => string,
 ): { dotClass: string; title: string } {
-  const isMatch = detectorStatus[pokemonId]?.state === "match_active";
+  const isMatch = detectorStatus[pokemonId]?.state === "match";
   const isRunning = !!detectorStatus[pokemonId];
   if (isMatch) return { dotClass: "bg-accent-green", title: t("detector.stateMatch") };
   if (isRunning) return { dotClass: "bg-accent-blue animate-pulse", title: t("detector.stateIdle") };
@@ -1426,7 +1426,7 @@ export function Dashboard() {
                     >
                       <Eye className="w-3.5 h-3.5" />
                       {t("dash.tabDetector")}
-                      {detectorStatus[viewedPokemon.id]?.state === "match_active" && (
+                      {detectorStatus[viewedPokemon.id]?.state === "match" && (
                         <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
                       )}
                     </button>

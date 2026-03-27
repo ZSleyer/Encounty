@@ -151,7 +151,7 @@ describe("useCounterStore", () => {
     });
 
     it("clearDetectorStatus does not affect other entries", () => {
-      const entry2: DetectorStatusEntry = { state: "match_active", confidence: 0.99, poll_ms: 100 };
+      const entry2: DetectorStatusEntry = { state: "match", confidence: 0.99, poll_ms: 100 };
       useCounterStore.getState().setDetectorStatus("poke-1", entry);
       useCounterStore.getState().setDetectorStatus("poke-2", entry2);
       useCounterStore.getState().clearDetectorStatus("poke-1");
