@@ -36,9 +36,6 @@ func TestNewManagerDefaults(t *testing.T) {
 	if st.Hotkeys.NextPokemon != "F4" {
 		t.Errorf("Hotkeys.NextPokemon = %q, want %q", st.Hotkeys.NextPokemon, "F4")
 	}
-	if st.Settings.BrowserPort != 8080 {
-		t.Errorf("BrowserPort = %d, want 8080", st.Settings.BrowserPort)
-	}
 	if st.Settings.OutputEnabled {
 		t.Error("OutputEnabled should be false by default")
 	}
@@ -353,16 +350,12 @@ func TestUpdateSettings(t *testing.T) {
 	s := Settings{
 		OutputEnabled: true,
 		OutputDir:     "/tmp/output",
-		BrowserPort:   9090,
 	}
 	m.UpdateSettings(s)
 
 	st := m.GetState()
 	if !st.Settings.OutputEnabled {
 		t.Error("OutputEnabled should be true")
-	}
-	if st.Settings.BrowserPort != 9090 {
-		t.Errorf("BrowserPort = %d, want 9090", st.Settings.BrowserPort)
 	}
 }
 

@@ -7,7 +7,7 @@
 // @title           Encounty API
 // @version         1.0
 // @description     Pokémon Shiny Encounter Counter — REST API
-// @host            localhost:8080
+// @host            localhost:8192
 // @BasePath        /api
 package main
 
@@ -72,12 +72,9 @@ func main() {
 
 	stateMgr, db := initStateAndDB(configDir)
 
-	st := stateMgr.GetState()
-	port := st.Settings.BrowserPort
-	if port == 0 {
-		port = 8080
-	}
+	port := 8192
 
+	st := stateMgr.GetState()
 	fileWriter := initFileWriter(st, configDir)
 	if fileWriter != nil {
 		stateMgr.OnChange(func(st state.AppState) {

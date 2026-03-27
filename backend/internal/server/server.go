@@ -604,7 +604,7 @@ func (s *Server) syncPokedex(store pokedex.PokedexStore) {
 }
 
 // corsMiddleware adds permissive CORS headers so the Vite dev server (port
-// 5173) can call the Go API (port 8080) in development mode.
+// 5173) can call the Go API (port 8192) in development mode.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")

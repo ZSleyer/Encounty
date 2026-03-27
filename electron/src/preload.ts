@@ -23,7 +23,7 @@ const isDevMode = process.argv.includes('--dev') ||
 
 contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
-  apiBaseUrl: isDevMode ? '' : 'http://localhost:8080',
+  apiBaseUrl: isDevMode ? '' : 'http://localhost:8192',
   isWayland,
   platform: process.platform as 'win32' | 'linux',
 

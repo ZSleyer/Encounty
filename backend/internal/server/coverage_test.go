@@ -216,7 +216,7 @@ func TestHandleUpdateSettingsFileWriterConfig(t *testing.T) {
 	srv := newTestServer(t)
 	mux := newTestMux(srv)
 
-	body := `{"output_enabled":true,"output_dir":"/tmp/test2","browser_port":8888,"overlay":{}}`
+	body := `{"output_enabled":true,"output_dir":"/tmp/test2","overlay":{}}`
 	req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
@@ -225,8 +225,8 @@ func TestHandleUpdateSettingsFileWriterConfig(t *testing.T) {
 		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
 	}
 	st := srv.state.GetState()
-	if st.Settings.BrowserPort != 8888 {
-		t.Errorf("BrowserPort = %d, want 8888", st.Settings.BrowserPort)
+	if !st.Settings.OutputEnabled {
+		t.Error("OutputEnabled should be true")
 	}
 }
 

@@ -140,7 +140,7 @@ func decodeJSON(t *testing.T, w *httptest.ResponseRecorder, v any) {
 func TestUpdateSettingsValidJSON(t *testing.T) {
 	mux, deps := newTestMux(t)
 
-	body := `{"output_enabled":true,"output_dir":"/tmp/out","browser_port":9090}`
+	body := `{"output_enabled":true,"output_dir":"/tmp/out"}`
 	req := httptest.NewRequest(http.MethodPost, pathSettings, jsonBody(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
@@ -157,10 +157,6 @@ func TestUpdateSettingsValidJSON(t *testing.T) {
 	if got.OutputDir != "/tmp/out" {
 		t.Errorf("OutputDir = %q, want /tmp/out", got.OutputDir)
 	}
-	if got.BrowserPort != 9090 {
-		t.Errorf("BrowserPort = %d, want 9090", got.BrowserPort)
-	}
-
 	// Verify side effects
 	if !deps.broadcastCalled {
 		t.Error(msgBroadcastNot)

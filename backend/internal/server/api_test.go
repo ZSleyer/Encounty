@@ -318,7 +318,7 @@ func TestHandleUpdateSettings(t *testing.T) {
 	srv := newTestServer(t)
 	mux := newTestMux(srv)
 
-	body := `{"output_enabled":true,"output_dir":"/tmp/test","browser_port":9090,"overlay":{}}`
+	body := `{"output_enabled":true,"output_dir":"/tmp/test","overlay":{}}`
 	req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
@@ -330,9 +330,6 @@ func TestHandleUpdateSettings(t *testing.T) {
 	st := srv.state.GetState()
 	if !st.Settings.OutputEnabled {
 		t.Error("OutputEnabled should be true")
-	}
-	if st.Settings.BrowserPort != 9090 {
-		t.Errorf("BrowserPort = %d, want 9090", st.Settings.BrowserPort)
 	}
 }
 

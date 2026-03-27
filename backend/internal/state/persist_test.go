@@ -19,7 +19,6 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 	m.UpdateSettings(Settings{
 		OutputEnabled: true,
 		OutputDir:     "/tmp/out",
-		BrowserPort:   9999,
 	})
 
 	if err := m.Save(); err != nil {
@@ -44,9 +43,6 @@ func TestSaveLoadRoundtrip(t *testing.T) {
 	}
 	if !st.Settings.OutputEnabled {
 		t.Error("OutputEnabled should be true")
-	}
-	if st.Settings.BrowserPort != 9999 {
-		t.Errorf("BrowserPort = %d, want 9999", st.Settings.BrowserPort)
 	}
 	// DataPath should be updated to configDir on load
 	if st.DataPath != dir {
@@ -154,7 +150,6 @@ func TestLoadFallsBackToJSONFile(t *testing.T) {
 		Sessions: []Session{},
 		Hotkeys:  HotkeyMap{Increment: "F9", Decrement: "F10", Reset: "F11", NextPokemon: "F12"},
 		Settings: Settings{
-			BrowserPort: 5555,
 			OutputDir:   "/some/dir",
 			Languages:   []string{"en"},
 			Overlay:     OverlaySettings{BackgroundAnimation: "none"},
@@ -182,8 +177,5 @@ func TestLoadFallsBackToJSONFile(t *testing.T) {
 	}
 	if st.Hotkeys.Increment != "F9" {
 		t.Errorf("Hotkeys.Increment = %q, want %q", st.Hotkeys.Increment, "F9")
-	}
-	if st.Settings.BrowserPort != 5555 {
-		t.Errorf("BrowserPort = %d, want 5555", st.Settings.BrowserPort)
 	}
 }

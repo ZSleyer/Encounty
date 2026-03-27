@@ -335,7 +335,7 @@ func TestHandleUpdateSettingsWithFileWriter(t *testing.T) {
 	srv.fileWriter = fileoutput.New(dir, true)
 	mux := newTestMux(srv)
 
-	body := `{"output_enabled":false,"output_dir":"/tmp/new","browser_port":9090,"overlay":{}}`
+	body := `{"output_enabled":false,"output_dir":"/tmp/new","overlay":{}}`
 	req := httptest.NewRequest(http.MethodPost, "/api/settings", bytes.NewBufferString(body))
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)

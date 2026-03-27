@@ -16,7 +16,7 @@ vi.mock("../hooks/useCounterState", () => ({
 
 /* Mock api utility so the module loads without side effects. */
 vi.mock("../utils/api", () => ({
-  apiUrl: (path: string) => `http://localhost:8080${path}`,
+  apiUrl: (path: string) => `http://localhost:8192${path}`,
 }));
 
 /** Wrapper that provides CaptureServiceContext to hooks under test. */

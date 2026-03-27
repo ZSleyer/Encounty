@@ -205,7 +205,6 @@ export function Settings() {
     settings?.output_enabled,
     settings?.output_dir,
     settings?.auto_save,
-    settings?.browser_port,
     settings?.crisp_sprites,
     settings?.ui_animations,
     JSON.stringify(settings?.languages),
@@ -358,28 +357,6 @@ export function Settings() {
                 <SettingsIcon className="w-4 h-4 text-text-muted" />
                 {t("settings.sectionGeneral")}
               </h2>
-
-              {/* Server port */}
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-text-primary">{t("settings.server")}</p>
-                  <p className="text-xs text-text-muted mt-0.5">{t("settings.port")}</p>
-                </div>
-                <input
-                  id="browser-port"
-                  type="number"
-                  value={settings.browser_port}
-                  onChange={(e) =>
-                    setSettings({ ...settings, browser_port: Number(e.target.value) })
-                  }
-                  min={1024}
-                  max={65535}
-                  aria-label={t("settings.port")}
-                  className="w-28 2xl:w-32 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary outline-none focus:border-accent-blue/50 transition-colors text-right"
-                />
-              </div>
-
-              <div className="border-t border-border-subtle/50" />
 
               {/* Auto-save */}
               <div className="flex items-center justify-between gap-4">
@@ -887,6 +864,7 @@ export function Settings() {
                   <div className="space-y-1">
                     {[
                       { name: "PokéAPI", url: "https://pokeapi.co", desc: "Pokémon data & sprites" },
+                      { name: "PokéSprite", url: "https://github.com/msikma/pokesprite", desc: "Box sprites" },
                       { name: "Pokémon Showdown", url: "https://pokemonshowdown.com", desc: "Animated sprites" },
                     ].map((src) => (
                       <div

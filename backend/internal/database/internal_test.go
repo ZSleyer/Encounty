@@ -280,8 +280,8 @@ func TestLoadSettingsNoRow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadSettings: %v", err)
 	}
-	if s.BrowserPort != 0 {
-		t.Errorf("expected zero-value Settings, got BrowserPort=%d", s.BrowserPort)
+	if s.OutputEnabled {
+		t.Error("expected zero-value Settings, got OutputEnabled=true")
 	}
 }
 

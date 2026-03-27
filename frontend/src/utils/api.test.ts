@@ -22,11 +22,11 @@ describe("apiUrl", () => {
 
   it("prepends API_BASE when electronAPI.apiBaseUrl is set", async () => {
     (globalThis as unknown as Record<string, unknown>).electronAPI = {
-      apiBaseUrl: "http://localhost:8080",
+      apiBaseUrl: "http://localhost:8192",
     };
     const { apiUrl } = await import("./api");
 
-    expect(apiUrl("/api/state")).toBe("http://localhost:8080/api/state");
+    expect(apiUrl("/api/state")).toBe("http://localhost:8192/api/state");
   });
 
   it("handles empty path", async () => {
@@ -46,11 +46,11 @@ describe("wsUrl", () => {
 
   it("converts http API_BASE to ws:// WebSocket URL", async () => {
     (globalThis as unknown as Record<string, unknown>).electronAPI = {
-      apiBaseUrl: "http://localhost:8080",
+      apiBaseUrl: "http://localhost:8192",
     };
     const { wsUrl } = await import("./api");
 
-    expect(wsUrl()).toBe("ws://localhost:8080/ws");
+    expect(wsUrl()).toBe("ws://localhost:8192/ws");
   });
 
   it("converts https API_BASE to wss:// WebSocket URL", async () => {

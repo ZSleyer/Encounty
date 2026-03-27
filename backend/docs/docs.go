@@ -877,9 +877,6 @@ const docTemplate = `{
                     "auto_save": {
                         "type": "boolean"
                     },
-                    "browser_port": {
-                        "type": "integer"
-                    },
                     "config_path": {
                         "description": "custom data directory override",
                         "type": "string"
@@ -3883,7 +3880,7 @@ const docTemplate = `{
     "openapi": "3.1.0",
     "servers": [
         {
-            "url": "localhost:8080/api"
+            "url": "localhost:8192/api"
         }
     ]
 }`

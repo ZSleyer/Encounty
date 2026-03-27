@@ -165,7 +165,6 @@ export function makeAppState(overrides?: Partial<AppState>): AppState {
       output_enabled: false,
       output_dir: "/tmp/encounty",
       auto_save: true,
-      browser_port: 8080,
       languages: ["de", "en"],
       overlay: makeOverlaySettings(),
     },

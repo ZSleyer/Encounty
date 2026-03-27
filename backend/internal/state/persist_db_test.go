@@ -61,7 +61,6 @@ func TestSaveAndLoadWithDB(t *testing.T) {
 		OutputEnabled: true,
 		OutputDir:     "/custom/out",
 		AutoSave:      true,
-		BrowserPort:   9090,
 		Languages:     []string{"en", "ja"},
 		CrispSprites:  true,
 	})
@@ -99,9 +98,6 @@ func TestSaveAndLoadWithDB(t *testing.T) {
 	}
 	if st.Pokemon[1].Name != "Eevee" {
 		t.Errorf("Pokemon[1].Name = %q, want %q", st.Pokemon[1].Name, "Eevee")
-	}
-	if st.Settings.BrowserPort != 9090 {
-		t.Errorf("BrowserPort = %d, want 9090", st.Settings.BrowserPort)
 	}
 	if !st.Settings.OutputEnabled {
 		t.Error("OutputEnabled should be true")
@@ -170,7 +166,6 @@ func TestLoadFallsBackToLegacyBlob(t *testing.T) {
 		Sessions: []state.Session{},
 		Hotkeys:  state.HotkeyMap{Increment: "F5", Decrement: "F6", Reset: "F7", NextPokemon: "F8"},
 		Settings: state.Settings{
-			BrowserPort: 7777,
 			Languages:   []string{"de"},
 			Overlay:     state.OverlaySettings{BackgroundAnimation: "none"},
 		},

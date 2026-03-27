@@ -168,7 +168,6 @@ func makeTestState() state.AppState {
 			OutputEnabled: true,
 			OutputDir:     "/test/output",
 			AutoSave:      true,
-			BrowserPort:   9090,
 			Languages:     []string{"de", "en", "fr"},
 			CrispSprites:  true,
 			Overlay:       makeTestOverlay(),
@@ -648,9 +647,6 @@ func compareSettings(t *testing.T, label string, got, want *state.Settings) {
 	}
 	if got.AutoSave != want.AutoSave {
 		t.Errorf("%s AutoSave = %v, want %v", label, got.AutoSave, want.AutoSave)
-	}
-	if got.BrowserPort != want.BrowserPort {
-		t.Errorf("%s BrowserPort = %d, want %d", label, got.BrowserPort, want.BrowserPort)
 	}
 	if got.CrispSprites != want.CrispSprites {
 		t.Errorf("%s CrispSprites = %v, want %v", label, got.CrispSprites, want.CrispSprites)
