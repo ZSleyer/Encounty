@@ -199,18 +199,21 @@ export interface SpriteElement extends OverlayElementBase {
   idle_animation: string;
   trigger_enter: string;
   trigger_exit: string;
+  trigger_decrement: string;
 }
 
 export interface NameElement extends OverlayElementBase {
   style: TextStyle;
   idle_animation: string; // "none" | "shimmer"
   trigger_enter: string; // "none" | "slide-in" | "fade-in"
+  trigger_decrement: string;
 }
 
 export interface TitleElement extends OverlayElementBase {
   style: TextStyle;
   idle_animation: string;
   trigger_enter: string;
+  trigger_decrement: string;
 }
 
 export interface CounterElement extends OverlayElementBase {
@@ -220,6 +223,7 @@ export interface CounterElement extends OverlayElementBase {
   label_style: TextStyle;
   idle_animation: string; // "none"
   trigger_enter: string; // "none" | "pop" | "count-flash"
+  trigger_decrement: string;
 }
 
 /**

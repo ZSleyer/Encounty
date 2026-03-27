@@ -43,6 +43,7 @@ export default {
         "overlay-bounce": "overlay-bounce 0.5s ease-out",
         "overlay-shake": "overlay-shake 0.4s ease-out",
         "overlay-slide-up": "overlay-slide-up 0.3s ease-out",
+        "overlay-slide-down": "overlay-slide-down 0.3s ease-out",
         "overlay-flip": "overlay-flip 0.45s ease-in-out",
         "overlay-rubber": "overlay-rubber 0.55s ease-out",
         "overlay-spin": "overlay-spin 0.6s ease-in-out",
@@ -129,6 +130,10 @@ export default {
         },
         "overlay-slide-up": {
           "0%": { transform: "translateY(40px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        "overlay-slide-down": {
+          "0%": { transform: "translateY(-40px)", opacity: "0" },
           "100%": { transform: "translateY(0)", opacity: "1" },
         },
         "overlay-flip": {
@@ -251,6 +256,7 @@ export default {
     "animate-overlay-bounce",
     "animate-overlay-shake",
     "animate-overlay-slide-up",
+    "animate-overlay-slide-down",
     "animate-overlay-flip",
     "animate-overlay-rubber",
     "animate-overlay-fade-in",

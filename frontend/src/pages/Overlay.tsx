@@ -24,6 +24,7 @@ interface AnimChannelSetters {
   setAnimClass: (cls: string) => void;
   setReverse: (rev: boolean) => void;
   setTriggerId: (id: number) => void;
+  setRenderMode?: (mode: string) => void;
 }
 
 /** All animation channels managed by the overlay. */
@@ -67,10 +68,13 @@ function triggerAnimation(
 function useAnimationTriggers(): {
   channels: AnimChannels;
   setters: AnimChannelSettersMap;
+  counterRenderMode: string;
+  setCounterRenderMode: (mode: string) => void;
 } {
   const [animClass, setAnimClass] = useState("");
   const [animReverse, setAnimReverse] = useState(false);
   const [triggerId, setTriggerId] = useState(0);
+  const [counterRenderMode, setCounterRenderMode] = useState("");
 
   const [spriteAnimClass, setSpriteAnimClass] = useState("");
   const [spriteAnimReverse, setSpriteAnimReverse] = useState(false);
@@ -92,11 +96,13 @@ function useAnimationTriggers(): {
       title: { animClass: titleAnimClass, reverse: titleAnimReverse, triggerId: titleTriggerId },
     },
     setters: {
-      counter: { setAnimClass, setReverse: setAnimReverse, setTriggerId },
+      counter: { setAnimClass, setReverse: setAnimReverse, setTriggerId, setRenderMode: setCounterRenderMode },
       sprite: { setAnimClass: setSpriteAnimClass, setReverse: setSpriteAnimReverse, setTriggerId: setSpriteTriggerId },
       name: { setAnimClass: setNameAnimClass, setReverse: setNameAnimReverse, setTriggerId: setNameTriggerId },
       title: { setAnimClass: setTitleAnimClass, setReverse: setTitleAnimReverse, setTriggerId: setTitleTriggerId },
     },
+    counterRenderMode,
+    setCounterRenderMode,
   };
 }
 
@@ -169,25 +175,27 @@ function SlotCounter({
   value,
   counterStyle,
   reverse,
+  strokePadding = 0,
 }: Readonly<{
   value: number;
   counterStyle: React.CSSProperties;
   reverse?: boolean;
+  strokePadding?: number;
 }>) {
   const digits = String(value).split("");
+  const anim = reverse ? "overlay-slide-down" : "overlay-slide-up";
   return (
     <span style={{ display: "inline-flex" }}>
       {digits.map((digit, i) => (
         <span
           key={`${i}_${digit}`}
-          style={{ display: "inline-block", overflow: "hidden" }}
+          style={{ display: "inline-block", overflow: "hidden", padding: strokePadding, margin: -strokePadding }}
         >
           <span
             className="font-black tabular-nums leading-none"
             style={{
               display: "block",
-              animation: "overlay-slide-up 0.22s ease-out forwards",
-              animationDirection: reverse ? "reverse" : "normal",
+              animation: `${anim} 0.22s ease-out forwards`,
               ...counterStyle,
             }}
           >
@@ -204,10 +212,12 @@ function FlipCounter({
   value,
   counterStyle,
   reverse,
+  strokePadding = 0,
 }: Readonly<{
   value: number;
   counterStyle: React.CSSProperties;
   reverse?: boolean;
+  strokePadding?: number;
 }>) {
   const digits = String(value).split("");
   return (
@@ -215,7 +225,7 @@ function FlipCounter({
       {digits.map((digit, i) => (
         <span
           key={`${i}_${digit}`}
-          style={{ display: "inline-block", overflow: "hidden" }}
+          style={{ display: "inline-block", overflow: "hidden", padding: strokePadding, margin: -strokePadding }}
         >
           <span
             className="font-black tabular-nums leading-none"
@@ -380,19 +390,43 @@ function dispatchElementAnim(
  * which only toggle direction instead of playing a CSS animation.
  */
 function dispatchCounterAnim(
-  counter: { trigger_enter: string },
+  counter: { trigger_enter: string; trigger_decrement: string },
   isIncrement: boolean,
   isDecrement: boolean,
   isReset: boolean,
   channelSetters: AnimChannelSetters,
 ): void {
-  const key = counter.trigger_enter;
-  if (key !== "slot" && key !== "flip-digit") {
-    const keyForIncrement = isIncrement ? key : "shake";
-    const animKey = isReset ? "rubber" : keyForIncrement;
-    triggerAnimation(animKey, COUNTER_ANIMS, isDecrement, channelSetters);
-  } else {
-    channelSetters.setReverse(isDecrement);
+  const enterKey = counter.trigger_enter;
+  const hasExplicitDecrement = counter.trigger_decrement && counter.trigger_decrement !== "none";
+
+  if (isReset) {
+    channelSetters.setRenderMode?.("");
+    triggerAnimation("rubber", COUNTER_ANIMS, false, channelSetters);
+  } else if (isIncrement) {
+    if (enterKey === "slot" || enterKey === "flip-digit") {
+      channelSetters.setRenderMode?.(enterKey);
+      channelSetters.setReverse(false);
+    } else {
+      channelSetters.setRenderMode?.("");
+      triggerAnimation(enterKey, COUNTER_ANIMS, false, channelSetters);
+    }
+  } else if (isDecrement) {
+    if (hasExplicitDecrement) {
+      const dk = counter.trigger_decrement;
+      if (dk === "slot" || dk === "flip-digit") {
+        channelSetters.setRenderMode?.(dk);
+        channelSetters.setReverse(true);
+      } else {
+        channelSetters.setRenderMode?.("");
+        triggerAnimation(dk, COUNTER_ANIMS, true, channelSetters);
+      }
+    } else if (enterKey === "slot" || enterKey === "flip-digit") {
+      channelSetters.setRenderMode?.(enterKey);
+      channelSetters.setReverse(true);
+    } else {
+      channelSetters.setRenderMode?.("");
+      triggerAnimation("shake", COUNTER_ANIMS, true, channelSetters);
+    }
   }
 }
 
@@ -408,10 +442,19 @@ function dispatchCounterAnimations(
   allSetters: AnimChannelSettersMap,
 ): void {
   dispatchCounterAnim(settings.counter, isIncrement, isDecrement, isReset, allSetters.counter);
-  dispatchElementAnim(settings.sprite.trigger_enter, SPRITE_ANIMS, isDecrement, allSetters.sprite);
-  dispatchElementAnim(settings.name.trigger_enter, NAME_ANIMS, isDecrement, allSetters.name);
+
+  const spriteKey = isDecrement && settings.sprite.trigger_decrement && settings.sprite.trigger_decrement !== "none"
+    ? settings.sprite.trigger_decrement : settings.sprite.trigger_enter;
+  dispatchElementAnim(spriteKey, SPRITE_ANIMS, isDecrement, allSetters.sprite);
+
+  const nameKey = isDecrement && settings.name.trigger_decrement && settings.name.trigger_decrement !== "none"
+    ? settings.name.trigger_decrement : settings.name.trigger_enter;
+  dispatchElementAnim(nameKey, NAME_ANIMS, isDecrement, allSetters.name);
+
   if (settings.title) {
-    dispatchElementAnim(settings.title.trigger_enter, NAME_ANIMS, isDecrement, allSetters.title);
+    const titleKey = isDecrement && settings.title.trigger_decrement && settings.title.trigger_decrement !== "none"
+      ? settings.title.trigger_decrement : settings.title.trigger_enter;
+    dispatchElementAnim(titleKey, NAME_ANIMS, isDecrement, allSetters.title);
   }
 }
 
@@ -434,19 +477,29 @@ function dispatchTestTrigger(
 ): void {
   const rev = testTrigger.reverse ?? false;
   if (testTrigger.element === "counter") {
-    const key = settings.counter.trigger_enter;
-    if (key !== "slot" && key !== "flip-digit") {
-      triggerAnimation(key, COUNTER_ANIMS, rev, allSetters.counter);
-    } else {
+    const key = rev
+      ? (settings.counter.trigger_decrement && settings.counter.trigger_decrement !== "none" ? settings.counter.trigger_decrement : settings.counter.trigger_enter)
+      : settings.counter.trigger_enter;
+    if (key === "slot" || key === "flip-digit") {
+      allSetters.counter.setRenderMode?.(key);
       allSetters.counter.setReverse(rev);
       allSetters.counter.setTriggerId(Date.now());
+    } else {
+      allSetters.counter.setRenderMode?.("");
+      triggerAnimation(key, COUNTER_ANIMS, rev, allSetters.counter);
     }
   } else if (testTrigger.element === "sprite") {
-    triggerAnimation(settings.sprite.trigger_enter, SPRITE_ANIMS, rev, allSetters.sprite);
+    const key = rev && settings.sprite.trigger_decrement && settings.sprite.trigger_decrement !== "none"
+      ? settings.sprite.trigger_decrement : settings.sprite.trigger_enter;
+    triggerAnimation(key, SPRITE_ANIMS, rev, allSetters.sprite);
   } else if (testTrigger.element === "name") {
-    triggerAnimation(settings.name.trigger_enter, NAME_ANIMS, rev, allSetters.name);
+    const key = rev && settings.name.trigger_decrement && settings.name.trigger_decrement !== "none"
+      ? settings.name.trigger_decrement : settings.name.trigger_enter;
+    triggerAnimation(key, NAME_ANIMS, rev, allSetters.name);
   } else if (testTrigger.element === "title" && settings.title) {
-    triggerAnimation(settings.title.trigger_enter, NAME_ANIMS, rev, allSetters.title);
+    const key = rev && settings.title.trigger_decrement && settings.title.trigger_decrement !== "none"
+      ? settings.title.trigger_decrement : settings.title.trigger_enter;
+    triggerAnimation(key, NAME_ANIMS, rev, allSetters.title);
   }
 }
 
@@ -530,7 +583,7 @@ export function Overlay({
   testTrigger,
 }: Readonly<Props>) {
   const { appState } = useCounterStore();
-  const { channels, setters } = useAnimationTriggers();
+  const { channels, setters, counterRenderMode } = useAnimationTriggers();
 
   const prevCount = useRef<number | undefined>(undefined);
 
@@ -578,10 +631,13 @@ export function Overlay({
   }
 
   const {
-    nameStyle, counterStyle, labelStyle, titleStyle, counterMode,
+    nameStyle, counterStyle, labelStyle, titleStyle, counterMode: defaultCounterMode,
     outerStyle, crispSprites, bgAnimKey, hasBgAnim,
     bgStyle, bgImageStyle,
   } = buildOverlayStyles(settings, !!previewSettings, appState?.settings.crisp_sprites ?? false);
+
+  // Dynamic counter mode: override when a decrement animation uses a different rendering style
+  const counterMode = counterRenderMode || defaultCounterMode;
 
   const canvas = (
     <div style={outerStyle}>
@@ -764,22 +820,32 @@ export function Overlay({
             }
           >
             {(() => {
+              const counterOutlinePad = settings.counter.style.outline_type === "solid" ? settings.counter.style.outline_width * 2 + 1 : 0;
+              const counterShadowPad = settings.counter.style.text_shadow ? Math.abs(settings.counter.style.text_shadow_x) + settings.counter.style.text_shadow_blur : 0;
+              const counterStrokePad = Math.max(2, counterOutlinePad, counterShadowPad);
+
               if (counterMode === "slot") {
                 return (
-                  <SlotCounter
-                    value={activePokemon.encounters}
-                    counterStyle={counterStyle}
-                    reverse={channels.counter.reverse}
-                  />
+                  <span key={`slot-${channels.counter.triggerId}`}>
+                    <SlotCounter
+                      value={activePokemon.encounters}
+                      counterStyle={counterStyle}
+                      reverse={channels.counter.reverse}
+                      strokePadding={counterStrokePad}
+                    />
+                  </span>
                 );
               }
               if (counterMode === "flip-digit") {
                 return (
-                  <FlipCounter
-                    value={activePokemon.encounters}
-                    counterStyle={counterStyle}
-                    reverse={channels.counter.reverse}
-                  />
+                  <span key={`flip-${channels.counter.triggerId}`}>
+                    <FlipCounter
+                      value={activePokemon.encounters}
+                      counterStyle={counterStyle}
+                      reverse={channels.counter.reverse}
+                      strokePadding={counterStrokePad}
+                    />
+                  </span>
                 );
               }
               return (

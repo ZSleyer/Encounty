@@ -110,6 +110,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     idle_animation: "float",
     trigger_enter: "pop",
     trigger_exit: "none",
+    trigger_decrement: "none",
   },
   name: {
     visible: true,
@@ -130,6 +131,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     },
     idle_animation: "none",
     trigger_enter: "fade-in",
+    trigger_decrement: "none",
   },
   title: {
     visible: false,
@@ -150,6 +152,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     },
     idle_animation: "none",
     trigger_enter: "fade-in",
+    trigger_decrement: "none",
   },
   counter: {
     visible: true,
@@ -179,6 +182,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     },
     idle_animation: "none",
     trigger_enter: "pop",
+    trigger_decrement: "none",
   },
 };
 

@@ -58,6 +58,7 @@ export function makeOverlaySettings(
       idle_animation: "none",
       trigger_enter: "none",
       trigger_exit: "none",
+      trigger_decrement: "none",
     },
     name: {
       visible: true,
@@ -69,6 +70,7 @@ export function makeOverlaySettings(
       style: makeTextStyle(),
       idle_animation: "none",
       trigger_enter: "none",
+      trigger_decrement: "none",
     },
     title: {
       visible: true,
@@ -80,6 +82,7 @@ export function makeOverlaySettings(
       style: makeTextStyle(),
       idle_animation: "none",
       trigger_enter: "none",
+      trigger_decrement: "none",
     },
     counter: {
       visible: true,
@@ -94,6 +97,7 @@ export function makeOverlaySettings(
       label_style: makeTextStyle(),
       idle_animation: "none",
       trigger_enter: "none",
+      trigger_decrement: "none",
     },
     ...overrides,
   };
