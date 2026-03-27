@@ -1,4 +1,4 @@
-import { Play, AlignLeft, AlignCenter, AlignRight, Upload, Trash2 } from "lucide-react";
+import { Play, RotateCcw, AlignLeft, AlignCenter, AlignRight, Upload, Trash2 } from "lucide-react";
 import {
   OverlaySettings,
   OverlayElementBase,
@@ -732,6 +732,45 @@ export function OverlayPropertyPanel({
               <option value="swing">Swing</option>
             </select>
           </div>
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <label htmlFor="sprite-trigger-decrement-animation" className="text-xs text-text-muted">
+                Trigger Animation (Verringern)
+              </label>
+              <button
+                onClick={() => fireTest("sprite", true)}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+              >
+                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
+              </button>
+            </div>
+            <select
+              id="sprite-trigger-decrement-animation"
+              value={localSettings.sprite.trigger_decrement || "none"}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  sprite: {
+                    ...localSettings.sprite,
+                    trigger_decrement: e.target.value,
+                  },
+                })
+              }
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+            >
+              <option value="none">Keine</option>
+              <option value="pop">Pop</option>
+              <option value="bounce">Bounce (Hüpfen)</option>
+              <option value="shake">Shake</option>
+              <option value="spin">Spin</option>
+              <option value="flip">Flip</option>
+              <option value="rubber">Rubber Band</option>
+              <option value="flash">Flash</option>
+              <option value="jello">Jello</option>
+              <option value="tada">Tada</option>
+              <option value="swing">Swing</option>
+            </select>
+          </div>
         </div>
       )}
 
@@ -814,6 +853,45 @@ export function OverlayPropertyPanel({
               <option value="zoom-in">Zoom In</option>
             </select>
           </div>
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <label htmlFor="name-trigger-decrement-animation" className="text-xs text-text-muted">
+                Trigger Animation (Verringern)
+              </label>
+              <button
+                onClick={() => fireTest("name", true)}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+              >
+                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
+              </button>
+            </div>
+            <select
+              id="name-trigger-decrement-animation"
+              value={localSettings.name.trigger_decrement || "none"}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  name: {
+                    ...localSettings.name,
+                    trigger_decrement: e.target.value,
+                  },
+                })
+              }
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+            >
+              <option value="none">Keine</option>
+              <option value="fade-in">Einblenden</option>
+              <option value="slide-in">Einsliden</option>
+              <option value="pop">Pop</option>
+              <option value="bounce">Bounce</option>
+              <option value="shake">Shake</option>
+              <option value="flip">Flip</option>
+              <option value="rubber">Rubber Band</option>
+              <option value="jello">Jello</option>
+              <option value="tada">Tada</option>
+              <option value="zoom-in">Zoom In</option>
+            </select>
+          </div>
         </div>
       )}
 
@@ -878,6 +956,45 @@ export function OverlayPropertyPanel({
                   title: {
                     ...localSettings.title,
                     trigger_enter: e.target.value,
+                  },
+                })
+              }
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+            >
+              <option value="none">Keine</option>
+              <option value="fade-in">Einblenden</option>
+              <option value="slide-in">Einsliden</option>
+              <option value="pop">Pop</option>
+              <option value="bounce">Bounce</option>
+              <option value="shake">Shake</option>
+              <option value="flip">Flip</option>
+              <option value="rubber">Rubber Band</option>
+              <option value="jello">Jello</option>
+              <option value="tada">Tada</option>
+              <option value="zoom-in">Zoom In</option>
+            </select>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <label htmlFor="title-trigger-decrement-animation" className="text-xs text-text-muted">
+                Trigger Animation (Verringern)
+              </label>
+              <button
+                onClick={() => fireTest("title", true)}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+              >
+                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
+              </button>
+            </div>
+            <select
+              id="title-trigger-decrement-animation"
+              value={localSettings.title.trigger_decrement || "none"}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  title: {
+                    ...localSettings.title,
+                    trigger_decrement: e.target.value,
                   },
                 })
               }
@@ -1012,6 +1129,47 @@ export function OverlayPropertyPanel({
                   counter: {
                     ...localSettings.counter,
                     trigger_enter: e.target.value,
+                  },
+                })
+              }
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+            >
+              <option value="none">Keine</option>
+              <option value="pop">Pop</option>
+              <option value="flash">Flash</option>
+              <option value="bounce">Bounce (Hüpfen)</option>
+              <option value="shake">Shake</option>
+              <option value="slot">Slot (Ziffern slide)</option>
+              <option value="flip-digit">Flip (Ziffern, Wecker)</option>
+              <option value="slide-up">Slide Up (gesamt)</option>
+              <option value="flip">Flip (gesamt, Wecker)</option>
+              <option value="rubber">Rubber Band</option>
+              <option value="jello">Jello</option>
+              <option value="tada">Tada</option>
+              <option value="zoom-in">Zoom In</option>
+            </select>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <label htmlFor="counter-trigger-decrement-animation" className="text-xs text-text-muted">
+                Trigger Animation (Verringern)
+              </label>
+              <button
+                onClick={() => fireTest("counter", true)}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+              >
+                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
+              </button>
+            </div>
+            <select
+              id="counter-trigger-decrement-animation"
+              value={localSettings.counter.trigger_decrement || "none"}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  counter: {
+                    ...localSettings.counter,
+                    trigger_decrement: e.target.value,
                   },
                 })
               }

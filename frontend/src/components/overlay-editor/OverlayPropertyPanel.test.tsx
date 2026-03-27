@@ -90,16 +90,24 @@ describe("OverlayPropertyPanel", () => {
   it("fires the test callback when Test button is clicked for sprite", () => {
     const props = makeProps({ selectedEl: "sprite" });
     render(<OverlayPropertyPanel {...props} />);
-    const testButton = screen.getByText("Test");
-    fireEvent.click(testButton);
+    const testButtons = screen.getAllByText("Test");
+    fireEvent.click(testButtons[0]);
     expect(props.fireTest).toHaveBeenCalledWith("sprite");
+  });
+
+  it("fires the decrement test callback when decrement Test button is clicked for sprite", () => {
+    const props = makeProps({ selectedEl: "sprite" });
+    render(<OverlayPropertyPanel {...props} />);
+    const testButtons = screen.getAllByText("Test");
+    fireEvent.click(testButtons[1]);
+    expect(props.fireTest).toHaveBeenCalledWith("sprite", true);
   });
 
   it("fires the test callback when Test button is clicked for counter", () => {
     const props = makeProps({ selectedEl: "counter" });
     render(<OverlayPropertyPanel {...props} />);
-    const testButton = screen.getByText("Test");
-    fireEvent.click(testButton);
+    const testButtons = screen.getAllByText("Test");
+    fireEvent.click(testButtons[0]);
     expect(props.fireTest).toHaveBeenCalledWith("counter");
   });
 
