@@ -21,6 +21,7 @@ export type DetectorSettingsProps = Readonly<{
   activePreset?: HuntTypePreset;
   onApplyDefaults?: () => void;
   embedded?: boolean;
+  disabled?: boolean;
 }>;
 
 // ── Default config ───────────────────────────────────────────────────────────
@@ -46,13 +47,14 @@ export function DetectorSettings({
   activePreset,
   onApplyDefaults,
   embedded,
+  disabled,
 }: DetectorSettingsProps) {
   const { t } = useI18n();
   const [showSettings, setShowSettings] = useState(false);
 
   /** The shared settings content rendered in both embedded and collapsible modes. */
   const settingsContent = (
-    <div className={embedded ? "space-y-3" : "px-4 pb-4 space-y-3 border-t border-border-subtle pt-3"}>
+    <div className={`${embedded ? "space-y-3" : "px-4 pb-4 space-y-3 border-t border-border-subtle pt-3"} ${disabled ? "opacity-50 pointer-events-none" : ""}`} aria-disabled={disabled || undefined}>
           {/* Precision slider */}
           <div>
             <div className="flex items-center justify-between mb-1">
