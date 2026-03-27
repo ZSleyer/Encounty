@@ -10,10 +10,33 @@ const POKESPRITE_BASE =
 /** Placeholder sprite (PokeAPI's "unknown Pokémon" silhouette) used when a sprite fails to load. */
 export const SPRITE_FALLBACK = `${POKEAPI_BASE}/0.png`;
 
+/**
+ * Default-form suffixes that Pokesprite omits from filenames.
+ * E.g. Pokesprite uses "deoxys.png" not "deoxys-normal.png".
+ */
+const DEFAULT_FORM_SUFFIXES = [
+  "-normal", "-altered", "-land", "-aria", "-incarnate",
+  "-plant", "-standard", "-red-striped", "-shield",
+  "-ordinary", "-average", "-baile", "-midday",
+  "-solo", "-50", "-male", "-amped",
+  "-single-strike", "-full-belly", "-chest",
+  "-family-of-three", "-two-segment", "-curly",
+  "-combat-breed", "-green-plumage", "-zero",
+];
+
+/** Normalize a canonical name for Pokesprite box sprites. */
+function normalizeForPokesprite(name: string): string {
+  for (const suffix of DEFAULT_FORM_SUFFIXES) {
+    if (name.endsWith(suffix)) return name.slice(0, -suffix.length);
+  }
+  return name;
+}
+
 /** Returns a small box sprite URL from pokesprite for use in compact UI elements. */
 export function getBoxSpriteUrl(canonicalName: string, spriteType: SpriteType = "shiny"): string {
   const variant = spriteType === "shiny" ? "shiny" : "regular";
-  return `${POKESPRITE_BASE}/${variant}/${canonicalName}.png`;
+  const normalized = normalizeForPokesprite(canonicalName);
+  return `${POKESPRITE_BASE}/${variant}/${normalized}.png`;
 }
 
 /**
