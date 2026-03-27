@@ -1,152 +1,114 @@
 # Encounty
 
-![CI](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml/badge.svg?branch=main)
-![Backend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ZSleyer/Encounty/badges/backend-coverage.json)
-![Frontend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ZSleyer/Encounty/badges/frontend-coverage.json)
-![License: AGPL-3.0](https://img.shields.io/github/license/ZSleyer/Encounty)
-![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)
-![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)
+[![CI](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml)
+[![Backend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ZSleyer/Encounty/badges/backend-coverage.json)](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml)
+[![Frontend Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ZSleyer/Encounty/badges/frontend-coverage.json)](https://github.com/ZSleyer/Encounty/actions/workflows/ci.yml)
+[![License: AGPL-3.0](https://img.shields.io/github/license/ZSleyer/Encounty)](LICENSE)
+[![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)](https://github.com/ZSleyer/Encounty/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)](https://github.com/ZSleyer/Encounty/releases)
 
-Encounty is a modern, open-source encounter tracker for Pokémon games. It uses text and image recognition to automatically detect and count encounters, enabling unlimited multi-hunts — limited only by your hardware. Manual tracking via global hotkeys is also supported.
+Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. It captures your game screen directly in the browser, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts — limited only by your hardware.
 
 ## Download
 
-**[⬇ Download the latest version here](https://github.com/ZSleyer/Encounty/releases/latest)**
+**[Download the latest version here](https://github.com/ZSleyer/Encounty/releases/latest)**
 
-Choose the file matching your operating system:
-
-- **Windows**: `Encounty.exe`
-- **Linux**: `Encounty.AppImage`
-
-All releases can be found on the [Releases](https://github.com/ZSleyer/Encounty/releases) page.
-
-## Support
-
-Encounty is a hobby project provided free of charge. There is no official support.
-
-## Compatibility
-
-The application is currently only tested on and known to be compatible with:
-
-- **Linux**: Wayland only (no X11/Xwayland support for capture; tested on Arch Linux)
-- **Windows**: Windows 11 only (version 21H2+)
+| Platform | File                 |
+|----------|----------------------|
+| Windows  | `Encounty.exe`       |
+| Linux    | `Encounty.AppImage`  |
 
 > [!IMPORTANT]
-> macOS and other Linux/Windows versions are currently unsupported as of 2026, and there are no plans to support them.
-
-## Features
-
-- **WebGPU-accelerated NCC template matching** — GPU-powered detection with near-zero CPU overhead
-- Browser-native **lossless preview** via `getDisplayMedia` / `getUserMedia`
-- Unlimited simultaneous multi-hunts with independent capture streams
-- Manual tracking with configurable global hotkeys
-- Customizable dashboard with real-time stats
-- OBS overlay editor with drag-and-drop and live preview
-
-![Dashboard](docs/images/dashboard.png)
-*Modern, customizable dashboard with real-time stats.*
-
-![Overlay Editor](docs/images/overlay_editor.png)
-*Powerful overlay editor with drag-and-drop and real-time preview.*
-
-![Auto-Detection](docs/images/auto_detection.png)
-*Auto-detection system for encounter counting.*
-
-![Auto-Detection Templates](docs/images/auto_detection_templates.png)
-*Auto-detection templates for encounter counting.*
+> Supported platforms: **Linux (Wayland only)** and **Windows 11** (26H1+). macOS is not supported.
 
 ## How It Works
 
-1. The browser captures your screen, window, or camera feed (per Pokémon)
-2. WebGPU compute shaders run NCC template matching directly on the GPU
-3. A match triggers an automatic encounter count increment
-4. Results are broadcast in real-time via WebSocket to the dashboard and overlays
+1. The browser captures your screen, window, or camera feed per Pokemon via `getDisplayMedia` / `getUserMedia`
+2. WebGPU compute shaders run a 5-metric hybrid match (SSIM, NCC, MAD, histogram correlation, dHash) directly on the GPU — with automatic CPU fallback
+3. Hysteresis, consecutive-hit confirmation, and a configurable cooldown prevent false positives and double-counts
+4. A confirmed match increments the encounter counter and broadcasts the result via WebSocket to the dashboard and OBS overlays
+
+### Features
+
+- Unlimited simultaneous multi-hunts with independent capture streams
+- Template management with single-active selection, import/export, and region-based positive/negative matching
+- Manual tracking via configurable platform-native global hotkeys (evdev on Linux, Win32 on Windows)
+- OBS integration via overlay editor (drag-and-drop, live preview) and text file output
+- Single-instance protection with zombie process detection
 
 ## Contributing
 
-Pull requests are welcome! Whether it's translations, new features, or bug fixes — feel free to contribute.
+Pull requests are welcome — translations, features, bug fixes, or documentation.
 
 ## Development
 
 ### Prerequisites
 
-| Tool    | Version | Notes                                   |
-| ------- | ------- | --------------------------------------- |
-| Go      | 1.25+   | Backend API server                      |
-| Node.js | 22+     | Frontend build and Electron             |
-| Yarn    | any     | Package manager (`npm install -g yarn`) |
-| Make    | any     | Build orchestration                     |
+| Tool    | Version | Purpose             |
+|---------|---------|---------------------|
+| Go      | 1.25+   | Backend API server  |
+| Node.js | 22+     | Frontend + Electron |
+| Yarn    | any     | Package manager     |
+| Make    | any     | Build orchestration |
 
 ### Architecture
 
-Encounty uses a two-process architecture with all detection running in the browser:
+Encounty uses a two-process architecture:
 
-- **Go backend** — pure API server and state coordinator (`/api/*`, `/ws`); hotkeys, file output, SQLite persistence, and frontend asset serving for OBS overlays
-- **Electron** — desktop shell that manages the Go process lifecycle and hosts the browser-based capture and detection engine
+- **Go backend** (`localhost:8192`) — REST API, WebSocket hub, SQLite persistence, hotkeys, file output, and OBS overlay serving
+- **Electron** — desktop shell managing the Go process lifecycle; hosts the browser-based capture and detection engine
 
-The frontend captures screen, window, or camera feeds via `getDisplayMedia` / `getUserMedia`, runs NCC template matching through WebGPU compute shaders, and renders live previews — all with near-zero CPU overhead. In production, the Go backend also serves the frontend SPA so OBS can load overlays directly from `http://localhost:8080/overlay/{id}`.
+Detection state flows unidirectionally: Go backend (in-memory + SQLite) → WebSocket → Zustand store → React UI.
 
 ```text
 backend/          Go API server (REST + WebSocket)
   internal/
-    server/       HTTP handlers, SPA serving, Swagger UI
-    detector/     Browser detector state machine (score-based)
-    gamesync/     Game catalogue + PokéAPI sync
-    pokedex/      Pokédex data + GraphQL sync
-    updater/      Auto-update + platform binary replacement
+    server/       HTTP handlers, WebSocket hub, Swagger UI
     state/        In-memory state manager
     database/     SQLite persistence (normalized v2 schema)
+    detector/     Detection state machine (score-based)
     hotkeys/      Platform-native global hotkeys (evdev / Win32)
     fileoutput/   OBS text file integration
+    gamesync/     Game catalogue + PokeAPI sync
+    pokedex/      Pokedex data + GraphQL sync
+    updater/      Auto-update + platform binary replacement
 frontend/         React + TypeScript SPA (Vite, Tailwind CSS 4, Zustand)
-  src/engine/     WebGPU NCC detection engine (WGSL compute shaders)
-  src/contexts/   CaptureService (per-pokemon MediaStream management)
+  src/engine/     WebGPU detection engine (WGSL compute shaders)
+  src/contexts/   CaptureService (per-Pokemon MediaStream management)
 electron/         Electron wrapper (custom protocol, process manager)
 ```
 
-### Running in Development
+### Quick Start
 
 ```bash
-# Start backend + frontend via Make
-make dev
-
-# Or start each process manually in separate terminals
-cd backend  && go run -ldflags="-X main.version=dev" main.go --dev   # :8080
-cd frontend && yarn dev                                                # :5173
-cd electron && yarn dev                                                # optional Electron window
+make dev    # Starts Vite dev server (:5173) and Go backend (:8192)
 ```
 
-The Vite dev server (`:5173`) proxies `/api` and `/ws` to the Go backend (`:8080`).
-Electron in dev mode loads from Vite and does not spawn its own Go process.
-
-### API Documentation
-
-Swagger UI is available at `http://localhost:8080/swagger/` when the backend is running.
-
-### Building from Source
+Or manually in separate terminals:
 
 ```bash
-# Go backend
-make build-linux               # Linux amd64 binary + dist-linux/ bundle
+cd backend  && go run -ldflags="-X main.version=dev" main.go --dev
+cd frontend && yarn dev
+cd electron && yarn dev    # optional
+```
+
+The Vite dev server proxies `/api` and `/ws` to the Go backend. Electron in dev mode loads from Vite and does not spawn its own Go process.
+
+### Building
+
+```bash
+make build-linux               # Linux amd64 binary
 make build-windows             # Windows amd64 binary
-
-# Electron desktop app (bundles Go backend + frontend)
-make electron-package-linux    # AppImage
-make electron-package-windows  # Portable exe
-
-# Utilities
-make swagger                   # Regenerate OpenAPI spec
+make electron-package-linux    # Electron AppImage
+make electron-package-windows  # Electron portable exe
 make test                      # Go + frontend tests
-make coverage                  # Coverage reports (filtered)
-make clean                     # Remove all build artifacts
+make clean                     # Remove build artifacts
 ```
 
-### Testing
+### API
 
-```bash
-make test                            # All tests (Go + frontend)
-```
+Swagger UI: `http://localhost:8192/swagger/`
 
 ## License
 
-This project is licensed under the [GNU Affero General Public License v3 (AGPLv3)](LICENSE).
+[GNU Affero General Public License v3 (AGPLv3)](LICENSE)
