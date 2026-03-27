@@ -392,8 +392,9 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		glowOpacity:  ov.Sprite.GlowOpacity,
 		glowBlur:     ov.Sprite.GlowBlur,
 		idleAnim:     ov.Sprite.IdleAnimation,
-		triggerEnter: ov.Sprite.TriggerEnter,
-		triggerExit:  ov.Sprite.TriggerExit,
+		triggerEnter:     ov.Sprite.TriggerEnter,
+		triggerExit:      ov.Sprite.TriggerExit,
+		triggerDecrement: ov.Sprite.TriggerDecrement,
 	})
 	if err != nil {
 		return fmt.Errorf("insert sprite element: %w", err)
@@ -406,8 +407,9 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		overlayID:    overlayID,
 		elemType:     "name",
 		base:         &ov.Name.OverlayElementBase,
-		idleAnim:     ov.Name.IdleAnimation,
-		triggerEnter: ov.Name.TriggerEnter,
+		idleAnim:        ov.Name.IdleAnimation,
+		triggerEnter:    ov.Name.TriggerEnter,
+		triggerDecrement: ov.Name.TriggerDecrement,
 	})
 	if err != nil {
 		return fmt.Errorf("insert name element: %w", err)
@@ -421,8 +423,9 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		overlayID:    overlayID,
 		elemType:     "title",
 		base:         &ov.Title.OverlayElementBase,
-		idleAnim:     ov.Title.IdleAnimation,
-		triggerEnter: ov.Title.TriggerEnter,
+		idleAnim:        ov.Title.IdleAnimation,
+		triggerEnter:    ov.Title.TriggerEnter,
+		triggerDecrement: ov.Title.TriggerDecrement,
 	})
 	if err != nil {
 		return fmt.Errorf("insert title element: %w", err)
@@ -436,9 +439,10 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		overlayID:    overlayID,
 		elemType:     "counter",
 		base:         &ov.Counter.OverlayElementBase,
-		idleAnim:     ov.Counter.IdleAnimation,
-		triggerEnter: ov.Counter.TriggerEnter,
-		showLabel:    ov.Counter.ShowLabel,
+		idleAnim:        ov.Counter.IdleAnimation,
+		triggerEnter:    ov.Counter.TriggerEnter,
+		triggerDecrement: ov.Counter.TriggerDecrement,
+		showLabel:       ov.Counter.ShowLabel,
 		labelText:    ov.Counter.LabelText,
 	})
 	if err != nil {
@@ -466,9 +470,10 @@ type elementInsertParams struct {
 	glowBlur     int
 	idleAnim     string
 	triggerEnter string
-	triggerExit  string
-	showLabel    bool
-	labelText    string
+	triggerExit      string
+	triggerDecrement string
+	showLabel        bool
+	labelText        string
 }
 
 // insertElement inserts one overlay_elements row and returns its auto-increment ID.
@@ -495,11 +500,11 @@ func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 	res, err := tx.Exec(`
 		INSERT INTO overlay_elements (overlay_id, element_type, visible, x, y, width, height,
 			z_index, show_glow, glow_color, glow_opacity, glow_blur,
-			idle_animation, trigger_enter, trigger_exit, show_label, label_text)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			idle_animation, trigger_enter, trigger_exit, trigger_decrement, show_label, label_text)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.overlayID, p.elemType, boolToInt(p.base.Visible), p.base.X, p.base.Y, p.base.Width, p.base.Height,
 		p.base.ZIndex, glowShowVal, glowColorVal, glowOpacityVal, glowBlurVal,
-		p.idleAnim, p.triggerEnter, p.triggerExit, showLabelVal, labelTextVal,
+		p.idleAnim, p.triggerEnter, p.triggerExit, p.triggerDecrement, showLabelVal, labelTextVal,
 	)
 	if err != nil {
 		return 0, err

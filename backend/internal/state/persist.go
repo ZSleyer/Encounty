@@ -137,8 +137,9 @@ func migrateTitleElement(o *OverlaySettings) {
 				OutlineWidth: 3,
 				OutlineColor: "#000000",
 			},
-			IdleAnimation: "none",
-			TriggerEnter:  "fade-in",
+			IdleAnimation:    "none",
+			TriggerEnter:     "fade-in",
+			TriggerDecrement: "none",
 		}
 	}
 }

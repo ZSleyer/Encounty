@@ -44,6 +44,11 @@ var migrations = []migration{
 		description: "drop unused browser_port column from settings",
 		fn:          migrateDropBrowserPort,
 	},
+	{
+		version:     6,
+		description: "add trigger_decrement column to overlay_elements",
+		fn:          migrateAddTriggerDecrement,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -200,5 +205,12 @@ func migrateAddTemplateName(tx *sql.Tx) error {
 // Errors are ignored because the column may not exist on fresh databases.
 func migrateDropBrowserPort(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE settings DROP COLUMN browser_port`)
+	return nil
+}
+
+// migrateAddTriggerDecrement adds the trigger_decrement column to
+// overlay_elements. Errors are ignored for idempotency.
+func migrateAddTriggerDecrement(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN trigger_decrement TEXT NOT NULL DEFAULT 'none'`)
 	return nil
 }

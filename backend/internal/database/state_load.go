@@ -396,8 +396,8 @@ type elemRow struct {
 	elemType                              string
 	base                                  state.OverlayElementBase
 	showGlow, showLabel, glowBlur         sql.NullInt64
-	glowColor, idleAnim, triggerEnter     sql.NullString
-	triggerExit, labelText                sql.NullString
+	glowColor, idleAnim, triggerEnter        sql.NullString
+	triggerExit, triggerDecrement, labelText sql.NullString
 	glowOpacity                           sql.NullFloat64
 }
 
@@ -454,7 +454,7 @@ func loadOverlayBase(db *sql.DB, ownerType, ownerID string) (*state.OverlaySetti
 func scanOverlayElements(db *sql.DB, overlayID int64) ([]elemRow, error) {
 	rows, err := db.Query(`SELECT id, element_type, visible, x, y, width, height, z_index,
 		show_glow, glow_color, glow_opacity, glow_blur, idle_animation, trigger_enter, trigger_exit,
-		show_label, label_text
+		trigger_decrement, show_label, label_text
 		FROM overlay_elements WHERE overlay_id = ?`, overlayID)
 	if err != nil {
 		return nil, fmt.Errorf("query overlay_elements: %w", err)
@@ -466,7 +466,7 @@ func scanOverlayElements(db *sql.DB, overlayID int64) ([]elemRow, error) {
 		var visible int
 		if err := rows.Scan(&e.id, &e.elemType, &visible, &e.base.X, &e.base.Y, &e.base.Width,
 			&e.base.Height, &e.base.ZIndex, &e.showGlow, &e.glowColor, &e.glowOpacity, &e.glowBlur,
-			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.showLabel, &e.labelText); err != nil {
+			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.triggerDecrement, &e.showLabel, &e.labelText); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("scan overlay_element: %w", err)
 		}
@@ -487,6 +487,7 @@ func applyOverlayElement(db *sql.DB, ov *state.OverlaySettings, e elemRow) error
 	idleAnimStr := nullStr(e.idleAnim)
 	triggerEnterStr := nullStr(e.triggerEnter)
 	triggerExitStr := nullStr(e.triggerExit)
+	triggerDecrementStr := nullStr(e.triggerDecrement)
 
 	switch e.elemType {
 	case "sprite":
@@ -499,6 +500,7 @@ func applyOverlayElement(db *sql.DB, ov *state.OverlaySettings, e elemRow) error
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,
 			TriggerExit:        triggerExitStr,
+			TriggerDecrement:   triggerDecrementStr,
 		}
 
 	case "name":
@@ -511,6 +513,7 @@ func applyOverlayElement(db *sql.DB, ov *state.OverlaySettings, e elemRow) error
 			Style:              style,
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,
+			TriggerDecrement:   triggerDecrementStr,
 		}
 
 	case "title":
@@ -523,6 +526,7 @@ func applyOverlayElement(db *sql.DB, ov *state.OverlaySettings, e elemRow) error
 			Style:              style,
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,
+			TriggerDecrement:   triggerDecrementStr,
 		}
 
 	case "counter":
@@ -542,6 +546,7 @@ func applyOverlayElement(db *sql.DB, ov *state.OverlaySettings, e elemRow) error
 			LabelStyle:         labelStyle,
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,
+			TriggerDecrement:   triggerDecrementStr,
 		}
 	}
 	return nil

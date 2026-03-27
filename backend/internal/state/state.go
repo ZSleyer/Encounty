@@ -186,36 +186,40 @@ type SpriteElement struct {
 	GlowBlur      int     `json:"glow_blur"`
 	IdleAnimation string  `json:"idle_animation"`
 	TriggerEnter  string  `json:"trigger_enter"`
-	TriggerExit   string  `json:"trigger_exit"`
+	TriggerExit      string  `json:"trigger_exit"`
+	TriggerDecrement string  `json:"trigger_decrement"`
 }
 
 // NameElement configures the Pokémon name text layer of the overlay.
 type NameElement struct {
 	OverlayElementBase
-	Style         TextStyle `json:"style"`
-	IdleAnimation string    `json:"idle_animation"`
-	TriggerEnter  string    `json:"trigger_enter"`
+	Style            TextStyle `json:"style"`
+	IdleAnimation    string    `json:"idle_animation"`
+	TriggerEnter     string    `json:"trigger_enter"`
+	TriggerDecrement string    `json:"trigger_decrement"`
 }
 
 // TitleElement configures the custom title text layer of the overlay.
 // It only appears when the Pokémon has a user-defined title set.
 type TitleElement struct {
 	OverlayElementBase
-	Style         TextStyle `json:"style"`
-	IdleAnimation string    `json:"idle_animation"`
-	TriggerEnter  string    `json:"trigger_enter"`
+	Style            TextStyle `json:"style"`
+	IdleAnimation    string    `json:"idle_animation"`
+	TriggerEnter     string    `json:"trigger_enter"`
+	TriggerDecrement string    `json:"trigger_decrement"`
 }
 
 // CounterElement configures the encounter-count text layer of the overlay,
 // including an optional descriptive label rendered above or below the number.
 type CounterElement struct {
 	OverlayElementBase
-	Style         TextStyle `json:"style"`
-	ShowLabel     bool      `json:"show_label"`
-	LabelText     string    `json:"label_text"`
-	LabelStyle    TextStyle `json:"label_style"`
-	IdleAnimation string    `json:"idle_animation"`
-	TriggerEnter  string    `json:"trigger_enter"`
+	Style            TextStyle `json:"style"`
+	ShowLabel        bool      `json:"show_label"`
+	LabelText        string    `json:"label_text"`
+	LabelStyle       TextStyle `json:"label_style"`
+	IdleAnimation    string    `json:"idle_animation"`
+	TriggerEnter     string    `json:"trigger_enter"`
+	TriggerDecrement string    `json:"trigger_decrement"`
 }
 
 // OverlaySettings is the complete configuration for the OBS Browser Source
@@ -338,6 +342,7 @@ func NewManager(configDir string) *Manager {
 						GlowBlur:           20,
 						IdleAnimation:      "float",
 						TriggerEnter:       "pop",
+						TriggerDecrement:   animationNone,
 					},
 					Name: NameElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
@@ -351,8 +356,9 @@ func NewManager(configDir string) *Manager {
 							OutlineWidth: 4,
 							OutlineColor: colorBlack,
 						},
-						IdleAnimation: animationNone,
-						TriggerEnter:  "fade-in",
+						IdleAnimation:    animationNone,
+						TriggerEnter:     "fade-in",
+						TriggerDecrement: animationNone,
 					},
 					Title: TitleElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
@@ -366,8 +372,9 @@ func NewManager(configDir string) *Manager {
 							OutlineWidth: 3,
 							OutlineColor: colorBlack,
 						},
-						IdleAnimation: animationNone,
-						TriggerEnter:  "fade-in",
+						IdleAnimation:    animationNone,
+						TriggerEnter:     "fade-in",
+						TriggerDecrement: animationNone,
 					},
 					Counter: CounterElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 80, Width: 300, Height: 100, ZIndex: 3},
@@ -390,8 +397,9 @@ func NewManager(configDir string) *Manager {
 							ColorType:  colorTypeSolid,
 							Color:      "#94a3b8",
 						},
-						IdleAnimation: animationNone,
-						TriggerEnter:  "pop",
+						IdleAnimation:    animationNone,
+						TriggerEnter:     "pop",
+						TriggerDecrement: "shake",
 					},
 				},
 			},
