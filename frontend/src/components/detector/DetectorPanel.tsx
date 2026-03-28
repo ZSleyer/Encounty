@@ -860,11 +860,12 @@ export function DetectorPanel({
                             : "ring-2 ring-accent-blue bg-bg-primary"
                         }`}
                       >
-                        {/* Clickable toggle area */}
+                        {/* Clickable toggle area — disabled during active hunt */}
                         <button
                           type="button"
-                          className="w-full text-left cursor-pointer bg-transparent border-none p-0"
-                          onClick={() => handleToggleTemplate(index)}
+                          className={`w-full text-left bg-transparent border-none p-0 ${isRunning ? "cursor-default" : "cursor-pointer"}`}
+                          onClick={() => { if (!isRunning) handleToggleTemplate(index); }}
+                          disabled={isRunning}
                           aria-label={`${tmpl.name || "Template " + (index + 1)} — ${t("detector.setActiveTemplate")}`}
                         >
                           {/* Radio indicator for active selection */}
