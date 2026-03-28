@@ -81,9 +81,9 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
   canvas_width: 800,
   canvas_height: 200,
   hidden: false,
-  background_color: "#000000",
+  background_color: "#ce5a41",
   background_opacity: 0.6,
-  background_animation: "none",
+  background_animation: "waves",
   blur: 8,
   show_border: true,
   border_color: "rgba(255,255,255,0.1)",
@@ -99,7 +99,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     show_glow: true,
     glow_color: "#ffffff",
     glow_opacity: 0.2,
-    glow_blur: 20,
+    glow_blur: 42,
     idle_animation: "float",
     trigger_enter: "pop",
     trigger_exit: "none",
@@ -123,7 +123,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
       outline_color: "#000000",
     },
     idle_animation: "none",
-    trigger_enter: "fade-in",
+    trigger_enter: "none",
     trigger_decrement: "none",
   },
   title: {
@@ -144,7 +144,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
       outline_color: "#000000",
     },
     idle_animation: "none",
-    trigger_enter: "fade-in",
+    trigger_enter: "none",
     trigger_decrement: "none",
   },
   counter: {
@@ -174,8 +174,8 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
       color: "#94a3b8",
     },
     idle_animation: "none",
-    trigger_enter: "pop",
-    trigger_decrement: "none",
+    trigger_enter: "slot",
+    trigger_decrement: "slot",
   },
 };
 
@@ -443,12 +443,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         top: pad.y - (clientHeight - scaledH) / 2,
       };
     };
-    if (hasInitialCentered.current) {
-      updateScale();
-    } else {
-      hasInitialCentered.current = true;
-      requestAnimationFrame(updateScale);
-    }
+    updateScale();
+    if (!hasInitialCentered.current) hasInitialCentered.current = true;
     globalThis.addEventListener("resize", updateScale);
     return () => globalThis.removeEventListener("resize", updateScale);
   }, [localSettings.canvas_width, localSettings.canvas_height, getPadding]);

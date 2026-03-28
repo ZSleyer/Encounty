@@ -69,17 +69,17 @@ export function VerticalToolbar({
 }: VerticalToolbarProps) {
   const { t } = useI18n();
 
-  const iconClass = "w-4 h-4";
+  const iconClass = "w-5 h-5";
 
   const toolBtnClass = (active: boolean) =>
-    `p-1.5 rounded transition-colors ${
+    `p-2 rounded-lg transition-colors ${
       active
         ? "text-accent-blue bg-accent-blue/20"
         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
     }`;
 
   const actionBtnClass = (disabled: boolean) =>
-    `p-1.5 rounded transition-colors ${
+    `p-2 rounded-lg transition-colors ${
       disabled
         ? "opacity-30 cursor-not-allowed text-text-muted"
         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -88,7 +88,7 @@ export function VerticalToolbar({
   return (
     <div
       data-tutorial="toolbar"
-      className="w-10 shrink-0 flex flex-col items-center py-2 gap-1 bg-bg-secondary border-r border-border-subtle"
+      className="w-12 shrink-0 flex flex-col items-center py-2 gap-1 bg-bg-secondary border-r border-border-subtle"
     >
       {/* --- Tool Buttons --- */}
       <button
