@@ -160,6 +160,8 @@ export async function startDetectionForPokemon({
     maxPollMs: config.max_poll_ms,
     hysteresisFactor: 0.7,
     cooldownSec: config.cooldown_sec,
+    adaptiveCooldown: config.adaptive_cooldown ?? false,
+    adaptiveCooldownMin: config.adaptive_cooldown_min ?? 3,
   });
 
   loop.onScore(onScore);

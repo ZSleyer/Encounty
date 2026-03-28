@@ -56,6 +56,10 @@ interface DetectionLoopConfig {
   hysteresisFactor?: number;
   /** Minimum seconds before hysteresis can exit (default: 0). */
   cooldownSec?: number;
+  /** When true, hysteresis exits as soon as score drops below threshold (after min cooldown). */
+  adaptiveCooldown?: boolean;
+  /** Minimum seconds before adaptive cooldown can exit (default: 3). */
+  adaptiveCooldownMin?: number;
 }
 
 // --- Adaptive polling constants ----------------------------------------------
@@ -95,6 +99,8 @@ export class DetectionLoop {
   private maxPollMs = MAX_POLL_MS;
   private hysteresisFactor = 0.7;
   private cooldownSec = 0;
+  private adaptiveCooldown = false;
+  private adaptiveCooldownMin = 3;
   private hysteresisEnteredAt = 0;
   private consecutiveCount = 0;
   private missCount = 0;
@@ -143,6 +149,8 @@ export class DetectionLoop {
     if (config.maxPollMs !== undefined) this.maxPollMs = config.maxPollMs;
     if (config.hysteresisFactor !== undefined) this.hysteresisFactor = config.hysteresisFactor;
     if (config.cooldownSec !== undefined) this.cooldownSec = config.cooldownSec;
+    if (config.adaptiveCooldown !== undefined) this.adaptiveCooldown = config.adaptiveCooldown;
+    if (config.adaptiveCooldownMin !== undefined) this.adaptiveCooldownMin = config.adaptiveCooldownMin;
   }
 
   /**
@@ -280,9 +288,20 @@ export class DetectionLoop {
   private updateMatchState(adjusted: number, effectivePrecision: number): void {
     if (this.inHysteresis) {
       const belowThreshold = adjusted < this.config.precision * this.hysteresisFactor;
-      const cooldownElapsed = Date.now() - this.hysteresisEnteredAt >= this.cooldownSec * 1000;
-      if (belowThreshold && cooldownElapsed) {
-        this.inHysteresis = false;
+      const elapsed = Date.now() - this.hysteresisEnteredAt;
+
+      if (this.adaptiveCooldown) {
+        // Adaptive: exit hysteresis when score drops AND minimum cooldown elapsed
+        const minElapsed = elapsed >= this.adaptiveCooldownMin * 1000;
+        if (belowThreshold && minElapsed) {
+          this.inHysteresis = false;
+        }
+      } else {
+        // Fixed: exit hysteresis when score drops AND full cooldown elapsed
+        const cooldownElapsed = elapsed >= this.cooldownSec * 1000;
+        if (belowThreshold && cooldownElapsed) {
+          this.inHysteresis = false;
+        }
       }
       this.consecutiveCount = 0;
       this.missCount = 0;
@@ -326,9 +345,11 @@ export class DetectionLoop {
     this.lastCallbackState = state;
 
     let cooldownRemainingMs: number | undefined;
-    if (this.inHysteresis && this.cooldownSec > 0) {
+    if (this.inHysteresis) {
       const elapsed = Date.now() - this.hysteresisEnteredAt;
-      const total = this.cooldownSec * 1000;
+      const total = this.adaptiveCooldown
+        ? this.adaptiveCooldownMin * 1000
+        : this.cooldownSec * 1000;
       cooldownRemainingMs = Math.max(0, total - elapsed);
     }
 
