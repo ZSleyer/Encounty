@@ -6,12 +6,14 @@
  * always has something to render, independent of tracked hunts.
  */
 import { useState, useEffect, useRef } from "react";
+import { useBlocker } from "react-router";
 import {
   Save,
   RefreshCw,
   Keyboard,
   Layers,
   Monitor,
+  AlertTriangle,
 } from "lucide-react";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
@@ -64,6 +66,8 @@ export function OverlayEditorPage() {
     globalThis.addEventListener("beforeunload", handler);
     return () => globalThis.removeEventListener("beforeunload", handler);
   }, []);
+
+  const blocker = useBlocker(overlayDirty);
 
   const [previewPokemon] = useState(() => makePreviewPokemon());
 
@@ -163,6 +167,40 @@ export function OverlayEditorPage() {
         />
       </main>
 
+      {/* Unsaved-changes confirmation modal */}
+      {blocker.state === "blocked" && (
+        <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-amber-500" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="text-lg font-semibold text-text-primary">
+                {t("overlay.unsavedTitle")}
+              </p>
+              <p className="text-sm text-text-muted">
+                {t("overlay.unsavedDesc")}
+              </p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => blocker.reset?.()}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+              >
+                {t("overlay.unsavedStay")}
+              </button>
+              <button
+                type="button"
+                onClick={() => blocker.proceed?.()}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-red hover:bg-red-500 text-white text-sm font-semibold transition-colors"
+              >
+                {t("overlay.unsavedDiscard")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
