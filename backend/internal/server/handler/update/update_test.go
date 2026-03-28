@@ -175,3 +175,58 @@ func TestCheckUpdateElectronLinux(t *testing.T) {
 		t.Error("expected available = false when running under Electron on Linux")
 	}
 }
+
+// --- RegisterRoutes verification ---------------------------------------------
+
+func TestRegisterRoutesUpdate(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	// Verify /api/update/check route is registered (GET returns 200 or error, not 404)
+	req := httptest.NewRequest(http.MethodGet, checkPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code == http.StatusNotFound {
+		t.Error("/api/update/check route not registered")
+	}
+
+	// Verify /api/update/apply route is registered
+	req = httptest.NewRequest(http.MethodPost, applyPath, strings.NewReader(`{"download_url":"x"}`))
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code == http.StatusNotFound {
+		t.Error("/api/update/apply route not registered")
+	}
+}
+
+// --- handleUpdateCheck with non-dev, non-electron version --------------------
+
+func TestCheckUpdateNonDevVersion(t *testing.T) {
+	// Ensure ENCOUNTY_ELECTRON is not set
+	t.Setenv("ENCOUNTY_ELECTRON", "")
+
+	mux, deps := newTestMux(t)
+	deps.version = "0.0.1-test"
+
+	req := httptest.NewRequest(http.MethodGet, checkPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	// This calls the real GitHub API, so accept either 200 (success) or 500 (network error)
+	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
+		t.Errorf("unexpected status = %d", w.Code)
+	}
+}
+
+// --- handleUpdateApply edge cases --------------------------------------------
+
+func TestApplyUpdateEmptyBody(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPost, applyPath, strings.NewReader(""))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400 for empty body", w.Code)
+	}
+}

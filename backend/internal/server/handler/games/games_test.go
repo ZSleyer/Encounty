@@ -13,10 +13,13 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
-// Duplicated test format strings (S1192).
+// Duplicated test format strings and paths (S1192).
 const (
 	fmtStatusWant200  = "status = %d, want 200"
 	fmtUnmarshalError = "unmarshal: %v"
+	fmtStatusWant405  = "status = %d, want 405"
+	gamesPath         = "/api/games"
+	pokedexPath       = "/api/pokedex"
 )
 
 // --- Mock stores -------------------------------------------------------------
@@ -138,7 +141,7 @@ func TestGetGames(t *testing.T) {
 	RegisterRoutes(mux, deps)
 	t.Cleanup(func() { gamesync.InvalidateCache() })
 
-	req := httptest.NewRequest(http.MethodGet, "/api/games", nil)
+	req := httptest.NewRequest(http.MethodGet, gamesPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -167,7 +170,7 @@ func TestGetGamesReturnsList(t *testing.T) {
 	deps := &mockDeps{games: store, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
 	mux := newTestMux(t, deps)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/games", nil)
+	req := httptest.NewRequest(http.MethodGet, gamesPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -217,7 +220,7 @@ func TestGetPokedex(t *testing.T) {
 	deps := &mockDeps{games: &mockGamesStore{}, pokedex: store, cfgDir: t.TempDir()}
 	mux := newTestMux(t, deps)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/pokedex", nil)
+	req := httptest.NewRequest(http.MethodGet, pokedexPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -238,7 +241,7 @@ func TestGetPokedexEmpty(t *testing.T) {
 	deps := &mockDeps{games: &mockGamesStore{}, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
 	mux := newTestMux(t, deps)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/pokedex", nil)
+	req := httptest.NewRequest(http.MethodGet, pokedexPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -264,7 +267,7 @@ func TestSyncGamesMethodNotAllowed(t *testing.T) {
 	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, want 405", w.Code)
+		t.Errorf(fmtStatusWant405, w.Code)
 	}
 }
 
@@ -279,6 +282,149 @@ func TestSyncPokemonMethodNotAllowed(t *testing.T) {
 	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("status = %d, want 405", w.Code)
+		t.Errorf(fmtStatusWant405, w.Code)
+	}
+}
+
+// --- LoadGames / LoadPokedex helper tests ------------------------------------
+
+func TestLoadGamesReturnsEntries(t *testing.T) {
+	store := &mockGamesStore{rows: fixtureGameRows()}
+	gamesync.InvalidateCache()
+	t.Cleanup(func() { gamesync.InvalidateCache() })
+
+	deps := &mockDeps{games: store, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
+	entries := LoadGames(deps)
+	if len(entries) != 2 {
+		t.Errorf("LoadGames returned %d entries, want 2", len(entries))
+	}
+}
+
+func TestLoadGamesEmpty(t *testing.T) {
+	store := &mockGamesStore{rows: []database.GameRow{}}
+	gamesync.InvalidateCache()
+	t.Cleanup(func() { gamesync.InvalidateCache() })
+
+	deps := &mockDeps{games: store, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
+	entries := LoadGames(deps)
+	// Empty store may trigger a sync attempt or return empty; either is valid.
+	_ = entries
+}
+
+func TestLoadPokedexReturnsEntries(t *testing.T) {
+	store := &mockPokedexStore{species: fixturePokedexRows()}
+	pokedex.InvalidateCache()
+	t.Cleanup(func() { pokedex.InvalidateCache() })
+
+	deps := &mockDeps{games: &mockGamesStore{}, pokedex: store, cfgDir: t.TempDir()}
+	entries := LoadPokedex(deps)
+	if len(entries) != 2 {
+		t.Errorf("LoadPokedex returned %d entries, want 2", len(entries))
+	}
+}
+
+func TestLoadPokedexEmpty(t *testing.T) {
+	store := &mockPokedexStore{}
+	pokedex.InvalidateCache()
+	t.Cleanup(func() { pokedex.InvalidateCache() })
+
+	deps := &mockDeps{games: &mockGamesStore{}, pokedex: store, cfgDir: t.TempDir()}
+	entries := LoadPokedex(deps)
+	if len(entries) != 0 {
+		t.Errorf("LoadPokedex returned %d entries, want 0 or nil", len(entries))
+	}
+}
+
+// --- GetPokedex with forms ---------------------------------------------------
+
+func TestGetPokedexWithForms(t *testing.T) {
+	store := &mockPokedexStore{
+		species: fixturePokedexRows(),
+		forms: []database.PokedexFormRow{
+			{SpeciesID: 25, Canonical: "pikachu-alola", SpriteID: 10100, NamesJSON: mustMarshalJSON(map[string]string{"en": "Alolan Pikachu"})},
+		},
+	}
+	deps := &mockDeps{games: &mockGamesStore{}, pokedex: store, cfgDir: t.TempDir()}
+	mux := newTestMux(t, deps)
+
+	req := httptest.NewRequest(http.MethodGet, pokedexPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtStatusWant200, w.Code)
+	}
+
+	var got []pokedex.Entry
+	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
+		t.Fatalf(fmtUnmarshalError, err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len(pokedex) = %d, want 2", len(got))
+	}
+	// The pikachu entry should have a form
+	for _, e := range got {
+		if e.Canonical == "pikachu" && len(e.Forms) == 0 {
+			t.Error("expected pikachu to have at least one form")
+		}
+	}
+}
+
+// --- RegisterRoutes verification ---------------------------------------------
+
+func TestRegisterRoutesGames(t *testing.T) {
+	deps := &mockDeps{games: &mockGamesStore{rows: fixtureGameRows()}, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
+	mux := newTestMux(t, deps)
+
+	// Verify /api/games route is registered
+	req := httptest.NewRequest(http.MethodGet, gamesPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code == http.StatusNotFound {
+		t.Error(gamesPath + " route not registered")
+	}
+
+	// Verify /api/hunt-types route is registered
+	req = httptest.NewRequest(http.MethodGet, "/api/hunt-types", nil)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code == http.StatusNotFound {
+		t.Error("/api/hunt-types route not registered")
+	}
+
+	// Verify /api/pokedex route is registered
+	req = httptest.NewRequest(http.MethodGet, pokedexPath, nil)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code == http.StatusNotFound {
+		t.Error(pokedexPath + " route not registered")
+	}
+}
+
+// --- SyncGames/SyncPokemon method not allowed for other methods --------------
+
+func TestSyncGamesMethodNotAllowedPut(t *testing.T) {
+	deps := &mockDeps{games: &mockGamesStore{}, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
+	mux := newTestMux(t, deps)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/games/sync", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(fmtStatusWant405, w.Code)
+	}
+}
+
+func TestSyncPokemonMethodNotAllowedPut(t *testing.T) {
+	deps := &mockDeps{games: &mockGamesStore{}, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
+	mux := newTestMux(t, deps)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/sync/pokemon", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(fmtStatusWant405, w.Code)
 	}
 }

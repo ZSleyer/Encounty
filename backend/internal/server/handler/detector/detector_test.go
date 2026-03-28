@@ -41,6 +41,14 @@ const (
 
 	zipMetadataJSON = "metadata.json"
 	zipTemplate0PNG = "template_0.png"
+
+	metadataFile             = "metadata.json"
+	wantBroadcast            = "expected BroadcastState to be called"
+	wantZeroTemplatesFmt     = "templates count = %d, want 0"
+	wantOneImportFmt         = "imported = %d, want 1"
+	templatesZipFile         = "templates.zip"
+	wantStatus204Fmt         = "status = %d, want 204"
+	testDetectorTemplatesPath = "/api/detector/p1/templates"
 )
 
 // --- Mock types --------------------------------------------------------------
@@ -343,7 +351,7 @@ func TestConfigPostSuccess(t *testing.T) {
 		t.Errorf("SourceType = %q, want window", p.DetectorConfig.SourceType)
 	}
 	if deps.stateBroadcN == 0 {
-		t.Error("expected BroadcastState to be called")
+		t.Error(wantBroadcast)
 	}
 }
 
@@ -524,7 +532,7 @@ func TestTemplateDelete(t *testing.T) {
 		t.Fatal("pokemon or config nil after DELETE")
 	}
 	if len(p.DetectorConfig.Templates) != 0 {
-		t.Errorf("templates count = %d, want 0", len(p.DetectorConfig.Templates))
+		t.Errorf(wantZeroTemplatesFmt, len(p.DetectorConfig.Templates))
 	}
 
 	// Verify image was deleted from DB
@@ -533,7 +541,7 @@ func TestTemplateDelete(t *testing.T) {
 	}
 
 	if deps.stateBroadcN == 0 {
-		t.Error("expected BroadcastState to be called")
+		t.Error(wantBroadcast)
 	}
 }
 
@@ -986,7 +994,7 @@ func TestImportTemplatesSuccess(t *testing.T) {
 	var resp importResponse
 	decodeJSON(t, w.Body, &resp)
 	if resp.Imported != 1 {
-		t.Errorf("imported = %d, want 1", resp.Imported)
+		t.Errorf(wantOneImportFmt, resp.Imported)
 	}
 
 	// Verify template was copied to the target
@@ -1095,7 +1103,7 @@ func TestImportTemplatesFileSuccess(t *testing.T) {
 	var resp importResponse
 	decodeJSON(t, w.Body, &resp)
 	if resp.Imported != 1 {
-		t.Errorf("imported = %d, want 1", resp.Imported)
+		t.Errorf(wantOneImportFmt, resp.Imported)
 	}
 }
 
@@ -1115,7 +1123,7 @@ func TestImportTemplatesFileNoPokemon(t *testing.T) {
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
-	ff, _ := mw.CreateFormFile("file", "templates.zip")
+	ff, _ := mw.CreateFormFile("file", templatesZipFile)
 	_, _ = ff.Write(zipBuf.Bytes())
 	_ = mw.Close()
 
@@ -1157,7 +1165,7 @@ func TestImportTemplatesFileNoMetadata(t *testing.T) {
 
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
-	ff, _ := mw.CreateFormFile("file", "templates.zip")
+	ff, _ := mw.CreateFormFile("file", templatesZipFile)
 	_, _ = ff.Write(zipBuf.Bytes())
 	_ = mw.Close()
 
@@ -1230,5 +1238,456 @@ func TestFindPokemonNotFound(t *testing.T) {
 	p := findPokemon(st, "missing")
 	if p != nil {
 		t.Error("expected nil for missing pokemon")
+	}
+}
+
+// --- Clear Detection Log -----------------------------------------------------
+
+func TestClearDetectionLog(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	// Append some detection log entries
+	deps.stateMgr.AppendDetectionLog("p1", 0.8)
+	deps.stateMgr.AppendDetectionLog("p1", 0.9)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/detector/p1/detection_log", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf(wantStatus204Fmt, w.Code)
+	}
+
+	if deps.stateBroadcN == 0 {
+		t.Error(wantBroadcast)
+	}
+}
+
+func TestClearDetectionLogMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/detector/p1/detection_log", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+// --- Clear All Templates -----------------------------------------------------
+
+func TestClearAllTemplates(t *testing.T) {
+	mux, deps := newTestMux(t)
+	pngData := makePNGBytes(t)
+	dbID, _ := deps.detectorDB.SaveTemplateImage("p1", pngData, 0)
+
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: dbID, Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodDelete, testDetectorTemplatesPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Errorf(wantStatus204Fmt, w.Code)
+	}
+
+	// Verify templates cleared
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p != nil && p.DetectorConfig != nil && len(p.DetectorConfig.Templates) != 0 {
+		t.Errorf(wantZeroTemplatesFmt, len(p.DetectorConfig.Templates))
+	}
+}
+
+func TestClearAllTemplatesNoConfig(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodDelete, testDetectorTemplatesPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	// Should succeed gracefully even with no config
+	if w.Code != http.StatusNoContent {
+		t.Errorf(wantStatus204Fmt, w.Code)
+	}
+}
+
+func TestClearAllTemplatesNoPokemon(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/detector/missing/templates", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	// No pokemon found, should return 204 gracefully
+	if w.Code != http.StatusNoContent {
+		t.Errorf(wantStatus204Fmt, w.Code)
+	}
+}
+
+func TestClearAllTemplatesMethodNotAllowed(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodGet, testDetectorTemplatesPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(msgWant405, w.Code)
+	}
+}
+
+// --- Export Templates edge cases ---------------------------------------------
+
+func TestExportTemplatesEmpty(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, pathExportTemplates, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	// Should still be a valid ZIP, just with only metadata.json
+	ct := w.Header().Get(hdrContentType)
+	if ct != "application/zip" {
+		t.Errorf("Content-Type = %q, want application/zip", ct)
+	}
+}
+
+// --- Import Templates File edge cases ----------------------------------------
+
+func TestImportTemplatesFileInvalidZip(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	// Upload non-zip data
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	ff, _ := mw.CreateFormFile("file", "bad.zip")
+	_, _ = ff.Write([]byte("not a zip file"))
+	_ = mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, pathImportFile, &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestImportTemplatesFileEmptyMetadata(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	// ZIP with metadata.json containing empty array
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	fw, _ := zw.Create(metadataFile)
+	_, _ = fw.Write([]byte("[]"))
+	_ = zw.Close()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	ff, _ := mw.CreateFormFile("file", templatesZipFile)
+	_, _ = ff.Write(zipBuf.Bytes())
+	_ = mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, pathImportFile, &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+func TestImportTemplatesFileInvalidMetadataJSON(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	// ZIP with invalid JSON in metadata.json
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	fw, _ := zw.Create(metadataFile)
+	_, _ = fw.Write([]byte("{not valid json"))
+	_ = zw.Close()
+
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	ff, _ := mw.CreateFormFile("file", templatesZipFile)
+	_, _ = ff.Write(zipBuf.Bytes())
+	_ = mw.Close()
+
+	req := httptest.NewRequest(http.MethodPost, pathImportFile, &body)
+	req.Header.Set(hdrContentType, mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(msgWant400, w.Code)
+	}
+}
+
+// --- Import Templates with specific indices ----------------------------------
+
+func TestImportTemplatesWithIndices(t *testing.T) {
+	mux, deps := newTestMux(t)
+	pngData := makePNGBytes(t)
+	dbID1, _ := deps.detectorDB.SaveTemplateImage("src", pngData, 0)
+	dbID2, _ := deps.detectorDB.SaveTemplateImage("src", pngData, 1)
+
+	// Source Pokemon with two templates
+	addTestPokemonWithConfig(t, deps, "src", "Charmander", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: dbID1, Name: "Template 1", Regions: []state.MatchedRegion{{Type: "image"}}},
+			{TemplateDBID: dbID2, Name: "Template 2", Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	// Target Pokemon
+	addTestPokemon(t, deps, "tgt", "Pikachu")
+
+	// Import only the second template (index 1)
+	body := jsonBody(t, importTemplatesRequest{
+		SourcePokemonID: "src",
+		TemplateIndices: []int{1},
+	})
+	req := httptest.NewRequest(http.MethodPost, pathImportTemplatesTgt, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	var resp importResponse
+	decodeJSON(t, w.Body, &resp)
+	if resp.Imported != 1 {
+		t.Errorf(wantOneImportFmt, resp.Imported)
+	}
+}
+
+// --- logEncounter edge cases -------------------------------------------------
+
+// nilLoggerDeps wraps testDeps but returns a true nil EncounterLogger interface.
+type nilLoggerDeps struct {
+	*testDeps
+}
+
+func (d *nilLoggerDeps) DetectorEncounterLogger() EncounterLogger { return nil }
+
+func TestLogEncounterNilLogger(t *testing.T) {
+	_, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	// Wrap deps to return a true nil interface for EncounterLogger
+	nilDeps := &nilLoggerDeps{testDeps: deps}
+	mux2 := http.NewServeMux()
+	RegisterRoutes(mux2, nilDeps)
+
+	body := jsonBody(t, matchSubmitRequest{Score: 0.95, FrameDelta: 0.1})
+	req := httptest.NewRequest(http.MethodPost, pathMatch, body)
+	w := httptest.NewRecorder()
+	mux2.ServeHTTP(w, req)
+
+	// Should succeed without panic even with nil logger
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+}
+
+// --- Template PATCH with name ------------------------------------------------
+
+func TestTemplatePatchName(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1, Name: "Old Name"},
+		},
+	})
+
+	body := jsonBody(t, map[string]any{"name": "New Name"})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.DetectorConfig.Templates[0].Name != "New Name" {
+		t.Errorf("name = %q, want 'New Name'", p.DetectorConfig.Templates[0].Name)
+	}
+}
+
+// --- Template PATCH enabling single-active -----------------------------------
+
+func TestTemplatePatchEnableSingleActive(t *testing.T) {
+	mux, deps := newTestMux(t)
+	tr := true
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1, Enabled: &tr},
+			{TemplateDBID: 2, Enabled: &tr},
+		},
+	})
+
+	// Enable template 1 (index 1) — should disable template 0
+	body := jsonBody(t, map[string]any{"enabled": true})
+	req := httptest.NewRequest(http.MethodPatch, "/api/detector/p1/template/1", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.DetectorConfig.Templates[0].Enabled == nil || *p.DetectorConfig.Templates[0].Enabled {
+		t.Error("expected template 0 to be disabled after enabling template 1")
+	}
+	if p.DetectorConfig.Templates[1].Enabled == nil || !*p.DetectorConfig.Templates[1].Enabled {
+		t.Error("expected template 1 to be enabled")
+	}
+}
+
+// --- Template Upload with name -----------------------------------------------
+
+func TestTemplateUploadWithName(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	pngData := makePNGBytes(t)
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	body := jsonBody(t, map[string]any{
+		"imageBase64": b64,
+		"regions":     []state.MatchedRegion{{Type: "image"}},
+		"name":        "Custom Name",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.DetectorConfig.Templates[0].Name != "Custom Name" {
+		t.Errorf("name = %q, want 'Custom Name'", p.DetectorConfig.Templates[0].Name)
+	}
+}
+
+// --- filterSourceTemplates ---------------------------------------------------
+
+func TestFilterSourceTemplatesAll(t *testing.T) {
+	templates := []state.DetectorTemplate{
+		{Name: "A"},
+		{Name: "B"},
+		{Name: "C"},
+	}
+	result := filterSourceTemplates(templates, nil)
+	if len(result) != 3 {
+		t.Errorf("len = %d, want 3 (empty indices returns all)", len(result))
+	}
+}
+
+func TestFilterSourceTemplatesSubset(t *testing.T) {
+	templates := []state.DetectorTemplate{
+		{Name: "A"},
+		{Name: "B"},
+		{Name: "C"},
+	}
+	result := filterSourceTemplates(templates, []int{0, 2})
+	if len(result) != 2 {
+		t.Fatalf("len = %d, want 2", len(result))
+	}
+	if result[0].Name != "A" {
+		t.Errorf("result[0].Name = %q, want A", result[0].Name)
+	}
+	if result[1].Name != "C" {
+		t.Errorf("result[1].Name = %q, want C", result[1].Name)
+	}
+}
+
+func TestFilterSourceTemplatesOutOfRange(t *testing.T) {
+	templates := []state.DetectorTemplate{
+		{Name: "A"},
+	}
+	result := filterSourceTemplates(templates, []int{-1, 5, 100})
+	if len(result) != 0 {
+		t.Errorf("len = %d, want 0 (all indices out of range)", len(result))
+	}
+}
+
+// --- activateFirstTemplate ---------------------------------------------------
+
+func TestActivateFirstTemplateEmpty(t *testing.T) {
+	// Should not panic on empty slice
+	activateFirstTemplate(nil)
+	activateFirstTemplate([]state.DetectorTemplate{})
+}
+
+func TestActivateFirstTemplateMultiple(t *testing.T) {
+	templates := []state.DetectorTemplate{
+		{Name: "A"},
+		{Name: "B"},
+		{Name: "C"},
+	}
+	activateFirstTemplate(templates)
+
+	if templates[0].Enabled == nil || !*templates[0].Enabled {
+		t.Error("expected first template to be enabled")
+	}
+	for i := 1; i < len(templates); i++ {
+		if templates[i].Enabled == nil || *templates[i].Enabled {
+			t.Errorf("expected template %d to be disabled", i)
+		}
+	}
+}
+
+// --- Template Delete with filesystem path ------------------------------------
+
+func TestTemplateDeleteWithImagePath(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{ImagePath: "template_0.png", Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodDelete, pathTemplate0, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200, w.Code)
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.DetectorConfig != nil && len(p.DetectorConfig.Templates) != 0 {
+		t.Errorf(wantZeroTemplatesFmt, len(p.DetectorConfig.Templates))
 	}
 }

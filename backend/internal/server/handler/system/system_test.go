@@ -13,10 +13,16 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
-// Duplicated test format strings (S1192).
+// Duplicated test format strings and paths (S1192).
 const (
 	fmtStatusWant200 = "status = %d, want 200"
 	fmtStatusWant405 = "status = %d, want 405"
+
+	versionPath      = "/api/version"
+	setupOfflinePath = "/api/setup/offline"
+	quitPath         = "/api/quit"
+	restartPath      = "/api/restart"
+	overlayStatePath = "/api/overlay/state"
 )
 
 // testDeps implements the Deps interface for testing.
@@ -127,7 +133,7 @@ func TestGetSessions(t *testing.T) {
 func TestGetVersion(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/version", nil)
+	req := httptest.NewRequest(http.MethodGet, versionPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -158,7 +164,7 @@ func TestGetVersionDevMode(t *testing.T) {
 	deps.version = "dev"
 	deps.commit = "deadbeef"
 
-	req := httptest.NewRequest(http.MethodGet, "/api/version", nil)
+	req := httptest.NewRequest(http.MethodGet, versionPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -314,7 +320,7 @@ func TestSetupOnline(t *testing.T) {
 func TestSetupOfflineSuccess(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/setup/offline", nil)
+	req := httptest.NewRequest(http.MethodPost, setupOfflinePath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -335,7 +341,7 @@ func TestSetupOfflineError(t *testing.T) {
 	mux, deps := newTestMux(t)
 	deps.setupOfflineErr = errors.New("seed failed")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/setup/offline", nil)
+	req := httptest.NewRequest(http.MethodPost, setupOfflinePath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -347,7 +353,7 @@ func TestSetupOfflineError(t *testing.T) {
 func TestQuit(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/quit", nil)
+	req := httptest.NewRequest(http.MethodPost, quitPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -367,7 +373,7 @@ func TestQuit(t *testing.T) {
 func TestQuitMethodNotAllowed(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/quit", nil)
+	req := httptest.NewRequest(http.MethodGet, quitPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -379,7 +385,7 @@ func TestQuitMethodNotAllowed(t *testing.T) {
 func TestRestart(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/restart", nil)
+	req := httptest.NewRequest(http.MethodPost, restartPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -399,7 +405,7 @@ func TestRestart(t *testing.T) {
 func TestRestartMethodNotAllowed(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/restart", nil)
+	req := httptest.NewRequest(http.MethodGet, restartPath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -411,7 +417,7 @@ func TestRestartMethodNotAllowed(t *testing.T) {
 func TestOverlayStateNoActive(t *testing.T) {
 	mux, _ := newTestMux(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/overlay/state", nil)
+	req := httptest.NewRequest(http.MethodGet, overlayStatePath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 
@@ -431,6 +437,127 @@ func TestOverlayStateNoActive(t *testing.T) {
 	}
 }
 
+func TestOverlayStateWithMultiplePokemon(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	deps.stateMgr.AddPokemon(state.Pokemon{
+		ID:         "p1",
+		Name:       "Charmander",
+		Encounters: 99,
+		CreatedAt:  time.Now(),
+	})
+	deps.stateMgr.AddPokemon(state.Pokemon{
+		ID:         "p2",
+		Name:       "Squirtle",
+		Encounters: 50,
+		CreatedAt:  time.Now(),
+	})
+	// Set active to p2
+	deps.stateMgr.SetActive("p2")
+
+	req := httptest.NewRequest(http.MethodGet, overlayStatePath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtStatusWant200, w.Code)
+	}
+
+	var resp overlayStateResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.ActiveID != "p2" {
+		t.Errorf("active_id = %q, want p2", resp.ActiveID)
+	}
+	if resp.ActivePokemon == nil || resp.ActivePokemon.Name != "Squirtle" {
+		t.Error("expected Squirtle as active pokemon")
+	}
+}
+
+// --- RegisterRoutes verification ---------------------------------------------
+
+func TestRegisterRoutesSystem(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	routes := []string{
+		"/api/state",
+		"/api/sessions",
+		versionPath,
+		"/api/licenses",
+		overlayStatePath,
+	}
+	for _, route := range routes {
+		req := httptest.NewRequest(http.MethodGet, route, nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		if w.Code == http.StatusNotFound {
+			t.Errorf("route %s not registered (got 404)", route)
+		}
+	}
+}
+
+// --- Quit and Restart method checks ------------------------------------------
+
+func TestQuitMethodPut(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPut, quitPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(fmtStatusWant405, w.Code)
+	}
+}
+
+func TestRestartMethodPut(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPut, restartPath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Errorf(fmtStatusWant405, w.Code)
+	}
+}
+
+// --- SetupOffline with specific error ----------------------------------------
+
+func TestSetupOfflineSpecificError(t *testing.T) {
+	mux, deps := newTestMux(t)
+	deps.setupOfflineErr = errors.New("disk full")
+
+	req := httptest.NewRequest(http.MethodPost, setupOfflinePath, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500", w.Code)
+	}
+
+	// Verify error message is in response
+	body := w.Body.String()
+	if !contains(body, "disk full") {
+		t.Errorf("response body %q should contain 'disk full'", body)
+	}
+}
+
+// contains checks if substr is in s (helper to avoid importing strings).
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsHelper(s, substr))
+}
+
+func containsHelper(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func TestOverlayStateWithActive(t *testing.T) {
 	mux, deps := newTestMux(t)
 
@@ -442,7 +569,7 @@ func TestOverlayStateWithActive(t *testing.T) {
 	})
 	deps.stateMgr.SetActive("p1")
 
-	req := httptest.NewRequest(http.MethodGet, "/api/overlay/state", nil)
+	req := httptest.NewRequest(http.MethodGet, overlayStatePath, nil)
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 

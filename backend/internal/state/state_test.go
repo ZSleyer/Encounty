@@ -464,7 +464,7 @@ func TestAppendDetectionLogMaxEntries(t *testing.T) {
 	m.SetDetectorConfig("p1", &DetectorConfig{Enabled: true})
 
 	// Add more than maxDetectionLog entries
-	for i := 0; i < maxDetectionLog+5; i++ {
+	for i := range maxDetectionLog + 5 {
 		m.AppendDetectionLog("p1", float64(i))
 	}
 

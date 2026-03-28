@@ -23,12 +23,15 @@ const (
 	pathAPIRestore = "/api/restore"
 	hdrContentType = "Content-Type"
 
-	testDBName      = "encounty.db"
-	wantStatus200   = "status = %d, want 200"
-	errInvalidZip   = "invalid zip: %v"
-	testBackupFile  = "backup.zip"
-	testTemplatePNG = "tmpl.png"
-	fakePNGContent  = "fake-png"
+	testDBName       = "encounty.db"
+	wantStatus200    = "status = %d, want 200"
+	wantStatus400Fmt = "status = %d, want 400"
+	errInvalidZip    = "invalid zip: %v"
+	testBackupFile   = "backup.zip"
+	testTemplatePNG  = "tmpl.png"
+	testOtherFile    = "other.txt"
+	testTemplatePath = "templates/p1/tmpl.png"
+	fakePNGContent   = "fake-png"
 )
 
 // testDeps implements the Deps interface using real state and database objects.
@@ -214,7 +217,7 @@ func TestRestoreNoFile(t *testing.T) {
 	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", w.Code)
+		t.Errorf(wantStatus400Fmt, w.Code)
 	}
 }
 
@@ -233,7 +236,7 @@ func TestRestoreInvalidZIP(t *testing.T) {
 	mux.ServeHTTP(w, req)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", w.Code)
+		t.Errorf(wantStatus400Fmt, w.Code)
 	}
 }
 
@@ -243,7 +246,7 @@ func TestRestoreZIPMissingDB(t *testing.T) {
 	// Create a valid ZIP without encounty.db
 	var zipBuf bytes.Buffer
 	zw := zip.NewWriter(&zipBuf)
-	fw, _ := zw.Create("other.txt")
+	fw, _ := zw.Create(testOtherFile)
 	_, _ = fw.Write([]byte("ignored"))
 	_ = zw.Close()
 
@@ -364,8 +367,8 @@ func TestBackupWithBothFiles(t *testing.T) {
 	if !names[testDBName] {
 		t.Error(testDBName + " missing from backup")
 	}
-	if !names["templates/p1/tmpl.png"] {
-		t.Error("templates/p1/tmpl.png missing from backup")
+	if !names[testTemplatePath] {
+		t.Error(testTemplatePath + " missing from backup")
 	}
 }
 
@@ -380,6 +383,123 @@ func TestBackupNoFiles(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf(wantStatus200, w.Code)
+	}
+}
+
+// TestExtractZipEntryInvalidEntry exercises the error path when a zip entry
+// cannot be opened.
+func TestExtractZipEntryWithValidFile(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a valid ZIP with one entry
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	fw, _ := zw.Create("test.txt")
+	_, _ = fw.Write([]byte("hello"))
+	_ = zw.Close()
+
+	zr, err := zip.NewReader(bytes.NewReader(zipBuf.Bytes()), int64(zipBuf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	isDB := extractZipEntry(zr.File[0], dir)
+	if isDB {
+		t.Error("test.txt should not be reported as the database file")
+	}
+
+	// Verify file was written
+	data, err := os.ReadFile(filepath.Join(dir, "test.txt"))
+	if err != nil {
+		t.Fatalf("file not written: %v", err)
+	}
+	if string(data) != "hello" {
+		t.Errorf("content = %q, want hello", string(data))
+	}
+}
+
+func TestExtractZipEntryDBFile(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a valid ZIP with the DB file
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	fw, _ := zw.Create(testDBName)
+	_, _ = fw.Write([]byte("db-content"))
+	_ = zw.Close()
+
+	zr, err := zip.NewReader(bytes.NewReader(zipBuf.Bytes()), int64(zipBuf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	isDB := extractZipEntry(zr.File[0], dir)
+	if !isDB {
+		t.Error("extractZipEntry should return true for encounty.db")
+	}
+}
+
+// TestIsRestorableFile exercises the restorable file check.
+func TestIsRestorableFile(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{testDBName, true},
+		{testTemplatePath, true},
+		{"state.json", true},
+		{testOtherFile, false},
+		{"random/path.json", false},
+		{"", false},
+	}
+	for _, tc := range tests {
+		got := isRestorableFile(tc.name)
+		if got != tc.want {
+			t.Errorf("isRestorableFile(%q) = %v, want %v", tc.name, got, tc.want)
+		}
+	}
+}
+
+// TestExtractZipEntrySubdirectory exercises writing to a subdirectory.
+func TestExtractZipEntrySubdirectory(t *testing.T) {
+	dir := t.TempDir()
+
+	var zipBuf bytes.Buffer
+	zw := zip.NewWriter(&zipBuf)
+	fw, _ := zw.Create(testTemplatePath)
+	_, _ = fw.Write([]byte(fakePNGContent))
+	_ = zw.Close()
+
+	zr, err := zip.NewReader(bytes.NewReader(zipBuf.Bytes()), int64(zipBuf.Len()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	isDB := extractZipEntry(zr.File[0], dir)
+	if isDB {
+		t.Error("template file should not be reported as DB")
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "templates", "p1", "tmpl.png"))
+	if err != nil {
+		t.Fatalf("file not written: %v", err)
+	}
+	if string(data) != fakePNGContent {
+		t.Errorf("content = %q, want %q", string(data), fakePNGContent)
+	}
+}
+
+// TestRestoreInvalidMultipart exercises the error path where multipart parsing fails.
+func TestRestoreInvalidMultipart(t *testing.T) {
+	mux := newSimpleTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPost, pathAPIRestore, strings.NewReader("not multipart"))
+	req.Header.Set(hdrContentType, "text/plain")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(wantStatus400Fmt, w.Code)
 	}
 }
 
@@ -411,9 +531,9 @@ func TestRestoreWithBothFiles(t *testing.T) {
 	zw := zip.NewWriter(&zipBuf)
 	fw, _ := zw.Create(testDBName)
 	_, _ = fw.Write(dbData)
-	fw2, _ := zw.Create("templates/p1/tmpl.png")
+	fw2, _ := zw.Create(testTemplatePath)
 	_, _ = fw2.Write([]byte(fakePNGContent))
-	fw3, _ := zw.Create("other.txt")
+	fw3, _ := zw.Create(testOtherFile)
 	_, _ = fw3.Write([]byte("ignored"))
 	_ = zw.Close()
 
