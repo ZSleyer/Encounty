@@ -1,20 +1,21 @@
 /**
  * main.tsx — Application entry point.
- * Mounts the React tree into the #root element with BrowserRouter so that
- * React Router can handle client-side navigation for Dashboard, Settings,
- * Overlay, and Hotkeys pages.
+ * Mounts the React tree into the #root element with a data router so that
+ * data-router hooks like useBlocker work alongside client-side navigation.
  */
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter } from 'react-router'
+import { createBrowserRouter, RouterProvider } from 'react-router'
 import { App } from './App'
 import './locales'
 import './index.css'
 
+const router = createBrowserRouter([
+  { path: '*', Component: App },
+])
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <RouterProvider router={router} />
   </React.StrictMode>
 )

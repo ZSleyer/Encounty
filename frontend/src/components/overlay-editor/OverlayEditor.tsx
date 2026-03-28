@@ -1033,39 +1033,33 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             })}
 
           {/* Canvas layer — always at bottom */}
-          <button
-            type="button"
-            onClick={() => setSelectedEl("canvas")}
-            className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full cursor-pointer ${
+          <div
+            className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full ${
               selectedEl === "canvas"
                 ? "bg-accent-blue/20 border border-accent-blue/40"
                 : "hover:bg-bg-hover border border-transparent"
             }`}
           >
-            <span className="text-xs text-text-primary">Canvas</span>
+            <button
+              type="button"
+              onClick={() => setSelectedEl("canvas")}
+              className="flex-1 text-left cursor-pointer bg-transparent border-none p-0"
+              aria-label="Canvas"
+            >
+              <span className="text-xs text-text-primary">Canvas</span>
+            </button>
             <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                disabled
-                className="p-1 text-text-faint cursor-not-allowed"
-              >
+              <span className="p-1 text-text-faint cursor-not-allowed">
                 <ChevronUp className="w-3 h-3" />
-              </button>
-              <button
-                type="button"
-                disabled
-                className="p-1 text-text-faint cursor-not-allowed"
-              >
+              </span>
+              <span className="p-1 text-text-faint cursor-not-allowed">
                 <ChevronDown className="w-3 h-3" />
-              </button>
+              </span>
               <button
                 type="button"
                 title={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
                 aria-label={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  update({ ...localSettings, hidden: !localSettings.hidden });
-                }}
+                onClick={() => update({ ...localSettings, hidden: !localSettings.hidden })}
                 className="p-1 text-text-muted hover:text-text-primary transition-colors"
               >
                 {localSettings.hidden ? (
@@ -1075,7 +1069,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 )}
               </button>
             </div>
-          </button>
+          </div>
         </div>
       </div>
 
