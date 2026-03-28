@@ -51,6 +51,7 @@ func (m *Manager) Load() error {
 				return err
 			}
 			m.applyMigrations()
+			m.applyLegacyDefaults()
 			return nil
 		}
 	}
@@ -76,6 +77,7 @@ func (m *Manager) loadFromJSON() error {
 		return err
 	}
 	m.applyMigrations()
+	m.applyLegacyDefaults()
 	return nil
 }
 
@@ -87,7 +89,8 @@ func (m *Manager) LoadFromJSON() error {
 }
 
 // applyMigrations applies default values for fields added after the initial
-// schema. Must be called with m.mu held.
+// schema. These fixes are idempotent and safe to run on every load (both
+// from v2 DB and legacy JSON). Must be called with m.mu held.
 func (m *Manager) applyMigrations() {
 	m.state.DataPath = m.configDir
 	if m.state.Settings.OutputDir == "" {
@@ -111,6 +114,19 @@ func (m *Manager) applyMigrations() {
 			}
 		}
 	}
+	// HuntMode was added after v0.6.4; empty string means "both".
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].HuntMode == "" {
+			m.state.Pokemon[i].HuntMode = "both"
+		}
+	}
+	// TriggerDecrement was added after v0.6.4; empty string means "none".
+	migrateOverlayTriggerDecrement(&m.state.Settings.Overlay)
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].Overlay != nil {
+			migrateOverlayTriggerDecrement(m.state.Pokemon[i].Overlay)
+		}
+	}
 	// Migrate overlay settings to include title element when loaded from
 	// state saved before TitleElement was added.
 	migrateTitleElement(&m.state.Settings.Overlay)
@@ -118,6 +134,64 @@ func (m *Manager) applyMigrations() {
 		if m.state.Pokemon[i].Overlay != nil {
 			migrateTitleElement(m.state.Pokemon[i].Overlay)
 		}
+	}
+	// AdaptiveCooldownMin 0 is never a valid value; default to 3.
+	for i := range m.state.Pokemon {
+		dc := m.state.Pokemon[i].DetectorConfig
+		if dc != nil && dc.AdaptiveCooldownMin == 0 {
+			dc.AdaptiveCooldownMin = 3
+		}
+	}
+}
+
+// applyLegacyDefaults sets defaults for fields that cannot be distinguished
+// from intentional user values on subsequent loads. This runs only when
+// loading from legacy JSON (state.json or app_state blob), never from the
+// v2 database. Must be called with m.mu held.
+func (m *Manager) applyLegacyDefaults() {
+	// UIAnimations was added after v0.6.4; the JSON zero-value (false)
+	// should become true. Once saved to v2 DB, the explicit value is used.
+	m.state.Settings.UIAnimations = true
+
+	// Migrate detector configs from v0.6.4 frontend defaults to v0.7.0
+	// backend defaults where values still match the old defaults.
+	for i := range m.state.Pokemon {
+		dc := m.state.Pokemon[i].DetectorConfig
+		if dc == nil {
+			continue
+		}
+		if dc.Precision == 0.80 {
+			dc.Precision = 0.55
+		}
+		if dc.CooldownSec == 8 {
+			dc.CooldownSec = 5
+		}
+		if dc.PollIntervalMs == 50 {
+			dc.PollIntervalMs = 200
+		}
+		if dc.MinPollMs == 30 {
+			dc.MinPollMs = 50
+		}
+		if dc.MaxPollMs == 500 {
+			dc.MaxPollMs = 2000
+		}
+	}
+}
+
+// migrateOverlayTriggerDecrement fills in "none" for TriggerDecrement fields
+// that were empty after loading state saved before the field existed.
+func migrateOverlayTriggerDecrement(o *OverlaySettings) {
+	if o.Sprite.TriggerDecrement == "" {
+		o.Sprite.TriggerDecrement = animationNone
+	}
+	if o.Name.TriggerDecrement == "" {
+		o.Name.TriggerDecrement = animationNone
+	}
+	if o.Title.TriggerDecrement == "" {
+		o.Title.TriggerDecrement = animationNone
+	}
+	if o.Counter.TriggerDecrement == "" {
+		o.Counter.TriggerDecrement = animationNone
 	}
 }
 
