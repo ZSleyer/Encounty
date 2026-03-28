@@ -147,12 +147,25 @@ jobs:
           echo "> Commit: \`${GITHUB_SHA::7}\`" >> "$GITHUB_OUTPUT"
           echo "${EOF_MARKER}" >> "$GITHUB_OUTPUT"
 
+      - name: Extract annotated tag message
+        if: steps.prerelease.outputs.is_pre != 'true'
+        id: tagmsg
+        run: |
+          TAG_MSG=$(git tag -l --format='%(contents)' "$VERSION")
+          if [ -n "$TAG_MSG" ]; then
+            EOF_MARKER=$(openssl rand -hex 8)
+            echo "body<<${EOF_MARKER}" >> "$GITHUB_OUTPUT"
+            echo "$TAG_MSG" >> "$GITHUB_OUTPUT"
+            echo "${EOF_MARKER}" >> "$GITHUB_OUTPUT"
+            echo "has_body=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          generate_release_notes: ${{ steps.tagmsg.outputs.has_body != 'true' }}
           prerelease: ${{ steps.prerelease.outputs.is_pre == 'true' }}
-          body: ${{ steps.prebody.outputs.body || '' }}
+          body: ${{ steps.prebody.outputs.body || steps.tagmsg.outputs.body || '' }}
 
       - name: Package & Publish Electron Linux
         working-directory: electron
