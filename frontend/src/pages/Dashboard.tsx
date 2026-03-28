@@ -1134,33 +1134,43 @@ function HeaderHuntButton({
 
 /** Collapsed sidebar sprite-only button for a single Pokemon. */
 function CollapsedSidebarItem({
-  pokemon, isViewed, isDetecting, imgError, onActivate, onImgError,
+  pokemon, isViewed, detectorStatus, imgError, onActivate, onImgError, t,
 }: Readonly<{
   pokemon: Pokemon;
   isViewed: boolean;
-  isDetecting: boolean;
+  detectorStatus: Record<string, { state?: string; confidence?: number }>;
   imgError: Record<string, boolean>;
   onActivate: (id: string) => void;
   onImgError: (id: string) => void;
+  t: (key: string) => string;
 }>) {
   const src = resolveSpriteUrl(pokemon.id, pokemon.sprite_url, imgError);
+  const showDot = hasDetectorReady(pokemon);
   return (
     <button
       onClick={() => onActivate(pokemon.id)}
-      className={`relative w-full p-1.5 flex items-center justify-center transition-colors ${
+      className={`w-full p-1.5 flex items-center justify-center transition-colors ${
         isViewed ? "bg-accent-blue/15" : "hover:bg-bg-hover"
       }`}
       title={`${pokemon.name} (${pokemon.encounters.toLocaleString()})`}
     >
-      <img
-        src={src}
-        alt={pokemon.name}
-        className="pokemon-sprite w-7 h-7 object-contain"
-        onError={() => onImgError(pokemon.id)}
-      />
-      {isDetecting && (
-        <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-      )}
+      <div className="relative w-7 h-7">
+        <img
+          src={src}
+          alt={pokemon.name}
+          className="pokemon-sprite w-full h-full object-contain"
+          onError={() => onImgError(pokemon.id)}
+        />
+        {showDot && (() => {
+          const { dotClass, title } = resolveDetectorDot(detectorStatus, pokemon.id, t);
+          return (
+            <span
+              className={`absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full border border-bg-secondary ${dotClass}`}
+              title={title}
+            />
+          );
+        })()}
+      </div>
     </button>
   );
 }
@@ -2079,10 +2089,11 @@ export function Dashboard() {
                 key={p.id}
                 pokemon={p}
                 isViewed={p.id === effectiveViewedId}
-                isDetecting={!!detectorStatus[p.id] || isLoopRunning(p.id)}
+                detectorStatus={detectorStatus}
                 imgError={imgError}
                 onActivate={handleActivate}
                 onImgError={(id) => setImgError((prev) => ({ ...prev, [id]: true }))}
+                t={t}
               />
             ))}
           </div>
