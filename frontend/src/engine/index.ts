@@ -8,7 +8,6 @@
 export { WebGPUDetector } from "./WebGPUDetector";
 export { CPUDetector } from "./CPUDetector";
 export { WorkerDetector } from "./WorkerDetector";
-export { OnnxOCR } from "./OnnxOCR";
 export type { DetectResult, TemplateData } from "./WebGPUDetector";
 
 import type { TemplateData as _TemplateData } from "./WebGPUDetector";
@@ -18,6 +17,8 @@ export interface DetectorResult {
   bestScore: number;
   frameDelta: number;
   templateIndex: number;
+  /** Opaque frame buffer for deduplication — pass back as previousFrame on next cycle. */
+  frameBuffer?: unknown;
 }
 
 /** Unified detector interface that both WebGPU and CPU detectors satisfy. */

@@ -35,11 +35,26 @@ export class CPUDetector {
   private readonly ctx: OffscreenCanvasRenderingContext2D;
   private previousGray: Float32Array | null = null;
 
+  /** Reusable canvas for region cropping (avoids creating 25+ canvases per frame). */
+  private readonly cropCanvas: OffscreenCanvas;
+  private readonly cropCtx: OffscreenCanvasRenderingContext2D;
+
+  /** Reusable buffer for captureGrayscale (avoids allocation every frame). */
+  private frameGrayBuf: Float32Array | null = null;
+
+  /** Pool of Float32Array buffers keyed by length, for temporary crop data. */
+  private grayPool = new Map<number, Float32Array[]>();
+
   constructor() {
     this.canvas = new OffscreenCanvas(1, 1);
     const ctx = this.canvas.getContext("2d");
     if (!ctx) throw new Error("Failed to get 2d context for CPUDetector");
     this.ctx = ctx;
+
+    this.cropCanvas = new OffscreenCanvas(1, 1);
+    const cropCtx = this.cropCanvas.getContext("2d", { willReadFrequently: true });
+    if (!cropCtx) throw new Error("Failed to get 2d context for crop canvas");
+    this.cropCtx = cropCtx;
   }
 
   /** Always returns true since no hardware requirements exist. */
@@ -146,7 +161,7 @@ export class CPUDetector {
     if (this.previousGray?.length === frameGray.gray.length) {
       frameDelta = pixelDelta(this.previousGray, frameGray.gray);
     }
-    this.previousGray = frameGray.gray;
+    this.previousGray = frameGray.gray.slice(); // Must copy since frameGrayBuf is reused
 
     // NCC against each template
     let bestScore = 0;
@@ -156,7 +171,7 @@ export class CPUDetector {
       const tmpl = templates[i];
       if (!tmpl.gray) continue;
 
-      let score = matchTemplate(source, tmpl, frameGray, maxDim, config.crop);
+      let score = matchTemplate(this, source, tmpl, frameGray, maxDim, config.crop);
 
       // Apply negative region penalty: high match on negative region suppresses detection
       const negRegions = tmpl.regions.filter(
@@ -165,7 +180,7 @@ export class CPUDetector {
       if (negRegions.length > 0 && score > 0) {
         // Score negative regions using the same hybrid match pipeline
         const negativeTmpl = { ...tmpl, regions: negRegions };
-        const negScore = matchTemplate(source, negativeTmpl, frameGray, maxDim, config.crop);
+        const negScore = matchTemplate(this, source, negativeTmpl, frameGray, maxDim, config.crop);
         score = score * Math.max(0, 1 - negScore);
       }
 
@@ -182,6 +197,32 @@ export class CPUDetector {
   /** Release resources. */
   destroy(): void {
     this.previousGray = null;
+    this.frameGrayBuf = null;
+    this.grayPool.clear();
+  }
+
+  /** Acquire a Float32Array from the pool, or allocate a new one. */
+  acquireGray(size: number): Float32Array {
+    const pool = this.grayPool.get(size);
+    if (pool && pool.length > 0) {
+      const buf = pool.pop()!;
+      buf.fill(0);
+      return buf;
+    }
+    return new Float32Array(size);
+  }
+
+  /** Return a Float32Array to the pool for reuse (max 16 per size). */
+  releaseGray(buf: Float32Array): void {
+    const size = buf.length;
+    let pool = this.grayPool.get(size);
+    if (!pool) {
+      pool = [];
+      this.grayPool.set(size, pool);
+    }
+    if (pool.length < 16) {
+      pool.push(buf);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -212,8 +253,12 @@ export class CPUDetector {
     const imageData = this.ctx.getImageData(0, 0, dstW, dstH);
     const pixels = imageData.data;
 
+    // Reuse buffer if dimensions match, otherwise allocate a new one
     const n = dstW * dstH;
-    const gray = new Float32Array(n);
+    if (!this.frameGrayBuf || this.frameGrayBuf.length !== n) {
+      this.frameGrayBuf = new Float32Array(n);
+    }
+    const gray = this.frameGrayBuf;
 
     for (let i = 0; i < n; i++) {
       const r = pixels[i * 4];
@@ -223,6 +268,32 @@ export class CPUDetector {
     }
 
     return { gray, width: dstW, height: dstH };
+  }
+
+  /**
+   * Crop a region from a canvas context, scale to target size, convert to grayscale.
+   *
+   * Reuses the persistent crop canvas to avoid creating a new OffscreenCanvas
+   * on every call (up to 25 calls per region in the sliding window).
+   */
+  cropGrayscale(
+    ctx: OffscreenCanvasRenderingContext2D,
+    x: number, y: number, w: number, h: number,
+    dw: number, dh: number,
+  ): { gray: Float32Array; width: number; height: number } {
+    // Resize persistent crop canvas if dimensions changed
+    if (this.cropCanvas.width !== dw || this.cropCanvas.height !== dh) {
+      this.cropCanvas.width = dw;
+      this.cropCanvas.height = dh;
+    }
+    this.cropCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, dw, dh);
+    const pixels = this.cropCtx.getImageData(0, 0, dw, dh).data;
+    const n = dw * dh;
+    const gray = this.acquireGray(n);
+    for (let i = 0; i < n; i++) {
+      gray[i] = 0.299 * pixels[i * 4] + 0.587 * pixels[i * 4 + 1] + 0.114 * pixels[i * 4 + 2];
+    }
+    return { gray, width: dw, height: dh };
   }
 }
 
@@ -257,6 +328,7 @@ interface SlidingWindowRegion {
 
 /** Compute the best hybrid score for a single region using a sliding window search. */
 function scoreRegionSlidingWindow(
+  detector: CPUDetector,
   tmpCtx: OffscreenCanvasRenderingContext2D,
   tmplCrop: Float32Array,
   region: SlidingWindowRegion,
@@ -272,17 +344,19 @@ function scoreRegionSlidingWindow(
       const ox = Math.max(0, Math.min(frameRx + dx, srcW - frameRw));
       const oy = Math.max(0, Math.min(frameRy + dy, srcH - frameRh));
 
-      const frameCrop = cropGrayscale(tmpCtx, ox, oy, frameRw, frameRh, dw, dh);
+      const frameCrop = detector.cropGrayscale(tmpCtx, ox, oy, frameRw, frameRh, dw, dh);
 
       const ssimScore = blockSSIM(frameCrop.gray, tmplCrop, dw, dh, blockSize);
       const nccScore = pearsonCorrelation(frameCrop.gray, tmplCrop);
       const histScore = histogramCorrelation(frameCrop.gray, tmplCrop);
-      const dhashScore = dHashSimilarity(frameCrop.gray, dw, dh, tmplCrop, dw, dh);
       const madScore = madSimilarity(frameCrop.gray, tmplCrop);
 
-      // Hybrid: weighted combination of SSIM, NCC, MAD, histogram, and dHash
-      const combined = 0.3 * ssimScore + 0.25 * nccScore + 0.2 * madScore + 0.15 * histScore + 0.1 * dhashScore;
+      // Hybrid: weighted combination of SSIM, NCC, MAD, and histogram
+      const combined = 0.333 * ssimScore + 0.278 * nccScore + 0.222 * madScore + 0.167 * histScore;
       if (combined > bestRegionScore) bestRegionScore = combined;
+
+      // Release pooled frame crop buffer after scoring
+      detector.releaseGray(frameCrop.gray);
     }
   }
 
@@ -298,6 +372,7 @@ function scoreRegionSlidingWindow(
  * Matches the Go MatchWithRegions logic.
  */
 function matchTemplate(
+  detector: CPUDetector,
   source: FrameSource,
   tmpl: TemplateData,
   frameGray: { gray: Float32Array; width: number; height: number },
@@ -343,7 +418,7 @@ function matchTemplate(
 
     const blockSize = adaptiveBlockSizeForRegion(dw, dh);
     const bestRegionScore = scoreRegionSlidingWindow(
-      tmpCtx, tmplCrop,
+      detector, tmpCtx, tmplCrop,
       { frameRx, frameRy, frameRw, frameRh, srcW, srcH, dw, dh },
       blockSize,
     );
@@ -371,24 +446,6 @@ function matchWholeTemplate(
   }
   const tmplGray = downscaleTemplate(tmpl, maxDim);
   return ncc(frameGray.gray, frameGray.width, frameGray.height, tmplGray);
-}
-
-/** Crop a region from a canvas context, scale to target size, convert to grayscale. */
-function cropGrayscale(
-  ctx: OffscreenCanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number,
-  dw: number, dh: number,
-): { gray: Float32Array; width: number; height: number } {
-  const cropCanvas = new OffscreenCanvas(dw, dh);
-  const cropCtx = cropCanvas.getContext("2d", { willReadFrequently: true })!;
-  cropCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, dw, dh);
-  const pixels = cropCtx.getImageData(0, 0, dw, dh).data;
-  const n = dw * dh;
-  const gray = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    gray[i] = 0.299 * pixels[i * 4] + 0.587 * pixels[i * 4 + 1] + 0.114 * pixels[i * 4 + 2];
-  }
-  return { gray, width: dw, height: dh };
 }
 
 /** Crop a region from a template's gray data and scale to target size. */
@@ -504,49 +561,6 @@ function madSimilarity(a: Float32Array, b: Float32Array): number {
     sum += Math.abs(a[i] - b[i]);
   }
   return Math.max(0, 1 - sum / (n * 128));
-}
-
-/**
- * Perceptual difference hash (dHash) similarity between two grayscale buffers.
- *
- * Computes a 64-bit fingerprint for each image by resizing to 9x8 and comparing
- * adjacent pixels. Returns 1 - (hammingDistance / 64), so 1.0 = identical and
- * 0.0 = maximally different. dHash is robust to small changes in brightness,
- * contrast, and aspect ratio while being sensitive to structural content changes.
- */
-function dHashSimilarity(a: Float32Array, w1: number, h1: number, b: Float32Array, w2: number, h2: number): number {
-  const hashA = computeDHash(a, w1, h1);
-  const hashB = computeDHash(b, w2, h2);
-
-  // Hamming distance: count differing bits
-  let dist = 0;
-  for (let i = 0; i < 8; i++) {
-    let xor = hashA[i] ^ hashB[i];
-    while (xor) { dist++; xor &= xor - 1; } // Brian Kernighan bit count
-  }
-  return 1 - dist / 64;
-}
-
-/** Compute 64-bit dHash: resize to 9x8, compare adjacent horizontal pixels. */
-function computeDHash(gray: Float32Array, w: number, h: number): Uint8Array {
-  // Nearest-neighbor resize to 9x8
-  const hash = new Uint8Array(8); // 8 bytes = 64 bits
-  const scaleX = w / 9;
-  const scaleY = h / 8;
-
-  for (let y = 0; y < 8; y++) {
-    let byte = 0;
-    const sy = Math.min(Math.floor(y * scaleY), h - 1);
-    for (let x = 0; x < 8; x++) {
-      const sx1 = Math.min(Math.floor(x * scaleX), w - 1);
-      const sx2 = Math.min(Math.floor((x + 1) * scaleX), w - 1);
-      const left = gray[sy * w + sx1];
-      const right = gray[sy * w + sx2];
-      if (left > right) byte |= (1 << (7 - x));
-    }
-    hash[y] = byte;
-  }
-  return hash;
 }
 
 /**

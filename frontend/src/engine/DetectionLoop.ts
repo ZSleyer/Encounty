@@ -12,6 +12,7 @@
  * Includes temporal coherence features:
  * - Exponential Moving Average (EMA) for smoothed confidence display
  * - Hysteresis to prevent double-counting near the threshold
+ * - Adaptive threshold that adjusts precision based on region size
  */
 import type { Detector, DetectorResult, TemplateData } from "../engine";
 import { apiUrl } from "../utils/api";
@@ -26,6 +27,11 @@ interface Rect {
   h: number;
 }
 
+/** Region definition for adaptive threshold computation. */
+interface Region {
+  rect: Rect;
+}
+
 /** Configuration for the detection loop. */
 interface DetectionLoopConfig {
   /** NCC score threshold for a positive match (0.0–1.0). */
@@ -36,6 +42,10 @@ interface DetectionLoopConfig {
   changeThreshold: number;
   /** Number of consecutive frames above precision to confirm a match. */
   consecutiveHits: number;
+  /** Whether to adjust precision based on region size (default: true). */
+  adaptiveThreshold?: boolean;
+  /** Template regions used for adaptive threshold computation. */
+  regions?: Region[];
   /** Base polling interval in ms (default: DEFAULT_POLL_MS). */
   pollIntervalMs?: number;
   /** Fastest adaptive polling interval in ms (default: MIN_POLL_MS). */
@@ -51,11 +61,11 @@ interface DetectionLoopConfig {
 // --- Adaptive polling constants ----------------------------------------------
 
 /** Fastest polling interval in ms (when score is near threshold). */
-const MIN_POLL_MS = 50;
+const MIN_POLL_MS = 150;
 /** Slowest polling interval in ms (when scene is static). */
-const MAX_POLL_MS = 2000;
+const MAX_POLL_MS = 500;
 /** Default starting interval in ms. */
-const DEFAULT_POLL_MS = 200;
+const DEFAULT_POLL_MS = 100;
 
 // --- EMA smoothing constant --------------------------------------------------
 
@@ -84,14 +94,21 @@ export class DetectionLoop {
   private minPollMs = MIN_POLL_MS;
   private maxPollMs = MAX_POLL_MS;
   private hysteresisFactor = 0.7;
-  private cooldownSec = 5;
+  private cooldownSec = 0;
   private hysteresisEnteredAt = 0;
   /** When true, score has dropped but we're waiting for the cooldown timer. */
   private inCooldown = false;
   private cooldownStartedAt = 0;
   private consecutiveCount = 0;
   private missCount = 0;
+  private lastScore = 0;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  /** Last video.currentTime seen — used to skip detection when the frame hasn't changed. */
+  private lastVideoTime = -1;
+
+  /** Opaque frame buffer from the previous detection cycle (for GPU-level deduplication). */
+  private previousFrameBuffer: unknown = null;
 
   /** Pending template replacement — picked up at the start of the next loop iteration. */
   private pendingTemplates: TemplateData[] | null = null;
@@ -105,8 +122,8 @@ export class DetectionLoop {
   /** Optional callback for live score reporting. */
   private scoreCallback: ((score: number, state: string, cooldownRemainingMs?: number) => void) | null = null;
 
-  // Throttle state for score callback (avoid excessive React re-renders)
-  private lastCallbackTime = 0;
+  // --- Throttle state for scoreCallback (UI store updates) -----------------
+  private lastScoreCallbackTime = 0;
   private lastCallbackState = "";
 
   constructor(pokemonId: string, detector: Detector) {
@@ -147,14 +164,17 @@ export class DetectionLoop {
     this.running = true;
     this.consecutiveCount = 0;
     this.missCount = 0;
+    this.lastScore = 0;
     this.smoothedScore = 0;
     this.inHysteresis = false;
     this.hysteresisEnteredAt = 0;
     this.inCooldown = false;
     this.cooldownStartedAt = 0;
     this.pollIntervalMs = this.config.pollIntervalMs ?? DEFAULT_POLL_MS;
-    this.lastCallbackTime = 0;
+    this.lastScoreCallbackTime = 0;
     this.lastCallbackState = "";
+    this.lastVideoTime = -1;
+    this.previousFrameBuffer = null;
     this.runLoop(getVideo);
   }
 
@@ -165,9 +185,36 @@ export class DetectionLoop {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
     }
+    // Release GPU frame buffer if applicable
+    if (this.previousFrameBuffer) {
+      const buf = this.previousFrameBuffer;
+      if (buf && typeof buf === 'object' && 'destroy' in buf && typeof (buf as { destroy: unknown }).destroy === 'function') {
+        (buf as { destroy(): void }).destroy();
+      }
+      this.previousFrameBuffer = null;
+    }
   }
 
   // --- Internal loop ---------------------------------------------------------
+
+  /**
+   * Compute the effective precision, optionally adjusted for region size.
+   *
+   * Larger regions tend to produce slightly lower NCC scores due to more
+   * background noise, so we reduce the threshold proportionally (capped).
+   */
+  private computeEffectivePrecision(): number {
+    const { precision, adaptiveThreshold, regions } = this.config;
+
+    // Adaptive threshold is enabled by default unless explicitly disabled
+    if (adaptiveThreshold === false || !regions || regions.length === 0) {
+      return precision;
+    }
+
+    const regionArea = regions.reduce((sum, r) => sum + r.rect.w * r.rect.h, 0);
+    const adjustment = 0.05 * Math.min(regionArea / 500_000, 0.2);
+    return precision - adjustment;
+  }
 
   private async runLoop(getVideo: () => HTMLVideoElement | null): Promise<void> {
     if (!this.running) return;
@@ -179,9 +226,29 @@ export class DetectionLoop {
     }
 
     const video = getVideo();
-    const hasValidInput = video && video.videoWidth > 0 && video.videoHeight > 0 && this.templates.length > 0;
+    const hasVideo = video && video.videoWidth > 0 && video.videoHeight > 0;
+    const hasValidInput = hasVideo && this.templates.length > 0;
+
+    // Auto-stop when the video source disappears (user disconnected capture)
+    if (!hasVideo && this.templates.length > 0) {
+      console.log("[Detection] Video source lost — stopping detection loop");
+      this.stop();
+      this.scoreCallback?.(0, "idle", undefined);
+      return;
+    }
 
     if (hasValidInput) {
+      // Skip detection if the video frame hasn't changed since the last iteration
+      if (video.currentTime === this.lastVideoTime) {
+        if (!this.running) return;
+        this.timeoutId = setTimeout(() => {
+          if (!this.running) return;
+          this.runLoop(getVideo);
+        }, this.pollIntervalMs);
+        return;
+      }
+      this.lastVideoTime = video.currentTime;
+
       try {
         const result: DetectorResult = await this.detector.detect(
           video,
@@ -190,10 +257,21 @@ export class DetectionLoop {
             precision: this.config.precision,
             crop: this.config.crop,
             changeThreshold: this.config.changeThreshold,
+            previousFrame: this.previousFrameBuffer,
           },
         );
 
+        // Store frame buffer for next cycle's deduplication
+        if (result.frameBuffer !== undefined) {
+          const old = this.previousFrameBuffer;
+          if (old && typeof old === 'object' && 'destroy' in old && typeof (old as { destroy: unknown }).destroy === 'function') {
+            (old as { destroy(): void }).destroy();
+          }
+          this.previousFrameBuffer = result.frameBuffer;
+        }
+
         const adjusted = this.applyNoiseFloor(result.bestScore);
+        this.lastScore = adjusted;
         this.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * this.smoothedScore;
 
         // Periodic score logging for debugging (every ~2s)
@@ -201,15 +279,16 @@ export class DetectionLoop {
           console.log(`[Detection] raw=${result.bestScore.toFixed(3)} adj=${adjusted.toFixed(3)} smooth=${this.smoothedScore.toFixed(3)} poll=${this.pollIntervalMs}ms`);
         }
 
+        const effectivePrecision = this.computeEffectivePrecision();
         const wasInHysteresis = this.inHysteresis;
-        this.updateMatchState(adjusted, this.config.precision);
+        this.updateMatchState(adjusted, effectivePrecision);
 
         // Only notify the backend when a match is confirmed (hysteresis just entered)
         if (this.inHysteresis && !wasInHysteresis) {
           this.reportMatch(adjusted, result.frameDelta);
         }
 
-        this.emitScoreCallback(adjusted);
+        this.emitScoreCallback(adjusted, effectivePrecision);
         this.pollIntervalMs = this.computeNextInterval(adjusted, result.frameDelta);
       } catch (err) {
         console.error("[Detection] Error:", err);
@@ -232,7 +311,7 @@ export class DetectionLoop {
   /**
    * Suppress metric noise by remapping low scores to zero.
    *
-   * The hybrid metric fusion (SSIM+Pearson+MAD+Histogram+dHash) produces
+   * The hybrid metric fusion (SSIM+Pearson+MAD+Histogram) produces
    * 0.15-0.30 even for unrelated frames due to coarse histogram bins and
    * MAD normalization. This linear remap eliminates that visual noise.
    */
@@ -298,11 +377,8 @@ export class DetectionLoop {
     }
   }
 
-  /**
-   * UI callback — throttled to ~4 updates/sec for score changes,
-   * but fires immediately on state transitions and during cooldown countdown.
-   */
-  private emitScoreCallback(adjusted: number): void {
+  /** Throttled UI callback — fires at most 4 times/second unless the state changes. */
+  private emitScoreCallback(adjusted: number, effectivePrecision: number): void {
     if (!this.scoreCallback) return;
 
     let state: string;
@@ -310,7 +386,7 @@ export class DetectionLoop {
       state = "match";
     } else if (this.inCooldown) {
       state = "cooldown";
-    } else if (adjusted >= this.config.precision) {
+    } else if (adjusted >= effectivePrecision) {
       state = "match";
     } else {
       state = "idle";
@@ -320,9 +396,9 @@ export class DetectionLoop {
     const stateChanged = state !== this.lastCallbackState;
     // Fire immediately on state change or during cooldown (for countdown),
     // otherwise throttle to every 250ms to avoid excessive React re-renders.
-    if (!stateChanged && state !== "cooldown" && now - this.lastCallbackTime < 250) return;
+    if (!stateChanged && state !== "cooldown" && now - this.lastScoreCallbackTime < 250) return;
 
-    this.lastCallbackTime = now;
+    this.lastScoreCallbackTime = now;
     this.lastCallbackState = state;
 
     let cooldownRemainingMs: number | undefined;
@@ -340,10 +416,15 @@ export class DetectionLoop {
    * When the score is close to the threshold, poll faster to catch transitions.
    * When the scene is static (low score), slow down to save CPU/GPU.
    */
-  private computeNextInterval(score: number, _delta: number): number {
-    const { precision } = this.config;
+  private computeNextInterval(score: number, delta: number): number {
+    const { precision, changeThreshold } = this.config;
     const min = this.minPollMs;
     const max = this.maxPollMs;
+
+    // Static scene — slow down to max interval
+    if (delta < (changeThreshold ?? 0.01)) {
+      return max;
+    }
 
     // How close the score is to the threshold (0 = far, 1 = at/above threshold)
     const proximity = Math.min(score / Math.max(precision, 0.01), 1);
