@@ -37,6 +37,7 @@ import {
   BarChart3,
   Check,
   Target,
+  ArrowUpDown,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
@@ -337,6 +338,20 @@ function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
 }
 
 type SidebarTab = "active" | "archived";
+type SortMode = "recent" | "name" | "encounters" | "game";
+type SortDir = "asc" | "desc";
+
+/** Sorts a Pokemon list by the given mode and direction. */
+function sortPokemonList(list: Pokemon[], mode: SortMode, dir: SortDir): Pokemon[] {
+  if (mode === "recent") return dir === "asc" ? list : [...list].reverse();
+  const sorted = [...list].sort((a, b) => {
+    if (mode === "name") return a.name.localeCompare(b.name);
+    if (mode === "encounters") return a.encounters - b.encounters;
+    if (mode === "game") return (a.game ?? "").localeCompare(b.game ?? "");
+    return 0;
+  });
+  return dir === "desc" ? sorted.reverse() : sorted;
+}
 
 /** Apply a new overlay mode to the given Pokemon, handling confirmation and state updates. */
 async function applyOverlayMode(
@@ -386,8 +401,13 @@ export function Dashboard() {
   const searchRef = useRef<HTMLInputElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const lastSelectedIdx = useRef<number | null>(null);
+  const [focusedIdx, setFocusedIdx] = useState<number | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>(() => (localStorage.getItem("encounty-sort-mode") as SortMode) || "recent");
+  const [sortDir, setSortDir] = useState<SortDir>(() => (localStorage.getItem("encounty-sort-dir") as SortDir) || "asc");
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [showHuntMenu, setShowHuntMenu] = useState(false);
   const [showHeaderHuntMenu, setShowHeaderHuntMenu] = useState(false);
+  const asideRef = useRef<HTMLElement>(null);
 
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector" | "overlay" | "statistics">("counter");
@@ -564,29 +584,91 @@ export function Dashboard() {
     setOverlayDirty(true);
   };
 
-  if (!appState) return <DashboardLoader label={t("nav.connecting")} />;
-
-  // --- Derived State ---
-
-  const viewedPokemon =
-    appState.pokemon.find((p) => p.id === (viewedPokemonId || appState.active_id)) ?? null;
-  const totalEncounters = appState.pokemon.reduce(
-    (s, p) => s + p.encounters,
-    0,
-  );
-
-  const oddsDisplay = computeOddsDisplay(viewedPokemon, games);
-
-  // Split Pokémon into active hunts and archived
-  const activeHunts = appState.pokemon.filter((p) => !p.completed_at);
-  const archivedHunts = appState.pokemon.filter((p) => !!p.completed_at);
-
-  // Filter by search query
+  // --- Derived State (computed before hooks to avoid conditional hook calls) ---
+  const allPokemon = appState?.pokemon ?? [];
+  const activeHunts = allPokemon.filter((p) => !p.completed_at);
+  const archivedHunts = allPokemon.filter((p) => !!p.completed_at);
   const q = searchQuery.trim().toLowerCase();
-  const displayList = filterPokemonByQuery(
+  const filtered = filterPokemonByQuery(
     sidebarTab === "active" ? activeHunts : archivedHunts,
     q,
   );
+  const displayList = sortPokemonList(filtered, sortMode, sortDir);
+  const viewedPokemon = appState
+    ? allPokemon.find((p) => p.id === (viewedPokemonId || appState.active_id)) ?? null
+    : null;
+  const totalEncounters = allPokemon.reduce((s, p) => s + p.encounters, 0);
+  const oddsDisplay = computeOddsDisplay(viewedPokemon, games);
+
+  // Persist sort preferences
+  useEffect(() => {
+    localStorage.setItem("encounty-sort-mode", sortMode);
+    localStorage.setItem("encounty-sort-dir", sortDir);
+  }, [sortMode, sortDir]);
+
+  // --- Sidebar keyboard navigation ---
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (!aside.contains(document.activeElement) && document.activeElement !== document.body) return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIdx(prev => prev === null ? 0 : Math.min(prev + 1, displayList.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIdx(prev => prev === null ? displayList.length - 1 : Math.max(prev - 1, 0));
+      } else if (e.key === "Enter" && focusedIdx !== null && displayList[focusedIdx]) {
+        e.preventDefault();
+        handleActivate(displayList[focusedIdx].id);
+      } else if (e.key === " " && focusedIdx !== null && displayList[focusedIdx]) {
+        e.preventDefault();
+        const id = displayList[focusedIdx].id;
+        setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+      } else if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        setSelectedIds(new Set(displayList.map(p => p.id)));
+      } else if (e.key === "Escape") {
+        if (selectedIds.size > 0) setSelectedIds(new Set());
+        else if (searchQuery) setSearchQuery("");
+      } else if (e.key === "Delete" && selectedIds.size > 0) {
+        e.preventDefault();
+        bulkDelete();
+      }
+    };
+    globalThis.addEventListener("keydown", handleKey);
+    return () => globalThis.removeEventListener("keydown", handleKey);
+  }, [displayList, focusedIdx, selectedIds, searchQuery]);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (focusedIdx === null) return;
+    asideRef.current?.querySelector(`[data-sidebar-idx="${focusedIdx}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [focusedIdx]);
+
+  /** Bulk delete selected Pokemon with confirmation. */
+  const bulkDelete = () => {
+    if (selectedIds.size === 0) return;
+    setConfirmConfig({
+      isOpen: true,
+      title: t("confirm.deleteTitle"),
+      message: `${selectedIds.size} ${t("dash.pokemonSelected")} — ${t("confirm.deleteMsg")}`,
+      isDestructive: true,
+      onConfirm: () => {
+        for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}`), { method: "DELETE" }).catch(() => {});
+        setSelectedIds(new Set());
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
+
+  /** Bulk complete selected Pokemon. */
+  const bulkComplete = () => {
+    for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}/complete`), { method: "POST" }).catch(() => {});
+    setSelectedIds(new Set());
+  };
+
+  if (!appState) return <DashboardLoader label={t("nav.connecting")} />;
 
   const FALLBACK = SPRITE_FALLBACK;
 
@@ -1024,27 +1106,68 @@ export function Dashboard() {
   return (
     <div className="flex h-full">
       {/* LEFT: Pokemon sidebar */}
-      <aside className="w-72 2xl:w-80 shrink-0 bg-bg-secondary flex flex-col">
-        {/* Search bar */}
+      <aside ref={asideRef} className="w-72 2xl:w-80 shrink-0 bg-bg-secondary flex flex-col">
+        {/* Search bar + Sort */}
         <div className="p-3 border-b border-border-subtle">
-          <div className="flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5">
-            <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
-            <input
-              ref={searchRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("dash.searchShortcut")}
-              className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-xs"
-            />
-            {searchQuery && (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5">
+              <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
+              <input
+                ref={searchRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t("dash.searchShortcut")}
+                className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-xs"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="text-text-muted hover:text-text-primary"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            {/* Sort dropdown */}
+            <div className="relative">
               <button
-                onClick={() => setSearchQuery("")}
-                className="text-text-muted hover:text-text-primary"
+                onClick={() => setShowSortMenu(v => !v)}
+                className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+                title={t("sidebar.sortBy")}
+                aria-label={t("sidebar.sortBy")}
               >
-                <X className="w-3 h-3" />
+                <ArrowUpDown className="w-3.5 h-3.5" />
               </button>
-            )}
+              {showSortMenu && (
+                <>
+                  <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowSortMenu(false)} aria-label={t("aria.close")} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-36">
+                    {([
+                      { mode: "recent" as const, label: t("sidebar.sortRecent") },
+                      { mode: "name" as const, label: t("sidebar.sortName") },
+                      { mode: "encounters" as const, label: t("sidebar.sortEncounters") },
+                      { mode: "game" as const, label: t("sidebar.sortGame") },
+                    ] as const).map(({ mode, label }) => (
+                      <button
+                        key={mode}
+                        onClick={() => {
+                          if (sortMode === mode) setSortDir(d => d === "asc" ? "desc" : "asc");
+                          else { setSortMode(mode); setSortDir("asc"); }
+                          setShowSortMenu(false);
+                        }}
+                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                      >
+                        {label}
+                        {sortMode === mode && (
+                          <span className="ml-auto text-accent-blue text-[10px]">{sortDir === "asc" ? "↑" : "↓"}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1244,8 +1367,26 @@ export function Dashboard() {
               {/* Spacer + selection info + total */}
               <div className="flex-1" />
               {selectedIds.size > 0 && (
-                <div className="flex items-center gap-1 mr-2">
-                  <span className="text-[10px] text-text-faint tabular-nums">{selectedIds.size}</span>
+                <div className="flex items-center gap-1.5 mr-2">
+                  <span className="text-[10px] text-accent-blue font-semibold tabular-nums">{selectedIds.size}</span>
+                  {sidebarTab === "active" && (
+                    <button
+                      onClick={bulkComplete}
+                      className="p-1 rounded text-text-faint hover:text-accent-green transition-colors"
+                      title={t("dash.caught")}
+                      aria-label={t("dash.caught")}
+                    >
+                      <PartyPopper className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button
+                    onClick={bulkDelete}
+                    className="p-1 rounded text-text-faint hover:text-accent-red transition-colors"
+                    title={t("dash.delete")}
+                    aria-label={t("dash.delete")}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                   <button
                     onClick={() => setSelectedIds(new Set())}
                     className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors"
@@ -1286,10 +1427,13 @@ export function Dashboard() {
                 } else {
                   itemBorderClass = "hover:bg-bg-hover border-l-2 border-transparent";
                 }
-                const itemClassName = `flex items-center gap-3 px-4 py-2.5 2xl:px-5 2xl:py-3 cursor-pointer transition-colors group hover-glow ${itemBorderClass} ${isArchived ? "opacity-70" : ""}`;
+                const isFocused = focusedIdx === idx;
+                const focusRing = isFocused ? " ring-1 ring-inset ring-accent-blue/40" : "";
+                const itemClassName = `flex items-center gap-3 px-4 py-2.5 2xl:px-5 2xl:py-3 cursor-pointer transition-colors group hover-glow ${itemBorderClass}${focusRing} ${isArchived ? "opacity-70" : ""}`;
                 return (
                   <li
                     key={p.id}
+                    data-sidebar-idx={idx}
                     className={itemClassName}
                   >
                     <button
