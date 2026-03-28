@@ -1512,11 +1512,15 @@ function useOverlayUpdate(
     try {
       const payload = {
         name: p.name,
+        title: p.title,
         canonical_name: p.canonical_name,
         sprite_url: p.sprite_url,
         sprite_type: p.sprite_type,
+        sprite_style: p.sprite_style,
         language: p.language,
         game: p.game,
+        hunt_mode: p.hunt_mode,
+        step: p.step,
         overlay_mode: mode,
         overlay,
       };
