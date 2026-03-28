@@ -24,7 +24,7 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 ## How It Works
 
 1. The browser captures your screen, window, or camera feed per Pokemon via `getDisplayMedia` / `getUserMedia`
-2. WebGPU compute shaders run a 5-metric hybrid match (SSIM, NCC, MAD, histogram correlation, dHash) directly on the GPU — with automatic CPU fallback
+2. WebGPU compute shaders run a 4-metric hybrid match (SSIM, NCC, MAD, histogram correlation) directly on the GPU — with automatic CPU fallback and buffer pooling for minimal allocation overhead
 3. Hysteresis, consecutive-hit confirmation, and a configurable cooldown prevent false positives and double-counts
 4. A confirmed match increments the encounter counter and broadcasts the result via WebSocket to the dashboard and OBS overlays
 
