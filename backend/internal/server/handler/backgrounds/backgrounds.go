@@ -256,8 +256,8 @@ func downscale(src image.Image, maxWidth int) image.Image {
 	dstH := int(float64(srcH) * ratio)
 
 	dst := image.NewRGBA(image.Rect(0, 0, dstW, dstH))
-	for y := 0; y < dstH; y++ {
-		for x := 0; x < dstW; x++ {
+	for y := range dstH {
+		for x := range dstW {
 			srcX := int(float64(x) / ratio)
 			srcY := int(float64(y) / ratio)
 			if srcX >= srcW {

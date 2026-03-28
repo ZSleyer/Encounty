@@ -105,41 +105,48 @@ func (m *Manager) applyMigrations() {
 	for i := range m.state.Pokemon {
 		m.state.Pokemon[i].TimerStartedAt = nil
 	}
-	for i := range m.state.Pokemon {
-		if m.state.Pokemon[i].OverlayMode == "" {
-			if m.state.Pokemon[i].Overlay != nil {
-				m.state.Pokemon[i].OverlayMode = "custom"
+
+	migratePokemonDefaults(m.state.Pokemon)
+	migrateOverlaySettings(&m.state.Settings.Overlay, m.state.Pokemon)
+}
+
+// migratePokemonDefaults fills in zero-value fields on each Pokemon that were
+// added in later versions. Safe to call on every load.
+func migratePokemonDefaults(pokemon []Pokemon) {
+	for i := range pokemon {
+		if pokemon[i].OverlayMode == "" {
+			if pokemon[i].Overlay != nil {
+				pokemon[i].OverlayMode = "custom"
 			} else {
-				m.state.Pokemon[i].OverlayMode = "default"
+				pokemon[i].OverlayMode = "default"
 			}
 		}
-	}
-	// HuntMode was added after v0.6.4; empty string means "both".
-	for i := range m.state.Pokemon {
-		if m.state.Pokemon[i].HuntMode == "" {
-			m.state.Pokemon[i].HuntMode = "both"
+		// HuntMode was added after v0.6.4; empty string means "both".
+		if pokemon[i].HuntMode == "" {
+			pokemon[i].HuntMode = "both"
 		}
-	}
-	// TriggerDecrement was added after v0.6.4; empty string means "none".
-	migrateOverlayTriggerDecrement(&m.state.Settings.Overlay)
-	for i := range m.state.Pokemon {
-		if m.state.Pokemon[i].Overlay != nil {
-			migrateOverlayTriggerDecrement(m.state.Pokemon[i].Overlay)
-		}
-	}
-	// Migrate overlay settings to include title element when loaded from
-	// state saved before TitleElement was added.
-	migrateTitleElement(&m.state.Settings.Overlay)
-	for i := range m.state.Pokemon {
-		if m.state.Pokemon[i].Overlay != nil {
-			migrateTitleElement(m.state.Pokemon[i].Overlay)
-		}
-	}
-	// AdaptiveCooldownMin 0 is never a valid value; default to 3.
-	for i := range m.state.Pokemon {
-		dc := m.state.Pokemon[i].DetectorConfig
+		// AdaptiveCooldownMin 0 is never a valid value; default to 3.
+		dc := pokemon[i].DetectorConfig
 		if dc != nil && dc.AdaptiveCooldownMin == 0 {
 			dc.AdaptiveCooldownMin = 3
+		}
+	}
+}
+
+// migrateOverlaySettings applies overlay-specific migrations (trigger
+// decrement, title element) to the global overlay and each per-Pokemon
+// overlay.
+func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
+	// TriggerDecrement was added after v0.6.4; empty string means "none".
+	migrateOverlayTriggerDecrement(global)
+	// Migrate overlay settings to include title element when loaded from
+	// state saved before TitleElement was added.
+	migrateTitleElement(global)
+
+	for i := range pokemon {
+		if pokemon[i].Overlay != nil {
+			migrateOverlayTriggerDecrement(pokemon[i].Overlay)
+			migrateTitleElement(pokemon[i].Overlay)
 		}
 	}
 }

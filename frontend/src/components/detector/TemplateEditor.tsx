@@ -118,6 +118,101 @@ function NewTemplateControls({
   );
 }
 
+// --- Helpers -----------------------------------------------------------------
+
+/** Compute relative mouse/touch position within the snapshot container. */
+function computeRelativePos(
+  e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
+  container: HTMLDivElement | null,
+  bounds: { offsetX: number; offsetY: number; renderedW: number; renderedH: number } | null,
+): { x: number; y: number } {
+  if (!container) return { x: 0, y: 0 };
+  const rect = container.getBoundingClientRect();
+  const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+  const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+  if (bounds?.renderedW && bounds.renderedH > 0) {
+    const x = Math.max(0, Math.min(1, (clientX - rect.left - bounds.offsetX) / bounds.renderedW));
+    const y = Math.max(0, Math.min(1, (clientY - rect.top - bounds.offsetY) / bounds.renderedH));
+    return { x, y };
+  }
+
+  return {
+    x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)),
+  };
+}
+
+/** Compute and set image bounds for object-contain letterboxing. */
+function computeImageBounds(
+  container: HTMLDivElement | null,
+  snapshotW: number,
+  snapshotH: number,
+  setImageBounds: React.Dispatch<React.SetStateAction<{
+    offsetX: number; offsetY: number; renderedW: number; renderedH: number;
+  } | null>>,
+) {
+  if (!container || snapshotW === 0 || snapshotH === 0) {
+    setImageBounds(null);
+    return;
+  }
+  const rect = container.getBoundingClientRect();
+  const scale = Math.min(rect.width / snapshotW, rect.height / snapshotH);
+  const renderedW = snapshotW * scale;
+  const renderedH = snapshotH * scale;
+  setImageBounds({
+    offsetX: (rect.width - renderedW) / 2,
+    offsetY: (rect.height - renderedH) / 2,
+    renderedW,
+    renderedH,
+  });
+}
+
+/** Handle arrow key navigation in replay phase. */
+function handleReplayKeyDown(
+  e: KeyboardEvent,
+  frameCount: number,
+  setIndex: React.Dispatch<React.SetStateAction<number>>,
+) {
+  if (e.key === "ArrowLeft") {
+    e.preventDefault();
+    const step = e.shiftKey ? 5 : 1;
+    setIndex((prev) => Math.max(0, prev - step));
+  } else if (e.key === "ArrowRight") {
+    e.preventDefault();
+    const step = e.shiftKey ? 5 : 1;
+    setIndex((prev) => Math.min(frameCount - 1, prev + step));
+  }
+}
+
+/** Convert a relative bounding box to a pixel region if large enough. */
+function boxToRegion(box: { x: number; y: number; w: number; h: number }, canvas: HTMLCanvasElement): MatchedRegion | null {
+  const pxX = Math.floor(box.x * canvas.width);
+  const pxY = Math.floor(box.y * canvas.height);
+  const pxW = Math.max(1, Math.floor(box.w * canvas.width));
+  const pxH = Math.max(1, Math.floor(box.h * canvas.height));
+  if (pxW <= 5 || pxH <= 5) return null;
+  return { type: "image", expected_text: "", rect: { x: pxX, y: pxY, w: pxW, h: pxH } };
+}
+
+/** Returns the heading and hint text for the current editor phase. */
+function getHeadingAndHint(
+  isEditMode: boolean,
+  phase: Phase,
+  t: (key: string) => string,
+): { heading: string; hint: string } {
+  if (isEditMode) {
+    return { heading: t("templateEditor.editTitle"), hint: t("templateEditor.editHint") };
+  }
+  if (phase === "video") {
+    return { heading: t("templateEditor.step1Title"), hint: t("templateEditor.step1Hint") };
+  }
+  if (phase === "replay") {
+    return { heading: t("templateEditor.replayTitle"), hint: t("templateEditor.replayHint") };
+  }
+  return { heading: t("templateEditor.step2Title"), hint: t("templateEditor.step2Hint") };
+}
+
 // --- Main Component ----------------------------------------------------------
 
 /** Template editor for creating new templates or editing existing ones. */
@@ -167,22 +262,10 @@ export function TemplateEditor({
     offsetX: number; offsetY: number; renderedW: number; renderedH: number;
   } | null>(null);
 
-  const updateImageBounds = useCallback(() => {
-    if (!containerRef.current || snapshotWidth === 0 || snapshotHeight === 0) {
-      setImageBounds(null);
-      return;
-    }
-    const rect = containerRef.current.getBoundingClientRect();
-    const scale = Math.min(rect.width / snapshotWidth, rect.height / snapshotHeight);
-    const renderedW = snapshotWidth * scale;
-    const renderedH = snapshotHeight * scale;
-    setImageBounds({
-      offsetX: (rect.width - renderedW) / 2,
-      offsetY: (rect.height - renderedH) / 2,
-      renderedW,
-      renderedH,
-    });
-  }, [snapshotWidth, snapshotHeight]);
+  const updateImageBounds = useCallback(
+    () => computeImageBounds(containerRef.current, snapshotWidth, snapshotHeight, setImageBounds),
+    [snapshotWidth, snapshotHeight],
+  );
 
   useEffect(() => {
     if ((phase !== "snapshot" && phase !== "replay") || snapshotWidth === 0 || snapshotHeight === 0) {
@@ -251,23 +334,35 @@ export function TemplateEditor({
   useEffect(() => {
     if (phase !== "replay") return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        const step = e.shiftKey ? 5 : 1;
-        setSelectedFrameIndex((prev) => Math.max(0, prev - step));
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        const step = e.shiftKey ? 5 : 1;
-        setSelectedFrameIndex((prev) => Math.min(replayBuffer.frameCount - 1, prev + step));
-      }
-    };
+    const handleKeyDown = (e: KeyboardEvent) =>
+      handleReplayKeyDown(e, replayBuffer.frameCount, setSelectedFrameIndex);
 
     globalThis.addEventListener("keydown", handleKeyDown);
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [phase, replayBuffer.frameCount]);
 
   // --- Snapshot and replay handlers ------------------------------------------
+
+  /** Fallback when replay buffer has no frames: capture the current video frame directly. */
+  const captureCurrentFrame = () => {
+    if (!videoEl || !canvasRef.current) return;
+    const video = videoEl;
+    if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+    setSnapshotWidth(video.videoWidth);
+    setSnapshotHeight(video.videoHeight);
+
+    canvasRef.current.width = video.videoWidth;
+    canvasRef.current.height = video.videoHeight;
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+    }
+    setPhase("snapshot");
+    setRegions([]);
+    setCurrentBox(null);
+    setErrorMsg(null);
+  };
 
   /** Stop the replay buffer and enter replay phase to browse captured frames. */
   const handleTakeSnapshot = () => {
@@ -276,24 +371,7 @@ export function TemplateEditor({
       setSelectedFrameIndex(replayBuffer.frameCount - 1);
       setPhase("replay");
     } else {
-      // Fallback: no frames buffered, capture current video frame directly
-      if (!videoEl || !canvasRef.current) return;
-      const video = videoEl;
-      if (video.videoWidth === 0 || video.videoHeight === 0) return;
-
-      setSnapshotWidth(video.videoWidth);
-      setSnapshotHeight(video.videoHeight);
-
-      canvasRef.current.width = video.videoWidth;
-      canvasRef.current.height = video.videoHeight;
-      const ctx = canvasRef.current.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-      }
-      setPhase("snapshot");
-      setRegions([]);
-      setCurrentBox(null);
-      setErrorMsg(null);
+      captureCurrentFrame();
     }
   };
 
@@ -337,34 +415,8 @@ export function TemplateEditor({
 
   // --- Region drawing --------------------------------------------------------
 
-  const getRelativeMousePos = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (!containerRef.current) return { x: 0, y: 0 };
-    const rect = containerRef.current.getBoundingClientRect();
-    let clientX, clientY;
-
-    if ("touches" in e) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      clientX = e.clientX;
-      clientY = e.clientY;
-    }
-
-    // Account for object-contain letterboxing
-    if (imageBounds?.renderedW && imageBounds.renderedH > 0) {
-      let x = (clientX - rect.left - imageBounds.offsetX) / imageBounds.renderedW;
-      let y = (clientY - rect.top - imageBounds.offsetY) / imageBounds.renderedH;
-      x = Math.max(0, Math.min(1, x));
-      y = Math.max(0, Math.min(1, y));
-      return { x, y };
-    }
-
-    let x = (clientX - rect.left) / rect.width;
-    let y = (clientY - rect.top) / rect.height;
-    x = Math.max(0, Math.min(1, x));
-    y = Math.max(0, Math.min(1, y));
-    return { x, y };
-  };
+  const getRelativeMousePos = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) =>
+    computeRelativePos(e, containerRef.current, imageBounds);
 
   const onPointerDown = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (phase !== "snapshot") return;
@@ -390,21 +442,8 @@ export function TemplateEditor({
     setIsDrawing(false);
 
     if (currentBox && currentBox.w > 0.01 && currentBox.h > 0.01 && canvasRef.current) {
-      const pxX = Math.floor(currentBox.x * canvasRef.current.width);
-      const pxY = Math.floor(currentBox.y * canvasRef.current.height);
-      const pxW = Math.max(1, Math.floor(currentBox.w * canvasRef.current.width));
-      const pxH = Math.max(1, Math.floor(currentBox.h * canvasRef.current.height));
-
-      if (pxW > 5 && pxH > 5) {
-        setRegions((prev) => [
-          ...prev,
-          {
-            type: "image",
-            expected_text: "",
-            rect: { x: pxX, y: pxY, w: pxW, h: pxH },
-          },
-        ]);
-      }
+      const region = boxToRegion(currentBox, canvasRef.current);
+      if (region) setRegions((prev) => [...prev, region]);
     }
     setCurrentBox(null);
   };
@@ -480,22 +519,7 @@ export function TemplateEditor({
   const hasTextRegion = regions.some((r) => r.type === "text");
   const isEditMode = !!initialImageUrl || !!onUpdateRegions;
 
-  // --- Heading / hint for each phase -----------------------------------------
-
-  const getHeadingAndHint = (): { heading: string; hint: string } => {
-    if (isEditMode) {
-      return { heading: t("templateEditor.editTitle"), hint: t("templateEditor.editHint") };
-    }
-    if (phase === "video") {
-      return { heading: t("templateEditor.step1Title"), hint: t("templateEditor.step1Hint") };
-    }
-    if (phase === "replay") {
-      return { heading: t("templateEditor.replayTitle"), hint: t("templateEditor.replayHint") };
-    }
-    return { heading: t("templateEditor.step2Title"), hint: t("templateEditor.step2Hint") };
-  };
-
-  const { heading, hint } = getHeadingAndHint();
+  const { heading, hint } = getHeadingAndHint(isEditMode, phase, t);
 
   // --- Render ----------------------------------------------------------------
 

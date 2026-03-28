@@ -54,7 +54,7 @@ func ParseKeyCombo(s string) (KeyCombo, error) {
 	var combo KeyCombo
 	combo.Key = strings.ToLower(strings.TrimSpace(keyPart))
 
-	for _, mod := range strings.Split(modPart, "+") {
+	for mod := range strings.SplitSeq(modPart, "+") {
 		switch strings.ToLower(strings.TrimSpace(mod)) {
 		case "ctrl", "control":
 			combo.Ctrl = true
