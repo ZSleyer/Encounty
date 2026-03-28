@@ -315,6 +315,7 @@
   "overlay.usesGlobalDesc": "Dieses Pokémon nutzt das globale Layout.",
   "overlay.globalChangeNote": "Änderungen am globalen Layout gelten für alle Pokémon ohne eigenes Layout.",
   "overlay.editGlobal": "Layout bearbeiten",
+  "overlay.switchToCustom": "Eigenes verwenden",
   "overlay.elementCounter": "Zähler",
   "overlay.elementTitle": "Titel",
   "overlay.sizePx": "Größe (px)",

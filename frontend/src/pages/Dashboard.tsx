@@ -42,6 +42,7 @@ import {
   PanelLeftOpen,
   Tally5,
   AlertTriangle,
+  Monitor,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
@@ -1317,6 +1318,34 @@ function OverlayImportItem({ pokemon, onCopy }: Readonly<{ pokemon: Pokemon; onC
   );
 }
 
+/** Card-style OBS URL copy button for the global overlay placeholder. */
+function ObsUrlCardButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  const baseUrl = apiUrl("") || globalThis.location.origin;
+  const url = `${baseUrl}/overlay/${pokemonId}`;
+
+  const copy = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={url}
+      aria-label={t("aria.copyObsUrl")}
+      className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
+    >
+      {copied ? <Check className="w-4 h-4 text-accent-green" /> : <Monitor className="w-4 h-4" />}
+      <span className="text-[10px] font-medium">{copied ? t("overlay.urlCopied") : t("overlay.obsUrl")}</span>
+    </button>
+  );
+}
+
 /** Overlay tab content, extracted to reduce Dashboard cognitive complexity. */
 function DashboardOverlayTab({
   pokemon, overlaySaving, overlaySaved, overlayDirty, currentOverlay,
@@ -1425,15 +1454,23 @@ function DashboardOverlayTab({
             <p className="text-xs text-text-muted leading-relaxed">
               {t("overlay.globalChangeNote")}
             </p>
-            <div className="flex items-center justify-center gap-2 pt-1">
+            <div className="grid grid-cols-3 gap-2 pt-2">
               <Link
                 to="/overlay-editor"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-blue hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-                {t("overlay.editGlobal")}
+                <ExternalLink className="w-4 h-4" />
+                <span className="text-[10px] font-medium">{t("overlay.editGlobal")}</span>
               </Link>
-              <OverlayBrowserSourceButton pokemonId={pokemon.id} />
+              <button
+                type="button"
+                onClick={() => onModeChange("custom")}
+                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-purple-500/40 hover:bg-purple-500/5 text-text-secondary hover:text-purple-400 transition-colors"
+              >
+                <Pencil className="w-4 h-4" />
+                <span className="text-[10px] font-medium">{t("overlay.switchToCustom")}</span>
+              </button>
+              <ObsUrlCardButton pokemonId={pokemon.id} />
             </div>
           </div>
         </div>

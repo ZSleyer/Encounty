@@ -316,6 +316,7 @@
   "overlay.usesGlobalDesc": "Este Pokemon usa la disposicion global.",
   "overlay.globalChangeNote": "Los cambios en la disposicion global se aplican a todos los Pokemon sin disposicion personalizada.",
   "overlay.editGlobal": "Editar disposicion",
+  "overlay.switchToCustom": "Usar personalizado",
   "overlay.elementCounter": "Contador",
   "overlay.elementTitle": "Titulo",
   "overlay.sizePx": "Tamano (px)",

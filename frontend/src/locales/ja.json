@@ -316,6 +316,7 @@
   "overlay.usesGlobalDesc": "このポケモンはグローバルレイアウトを使用しています。",
   "overlay.globalChangeNote": "グローバルレイアウトの変更は、カスタムレイアウトを持たないすべてのポケモンに適用されます。",
   "overlay.editGlobal": "レイアウトを編集",
+  "overlay.switchToCustom": "カスタムを使用",
   "overlay.elementCounter": "カウンター",
   "overlay.elementTitle": "タイトル",
   "overlay.sizePx": "サイズ (px)",
