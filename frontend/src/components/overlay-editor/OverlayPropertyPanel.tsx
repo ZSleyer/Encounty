@@ -17,14 +17,6 @@ interface OpenShadowEditorParams extends ShadowConfirmParams {
 
 type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
 
-const ELEMENT_LABELS: Record<ElementKey, string> = {
-  sprite: "Sprite",
-  name: "Name",
-  title: "Titel",
-  counter: "Zähler",
-  canvas: "Canvas",
-};
-
 const POPULAR_FONTS = [
   "sans", "serif", "monospace", "pokemon",
   "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Raleway",
@@ -97,7 +89,7 @@ function TextStyleEditor({
 
       {/* --- Font --- */}
       <label className="block">
-        <span className="text-xs text-text-muted">Schriftart</span>
+        <span className="text-xs text-text-muted">{t("overlay.fontFamily")}</span>
         <select
           value={style.font_family}
           onChange={(e) => u("font_family", e.target.value)}
@@ -110,11 +102,11 @@ function TextStyleEditor({
       </label>
 
       {/* --- Size --- */}
-      <NumSlider label="Größe (px)" value={style.font_size} min={6} max={200} onChange={(v) => u("font_size", v)} />
+      <NumSlider label={t("overlay.sizePx")} value={style.font_size} min={6} max={200} onChange={(v) => u("font_size", v)} />
 
       {/* --- Weight --- */}
       <label className="block">
-        <span className="text-xs text-text-muted">Gewicht</span>
+        <span className="text-xs text-text-muted">{t("overlay.fontWeight")}</span>
         <select
           value={style.font_weight}
           onChange={(e) => u("font_weight", Number(e.target.value))}
@@ -128,7 +120,7 @@ function TextStyleEditor({
 
       {/* --- Alignment --- */}
       <div className="flex items-center gap-1">
-        <span className="text-xs text-text-muted w-14 2xl:w-16">Ausrichtung</span>
+        <span className="text-xs text-text-muted w-14 2xl:w-16">{t("overlay.textAlign")}</span>
         <div className="flex border border-border-subtle rounded overflow-hidden">
           {(["left", "center", "right"] as const).map((align) => {
             const centerOrRight = align === "center" ? t("tooltip.editor.alignCenter") : t("tooltip.editor.alignRight");
@@ -162,7 +154,7 @@ function TextStyleEditor({
             stops: style.gradient_stops || [],
             angle: style.gradient_angle || 180,
           } : undefined}
-          label={style.color_type === "solid" ? `Farbe ${style.color}` : "Farbe (Verlauf)"}
+          label={style.color_type === "solid" ? `${t("overlay.color")} ${style.color}` : `${t("overlay.color")} (${t("overlay.gradient")})`}
           onClick={() =>
             onOpenTextColorEditor(
               style.color_type || "solid",
@@ -189,8 +181,8 @@ function TextStyleEditor({
           color={style.outline_type === "solid" ? style.outline_color : "#00000000"}
           label={
             style.outline_type === "solid"
-              ? `Kontur ${style.outline_width}px ${style.outline_color}`
-              : "Kontur (Kein)"
+              ? `${t("overlay.outline")} ${style.outline_width}px ${style.outline_color}`
+              : `${t("overlay.outline")} (${t("overlay.animNone")})`
           }
           onClick={() =>
             onOpenOutlineEditor(
@@ -222,8 +214,8 @@ function TextStyleEditor({
           }
           label={
             style.text_shadow
-              ? `Schatten ${style.text_shadow_blur}px ${style.text_shadow_x},${style.text_shadow_y}`
-              : "Schatten (Aus)"
+              ? `${t("overlay.shadow")} ${style.text_shadow_blur}px ${style.text_shadow_x},${style.text_shadow_y}`
+              : `${t("overlay.shadow")} (${t("overlay.off")})`
           }
           onClick={() =>
             onOpenShadowEditor({
@@ -299,6 +291,13 @@ export function OverlayPropertyPanel({
   onBgRemove,
 }: OverlayPropertyPanelProps) {
   const { t } = useI18n();
+  const ELEMENT_LABELS: Record<ElementKey, string> = {
+    sprite: "Sprite",
+    name: "Name",
+    title: t("overlay.elementTitle"),
+    counter: t("overlay.elementCounter"),
+    canvas: "Canvas",
+  };
   const update = (s: OverlaySettings) => {
     onUpdate(s);
   };
@@ -307,7 +306,7 @@ export function OverlayPropertyPanel({
     <div data-tutorial="properties" className={embedded ? "flex-1 min-h-0" : "bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"}>
       <div className="mb-4">
         <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-0.5">
-          Eigenschaften
+          {t("overlay.properties")}
         </h2>
         <p className="text-[11px] text-text-muted">
           {ELEMENT_LABELS[selectedEl]}
@@ -318,7 +317,7 @@ export function OverlayPropertyPanel({
       {selectedEl === "canvas" && (
         <div className="space-y-2">
           <NumSlider
-            label="Breite"
+            label={t("overlay.width")}
             value={localSettings.canvas_width}
             min={100}
             max={1920}
@@ -326,7 +325,7 @@ export function OverlayPropertyPanel({
             onChange={(v) => update({ ...localSettings, canvas_width: v })}
           />
           <NumSlider
-            label="Höhe"
+            label={t("overlay.height")}
             value={localSettings.canvas_height}
             min={50}
             max={1080}
@@ -337,26 +336,26 @@ export function OverlayPropertyPanel({
           {/* Background animation */}
           <label className="block">
             <span className="text-xs text-text-muted">
-              Hintergrund-Animation
+              {t("overlay.bgAnimation")}
             </span>
             <select
               value={localSettings.background_animation ?? "none"}
               onChange={(e) => update({ ...localSettings, background_animation: e.target.value })}
               className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
             >
-              <option value="none">Keine</option>
-              <option value="waves">Wellen (Homebrew)</option>
-              <option value="gradient-shift">Farbverlauf</option>
-              <option value="pulse-bg">Pulsieren</option>
-              <option value="shimmer-bg">Schimmern</option>
-              <option value="particles">Partikel</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="waves">{t("overlay.animWaves")}</option>
+              <option value="gradient-shift">{t("overlay.animGradient")}</option>
+              <option value="pulse-bg">{t("overlay.animPulse")}</option>
+              <option value="shimmer-bg">{t("overlay.animShimmer")}</option>
+              <option value="particles">{t("overlay.animParticles")}</option>
             </select>
           </label>
 
           {/* Animation speed */}
           {(localSettings.background_animation ?? "none") !== "none" && (
             <NumSlider
-              label={`Geschwindigkeit ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
+              label={`${t("overlay.speed")} ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
               value={localSettings.background_animation_speed ?? 1}
               min={0.1}
               max={3}
@@ -369,7 +368,7 @@ export function OverlayPropertyPanel({
           {onBgUpload && (
             <div>
               <span className="text-xs text-text-muted">
-                Hintergrundbild
+                {t("overlay.bgImage")}
               </span>
               <div className="flex items-center gap-1.5 mt-1">
                 <button
@@ -379,7 +378,7 @@ export function OverlayPropertyPanel({
                   className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
                 >
                   <Upload className="w-3 h-3" />
-                  {bgUploading ? "..." : "Hochladen"}
+                  {bgUploading ? "..." : t("overlay.upload")}
                 </button>
                 {localSettings.background_image && onBgRemove && (
                   <button
@@ -388,7 +387,7 @@ export function OverlayPropertyPanel({
                     className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
-                    Entfernen
+                    {t("overlay.remove")}
                   </button>
                 )}
               </div>
@@ -415,7 +414,7 @@ export function OverlayPropertyPanel({
                     <option value="cover">Cover</option>
                     <option value="contain">Contain</option>
                     <option value="stretch">Stretch</option>
-                    <option value="tile">Kacheln</option>
+                    <option value="tile">{t("overlay.bgFitTile")}</option>
                   </select>
                 </>
               )}
@@ -426,7 +425,7 @@ export function OverlayPropertyPanel({
           <div className={localSettings.hidden ? "opacity-30 pointer-events-none" : ""}>
             <div>
               <span className="text-xs text-text-muted mb-1 block">
-                Hintergrund
+                {t("overlay.background")}
               </span>
               <ColorSwatch
                 color={localSettings.background_color}
@@ -440,7 +439,7 @@ export function OverlayPropertyPanel({
             </div>
             <div className="mt-2">
               <label htmlFor="pp-background-opacity" className="text-xs text-text-muted">
-                Deckkraft {Math.round(localSettings.background_opacity * 100)}%
+                {t("overlay.opacity")} {Math.round(localSettings.background_opacity * 100)}%
               </label>
               <input
                 id="pp-background-opacity"
@@ -472,7 +471,7 @@ export function OverlayPropertyPanel({
           {/* Border radius */}
           <div>
             <label htmlFor="pp-border-radius" className="text-xs text-text-muted">
-              Radius {localSettings.border_radius}px
+              {t("overlay.radius")} {localSettings.border_radius}px
             </label>
             <input
               id="pp-border-radius"
@@ -493,7 +492,7 @@ export function OverlayPropertyPanel({
               onChange={(e) => update({ ...localSettings, show_border: e.target.checked })}
               className="accent-accent-blue"
             />
-            <span className="text-xs text-text-secondary">Kontur</span>
+            <span className="text-xs text-text-secondary">{t("overlay.borderOutline")}</span>
           </label>
           {localSettings.show_border && (
             <div
@@ -501,7 +500,7 @@ export function OverlayPropertyPanel({
             >
               <div>
                 <span className="text-xs text-text-muted mb-1 block">
-                  Kontur Farbe
+                  {t("overlay.borderColor")}
                 </span>
                 <ColorSwatch
                   color={(() => {
@@ -524,7 +523,7 @@ export function OverlayPropertyPanel({
               </div>
               <div>
                 <label htmlFor="pp-border-width" className="text-xs text-text-muted">
-                  Kontur Stärke {localSettings.border_width ?? 2}px
+                  {t("overlay.borderWidth")} {localSettings.border_width ?? 2}px
                 </label>
                 <input
                   id="pp-border-width"
@@ -594,7 +593,7 @@ export function OverlayPropertyPanel({
           </label>
         </div>
         <p className="text-[11px] text-text-muted mt-1">
-          Pfeiltasten: 1px | Shift: 10px | Tab: wechseln
+          {t("overlay.arrowKeys")}
         </p>
       </div>
       )}
@@ -624,7 +623,7 @@ export function OverlayPropertyPanel({
               <div className="flex gap-2 items-center">
                 <ColorSwatch
                   color={localSettings.sprite.glow_color || "#ffffff"}
-                  label="Glow Farbe"
+                  label={t("overlay.glowColor")}
                   onClick={() =>
                     openColorPicker(
                       localSettings.sprite.glow_color || "#ffffff",
@@ -639,7 +638,7 @@ export function OverlayPropertyPanel({
                 />
               </div>
               <NumSlider
-                label="Deckkraft"
+                label={t("overlay.opacity")}
                 min={0}
                 max={1}
                 step={0.05}
@@ -668,7 +667,7 @@ export function OverlayPropertyPanel({
           )}
           <div>
             <label htmlFor="sprite-idle-animation" className="text-xs text-text-muted">
-              Idle Animation
+              {t("overlay.idleAnimation")}
             </label>
             <select
               id="sprite-idle-animation"
@@ -684,19 +683,19 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
-              <option value="float">Schweben</option>
-              <option value="bob">Bob</option>
-              <option value="pulse">Puls</option>
-              <option value="rock">Wackeln</option>
-              <option value="wiggle">Wippen</option>
-              <option value="shimmer">Schimmern</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="float">{t("overlay.animFloat")}</option>
+              <option value="bob">{t("overlay.animBob")}</option>
+              <option value="pulse">{t("overlay.animPulseShort")}</option>
+              <option value="rock">{t("overlay.animWobble")}</option>
+              <option value="wiggle">{t("overlay.animBounce")}</option>
+              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
             </select>
           </div>
           <div>
             <div className="flex items-center justify-between mb-0.5">
               <label htmlFor="sprite-trigger-animation" className="text-xs text-text-muted">
-                Trigger Animation
+                {t("overlay.triggerAnimation")}
               </label>
               <button
                 onClick={() => fireTest("sprite")}
@@ -719,9 +718,9 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
+              <option value="none">{t("overlay.animNone")}</option>
               <option value="pop">Pop</option>
-              <option value="bounce">Bounce (Hüpfen)</option>
+              <option value="bounce">Bounce</option>
               <option value="shake">Shake</option>
               <option value="spin">Spin</option>
               <option value="flip">Flip</option>
@@ -735,7 +734,7 @@ export function OverlayPropertyPanel({
           <div>
             <div className="flex items-center justify-between mb-0.5">
               <label htmlFor="sprite-trigger-decrement-animation" className="text-xs text-text-muted">
-                Trigger Animation (Verringern)
+                {t("overlay.triggerAnimationDecrement")}
               </label>
               <button
                 onClick={() => fireTest("sprite", true)}
@@ -758,9 +757,9 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
+              <option value="none">{t("overlay.animNone")}</option>
               <option value="pop">Pop</option>
-              <option value="bounce">Bounce (Hüpfen)</option>
+              <option value="bounce">Bounce</option>
               <option value="shake">Shake</option>
               <option value="spin">Spin</option>
               <option value="flip">Flip</option>
@@ -778,7 +777,7 @@ export function OverlayPropertyPanel({
         <div className="space-y-3">
           <TextStyleEditor
             style={localSettings.name.style || DEFAULT_TEXT_STYLE}
-            label="Text-Stil"
+            label={t("overlay.textStyle")}
             onChange={(s) =>
               update({
                 ...localSettings,
@@ -791,7 +790,7 @@ export function OverlayPropertyPanel({
           />
           <div>
             <label htmlFor="name-idle-animation" className="text-xs text-text-muted">
-              Idle Animation
+              {t("overlay.idleAnimation")}
             </label>
             <select
               id="name-idle-animation"
@@ -807,17 +806,17 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
-              <option value="breathe">Atmen</option>
-              <option value="glow">Glühen</option>
-              <option value="shimmer">Schimmern</option>
-              <option value="float">Schweben</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="breathe">{t("overlay.animBreathe")}</option>
+              <option value="glow">{t("overlay.animGlow")}</option>
+              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
+              <option value="float">{t("overlay.animFloat")}</option>
             </select>
           </div>
           <div>
             <div className="flex items-center justify-between mb-0.5">
               <label htmlFor="name-trigger-animation" className="text-xs text-text-muted">
-                Trigger Animation
+                {t("overlay.triggerAnimation")}
               </label>
               <button
                 onClick={() => fireTest("name")}
@@ -840,9 +839,9 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
-              <option value="fade-in">Einblenden</option>
-              <option value="slide-in">Einsliden</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="fade-in">{t("overlay.animFadeIn")}</option>
+              <option value="slide-in">{t("overlay.animSlideIn")}</option>
               <option value="pop">Pop</option>
               <option value="bounce">Bounce</option>
               <option value="shake">Shake</option>
@@ -856,7 +855,7 @@ export function OverlayPropertyPanel({
           <div>
             <div className="flex items-center justify-between mb-0.5">
               <label htmlFor="name-trigger-decrement-animation" className="text-xs text-text-muted">
-                Trigger Animation (Verringern)
+                {t("overlay.triggerAnimationDecrement")}
               </label>
               <button
                 onClick={() => fireTest("name", true)}
@@ -879,9 +878,9 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
-              <option value="fade-in">Einblenden</option>
-              <option value="slide-in">Einsliden</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="fade-in">{t("overlay.animFadeIn")}</option>
+              <option value="slide-in">{t("overlay.animSlideIn")}</option>
               <option value="pop">Pop</option>
               <option value="bounce">Bounce</option>
               <option value="shake">Shake</option>
@@ -899,7 +898,7 @@ export function OverlayPropertyPanel({
         <div className="space-y-3">
           <TextStyleEditor
             style={localSettings.title.style || DEFAULT_TEXT_STYLE}
-            label="Titel-Stil"
+            label={t("overlay.titleStyle")}
             onChange={(s) =>
               update({
                 ...localSettings,
@@ -912,7 +911,7 @@ export function OverlayPropertyPanel({
           />
           <div>
             <label htmlFor="title-idle-animation" className="text-xs text-text-muted">
-              Idle Animation
+              {t("overlay.idleAnimation")}
             </label>
             <select
               id="title-idle-animation"
@@ -928,17 +927,17 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
-              <option value="breathe">Atmen</option>
-              <option value="glow">Glühen</option>
-              <option value="shimmer">Schimmern</option>
-              <option value="float">Schweben</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="breathe">{t("overlay.animBreathe")}</option>
+              <option value="glow">{t("overlay.animGlow")}</option>
+              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
+              <option value="float">{t("overlay.animFloat")}</option>
             </select>
           </div>
           <div>
             <div className="flex items-center justify-between mb-0.5">
               <label htmlFor="title-trigger-animation" className="text-xs text-text-muted">
-                Trigger Animation
+                {t("overlay.triggerAnimation")}
               </label>
               <button
                 onClick={() => fireTest("title")}
@@ -961,9 +960,9 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
-              <option value="fade-in">Einblenden</option>
-              <option value="slide-in">Einsliden</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="fade-in">{t("overlay.animFadeIn")}</option>
+              <option value="slide-in">{t("overlay.animSlideIn")}</option>
               <option value="pop">Pop</option>
               <option value="bounce">Bounce</option>
               <option value="shake">Shake</option>
@@ -977,7 +976,7 @@ export function OverlayPropertyPanel({
           <div>
             <div className="flex items-center justify-between mb-0.5">
               <label htmlFor="title-trigger-decrement-animation" className="text-xs text-text-muted">
-                Trigger Animation (Verringern)
+                {t("overlay.triggerAnimationDecrement")}
               </label>
               <button
                 onClick={() => fireTest("title", true)}
@@ -1000,9 +999,9 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
-              <option value="fade-in">Einblenden</option>
-              <option value="slide-in">Einsliden</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="fade-in">{t("overlay.animFadeIn")}</option>
+              <option value="slide-in">{t("overlay.animSlideIn")}</option>
               <option value="pop">Pop</option>
               <option value="bounce">Bounce</option>
               <option value="shake">Shake</option>
@@ -1020,7 +1019,7 @@ export function OverlayPropertyPanel({
         <div className="space-y-3">
           <TextStyleEditor
             style={localSettings.counter.style || DEFAULT_TEXT_STYLE}
-            label="Zähler-Stil"
+            label={t("overlay.counterStyle")}
             onChange={(s) =>
               update({
                 ...localSettings,
@@ -1046,7 +1045,7 @@ export function OverlayPropertyPanel({
               }
               className="accent-accent-blue"
             />
-            <span className="text-xs 2xl:text-sm text-text-secondary">Label anzeigen</span>
+            <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
           </label>
           {localSettings.counter.show_label && (
             <>
@@ -1070,7 +1069,7 @@ export function OverlayPropertyPanel({
                 style={
                   localSettings.counter.label_style || DEFAULT_TEXT_STYLE
                 }
-                label="Label-Stil"
+                label={t("overlay.labelStyle")}
                 onChange={(s) =>
                   update({
                     ...localSettings,
@@ -1085,7 +1084,7 @@ export function OverlayPropertyPanel({
           )}
           <div>
             <label htmlFor="counter-idle-animation" className="text-xs text-text-muted">
-              Idle Animation
+              {t("overlay.idleAnimation")}
             </label>
             <select
               id="counter-idle-animation"
@@ -1101,17 +1100,17 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
-              <option value="breathe">Atmen</option>
-              <option value="glow">Glühen</option>
-              <option value="shimmer">Schimmern</option>
-              <option value="float">Schweben</option>
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="breathe">{t("overlay.animBreathe")}</option>
+              <option value="glow">{t("overlay.animGlow")}</option>
+              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
+              <option value="float">{t("overlay.animFloat")}</option>
             </select>
           </div>
           <div>
             <div className="flex items-center justify-between mb-0.5">
               <label htmlFor="counter-trigger-animation" className="text-xs text-text-muted">
-                Trigger Animation
+                {t("overlay.triggerAnimation")}
               </label>
               <button
                 onClick={() => fireTest("counter")}
@@ -1134,15 +1133,15 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
+              <option value="none">{t("overlay.animNone")}</option>
               <option value="pop">Pop</option>
               <option value="flash">Flash</option>
-              <option value="bounce">Bounce (Hüpfen)</option>
+              <option value="bounce">Bounce</option>
               <option value="shake">Shake</option>
-              <option value="slot">Slot (Ziffern slide)</option>
-              <option value="flip-digit">Flip (Ziffern, Wecker)</option>
-              <option value="slide-up">Slide Up (gesamt)</option>
-              <option value="flip">Flip (gesamt, Wecker)</option>
+              <option value="slot">Slot</option>
+              <option value="flip-digit">Flip Digit</option>
+              <option value="slide-up">Slide Up</option>
+              <option value="flip">Flip</option>
               <option value="rubber">Rubber Band</option>
               <option value="jello">Jello</option>
               <option value="tada">Tada</option>
@@ -1152,7 +1151,7 @@ export function OverlayPropertyPanel({
           <div>
             <div className="flex items-center justify-between mb-0.5">
               <label htmlFor="counter-trigger-decrement-animation" className="text-xs text-text-muted">
-                Trigger Animation (Verringern)
+                {t("overlay.triggerAnimationDecrement")}
               </label>
               <button
                 onClick={() => fireTest("counter", true)}
@@ -1175,15 +1174,15 @@ export function OverlayPropertyPanel({
               }
               className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
             >
-              <option value="none">Keine</option>
+              <option value="none">{t("overlay.animNone")}</option>
               <option value="pop">Pop</option>
               <option value="flash">Flash</option>
-              <option value="bounce">Bounce (Hüpfen)</option>
+              <option value="bounce">Bounce</option>
               <option value="shake">Shake</option>
-              <option value="slot">Slot (Ziffern slide)</option>
-              <option value="flip-digit">Flip (Ziffern, Wecker)</option>
-              <option value="slide-up">Slide Up (gesamt)</option>
-              <option value="flip">Flip (gesamt, Wecker)</option>
+              <option value="slot">Slot</option>
+              <option value="flip-digit">Flip Digit</option>
+              <option value="slide-up">Slide Up</option>
+              <option value="flip">Flip</option>
               <option value="rubber">Rubber Band</option>
               <option value="jello">Jello</option>
               <option value="tada">Tada</option>

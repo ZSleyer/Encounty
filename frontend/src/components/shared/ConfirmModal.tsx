@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { X, AlertTriangle } from "lucide-react";
+import { useI18n } from "../../contexts/I18nContext";
 
 interface ConfirmModalProps {
   readonly title: string;
@@ -14,12 +15,15 @@ interface ConfirmModalProps {
 export function ConfirmModal({
   title,
   message,
-  confirmLabel = "Bestätigen",
-  cancelLabel = "Abbrechen",
+  confirmLabel,
+  cancelLabel,
   isDestructive = false,
   onConfirm,
   onClose,
 }: Readonly<ConfirmModalProps>) {
+  const { t } = useI18n();
+  const resolvedConfirm = confirmLabel ?? t("confirm.confirm");
+  const resolvedCancel = cancelLabel ?? t("confirm.cancel");
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -64,7 +68,7 @@ export function ConfirmModal({
           onClick={handleCancel}
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
-          {cancelLabel}
+          {resolvedCancel}
         </button>
         <button
           onClick={handleConfirm}
@@ -74,7 +78,7 @@ export function ConfirmModal({
               : "bg-accent-blue hover:bg-accent-blue/80"
           }`}
         >
-          {confirmLabel}
+          {resolvedConfirm}
         </button>
       </div>
     </dialog>

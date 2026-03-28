@@ -43,13 +43,6 @@ interface Props {
 
 type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
 
-const ELEMENT_LABELS: Record<ElementKey, string> = {
-  sprite: "Sprite",
-  name: "Name",
-  title: "Titel",
-  counter: "Zähler",
-  canvas: "Canvas",
-};
 
 const DEFAULT_TEXT_STYLE: TextStyle = {
   font_family: "sans",
@@ -187,6 +180,7 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
 };
 
 export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const baseUrl = apiUrl("") || globalThis.location.origin;
   const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
@@ -217,7 +211,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
               className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
             >
               <Copy className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-              {copied ? "Kopiert!" : "Kopieren"}
+              {copied ? t("overlay.copied") : t("overlay.copy")}
             </button>
             <a
               href={pokemonUrl}
@@ -230,7 +224,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
           </div>
         </>
       ) : (
-        <p className="text-[10px] 2xl:text-xs text-text-faint">Wähle ein Pokémon als Ziel, um dessen Overlay-URL zu sehen.</p>
+        <p className="text-[10px] 2xl:text-xs text-text-faint">{t("overlay.selectPokemon")}</p>
       )}
     </div>
   );
@@ -238,6 +232,13 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
 
 export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId, readOnly, compact }: Readonly<Props>) {
   const { t } = useI18n();
+  const ELEMENT_LABELS: Record<ElementKey, string> = {
+    sprite: "Sprite",
+    name: "Name",
+    title: t("overlay.elementTitle"),
+    counter: t("overlay.elementCounter"),
+    canvas: "Canvas",
+  };
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -963,7 +964,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         <div data-tutorial="layers" className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-1">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
-              Ebenen
+              {t("overlay.layers")}
             </h3>
             <button
               onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}

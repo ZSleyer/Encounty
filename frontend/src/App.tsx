@@ -162,7 +162,9 @@ function AppShell() {
           latest_version: info.version,
           download_url: `https://github.com/ZSleyer/Encounty/releases/tag/v${info.version}`,
         });
-        setShowUpdateNotification(true);
+        if (!sessionStorage.getItem("update_dismissed")) {
+          setShowUpdateNotification(true);
+        }
       });
 
       const cleanupProgress = globalThis.electronAPI.onUpdateProgress(() => {
@@ -195,7 +197,9 @@ function AppShell() {
         .then((d: { available: boolean; latest_version: string; download_url: string }) => {
           if (d.available) {
             setUpdateInfo(d);
-            setShowUpdateNotification(true);
+            if (!sessionStorage.getItem("update_dismissed")) {
+              setShowUpdateNotification(true);
+            }
           }
         })
         .catch(() => {});
@@ -430,7 +434,10 @@ function AppShell() {
             setShowUpdateNotification(false);
             applyUpdate();
           }}
-          onDismiss={() => setShowUpdateNotification(false)}
+          onDismiss={() => {
+            setShowUpdateNotification(false);
+            sessionStorage.setItem("update_dismissed", "1");
+          }}
         />
       )}
       <div className="switch-waves-container">

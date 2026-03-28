@@ -23,13 +23,6 @@ interface OpenShadowEditorParams extends ShadowConfirmParams {
 
 type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
 
-const ELEMENT_LABELS: Record<ElementKey, string> = {
-  sprite: "Sprite",
-  name: "Name",
-  title: "Titel",
-  counter: "Zähler",
-  canvas: "Canvas",
-};
 
 interface FloatingPropertiesPanelProps {
   /** Called when the user clicks the close button. */
@@ -104,6 +97,13 @@ export function FloatingPropertiesPanel({
   obsSourceHint,
 }: FloatingPropertiesPanelProps) {
   const { t } = useI18n();
+  const ELEMENT_LABELS: Record<ElementKey, string> = {
+    sprite: "Sprite",
+    name: "Name",
+    title: t("overlay.elementTitle"),
+    counter: t("overlay.elementCounter"),
+    canvas: "Canvas",
+  };
 
   return (
     <div
@@ -192,7 +192,7 @@ function CanvasTab({
     <div className="p-3 space-y-2">
       {/* Canvas size */}
       <NumSlider
-        label="Breite"
+        label={t("overlay.width")}
         value={localSettings.canvas_width}
         min={100}
         max={1920}
@@ -200,7 +200,7 @@ function CanvasTab({
         onChange={(v) => updateField("canvas_width", v)}
       />
       <NumSlider
-        label="Höhe"
+        label={t("overlay.height")}
         value={localSettings.canvas_height}
         min={50}
         max={1080}
@@ -211,26 +211,26 @@ function CanvasTab({
       {/* Background animation */}
       <label className="block">
         <span className="text-xs text-text-muted">
-          Hintergrund-Animation
+          {t("overlay.bgAnimation")}
         </span>
         <select
           value={localSettings.background_animation ?? "none"}
           onChange={(e) => updateField("background_animation", e.target.value)}
           className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
         >
-          <option value="none">Keine</option>
-          <option value="waves">Wellen (Homebrew)</option>
-          <option value="gradient-shift">Farbverlauf</option>
-          <option value="pulse-bg">Pulsieren</option>
-          <option value="shimmer-bg">Schimmern</option>
-          <option value="particles">Partikel</option>
+          <option value="none">{t("overlay.animNone")}</option>
+          <option value="waves">{t("overlay.animWaves")}</option>
+          <option value="gradient-shift">{t("overlay.animGradient")}</option>
+          <option value="pulse-bg">{t("overlay.animPulse")}</option>
+          <option value="shimmer-bg">{t("overlay.animShimmer")}</option>
+          <option value="particles">{t("overlay.animParticles")}</option>
         </select>
       </label>
 
       {/* Animation speed — only visible when an animation is selected */}
       {(localSettings.background_animation ?? "none") !== "none" && (
         <NumSlider
-          label={`Geschwindigkeit ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
+          label={`${t("overlay.speed")} ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
           value={localSettings.background_animation_speed ?? 1}
           min={0.1}
           max={3}
@@ -242,7 +242,7 @@ function CanvasTab({
       {/* Background image upload */}
       <div>
         <span className="text-xs text-text-muted">
-          Hintergrundbild
+          {t("overlay.bgImage")}
         </span>
         <div className="flex items-center gap-1.5 mt-1">
           <button
@@ -252,7 +252,7 @@ function CanvasTab({
             className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
           >
             <Upload className="w-3 h-3" />
-            {bgUploading ? "..." : "Hochladen"}
+            {bgUploading ? "..." : t("overlay.upload")}
           </button>
           {localSettings.background_image && (
             <button
@@ -261,7 +261,7 @@ function CanvasTab({
               className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-colors"
             >
               <Trash2 className="w-3 h-3" />
-              Entfernen
+              {t("overlay.remove")}
             </button>
           )}
         </div>
@@ -288,7 +288,7 @@ function CanvasTab({
               <option value="cover">Cover</option>
               <option value="contain">Contain</option>
               <option value="stretch">Stretch</option>
-              <option value="tile">Kacheln</option>
+              <option value="tile">{t("overlay.bgFitTile")}</option>
             </select>
           </>
         )}
@@ -298,7 +298,7 @@ function CanvasTab({
       <div className={localSettings.hidden ? "opacity-30 pointer-events-none" : ""}>
         <div>
           <span className="text-xs text-text-muted mb-1 block">
-            Hintergrund
+            {t("overlay.background")}
           </span>
           <ColorSwatch
             color={localSettings.background_color}
@@ -312,7 +312,7 @@ function CanvasTab({
         </div>
         <div className="mt-2">
           <label htmlFor="fp-background-opacity" className="text-xs text-text-muted">
-            Deckkraft {Math.round(localSettings.background_opacity * 100)}%
+            {t("overlay.opacity")} {Math.round(localSettings.background_opacity * 100)}%
           </label>
           <input
             id="fp-background-opacity"
@@ -344,7 +344,7 @@ function CanvasTab({
       {/* Border radius */}
       <div>
         <label htmlFor="fp-border-radius" className="text-xs text-text-muted">
-          Radius {localSettings.border_radius}px
+          {t("overlay.radius")} {localSettings.border_radius}px
         </label>
         <input
           id="fp-border-radius"
@@ -365,7 +365,7 @@ function CanvasTab({
           onChange={(e) => updateField("show_border", e.target.checked)}
           className="accent-accent-blue"
         />
-        <span className="text-xs text-text-secondary">Kontur</span>
+        <span className="text-xs text-text-secondary">{t("overlay.borderOutline")}</span>
       </label>
       {localSettings.show_border && (
         <div
@@ -373,7 +373,7 @@ function CanvasTab({
         >
           <div>
             <span className="text-xs text-text-muted mb-1 block">
-              Kontur Farbe
+              {t("overlay.borderColor")}
             </span>
             <ColorSwatch
               color={(() => {
@@ -396,7 +396,7 @@ function CanvasTab({
           </div>
           <div>
             <label htmlFor="fp-border-width" className="text-xs text-text-muted">
-              Kontur Stärke {localSettings.border_width ?? 2}px
+              {t("overlay.borderWidth")} {localSettings.border_width ?? 2}px
             </label>
             <input
               id="fp-border-width"
@@ -420,7 +420,7 @@ function CanvasTab({
           onChange={(e) => updateField("hidden", e.target.checked)}
           className="accent-accent-blue"
         />
-        <span className="text-xs text-text-secondary">Versteckt</span>
+        <span className="text-xs text-text-secondary">{t("overlay.hidden")}</span>
       </label>
     </div>
   );

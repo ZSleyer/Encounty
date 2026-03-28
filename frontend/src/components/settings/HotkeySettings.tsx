@@ -9,11 +9,11 @@ interface HotkeySettingsProps {
   onUpdate: (hk: HotkeyMap) => void
 }
 
-const ACTIONS: { key: keyof HotkeyMap; label: string }[] = [
-  { key: 'increment', label: '+1 Encounter' },
-  { key: 'decrement', label: '-1 Encounter' },
-  { key: 'reset', label: 'Reset' },
-  { key: 'next_pokemon', label: 'Nächstes Pokémon' },
+const ACTIONS: { key: keyof HotkeyMap; labelKey: string }[] = [
+  { key: 'increment', labelKey: 'hotkeys.increment' },
+  { key: 'decrement', labelKey: 'hotkeys.decrement' },
+  { key: 'reset', labelKey: 'hotkeys.reset' },
+  { key: 'next_pokemon', labelKey: 'hotkeys.nextPokemon' },
 ]
 
 export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsProps>) {
@@ -52,7 +52,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         onUpdate(updated)
       } else {
         const data = await res.json().catch(() => ({}))
-        setError(data.error ?? 'Unbekannte Taste')
+        setError(data.error ?? t('hotkeys.unknownKey'))
       }
       setRecording(null)
       setLiveModifiers('')
@@ -134,16 +134,17 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
     <div className="space-y-3">
       {hotkeyAvailable === false ? (
         <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
-          <p className="text-xs text-amber-400">Globale Hotkeys nicht verfügbar</p>
+          <p className="text-xs text-amber-400">{t("hotkeys.unavailable")}</p>
           <p className="text-xs text-text-muted mt-1">
-            Linux:{' '}
-            <code className="text-text-secondary">sudo usermod -aG input $USER</code>{' '}
-            dann neu einloggen
+            {t("hotkeys.linuxHint").split("{cmd}")[0]}
+            <code className="text-text-secondary">sudo usermod -aG input $USER</code>
+            {t("hotkeys.linuxHint").split("{cmd}")[1]}
           </p>
         </div>
       ) : null}
 
-      {ACTIONS.map(({ key, label }) => {
+      {ACTIONS.map(({ key, labelKey }) => {
+        const label = t(labelKey)
         const isRecording = recording === key
         const currentCombo = local[key]
         const conflictAction = currentCombo
@@ -194,7 +195,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
                       : 'bg-bg-hover text-text-secondary hover:text-text-primary'
                   }`}
                 >
-                  {isRecording ? 'Abbrechen' : 'Aufzeichnen'}
+                  {isRecording ? t("hotkeys.cancel") : t("hotkeys.record")}
                 </button>
 
                 {currentCombo && !isRecording ? (
@@ -211,7 +212,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
 
             {conflictAction && (
               <p className="text-xs 2xl:text-sm text-amber-400 ml-4">
-                ⚠ Gleiche Taste wie „{conflictAction.label}"
+                ⚠ {t("hotkeys.conflict").replace("{action}", t(conflictAction.labelKey))}
               </p>
             )}
           </div>
@@ -221,15 +222,14 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       {recording && (
         <div className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg">
           <p className="text-sm 2xl:text-base text-accent-blue">
-            ● Drücke eine Taste für „
-            {ACTIONS.find((a) => a.key === recording)?.label}"
+            ● {t("hotkeys.pressKey").replace("{action}", ACTIONS.find((a) => a.key === recording) ? t(ACTIONS.find((a) => a.key === recording)!.labelKey) : "")}
             {liveModifiers && (
               <span className="ml-2 font-mono text-text-primary">
                 {liveModifiers}+…
               </span>
             )}
           </p>
-          <p className="text-xs 2xl:text-sm text-text-secondary mt-1">ESC zum Abbrechen</p>
+          <p className="text-xs 2xl:text-sm text-text-secondary mt-1">{t("hotkeys.escToCancel")}</p>
         </div>
       )}
 

@@ -181,14 +181,14 @@ export function ShadowEditorModal({
 
       {/* --- Blur --- */}
       <div className="mb-4">
-        <NumSlider label="Blur (px)" value={blur} min={0} max={40} onChange={setBlur} />
+        <NumSlider label={t("overlay.blurPx")} value={blur} min={0} max={40} onChange={setBlur} />
       </div>
 
       {/* --- Color type toggle --- */}
       <div className="mb-4">
-        <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">Farbtyp</p>
+        <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.colorType")}</p>
         <div className="flex gap-2">
-          {([["solid", "Einfarbig"], ["gradient", "Verlauf"]] as const).map(([val, label]) => (
+          {([["solid", t("overlay.colorSolid")], ["gradient", t("overlay.colorGradient")]] as const).map(([val, label]) => (
             <button
               key={val}
               className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -207,7 +207,7 @@ export function ShadowEditorModal({
       {/* --- Color (when solid) --- */}
       {colorType === "solid" && (
         <div className="mb-5">
-          <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">Farbe</p>
+          <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
           <ColorSwatch
             color={color}
             className="w-6 h-4 rounded cursor-pointer"
@@ -219,7 +219,7 @@ export function ShadowEditorModal({
       {/* --- Gradient swatch (when gradient) --- */}
       {colorType === "gradient" && (
         <div className="mb-5">
-          <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">Verlauf</p>
+          <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.colorGradient")}</p>
           <ColorSwatch
             color={gradientStops[0]?.color ?? "#ffffff"}
             gradient={{ stops: gradientStops, angle: gradientAngle }}
@@ -241,14 +241,14 @@ export function ShadowEditorModal({
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
           onClick={onClose}
         >
-          Abbrechen
+          {t("tooltip.common.cancel")}
         </button>
         <button
           title={t("tooltip.common.apply")}
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
           onClick={() => onConfirm({ enabled, color, colorType, gradientStops, gradientAngle, blur, x: sx, y: sy })}
         >
-          Übernehmen
+          {t("tooltip.common.apply")}
         </button>
       </div>
     </dialog>

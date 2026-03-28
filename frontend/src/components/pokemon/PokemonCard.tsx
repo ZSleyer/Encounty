@@ -203,7 +203,7 @@ export function PokemonCard({
             aria-label={t("dash.tooltipDelete")}
             className="flex-1 py-1.5 rounded-md text-xs font-medium text-text-muted hover:text-red-400 border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all"
           >
-            Löschen
+            {t("dash.delete")}
           </button>
         </div>
       </div>

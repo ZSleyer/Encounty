@@ -429,14 +429,14 @@ export function ColorPickerModal({
           onClick={handleCancel}
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
-          Abbrechen
+          {t("tooltip.common.cancel")}
         </button>
         <button
           title={t("tooltip.common.apply")}
           onClick={handleConfirm}
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors shadow-sm"
         >
-          Übernehmen
+          {t("tooltip.common.apply")}
         </button>
       </div>
     </dialog>

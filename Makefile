@@ -132,9 +132,11 @@ electron-dev: build-linux
 	cd electron && yarn dev
 
 electron-package-linux: build-linux frontend-build electron-build
+	@ln -sf $(BINARY)-linux $(BINARY)-backend-linux
 	cd electron && yarn package:linux
 
 electron-package-windows: build-windows frontend-build electron-build
+	@ln -sf $(BINARY)-windows.exe $(BINARY)-backend-windows.exe
 	cd electron && yarn package:win
 
 electron-package-all: build-linux build-windows frontend-build electron-build

@@ -73,7 +73,7 @@ export function OutlineEditorModal({
       <div className="mb-4">
         <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">Typ</p>
         <div className="flex gap-2">
-          {([["none", "Kein"], ["solid", "Einfarbig"]] as const).map(([val, label]) => (
+          {([["none", t("overlay.animNone")], ["solid", t("overlay.colorSolid")]] as const).map(([val, label]) => (
             <button
               key={val}
               className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -92,14 +92,14 @@ export function OutlineEditorModal({
       {/* --- Width (when active) --- */}
       {isActive && (
         <div className="mb-4">
-          <NumSlider label="Breite (px)" value={width} min={1} max={20} onChange={setWidth} />
+          <NumSlider label={t("overlay.widthPx")} value={width} min={1} max={20} onChange={setWidth} />
         </div>
       )}
 
       {/* --- Color (when solid) --- */}
       {isActive && (
         <div className="mb-5">
-          <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">Farbe</p>
+          <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
           <ColorSwatch
             color={color}
             className="w-6 h-4 rounded cursor-pointer"
@@ -115,14 +115,14 @@ export function OutlineEditorModal({
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
           onClick={onClose}
         >
-          Abbrechen
+          {t("tooltip.common.cancel")}
         </button>
         <button
           title={t("tooltip.common.apply")}
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
           onClick={() => onConfirm(type, color, width)}
         >
-          Übernehmen
+          {t("tooltip.common.apply")}
         </button>
       </div>
     </dialog>

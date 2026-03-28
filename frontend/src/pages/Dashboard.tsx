@@ -1513,7 +1513,7 @@ export function Dashboard() {
                 })();
 
                 return (
-                  <div className="relative shrink-0">
+                  <div className="relative shrink-0" data-detector-tutorial="controls">
                     <div className={`flex items-center rounded-full overflow-hidden ${bgColor}`}>
                       <button
                         onClick={() => {

@@ -4,6 +4,8 @@
  * data-tutorial attributes placed on target containers.
  */
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useI18n } from "../../contexts/I18nContext";
 
 type Props = Readonly<{
   onComplete: () => void;
@@ -11,39 +13,40 @@ type Props = Readonly<{
 
 interface TutorialStep {
   target: string;
-  title: string;
-  text: string;
+  titleKey: string;
+  textKey: string;
 }
 
 const STEPS: TutorialStep[] = [
   {
     target: "canvas",
-    title: "Vorschau",
-    text: "Das ist deine Overlay-Vorschau. So sieht es in OBS aus.",
+    titleKey: "editorTutorial.step1Title",
+    textKey: "editorTutorial.step1Text",
   },
   {
     target: "layers",
-    title: "Ebenen",
-    text: "Hier kannst du Elemente ein-/ausblenden und deren Reihenfolge ändern.",
+    titleKey: "editorTutorial.step2Title",
+    textKey: "editorTutorial.step2Text",
   },
   {
     target: "properties",
-    title: "Eigenschaften",
-    text: "Wähle ein Element aus, um Stil, Animation und Position hier anzupassen.",
+    titleKey: "editorTutorial.step3Title",
+    textKey: "editorTutorial.step3Text",
   },
   {
     target: "toolbar",
-    title: "Werkzeugleiste",
-    text: "Zoom, Rückgängig, Raster und Werkzeuge findest du hier.",
+    titleKey: "editorTutorial.step4Title",
+    textKey: "editorTutorial.step4Text",
   },
   {
     target: "canvas",
-    title: "Elemente",
-    text: "Ziehe Elemente zum Verschieben. Nutze die Griffe zum Skalieren. Leertaste gedrückt halten = Hand-Werkzeug zum Schwenken.",
+    titleKey: "editorTutorial.step5Title",
+    textKey: "editorTutorial.step5Text",
   },
 ];
 
 export function EditorTutorial({ onComplete }: Props) {
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -92,7 +95,7 @@ export function EditorTutorial({ onComplete }: Props) {
       }
     : { display: "none" };
 
-  return (
+  return createPortal(
     <div ref={overlayRef} className="fixed inset-0" style={{ zIndex: 10000 }}>
       {/* Semi-transparent backdrop with cutout */}
       <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 10000 }}>
@@ -114,7 +117,7 @@ export function EditorTutorial({ onComplete }: Props) {
         <rect
           width="100%"
           height="100%"
-          fill="rgba(0,0,0,0.6)"
+          fill="rgba(0,0,0,0.8)"
           mask="url(#tutorial-mask)"
         />
       </svg>
@@ -138,10 +141,10 @@ export function EditorTutorial({ onComplete }: Props) {
       <div style={tooltipStyle}>
         <div className="bg-bg-secondary border border-border-subtle rounded-xl shadow-lg p-4">
           <p className="text-sm font-semibold text-text-primary mb-1">
-            {current.title}
+            {t(current.titleKey)}
           </p>
           <p className="text-xs text-text-secondary mb-3">
-            {current.text}
+            {t(current.textKey)}
           </p>
           <div className="flex items-center justify-between">
             <span className="text-xs text-text-muted">
@@ -152,18 +155,19 @@ export function EditorTutorial({ onComplete }: Props) {
                 onClick={skip}
                 className="px-3 py-1 rounded text-xs text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors"
               >
-                Überspringen
+                {t("editorTutorial.skip")}
               </button>
               <button
                 onClick={next}
                 className="px-3 py-1 rounded text-xs bg-accent-blue text-white hover:bg-accent-blue/80 transition-colors"
               >
-                {step < STEPS.length - 1 ? "Weiter" : "Fertig"}
+                {step < STEPS.length - 1 ? t("editorTutorial.next") : t("editorTutorial.finish")}
               </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

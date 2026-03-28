@@ -4,6 +4,7 @@
  * data-detector-tutorial attributes placed on target containers.
  */
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useI18n } from "../../contexts/I18nContext";
 
 type Props = Readonly<{
@@ -93,7 +94,7 @@ export function DetectorTutorial({ onComplete }: Props) {
       }
     : { display: "none" };
 
-  return (
+  return createPortal(
     <div ref={overlayRef} className="fixed inset-0" style={{ zIndex: 10000 }}>
       {/* Semi-transparent backdrop with cutout */}
       <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 10000 }}>
@@ -115,7 +116,7 @@ export function DetectorTutorial({ onComplete }: Props) {
         <rect
           width="100%"
           height="100%"
-          fill="rgba(0,0,0,0.6)"
+          fill="rgba(0,0,0,0.8)"
           mask="url(#detector-tutorial-mask)"
         />
       </svg>
@@ -165,6 +166,7 @@ export function DetectorTutorial({ onComplete }: Props) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

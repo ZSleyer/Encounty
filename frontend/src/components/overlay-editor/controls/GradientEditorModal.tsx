@@ -232,7 +232,7 @@ export function GradientEditorModal({
 
       {/* --- Angle --- */}
       <div className="mb-5">
-        <NumSlider label="Winkel (°)" value={angle} min={0} max={360} onChange={setAngle} />
+        <NumSlider label={t("overlay.angleDeg")} value={angle} min={0} max={360} onChange={setAngle} />
       </div>
 
       {/* --- Buttons --- */}
@@ -242,14 +242,14 @@ export function GradientEditorModal({
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
           onClick={onClose}
         >
-          Abbrechen
+          {t("tooltip.common.cancel")}
         </button>
         <button
           title={t("tooltip.common.apply")}
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
           onClick={() => onConfirm(stops, angle)}
         >
-          Übernehmen
+          {t("tooltip.common.apply")}
         </button>
       </div>
     </dialog>

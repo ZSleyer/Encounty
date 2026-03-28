@@ -131,14 +131,14 @@ export function TextColorEditorModal({
           onClick={onClose}
           title={t("tooltip.common.cancel")}
         >
-          Abbrechen
+          {t("tooltip.common.cancel")}
         </button>
         <button
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
           onClick={() => onConfirm(colorType, color, gradientStops, gradientAngle)}
           title={t("tooltip.common.apply")}
         >
-          Übernehmen
+          {t("tooltip.common.apply")}
         </button>
       </div>
     </dialog>

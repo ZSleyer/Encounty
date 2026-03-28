@@ -6,7 +6,10 @@
  * without having direct access to Node or Electron internals.
  */
 import { contextBridge, ipcRenderer } from 'electron';
-import { BACKEND_PORT } from './config';
+
+// Inlined here because sandboxed preloads cannot require() local files —
+// only built-in modules (electron, events, timers, url) are allowed.
+const BACKEND_PORT = 8192;
 
 interface CaptureSource {
   id: string;
