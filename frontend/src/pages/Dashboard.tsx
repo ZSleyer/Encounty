@@ -677,6 +677,7 @@ function resolveTabContent(
   renderOverlayTab: (p: Pokemon) => React.ReactNode,
   handleDetectorConfigChange: (id: string, cfg: DetectorConfig | null) => void,
   detectorStatus: Record<string, { state?: string; confidence?: number }>,
+  onStopHunt?: (pokemonId: string) => void,
 ): React.ReactNode {
   if (tab === "counter") return renderCounterTab(pokemon);
   if (tab === "overlay") return renderOverlayTab(pokemon);
@@ -690,6 +691,7 @@ function resolveTabContent(
           isRunning={!!pokemon.timer_started_at || detectorStatus[pokemon.id] !== undefined || isLoopRunning(pokemon.id)}
           confidence={detectorStatus[pokemon.id]?.confidence ?? 0}
           detectorState={detectorStatus[pokemon.id]?.state ?? "idle"}
+          onStopHunt={() => onStopHunt?.(pokemon.id)}
         />
       </div>
     );
@@ -1808,6 +1810,12 @@ export function Dashboard() {
       rightPanelTab, pokemon,
       renderCounterTab, renderOverlayTab,
       handleDetectorConfigChange, detectorStatus,
+      (pokemonId: string) => {
+        const p = appState?.pokemon.find((pk) => pk.id === pokemonId);
+        if (p?.timer_started_at) send("timer_stop", { pokemon_id: pokemonId });
+        stopDetectionForPokemon(pokemonId);
+        clearDetectorStatus(pokemonId);
+      },
     );
 
   /** Renders the scrollable inner work area with the active tab content. */

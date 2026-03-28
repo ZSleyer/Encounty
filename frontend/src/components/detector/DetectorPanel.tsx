@@ -52,6 +52,8 @@ export type DetectorPanelProps = Readonly<{
   isRunning: boolean;
   confidence: number;
   detectorState: string;
+  /** Called when the user confirms stopping the hunt (detection + timer) to disconnect a source. */
+  onStopHunt?: () => void;
 }>;
 
 // --- Helpers -----------------------------------------------------------------
@@ -95,6 +97,7 @@ export function DetectorPanel({
   isRunning,
   confidence,
   detectorState,
+  onStopHunt,
 }: DetectorPanelProps) {
   const { t } = useI18n();
   const { push: pushToast } = useToast();
@@ -132,6 +135,7 @@ export function DetectorPanel({
     index: number; url: string; regions: MatchedRegion[]; dbId?: number; name?: string;
   } | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ index: number; name: string } | null>(null);
   const [rightTab, setRightTab] = useState<"log" | "settings">("log");
@@ -210,10 +214,22 @@ export function DetectorPanel({
     capture.startCapture(pokemon.id, st, source.sourceId, source.label, source.stream);
   }, [capture, pokemon.id, cfg.source_type]);
 
-  /** Stop and release the capture for this pokemon. */
-  const stopCapture = useCallback(() => {
+  /** Disconnect the capture source. If a hunt is active, show a confirmation modal first. */
+  const handleDisconnect = useCallback(() => {
+    if (isRunning) {
+      setShowDisconnectConfirm(true);
+      return;
+    }
     capture.stopCapture(pokemon.id);
-  }, [capture, pokemon.id]);
+  }, [capture, pokemon.id, isRunning]);
+
+  /** Confirmed disconnect: stop hunt (detection + timer), then release capture. */
+  const confirmDisconnect = useCallback(() => {
+    onStopHunt?.();
+    stopDetectionForPokemon(pokemon.id);
+    capture.stopCapture(pokemon.id);
+    setShowDisconnectConfirm(false);
+  }, [capture, pokemon.id, onStopHunt]);
 
   const pokemonOcrLang = LANG_MAP[pokemon.language ?? ""] || "eng";
 
@@ -703,7 +719,7 @@ export function DetectorPanel({
                   </span>
                 )}
                 <button
-                  onClick={stopCapture}
+                  onClick={handleDisconnect}
                   className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-red-400 hover:border-red-400/30 transition-colors"
                   aria-label={t("detector.disconnect")}
                 >
@@ -1101,6 +1117,17 @@ export function DetectorPanel({
           isDestructive
           onConfirm={() => { handleDeleteTemplate(deleteConfirm.index); setDeleteConfirm(null); }}
           onClose={() => setDeleteConfirm(null)}
+        />
+      )}
+
+      {showDisconnectConfirm && (
+        <ConfirmModal
+          title={t("detector.confirmDisconnectTitle")}
+          message={t("detector.confirmDisconnectMessage")}
+          confirmLabel={t("detector.confirmDisconnectYes")}
+          isDestructive
+          onConfirm={confirmDisconnect}
+          onClose={() => setShowDisconnectConfirm(false)}
         />
       )}
     </>
