@@ -12,10 +12,12 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
+    "i18next": "^25.10.10",
     "lucide-react": "^0.577.0",
     "onnxruntime-web": "^1.24.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-i18next": "^17.0.0",
     "react-router": "^7.13.1",
     "recharts": "^3.8.0",
     "tesseract.js": "^7.0.0",

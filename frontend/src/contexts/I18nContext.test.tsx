@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import i18n from "../locales";
 import { I18nProvider, useI18n } from "./I18nContext";
 
 /** Test component that displays locale and allows switching. */
@@ -19,6 +20,7 @@ describe("I18nContext", () => {
   beforeEach(() => {
     localStorage.clear();
     document.documentElement.lang = "";
+    void i18n.changeLanguage("de");
   });
 
   it("defaults to 'de' locale when localStorage is empty", () => {
@@ -31,8 +33,8 @@ describe("I18nContext", () => {
     expect(screen.getByTestId("locale").textContent).toBe("de");
   });
 
-  it("reads initial locale from localStorage", () => {
-    localStorage.setItem("encounty-locale", "en");
+  it("reads initial locale from i18next", () => {
+    void i18n.changeLanguage("en");
 
     render(
       <I18nProvider>
@@ -43,32 +45,38 @@ describe("I18nContext", () => {
     expect(screen.getByTestId("locale").textContent).toBe("en");
   });
 
-  it("setLocale switches the locale", () => {
+  it("setLocale switches the locale", async () => {
     render(
       <I18nProvider>
         <I18nTester />
       </I18nProvider>,
     );
 
-    fireEvent.click(screen.getByText("switch-en"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("switch-en"));
+    });
     expect(screen.getByTestId("locale").textContent).toBe("en");
 
-    fireEvent.click(screen.getByText("switch-de"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("switch-de"));
+    });
     expect(screen.getByTestId("locale").textContent).toBe("de");
   });
 
-  it("persists locale to localStorage on change", () => {
+  it("persists locale to localStorage on change", async () => {
     render(
       <I18nProvider>
         <I18nTester />
       </I18nProvider>,
     );
 
-    fireEvent.click(screen.getByText("switch-en"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("switch-en"));
+    });
     expect(localStorage.getItem("encounty-locale")).toBe("en");
   });
 
-  it("sets document.documentElement.lang on locale change", () => {
+  it("sets document.documentElement.lang on locale change", async () => {
     render(
       <I18nProvider>
         <I18nTester />
@@ -77,7 +85,9 @@ describe("I18nContext", () => {
 
     expect(document.documentElement.lang).toBe("de");
 
-    fireEvent.click(screen.getByText("switch-en"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("switch-en"));
+    });
     expect(document.documentElement.lang).toBe("en");
   });
 
@@ -88,7 +98,6 @@ describe("I18nContext", () => {
       </I18nProvider>,
     );
 
-    // "app.name" should resolve to "Encounty" in both locales
     expect(screen.getByTestId("translated").textContent).toBe("Encounty");
   });
 });

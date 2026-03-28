@@ -440,7 +440,7 @@ export function DetectorPanel({
       });
       if (res.ok) {
         const data = await res.json() as { imported: number };
-        pushToast({ type: "success", title: t("detector.importSuccess").replace("{count}", String(data.imported)) });
+        pushToast({ type: "success", title: t("detector.importSuccess", { count: data.imported }) });
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
         pushToast({ type: "error", title: body.error ?? "Import failed" });
@@ -467,7 +467,7 @@ export function DetectorPanel({
       });
       if (res.ok) {
         const data = await res.json() as { imported: number };
-        pushToast({ type: "success", title: t("detector.importFileSuccess").replace("{count}", String(data.imported)) });
+        pushToast({ type: "success", title: t("detector.importFileSuccess", { count: data.imported }) });
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
         pushToast({ type: "error", title: body.error ?? t("detector.errInvalidFile") });
@@ -1148,7 +1148,7 @@ export function DetectorPanel({
       {deleteConfirm && (
         <ConfirmModal
           title={t("detector.confirmDeleteTitle")}
-          message={t("detector.confirmDeleteTemplate").replace("{name}", deleteConfirm.name)}
+          message={t("detector.confirmDeleteTemplate", { name: deleteConfirm.name })}
           confirmLabel={t("detector.deleteTemplate")}
           isDestructive
           onConfirm={() => { handleDeleteTemplate(deleteConfirm.index); setDeleteConfirm(null); }}

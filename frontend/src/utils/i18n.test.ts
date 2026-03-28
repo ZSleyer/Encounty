@@ -1,57 +1,50 @@
 import { describe, it, expect } from "vitest";
-import translations, { t, LOCALES, Locale } from "./i18n";
+import de from "../locales/de.json";
+import en from "../locales/en.json";
+import fr from "../locales/fr.json";
+import es from "../locales/es.json";
+import ja from "../locales/ja.json";
+import { LOCALES, type Locale } from "./i18n";
+
+const allTranslations: Record<string, Record<string, string>> = { de, en, fr, es, ja };
+const referenceLocale = "de";
+const referenceKeys = Object.keys(allTranslations[referenceLocale]).sort();
 
 describe("i18n", () => {
-  // --- t() translation lookup ---
-
-  describe("t()", () => {
-    it("returns the correct German translation for a known key", () => {
-      expect(t("de", "nav.dashboard")).toBe("Dashboard");
-      expect(t("de", "dash.encounters")).toBe("Begegnungen");
-    });
-
-    it("returns the correct English translation for a known key", () => {
-      expect(t("en", "nav.dashboard")).toBe("Dashboard");
-      expect(t("en", "dash.encounters")).toBe("Encounters");
-    });
-
-    it("returns the key itself for missing translations", () => {
-      expect(t("de", "nonexistent.key")).toBe("nonexistent.key");
-      expect(t("en", "also.missing")).toBe("also.missing");
-    });
-  });
-
   // --- Translation completeness ---
 
   describe("completeness", () => {
-    const deKeys = Object.keys(translations.de).sort((a, b) => a.localeCompare(b));
-    const enKeys = Object.keys(translations.en).sort((a, b) => a.localeCompare(b));
+    for (const code of Object.keys(allTranslations)) {
+      if (code === referenceLocale) continue;
 
-    it("has the same keys in both languages", () => {
-      const missingInEn = deKeys.filter((k) => !(k in translations.en));
-      const missingInDe = enKeys.filter((k) => !(k in translations.de));
+      it(`${code} has the same keys as ${referenceLocale}`, () => {
+        const missing = referenceKeys.filter((k) => !(k in allTranslations[code]));
+        const extra = Object.keys(allTranslations[code]).filter((k) => !(k in allTranslations[referenceLocale]));
+        expect(missing, `Missing in ${code}`).toEqual([]);
+        expect(extra, `Extra in ${code}`).toEqual([]);
+      });
+    }
 
-      expect(missingInEn).toEqual([]);
-      expect(missingInDe).toEqual([]);
-    });
-
-    it("has no empty translation values", () => {
-      for (const locale of ["de", "en"] as Locale[]) {
-        const empty = Object.entries(translations[locale])
+    for (const [code, translations] of Object.entries(allTranslations)) {
+      it(`${code} has no empty translation values`, () => {
+        const empty = Object.entries(translations)
           .filter(([, v]) => v.trim() === "")
           .map(([k]) => k);
         expect(empty).toEqual([]);
-      }
-    });
+      });
+    }
   });
 
   // --- LOCALES array ---
 
   describe("LOCALES", () => {
-    it("contains German and English entries", () => {
+    it("contains all supported locales", () => {
       const codes = LOCALES.map((l) => l.code);
       expect(codes).toContain("de");
       expect(codes).toContain("en");
+      expect(codes).toContain("fr");
+      expect(codes).toContain("es");
+      expect(codes).toContain("ja");
     });
 
     it("each entry has a code, label, and flag", () => {
@@ -60,6 +53,12 @@ describe("i18n", () => {
         expect(locale.label).toBeTruthy();
         expect(locale.flag).toBeTruthy();
       }
+    });
+
+    it("matches the number of translation files", () => {
+      const localeCodes = LOCALES.map((l) => l.code);
+      const translationCodes = Object.keys(allTranslations);
+      expect(localeCodes.sort()).toEqual(translationCodes.sort());
     });
   });
 });

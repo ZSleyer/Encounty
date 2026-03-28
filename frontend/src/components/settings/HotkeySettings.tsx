@@ -212,7 +212,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
 
             {conflictAction && (
               <p className="text-xs 2xl:text-sm text-amber-400 ml-4">
-                ⚠ {t("hotkeys.conflict").replace("{action}", t(conflictAction.labelKey))}
+                ⚠ {t("hotkeys.conflict", { action: t(conflictAction.labelKey) })}
               </p>
             )}
           </div>
@@ -222,7 +222,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       {recording && (
         <div className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg">
           <p className="text-sm 2xl:text-base text-accent-blue">
-            ● {t("hotkeys.pressKey").replace("{action}", ACTIONS.find((a) => a.key === recording) ? t(ACTIONS.find((a) => a.key === recording)!.labelKey) : "")}
+            ● {t("hotkeys.pressKey", { action: ACTIONS.find((a) => a.key === recording) ? t(ACTIONS.find((a) => a.key === recording)!.labelKey) : "" })}
             {liveModifiers && (
               <span className="ml-2 font-mono text-text-primary">
                 {liveModifiers}+…

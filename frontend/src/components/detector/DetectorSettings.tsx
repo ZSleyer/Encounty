@@ -93,7 +93,7 @@ export function DetectorSettings({
           </div>
           {/* Hysteresis explanation */}
           <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
-            {t("detector.cooldownHint").replace("{pct}", "70")}
+            {t("detector.cooldownHint", { pct: "70" })}
           </p>
 
           {/* Adaptive Polling section */}
