@@ -9,7 +9,6 @@
 import { useState, useEffect, useRef, useReducer } from "react";
 import {
   Plus,
-  Star,
   Minus,
   RotateCcw,
   Zap,
@@ -37,7 +36,11 @@ import {
   BarChart3,
   Check,
   Target,
+  Keyboard,
   ArrowUpDown,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Tally5,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
@@ -405,6 +408,7 @@ export function Dashboard() {
   const [sortMode, setSortMode] = useState<SortMode>(() => (localStorage.getItem("encounty-sort-mode") as SortMode) || "recent");
   const [sortDir, setSortDir] = useState<SortDir>(() => (localStorage.getItem("encounty-sort-dir") as SortDir) || "asc");
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("encounty-sidebar-collapsed") === "true");
   const [showHuntMenu, setShowHuntMenu] = useState(false);
   const [showHeaderHuntMenu, setShowHeaderHuntMenu] = useState(false);
   const asideRef = useRef<HTMLElement>(null);
@@ -600,11 +604,15 @@ export function Dashboard() {
   const totalEncounters = allPokemon.reduce((s, p) => s + p.encounters, 0);
   const oddsDisplay = computeOddsDisplay(viewedPokemon, games);
 
-  // Persist sort preferences
+  // Persist sort + sidebar preferences
   useEffect(() => {
     localStorage.setItem("encounty-sort-mode", sortMode);
     localStorage.setItem("encounty-sort-dir", sortDir);
   }, [sortMode, sortDir]);
+
+  useEffect(() => {
+    localStorage.setItem("encounty-sidebar-collapsed", String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
 
   // --- Sidebar keyboard navigation ---
   useEffect(() => {
@@ -1106,11 +1114,11 @@ export function Dashboard() {
   return (
     <div className="flex h-full">
       {/* LEFT: Pokemon sidebar */}
-      <aside ref={asideRef} className="w-72 2xl:w-80 shrink-0 bg-bg-secondary flex flex-col">
-        {/* Search bar + Sort */}
-        <div className="p-3 border-b border-border-subtle">
+      <aside ref={asideRef} className={`shrink-0 bg-bg-secondary flex flex-col transition-[width] duration-200 overflow-hidden ${sidebarCollapsed ? "w-0" : "w-72 2xl:w-80"}`}>
+        {/* Search bar + Sort + Collapse */}
+        <div className="p-3 border-b border-border-subtle min-w-72">
           <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5">
+            <div className="flex-1 flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5 focus-within:border-accent-blue/50 transition-colors">
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
               <input
                 ref={searchRef}
@@ -1118,7 +1126,7 @@ export function Dashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("dash.searchShortcut")}
-                className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-xs"
+                className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none text-xs"
               />
               {searchQuery && (
                 <button
@@ -1160,7 +1168,7 @@ export function Dashboard() {
                       >
                         {label}
                         {sortMode === mode && (
-                          <span className="ml-auto text-accent-blue text-[10px]">{sortDir === "asc" ? "↑" : "↓"}</span>
+                          <ChevronDown className={`ml-auto w-3.5 h-3.5 text-accent-blue transition-transform ${sortDir === "asc" ? "rotate-180" : ""}`} />
                         )}
                       </button>
                     ))}
@@ -1168,6 +1176,15 @@ export function Dashboard() {
                 </>
               )}
             </div>
+            {/* Collapse sidebar */}
+            <button
+              onClick={() => setSidebarCollapsed(true)}
+              className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+              title={t("sidebar.collapse")}
+              aria-label={t("sidebar.collapse")}
+            >
+              <PanelLeftClose className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
 
@@ -1429,7 +1446,7 @@ export function Dashboard() {
                 }
                 const isFocused = focusedIdx === idx;
                 const focusRing = isFocused ? " ring-1 ring-inset ring-accent-blue/40" : "";
-                const itemClassName = `flex items-center gap-3 px-4 py-2.5 2xl:px-5 2xl:py-3 cursor-pointer transition-colors group hover-glow ${itemBorderClass}${focusRing} ${isArchived ? "opacity-70" : ""}`;
+                const itemClassName = `flex items-center gap-3 px-3 py-2 2xl:px-4 2xl:py-2.5 cursor-pointer transition-colors group ${itemBorderClass}${focusRing} ${isArchived ? "opacity-70" : ""}`;
                 return (
                   <li
                     key={p.id}
@@ -1445,9 +1462,10 @@ export function Dashboard() {
                         }
                       }}
                       onClick={(e) => handleCardClick(e, p.id, idx)}
-                      className="flex items-center gap-3 w-full text-left bg-transparent border-none p-0 cursor-pointer"
+                      className="flex items-center gap-2.5 w-full text-left bg-transparent border-none p-0 cursor-pointer min-w-0"
                     >
-                    <div className="w-9 h-9 2xl:w-11 2xl:h-11 shrink-0 relative">
+                    {/* Sprite */}
+                    <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative">
                       <img
                         src={src}
                         alt={p.name}
@@ -1458,40 +1476,39 @@ export function Dashboard() {
                       />
                       {isArchived && (
                         <div className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-full p-0.5">
-                          <Trophy className="w-2.5 h-2.5 text-text-primary" />
+                          <Trophy className="w-2 h-2 text-text-primary" />
                         </div>
                       )}
                       {hasDetectorReady(p) && (() => {
                         const { dotClass, title: dotTitle } = resolveDetectorDot(detectorStatus, p.id, t);
                         return (
                         <div
-                          className={`absolute -top-0.5 -left-0.5 w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full border border-bg-secondary ${dotClass}`}
+                          className={`absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full border border-bg-secondary ${dotClass}`}
                           title={dotTitle}
                         />
                         );
                       })()}
                     </div>
+                    {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm 2xl:text-base font-semibold text-text-primary truncate capitalize">
-                          {p.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-xs 2xl:text-sm text-text-muted tabular-nums">
-                          {p.encounters} {t("dash.enc")}
-                        </span>
+                      <span className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate block capitalize">
+                        {p.name}
+                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5 text-[11px] 2xl:text-xs text-text-muted">
+                        <span className="tabular-nums shrink-0">{p.encounters.toLocaleString()}</span>
                         {p.game && (
-                          <span className="text-[10px] text-text-muted uppercase">
-                            {formatGame(p.game)}
-                          </span>
+                          <>
+                            <span className="text-text-faint">·</span>
+                            <span className="truncate">{formatGame(p.game)}</span>
+                          </>
                         )}
                       </div>
                     </div>
                     </button>
-                      <SidebarTimer pokemon={p} send={send} />
-                    <div className="flex gap-1 items-center">
-                      {/* Hotkey target star — sets active_id (hotkey target) */}
+                    {/* Timer */}
+                    <SidebarTimer pokemon={p} send={send} />
+                    {/* Actions (visible on hover) */}
+                    <div className="flex gap-0.5 items-center shrink-0">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -1499,22 +1516,22 @@ export function Dashboard() {
                         }}
                         className={`p-1 rounded transition-colors ${
                           isHotkeyTarget
-                            ? "text-accent-yellow"
-                            : "opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent-yellow"
+                            ? "text-accent-blue"
+                            : "opacity-0 group-hover:opacity-100 text-text-faint hover:text-accent-blue"
                         }`}
                         title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
                       >
-                        <Star className={`w-3.5 h-3.5 2xl:w-4 2xl:h-4 ${isHotkeyTarget ? "fill-accent-yellow" : ""}`} />
+                        <Keyboard className={`w-3 h-3 2xl:w-3.5 2xl:h-3.5`} />
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setEditingPokemon(p);
                         }}
-                        className="p-1 rounded hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors opacity-0 group-hover:opacity-100"
+                        className="p-1 rounded text-text-faint hover:text-text-primary transition-colors opacity-0 group-hover:opacity-100"
                         title={t("dash.edit")}
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
                       </button>
                     </div>
                   </li>
@@ -1530,7 +1547,7 @@ export function Dashboard() {
             <button
               onClick={() => setShowAddModal(true)}
               title={t("dash.tooltipAddPokemon")}
-              className="w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs 2xl:text-sm font-semibold transition-colors hover-glow"
+              className="w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs 2xl:text-sm font-semibold transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               {t("dash.addPokemon")}
@@ -1538,6 +1555,55 @@ export function Dashboard() {
           </div>
         )}
       </aside>
+      {/* Collapsed mini-sidebar: sprites only */}
+      {sidebarCollapsed && (
+        <div className="shrink-0 w-12 flex flex-col bg-bg-secondary">
+          <button
+            onClick={() => setSidebarCollapsed(false)}
+            className="p-3 text-text-muted hover:text-text-primary transition-colors border-b border-border-subtle"
+            title={t("sidebar.expand")}
+            aria-label={t("sidebar.expand")}
+          >
+            <PanelLeftOpen className="w-4 h-4 mx-auto" />
+          </button>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden py-1">
+            {displayList.map((p) => {
+              const isViewed = p.id === (viewedPokemonId || appState.active_id);
+              const src = imgError[p.id] || !p.sprite_url ? FALLBACK : p.sprite_url;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => handleActivate(p.id)}
+                  className={`w-full p-1.5 flex items-center justify-center transition-colors ${
+                    isViewed ? "bg-accent-blue/15" : "hover:bg-bg-hover"
+                  }`}
+                  title={`${p.name} (${p.encounters.toLocaleString()})`}
+                >
+                  <img
+                    src={src}
+                    alt={p.name}
+                    className="pokemon-sprite w-7 h-7 object-contain"
+                    onError={() => setImgError((prev) => ({ ...prev, [p.id]: true }))}
+                  />
+                </button>
+              );
+            })}
+          </div>
+          {sidebarTab === "active" && (
+            <>
+              <div className="border-t border-border-subtle mx-2" />
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="p-2 mx-auto my-2 text-accent-blue hover:text-white hover:bg-accent-blue rounded-lg transition-colors"
+                title={t("dash.addPokemon")}
+                aria-label={t("dash.addPokemon")}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <div className="glow-line-v shrink-0" />
 
       <main id="main-content" className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
@@ -1545,19 +1611,20 @@ export function Dashboard() {
         {viewedPokemon ? (
           <div className="flex flex-col h-full w-full">
             {/* Top Bar (übergeordnet, scrollt nicht mit) */}
-            <header className="flex-none px-4 py-2 border-b border-border-subtle bg-bg-card z-50 relative grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <header className="flex-none px-4 py-2.5 border-b border-border-subtle bg-bg-card z-50 relative grid grid-cols-[1fr_auto_1fr] items-center gap-3">
 
               {/* Left: Tabs */}
               <div className="flex justify-start">
                 <div className="flex bg-bg-card rounded-xl border border-border-subtle p-0.5 shadow-sm">
                   <button
                     onClick={() => setRightPanelTab("counter")}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
                       rightPanelTab === "counter"
                         ? "bg-accent-blue text-white shadow"
                         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
                     }`}
                   >
+                    <Tally5 className="w-3.5 h-3.5" />
                     {t("dash.tabCounter")}
                   </button>
                   {!viewedPokemon.completed_at && (
