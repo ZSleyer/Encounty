@@ -212,9 +212,8 @@ export async function reloadDetectionTemplates(
 
 /**
  * Stop the browser-side detection loop for a pokemon.
- * Also calls the backend stop endpoint.
+ * Detection runs purely client-side; the backend only receives match results.
  */
 export function stopDetectionForPokemon(pokemonId: string): void {
   stopLoop(pokemonId);
-  fetch(apiUrl(`/api/detector/${pokemonId}/stop`), { method: "POST" }).catch(() => {});
 }

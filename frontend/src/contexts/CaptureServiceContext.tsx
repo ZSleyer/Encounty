@@ -19,7 +19,7 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { useCounterStore } from "../hooks/useCounterState";
-import { apiUrl } from "../utils/api";
+
 
 // --- Types -------------------------------------------------------------------
 
@@ -257,7 +257,6 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
       // Handle user clicking "Stop sharing" in browser chrome
       stream.getVideoTracks()[0].onended = () => {
         cleanupEntry(pokemonId);
-        fetch(apiUrl(`/api/detector/${pokemonId}/stop`), { method: "POST" }).catch(() => {});
       };
 
       notify();
@@ -299,7 +298,6 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     }
     for (const id of toRemove) {
       cleanupEntry(id);
-      fetch(apiUrl(`/api/detector/${id}/stop`), { method: "POST" }).catch(() => {});
     }
   }, [appState, cleanupEntry]);
 
