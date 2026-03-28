@@ -67,7 +67,7 @@ export class GoProcessManager extends EventEmitter {
     }
   }
 
-  private handleCrash(exitCode: number | null): void {
+  private handleCrash(_exitCode: number | null): void {
     if (this.restartCount >= this.MAX_RESTARTS) {
       console.error('[GoProcessManager] Max restart attempts reached');
       this.emit('max-restarts-reached');

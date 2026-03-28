@@ -408,6 +408,31 @@ app.on('ready', async () => {
 
   Menu.setApplicationMenu(null);
 
+  // Set a strict Content-Security-Policy in production to suppress the
+  // Electron CSP warning and harden the renderer against injection attacks.
+  // In dev mode the Vite dev server requires more permissive settings.
+  if (!isDev) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            [
+              "default-src 'self' encounty:",
+              "script-src 'self' encounty:",
+              "style-src 'self' 'unsafe-inline' encounty:",
+              "img-src 'self' encounty: data: blob: http://localhost:*",
+              "connect-src 'self' encounty: http://localhost:* ws://localhost:* https://pokeapi.co https://*.pokemon.com",
+              "media-src 'self' blob: mediastream:",
+              "worker-src 'self' blob:",
+              "font-src 'self' encounty: data:",
+            ].join('; '),
+          ],
+        },
+      });
+    });
+  }
+
   // Allow media, display-capture, and WebGPU permissions
   const allowedPermissions = new Set(['media', 'display-capture', 'webgpu', 'clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
