@@ -687,7 +687,7 @@ function resolveTabContent(
           key={pokemon.id}
           pokemon={pokemon}
           onConfigChange={(cfg) => handleDetectorConfigChange(pokemon.id, cfg)}
-          isRunning={detectorStatus[pokemon.id] !== undefined || isLoopRunning(pokemon.id)}
+          isRunning={!!pokemon.timer_started_at || detectorStatus[pokemon.id] !== undefined || isLoopRunning(pokemon.id)}
           confidence={detectorStatus[pokemon.id]?.confidence ?? 0}
           detectorState={detectorStatus[pokemon.id]?.state ?? "idle"}
         />

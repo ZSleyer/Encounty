@@ -84,8 +84,11 @@ export class DetectionLoop {
   private minPollMs = MIN_POLL_MS;
   private maxPollMs = MAX_POLL_MS;
   private hysteresisFactor = 0.7;
-  private cooldownSec = 0;
+  private cooldownSec = 5;
   private hysteresisEnteredAt = 0;
+  /** When true, score has dropped but we're waiting for the cooldown timer. */
+  private inCooldown = false;
+  private cooldownStartedAt = 0;
   private consecutiveCount = 0;
   private missCount = 0;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -147,6 +150,8 @@ export class DetectionLoop {
     this.smoothedScore = 0;
     this.inHysteresis = false;
     this.hysteresisEnteredAt = 0;
+    this.inCooldown = false;
+    this.cooldownStartedAt = 0;
     this.pollIntervalMs = this.config.pollIntervalMs ?? DEFAULT_POLL_MS;
     this.lastScoreCallbackTime = 0;
     this.lastCallbackState = "";
@@ -248,16 +253,33 @@ export class DetectionLoop {
    * high-score frames at typical polling rates.
    */
   private updateMatchState(adjusted: number, effectivePrecision: number): void {
+    // Phase 1: Hysteresis — wait for score to drop after a confirmed match
     if (this.inHysteresis) {
       const belowThreshold = adjusted < this.config.precision * this.hysteresisFactor;
-      const elapsed = Date.now() - this.hysteresisEnteredAt;
-      const cooldownElapsed = elapsed >= this.cooldownSec * 1000;
-      if (belowThreshold && cooldownElapsed) {
+      if (belowThreshold) {
+        // Score dropped — transition to cooldown phase
         this.inHysteresis = false;
+        this.inCooldown = true;
+        this.cooldownStartedAt = Date.now();
       }
       this.consecutiveCount = 0;
       this.missCount = 0;
-    } else if (adjusted >= effectivePrecision) {
+      return;
+    }
+
+    // Phase 2: Cooldown — wait for timer to elapse after hysteresis ended
+    if (this.inCooldown) {
+      const cooldownElapsed = Date.now() - this.cooldownStartedAt >= this.cooldownSec * 1000;
+      if (cooldownElapsed) {
+        this.inCooldown = false;
+      }
+      this.consecutiveCount = 0;
+      this.missCount = 0;
+      return;
+    }
+
+    // Phase 3: Normal detection — count consecutive matches
+    if (adjusted >= effectivePrecision) {
       this.consecutiveCount += 1;
       this.missCount = 0;
     } else if (this.consecutiveCount > 0 && this.missCount < 1) {
@@ -282,6 +304,8 @@ export class DetectionLoop {
 
     let state: string;
     if (this.inHysteresis) {
+      state = "match";
+    } else if (this.inCooldown) {
       state = "cooldown";
     } else if (adjusted >= this.config.precision) {
       state = "match";
@@ -297,8 +321,8 @@ export class DetectionLoop {
     this.lastCallbackState = state;
 
     let cooldownRemainingMs: number | undefined;
-    if (this.inHysteresis) {
-      const elapsed = Date.now() - this.hysteresisEnteredAt;
+    if (this.inCooldown) {
+      const elapsed = Date.now() - this.cooldownStartedAt;
       cooldownRemainingMs = Math.max(0, this.cooldownSec * 1000 - elapsed);
     }
 

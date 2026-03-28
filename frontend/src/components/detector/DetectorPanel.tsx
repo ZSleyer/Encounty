@@ -111,12 +111,12 @@ export function DetectorPanel({
     return {
       ...DEFAULT_CONFIG,
       ...saved,
-      precision: saved.precision || DEFAULT_CONFIG.precision,
-      consecutive_hits: saved.consecutive_hits || DEFAULT_CONFIG.consecutive_hits,
-      cooldown_sec: saved.cooldown_sec || DEFAULT_CONFIG.cooldown_sec,
-      poll_interval_ms: saved.poll_interval_ms || DEFAULT_CONFIG.poll_interval_ms,
-      min_poll_ms: saved.min_poll_ms || DEFAULT_CONFIG.min_poll_ms,
-      max_poll_ms: saved.max_poll_ms || DEFAULT_CONFIG.max_poll_ms,
+      precision: saved.precision ?? DEFAULT_CONFIG.precision,
+      consecutive_hits: saved.consecutive_hits ?? DEFAULT_CONFIG.consecutive_hits,
+      cooldown_sec: saved.cooldown_sec ?? DEFAULT_CONFIG.cooldown_sec,
+      poll_interval_ms: saved.poll_interval_ms ?? DEFAULT_CONFIG.poll_interval_ms,
+      min_poll_ms: saved.min_poll_ms ?? DEFAULT_CONFIG.min_poll_ms,
+      max_poll_ms: saved.max_poll_ms ?? DEFAULT_CONFIG.max_poll_ms,
     };
   });
   const templates = useMemo(
@@ -233,12 +233,12 @@ export function DetectorPanel({
     setCfg({
       ...DEFAULT_CONFIG,
       ...saved,
-      precision: saved.precision || DEFAULT_CONFIG.precision,
-      consecutive_hits: saved.consecutive_hits || DEFAULT_CONFIG.consecutive_hits,
-      cooldown_sec: saved.cooldown_sec || DEFAULT_CONFIG.cooldown_sec,
-      poll_interval_ms: saved.poll_interval_ms || DEFAULT_CONFIG.poll_interval_ms,
-      min_poll_ms: saved.min_poll_ms || DEFAULT_CONFIG.min_poll_ms,
-      max_poll_ms: saved.max_poll_ms || DEFAULT_CONFIG.max_poll_ms,
+      precision: saved.precision ?? DEFAULT_CONFIG.precision,
+      consecutive_hits: saved.consecutive_hits ?? DEFAULT_CONFIG.consecutive_hits,
+      cooldown_sec: saved.cooldown_sec ?? DEFAULT_CONFIG.cooldown_sec,
+      poll_interval_ms: saved.poll_interval_ms ?? DEFAULT_CONFIG.poll_interval_ms,
+      min_poll_ms: saved.min_poll_ms ?? DEFAULT_CONFIG.min_poll_ms,
+      max_poll_ms: saved.max_poll_ms ?? DEFAULT_CONFIG.max_poll_ms,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pokemon.id]);
@@ -252,12 +252,12 @@ export function DetectorPanel({
     if (!saved) return;
     setCfg(prev => ({
       ...prev,
-      precision: saved.precision || DEFAULT_CONFIG.precision,
-      consecutive_hits: saved.consecutive_hits || DEFAULT_CONFIG.consecutive_hits,
-      cooldown_sec: saved.cooldown_sec || DEFAULT_CONFIG.cooldown_sec,
-      poll_interval_ms: saved.poll_interval_ms || DEFAULT_CONFIG.poll_interval_ms,
-      min_poll_ms: saved.min_poll_ms || DEFAULT_CONFIG.min_poll_ms,
-      max_poll_ms: saved.max_poll_ms || DEFAULT_CONFIG.max_poll_ms,
+      precision: saved.precision ?? DEFAULT_CONFIG.precision,
+      consecutive_hits: saved.consecutive_hits ?? DEFAULT_CONFIG.consecutive_hits,
+      cooldown_sec: saved.cooldown_sec ?? DEFAULT_CONFIG.cooldown_sec,
+      poll_interval_ms: saved.poll_interval_ms ?? DEFAULT_CONFIG.poll_interval_ms,
+      min_poll_ms: saved.min_poll_ms ?? DEFAULT_CONFIG.min_poll_ms,
+      max_poll_ms: saved.max_poll_ms ?? DEFAULT_CONFIG.max_poll_ms,
     }));
   }, [pokemon.detector_config, settingsDirty]);
 
