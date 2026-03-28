@@ -118,319 +118,6 @@ function NewTemplateControls({
   );
 }
 
-// --- Region Overlay Item -----------------------------------------------------
-
-/** Renders a single region overlay label on top of the snapshot. */
-/** Hints displayed below the region list in snapshot phase. */
-function SnapshotHints({ hasTextRegion, regionsEmpty, ocrError, t }: Readonly<{
-  hasTextRegion: boolean;
-  regionsEmpty: boolean;
-  ocrError: string | null;
-  t: (key: string) => string;
-}>) {
-  return (
-    <div className="w-full max-w-4xl px-4 mb-2 flex flex-col items-center gap-1">
-      {regionsEmpty && (
-        <p className="text-xs 2xl:text-sm text-text-muted text-center">
-          {t("templateEditor.noRegions")}
-        </p>
-      )}
-      {hasTextRegion && (
-        <p className="text-xs 2xl:text-sm text-amber-400 text-center">
-          {t("templateEditor.ocrHint")}
-        </p>
-      )}
-      {ocrError && (
-        <p className="text-xs 2xl:text-sm text-red-400 text-center">
-          OCR error: {ocrError}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function RegionOverlayItem({ region, index, snapshotWidth, snapshotHeight }: Readonly<{
-  region: MatchedRegion;
-  index: number;
-  snapshotWidth: number;
-  snapshotHeight: number;
-}>) {
-  const isNeg = region.polarity === "negative";
-  const isText = region.type === "text";
-
-  const negBorder = "border-red-500 bg-red-500/20 border-dashed";
-  const posBorder = isText ? "border-purple-500 bg-purple-500/30" : "border-accent-blue bg-accent-blue/30";
-  const borderStyle = isNeg ? negBorder : posBorder;
-
-  const posLabelColor = isText ? "text-purple-400" : "text-accent-blue";
-  const labelColor = isNeg ? "text-red-400" : posLabelColor;
-
-  const posIcon = isText
-    ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-    : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />;
-  const regionIcon = isNeg
-    ? <ShieldBan className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-red-400" />
-    : posIcon;
-
-  return (
-    <div
-      className={`absolute border-[3px] pointer-events-none transition-colors ${borderStyle}`}
-      style={{
-        left: `${(region.rect.x / snapshotWidth) * 100}%`,
-        top: `${(region.rect.y / snapshotHeight) * 100}%`,
-        width: `${(region.rect.w / snapshotWidth) * 100}%`,
-        height: `${(region.rect.h / snapshotHeight) * 100}%`,
-      }}
-    >
-      <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
-        <strong className={labelColor}>#{index + 1}</strong>
-        {regionIcon}
-        {isNeg && <span className="text-red-400 font-bold">NOT</span>}
-        {!isNeg && region.type === "text" && region.expected_text ? (
-          <span className="opacity-80 ml-1 truncate max-w-15">"{region.expected_text}"</span>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-// --- Edit mode image loader --------------------------------------------------
-
-/** Loads an existing template image into the canvas when editing. */
-function useEditModeImage(
-  initialImageUrl: string | undefined,
-  canvasRef: React.RefObject<HTMLCanvasElement | null>,
-  initialRegions: MatchedRegion[] | undefined,
-  setSnapshotWidth: (w: number) => void,
-  setSnapshotHeight: (h: number) => void,
-  setPhase: (p: Phase) => void,
-  setRegions: (r: MatchedRegion[]) => void,
-) {
-  useEffect(() => {
-    if (!initialImageUrl || !canvasRef.current) return;
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      if (!canvasRef.current) return;
-      canvasRef.current.width = img.naturalWidth;
-      canvasRef.current.height = img.naturalHeight;
-      setSnapshotWidth(img.naturalWidth);
-      setSnapshotHeight(img.naturalHeight);
-      const ctx = canvasRef.current.getContext("2d");
-      ctx?.drawImage(img, 0, 0);
-      setPhase("snapshot");
-      if ((initialRegions?.length ?? 0) > 0) {
-        setRegions(initialRegions!);
-      }
-    };
-    img.src = initialImageUrl;
-  }, [initialImageUrl]); // eslint-disable-line react-hooks/exhaustive-deps -- only run once on mount
-}
-
-// --- Heading resolver --------------------------------------------------------
-
-/** Returns the heading and hint text for the current editor phase. */
-function resolveHeadingAndHint(
-  phase: Phase,
-  isEditMode: boolean,
-  t: (key: string) => string,
-): { heading: string; hint: string } {
-  if (isEditMode) return { heading: t("templateEditor.editTitle"), hint: t("templateEditor.editHint") };
-  if (phase === "video") return { heading: t("templateEditor.step1Title"), hint: t("templateEditor.step1Hint") };
-  if (phase === "replay") return { heading: t("templateEditor.replayTitle"), hint: t("templateEditor.replayHint") };
-  return { heading: t("templateEditor.step2Title"), hint: t("templateEditor.step2Hint") };
-}
-
-// --- Video frame capture helper ----------------------------------------------
-
-/** Grabs the current video frame onto the canvas, returns dimensions or null if unavailable. */
-function grabVideoFrame(video: HTMLVideoElement | null, canvas: HTMLCanvasElement | null): { w: number; h: number } | null {
-  if (!video || !canvas || video.videoWidth === 0 || video.videoHeight === 0) return null;
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext("2d");
-  if (ctx) ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-  return { w: video.videoWidth, h: video.videoHeight };
-}
-
-// --- Region helpers ----------------------------------------------------------
-
-/** Applies a partial update to a region, pre-filling text from pokemonName when switching to text type. */
-function applyRegionUpdate(
-  regions: MatchedRegion[],
-  index: number,
-  updates: Partial<MatchedRegion>,
-  pokemonName?: string,
-): MatchedRegion[] {
-  const newReg = [...regions];
-  const merged = { ...newReg[index], ...updates };
-  if (updates.type === "text" && !merged.expected_text && pokemonName) {
-    merged.expected_text = pokemonName;
-  }
-  newReg[index] = merged;
-  return newReg;
-}
-
-// --- Drawing helpers ---------------------------------------------------------
-
-/** Converts a drawn box (relative 0-1 coords) to a pixel-based MatchedRegion, or null if too small. */
-function boxToRegion(
-  box: { x: number; y: number; w: number; h: number } | null,
-  canvas: HTMLCanvasElement | null,
-): MatchedRegion | null {
-  if (!box || !canvas || box.w <= 0.01 || box.h <= 0.01) return null;
-  const pxW = Math.max(1, Math.floor(box.w * canvas.width));
-  const pxH = Math.max(1, Math.floor(box.h * canvas.height));
-  if (pxW <= 5 || pxH <= 5) return null;
-  return {
-    type: "image",
-    expected_text: "",
-    rect: {
-      x: Math.floor(box.x * canvas.width),
-      y: Math.floor(box.y * canvas.height),
-      w: pxW,
-      h: pxH,
-    },
-  };
-}
-
-// --- Pointer position helper -------------------------------------------------
-
-type ImageBounds = { offsetX: number; offsetY: number; renderedW: number; renderedH: number };
-
-/** Converts a mouse/touch event to relative 0-1 coordinates within the snapshot area. */
-function computeRelativePos(
-  e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>,
-  container: HTMLDivElement | null,
-  bounds: ImageBounds | null,
-): { x: number; y: number } {
-  if (!container) return { x: 0, y: 0 };
-  const rect = container.getBoundingClientRect();
-  const [clientX, clientY] = "touches" in e
-    ? [e.touches[0].clientX, e.touches[0].clientY]
-    : [e.clientX, e.clientY];
-
-  const refW = bounds?.renderedW && bounds.renderedH > 0 ? bounds.renderedW : rect.width;
-  const refH = bounds?.renderedW && bounds.renderedH > 0 ? bounds.renderedH : rect.height;
-  const offX = bounds?.renderedW && bounds.renderedH > 0 ? bounds.offsetX : 0;
-  const offY = bounds?.renderedW && bounds.renderedH > 0 ? bounds.offsetY : 0;
-
-  const x = Math.max(0, Math.min(1, (clientX - rect.left - offX) / refW));
-  const y = Math.max(0, Math.min(1, (clientY - rect.top - offY) / refH));
-  return { x, y };
-}
-
-// --- Stream Wiring Hook ------------------------------------------------------
-
-/** Wires the MediaStream to the video element when in video phase. */
-function useStreamWiring(phase: Phase, videoEl: HTMLVideoElement | null, stream: MediaStream | null | undefined) {
-  useEffect(() => {
-    if (phase === "video" && videoEl && videoEl.srcObject !== stream) {
-      videoEl.srcObject = stream ?? null;
-      videoEl.play().catch(() => {});
-    }
-  }, [stream, phase, videoEl]);
-}
-
-// --- Image Bounds Hook -------------------------------------------------------
-
-/** Tracks the rendered image area within an object-contain container, accounting for letterboxing. */
-function useImageBounds(
-  phase: Phase,
-  snapshotWidth: number,
-  snapshotHeight: number,
-  containerRef: React.RefObject<HTMLDivElement | null>,
-): ImageBounds | null {
-  const [bounds, setBounds] = useState<ImageBounds | null>(null);
-
-  const update = useCallback(() => {
-    if (!containerRef.current || snapshotWidth === 0 || snapshotHeight === 0) {
-      setBounds(null);
-      return;
-    }
-    const rect = containerRef.current.getBoundingClientRect();
-    const scale = Math.min(rect.width / snapshotWidth, rect.height / snapshotHeight);
-    const renderedW = snapshotWidth * scale;
-    const renderedH = snapshotHeight * scale;
-    setBounds({
-      offsetX: (rect.width - renderedW) / 2,
-      offsetY: (rect.height - renderedH) / 2,
-      renderedW,
-      renderedH,
-    });
-  }, [snapshotWidth, snapshotHeight, containerRef]);
-
-  useEffect(() => {
-    if ((phase !== "snapshot" && phase !== "replay") || snapshotWidth === 0 || snapshotHeight === 0) {
-      setBounds(null);
-      return;
-    }
-    update();
-    if (!containerRef.current) return;
-    const observer = new ResizeObserver(update);
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, [phase, snapshotWidth, snapshotHeight, update, containerRef]);
-
-  return bounds;
-}
-
-// --- Replay Frame Hook -------------------------------------------------------
-
-/** Renders the selected replay frame to the canvas, updating dimensions if they change. */
-function useReplayFrame(
-  phase: Phase,
-  selectedFrameIndex: number,
-  replayBuffer: { getFrame: (i: number) => ImageData | null },
-  canvasRef: React.RefObject<HTMLCanvasElement | null>,
-  setSnapshotWidth: (w: number) => void,
-  setSnapshotHeight: (h: number) => void,
-) {
-  useEffect(() => {
-    if (phase !== "replay") return;
-    const frame = replayBuffer.getFrame(selectedFrameIndex);
-    if (!frame || !canvasRef.current) return;
-
-    if (canvasRef.current.width !== frame.width) {
-      canvasRef.current.width = frame.width;
-      setSnapshotWidth(frame.width);
-    }
-    if (canvasRef.current.height !== frame.height) {
-      canvasRef.current.height = frame.height;
-      setSnapshotHeight(frame.height);
-    }
-
-    const ctx = canvasRef.current.getContext("2d");
-    if (ctx) ctx.putImageData(frame, 0, 0);
-  }, [phase, selectedFrameIndex, replayBuffer, canvasRef, setSnapshotWidth, setSnapshotHeight]);
-}
-
-// --- Replay Keyboard Hook ----------------------------------------------------
-
-/** Handles left/right arrow key navigation during replay phase. */
-function useReplayKeyboard(
-  phase: Phase,
-  frameCount: number,
-  setIndex: React.Dispatch<React.SetStateAction<number>>,
-) {
-  useEffect(() => {
-    if (phase !== "replay") return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        const step = e.shiftKey ? 5 : 1;
-        setIndex((prev) => Math.max(0, prev - step));
-      } else if (e.key === "ArrowRight") {
-        e.preventDefault();
-        const step = e.shiftKey ? 5 : 1;
-        setIndex((prev) => Math.min(frameCount - 1, prev + step));
-      }
-    };
-    globalThis.addEventListener("keydown", handleKeyDown);
-    return () => globalThis.removeEventListener("keydown", handleKeyDown);
-  }, [phase, frameCount, setIndex]);
-}
-
 // --- Main Component ----------------------------------------------------------
 
 /** Template editor for creating new templates or editing existing ones. */
@@ -473,36 +160,114 @@ export function TemplateEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { recognize, isRecognizing, ocrError } = useOCR({ backend: "onnx", lang: ocrLang });
+  const { recognize, isRecognizing, ocrError } = useOCR({ lang: ocrLang });
 
   // Track the actual rendered image area within the object-contain container.
-  const imageBounds = useImageBounds(phase, snapshotWidth, snapshotHeight, containerRef);
+  const [imageBounds, setImageBounds] = useState<{
+    offsetX: number; offsetY: number; renderedW: number; renderedH: number;
+  } | null>(null);
+
+  const updateImageBounds = useCallback(() => {
+    if (!containerRef.current || snapshotWidth === 0 || snapshotHeight === 0) {
+      setImageBounds(null);
+      return;
+    }
+    const rect = containerRef.current.getBoundingClientRect();
+    const scale = Math.min(rect.width / snapshotWidth, rect.height / snapshotHeight);
+    const renderedW = snapshotWidth * scale;
+    const renderedH = snapshotHeight * scale;
+    setImageBounds({
+      offsetX: (rect.width - renderedW) / 2,
+      offsetY: (rect.height - renderedH) / 2,
+      renderedW,
+      renderedH,
+    });
+  }, [snapshotWidth, snapshotHeight]);
+
+  useEffect(() => {
+    if ((phase !== "snapshot" && phase !== "replay") || snapshotWidth === 0 || snapshotHeight === 0) {
+      setImageBounds(null);
+      return;
+    }
+    updateImageBounds();
+    if (!containerRef.current) return;
+    const observer = new ResizeObserver(updateImageBounds);
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
+  }, [phase, snapshotWidth, snapshotHeight, updateImageBounds]);
 
   // In edit mode, load the existing template image into the canvas immediately.
-  useEditModeImage(initialImageUrl, canvasRef, initialRegions, setSnapshotWidth, setSnapshotHeight, setPhase, setRegions);
+  useEffect(() => {
+    if (!initialImageUrl || !canvasRef.current) return;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (!canvasRef.current) return;
+      canvasRef.current.width = img.naturalWidth;
+      canvasRef.current.height = img.naturalHeight;
+      setSnapshotWidth(img.naturalWidth);
+      setSnapshotHeight(img.naturalHeight);
+      const ctx = canvasRef.current.getContext("2d");
+      ctx?.drawImage(img, 0, 0);
+      setPhase("snapshot");
+      if ((initialRegions?.length ?? 0) > 0) {
+        setRegions(initialRegions!);
+      }
+    };
+    img.src = initialImageUrl;
+  }, [initialImageUrl]); // only run once on mount
 
   // Wire the stream to the video element when in "video" phase
-  useStreamWiring(phase, videoEl, stream);
+  useEffect(() => {
+    if (phase === "video" && videoEl && videoEl.srcObject !== stream) {
+      videoEl.srcObject = stream ?? null;
+      videoEl.play().catch(() => {});
+    }
+  }, [stream, phase, videoEl]);
 
   // Render selected replay frame to canvas
-  useReplayFrame(phase, selectedFrameIndex, replayBuffer, canvasRef, setSnapshotWidth, setSnapshotHeight);
+  useEffect(() => {
+    if (phase !== "replay") return;
+
+    const frame = replayBuffer.getFrame(selectedFrameIndex);
+    if (!frame || !canvasRef.current) return;
+
+    if (canvasRef.current.width !== frame.width) {
+      canvasRef.current.width = frame.width;
+      setSnapshotWidth(frame.width);
+    }
+    if (canvasRef.current.height !== frame.height) {
+      canvasRef.current.height = frame.height;
+      setSnapshotHeight(frame.height);
+    }
+
+    const ctx = canvasRef.current.getContext("2d");
+    if (ctx) {
+      ctx.putImageData(frame, 0, 0);
+    }
+  }, [phase, selectedFrameIndex, replayBuffer]);
 
   // Keyboard navigation in replay phase
-  useReplayKeyboard(phase, replayBuffer.frameCount, setSelectedFrameIndex);
+  useEffect(() => {
+    if (phase !== "replay") return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        setSelectedFrameIndex((prev) => Math.max(0, prev - step));
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const step = e.shiftKey ? 5 : 1;
+        setSelectedFrameIndex((prev) => Math.min(replayBuffer.frameCount - 1, prev + step));
+      }
+    };
+
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => globalThis.removeEventListener("keydown", handleKeyDown);
+  }, [phase, replayBuffer.frameCount]);
 
   // --- Snapshot and replay handlers ------------------------------------------
-
-  /** Fallback: capture the current video frame directly when no replay frames are buffered. */
-  const captureCurrentFrame = () => {
-    const frame = grabVideoFrame(videoEl, canvasRef.current);
-    if (!frame) return;
-    setSnapshotWidth(frame.w);
-    setSnapshotHeight(frame.h);
-    setPhase("snapshot");
-    setRegions([]);
-    setCurrentBox(null);
-    setErrorMsg(null);
-  };
 
   /** Stop the replay buffer and enter replay phase to browse captured frames. */
   const handleTakeSnapshot = () => {
@@ -511,7 +276,24 @@ export function TemplateEditor({
       setSelectedFrameIndex(replayBuffer.frameCount - 1);
       setPhase("replay");
     } else {
-      captureCurrentFrame();
+      // Fallback: no frames buffered, capture current video frame directly
+      if (!videoEl || !canvasRef.current) return;
+      const video = videoEl;
+      if (video.videoWidth === 0 || video.videoHeight === 0) return;
+
+      setSnapshotWidth(video.videoWidth);
+      setSnapshotHeight(video.videoHeight);
+
+      canvasRef.current.width = video.videoWidth;
+      canvasRef.current.height = video.videoHeight;
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+      }
+      setPhase("snapshot");
+      setRegions([]);
+      setCurrentBox(null);
+      setErrorMsg(null);
     }
   };
 
@@ -555,8 +337,34 @@ export function TemplateEditor({
 
   // --- Region drawing --------------------------------------------------------
 
-  const getRelativeMousePos = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) =>
-    computeRelativePos(e, containerRef.current, imageBounds);
+  const getRelativeMousePos = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return { x: 0, y: 0 };
+    const rect = containerRef.current.getBoundingClientRect();
+    let clientX, clientY;
+
+    if ("touches" in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    // Account for object-contain letterboxing
+    if (imageBounds?.renderedW && imageBounds.renderedH > 0) {
+      let x = (clientX - rect.left - imageBounds.offsetX) / imageBounds.renderedW;
+      let y = (clientY - rect.top - imageBounds.offsetY) / imageBounds.renderedH;
+      x = Math.max(0, Math.min(1, x));
+      y = Math.max(0, Math.min(1, y));
+      return { x, y };
+    }
+
+    let x = (clientX - rect.left) / rect.width;
+    let y = (clientY - rect.top) / rect.height;
+    x = Math.max(0, Math.min(1, x));
+    y = Math.max(0, Math.min(1, y));
+    return { x, y };
+  };
 
   const onPointerDown = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     if (phase !== "snapshot") return;
@@ -580,13 +388,36 @@ export function TemplateEditor({
   const onPointerUp = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    const region = boxToRegion(currentBox, canvasRef.current);
-    if (region) setRegions((prev) => [...prev, region]);
+
+    if (currentBox && currentBox.w > 0.01 && currentBox.h > 0.01 && canvasRef.current) {
+      const pxX = Math.floor(currentBox.x * canvasRef.current.width);
+      const pxY = Math.floor(currentBox.y * canvasRef.current.height);
+      const pxW = Math.max(1, Math.floor(currentBox.w * canvasRef.current.width));
+      const pxH = Math.max(1, Math.floor(currentBox.h * canvasRef.current.height));
+
+      if (pxW > 5 && pxH > 5) {
+        setRegions((prev) => [
+          ...prev,
+          {
+            type: "image",
+            expected_text: "",
+            rect: { x: pxX, y: pxY, w: pxW, h: pxH },
+          },
+        ]);
+      }
+    }
     setCurrentBox(null);
   };
 
   const updateRegion = (index: number, updates: Partial<MatchedRegion>) => {
-    setRegions((prev) => applyRegionUpdate(prev, index, updates, pokemonName));
+    const newReg = [...regions];
+    const merged = { ...newReg[index], ...updates };
+    // When switching to text type, pre-fill expected_text with the pokemon name
+    if (updates.type === "text" && !merged.expected_text && pokemonName) {
+      merged.expected_text = pokemonName;
+    }
+    newReg[index] = merged;
+    setRegions(newReg);
   };
 
   const deleteRegion = (index: number) => {
@@ -647,11 +478,24 @@ export function TemplateEditor({
   };
 
   const hasTextRegion = regions.some((r) => r.type === "text");
+  const isEditMode = !!initialImageUrl || !!onUpdateRegions;
 
   // --- Heading / hint for each phase -----------------------------------------
 
-  const isEditMode = !!initialImageUrl || !!onUpdateRegions;
-  const { heading, hint } = resolveHeadingAndHint(phase, isEditMode, t);
+  const getHeadingAndHint = (): { heading: string; hint: string } => {
+    if (isEditMode) {
+      return { heading: t("templateEditor.editTitle"), hint: t("templateEditor.editHint") };
+    }
+    if (phase === "video") {
+      return { heading: t("templateEditor.step1Title"), hint: t("templateEditor.step1Hint") };
+    }
+    if (phase === "replay") {
+      return { heading: t("templateEditor.replayTitle"), hint: t("templateEditor.replayHint") };
+    }
+    return { heading: t("templateEditor.step2Title"), hint: t("templateEditor.step2Hint") };
+  };
+
+  const { heading, hint } = getHeadingAndHint();
 
   // --- Render ----------------------------------------------------------------
 
@@ -730,15 +574,45 @@ export function TemplateEditor({
             }}
           >
             {/* Existing regions */}
-            {snapshotWidth > 0 && regions.map((r, i) => (
-              <RegionOverlayItem
-                key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
-                region={r}
-                index={i}
-                snapshotWidth={snapshotWidth}
-                snapshotHeight={snapshotHeight}
-              />
-            ))}
+            {snapshotWidth > 0 && regions.map((r, i) => {
+              const isNeg = r.polarity === "negative";
+              const isText = r.type === "text";
+
+              const negBorder = "border-red-500 bg-red-500/20 border-dashed";
+              const posBorder = isText ? "border-purple-500 bg-purple-500/30" : "border-accent-blue bg-accent-blue/30";
+              const borderStyle = isNeg ? negBorder : posBorder;
+
+              const posLabelColor = isText ? "text-purple-400" : "text-accent-blue";
+              const labelColor = isNeg ? "text-red-400" : posLabelColor;
+
+              const posIcon = isText
+                ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+                : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />;
+              const regionIcon = isNeg
+                ? <ShieldBan className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-red-400" />
+                : posIcon;
+              return (
+                <div
+                  key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
+                  className={`absolute border-[3px] pointer-events-none transition-colors ${borderStyle}`}
+                  style={{
+                    left: `${(r.rect.x / snapshotWidth) * 100}%`,
+                    top: `${(r.rect.y / snapshotHeight) * 100}%`,
+                    width: `${(r.rect.w / snapshotWidth) * 100}%`,
+                    height: `${(r.rect.h / snapshotHeight) * 100}%`,
+                  }}
+                >
+                  <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
+                    <strong className={labelColor}>#{i + 1}</strong>
+                    {regionIcon}
+                    {isNeg && <span className="text-red-400 font-bold">NOT</span>}
+                    {!isNeg && r.type === "text" && r.expected_text ? (
+                      <span className="opacity-80 ml-1 truncate max-w-15">"{r.expected_text}"</span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
 
             {/* Current drawing box */}
             {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
@@ -864,7 +738,23 @@ export function TemplateEditor({
 
       {/* Hints below region list */}
       {phase === "snapshot" && (
-        <SnapshotHints hasTextRegion={hasTextRegion} regionsEmpty={regions.length === 0} ocrError={ocrError} t={t} />
+        <div className="w-full max-w-4xl px-4 mb-2 flex flex-col items-center gap-1">
+          {regions.length === 0 && (
+            <p className="text-xs 2xl:text-sm text-text-muted text-center">
+              {t("templateEditor.noRegions")}
+            </p>
+          )}
+          {hasTextRegion && (
+            <p className="text-xs 2xl:text-sm text-amber-400 text-center">
+              {t("templateEditor.ocrHint")}
+            </p>
+          )}
+          {ocrError && (
+            <p className="text-xs 2xl:text-sm text-red-400 text-center">
+              OCR error: {ocrError}
+            </p>
+          )}
+        </div>
       )}
 
       {/* Flow Controls */}

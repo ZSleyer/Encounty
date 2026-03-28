@@ -9,7 +9,7 @@ export default defineConfig({
   base: "./",
   plugins: [react(), tailwindcss()],
   optimizeDeps: {
-    include: ["tesseract.js", "onnxruntime-web"],
+    include: ["tesseract.js"],
   },
   server: {
     port: 5173,

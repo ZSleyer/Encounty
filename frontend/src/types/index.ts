@@ -125,8 +125,11 @@ export interface DetectorConfig {
   poll_interval_ms: number;  // base interval (adaptive centre point)
   min_poll_ms: number;       // fastest adaptive interval (high activity)
   max_poll_ms: number;       // slowest adaptive interval (static screen)
+  adaptive_cooldown?: boolean;
+  adaptive_cooldown_min?: number;
+  adaptive_threshold?: boolean;        // auto-adjust precision based on region size (default: true)
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
-  ocr_backend?: "onnx" | "tesseract";  // OCR engine: ONNX (GPU) or tesseract (CPU fallback)
+  ocr_backend?: "tesseract";  // OCR engine (only tesseract supported)
 }
 
 /** DetectorCapabilities reports which capture backends the server supports. */
