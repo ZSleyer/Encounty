@@ -703,7 +703,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             </div>
           ) : (
             <div className="relative">
-              <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 transition-colors rounded-lg px-3 py-2">
                 <Search className="w-4 h-4 text-text-muted shrink-0" />
                 <input
                   ref={inputRef}
@@ -719,7 +719,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     setTimeout(() => setInputFocused(false), 200);
                   }}
                   placeholder={t("modal.searchPokemon")}
-                  className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none text-sm"
+                  className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none text-sm"
                 />
                 {isEdit && showSearch && (
                   <button
