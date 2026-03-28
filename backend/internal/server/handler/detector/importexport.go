@@ -6,6 +6,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"io"
@@ -80,7 +81,7 @@ func (h *handler) validateImportRequest(targetID string, body *importTemplatesRe
 
 	target := findPokemon(st, targetID)
 	if target == nil {
-		return nil, nil, http.StatusNotFound, fmt.Errorf(errPokemonNotFound)
+		return nil, nil, http.StatusNotFound, errors.New(errPokemonNotFound)
 	}
 	source := findPokemon(st, body.SourcePokemonID)
 	if source == nil || source.DetectorConfig == nil || len(source.DetectorConfig.Templates) == 0 {

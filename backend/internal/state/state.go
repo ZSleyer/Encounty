@@ -119,6 +119,21 @@ type DetectorConfig struct {
 	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 
+// DefaultDetectorConfig returns a DetectorConfig with sensible defaults
+// matching the database schema defaults and frontend expectations.
+func DefaultDetectorConfig() *DetectorConfig {
+	return &DetectorConfig{
+		Precision:           0.55,
+		ConsecutiveHits:     1,
+		CooldownSec:         5,
+		ChangeThreshold:     0.15,
+		PollIntervalMs:      200,
+		MinPollMs:           50,
+		MaxPollMs:           2000,
+		AdaptiveCooldownMin: 3,
+	}
+}
+
 // DetectionLogEntry records a single confirmed auto-detection match.
 type DetectionLogEntry struct {
 	// At is the UTC timestamp when the match was confirmed.

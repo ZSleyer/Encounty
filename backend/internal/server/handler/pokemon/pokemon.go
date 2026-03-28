@@ -174,6 +174,9 @@ func (h *handler) handleAddPokemon(w http.ResponseWriter, r *http.Request) {
 	}
 	p.ID = uuid.NewString()
 	p.CreatedAt = time.Now()
+	if p.DetectorConfig == nil {
+		p.DetectorConfig = state.DefaultDetectorConfig()
+	}
 	h.deps.StateAddPokemon(p)
 	h.deps.StateScheduleSave()
 	h.deps.BroadcastState()
