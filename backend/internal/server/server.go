@@ -31,6 +31,9 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+// headerContentType is the canonical HTTP header name for content type.
+const headerContentType = "Content-Type"
+
 // Server wires together the HTTP multiplexer, WebSocket hub, hotkey manager,
 // file-output writer, and state manager into a single runnable unit.
 type Server struct {
@@ -151,7 +154,7 @@ var indexHTML atomic.Value
 // <base href="/"> tag after <head>, and serves it with the correct content type.
 func (s *Server) serveIndexWithBase(w http.ResponseWriter, _ *http.Request) {
 	if cached, ok := indexHTML.Load().([]byte); ok && len(cached) > 0 {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set(headerContentType, "text/html; charset=utf-8")
 		_, _ = w.Write(cached)
 		return
 	}
@@ -169,7 +172,7 @@ func (s *Server) serveIndexWithBase(w http.ResponseWriter, _ *http.Request) {
 	data := []byte(patched)
 	indexHTML.Store(data)
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set(headerContentType, "text/html; charset=utf-8")
 	_, _ = w.Write(data)
 }
 

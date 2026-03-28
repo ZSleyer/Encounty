@@ -49,8 +49,7 @@ type handler struct {
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	h := &handler{deps: d}
 	mux.HandleFunc("/api/detector/screenshot", h.handleDetectorScreenshot)
-	mux.HandleFunc("/api/detector/capabilities", h.handleDetectorCapabilities)
-	mux.HandleFunc("/api/detector/", h.handleDetectorDispatch)
+mux.HandleFunc("/api/detector/", h.handleDetectorDispatch)
 }
 
 // --- Response / request types ------------------------------------------------
@@ -89,20 +88,6 @@ func (h *handler) handleDetectorScreenshot(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-// --- Capabilities ------------------------------------------------------------
-
-// handleDetectorCapabilities returns platform-specific capture capabilities.
-// GET /api/detector/capabilities
-//
-// @Summary      Get platform capture capabilities
-// @Tags         detector
-// @Produce      json
-// @Success      200 {object} detector.Capabilities
-// @Router       /detector/capabilities [get]
-func (h *handler) handleDetectorCapabilities(w http.ResponseWriter, _ *http.Request) {
-	httputil.WriteJSON(w, http.StatusOK, detector.GetCapabilities())
-}
-
 // --- Dispatch ----------------------------------------------------------------
 
 // handleDetectorDispatch parses the path and dispatches to the appropriate
@@ -111,7 +96,6 @@ func (h *handler) handleDetectorCapabilities(w http.ResponseWriter, _ *http.Requ
 //	/api/detector/{id}/config
 //	/api/detector/{id}/template/{n}
 //	/api/detector/{id}/template_upload
-//	/api/detector/{id}/sprite_template
 //	/api/detector/{id}/templates          (DELETE — clear all)
 //	/api/detector/{id}/detection_log      (DELETE — clear log)
 //	/api/detector/{id}/export_templates
@@ -141,8 +125,6 @@ func (h *handler) handleDetectorDispatch(w http.ResponseWriter, r *http.Request)
 		}
 	case "template_upload":
 		h.handleDetectorTemplateUpload(w, r, id)
-	case "sprite_template":
-		h.handleDetectorSpriteTemplate(w, r, id)
 	case "export_templates":
 		h.handleExportTemplates(w, r, id)
 	case "import_templates_file":

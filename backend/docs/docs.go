@@ -66,62 +66,6 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
-            "detector.CameraInfo": {
-                "properties": {
-                    "device_path": {
-                        "type": "string"
-                    },
-                    "driver": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "detector.Capabilities": {
-                "properties": {
-                    "display_server": {
-                        "type": "string"
-                    },
-                    "platform": {
-                        "type": "string"
-                    },
-                    "supports_camera": {
-                        "type": "boolean"
-                    },
-                    "supports_screen_capture": {
-                        "type": "boolean"
-                    },
-                    "supports_window_capture": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "detector.detectorRunResponse": {
-                "properties": {
-                    "ok": {
-                        "type": "boolean"
-                    },
-                    "running": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
-            "detector.detectorStatusEntry": {
-                "properties": {
-                    "pokemon_id": {
-                        "type": "string"
-                    },
-                    "running": {
-                        "type": "boolean"
-                    }
-                },
-                "type": "object"
-            },
             "detector.importResponse": {
                 "properties": {
                     "imported": {
@@ -134,6 +78,13 @@ const docTemplate = `{
                 "properties": {
                     "source_pokemon_id": {
                         "type": "string"
+                    },
+                    "template_indices": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     }
                 },
                 "type": "object"
@@ -156,17 +107,6 @@ const docTemplate = `{
                     },
                     "matched": {
                         "type": "boolean"
-                    },
-                    "poll_ms": {
-                        "type": "integer"
-                    }
-                },
-                "type": "object"
-            },
-            "detector.okResponse": {
-                "properties": {
-                    "ok": {
-                        "type": "boolean"
                     }
                 },
                 "type": "object"
@@ -174,6 +114,9 @@ const docTemplate = `{
             "detector.templateUploadRequest": {
                 "properties": {
                     "imageBase64": {
+                        "type": "string"
+                    },
+                    "name": {
                         "type": "string"
                     },
                     "regions": {
@@ -439,6 +382,9 @@ const docTemplate = `{
                     "style": {
                         "$ref": "#/components/schemas/state.TextStyle"
                     },
+                    "trigger_decrement": {
+                        "type": "string"
+                    },
                     "trigger_enter": {
                         "type": "string"
                     },
@@ -524,21 +470,6 @@ const docTemplate = `{
                     "region": {
                         "$ref": "#/components/schemas/state.DetectorRect"
                     },
-                    "relative_regions": {
-                        "type": "boolean"
-                    },
-                    "rematch_enabled": {
-                        "type": "boolean"
-                    },
-                    "rematch_threshold_offset": {
-                        "type": "number"
-                    },
-                    "rematch_window_sec": {
-                        "type": "integer"
-                    },
-                    "replay_buffer_sec": {
-                        "type": "integer"
-                    },
                     "source_type": {
                         "description": "\"screen_region\" | \"window\" | \"camera\"",
                         "type": "string"
@@ -582,6 +513,10 @@ const docTemplate = `{
                     },
                     "image_path": {
                         "description": "legacy filesystem path",
+                        "type": "string"
+                    },
+                    "name": {
+                        "description": "user-visible template name",
                         "type": "string"
                     },
                     "regions": {
@@ -692,6 +627,9 @@ const docTemplate = `{
                     },
                     "style": {
                         "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "trigger_decrement": {
+                        "type": "string"
                     },
                     "trigger_enter": {
                         "type": "string"
@@ -930,6 +868,9 @@ const docTemplate = `{
                     "show_glow": {
                         "type": "boolean"
                     },
+                    "trigger_decrement": {
+                        "type": "string"
+                    },
                     "trigger_enter": {
                         "type": "string"
                     },
@@ -1048,6 +989,9 @@ const docTemplate = `{
                     "style": {
                         "$ref": "#/components/schemas/state.TextStyle"
                     },
+                    "trigger_decrement": {
+                        "type": "string"
+                    },
                     "trigger_enter": {
                         "type": "string"
                     },
@@ -1101,7 +1045,13 @@ const docTemplate = `{
             },
             "system.readyStatusResponse": {
                 "properties": {
+                    "dev_mode": {
+                        "type": "boolean"
+                    },
                     "ready": {
+                        "type": "boolean"
+                    },
+                    "setup_pending": {
                         "type": "boolean"
                     }
                 },
@@ -1365,49 +1315,6 @@ const docTemplate = `{
                 ]
             }
         },
-        "/detector/cameras": {
-            "get": {
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "items": {
-                                        "$ref": "#/components/schemas/detector.CameraInfo"
-                                    },
-                                    "type": "array"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    }
-                },
-                "summary": "List available video capture devices",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
-        "/detector/capabilities": {
-            "get": {
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/detector.Capabilities"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    }
-                },
-                "summary": "Get platform capture capabilities",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
         "/detector/screenshot": {
             "get": {
                 "responses": {
@@ -1433,183 +1340,6 @@ const docTemplate = `{
                     }
                 },
                 "summary": "Capture primary monitor screenshot",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
-        "/detector/status": {
-            "get": {
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "items": {
-                                        "$ref": "#/components/schemas/detector.detectorStatusEntry"
-                                    },
-                                    "type": "array"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    }
-                },
-                "summary": "List running detector IDs",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
-        "/detector/windows": {
-            "get": {
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "items": {
-                                        "type": "object"
-                                    },
-                                    "type": "array"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    }
-                },
-                "summary": "List visible top-level windows",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
-        "/detector/{id}/browser/start": {
-            "post": {
-                "parameters": [
-                    {
-                        "description": "Pokemon ID",
-                        "in": "path",
-                        "name": "id",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/detector.okResponse"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Not Found"
-                    },
-                    "405": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "string"
-                                }
-                            }
-                        },
-                        "description": "Method Not Allowed"
-                    },
-                    "503": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Service Unavailable"
-                    }
-                },
-                "summary": "Start a browser-driven detector for a Pokemon",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
-        "/detector/{id}/browser/stop": {
-            "post": {
-                "parameters": [
-                    {
-                        "description": "Pokemon ID",
-                        "in": "path",
-                        "name": "id",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/detector.okResponse"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    },
-                    "405": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "string"
-                                }
-                            }
-                        },
-                        "description": "Method Not Allowed"
-                    },
-                    "503": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Service Unavailable"
-                    }
-                },
-                "summary": "Stop a browser-driven detector for a Pokemon",
                 "tags": [
                     "detector"
                 ]
@@ -1730,6 +1460,34 @@ const docTemplate = `{
                 "summary": "Get or set detector config for a Pokemon",
                 "tags": [
                     "detector"
+                ]
+            }
+        },
+        "/detector/{id}/detection_log": {
+            "delete": {
+                "description": "Removes all detection log entries for the given Pokemon.",
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Detection log cleared"
+                    },
+                    "405": {
+                        "description": "Method not allowed"
+                    }
+                },
+                "summary": "Clear detection log for a Pokemon",
+                "tags": [
+                    "Detector"
                 ]
             }
         },
@@ -1986,188 +1744,9 @@ const docTemplate = `{
                             }
                         },
                         "description": "Method Not Allowed"
-                    },
-                    "503": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Service Unavailable"
                     }
                 },
                 "summary": "Submit a WebGPU match score for a Pokemon",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
-        "/detector/{id}/sprite_template": {
-            "post": {
-                "parameters": [
-                    {
-                        "description": "Pokemon ID",
-                        "in": "path",
-                        "name": "id",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "type": "object"
-                            }
-                        },
-                        "text/plain": {
-                            "schema": {
-                                "title": "body",
-                                "type": "object"
-                            }
-                        }
-                    },
-                    "description": "Optional sprite URL override (sprite_url field)"
-                },
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/detector.templateUploadResponse"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Internal Server Error"
-                    }
-                },
-                "summary": "Create template from Pokemon sprite",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
-        "/detector/{id}/start": {
-            "post": {
-                "parameters": [
-                    {
-                        "description": "Pokemon ID",
-                        "in": "path",
-                        "name": "id",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/detector.detectorRunResponse"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Bad Request"
-                    },
-                    "404": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Not Found"
-                    },
-                    "500": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Internal Server Error"
-                    }
-                },
-                "summary": "Start detection for a Pokemon",
-                "tags": [
-                    "detector"
-                ]
-            }
-        },
-        "/detector/{id}/stop": {
-            "post": {
-                "parameters": [
-                    {
-                        "description": "Pokemon ID",
-                        "in": "path",
-                        "name": "id",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/detector.detectorRunResponse"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    }
-                },
-                "summary": "Stop detection for a Pokemon",
                 "tags": [
                     "detector"
                 ]
@@ -2427,6 +2006,34 @@ const docTemplate = `{
                 "summary": "Upload a new template image",
                 "tags": [
                     "detector"
+                ]
+            }
+        },
+        "/detector/{id}/templates": {
+            "delete": {
+                "description": "Removes all templates and their images for the given Pokemon.",
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Templates cleared"
+                    },
+                    "405": {
+                        "description": "Method not allowed"
+                    }
+                },
+                "summary": "Clear all templates for a Pokemon",
+                "tags": [
+                    "Detector"
                 ]
             }
         },
@@ -2776,16 +2383,6 @@ const docTemplate = `{
                             }
                         },
                         "description": "OK"
-                    },
-                    "500": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Internal Server Error"
                     }
                 },
                 "summary": "Get the Pokedex",
@@ -3758,6 +3355,9 @@ const docTemplate = `{
                         },
                         "description": "OK"
                     },
+                    "405": {
+                        "description": "Method Not Allowed"
+                    },
                     "500": {
                         "content": {
                             "application/json": {
@@ -3767,6 +3367,16 @@ const docTemplate = `{
                             }
                         },
                         "description": "Internal Server Error"
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Service Unavailable"
                     }
                 },
                 "summary": "Sync Pokedex from PokeAPI",

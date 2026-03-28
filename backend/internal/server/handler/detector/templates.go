@@ -327,129 +327,16 @@ func (h *handler) storeTemplateImage(pokemonID string, pngBytes []byte, sortOrde
 	return nil
 }
 
-// handleDetectorSpriteTemplate fetches the Pokemon's current sprite URL,
-// decodes it (handling animated GIFs by taking the first frame), saves it as
-// a PNG template, and appends it to the DetectorConfig.
-// POST /api/detector/{id}/sprite_template
-//
-// @Summary      Create template from Pokemon sprite
-// @Tags         detector
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "Pokemon ID"
-// @Param        body body object false "Optional sprite URL override (sprite_url field)"
-// @Success      200 {object} templateUploadResponse
-// @Failure      400 {object} httputil.ErrResp
-// @Failure      404 {object} httputil.ErrResp
-// @Failure      500 {object} httputil.ErrResp
-// @Router       /detector/{id}/sprite_template [post]
-func (h *handler) handleDetectorSpriteTemplate(w http.ResponseWriter, r *http.Request, id string) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	sm := h.deps.StateManager()
-	st := sm.GetState()
-	pokemon := findPokemon(st, id)
-	if pokemon == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
-	}
-
-	spriteURL := resolveSpriteURL(pokemon, r)
-	if spriteURL == "" {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "pokemon has no sprite_url"})
-		return
-	}
-
-	img, err := fetchSpriteImage(spriteURL)
-	if err != nil {
-		httputil.WriteJSON(w, http.StatusBadGateway, httputil.ErrResp{Error: err.Error()})
-		return
-	}
-
-	cfg := state.DetectorConfig{}
-	if pokemon.DetectorConfig != nil {
-		cfg = *pokemon.DetectorConfig
-	}
-
-	pngBytes, err := encodePNG(img)
-	if err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
-		return
-	}
-
-	// Ensure the detector_configs row exists in the DB before inserting the
-	// template image (FK constraint). Must use Save() synchronously.
-	sm.SetDetectorConfig(id, &cfg)
-	if err := sm.Save(); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
-		return
-	}
-
-	b := img.Bounds()
-	sortOrder := len(cfg.Templates)
-	t := true
-	tmpl := state.DetectorTemplate{
-		Name: fmt.Sprintf("Template %d", sortOrder+1),
-		Regions: []state.MatchedRegion{
-			{Type: "image", Rect: state.DetectorRect{X: 0, Y: 0, W: b.Dx(), H: b.Dy()}},
-		},
-		Enabled: &t,
-	}
-
-	if err := h.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
-		return
-	}
-
-	// Deactivate all existing templates so only the new one is active.
-	f := false
-	for i := range cfg.Templates {
-		cfg.Templates[i].Enabled = &f
-	}
-
-	cfg.Templates = append(cfg.Templates, tmpl)
-	sm.SetDetectorConfig(id, &cfg)
-	sm.ScheduleSave()
-	h.deps.BroadcastState()
-
-	httputil.WriteJSON(w, http.StatusOK, templateUploadResponse{Index: sortOrder, TemplateDBID: tmpl.TemplateDBID})
-}
-
-// resolveSpriteURL returns the sprite URL from the request body override
-// or falls back to the Pokemon's stored SpriteURL.
-func resolveSpriteURL(pokemon *state.Pokemon, r *http.Request) string {
-	spriteURL := pokemon.SpriteURL
-	if r.Body != nil {
-		var body struct {
-			SpriteURL string `json:"sprite_url"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err == nil && body.SpriteURL != "" {
-			spriteURL = body.SpriteURL
-		}
-	}
-	return spriteURL
-}
-
-// fetchSpriteImage downloads and decodes a sprite from the given URL.
-func fetchSpriteImage(spriteURL string) (image.Image, error) {
-	resp, err := http.Get(spriteURL) //nolint:noctx
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch sprite: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	img, _, err := image.Decode(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode sprite: %v", err)
-	}
-	return img, nil
-}
-
 // handleClearAllTemplates removes all templates for a Pokemon.
 // DELETE /api/detector/{id}/templates
+//
+// @Summary      Clear all templates for a Pokemon
+// @Description  Removes all templates and their images for the given Pokemon.
+// @Tags         Detector
+// @Param        id   path  string  true  "Pokemon ID"
+// @Success      204  "Templates cleared"
+// @Failure      405  "Method not allowed"
+// @Router       /detector/{id}/templates [delete]
 func (h *handler) handleClearAllTemplates(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -489,6 +376,14 @@ func (h *handler) handleClearAllTemplates(w http.ResponseWriter, r *http.Request
 
 // handleClearDetectionLog removes all detection log entries for a Pokemon.
 // DELETE /api/detector/{id}/detection_log
+//
+// @Summary      Clear detection log for a Pokemon
+// @Description  Removes all detection log entries for the given Pokemon.
+// @Tags         Detector
+// @Param        id   path  string  true  "Pokemon ID"
+// @Success      204  "Detection log cleared"
+// @Failure      405  "Method not allowed"
+// @Router       /detector/{id}/detection_log [delete]
 func (h *handler) handleClearDetectionLog(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)

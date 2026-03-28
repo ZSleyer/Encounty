@@ -212,30 +212,6 @@ func decodeJSON(t *testing.T, body io.Reader, v any) {
 	}
 }
 
-// --- Capabilities ------------------------------------------------------------
-
-func TestCapabilitiesReturnsJSON(t *testing.T) {
-	mux, _ := newTestMux(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/detector/capabilities", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(msgWant200, w.Code)
-	}
-
-	ct := w.Header().Get(hdrContentType)
-	if ct != "application/json" {
-		t.Errorf("Content-Type = %q, want application/json", ct)
-	}
-
-	var caps detector.Capabilities
-	decodeJSON(t, w.Body, &caps)
-	if caps.Platform == "" {
-		t.Error("platform should not be empty")
-	}
-}
 
 // --- Dispatch 404 paths ------------------------------------------------------
 

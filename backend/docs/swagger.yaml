@@ -37,42 +37,6 @@ components:
         total_pokemon:
           type: integer
       type: object
-    detector.CameraInfo:
-      properties:
-        device_path:
-          type: string
-        driver:
-          type: string
-        name:
-          type: string
-      type: object
-    detector.Capabilities:
-      properties:
-        display_server:
-          type: string
-        platform:
-          type: string
-        supports_camera:
-          type: boolean
-        supports_screen_capture:
-          type: boolean
-        supports_window_capture:
-          type: boolean
-      type: object
-    detector.detectorRunResponse:
-      properties:
-        ok:
-          type: boolean
-        running:
-          type: boolean
-      type: object
-    detector.detectorStatusEntry:
-      properties:
-        pokemon_id:
-          type: string
-        running:
-          type: boolean
-      type: object
     detector.importResponse:
       properties:
         imported:
@@ -82,6 +46,11 @@ components:
       properties:
         source_pokemon_id:
           type: string
+        template_indices:
+          items:
+            type: integer
+          type: array
+          uniqueItems: false
       type: object
     detector.matchSubmitRequest:
       properties:
@@ -96,17 +65,12 @@ components:
           type: number
         matched:
           type: boolean
-        poll_ms:
-          type: integer
-      type: object
-    detector.okResponse:
-      properties:
-        ok:
-          type: boolean
       type: object
     detector.templateUploadRequest:
       properties:
         imageBase64:
+          type: string
+        name:
           type: string
         regions:
           items:
@@ -279,6 +243,8 @@ components:
           type: boolean
         style:
           $ref: '#/components/schemas/state.TextStyle'
+        trigger_decrement:
+          type: string
         trigger_enter:
           type: string
         visible:
@@ -339,16 +305,6 @@ components:
           type: number
         region:
           $ref: '#/components/schemas/state.DetectorRect'
-        relative_regions:
-          type: boolean
-        rematch_enabled:
-          type: boolean
-        rematch_threshold_offset:
-          type: number
-        rematch_window_sec:
-          type: integer
-        replay_buffer_sec:
-          type: integer
         source_type:
           description: '"screen_region" | "window" | "camera"'
           type: string
@@ -379,6 +335,9 @@ components:
           type: boolean
         image_path:
           description: legacy filesystem path
+          type: string
+        name:
+          description: user-visible template name
           type: string
         regions:
           items:
@@ -459,6 +418,8 @@ components:
           type: string
         style:
           $ref: '#/components/schemas/state.TextStyle'
+        trigger_decrement:
+          type: string
         trigger_enter:
           type: string
         visible:
@@ -620,6 +581,8 @@ components:
           type: string
         show_glow:
           type: boolean
+        trigger_decrement:
+          type: string
         trigger_enter:
           type: string
         trigger_exit:
@@ -700,6 +663,8 @@ components:
           type: string
         style:
           $ref: '#/components/schemas/state.TextStyle'
+        trigger_decrement:
+          type: string
         trigger_enter:
           type: string
         visible:
@@ -734,7 +699,11 @@ components:
       type: object
     system.readyStatusResponse:
       properties:
+        dev_mode:
+          type: boolean
         ready:
+          type: boolean
+        setup_pending:
           type: boolean
       type: object
     system.statusResponse:
@@ -896,85 +865,6 @@ paths:
       summary: Download a backup ZIP
       tags:
       - system
-  /detector/{id}/browser/start:
-    post:
-      parameters:
-      - description: Pokemon ID
-        in: path
-        name: id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/detector.okResponse'
-          description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Bad Request
-        "404":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Not Found
-        "405":
-          content:
-            application/json:
-              schema:
-                type: string
-          description: Method Not Allowed
-        "503":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Service Unavailable
-      summary: Start a browser-driven detector for a Pokemon
-      tags:
-      - detector
-  /detector/{id}/browser/stop:
-    post:
-      parameters:
-      - description: Pokemon ID
-        in: path
-        name: id
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/detector.okResponse'
-          description: OK
-        "405":
-          content:
-            application/json:
-              schema:
-                type: string
-          description: Method Not Allowed
-        "503":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Service Unavailable
-      summary: Stop a browser-driven detector for a Pokemon
-      tags:
-      - detector
   /detector/{id}/config:
     get:
       parameters:
@@ -1046,6 +936,24 @@ paths:
       summary: Get or set detector config for a Pokemon
       tags:
       - detector
+  /detector/{id}/detection_log:
+    delete:
+      description: Removes all detection log entries for the given Pokemon.
+      parameters:
+      - description: Pokemon ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "204":
+          description: Detection log cleared
+        "405":
+          description: Method not allowed
+      summary: Clear detection log for a Pokemon
+      tags:
+      - Detector
   /detector/{id}/export_templates:
     get:
       parameters:
@@ -1200,116 +1108,7 @@ paths:
               schema:
                 type: string
           description: Method Not Allowed
-        "503":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Service Unavailable
       summary: Submit a WebGPU match score for a Pokemon
-      tags:
-      - detector
-  /detector/{id}/sprite_template:
-    post:
-      parameters:
-      - description: Pokemon ID
-        in: path
-        name: id
-        required: true
-        schema:
-          type: string
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-          text/plain:
-            schema:
-              title: body
-              type: object
-        description: Optional sprite URL override (sprite_url field)
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/detector.templateUploadResponse'
-          description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Bad Request
-        "404":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Not Found
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Internal Server Error
-      summary: Create template from Pokemon sprite
-      tags:
-      - detector
-  /detector/{id}/start:
-    post:
-      parameters:
-      - description: Pokemon ID
-        in: path
-        name: id
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/detector.detectorRunResponse'
-          description: OK
-        "400":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Bad Request
-        "404":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Not Found
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Internal Server Error
-      summary: Start detection for a Pokemon
-      tags:
-      - detector
-  /detector/{id}/stop:
-    post:
-      parameters:
-      - description: Pokemon ID
-        in: path
-        name: id
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/detector.detectorRunResponse'
-          description: OK
-      summary: Stop detection for a Pokemon
       tags:
       - detector
   /detector/{id}/template/{n}:
@@ -1469,32 +1268,24 @@ paths:
       summary: Upload a new template image
       tags:
       - detector
-  /detector/cameras:
-    get:
+  /detector/{id}/templates:
+    delete:
+      description: Removes all templates and their images for the given Pokemon.
+      parameters:
+      - description: Pokemon ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
       responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/detector.CameraInfo'
-                type: array
-          description: OK
-      summary: List available video capture devices
+        "204":
+          description: Templates cleared
+        "405":
+          description: Method not allowed
+      summary: Clear all templates for a Pokemon
       tags:
-      - detector
-  /detector/capabilities:
-    get:
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/detector.Capabilities'
-          description: OK
-      summary: Get platform capture capabilities
-      tags:
-      - detector
+      - Detector
   /detector/screenshot:
     get:
       responses:
@@ -1511,34 +1302,6 @@ paths:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
       summary: Capture primary monitor screenshot
-      tags:
-      - detector
-  /detector/status:
-    get:
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/detector.detectorStatusEntry'
-                type: array
-          description: OK
-      summary: List running detector IDs
-      tags:
-      - detector
-  /detector/windows:
-    get:
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                items:
-                  type: object
-                type: array
-          description: OK
-      summary: List visible top-level windows
       tags:
       - detector
   /games:
@@ -1754,12 +1517,6 @@ paths:
                   $ref: '#/components/schemas/pokedex.Entry'
                 type: array
           description: OK
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/httputil.ErrResp'
-          description: Internal Server Error
       summary: Get the Pokedex
       tags:
       - pokedex
@@ -2359,12 +2116,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/games.pokedexSyncResponse'
           description: OK
+        "405":
+          description: Method Not Allowed
         "500":
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Internal Server Error
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Service Unavailable
       summary: Sync Pokedex from PokeAPI
       tags:
       - pokedex

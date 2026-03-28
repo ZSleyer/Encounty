@@ -53,17 +53,38 @@ func (h *handler) handleImportTemplates(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	srcTemplates, targetCfg, status, err := h.validateImportRequest(targetID, &body)
+	if err != nil {
+		httputil.WriteJSON(w, status, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+
+	imported := h.copyTemplatesFromSource(targetID, srcTemplates, targetCfg)
+
+	activateFirstTemplate(targetCfg.Templates)
+
+	sm := h.deps.StateManager()
+	sm.SetDetectorConfig(targetID, targetCfg)
+	sm.ScheduleSave()
+	h.deps.BroadcastState()
+
+	httputil.WriteJSON(w, http.StatusOK, importResponse{Imported: imported})
+}
+
+// validateImportRequest validates the import request, resolves source and target
+// Pokemon, ensures the target config row exists, and returns the source templates
+// to import along with the target config. On failure it returns an HTTP status and error.
+func (h *handler) validateImportRequest(targetID string, body *importTemplatesRequest) ([]state.DetectorTemplate, *state.DetectorConfig, int, error) {
 	sm := h.deps.StateManager()
 	st := sm.GetState()
+
 	target := findPokemon(st, targetID)
 	if target == nil {
-		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
-		return
+		return nil, nil, http.StatusNotFound, fmt.Errorf(errPokemonNotFound)
 	}
 	source := findPokemon(st, body.SourcePokemonID)
 	if source == nil || source.DetectorConfig == nil || len(source.DetectorConfig.Templates) == 0 {
-		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "source has no templates"})
-		return
+		return nil, nil, http.StatusBadRequest, fmt.Errorf("source has no templates")
 	}
 
 	targetCfg := state.DetectorConfig{}
@@ -74,27 +95,35 @@ func (h *handler) handleImportTemplates(w http.ResponseWriter, r *http.Request, 
 	// Ensure the detector_configs row exists for the target (FK constraint)
 	sm.SetDetectorConfig(targetID, &targetCfg)
 	if err := sm.Save(); err != nil {
-		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
-		return
+		return nil, nil, http.StatusInternalServerError, err
 	}
 
+	srcTemplates := filterSourceTemplates(source.DetectorConfig.Templates, body.TemplateIndices)
+	return srcTemplates, &targetCfg, 0, nil
+}
+
+// filterSourceTemplates returns the subset of templates at the given indices,
+// or all templates if indices is empty.
+func filterSourceTemplates(all []state.DetectorTemplate, indices []int) []state.DetectorTemplate {
+	if len(indices) == 0 {
+		return all
+	}
+	filtered := make([]state.DetectorTemplate, 0, len(indices))
+	for _, idx := range indices {
+		if idx >= 0 && idx < len(all) {
+			filtered = append(filtered, all[idx])
+		}
+	}
+	return filtered
+}
+
+// copyTemplatesFromSource loads image data for each source template and stores
+// a copy in the target config. Returns the number of templates imported.
+func (h *handler) copyTemplatesFromSource(targetID string, srcTemplates []state.DetectorTemplate, targetCfg *state.DetectorConfig) int {
 	db := h.deps.DetectorDB()
 	imported := 0
 
-	// Build the set of templates to import (all or specific indices)
-	srcTemplates := source.DetectorConfig.Templates
-	if len(body.TemplateIndices) > 0 {
-		filtered := make([]state.DetectorTemplate, 0, len(body.TemplateIndices))
-		for _, idx := range body.TemplateIndices {
-			if idx >= 0 && idx < len(srcTemplates) {
-				filtered = append(filtered, srcTemplates[idx])
-			}
-		}
-		srcTemplates = filtered
-	}
-
 	for _, srcTmpl := range srcTemplates {
-		// Load image data from DB
 		if srcTmpl.TemplateDBID <= 0 || db == nil {
 			continue
 		}
@@ -121,15 +150,7 @@ func (h *handler) handleImportTemplates(w http.ResponseWriter, r *http.Request, 
 		targetCfg.Templates = append(targetCfg.Templates, newTmpl)
 		imported++
 	}
-
-	// Enforce single-active: activate the first imported template, deactivate all others.
-	activateFirstTemplate(targetCfg.Templates)
-
-	sm.SetDetectorConfig(targetID, &targetCfg)
-	sm.ScheduleSave()
-	h.deps.BroadcastState()
-
-	httputil.WriteJSON(w, http.StatusOK, importResponse{Imported: imported})
+	return imported
 }
 
 // handleExportTemplates streams a ZIP file of all templates for a Pokemon.
