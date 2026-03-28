@@ -1133,10 +1133,11 @@ function HeaderHuntButton({
 
 /** Collapsed sidebar sprite-only button for a single Pokemon. */
 function CollapsedSidebarItem({
-  pokemon, isViewed, imgError, onActivate, onImgError,
+  pokemon, isViewed, isDetecting, imgError, onActivate, onImgError,
 }: Readonly<{
   pokemon: Pokemon;
   isViewed: boolean;
+  isDetecting: boolean;
   imgError: Record<string, boolean>;
   onActivate: (id: string) => void;
   onImgError: (id: string) => void;
@@ -1145,7 +1146,7 @@ function CollapsedSidebarItem({
   return (
     <button
       onClick={() => onActivate(pokemon.id)}
-      className={`w-full p-1.5 flex items-center justify-center transition-colors ${
+      className={`relative w-full p-1.5 flex items-center justify-center transition-colors ${
         isViewed ? "bg-accent-blue/15" : "hover:bg-bg-hover"
       }`}
       title={`${pokemon.name} (${pokemon.encounters.toLocaleString()})`}
@@ -1156,6 +1157,9 @@ function CollapsedSidebarItem({
         className="pokemon-sprite w-7 h-7 object-contain"
         onError={() => onImgError(pokemon.id)}
       />
+      {isDetecting && (
+        <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+      )}
     </button>
   );
 }
@@ -2038,6 +2042,7 @@ export function Dashboard() {
                 key={p.id}
                 pokemon={p}
                 isViewed={p.id === effectiveViewedId}
+                isDetecting={!!detectorStatus[p.id] || isLoopRunning(p.id)}
                 imgError={imgError}
                 onActivate={handleActivate}
                 onImgError={(id) => setImgError((prev) => ({ ...prev, [id]: true }))}
