@@ -47,7 +47,7 @@ body:
     id: version
     attributes:
       label: Encounty Version
-      placeholder: e.g. 1.2.0
+      placeholder: e.g. v0.7.0
     validations:
       required: false
   - type: textarea
