@@ -51,7 +51,7 @@ interface DetectionLoopConfig {
 // --- Adaptive polling constants ----------------------------------------------
 
 /** Fastest polling interval in ms (when score is near threshold). */
-const MIN_POLL_MS = 150;
+const MIN_POLL_MS = 50;
 /** Slowest polling interval in ms (when scene is static). */
 const MAX_POLL_MS = 500;
 /** Default starting interval in ms. */

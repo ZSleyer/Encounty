@@ -72,7 +72,7 @@ export function DetectorPreview({
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center text-text-faint gap-2">
-          <Camera className="w-10 h-10 opacity-30" />
+          <Camera className="w-10 h-10 opacity-60" />
           <span className="text-xs">{t("detector.noStream")}</span>
         </div>
       )}

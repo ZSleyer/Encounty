@@ -39,8 +39,8 @@ const DEFAULT_CONFIG: DetectorConfig = {
   consecutive_hits: 1,
   cooldown_sec: 5,
   change_threshold: 0.15,
-  poll_interval_ms: 50,
-  min_poll_ms: 30,
+  poll_interval_ms: 100,
+  min_poll_ms: 50,
   max_poll_ms: 500,
 };
 
