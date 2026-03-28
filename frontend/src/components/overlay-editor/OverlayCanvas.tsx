@@ -330,9 +330,11 @@ export function OverlayCanvas({
     ? { ...activePokemon, encounters: fakeCount ?? activePokemon.encounters ?? 0 }
     : undefined;
 
+  const handCursor = isPanDragging ? "grabbing" : "grab";
+  const zoomCursor = altHeld ? "zoom-out" : "zoom-in";
   const canvasCursor =
-    effectiveTool === "hand" ? (isPanDragging ? "grabbing" : "grab") :
-    effectiveTool === "zoom" ? (altHeld ? "zoom-out" : "zoom-in") :
+    effectiveTool === "hand" ? handCursor :
+    effectiveTool === "zoom" ? zoomCursor :
     "default";
   const bgColorMap: Record<string, string | undefined> = { white: "#ffffff", black: "#000000" };
   const canvasBgColor = bgColorMap[canvasBg];

@@ -503,12 +503,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     [onUpdate, history],
   );
 
-  const updateField = <K extends keyof OverlaySettings>(
-    field: K,
-    value: OverlaySettings[K],
-  ) => {
-    update({ ...localSettings, [field]: value });
-  };
+
 
   const updateSelectedEl = useCallback(
     (patch: Partial<OverlayElementBase>) => {
@@ -823,17 +818,17 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     const onMove = (ev: MouseEvent) => {
       if (!dividerDragRef.current) return;
       const dy = ev.clientY - dividerDragRef.current.startY;
-      const newH = Math.max(100, Math.min(dividerDragRef.current.startHeight + dy, window.innerHeight - 200));
+      const newH = Math.max(100, Math.min(dividerDragRef.current.startHeight + dy, globalThis.innerHeight - 200));
       setPropertiesHeight(newH);
     };
     const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      globalThis.removeEventListener("mousemove", onMove);
+      globalThis.removeEventListener("mouseup", onUp);
       setPropertiesHeight(h => { try { localStorage.setItem("encounty_editor_split", String(h)); } catch {} return h; });
       dividerDragRef.current = null;
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    globalThis.addEventListener("mousemove", onMove);
+    globalThis.addEventListener("mouseup", onUp);
   }, [propertiesHeight]);
 
   return (
@@ -1063,18 +1058,18 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               </button>
               <button
                 type="button"
-                title={!localSettings.hidden ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                aria-label={!localSettings.hidden ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
+                title={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
+                aria-label={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
                 onClick={(e) => {
                   e.stopPropagation();
                   update({ ...localSettings, hidden: !localSettings.hidden });
                 }}
                 className="p-1 text-text-muted hover:text-text-primary transition-colors"
               >
-                {!localSettings.hidden ? (
-                  <Eye className="w-3 h-3" />
-                ) : (
+                {localSettings.hidden ? (
                   <EyeOff className="w-3 h-3" />
+                ) : (
+                  <Eye className="w-3 h-3" />
                 )}
               </button>
             </div>

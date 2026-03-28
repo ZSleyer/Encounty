@@ -239,7 +239,7 @@ export function getSpriteUrl(
 
 /** Convert a name to a Showdown sprite ID (lowercase, non-alphanumeric removed). */
 function toShowdownId(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "");
 }
 
 /**

@@ -66,7 +66,7 @@ export function VerticalToolbar({
   onTestDecrement,
   onTestReset,
   onShowTutorial,
-}: VerticalToolbarProps) {
+}: Readonly<VerticalToolbarProps>) {
   const { t } = useI18n();
 
   const iconClass = "w-5 h-5";
@@ -192,9 +192,9 @@ export function VerticalToolbar({
         title={t("tooltip.editor.previewIncrement")}
         aria-label={t("tooltip.editor.previewIncrement")}
         className={`p-1.5 rounded transition-colors ${
-          !activePokemon
-            ? "opacity-30 cursor-not-allowed text-accent-green"
-            : "text-accent-green hover:bg-bg-hover"
+          activePokemon
+            ? "text-accent-green hover:bg-bg-hover"
+            : "opacity-30 cursor-not-allowed text-accent-green"
         }`}
       >
         <Plus className={iconClass} />
@@ -205,9 +205,9 @@ export function VerticalToolbar({
         title={t("tooltip.editor.previewDecrement")}
         aria-label={t("tooltip.editor.previewDecrement")}
         className={`p-1.5 rounded transition-colors ${
-          !activePokemon || currentCount <= 0
-            ? "opacity-30 cursor-not-allowed text-accent-yellow"
-            : "text-accent-yellow hover:bg-bg-hover"
+          activePokemon && currentCount > 0
+            ? "text-accent-yellow hover:bg-bg-hover"
+            : "opacity-30 cursor-not-allowed text-accent-yellow"
         }`}
       >
         <Minus className={iconClass} />
@@ -218,9 +218,9 @@ export function VerticalToolbar({
         title={t("tooltip.editor.previewReset")}
         aria-label={t("tooltip.editor.previewReset")}
         className={`p-1.5 rounded transition-colors ${
-          !activePokemon
-            ? "opacity-30 cursor-not-allowed text-text-muted"
-            : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+          activePokemon
+            ? "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+            : "opacity-30 cursor-not-allowed text-text-muted"
         }`}
       >
         <RefreshCw className={iconClass} />
@@ -252,12 +252,11 @@ export function VerticalToolbar({
               <div
                 className="w-5 h-3 rounded-sm border border-border-subtle"
                 style={{
-                  background:
-                    bg === "transparent"
-                      ? "repeating-conic-gradient(#666 0% 25%, #999 0% 50%) 50% / 6px 6px"
-                      : bg === "black"
-                        ? "#1a1a1a"
-                        : "#e5e5e5",
+                  background: (() => {
+                    if (bg === "transparent") return "repeating-conic-gradient(#666 0% 25%, #999 0% 50%) 50% / 6px 6px";
+                    if (bg === "black") return "#1a1a1a";
+                    return "#e5e5e5";
+                  })(),
                 }}
               />
             </button>

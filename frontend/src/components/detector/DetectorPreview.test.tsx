@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render } from "../../test-utils";
-import { makePokemon } from "../../test-utils";
+import { render, makePokemon } from "../../test-utils";
 import { DetectorPreview, DetectorPreviewProps } from "./DetectorPreview";
 import { CaptureServiceProvider } from "../../contexts/CaptureServiceContext";
 import { DetectorConfig } from "../../types";

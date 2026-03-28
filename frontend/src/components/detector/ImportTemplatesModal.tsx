@@ -127,15 +127,15 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                     {isExpanded && templateCount > 0 && (
                       <div className="px-3 pb-3 pt-1 bg-bg-primary/50 border-t border-border-subtle">
                         <div className="grid grid-cols-3 gap-1.5">
-                          {p.detector_config!.templates!.map((tmpl, i) => (
+                          {p.detector_config?.templates?.map((tmpl, i) => (
                             <button
                               key={`preview-${p.id}-${i}`}
                               onClick={() => onImport(p.id, [i])}
                               className={`relative rounded overflow-hidden bg-black/40 aspect-video group cursor-pointer transition-all hover:ring-2 hover:ring-accent-blue ${
-                                tmpl.enabled !== false ? "ring-1 ring-accent-blue/50" : "opacity-70 hover:opacity-100"
+                                tmpl.enabled === false ? "opacity-70 hover:opacity-100" : "ring-1 ring-accent-blue/50"
                               }`}
-                              title={`${tmpl.name || `Template ${i + 1}`} importieren`}
-                              aria-label={`${tmpl.name || `Template ${i + 1}`} importieren`}
+                              title={`${tmpl.name || "Template " + (i + 1)} importieren`}
+                              aria-label={`${tmpl.name || "Template " + (i + 1)} importieren`}
                             >
                               <img
                                 src={apiUrl(`/api/detector/${p.id}/template/${i}`)}

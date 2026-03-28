@@ -12,6 +12,30 @@ interface TrimmedBoxSpriteProps {
 }
 
 /**
+ * Scans pixel data for the smallest bounding box that contains all non-transparent
+ * content (alpha > 10). Returns null when the image is fully transparent.
+ */
+function findContentBounds(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+): { top: number; left: number; bottom: number; right: number } | null {
+  let top = h, left = w, bottom = 0, right = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] > 10) {
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+  }
+  if (bottom <= top || right <= left) return null;
+  return { top, left, bottom, right };
+}
+
+/**
  * Renders a pokesprite box sprite with transparent padding trimmed away.
  * Loads the image into an off-screen canvas, detects the content bounding box,
  * then displays only the trimmed region — so all Pokemon appear consistently sized
@@ -42,20 +66,8 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
       ctx.clearRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0);
 
-      const data = ctx.getImageData(0, 0, w, h).data;
-      let top = h, left = w, bottom = 0, right = 0;
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          if (data[(y * w + x) * 4 + 3] > 10) {
-            if (y < top) top = y;
-            if (y > bottom) bottom = y;
-            if (x < left) left = x;
-            if (x > right) right = x;
-          }
-        }
-      }
-
-      if (bottom <= top || right <= left) {
+      const bounds = findContentBounds(ctx.getImageData(0, 0, w, h).data, w, h);
+      if (!bounds) {
         // Fully transparent — show fallback
         setFailed(true);
         return;
@@ -63,10 +75,10 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
 
       // Add 1px padding around content
       const pad = 1;
-      const cx = Math.max(0, left - pad);
-      const cy = Math.max(0, top - pad);
-      const cw = Math.min(w, right + 1 + pad) - cx;
-      const ch = Math.min(h, bottom + 1 + pad) - cy;
+      const cx = Math.max(0, bounds.left - pad);
+      const cy = Math.max(0, bounds.top - pad);
+      const cw = Math.min(w, bounds.right + 1 + pad) - cx;
+      const ch = Math.min(h, bounds.bottom + 1 + pad) - cy;
 
       canvas.width = cw;
       canvas.height = ch;

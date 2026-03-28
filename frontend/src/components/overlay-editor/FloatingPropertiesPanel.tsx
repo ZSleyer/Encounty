@@ -178,7 +178,7 @@ function CanvasTab({
   onBgUpload,
   onBgRemove,
   t,
-}: {
+}: Readonly<{
   localSettings: OverlaySettings;
   updateField: <K extends keyof OverlaySettings>(field: K, value: OverlaySettings[K]) => void;
   openColorPicker: (color: string, onPick: (c: string) => void, opts?: { opacity?: number; showOpacity?: boolean }) => void;
@@ -187,7 +187,7 @@ function CanvasTab({
   onBgUpload: () => void;
   onBgRemove: () => void;
   t: (key: string) => string;
-}) {
+}>) {
   return (
     <div className="p-3 space-y-2">
       {/* Canvas size */}

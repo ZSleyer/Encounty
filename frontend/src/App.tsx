@@ -389,7 +389,7 @@ function AppShell() {
 
   return (
     <div className="flex flex-col h-screen bg-transparent text-text-primary overflow-hidden relative">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-accent-blue focus:text-white focus:rounded-lg focus:text-sm">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:px-4 focus:py-2 focus:bg-accent-blue focus:text-white focus:rounded-lg focus:text-sm">
         {t("aria.skipToContent")}
       </a>
       {/* Close-tab warning modal */}

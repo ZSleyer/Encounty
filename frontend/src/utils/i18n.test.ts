@@ -4,11 +4,11 @@ import en from "../locales/en.json";
 import fr from "../locales/fr.json";
 import es from "../locales/es.json";
 import ja from "../locales/ja.json";
-import { LOCALES, type Locale } from "./i18n";
+import { LOCALES } from "./i18n";
 
 const allTranslations: Record<string, Record<string, string>> = { de, en, fr, es, ja };
 const referenceLocale = "de";
-const referenceKeys = Object.keys(allTranslations[referenceLocale]).sort();
+const referenceKeys = [...Object.keys(allTranslations[referenceLocale])].sort((a, b) => a.localeCompare(b));
 
 describe("i18n", () => {
   // --- Translation completeness ---
@@ -58,7 +58,7 @@ describe("i18n", () => {
     it("matches the number of translation files", () => {
       const localeCodes = LOCALES.map((l) => l.code);
       const translationCodes = Object.keys(allTranslations);
-      expect(localeCodes.sort()).toEqual(translationCodes.sort());
+      expect([...localeCodes].sort((a, b) => a.localeCompare(b))).toEqual([...translationCodes].sort((a, b) => a.localeCompare(b)));
     });
   });
 });

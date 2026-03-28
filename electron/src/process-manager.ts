@@ -156,8 +156,8 @@ export class GoProcessManager extends EventEmitter {
   readStalePid(): number | null {
     try {
       if (!fs.existsSync(this.pidFilePath)) return null;
-      const pid = parseInt(fs.readFileSync(this.pidFilePath, 'utf8').trim(), 10);
-      if (isNaN(pid)) return null;
+      const pid = Number.parseInt(fs.readFileSync(this.pidFilePath, 'utf8').trim(), 10);
+      if (Number.isNaN(pid)) return null;
       // Signal 0 checks if the process exists without sending a real signal
       try { process.kill(pid, 0); return pid; } catch { return null; }
     } catch { return null; }
@@ -179,12 +179,12 @@ export class GoProcessManager extends EventEmitter {
     try {
       if (process.platform === 'win32') {
         const output = execSync(`netstat -ano | findstr :${port} | findstr LISTENING`, { encoding: 'utf8', timeout: 3000 });
-        const match = output.trim().split('\n')[0]?.match(/\s+(\d+)\s*$/);
-        return match ? parseInt(match[1], 10) : null;
+        const match = /\s+(\d+)\s*$/.exec(output.trim().split('\n')[0] ?? "");
+        return match ? Number.parseInt(match[1], 10) : null;
       } else {
         const output = execSync(`fuser ${port}/tcp 2>/dev/null`, { encoding: 'utf8', timeout: 3000 });
-        const pid = parseInt(output.trim(), 10);
-        return isNaN(pid) ? null : pid;
+        const pid = Number.parseInt(output.trim(), 10);
+        return Number.isNaN(pid) ? null : pid;
       }
     } catch {
       return null;

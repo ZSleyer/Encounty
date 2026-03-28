@@ -8,7 +8,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { LOCALES, MACHINE_TRANSLATED_LOCALES, type Locale } from "../locales";
+import { MACHINE_TRANSLATED_LOCALES, type Locale } from "../locales";
 
 interface I18nContextValue {
   locale: Locale;
@@ -58,4 +58,4 @@ export function useI18n() {
 }
 
 // Re-export for backward compatibility
-export { LOCALES, type Locale };
+export { LOCALES, type Locale } from "../locales";

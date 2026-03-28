@@ -58,11 +58,11 @@ export function useDraggableWindow(
 
     const clampedX = Math.max(
       0,
-      Math.min(drag.origX + dx, window.innerWidth - 200)
+      Math.min(drag.origX + dx, globalThis.innerWidth - 200)
     );
     const clampedY = Math.max(
       0,
-      Math.min(drag.origY + dy, window.innerHeight - 100)
+      Math.min(drag.origY + dy, globalThis.innerHeight - 100)
     );
 
     setPosition({ x: clampedX, y: clampedY });
@@ -70,8 +70,8 @@ export function useDraggableWindow(
 
   const handleMouseUp = useCallback(() => {
     dragRef.current = null;
-    window.removeEventListener("mousemove", handleMouseMove);
-    window.removeEventListener("mouseup", handleMouseUp);
+    globalThis.removeEventListener("mousemove", handleMouseMove);
+    globalThis.removeEventListener("mouseup", handleMouseUp);
 
     // Persist final position
     setPosition((pos) => {
@@ -93,8 +93,8 @@ export function useDraggableWindow(
         origY: position.y,
       };
 
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
+      globalThis.addEventListener("mousemove", handleMouseMove);
+      globalThis.addEventListener("mouseup", handleMouseUp);
     },
     [position, handleMouseMove, handleMouseUp]
   );
@@ -102,8 +102,8 @@ export function useDraggableWindow(
   // Clean up global listeners on unmount
   useEffect(() => {
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      globalThis.removeEventListener("mousemove", handleMouseMove);
+      globalThis.removeEventListener("mouseup", handleMouseUp);
     };
   }, [handleMouseMove, handleMouseUp]);
 

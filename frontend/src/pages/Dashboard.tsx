@@ -632,7 +632,11 @@ export function Dashboard() {
       } else if (e.key === " " && focusedIdx !== null && displayList[focusedIdx]) {
         e.preventDefault();
         const id = displayList[focusedIdx].id;
-        setSelectedIds(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+        setSelectedIds(prev => {
+          const n = new Set(prev);
+          if (n.has(id)) { n.delete(id); } else { n.add(id); }
+          return n;
+        });
       } else if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         setSelectedIds(new Set(displayList.map(p => p.id)));
