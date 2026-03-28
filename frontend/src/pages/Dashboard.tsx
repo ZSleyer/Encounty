@@ -41,6 +41,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Tally5,
+  AlertTriangle,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
@@ -1521,7 +1522,18 @@ export function Dashboard() {
   const asideRef = useRef<HTMLElement>(null);
 
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
-  const [rightPanelTab, setRightPanelTab] = useState<"counter" | "detector" | "overlay" | "statistics">("counter");
+  const [rightPanelTab, setRightPanelTabRaw] = useState<"counter" | "detector" | "overlay" | "statistics">("counter");
+  const [pendingTab, setPendingTab] = useState<"counter" | "detector" | "overlay" | "statistics" | null>(null);
+
+  /** Guarded tab switch — shows confirmation when overlay has unsaved changes. */
+  const setRightPanelTab = (tab: "counter" | "detector" | "overlay" | "statistics") => {
+    if (tab === rightPanelTab) return;
+    if (overlayDirty && rightPanelTab === "overlay") {
+      setPendingTab(tab);
+      return;
+    }
+    setRightPanelTabRaw(tab);
+  };
 
   const [setEncounterPokemon, setSetEncounterPokemon] = useState<Pokemon | null>(null);
 
@@ -2217,6 +2229,45 @@ export function Dashboard() {
           }}
           onClose={() => setSetEncounterPokemon(null)}
         />
+      )}
+
+      {/* Unsaved overlay changes — tab switch confirmation */}
+      {pendingTab && (
+        <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+            <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-amber-500" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="text-lg font-semibold text-text-primary">
+                {t("overlay.unsavedTitle")}
+              </p>
+              <p className="text-sm text-text-muted">
+                {t("overlay.unsavedDesc")}
+              </p>
+            </div>
+            <div className="flex gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setPendingTab(null)}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+              >
+                {t("overlay.unsavedStay")}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOverlayDirty(false);
+                  setRightPanelTabRaw(pendingTab);
+                  setPendingTab(null);
+                }}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-red hover:bg-red-500 text-white text-sm font-semibold transition-colors"
+              >
+                {t("overlay.unsavedDiscard")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
