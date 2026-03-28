@@ -424,9 +424,7 @@ export function DetectorPanel({
         }, 200);
       }
     } catch (err) {
-      const msg = err instanceof TypeError
-        ? t("detector.errNetworkFailed")
-        : err instanceof Error ? err.message : t("detector.errSaveFailed");
+      const msg = err instanceof TypeError ? t("detector.errNetworkFailed") : (err instanceof Error ? err.message : t("detector.errSaveFailed"));
       pushToast({ type: "error", title: msg });
     }
   };
@@ -480,6 +478,34 @@ export function DetectorPanel({
 
   // --- Start / Stop ----------------------------------------------------------
 
+  const handleStart = async () => {
+    if (isStarting) return;
+    // Gate: source must be connected before starting detection.
+    if (!isCapturing) {
+      setErrorMsg(t("detector.errNoStream"));
+      return;
+    }
+    if (templates.length === 0) { setErrorMsg(t("detector.errNoTemplates")); return; }
+
+    setIsStarting(true);
+    setErrorMsg(null);
+    try {
+      // Save config first and wait for it to persist
+      await onConfigChange({ ...cfg, templates });
+      const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/start`), { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setErrorMsg(body.error ?? t("detector.errStartFailed"));
+        return;
+      }
+
+      // --- Start browser-side detection loop --------------------------------
+      await startDetectionLoop();
+      setErrorMsg(null);
+    } catch { setErrorMsg(t("detector.errStartFailed")); }
+    finally { setIsStarting(false); }
+  };
+
   /** Create and start the browser-side DetectionLoop for this pokemon. */
   const startDetectionLoop = async () => {
     loopRef.current = null;
@@ -504,7 +530,12 @@ export function DetectorPanel({
     loopRef.current = loop;
   };
 
-
+  const handleStop = async () => {
+    stopDetectionForPokemon(pokemon.id);
+    loopRef.current = null;
+    clearDetectorStatus(pokemon.id);
+    setCooldownRemaining(null);
+  };
 
   // --- Settings handlers -----------------------------------------------------
 
@@ -589,7 +620,7 @@ export function DetectorPanel({
     const onMove = (ev: MouseEvent) => {
       if (!detectorDividerRef.current) return;
       const dy = ev.clientY - detectorDividerRef.current.startY;
-      const newH = Math.max(80, Math.min(detectorDividerRef.current.startHeight + dy, globalThis.innerHeight - 250));
+      const newH = Math.max(80, Math.min(detectorDividerRef.current.startHeight + dy, window.innerHeight - 250));
       setTemplatesHeight(newH);
     };
     const onUp = () => {
@@ -671,7 +702,7 @@ export function DetectorPanel({
                 detectorBackend === "gpu" ? "bg-green-500/20 text-green-400" : "text-text-faint"
               }`}>GPU</span>
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
-                detectorBackend === "gpu" ? "text-text-faint" : "bg-yellow-500/20 text-yellow-400"
+                detectorBackend !== "gpu" ? "bg-yellow-500/20 text-yellow-400" : "text-text-faint"
               }`}>CPU</span>
             </button>
           )}

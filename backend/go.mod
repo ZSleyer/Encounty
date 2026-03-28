@@ -7,9 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/swaggo/swag/v2 v2.0.0-rc5
-	github.com/vladimirvivien/go4vl v0.3.0
 	golang.org/x/image v0.36.0
-	golang.org/x/sys v0.42.0
 	modernc.org/sqlite v1.47.0
 )
 
@@ -30,6 +28,7 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/sv-tools/openapi v0.4.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/tools v0.42.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.70.0 // indirect
