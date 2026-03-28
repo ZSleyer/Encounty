@@ -189,22 +189,24 @@ async function startApp(): Promise<void> {
       }
 
       // Wait for backend to be ready
+      const proc = goProcess;
+      if (!proc) throw new Error('Go process not initialized');
       await new Promise<void>((resolve, reject) => {
-        goProcess!.on('ready', () => {
+        proc.on('ready', () => {
           console.log('[Electron] Go backend ready');
           resolve();
         });
 
-        goProcess!.on('error', (err) => {
+        proc.on('error', (err) => {
           console.error('[Electron] Go backend error:', err);
           reject(err);
         });
 
-        goProcess!.on('max-restarts-reached', () => {
+        proc.on('max-restarts-reached', () => {
           reject(new Error('Go backend failed to start after multiple attempts'));
         });
 
-        goProcess!.start();
+        proc.start();
       });
     }
 
