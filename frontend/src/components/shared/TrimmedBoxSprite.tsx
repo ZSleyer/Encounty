@@ -21,6 +21,11 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [failed, setFailed] = useState(false);
 
+  // Reset failed state when the Pokemon changes so the canvas renders again
+  useEffect(() => {
+    setFailed(false);
+  }, [canonicalName, spriteType]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
