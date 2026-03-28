@@ -332,7 +332,7 @@ function resolveDetectorDot(
 function tryStartDetection(
   pokemon: Pokemon,
   capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null },
-  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number }) => void,
+  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number; cooldown_remaining_ms?: number }) => void,
 ): void {
   const cfg = pokemon.detector_config;
   if (!cfg) return;
@@ -341,7 +341,7 @@ function tryStartDetection(
     templates: cfg.templates || [],
     config: cfg,
     getVideoElement: () => capture.getVideoElement(pokemon.id),
-    onScore: (score, state) => setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 }),
+    onScore: (score, state, cooldownMs) => setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100, cooldown_remaining_ms: cooldownMs }),
   });
 }
 
@@ -870,7 +870,7 @@ function SidebarQuickActions({
   const hasRunningTimer = sel.some(p => !!p.timer_started_at);
   const withDetector = sel.filter(p => hasDetectorReady(p));
   const hasDetector = withDetector.length > 0;
-  const hasRunningDetector = sel.some(p => !!detectorStatus[p.id]);
+  const hasRunningDetector = sel.some(p => !!detectorStatus[p.id] || isLoopRunning(p.id));
   const anyRunning = hasRunningTimer || hasRunningDetector;
   const canStart = sel.length > 0;
 
@@ -888,10 +888,8 @@ function SidebarQuickActions({
   const stopAll = () => {
     for (const p of sel) {
       if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id });
-      if (detectorStatus[p.id]) {
-        stopDetectionForPokemon(p.id);
-        clearDetectorStatus(p.id);
-      }
+      stopDetectionForPokemon(p.id);
+      clearDetectorStatus(p.id);
     }
   };
   const setHuntMode = (mode: HuntMode) => {
@@ -1057,7 +1055,7 @@ function HeaderHuntButton({
 }>) {
   const { t } = useI18n();
   const timerRunning = !!pokemon.timer_started_at;
-  const detRunning = !!detectorStatus[pokemon.id];
+  const detRunning = !!detectorStatus[pokemon.id] || isLoopRunning(pokemon.id);
   const detReady = hasDetectorReady(pokemon);
   const huntMode = pokemon.hunt_mode || "both";
   const anyRunning = timerRunning || detRunning;
@@ -1069,10 +1067,9 @@ function HeaderHuntButton({
   const handleToggle = () => {
     if (anyRunning) {
       if (timerRunning) send("timer_stop", { pokemon_id: pokemon.id });
-      if (detRunning) {
-        stopDetectionForPokemon(pokemon.id);
-        clearDetectorStatus(pokemon.id);
-      }
+      // Always stop loop + clear status when stopping a hunt
+      stopDetectionForPokemon(pokemon.id);
+      clearDetectorStatus(pokemon.id);
     } else {
       if (huntMode !== "detector" && !pokemon.timer_started_at) send("timer_start", { pokemon_id: pokemon.id });
       if (canStartDetector(pokemon, detectorStatus, capture)) {

@@ -39,9 +39,9 @@ const DEFAULT_CONFIG: DetectorConfig = {
   consecutive_hits: 1,
   cooldown_sec: 5,
   change_threshold: 0.15,
-  poll_interval_ms: 100,
+  poll_interval_ms: 200,
   min_poll_ms: 50,
-  max_poll_ms: 500,
+  max_poll_ms: 2000,
 };
 
 // --- Props -------------------------------------------------------------------
@@ -98,9 +98,8 @@ export function DetectorPanel({
 }: DetectorPanelProps) {
   const { t } = useI18n();
   const { push: pushToast } = useToast();
-  const { appState, setDetectorStatus, clearDetectorStatus } = useCounterStore();
-
-  const [cooldownRemaining, setCooldownRemaining] = useState<number | null>(null);
+  const { appState, setDetectorStatus, clearDetectorStatus, detectorStatus: detStatus } = useCounterStore();
+  const cooldownRemaining = detStatus[pokemon.id]?.cooldown_remaining_ms ?? null;
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [isStarting] = useState(false);
@@ -292,8 +291,7 @@ export function DetectorPanel({
     const existing = getActiveLoop(pokemon.id);
     if (existing) {
       existing.onScore((score, state, cooldownMs) => {
-        setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 });
-        setCooldownRemaining(cooldownMs != null && cooldownMs > 0 ? cooldownMs : null);
+        setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100, cooldown_remaining_ms: cooldownMs });
       });
       loopRef.current = existing;
     }

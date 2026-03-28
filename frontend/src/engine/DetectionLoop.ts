@@ -53,9 +53,9 @@ interface DetectionLoopConfig {
 /** Fastest polling interval in ms (when score is near threshold). */
 const MIN_POLL_MS = 50;
 /** Slowest polling interval in ms (when scene is static). */
-const MAX_POLL_MS = 500;
+const MAX_POLL_MS = 2000;
 /** Default starting interval in ms. */
-const DEFAULT_POLL_MS = 100;
+const DEFAULT_POLL_MS = 200;
 
 // --- EMA smoothing constant --------------------------------------------------
 
@@ -105,8 +105,8 @@ export class DetectionLoop {
   /** Optional callback for live score reporting. */
   private scoreCallback: ((score: number, state: string, cooldownRemainingMs?: number) => void) | null = null;
 
-  // --- Throttle state for scoreCallback (UI store updates) -----------------
-  private lastScoreCallbackTime = 0;
+  // Throttle state for score callback (avoid excessive React re-renders)
+  private lastCallbackTime = 0;
   private lastCallbackState = "";
 
   constructor(pokemonId: string, detector: Detector) {
@@ -153,7 +153,7 @@ export class DetectionLoop {
     this.inCooldown = false;
     this.cooldownStartedAt = 0;
     this.pollIntervalMs = this.config.pollIntervalMs ?? DEFAULT_POLL_MS;
-    this.lastScoreCallbackTime = 0;
+    this.lastCallbackTime = 0;
     this.lastCallbackState = "";
     this.runLoop(getVideo);
   }
@@ -298,7 +298,10 @@ export class DetectionLoop {
     }
   }
 
-  /** Throttled UI callback — fires at most 4 times/second unless the state changes. */
+  /**
+   * UI callback — throttled to ~4 updates/sec for score changes,
+   * but fires immediately on state transitions and during cooldown countdown.
+   */
   private emitScoreCallback(adjusted: number): void {
     if (!this.scoreCallback) return;
 
@@ -315,9 +318,11 @@ export class DetectionLoop {
 
     const now = performance.now();
     const stateChanged = state !== this.lastCallbackState;
-    if (!stateChanged && now - this.lastScoreCallbackTime < 250) return;
+    // Fire immediately on state change or during cooldown (for countdown),
+    // otherwise throttle to every 250ms to avoid excessive React re-renders.
+    if (!stateChanged && state !== "cooldown" && now - this.lastCallbackTime < 250) return;
 
-    this.lastScoreCallbackTime = now;
+    this.lastCallbackTime = now;
     this.lastCallbackState = state;
 
     let cooldownRemainingMs: number | undefined;

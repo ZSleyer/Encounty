@@ -13,6 +13,7 @@ export interface DetectorStatusEntry {
   state: string;      // "idle" | "match" | "cooldown"
   confidence: number; // 0.0–1.0
   poll_ms: number;
+  cooldown_remaining_ms?: number;
 }
 
 interface CounterStore {
