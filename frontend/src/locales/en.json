@@ -112,7 +112,7 @@
   "modal.missingNames": "Pokémon names are not localized. Please sync the Pokémon data under Settings → Update Pokémon data.",
   "modal.missingNamesShort": "Pokédex not synced — only English names available.",
   "modal.titleLabel": "Title (optional)",
-  "modal.titlePlaceholder": "e.g. \"Operation Shiny\"",
+  "modal.titlePlaceholder": "e.g. \"1/100 Sub-Odds\"",
   "modal.stepLabel": "Counting Step Size",
   "modal.setEncounterTitle": "Set Encounters",
   "modal.setEncounterLabel": "Encounter Count",
@@ -197,6 +197,7 @@
   "settings.themeDark": "Dark",
   "settings.themeLight": "Light",
   "settings.uiLanguage": "UI Language",
+  "settings.autoTranslated": "Auto-translated",
   "settings.backupTitle": "Backup & Restore",
   "settings.backupDesc": "Save all Pokémon, counters and settings as a ZIP file.",
   "settings.dataPath": "Data currently stored at:",
@@ -298,6 +299,7 @@
   "overlay.readOnlyHint": "Layout is read-only (linked)",
   "overlay.defaultTitle": "Default Layout",
   "overlay.obsUrl": "Copy OBS URL",
+  "overlay.obsHintDashboard": "OBS URL can be found in the Dashboard under the Overlay tab",
   "overlay.urlCopied": "URL copied!",
   "overlay.confirmModeChange": "Custom layout settings will be lost. Continue?",
   "overlay.import": "Import",
@@ -688,5 +690,5 @@
   "detector.permanentPreview": "Always show",
   "footer.hunts": "Hunts",
   "footer.encounters": "Enc.",
-  "app.machineTranslationDisclaimer": "Translations in this language were machine-generated and may contain errors."
+  "app.machineTranslationDisclaimer": "Translations in this language were machine-generated and may contain errors. Help improve them — corrections are always welcome!"
 }

@@ -16,6 +16,7 @@ import {
   Layers,
   ArrowUpCircle,
   AlertTriangle,
+  Bot,
   Globe,
   HardDrive,
 } from "lucide-react";
@@ -124,7 +125,7 @@ function AppShell() {
   const isOverlay = location.pathname === "/overlay" || location.pathname.startsWith("/overlay/");
   const { setAppState, setConnected, flashPokemon, isConnected, appState, setDetectorStatus, clearDetectorStatus } =
     useCounterStore();
-  const { t } = useI18n();
+  const { t, isMachineTranslated, locale } = useI18n();
   const { push: pushToast } = useToast();
 
   const [restarting] = useState(false);
@@ -474,6 +475,17 @@ function AppShell() {
           <NavTab to="/settings" icon={<SettingsIcon className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.settings")}
           </NavTab>
+
+          {isMachineTranslated && (
+            <button
+              onClick={() => pushToast({ type: "info", title: t("settings.autoTranslated"), message: t("app.machineTranslationDisclaimer"), duration: 8000 })}
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] 2xl:text-xs text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+              title={t("app.machineTranslationDisclaimer")}
+            >
+              <Bot className="w-3 h-3" />
+              {t("settings.autoTranslated")}
+            </button>
+          )}
         </div>
 
 

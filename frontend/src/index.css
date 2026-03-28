@@ -57,6 +57,12 @@
   background-color: var(--bg-primary);
 }
 
+/* ── Native <option> elements — match theme background ─── */
+option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
 /* ── WCAG 1.4.3 — Accent button text contrast ─────────── */
 /* Accent backgrounds use dark text for WCAG AA compliance.
    !important overrides Tailwind's text-white utility.

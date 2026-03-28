@@ -13,13 +13,13 @@ import es from "./es.json";
 import ja from "./ja.json";
 
 /** Languages where translations are machine-generated and not human-verified. */
-export const MACHINE_TRANSLATED_LOCALES = new Set(["fr", "es", "ja"]);
+export const MACHINE_TRANSLATED_LOCALES = new Set(["en", "fr", "es", "ja"]);
 
 export type Locale = "de" | "en" | "fr" | "es" | "ja";
 
 export const LOCALES: { code: Locale; label: string; flag: string; machineTranslated: boolean }[] = [
   { code: "de", label: "Deutsch", flag: "🇩🇪", machineTranslated: false },
-  { code: "en", label: "English", flag: "🇬🇧", machineTranslated: false },
+  { code: "en", label: "English", flag: "🇬🇧", machineTranslated: true },
   { code: "fr", label: "Français", flag: "🇫🇷", machineTranslated: true },
   { code: "es", label: "Español", flag: "🇪🇸", machineTranslated: true },
   { code: "ja", label: "日本語", flag: "🇯🇵", machineTranslated: true },

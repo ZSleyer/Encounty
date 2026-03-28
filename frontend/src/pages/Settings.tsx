@@ -16,6 +16,7 @@ import {
   Info,
   Sun,
   Moon,
+  Bot,
 } from "lucide-react";
 
 import { useCounterStore } from "../hooks/useCounterState";
@@ -442,9 +443,12 @@ export function Settings() {
                           ? "bg-accent-blue/15 text-accent-blue"
                           : "text-text-muted hover:text-text-primary"
                       }`}
-                      title={l.label}
+                      title={l.machineTranslated ? `${l.label} (${t("settings.autoTranslated")})` : l.label}
                     >
                       {l.code.toUpperCase()}
+                      {l.machineTranslated && (
+                        <Bot className="inline w-2.5 h-2.5 ml-0.5 text-text-faint" />
+                      )}
                     </button>
                   ))}
                 </div>

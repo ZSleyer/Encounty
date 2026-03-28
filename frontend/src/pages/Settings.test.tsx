@@ -42,8 +42,8 @@ describe("Settings", () => {
 
     // Language toggle buttons should be present (DE/EN)
     const langButtons = screen.getAllByRole("button");
-    const deLangButton = langButtons.find(btn => btn.textContent === "DE");
-    const enLangButton = langButtons.find(btn => btn.textContent === "EN");
+    const deLangButton = langButtons.find(btn => btn.textContent?.startsWith("DE"));
+    const enLangButton = langButtons.find(btn => btn.textContent?.startsWith("EN"));
 
     expect(deLangButton).toBeInTheDocument();
     expect(enLangButton).toBeInTheDocument();

@@ -1476,10 +1476,51 @@ export function Dashboard() {
                 </div>
               </div>
 
-              {/* Right: Hunt + action buttons */}
+              {/* Right: Action buttons + Hunt CTA */}
               <div className="flex items-center gap-2 justify-end">
 
-              {/* Hunt start/stop — combined button with dropdown */}
+              {/* 1. Edit — common utility action */}
+              <button
+                onClick={() => setEditingPokemon(viewedPokemon)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary text-xs font-semibold transition-colors"
+                aria-label={t("dash.edit")}
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">{t("dash.edit")}</span>
+              </button>
+
+              {/* 2. Delete — destructive */}
+              <button
+                onClick={() => handleDelete(viewedPokemon.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-red/40 text-text-muted hover:text-accent-red text-xs font-semibold transition-colors"
+                aria-label={t("dash.delete")}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden xl:inline">{t("dash.delete")}</span>
+              </button>
+
+              {/* 3. Caught / Reactivate — positive state change before CTA */}
+              {viewedPokemon.completed_at ? (
+                <button
+                  onClick={() => handleUncomplete(viewedPokemon.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-yellow/40 text-text-muted hover:text-accent-yellow text-xs font-semibold transition-colors"
+                  aria-label={t("dash.reactivate")}
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">{t("dash.reactivate")}</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleComplete(viewedPokemon.id)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-green text-white hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-colors"
+                  aria-label={t("dash.caught")}
+                >
+                  <PartyPopper className="w-3.5 h-3.5" />
+                  <span className="hidden xl:inline">{t("dash.caught")}</span>
+                </button>
+              )}
+
+              {/* 4. Hunt start/stop — primary CTA, rightmost */}
               {!viewedPokemon.completed_at && (() => {
                 const p = viewedPokemon;
                 const timerRunning = !!p.timer_started_at;
@@ -1600,44 +1641,6 @@ export function Dashboard() {
                 );
               })()}
 
-              {/* 4. Action buttons — compact, text hidden on small screens */}
-              <button
-                onClick={() => setEditingPokemon(viewedPokemon)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary text-xs font-semibold transition-colors"
-                aria-label={t("dash.edit")}
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">{t("dash.edit")}</span>
-              </button>
-
-              {viewedPokemon.completed_at ? (
-                <button
-                  onClick={() => handleUncomplete(viewedPokemon.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-yellow/40 text-text-muted hover:text-accent-yellow text-xs font-semibold transition-colors"
-                  aria-label={t("dash.reactivate")}
-                >
-                  <Undo2 className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">{t("dash.reactivate")}</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => handleComplete(viewedPokemon.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-green text-white hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-colors"
-                  aria-label={t("dash.caught")}
-                >
-                  <PartyPopper className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">{t("dash.caught")}</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => handleDelete(viewedPokemon.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-red/40 text-text-muted hover:text-accent-red text-xs font-semibold transition-colors"
-                aria-label={t("dash.delete")}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">{t("dash.delete")}</span>
-              </button>
               </div>
             </header>
 

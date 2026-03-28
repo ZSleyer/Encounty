@@ -6,14 +6,13 @@
  * always has something to render, independent of tracked hunts.
  */
 import { useState, useEffect } from "react";
-import { Save, RefreshCw, Keyboard, Layers } from "lucide-react";
+import { Save, RefreshCw, Keyboard, Layers, Monitor } from "lucide-react";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { OverlaySettings, Pokemon } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { getSpriteUrl } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
-import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 
 /** Hardcoded preview Pokemon for the default layout editor. */
 function makePreviewPokemon(): Pokemon {
@@ -100,8 +99,11 @@ export function OverlayEditorPage() {
         </span>
 
         <div className="ml-auto flex items-center gap-3">
-          {/* OBS Browser Source URL */}
-          <OverlayBrowserSourceButton pokemonId="global" />
+          {/* OBS hint */}
+          <span className="flex items-center gap-1.5 text-xs text-text-muted">
+            <Monitor className="w-3.5 h-3.5" />
+            {t("overlay.obsHintDashboard")}
+          </span>
 
           {/* Hotkeys paused badge */}
           <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">
