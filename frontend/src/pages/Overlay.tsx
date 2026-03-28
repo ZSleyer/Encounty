@@ -469,6 +469,21 @@ function resolveSettings(
   return resolveOverlay(activePokemon, appState.pokemon, appState.settings.overlay);
 }
 
+/**
+ * Resolves which trigger key to use, preferring the decrement trigger on
+ * reverse if one is configured, otherwise falling back to the enter trigger.
+ */
+function resolveTriggerKey(
+  enterKey: string,
+  decrementKey: string | undefined,
+  reverse: boolean,
+): string {
+  if (reverse && decrementKey && decrementKey !== "none") {
+    return decrementKey;
+  }
+  return enterKey;
+}
+
 /** Dispatches a test-trigger animation from the overlay editor preview. */
 function dispatchTestTrigger(
   testTrigger: { element: string; reverse?: boolean; n: number },
@@ -476,10 +491,9 @@ function dispatchTestTrigger(
   allSetters: AnimChannelSettersMap,
 ): void {
   const rev = testTrigger.reverse ?? false;
+
   if (testTrigger.element === "counter") {
-    const key = rev
-      ? (settings.counter.trigger_decrement && settings.counter.trigger_decrement !== "none" ? settings.counter.trigger_decrement : settings.counter.trigger_enter)
-      : settings.counter.trigger_enter;
+    const key = resolveTriggerKey(settings.counter.trigger_enter, settings.counter.trigger_decrement, rev);
     if (key === "slot" || key === "flip-digit") {
       allSetters.counter.setRenderMode?.(key);
       allSetters.counter.setReverse(rev);
@@ -489,16 +503,13 @@ function dispatchTestTrigger(
       triggerAnimation(key, COUNTER_ANIMS, rev, allSetters.counter);
     }
   } else if (testTrigger.element === "sprite") {
-    const key = rev && settings.sprite.trigger_decrement && settings.sprite.trigger_decrement !== "none"
-      ? settings.sprite.trigger_decrement : settings.sprite.trigger_enter;
+    const key = resolveTriggerKey(settings.sprite.trigger_enter, settings.sprite.trigger_decrement, rev);
     triggerAnimation(key, SPRITE_ANIMS, rev, allSetters.sprite);
   } else if (testTrigger.element === "name") {
-    const key = rev && settings.name.trigger_decrement && settings.name.trigger_decrement !== "none"
-      ? settings.name.trigger_decrement : settings.name.trigger_enter;
+    const key = resolveTriggerKey(settings.name.trigger_enter, settings.name.trigger_decrement, rev);
     triggerAnimation(key, NAME_ANIMS, rev, allSetters.name);
   } else if (testTrigger.element === "title" && settings.title) {
-    const key = rev && settings.title.trigger_decrement && settings.title.trigger_decrement !== "none"
-      ? settings.title.trigger_decrement : settings.title.trigger_enter;
+    const key = resolveTriggerKey(settings.title.trigger_enter, settings.title.trigger_decrement, rev);
     triggerAnimation(key, NAME_ANIMS, rev, allSetters.title);
   }
 }

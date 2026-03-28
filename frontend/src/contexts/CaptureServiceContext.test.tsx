@@ -214,7 +214,7 @@ describe("CaptureServiceProvider", () => {
     const origCreateElement = document.createElement.bind(document);
     vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
       if (tag === "video") {
-        const realVideo = origCreateElement("video") as HTMLVideoElement;
+        const realVideo = origCreateElement("video");
         Object.defineProperty(realVideo, "readyState", { value: 2, writable: true });
         Object.defineProperty(realVideo, "videoWidth", { value: 640, writable: true });
         Object.defineProperty(realVideo, "videoHeight", { value: 480, writable: true });
@@ -251,7 +251,7 @@ describe("CaptureServiceProvider", () => {
     const origCreateElement = document.createElement.bind(document);
     vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
       if (tag === "video") {
-        const realVideo = origCreateElement("video") as HTMLVideoElement;
+        const realVideo = origCreateElement("video");
         Object.defineProperty(realVideo, "readyState", { value: 2, writable: true });
         Object.defineProperty(realVideo, "videoWidth", { value: 640, writable: true });
         Object.defineProperty(realVideo, "videoHeight", { value: 480, writable: true });

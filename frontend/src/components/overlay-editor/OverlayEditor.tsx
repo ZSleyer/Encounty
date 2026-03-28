@@ -230,7 +230,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   );
 }
 
-export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId, readOnly, compact }: Readonly<Props>) {
+export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId: _overlayTargetId, readOnly, compact }: Readonly<Props>) {
   const { t } = useI18n();
   const ELEMENT_LABELS: Record<ElementKey, string> = {
     sprite: "Sprite",
@@ -930,13 +930,15 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         </div>
 
         {/* Draggable divider */}
-        <div
-          onMouseDown={startDividerDrag}
-          className="h-1.5 shrink-0 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors relative group"
-          role="separator"
-          aria-label={t("overlay.resizeDivider")}
-        >
+        <div className="relative group shrink-0">
           <button
+            type="button"
+            onMouseDown={startDividerDrag}
+            className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
+            aria-label={t("overlay.resizeDivider")}
+          />
+          <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               setPropertiesHeight(500);
@@ -972,25 +974,28 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               return (
                 <div
                   key={key}
-                  onClick={() => setSelectedEl(key)}
-                  className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full cursor-pointer ${
+                  className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full ${
                     selectedEl === key
                       ? "bg-accent-blue/20 border border-accent-blue/40"
                       : "hover:bg-bg-hover border border-transparent"
                   }`}
                 >
-                  <span className="text-xs text-text-primary">
-                    {ELEMENT_LABELS[key]}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedEl(key)}
+                    className="flex-1 text-left cursor-pointer bg-transparent border-none p-0"
+                    aria-label={ELEMENT_LABELS[key]}
+                  >
+                    <span className="text-xs text-text-primary">
+                      {ELEMENT_LABELS[key]}
+                    </span>
+                  </button>
                   <div className="flex items-center gap-0.5">
                     <button
                       type="button"
                       title={t("tooltip.editor.moveUp")}
                       aria-label={t("tooltip.editor.moveUp")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveLayer(key, "up");
-                      }}
+                      onClick={() => moveLayer(key, "up")}
                       className="p-1 text-text-muted hover:text-text-primary transition-colors"
                     >
                       <ChevronUp className="w-3 h-3" />
@@ -999,10 +1004,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       type="button"
                       title={t("tooltip.editor.moveDown")}
                       aria-label={t("tooltip.editor.moveDown")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        moveLayer(key, "down");
-                      }}
+                      onClick={() => moveLayer(key, "down")}
                       className="p-1 text-text-muted hover:text-text-primary transition-colors"
                     >
                       <ChevronDown className="w-3 h-3" />
@@ -1011,8 +1013,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       type="button"
                       title={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
                       aria-label={el.visible ? t("tooltip.editor.hide") : t("tooltip.editor.show")}
-                      onClick={(e) => {
-                        e.stopPropagation();
+                      onClick={() => {
                         update({
                           ...localSettings,
                           [key]: { ...el, visible: !el.visible },
@@ -1032,7 +1033,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             })}
 
           {/* Canvas layer — always at bottom */}
-          <div
+          <button
+            type="button"
             onClick={() => setSelectedEl("canvas")}
             className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full cursor-pointer ${
               selectedEl === "canvas"
@@ -1073,7 +1075,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 )}
               </button>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 

@@ -326,6 +326,142 @@ function resolveDetectorDot(
   return { dotClass: "bg-text-faint/40", title: t("detector.stopped") };
 }
 
+/** Starts detection for a single Pokemon if it meets all prerequisites. */
+function tryStartDetection(
+  pokemon: Pokemon,
+  capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null },
+  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number }) => void,
+): void {
+  const cfg = pokemon.detector_config;
+  if (!cfg) return;
+  startDetectionForPokemon({
+    pokemonId: pokemon.id,
+    templates: cfg.templates || [],
+    config: cfg,
+    getVideoElement: () => capture.getVideoElement(pokemon.id),
+    onScore: (score, state) => setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 }),
+  });
+}
+
+/** Returns whether a Pokemon's detector should be started (not timer-only, has detector ready, not running, capturing). */
+function canStartDetector(
+  pokemon: Pokemon,
+  detectorStatus: Record<string, unknown>,
+  capture: { isCapturing: (id: string) => boolean },
+): boolean {
+  const mode = pokemon.hunt_mode || "both";
+  return mode !== "timer" && hasDetectorReady(pokemon) && !detectorStatus[pokemon.id] && capture.isCapturing(pokemon.id);
+}
+
+/** Context needed for sidebar keyboard navigation dispatch. */
+interface SidebarKeyboardContext {
+  aside: HTMLElement;
+  displayList: Pokemon[];
+  focusedIdx: number | null;
+  selectedIds: Set<string>;
+  searchQuery: string;
+  setFocusedIdx: React.Dispatch<React.SetStateAction<number | null>>;
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
+  handleActivate: (id: string) => void;
+  bulkDelete: () => void;
+}
+
+/** Handles ArrowDown/Up navigation in the sidebar list. */
+function handleSidebarArrow(e: KeyboardEvent, ctx: SidebarKeyboardContext): void {
+  e.preventDefault();
+  if (e.key === "ArrowDown") {
+    ctx.setFocusedIdx(prev => prev === null ? 0 : Math.min(prev + 1, ctx.displayList.length - 1));
+  } else {
+    ctx.setFocusedIdx(prev => prev === null ? ctx.displayList.length - 1 : Math.max(prev - 1, 0));
+  }
+}
+
+/** Handles Enter (activate) and Space (toggle select) on focused sidebar item. */
+function handleSidebarFocusedAction(e: KeyboardEvent, ctx: SidebarKeyboardContext): void {
+  if (ctx.focusedIdx === null || !ctx.displayList[ctx.focusedIdx]) return;
+  e.preventDefault();
+  const item = ctx.displayList[ctx.focusedIdx];
+  if (e.key === "Enter") {
+    ctx.handleActivate(item.id);
+  } else {
+    ctx.setSelectedIds(prev => {
+      const n = new Set(prev);
+      if (n.has(item.id)) { n.delete(item.id); } else { n.add(item.id); }
+      return n;
+    });
+  }
+}
+
+/** Dispatches sidebar keyboard events for navigation and selection. */
+function handleSidebarKeyboard(e: KeyboardEvent, ctx: SidebarKeyboardContext): void {
+  if (!ctx.aside.contains(document.activeElement) && document.activeElement !== document.body) return;
+
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    handleSidebarArrow(e, ctx);
+  } else if (e.key === "Enter" || e.key === " ") {
+    handleSidebarFocusedAction(e, ctx);
+  } else if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    ctx.setSelectedIds(new Set(ctx.displayList.map(p => p.id)));
+  } else if (e.key === "Escape") {
+    if (ctx.selectedIds.size > 0) ctx.setSelectedIds(new Set());
+    else if (ctx.searchQuery) ctx.setSearchQuery("");
+  } else if (e.key === "Delete" && ctx.selectedIds.size > 0) {
+    e.preventDefault();
+    ctx.bulkDelete();
+  }
+}
+
+/** Updates the hunt_mode for a Pokemon via the API. */
+function updateHuntMode(pokemon: Pokemon, mode: HuntMode): void {
+  if (pokemon.hunt_mode !== mode) {
+    void fetch(apiUrl(`/api/pokemon/${pokemon.id}`), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...pokemon, hunt_mode: mode }),
+    }).catch(() => {});
+  }
+}
+
+/** Context needed for sidebar card multi-select. */
+interface CardSelectionContext {
+  displayList: Pokemon[];
+  selectedIds: Set<string>;
+  lastSelectedIdx: React.RefObject<number | null>;
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+  handleActivate: (id: string) => void;
+}
+
+/** Handle sidebar card clicks with Ctrl/Shift multi-select support. */
+function applyCardSelection(
+  e: React.MouseEvent,
+  pokemonId: string,
+  idx: number,
+  ctx: CardSelectionContext,
+): void {
+  if (e.ctrlKey || e.metaKey) {
+    ctx.setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(pokemonId)) next.delete(pokemonId);
+      else next.add(pokemonId);
+      return next;
+    });
+    ctx.lastSelectedIdx.current = idx;
+  } else if (e.shiftKey && ctx.lastSelectedIdx.current !== null) {
+    const from = Math.min(ctx.lastSelectedIdx.current, idx);
+    const to = Math.max(ctx.lastSelectedIdx.current, idx);
+    ctx.setSelectedIds(prev => {
+      const next = new Set(prev);
+      for (let i = from; i <= to; i++) next.add(ctx.displayList[i].id);
+      return next;
+    });
+  } else {
+    if (ctx.selectedIds.size > 0) ctx.setSelectedIds(new Set());
+    ctx.handleActivate(pokemonId);
+  }
+}
+
 /** Registers a global Cmd+K / Ctrl+K shortcut that focuses the given ref. */
 function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
   useEffect(() => {
@@ -343,6 +479,17 @@ function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
 type SidebarTab = "active" | "archived";
 type SortMode = "recent" | "name" | "encounters" | "game";
 type SortDir = "asc" | "desc";
+type HuntMode = "both" | "timer" | "detector";
+
+/** Loads the persisted sort mode from localStorage, defaulting to "recent". */
+function loadSortMode(): SortMode {
+  return (localStorage.getItem("encounty-sort-mode") as SortMode) || "recent";
+}
+
+/** Loads the persisted sort direction from localStorage, defaulting to "asc". */
+function loadSortDir(): SortDir {
+  return (localStorage.getItem("encounty-sort-dir") as SortDir) || "asc";
+}
 
 /** Sorts a Pokemon list by the given mode and direction. */
 function sortPokemonList(list: Pokemon[], mode: SortMode, dir: SortDir): Pokemon[] {
@@ -379,6 +526,966 @@ async function applyOverlayMode(
   }
 }
 
+/** Renders the empty-list placeholder based on current search query and sidebar tab. */
+function EmptyListPlaceholder({
+  query,
+  sidebarTab,
+  onClearAndAdd,
+  onAdd,
+}: Readonly<{
+  query: string;
+  sidebarTab: SidebarTab;
+  onClearAndAdd: () => void;
+  onAdd: () => void;
+}>) {
+  const { t } = useI18n();
+  if (query) {
+    return (
+      <>
+        <Search className="w-8 h-8 text-text-faint mb-3" />
+        <p className="text-sm text-text-muted">
+          {t("dash.noMatch")} &bdquo;{query}&ldquo;
+        </p>
+        <button
+          onClick={onClearAndAdd}
+          className="mt-3 text-xs text-accent-blue hover:underline flex items-center gap-1"
+        >
+          <Plus className="w-3 h-3" />
+          {t("dash.addNew")}
+        </button>
+      </>
+    );
+  }
+  if (sidebarTab === "active") {
+    return (
+      <>
+        <Gamepad2 className="w-10 h-10 text-text-faint mb-3" />
+        <p className="text-sm text-text-muted">
+          {t("dash.noPokemon")}
+        </p>
+        <button
+          onClick={onAdd}
+          className="mt-4 text-xs text-accent-blue hover:underline"
+        >
+          {t("dash.addFirst")}
+        </button>
+      </>
+    );
+  }
+  return (
+    <>
+      <Trophy className="w-10 h-10 text-text-faint mb-3" />
+      <p className="text-sm text-text-muted">
+        {t("dash.noArchive")}
+      </p>
+      <p className="text-xs text-text-faint mt-1">
+        {t("dash.noArchiveHint")}
+      </p>
+    </>
+  );
+}
+
+/** Returns the CSS class for a header tab button based on active state. */
+function tabButtonClass(isActive: boolean): string {
+  return `px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+    isActive
+      ? "bg-accent-blue text-white shadow"
+      : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+  }`;
+}
+
+/** Builds the full CSS class for a sidebar Pokemon list item. */
+function buildSidebarItemClass(borderClass: string, isFocused: boolean, isArchived: boolean): string {
+  const focusRing = isFocused ? " ring-1 ring-inset ring-accent-blue/40" : "";
+  const opacity = isArchived ? " opacity-70" : "";
+  return `flex items-center gap-3 px-3 py-2 2xl:px-4 2xl:py-2.5 cursor-pointer transition-colors group ${borderClass}${focusRing}${opacity}`;
+}
+
+/** Handles Enter/Space keydown to activate a Pokemon in the sidebar. */
+function handleActivateKeyDown(e: React.KeyboardEvent, pokemonId: string, onActivate: (id: string) => void): void {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    onActivate(pokemonId);
+  }
+}
+
+/** Resolves the sprite URL for a Pokemon, falling back if there's an error or no URL. */
+function resolveSpriteUrl(pokemonId: string, spriteUrl: string | undefined, imgError: Record<string, boolean>): string {
+  return imgError[pokemonId] || !spriteUrl ? SPRITE_FALLBACK : spriteUrl;
+}
+
+/** Returns the border class for a sidebar Pokemon item based on selection state. */
+function sidebarItemBorderClass(isSelected: boolean, isViewed: boolean): string {
+  if (isSelected) return "bg-accent-blue/15 border-l-2 border-accent-blue";
+  if (isViewed) return "bg-accent-blue/10 border-l-2 border-accent-blue";
+  return "hover:bg-bg-hover border-l-2 border-transparent";
+}
+
+/** Handles sort button click: toggles direction if same mode, otherwise switches mode. */
+function handleSortClick(
+  clickedMode: SortMode,
+  currentMode: SortMode,
+  setSortMode: (m: SortMode) => void,
+  setSortDir: React.Dispatch<React.SetStateAction<SortDir>>,
+  setShowMenu: (v: boolean) => void,
+): void {
+  if (clickedMode === currentMode) {
+    setSortDir(d => d === "asc" ? "desc" : "asc");
+  } else {
+    setSortMode(clickedMode);
+    setSortDir("asc");
+  }
+  setShowMenu(false);
+}
+
+/** Returns CSS classes for the scrollable work area based on the active tab. */
+function getWorkAreaClasses(tab: string): { innerMaxWidth: string; outerOverflow: string; outerJustify: string; innerHeight: string } {
+  const innerMaxWidthMap: Record<string, string> = {
+    counter: "max-w-3xl mt-0",
+    overlay: "max-w-full mt-0",
+    statistics: "max-w-full mt-0 pb-16",
+    detector: "max-w-full mt-0",
+  };
+  const isFullBleed = tab === "overlay" || tab === "detector";
+  return {
+    innerMaxWidth: innerMaxWidthMap[tab] ?? "max-w-2xl mt-0 pb-16",
+    outerOverflow: isFullBleed ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8",
+    outerJustify: tab === "counter" ? "justify-center" : "justify-start",
+    innerHeight: isFullBleed ? "h-full" : "",
+  };
+}
+
+/** Renders the scrollable work area with tab content. */
+function renderWorkArea(tab: string, content: React.ReactNode): React.ReactNode {
+  const { innerMaxWidth, outerOverflow, outerJustify, innerHeight } = getWorkAreaClasses(tab);
+  return (
+    <div className={`flex-1 flex flex-col items-center relative z-10 w-full ${outerOverflow} ${outerJustify}`}>
+      <div className={`flex flex-col items-center w-full ${innerHeight} ${innerMaxWidth}`}>
+        {content}
+      </div>
+    </div>
+  );
+}
+
+/** Resolves the content to render for the active tab. */
+function resolveTabContent(
+  tab: string,
+  pokemon: Pokemon,
+  renderCounterTab: (p: Pokemon) => React.ReactNode,
+  renderOverlayTab: (p: Pokemon) => React.ReactNode,
+  handleDetectorConfigChange: (id: string, cfg: DetectorConfig | null) => void,
+  detectorStatus: Record<string, { state?: string; confidence?: number }>,
+): React.ReactNode {
+  if (tab === "counter") return renderCounterTab(pokemon);
+  if (tab === "overlay") return renderOverlayTab(pokemon);
+  if (tab === "detector") {
+    return (
+      <div className="w-full h-full">
+        <DetectorPanel
+          key={pokemon.id}
+          pokemon={pokemon}
+          onConfigChange={(cfg) => handleDetectorConfigChange(pokemon.id, cfg)}
+          isRunning={detectorStatus[pokemon.id] !== undefined || isLoopRunning(pokemon.id)}
+          confidence={detectorStatus[pokemon.id]?.confidence ?? 0}
+          detectorState={detectorStatus[pokemon.id]?.state ?? "idle"}
+        />
+      </div>
+    );
+  }
+  if (tab === "statistics") {
+    return (
+      <div className="w-full">
+        <StatisticsPanel pokemonId={pokemon.id} />
+      </div>
+    );
+  }
+  return null;
+}
+
+/** Marks all selected Pokemon as complete. */
+function completePokemonBulk(
+  selectedIds: Set<string>,
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>,
+): void {
+  for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}/complete`), { method: "POST" }).catch(() => {});
+  setSelectedIds(new Set());
+}
+
+/** Shows a bulk-delete confirmation dialog for the selected Pokemon. */
+function requestBulkDelete(
+  selectedIds: Set<string>,
+  t: (key: string) => string,
+  setConfirmConfig: React.Dispatch<React.SetStateAction<{
+    isOpen: boolean; title: string; message: string; isDestructive: boolean; onConfirm: () => void;
+  }>>,
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>,
+): void {
+  if (selectedIds.size === 0) return;
+  setConfirmConfig({
+    isOpen: true,
+    title: t("confirm.deleteTitle"),
+    message: `${selectedIds.size} ${t("dash.pokemonSelected")} — ${t("confirm.deleteMsg")}`,
+    isDestructive: true,
+    onConfirm: () => {
+      for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}`), { method: "DELETE" }).catch(() => {});
+      setSelectedIds(new Set());
+      setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+    },
+  });
+}
+
+/** Registers sidebar keyboard navigation handlers on the global window. */
+function useSidebarKeyboard(
+  asideRef: React.RefObject<HTMLElement | null>,
+  deps: Omit<SidebarKeyboardContext, "aside">,
+) {
+  useEffect(() => {
+    const aside = asideRef.current;
+    if (!aside) return;
+    const ctx: SidebarKeyboardContext = { aside, ...deps };
+    const handleKey = (e: KeyboardEvent) => handleSidebarKeyboard(e, ctx);
+    globalThis.addEventListener("keydown", handleKey);
+    return () => globalThis.removeEventListener("keydown", handleKey);
+  }, [deps.displayList, deps.focusedIdx, deps.selectedIds, deps.searchQuery]);
+}
+
+/** Scrolls the focused sidebar item into view if a focused index is set. */
+function scrollFocusedIntoView(focusedIdx: number | null, asideRef: React.RefObject<HTMLElement | null>): void {
+  if (focusedIdx === null) return;
+  asideRef.current?.querySelector(`[data-sidebar-idx="${focusedIdx}"]`)?.scrollIntoView({ block: "nearest" });
+}
+
+/** Finds the currently viewed Pokemon from the list by viewedId or fallback activeId. */
+function findViewedPokemon(allPokemon: Pokemon[], viewedId: string | null, activeId: string): Pokemon | null {
+  const targetId = viewedId || activeId;
+  return allPokemon.find((p) => p.id === targetId) ?? null;
+}
+
+/** Saves a detector configuration for a Pokemon via the API. */
+async function saveDetectorConfig(pokemonId: string, cfg: DetectorConfig | null): Promise<void> {
+  await fetch(apiUrl(`/api/detector/${pokemonId}/config`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(cfg ?? {}),
+  });
+}
+
+/** Syncs the overlay editor state when the viewed Pokemon or active ID changes. */
+function syncOverlayState(
+  appState: AppState | null,
+  viewedPokemonId: string | null,
+  setCurrentOverlay: (o: OverlaySettings) => void,
+  setOverlayDirty: (dirty: boolean) => void,
+): void {
+  const overlay = resolveCurrentOverlay(appState, viewedPokemonId);
+  if (overlay) {
+    setCurrentOverlay(overlay);
+    setOverlayDirty(false);
+  }
+}
+
+/** Processes a WebSocket message and shows a reset confirmation dialog if appropriate. */
+function handleResetConfirmMessage(
+  msg: { type: string; payload: unknown },
+  pokemon: Pokemon[] | undefined,
+  t: (key: string) => string,
+  send: (type: string, payload: unknown) => void,
+  setConfirmConfig: React.Dispatch<React.SetStateAction<{
+    isOpen: boolean; title: string; message: string; isDestructive: boolean; onConfirm: () => void;
+  }>>,
+): void {
+  const config = buildResetConfirmConfig(
+    msg, pokemon ?? [], t,
+    (pokemonId) => send("reset", { pokemon_id: pokemonId }),
+  );
+  if (config) {
+    globalThis.electronAPI?.focusWindow();
+    setConfirmConfig(config);
+  }
+}
+
+/** Switches overlay mode for a given Pokemon, delegating to applyOverlayMode. */
+async function changePokemonOverlayMode(
+  newMode: "default" | "custom",
+  pokemon: Pokemon | null,
+  appState: AppState,
+  t: (key: string) => string,
+  updateOverlay: (id: string, mode: OverlayMode, overlay: OverlaySettings | null) => Promise<void>,
+  setOverlay: (o: OverlaySettings) => void,
+): Promise<void> {
+  if (!pokemon) return;
+  await applyOverlayMode(newMode, pokemon, appState, t, updateOverlay, setOverlay);
+}
+
+/** Saves the current custom overlay if both overlay and Pokemon are available. */
+async function saveOverlayIfReady(
+  overlay: OverlaySettings | null,
+  pokemon: Pokemon | null,
+  updateOverlay: (id: string, mode: OverlayMode, overlay: OverlaySettings | null) => Promise<void>,
+): Promise<void> {
+  if (!overlay || !pokemon) return;
+  await updateOverlay(pokemon.id, "custom", overlay);
+}
+
+/** Copies overlay settings from a source Pokemon or global defaults. */
+function applyCopyOverlay(
+  sourceId: string,
+  appState: AppState,
+  setOverlay: (o: OverlaySettings) => void,
+  setDirty: (dirty: boolean) => void,
+): void {
+  const overlay = resolveCopySource(sourceId, appState.pokemon, appState.settings.overlay);
+  if (overlay) setOverlay(overlay);
+  setDirty(true);
+}
+
+/** Sidebar quick actions bar: start/stop hunts, mode selector, selection actions. */
+function SidebarQuickActions({
+  allPokemon, activeHunts, selectedIds, sidebarTab, detectorStatus,
+  totalEncounters, showHuntMenu, setShowHuntMenu, send, capture,
+  setDetectorStatus, clearDetectorStatus, bulkComplete, bulkDelete, setSelectedIds,
+}: Readonly<{
+  allPokemon: Pokemon[];
+  activeHunts: Pokemon[];
+  selectedIds: Set<string>;
+  sidebarTab: SidebarTab;
+  detectorStatus: Record<string, { state?: string; confidence?: number }>;
+  totalEncounters: number;
+  showHuntMenu: boolean;
+  setShowHuntMenu: (v: boolean | ((prev: boolean) => boolean)) => void;
+  send: (type: string, payload: unknown) => void;
+  capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null };
+  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number }) => void;
+  clearDetectorStatus: (id: string) => void;
+  bulkComplete: () => void;
+  bulkDelete: () => void;
+  setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+}>) {
+  const { t } = useI18n();
+  const sel = selectedIds.size > 0
+    ? allPokemon.filter(p => selectedIds.has(p.id))
+    : activeHunts;
+  const hasRunningTimer = sel.some(p => !!p.timer_started_at);
+  const withDetector = sel.filter(p => hasDetectorReady(p));
+  const hasDetector = withDetector.length > 0;
+  const hasRunningDetector = sel.some(p => !!detectorStatus[p.id]);
+  const anyRunning = hasRunningTimer || hasRunningDetector;
+  const canStart = sel.length > 0;
+
+  const currentMode = resolveHuntMode(sel);
+
+  const startAll = () => {
+    for (const p of sel) {
+      const mode = p.hunt_mode || "both";
+      if (mode !== "detector" && !p.timer_started_at) send("timer_start", { pokemon_id: p.id });
+      if (canStartDetector(p, detectorStatus, capture)) {
+        tryStartDetection(p, capture, setDetectorStatus);
+      }
+    }
+  };
+  const stopAll = () => {
+    for (const p of sel) {
+      if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id });
+      if (detectorStatus[p.id]) {
+        stopDetectionForPokemon(p.id);
+        clearDetectorStatus(p.id);
+      }
+    }
+  };
+  const setHuntMode = (mode: HuntMode) => {
+    for (const p of sel) updateHuntMode(p, mode);
+    setShowHuntMenu(false);
+  };
+
+  const sidebarLabel = resolveHuntLabel(anyRunning, currentMode, t);
+  const sidebarIcon = resolveHuntIcon(anyRunning, currentMode);
+
+  return (
+    <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle">
+      <div className="relative flex items-center">
+        <button
+          disabled={!canStart && !anyRunning}
+          onClick={() => { if (anyRunning) stopAll(); else startAll(); }}
+          className={`p-1.5 rounded-lg transition-colors ${huntButtonClass(anyRunning, canStart, currentMode)}`}
+          title={sidebarLabel}
+        >
+          {sidebarIcon}
+        </button>
+        <button
+          onClick={() => setShowHuntMenu((v: boolean) => !v)}
+          className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
+          title={sidebarLabel}
+        >
+          <ChevronDown className="w-3 h-3" />
+        </button>
+        {showHuntMenu && (
+          <>
+            <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHuntMenu(false)} aria-label="Close" />
+            <div className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
+              <button
+                onClick={() => setHuntMode("both")}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+              >
+                <Timer className="w-3.5 h-3.5" />
+                <Eye className="w-3.5 h-3.5 -ml-1" />
+                {t("sidebar.both")}
+                {currentMode === "both" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
+              </button>
+              <button
+                onClick={() => setHuntMode("timer")}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+              >
+                <Timer className="w-3.5 h-3.5" />
+                {t("sidebar.timerOnly")}
+                {currentMode === "timer" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
+              </button>
+              <button
+                onClick={() => setHuntMode("detector")}
+                disabled={!hasDetector && !hasRunningDetector}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title={hasDetector ? undefined : t("sidebar.detectorNotReady")}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                {t("sidebar.detectorOnly")}
+                {currentMode === "detector" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {hasRunningTimer && (
+        <span className="flex items-center gap-1 text-[10px] text-accent-green">
+          <Timer className="w-3 h-3" />
+        </span>
+      )}
+      {hasRunningDetector && (
+        <span className="flex items-center gap-1 text-[10px] text-accent-blue">
+          <Eye className="w-3 h-3" />
+        </span>
+      )}
+
+      <div className="flex-1" />
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-1.5 mr-2">
+          <span className="text-[10px] text-accent-blue font-semibold tabular-nums">{selectedIds.size}</span>
+          {sidebarTab === "active" && (
+            <button
+              onClick={bulkComplete}
+              className="p-1 rounded text-text-faint hover:text-accent-green transition-colors"
+              title={t("dash.caught")}
+              aria-label={t("dash.caught")}
+            >
+              <PartyPopper className="w-3 h-3" />
+            </button>
+          )}
+          <button
+            onClick={bulkDelete}
+            className="p-1 rounded text-text-faint hover:text-accent-red transition-colors"
+            title={t("dash.delete")}
+            aria-label={t("dash.delete")}
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors"
+            title={t("timer.clearSelection")}
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+      <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
+        <Zap className="w-3 h-3 text-accent-yellow" />
+        <span className="tabular-nums">{totalEncounters}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Resolves the common hunt mode across a selection of Pokemon. */
+function resolveHuntMode(pokemon: Pokemon[]): "both" | "timer" | "detector" {
+  const modes = pokemon.map(p => p.hunt_mode || "both");
+  if (modes.every(m => m === "timer")) return "timer";
+  if (modes.every(m => m === "detector")) return "detector";
+  return "both";
+}
+
+/** Resolves the hunt button label based on running state and mode. */
+function resolveHuntLabel(anyRunning: boolean, mode: string, t: (key: string) => string): string {
+  if (anyRunning) {
+    if (mode === "timer") return t("sidebar.stopTimer");
+    if (mode === "detector") return t("sidebar.stopDetector");
+    return t("sidebar.stopHunt");
+  }
+  if (mode === "timer") return t("sidebar.startTimer");
+  if (mode === "detector") return t("sidebar.startDetector");
+  return t("sidebar.startHunt");
+}
+
+/** Resolves the hunt button icon based on running state and mode. */
+function resolveHuntIcon(anyRunning: boolean, mode: string): React.ReactNode {
+  if (mode === "timer") return <Timer className="w-3.5 h-3.5" />;
+  if (mode === "detector") return <Eye className="w-3.5 h-3.5" />;
+  return anyRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />;
+}
+
+/** Resolves the hunt button background color based on running state and mode. */
+function resolveHuntBgColor(anyRunning: boolean, mode: string): string {
+  if (anyRunning) return "bg-red-500/15";
+  if (mode === "detector") return "bg-purple-600";
+  if (mode === "timer") return "bg-accent-green";
+  return "bg-accent-blue";
+}
+
+/** Header hunt start/stop split button with mode dropdown. */
+function HeaderHuntButton({
+  pokemon, detectorStatus, showMenu, setShowMenu, send, capture,
+  setDetectorStatus, clearDetectorStatus,
+}: Readonly<{
+  pokemon: Pokemon;
+  detectorStatus: Record<string, { state?: string; confidence?: number }>;
+  showMenu: boolean;
+  setShowMenu: (v: boolean | ((prev: boolean) => boolean)) => void;
+  send: (type: string, payload: unknown) => void;
+  capture: { isCapturing: (id: string) => boolean; getVideoElement: (id: string) => HTMLVideoElement | null };
+  setDetectorStatus: (id: string, status: { state: string; confidence: number; poll_ms: number }) => void;
+  clearDetectorStatus: (id: string) => void;
+}>) {
+  const { t } = useI18n();
+  const timerRunning = !!pokemon.timer_started_at;
+  const detRunning = !!detectorStatus[pokemon.id];
+  const detReady = hasDetectorReady(pokemon);
+  const huntMode = pokemon.hunt_mode || "both";
+  const anyRunning = timerRunning || detRunning;
+
+  const buttonLabel = resolveHuntLabel(anyRunning, huntMode, t);
+  const modeIcon = resolveHuntIcon(anyRunning, huntMode);
+  const bgColor = resolveHuntBgColor(anyRunning, huntMode);
+
+  const handleToggle = () => {
+    if (anyRunning) {
+      if (timerRunning) send("timer_stop", { pokemon_id: pokemon.id });
+      if (detRunning) {
+        stopDetectionForPokemon(pokemon.id);
+        clearDetectorStatus(pokemon.id);
+      }
+    } else {
+      if (huntMode !== "detector" && !pokemon.timer_started_at) send("timer_start", { pokemon_id: pokemon.id });
+      if (canStartDetector(pokemon, detectorStatus, capture)) {
+        tryStartDetection(pokemon, capture, setDetectorStatus);
+      }
+    }
+  };
+
+  return (
+    <div className="relative shrink-0" data-detector-tutorial="controls">
+      <div className={`flex items-center rounded-full overflow-hidden ${bgColor}`}>
+        <button
+          onClick={handleToggle}
+          className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-bold transition-colors ${
+            anyRunning ? "text-red-400 hover:bg-red-500/20" : "text-white hover:bg-white/10"
+          }`}
+          aria-label={buttonLabel}
+        >
+          {modeIcon}
+          <span className="hidden sm:inline">{buttonLabel}</span>
+        </button>
+        <div className={`w-px h-4 ${anyRunning ? "bg-red-400/30" : "bg-white/20"}`} />
+        <button
+          onClick={() => setShowMenu((v: boolean) => !v)}
+          className={`px-1.5 py-1.5 transition-colors ${
+            anyRunning ? "text-red-400 hover:bg-red-500/20" : "text-white hover:bg-white/10"
+          }`}
+          aria-label={t("sidebar.both")}
+        >
+          <ChevronDown className="w-3 h-3" />
+        </button>
+      </div>
+      {showMenu && (
+        <>
+          <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMenu(false)} aria-label={t("aria.close")} />
+          <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
+            {[
+              { mode: "both" as const, icon: <><Timer className="w-3.5 h-3.5" /><Eye className="w-3.5 h-3.5 -ml-1" /></>, label: t("sidebar.both") },
+              { mode: "timer" as const, icon: <Timer className="w-3.5 h-3.5" />, label: t("sidebar.timerOnly") },
+              { mode: "detector" as const, icon: <Eye className="w-3.5 h-3.5" />, label: t("sidebar.detectorOnly"), disabled: !detReady && !detRunning },
+            ].map(({ mode, icon, label, disabled }) => (
+              <button
+                key={mode}
+                onClick={() => { updateHuntMode(pokemon, mode); setShowMenu(false); }}
+                disabled={disabled}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                {icon}
+                {label}
+                {huntMode === mode && <Check className="ml-auto w-3 h-3 text-accent-green" />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Collapsed sidebar sprite-only button for a single Pokemon. */
+function CollapsedSidebarItem({
+  pokemon, isViewed, imgError, onActivate, onImgError,
+}: Readonly<{
+  pokemon: Pokemon;
+  isViewed: boolean;
+  imgError: Record<string, boolean>;
+  onActivate: (id: string) => void;
+  onImgError: (id: string) => void;
+}>) {
+  const src = resolveSpriteUrl(pokemon.id, pokemon.sprite_url, imgError);
+  return (
+    <button
+      onClick={() => onActivate(pokemon.id)}
+      className={`w-full p-1.5 flex items-center justify-center transition-colors ${
+        isViewed ? "bg-accent-blue/15" : "hover:bg-bg-hover"
+      }`}
+      title={`${pokemon.name} (${pokemon.encounters.toLocaleString()})`}
+    >
+      <img
+        src={src}
+        alt={pokemon.name}
+        className="pokemon-sprite w-7 h-7 object-contain"
+        onError={() => onImgError(pokemon.id)}
+      />
+    </button>
+  );
+}
+
+/** Resolves the step label for encounter buttons (+N / -N). */
+function stepLabel(pokemon: Pokemon): string {
+  return pokemon.step && pokemon.step > 1 ? String(pokemon.step) : "1";
+}
+
+/** Counter tab content: sprite, encounter buttons, timer, and stats. */
+function DashboardCounterTab({
+  pokemon, imgError, oddsDisplay, send,
+  onImgError, onDecrement, onIncrement, onReset, onSetEncounter,
+}: Readonly<{
+  pokemon: Pokemon;
+  imgError: Record<string, boolean>;
+  oddsDisplay: string;
+  send: (type: string, payload: unknown) => void;
+  onImgError: (id: string) => void;
+  onDecrement: (id: string) => void;
+  onIncrement: (id: string) => void;
+  onReset: (id: string) => void;
+  onSetEncounter: (p: Pokemon) => void;
+}>) {
+  const { t } = useI18n();
+  const FALLBACK = SPRITE_FALLBACK;
+  const spriteUrl = imgError[pokemon.id] || !pokemon.sprite_url ? FALLBACK : pokemon.sprite_url;
+  const step = stepLabel(pokemon);
+  const hasCustomStep = pokemon.step && pokemon.step > 1;
+  const isCompleted = !!pokemon.completed_at;
+
+  return (
+    <>
+      {isCompleted && (
+        <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-8">
+          <Trophy className="w-4 h-4" />
+          <span className="font-bold">{t("dash.caughtBanner")}</span>
+          <span className="w-px h-3 bg-accent-green/30" />
+          <span className="text-accent-green/80 text-xs font-medium">
+            {new Date(pokemon.completed_at!).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}
+          </span>
+        </div>
+      )}
+
+      <div className="relative w-full max-h-64 mb-4 mt-8 flex items-center justify-center">
+        <div className="relative z-10 flex flex-col items-center">
+          <img
+            src={spriteUrl}
+            alt={pokemon.name}
+            onError={() => onImgError(pokemon.id)}
+            className="pokemon-sprite w-48 h-48 2xl:w-56 2xl:h-56 object-contain drop-shadow-xl transition-transform duration-300 hover:scale-110"
+          />
+        </div>
+      </div>
+      <h2 className="text-3xl 2xl:text-4xl font-black text-text-primary capitalize tracking-wide drop-shadow-md text-center mb-2">
+        {pokemon.name}
+      </h2>
+
+      <PokemonTimer pokemon={pokemon} send={send} />
+
+      <div className="flex items-center gap-4 2xl:gap-6 mt-6 w-full justify-center">
+        <button
+          onClick={() => !isCompleted && onDecrement(pokemon.id)}
+          disabled={isCompleted}
+          aria-label={`\u2212${step}`}
+          className="flex items-center justify-center w-14 h-14 2xl:w-18 2xl:h-18 rounded-2xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-muted hover:text-accent-blue transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          title={`\u2212${step}`}
+        >
+          {hasCustomStep ? (
+            <span className="text-lg font-bold">&minus;{pokemon.step}</span>
+          ) : (
+            <Minus className="w-7 h-7" />
+          )}
+        </button>
+
+        <div className="bg-bg-card rounded-3xl px-12 py-6 2xl:px-16 2xl:py-8 text-center border border-border-subtle shadow-lg min-w-72 relative group" aria-live="polite">
+          <div className="text-6xl 2xl:text-7xl font-black tabular-nums leading-none tracking-tight text-text-primary">
+            {pokemon.encounters.toLocaleString()}
+          </div>
+          {!isCompleted && (
+            <button
+              onClick={() => onSetEncounter(pokemon)}
+              className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
+              title={t("dash.setEncounters")}
+              aria-label={t("dash.setEncounters")}
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {!isCompleted && (
+            <button
+              onClick={() => onReset(pokemon.id)}
+              className="mt-3 text-[11px] text-text-faint hover:text-text-muted transition-colors flex items-center gap-1 mx-auto"
+              title={t("tooltip.common.reset")}
+              aria-label={t("tooltip.common.reset")}
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset
+            </button>
+          )}
+        </div>
+
+        <button
+          onClick={() => !isCompleted && onIncrement(pokemon.id)}
+          disabled={isCompleted}
+          aria-label={`+${step}`}
+          className="flex items-center justify-center w-18 h-18 2xl:w-22 2xl:h-22 rounded-2xl bg-accent-green hover:bg-accent-green/90 transition-all active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          title={`+${step}`}
+        >
+          {hasCustomStep ? (
+            <span className="text-2xl font-bold">+{pokemon.step}</span>
+          ) : (
+            <Plus className="w-9 h-9 stroke-[3px]" />
+          )}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 mt-10 w-full max-w-lg mx-auto">
+        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors">
+          <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center shrink-0">
+            <Zap className="w-5 h-5 text-accent-blue" />
+          </div>
+          <div>
+            <div className="text-text-muted text-[10px] font-bold uppercase tracking-widest">{t("dash.phase") || "Encounter"}</div>
+            <div className="text-lg font-black text-text-primary tabular-nums">{pokemon.encounters.toLocaleString()}</div>
+          </div>
+        </div>
+        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors" title={t("aria.odds")}>
+          <div className="w-10 h-10 rounded-xl bg-accent-purple/10 flex items-center justify-center shrink-0">
+            <Target className="w-5 h-5 text-accent-purple" />
+          </div>
+          <div>
+            <div className="text-text-muted text-[10px] font-bold uppercase tracking-widest">{t("dash.odds") || "Odds"}</div>
+            <div className="text-lg font-black text-accent-blue tabular-nums">{oddsDisplay}</div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Renders a single import-overlay-from-pokemon button in the import dropdown. */
+function OverlayImportItem({ pokemon, onCopy }: Readonly<{ pokemon: Pokemon; onCopy: (id: string) => void }>) {
+  const icon = pokemon.sprite_url
+    ? <img src={pokemon.sprite_url} alt="" className="w-4 h-4 object-contain" />
+    : <div className="w-4 h-4 rounded bg-bg-hover" />;
+  return (
+    <button
+      onClick={() => onCopy(pokemon.id)}
+      className="w-full text-left px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors flex items-center gap-2"
+    >
+      {icon}
+      {pokemon.name}
+    </button>
+  );
+}
+
+/** Overlay tab content, extracted to reduce Dashboard cognitive complexity. */
+function DashboardOverlayTab({
+  pokemon, overlaySaving, overlaySaved, overlayDirty, currentOverlay,
+  allPokemon, onModeChange, onSave, onCopyFrom, onOverlayUpdate,
+}: Readonly<{
+  pokemon: Pokemon;
+  overlaySaving: boolean;
+  overlaySaved: boolean;
+  overlayDirty: boolean;
+  currentOverlay: OverlaySettings | null;
+  allPokemon: Pokemon[];
+  onModeChange: (mode: "default" | "custom") => void;
+  onSave: () => void;
+  onCopyFrom: (sourceId: string) => void;
+  onOverlayUpdate: (overlay: OverlaySettings) => void;
+}>) {
+  const { t } = useI18n();
+  const overlayMode = pokemon.overlay_mode || "default";
+  const modeBase = overlayMode === "custom" ? "custom" : "default";
+
+  const saveIcon = overlaySaving
+    ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+    : <Save className="w-3.5 h-3.5" />;
+
+  return (
+    <div className="w-full h-full flex flex-col min-h-0">
+      {/* Control bar */}
+      <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-card border-b border-border-subtle shrink-0">
+        <OverlayBrowserSourceButton pokemonId={pokemon.id} />
+
+        {modeBase === "custom" && overlaySaved && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/20 shrink-0">
+            <Save className="w-3 h-3" />
+            {t("overlay.saved")}
+          </span>
+        )}
+
+        <div className="flex-1" />
+
+        <button
+          onClick={() => onModeChange("default")}
+          title={t("dash.tooltipOverlayGlobal")}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+            modeBase === "default"
+              ? "bg-accent-blue/15 text-accent-blue"
+              : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          {t("overlay.global")}
+        </button>
+        <button
+          onClick={() => onModeChange("custom")}
+          title={t("dash.tooltipOverlayCustom")}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+            modeBase === "custom"
+              ? "bg-purple-500/15 text-purple-400"
+              : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+          }`}
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          {t("overlay.modeCustom")}
+        </button>
+
+        {modeBase === "custom" && (
+          <div className="relative group shrink-0">
+            <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
+              <Download className="w-3.5 h-3.5" />
+              {t("overlay.import")}
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            <div className="absolute right-0 top-full mt-1 w-52 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 max-h-60 overflow-y-auto">
+              <button
+                onClick={() => onCopyFrom("global")}
+                className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors flex items-center gap-2"
+              >
+                <Globe className="w-3.5 h-3.5 text-text-muted" />
+                {t("overlay.globalLayout")}
+              </button>
+              {allPokemon
+                .filter((p) => p.id !== pokemon.id && p.overlay)
+                .map((p) => <OverlayImportItem key={p.id} pokemon={p} onCopy={onCopyFrom} />)}
+            </div>
+          </div>
+        )}
+
+        {modeBase === "custom" && (
+          <button
+            onClick={onSave}
+            disabled={!overlayDirty || overlaySaving}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+          >
+            {saveIcon}
+            {t("overlay.save")}
+          </button>
+        )}
+      </div>
+
+      {modeBase === "default" && currentOverlay && (
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+          <div className="text-center space-y-4 max-w-sm">
+            <Globe className="w-10 h-10 text-text-muted mx-auto" />
+            <p className="text-sm text-text-secondary">
+              {t("overlay.usesGlobalDesc")}
+            </p>
+            <p className="text-xs text-text-muted leading-relaxed">
+              {t("overlay.globalChangeNote")}
+            </p>
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <Link
+                to="/overlay-editor"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-blue hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                {t("overlay.editGlobal")}
+              </Link>
+              <OverlayBrowserSourceButton pokemonId={pokemon.id} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modeBase === "custom" && currentOverlay && (
+        <div className="flex-1 min-h-0">
+          <OverlayEditor
+            settings={currentOverlay}
+            activePokemon={pokemon || undefined}
+            overlayTargetId={pokemon.id}
+            onUpdate={onOverlayUpdate}
+            compact
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Hook that returns a callback to update a Pokemon's overlay_mode and settings via the API. */
+function useOverlayUpdate(
+  appState: AppState,
+  setOverlayDirty: (dirty: boolean) => void,
+  setOverlaySaved: (saved: boolean) => void,
+  setOverlaySaving: (saving: boolean) => void,
+) {
+  return async (pokemonId: string, mode: OverlayMode, overlay: OverlaySettings | null) => {
+    const p = appState.pokemon.find((x) => x.id === pokemonId);
+    if (!p) return;
+    setOverlaySaving(true);
+    try {
+      const payload = {
+        name: p.name,
+        canonical_name: p.canonical_name,
+        sprite_url: p.sprite_url,
+        sprite_type: p.sprite_type,
+        language: p.language,
+        game: p.game,
+        overlay_mode: mode,
+        overlay,
+      };
+      await fetch(apiUrl(`/api/pokemon/${p.id}`), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setOverlayDirty(false);
+      setOverlaySaved(true);
+      setTimeout(() => setOverlaySaved(false), 2000);
+    } catch (err) {
+      console.error(err);
+    }
+    setOverlaySaving(false);
+  };
+}
+
 /** Loading spinner shown while the WebSocket connection is pending. */
 function DashboardLoader({ label }: Readonly<{ label: string }>) {
   return (
@@ -405,8 +1512,8 @@ export function Dashboard() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const lastSelectedIdx = useRef<number | null>(null);
   const [focusedIdx, setFocusedIdx] = useState<number | null>(null);
-  const [sortMode, setSortMode] = useState<SortMode>(() => (localStorage.getItem("encounty-sort-mode") as SortMode) || "recent");
-  const [sortDir, setSortDir] = useState<SortDir>(() => (localStorage.getItem("encounty-sort-dir") as SortDir) || "asc");
+  const [sortMode, setSortMode] = useState<SortMode>(loadSortMode);
+  const [sortDir, setSortDir] = useState<SortDir>(loadSortDir);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("encounty-sidebar-collapsed") === "true");
   const [showHuntMenu, setShowHuntMenu] = useState(false);
@@ -439,27 +1546,17 @@ export function Dashboard() {
     onConfirm: () => {},
   });
 
-  const { send } = useWebSocket((msg) => {
-    const config = buildResetConfirmConfig(
-      msg, appState?.pokemon ?? [], t,
-      (pokemonId) => send("reset", { pokemon_id: pokemonId }),
-    );
-    if (config) {
-      globalThis.electronAPI?.focusWindow();
-      setConfirmConfig(config);
-    }
-  });
+  const { send } = useWebSocket((msg) =>
+    handleResetConfirmMessage(msg, appState?.pokemon, t, send, setConfirmConfig),
+  );
 
   useFocusShortcut(searchRef);
 
   // Sync overlay editor state when the viewed Pokemon changes
-  useEffect(() => {
-    const overlay = resolveCurrentOverlay(appState, viewedPokemonId);
-    if (overlay) {
-      setCurrentOverlay(overlay);
-      setOverlayDirty(false);
-    }
-  }, [viewedPokemonId, appState?.active_id]);
+  useEffect(
+    () => syncOverlayState(appState, viewedPokemonId, setCurrentOverlay, setOverlayDirty),
+    [viewedPokemonId, appState?.active_id],
+  );
 
   useHotkeyPause(rightPanelTab);
 
@@ -521,72 +1618,21 @@ export function Dashboard() {
     setEditingPokemon(null);
   };
 
-  const handleDetectorConfigChange = async (pokemonId: string, cfg: DetectorConfig | null) => {
-    await fetch(apiUrl(`/api/detector/${pokemonId}/config`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cfg ?? {}),
-    });
-  };
+  const handleDetectorConfigChange = (pokemonId: string, cfg: DetectorConfig | null) =>
+    saveDetectorConfig(pokemonId, cfg);
 
   // --- Overlay Handlers ---
 
-  /** Update a Pokemon's overlay_mode and optionally its overlay settings. */
-  const updatePokemonOverlay = async (
-    pokemonId: string,
-    mode: OverlayMode,
-    overlay: OverlaySettings | null,
-  ) => {
-    const p = appState!.pokemon.find((x) => x.id === pokemonId);
-    if (!p) return;
-    setOverlaySaving(true);
-    try {
-      const payload = {
-        name: p.name,
-        canonical_name: p.canonical_name,
-        sprite_url: p.sprite_url,
-        sprite_type: p.sprite_type,
-        language: p.language,
-        game: p.game,
-        overlay_mode: mode,
-        overlay,
-      };
-      await fetch(apiUrl(`/api/pokemon/${p.id}`), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      setOverlayDirty(false);
-      setOverlaySaved(true);
-      setTimeout(() => setOverlaySaved(false), 2000);
-    } catch (err) {
-      console.error(err);
-    }
-    setOverlaySaving(false);
-  };
+  const updatePokemonOverlay = useOverlayUpdate(appState!, setOverlayDirty, setOverlaySaved, setOverlaySaving);
 
-  /** Switch overlay mode for the currently viewed Pokemon. */
-  const handleModeChange = async (newMode: "default" | "custom") => {
-    if (!viewedPokemon) return;
-    await applyOverlayMode(
-      newMode, viewedPokemon, appState!, t,
-      updatePokemonOverlay, setCurrentOverlay,
-    );
-  };
+  const handleModeChange = (newMode: "default" | "custom") =>
+    changePokemonOverlayMode(newMode, viewedPokemon, appState!, t, updatePokemonOverlay, setCurrentOverlay);
 
-  /** Save the current custom overlay for the viewed Pokemon. */
-  const saveCurrentOverlay = async () => {
-    if (!currentOverlay || !viewedPokemon) return;
-    await updatePokemonOverlay(viewedPokemon.id, "custom", currentOverlay);
-  };
+  const saveCurrentOverlay = () =>
+    saveOverlayIfReady(currentOverlay, viewedPokemon, updatePokemonOverlay);
 
-
-  /** Copy overlay settings from another Pokemon or default. */
-  const copyOverlayFrom = (sourceId: string) => {
-    const overlay = resolveCopySource(sourceId, appState!.pokemon, appState!.settings.overlay);
-    if (overlay) setCurrentOverlay(overlay);
-    setOverlayDirty(true);
-  };
+  const copyOverlayFrom = (sourceId: string) =>
+    applyCopyOverlay(sourceId, appState!, setCurrentOverlay, setOverlayDirty);
 
   // --- Derived State (computed before hooks to avoid conditional hook calls) ---
   const allPokemon = appState?.pokemon ?? [];
@@ -598,9 +1644,7 @@ export function Dashboard() {
     q,
   );
   const displayList = sortPokemonList(filtered, sortMode, sortDir);
-  const viewedPokemon = appState
-    ? allPokemon.find((p) => p.id === (viewedPokemonId || appState.active_id)) ?? null
-    : null;
+  const viewedPokemon = findViewedPokemon(allPokemon, viewedPokemonId, appState?.active_id ?? "");
   const totalEncounters = allPokemon.reduce((s, p) => s + p.encounters, 0);
   const oddsDisplay = computeOddsDisplay(viewedPokemon, games);
 
@@ -614,150 +1658,40 @@ export function Dashboard() {
     localStorage.setItem("encounty-sidebar-collapsed", String(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
+  const bulkDelete = () =>
+    requestBulkDelete(selectedIds, t, setConfirmConfig, setSelectedIds);
+
+  const bulkComplete = () =>
+    completePokemonBulk(selectedIds, setSelectedIds);
+
   // --- Sidebar keyboard navigation ---
-  useEffect(() => {
-    const aside = asideRef.current;
-    if (!aside) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (!aside.contains(document.activeElement) && document.activeElement !== document.body) return;
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setFocusedIdx(prev => prev === null ? 0 : Math.min(prev + 1, displayList.length - 1));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setFocusedIdx(prev => prev === null ? displayList.length - 1 : Math.max(prev - 1, 0));
-      } else if (e.key === "Enter" && focusedIdx !== null && displayList[focusedIdx]) {
-        e.preventDefault();
-        handleActivate(displayList[focusedIdx].id);
-      } else if (e.key === " " && focusedIdx !== null && displayList[focusedIdx]) {
-        e.preventDefault();
-        const id = displayList[focusedIdx].id;
-        setSelectedIds(prev => {
-          const n = new Set(prev);
-          if (n.has(id)) { n.delete(id); } else { n.add(id); }
-          return n;
-        });
-      } else if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        setSelectedIds(new Set(displayList.map(p => p.id)));
-      } else if (e.key === "Escape") {
-        if (selectedIds.size > 0) setSelectedIds(new Set());
-        else if (searchQuery) setSearchQuery("");
-      } else if (e.key === "Delete" && selectedIds.size > 0) {
-        e.preventDefault();
-        bulkDelete();
-      }
-    };
-    globalThis.addEventListener("keydown", handleKey);
-    return () => globalThis.removeEventListener("keydown", handleKey);
-  }, [displayList, focusedIdx, selectedIds, searchQuery]);
+  useSidebarKeyboard(asideRef, {
+    displayList, focusedIdx, selectedIds, searchQuery,
+    setFocusedIdx, setSelectedIds, setSearchQuery, handleActivate, bulkDelete,
+  });
 
   // Scroll focused item into view
-  useEffect(() => {
-    if (focusedIdx === null) return;
-    asideRef.current?.querySelector(`[data-sidebar-idx="${focusedIdx}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [focusedIdx]);
-
-  /** Bulk delete selected Pokemon with confirmation. */
-  const bulkDelete = () => {
-    if (selectedIds.size === 0) return;
-    setConfirmConfig({
-      isOpen: true,
-      title: t("confirm.deleteTitle"),
-      message: `${selectedIds.size} ${t("dash.pokemonSelected")} — ${t("confirm.deleteMsg")}`,
-      isDestructive: true,
-      onConfirm: () => {
-        for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}`), { method: "DELETE" }).catch(() => {});
-        setSelectedIds(new Set());
-        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
-      },
-    });
-  };
-
-  /** Bulk complete selected Pokemon. */
-  const bulkComplete = () => {
-    for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}/complete`), { method: "POST" }).catch(() => {});
-    setSelectedIds(new Set());
-  };
+  useEffect(
+    () => scrollFocusedIntoView(focusedIdx, asideRef),
+    [focusedIdx],
+  );
 
   if (!appState) return <DashboardLoader label={t("nav.connecting")} />;
 
-  const FALLBACK = SPRITE_FALLBACK;
+  const effectiveViewedId = viewedPokemonId || appState.active_id;
+  const activeLanguages = appState.settings.languages ?? ["de", "en"];
 
-  /** Handle sidebar card clicks with Ctrl/Shift multi-select support. */
-  const handleCardClick = (e: React.MouseEvent, pokemonId: string, idx: number) => {
-    if (e.ctrlKey || e.metaKey) {
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        if (next.has(pokemonId)) next.delete(pokemonId);
-        else next.add(pokemonId);
-        return next;
-      });
-      lastSelectedIdx.current = idx;
-    } else if (e.shiftKey && lastSelectedIdx.current !== null) {
-      const from = Math.min(lastSelectedIdx.current, idx);
-      const to = Math.max(lastSelectedIdx.current, idx);
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        for (let i = from; i <= to; i++) next.add(displayList[i].id);
-        return next;
-      });
-    } else {
-      if (selectedIds.size > 0) setSelectedIds(new Set());
-      handleActivate(pokemonId);
-    }
+  const cardSelectionCtx: CardSelectionContext = {
+    displayList, selectedIds, lastSelectedIdx, setSelectedIds, handleActivate,
   };
+  const handleCardClick = (e: React.MouseEvent, pokemonId: string, idx: number) =>
+    applyCardSelection(e, pokemonId, idx, cardSelectionCtx);
 
-  /** Renders the empty-list placeholder based on current search query and sidebar tab. */
-  const renderEmptyList = () => {
-    if (q) {
-      return (
-        <>
-          <Search className="w-8 h-8 text-text-faint mb-3" />
-          <p className="text-sm text-text-muted">
-            {t("dash.noMatch")} &bdquo;{q}&ldquo;
-          </p>
-          <button
-            onClick={() => {
-              setSearchQuery("");
-              setShowAddModal(true);
-            }}
-            className="mt-3 text-xs text-accent-blue hover:underline flex items-center gap-1"
-          >
-            <Plus className="w-3 h-3" />
-            {t("dash.addNew")}
-          </button>
-        </>
-      );
-    }
-    if (sidebarTab === "active") {
-      return (
-        <>
-          <Gamepad2 className="w-10 h-10 text-text-faint mb-3" />
-          <p className="text-sm text-text-muted">
-            {t("dash.noPokemon")}
-          </p>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="mt-4 text-xs text-accent-blue hover:underline"
-          >
-            {t("dash.addFirst")}
-          </button>
-        </>
-      );
-    }
-    return (
-      <>
-        <Trophy className="w-10 h-10 text-text-faint mb-3" />
-        <p className="text-sm text-text-muted">
-          {t("dash.noArchive")}
-        </p>
-        <p className="text-xs text-text-faint mt-1">
-          {t("dash.noArchiveHint")}
-        </p>
-      </>
-    );
+  const handleClearAndAdd = () => {
+    setSearchQuery("");
+    setShowAddModal(true);
   };
+  const handleOpenAdd = () => setShowAddModal(true);
 
   /** Renders the right main panel when no Pokemon is selected. */
   const renderNoPokemonPanel = () => (
@@ -775,345 +1709,46 @@ export function Dashboard() {
   );
 
   /** Renders a single import-dropdown item for copying overlays from other Pokemon. */
-  const renderImportItem = (p: Pokemon) => {
-    const icon = p.sprite_url
-      ? <img src={p.sprite_url} alt="" className="w-4 h-4 object-contain" />
-      : <div className="w-4 h-4 rounded bg-bg-hover" />;
-    return (
-      <button
-        key={p.id}
-        onClick={() => copyOverlayFrom(p.id)}
-        className="w-full text-left px-3 py-2 text-xs text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors flex items-center gap-2"
-      >
-        {icon}
-        {p.name}
-      </button>
-    );
-  };
+  const renderOverlayTab = (pokemon: Pokemon) => (
+    <DashboardOverlayTab
+      pokemon={pokemon}
+      overlaySaving={overlaySaving}
+      overlaySaved={overlaySaved}
+      overlayDirty={overlayDirty}
+      currentOverlay={currentOverlay}
+      allPokemon={allPokemon}
+      onModeChange={handleModeChange}
+      onSave={saveCurrentOverlay}
+      onCopyFrom={copyOverlayFrom}
+      onOverlayUpdate={(overlay) => { setCurrentOverlay(overlay); setOverlayDirty(true); }}
+    />
+  );
 
-  /** Renders the overlay editor tab panel content. */
-  const renderOverlayTab = (pokemon: Pokemon) => {
-    const overlayMode = pokemon.overlay_mode || "default";
-    const modeBase = overlayMode === "custom" ? "custom" : "default";
-
-    const saveIcon = overlaySaving
-      ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-      : <Save className="w-3.5 h-3.5" />;
-
-    return (
-      <div className="w-full h-full flex flex-col min-h-0">
-        {/* Control bar — slim top bar, matches detector control bar style */}
-        <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-card border-b border-border-subtle shrink-0">
-          {/* Left: OBS URL */}
-          <OverlayBrowserSourceButton pokemonId={pokemon.id} />
-
-          {/* Saved indicator */}
-          {modeBase === "custom" && overlaySaved && (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/20 shrink-0">
-              <Save className="w-3 h-3" />
-              {t("overlay.saved")}
-            </span>
-          )}
-
-          {/* Spacer */}
-          <div className="flex-1" />
-
-          {/* Right: Mode switch + Import + Save — matched to OBS button size */}
-          <button
-            onClick={() => handleModeChange("default")}
-            title={t("dash.tooltipOverlayGlobal")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
-              modeBase === "default"
-                ? "bg-accent-blue/15 text-accent-blue"
-                : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5" />
-            {t("overlay.global")}
-          </button>
-          <button
-            onClick={() => handleModeChange("custom")}
-            title={t("dash.tooltipOverlayCustom")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
-              modeBase === "custom"
-                ? "bg-purple-500/15 text-purple-400"
-                : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-            }`}
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            {t("overlay.modeCustom")}
-          </button>
-
-          {/* Import dropdown (custom mode only) */}
-          {modeBase === "custom" && (
-            <div className="relative group shrink-0">
-              <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
-                <Download className="w-3.5 h-3.5" />
-                {t("overlay.import")}
-                <ChevronDown className="w-3 h-3" />
-              </button>
-              <div className="absolute right-0 top-full mt-1 w-52 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 max-h-60 overflow-y-auto">
-                <button
-                  onClick={() => copyOverlayFrom("global")}
-                  className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors flex items-center gap-2"
-                >
-                  <Globe className="w-3.5 h-3.5 text-text-muted" />
-                  {t("overlay.globalLayout")}
-                </button>
-                {appState?.pokemon
-                  .filter((p) => p.id !== pokemon.id && p.overlay)
-                  .map(renderImportItem)}
-              </div>
-            </div>
-          )}
-
-          {/* Save button (custom mode only) */}
-          {modeBase === "custom" && (
-            <button
-              onClick={saveCurrentOverlay}
-              disabled={!overlayDirty || overlaySaving}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-            >
-              {saveIcon}
-              {t("overlay.save")}
-            </button>
-          )}
-        </div>
-
-        {/* Content */}
-        {modeBase === "default" && currentOverlay && (
-          <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-            <div className="text-center space-y-4 max-w-sm">
-              <Globe className="w-10 h-10 text-text-muted mx-auto" />
-              <p className="text-sm text-text-secondary">
-                {t("overlay.usesGlobalDesc")}
-              </p>
-              <p className="text-xs text-text-muted leading-relaxed">
-                {t("overlay.globalChangeNote")}
-              </p>
-              <div className="flex items-center justify-center gap-2 pt-1">
-                <Link
-                  to="/overlay-editor"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-blue hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  {t("overlay.editGlobal")}
-                </Link>
-                <OverlayBrowserSourceButton pokemonId={pokemon.id} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {modeBase === "custom" && currentOverlay && (
-          <div className="flex-1 min-h-0">
-            <OverlayEditor
-              settings={currentOverlay}
-              activePokemon={pokemon || undefined}
-              overlayTargetId={pokemon.id}
-              onUpdate={(overlay) => {
-                setCurrentOverlay(overlay);
-                setOverlayDirty(true);
-              }}
-              compact
-            />
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  /** Renders the counter tab with sprite, encounter buttons, timer, and stats. */
   const renderCounterTab = (pokemon: Pokemon) => (
-    <>
-      {/* Caught banner */}
-      {pokemon.completed_at && (
-        <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-8">
-          <Trophy className="w-4 h-4" />
-          <span className="font-bold">{t("dash.caughtBanner")}</span>
-          <span className="w-px h-3 bg-accent-green/30" />
-          <span className="text-accent-green/80 text-xs font-medium">
-            {new Date(pokemon.completed_at).toLocaleDateString(
-              "de-DE",
-              { day: "2-digit", month: "short", year: "numeric" },
-            )}
-          </span>
-        </div>
-      )}
-
-      {/* Sprite + Name */}
-      <div className="relative w-full max-h-64 mb-4 mt-8 flex items-center justify-center">
-        <div className="relative z-10 flex flex-col items-center">
-          <img
-            src={
-              imgError[pokemon.id] || !pokemon.sprite_url
-                ? FALLBACK
-                : pokemon.sprite_url
-            }
-            alt={pokemon.name}
-            onError={() =>
-              setImgError((prev) => ({
-                ...prev,
-                [pokemon.id]: true,
-              }))
-            }
-            className="pokemon-sprite w-48 h-48 2xl:w-56 2xl:h-56 object-contain drop-shadow-xl transition-transform duration-300 hover:scale-110"
-          />
-        </div>
-      </div>
-      <h2 className="text-3xl 2xl:text-4xl font-black text-text-primary capitalize tracking-wide drop-shadow-md text-center mb-2">
-        {pokemon.name}
-      </h2>
-
-      {/* Timer — integrated below name */}
-      <PokemonTimer pokemon={pokemon} send={send} />
-
-      {/* Main Counter Section */}
-      <div className="flex items-center gap-4 2xl:gap-6 mt-6 w-full justify-center">
-        {/* Minus Button */}
-        <button
-          onClick={() => !pokemon.completed_at && handleDecrement(pokemon.id)}
-          disabled={!!pokemon.completed_at}
-          aria-label={`−${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
-          className="flex items-center justify-center w-14 h-14 2xl:w-18 2xl:h-18 rounded-2xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-muted hover:text-accent-blue transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          title={`−${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
-        >
-          {pokemon.step && pokemon.step > 1 ? (
-            <span className="text-lg font-bold">−{pokemon.step}</span>
-          ) : (
-            <Minus className="w-7 h-7" />
-          )}
-        </button>
-
-        {/* Counter Card — enhanced with subtle glow */}
-        <div className="bg-bg-card rounded-3xl px-12 py-6 2xl:px-16 2xl:py-8 text-center border border-border-subtle shadow-lg min-w-72 relative group" aria-live="polite">
-          <div
-            className="text-6xl 2xl:text-7xl font-black tabular-nums leading-none tracking-tight text-text-primary"
-          >
-            {pokemon.encounters.toLocaleString()}
-          </div>
-          {!pokemon.completed_at && (
-            <button
-              onClick={() => setSetEncounterPokemon(pokemon)}
-              className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
-              title={t("dash.setEncounters")}
-              aria-label={t("dash.setEncounters")}
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-          )}
-          {/* Reset link — subtle, inside counter card */}
-          {!pokemon.completed_at && (
-            <button
-              onClick={() => handleReset(pokemon.id)}
-              className="mt-3 text-[11px] text-text-faint hover:text-text-muted transition-colors flex items-center gap-1 mx-auto"
-              title={t("tooltip.common.reset")}
-              aria-label={t("tooltip.common.reset")}
-            >
-              <RotateCcw className="w-3 h-3" />
-              Reset
-            </button>
-          )}
-        </div>
-
-        {/* Plus Button */}
-        <button
-          onClick={() => !pokemon.completed_at && handleIncrement(pokemon.id)}
-          disabled={!!pokemon.completed_at}
-          aria-label={`+${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
-          className="flex items-center justify-center w-18 h-18 2xl:w-22 2xl:h-22 rounded-2xl bg-accent-green hover:bg-accent-green/90 transition-all active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          title={`+${pokemon.step && pokemon.step > 1 ? pokemon.step : 1}`}
-        >
-          {pokemon.step && pokemon.step > 1 ? (
-            <span className="text-2xl font-bold">+{pokemon.step}</span>
-          ) : (
-            <Plus className="w-9 h-9 stroke-[3px]" />
-          )}
-        </button>
-      </div>
-
-      {/* Bottom Statistics Cards — with icons */}
-      <div className="grid grid-cols-2 gap-4 mt-10 w-full max-w-lg mx-auto">
-        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors">
-          <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center shrink-0">
-            <Zap className="w-5 h-5 text-accent-blue" />
-          </div>
-          <div>
-            <div className="text-text-muted text-[10px] font-bold uppercase tracking-widest">{t("dash.phase") || "Encounter"}</div>
-            <div className="text-lg font-black text-text-primary tabular-nums">{pokemon.encounters.toLocaleString()}</div>
-          </div>
-        </div>
-        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors" title={t("aria.odds")}>
-          <div className="w-10 h-10 rounded-xl bg-accent-purple/10 flex items-center justify-center shrink-0">
-            <Target className="w-5 h-5 text-accent-purple" />
-          </div>
-          <div>
-            <div className="text-text-muted text-[10px] font-bold uppercase tracking-widest">{t("dash.odds") || "Odds"}</div>
-            <div className="text-lg font-black text-accent-blue tabular-nums">
-              {oddsDisplay}
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+    <DashboardCounterTab
+      pokemon={pokemon}
+      imgError={imgError}
+      oddsDisplay={oddsDisplay}
+      send={send}
+      onImgError={(id) => setImgError((prev) => ({ ...prev, [id]: true }))}
+      onDecrement={handleDecrement}
+      onIncrement={handleIncrement}
+      onReset={handleReset}
+      onSetEncounter={setSetEncounterPokemon}
+    />
   );
 
   /** Renders the tab-specific content inside the scrollable work area. */
-  const renderTabContent = (pokemon: Pokemon) => {
-    if (rightPanelTab === "counter") return renderCounterTab(pokemon);
-
-    if (rightPanelTab === "detector") {
-      return (
-        <div className="w-full h-full">
-          <DetectorPanel
-            key={pokemon.id}
-            pokemon={pokemon}
-            onConfigChange={(cfg) => handleDetectorConfigChange(pokemon.id, cfg)}
-            isRunning={detectorStatus[pokemon.id] !== undefined || isLoopRunning(pokemon.id)}
-            confidence={detectorStatus[pokemon.id]?.confidence ?? 0}
-            detectorState={detectorStatus[pokemon.id]?.state ?? "idle"}
-          />
-        </div>
-      );
-    }
-
-    if (rightPanelTab === "overlay") {
-      return renderOverlayTab(pokemon);
-    }
-
-    if (rightPanelTab === "statistics") {
-      return (
-        <div className="w-full">
-          <StatisticsPanel pokemonId={pokemon.id} />
-        </div>
-      );
-    }
-
-    return null;
-  };
+  const renderTabContent = (pokemon: Pokemon) =>
+    resolveTabContent(
+      rightPanelTab, pokemon,
+      renderCounterTab, renderOverlayTab,
+      handleDetectorConfigChange, detectorStatus,
+    );
 
   /** Renders the scrollable inner work area with the active tab content. */
-  const renderScrollableContent = (pokemon: Pokemon) => {
-    const getInnerMaxWidth = () => {
-      if (rightPanelTab === "counter") return "max-w-3xl mt-0";
-      if (rightPanelTab === "overlay") return "max-w-full mt-0";
-      if (rightPanelTab === "statistics") return "max-w-full mt-0 pb-16";
-      if (rightPanelTab === "detector") return "max-w-full mt-0";
-      return "max-w-2xl mt-0 pb-16";
-    };
-    const innerMaxWidth = getInnerMaxWidth();
-    const outerOverflow = (rightPanelTab === "overlay" || rightPanelTab === "detector") ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8";
-    const outerJustify = rightPanelTab === "counter" ? "justify-center" : "justify-start";
-    const innerHeight = (rightPanelTab === "overlay" || rightPanelTab === "detector") ? "h-full" : "";
-
-    return (
-      <div className={`flex-1 flex flex-col items-center relative z-10 w-full ${outerOverflow} ${outerJustify}`}>
-        <div className={`flex flex-col items-center w-full ${innerHeight} ${innerMaxWidth}`}>
-          {renderTabContent(pokemon)}
-        </div>
-      </div>
-    );
-  };
+  const renderScrollableContent = (pokemon: Pokemon) =>
+    renderWorkArea(rightPanelTab, renderTabContent(pokemon));
 
   return (
     <div className="flex h-full">
@@ -1163,11 +1798,7 @@ export function Dashboard() {
                     ] as const).map(({ mode, label }) => (
                       <button
                         key={mode}
-                        onClick={() => {
-                          if (sortMode === mode) setSortDir(d => d === "asc" ? "desc" : "asc");
-                          else { setSortMode(mode); setSortDir("asc"); }
-                          setShowSortMenu(false);
-                        }}
+                        onClick={() => handleSortClick(mode, sortMode, setSortMode, setSortDir, setShowSortMenu)}
                         className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
                       >
                         {label}
@@ -1239,218 +1870,42 @@ export function Dashboard() {
         </div>
 
         {/* Quick actions bar */}
-        {(() => {
-          const sel = selectedIds.size > 0
-            ? appState.pokemon.filter(p => selectedIds.has(p.id))
-            : activeHunts;
-          const hasRunningTimer = sel.some(p => !!p.timer_started_at);
-          const withDetector = sel.filter(p => hasDetectorReady(p));
-          const hasDetector = withDetector.length > 0;
-          const hasRunningDetector = sel.some(p => !!detectorStatus[p.id]);
-          const anyRunning = hasRunningTimer || hasRunningDetector;
-          const canStart = sel.length > 0;
-
-          const currentMode = (() => {
-            const modes = sel.map(p => p.hunt_mode || "both");
-            if (modes.every(m => m === "timer")) return "timer";
-            if (modes.every(m => m === "detector")) return "detector";
-            return "both";
-          })();
-
-          const startAll = () => {
-            for (const p of sel) {
-              const mode = p.hunt_mode || "both";
-              if (mode !== "detector" && !p.timer_started_at) send("timer_start", { pokemon_id: p.id });
-              if (mode !== "timer" && hasDetectorReady(p) && !detectorStatus[p.id] && capture.isCapturing(p.id)) {
-                const cfg = p.detector_config;
-                if (cfg) {
-                  void fetch(apiUrl(`/api/detector/${p.id}/start`), { method: "POST" }).then(() =>
-                    startDetectionForPokemon({
-                      pokemonId: p.id,
-                      templates: cfg.templates || [],
-                      config: cfg,
-                      getVideoElement: () => capture.getVideoElement(p.id),
-                      onScore: (score, state) => setDetectorStatus(p.id, { state, confidence: score, poll_ms: 100 }),
-                    }),
-                  ).catch(() => {});
-                }
-              }
-            }
-          };
-          const stopAll = () => {
-            for (const p of sel) {
-              if (p.timer_started_at) send("timer_stop", { pokemon_id: p.id });
-              if (detectorStatus[p.id]) {
-                stopDetectionForPokemon(p.id);
-                clearDetectorStatus(p.id);
-              }
-            }
-          };
-          const setHuntMode = (mode: "both" | "timer" | "detector") => {
-            for (const p of sel) {
-              if (p.hunt_mode !== mode) {
-                void fetch(apiUrl(`/api/pokemon/${p.id}`), {
-                  method: "PUT",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ ...p, hunt_mode: mode }),
-                }).catch(() => {});
-              }
-            }
-            setShowHuntMenu(false);
-          };
-
-          const sidebarLabel = (() => {
-            if (anyRunning) {
-              if (currentMode === "timer") return t("sidebar.stopTimer");
-              if (currentMode === "detector") return t("sidebar.stopDetector");
-              return t("sidebar.stopHunt");
-            }
-            if (currentMode === "timer") return t("sidebar.startTimer");
-            if (currentMode === "detector") return t("sidebar.startDetector");
-            return t("sidebar.startHunt");
-          })();
-
-          const sidebarIcon = (() => {
-            if (currentMode === "timer") return <Timer className="w-3.5 h-3.5" />;
-            if (currentMode === "detector") return <Eye className="w-3.5 h-3.5" />;
-            return anyRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />;
-          })();
-
-          return (
-            <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle">
-              {/* Combined Play / Pause */}
-              <div className="relative flex items-center">
-                <button
-                  disabled={!canStart && !anyRunning}
-                  onClick={() => { if (anyRunning) stopAll(); else startAll(); }}
-                  className={`p-1.5 rounded-lg transition-colors ${
-                    huntButtonClass(anyRunning, canStart, currentMode)
-                  }`}
-                  title={sidebarLabel}
-                >
-                  {sidebarIcon}
-                </button>
-                <button
-                  onClick={() => setShowHuntMenu((v) => !v)}
-                  className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
-                  title={sidebarLabel}
-                >
-                  <ChevronDown className="w-3 h-3" />
-                </button>
-                {showHuntMenu && (
-                  <>
-                    <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHuntMenu(false)} aria-label="Close" />
-                    <div className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
-                      <button
-                        onClick={() => setHuntMode("both")}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                      >
-                        <Timer className="w-3.5 h-3.5" />
-                        <Eye className="w-3.5 h-3.5 -ml-1" />
-                        {t("sidebar.both")}
-                        {currentMode === "both" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
-                      </button>
-                      <button
-                        onClick={() => setHuntMode("timer")}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
-                      >
-                        <Timer className="w-3.5 h-3.5" />
-                        {t("sidebar.timerOnly")}
-                        {currentMode === "timer" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
-                      </button>
-                      <button
-                        onClick={() => setHuntMode("detector")}
-                        disabled={!hasDetector && !hasRunningDetector}
-                        className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        title={hasDetector ? undefined : t("sidebar.detectorNotReady")}
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        {t("sidebar.detectorOnly")}
-                        {currentMode === "detector" && <Check className="ml-auto w-3 h-3 text-accent-green" />}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Status indicators */}
-              {hasRunningTimer && (
-                <span className="flex items-center gap-1 text-[10px] text-accent-green">
-                  <Timer className="w-3 h-3" />
-                </span>
-              )}
-              {hasRunningDetector && (
-                <span className="flex items-center gap-1 text-[10px] text-accent-blue">
-                  <Eye className="w-3 h-3" />
-                </span>
-              )}
-
-              {/* Spacer + selection info + total */}
-              <div className="flex-1" />
-              {selectedIds.size > 0 && (
-                <div className="flex items-center gap-1.5 mr-2">
-                  <span className="text-[10px] text-accent-blue font-semibold tabular-nums">{selectedIds.size}</span>
-                  {sidebarTab === "active" && (
-                    <button
-                      onClick={bulkComplete}
-                      className="p-1 rounded text-text-faint hover:text-accent-green transition-colors"
-                      title={t("dash.caught")}
-                      aria-label={t("dash.caught")}
-                    >
-                      <PartyPopper className="w-3 h-3" />
-                    </button>
-                  )}
-                  <button
-                    onClick={bulkDelete}
-                    className="p-1 rounded text-text-faint hover:text-accent-red transition-colors"
-                    title={t("dash.delete")}
-                    aria-label={t("dash.delete")}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={() => setSelectedIds(new Set())}
-                    className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors"
-                    title={t("timer.clearSelection")}
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-              <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
-                <Zap className="w-3 h-3 text-accent-yellow" />
-                <span className="tabular-nums">{totalEncounters}</span>
-              </div>
-            </div>
-          );
-        })()}
+        <SidebarQuickActions
+          allPokemon={appState.pokemon}
+          activeHunts={activeHunts}
+          selectedIds={selectedIds}
+          sidebarTab={sidebarTab}
+          detectorStatus={detectorStatus}
+          totalEncounters={totalEncounters}
+          showHuntMenu={showHuntMenu}
+          setShowHuntMenu={setShowHuntMenu}
+          send={send}
+          capture={capture}
+          setDetectorStatus={setDetectorStatus}
+          clearDetectorStatus={clearDetectorStatus}
+          bulkComplete={bulkComplete}
+          bulkDelete={bulkDelete}
+          setSelectedIds={setSelectedIds}
+        />
 
         {/* Pokémon list */}
         <div className="flex-1 overflow-y-auto">
           {displayList.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-              {renderEmptyList()}
+              <EmptyListPlaceholder query={q} sidebarTab={sidebarTab} onClearAndAdd={handleClearAndAdd} onAdd={handleOpenAdd} />
             </div>
           ) : (
             <ul className="py-1 select-none">
               {displayList.map((p, idx) => {
-                const isViewed = p.id === (viewedPokemonId || appState.active_id);
+                const isViewed = p.id === effectiveViewedId;
                 const isHotkeyTarget = p.id === appState.active_id;
                 const isArchived = !!p.completed_at;
                 const isSelected = selectedIds.has(p.id);
-                const src =
-                  imgError[p.id] || !p.sprite_url ? FALLBACK : p.sprite_url;
-                let itemBorderClass: string;
-                if (isSelected) {
-                  itemBorderClass = "bg-accent-blue/15 border-l-2 border-accent-blue";
-                } else if (isViewed) {
-                  itemBorderClass = "bg-accent-blue/10 border-l-2 border-accent-blue";
-                } else {
-                  itemBorderClass = "hover:bg-bg-hover border-l-2 border-transparent";
-                }
-                const isFocused = focusedIdx === idx;
-                const focusRing = isFocused ? " ring-1 ring-inset ring-accent-blue/40" : "";
-                const itemClassName = `flex items-center gap-3 px-3 py-2 2xl:px-4 2xl:py-2.5 cursor-pointer transition-colors group ${itemBorderClass}${focusRing} ${isArchived ? "opacity-70" : ""}`;
+                const src = resolveSpriteUrl(p.id, p.sprite_url, imgError);
+                const itemBorderClass = sidebarItemBorderClass(isSelected, isViewed);
+                const itemClassName = buildSidebarItemClass(
+                  itemBorderClass, focusedIdx === idx, isArchived,
+                );
                 return (
                   <li
                     key={p.id}
@@ -1459,12 +1914,7 @@ export function Dashboard() {
                   >
                     <button
                       type="button"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleActivate(p.id);
-                        }
-                      }}
+                      onKeyDown={(e) => handleActivateKeyDown(e, p.id, handleActivate)}
                       onClick={(e) => handleCardClick(e, p.id, idx)}
                       className="flex items-center gap-2.5 w-full text-left bg-transparent border-none p-0 cursor-pointer min-w-0"
                     >
@@ -1571,27 +2021,16 @@ export function Dashboard() {
             <PanelLeftOpen className="w-4 h-4 mx-auto" />
           </button>
           <div className="flex-1 overflow-y-auto overflow-x-hidden py-1">
-            {displayList.map((p) => {
-              const isViewed = p.id === (viewedPokemonId || appState.active_id);
-              const src = imgError[p.id] || !p.sprite_url ? FALLBACK : p.sprite_url;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => handleActivate(p.id)}
-                  className={`w-full p-1.5 flex items-center justify-center transition-colors ${
-                    isViewed ? "bg-accent-blue/15" : "hover:bg-bg-hover"
-                  }`}
-                  title={`${p.name} (${p.encounters.toLocaleString()})`}
-                >
-                  <img
-                    src={src}
-                    alt={p.name}
-                    className="pokemon-sprite w-7 h-7 object-contain"
-                    onError={() => setImgError((prev) => ({ ...prev, [p.id]: true }))}
-                  />
-                </button>
-              );
-            })}
+            {displayList.map((p) => (
+              <CollapsedSidebarItem
+                key={p.id}
+                pokemon={p}
+                isViewed={p.id === effectiveViewedId}
+                imgError={imgError}
+                onActivate={handleActivate}
+                onImgError={(id) => setImgError((prev) => ({ ...prev, [id]: true }))}
+              />
+            ))}
           </div>
           {sidebarTab === "active" && (
             <>
@@ -1622,11 +2061,7 @@ export function Dashboard() {
                 <div className="flex bg-bg-card rounded-xl border border-border-subtle p-0.5 shadow-sm">
                   <button
                     onClick={() => setRightPanelTab("counter")}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                      rightPanelTab === "counter"
-                        ? "bg-accent-blue text-white shadow"
-                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                    }`}
+                    className={tabButtonClass(rightPanelTab === "counter")}
                   >
                     <Tally5 className="w-3.5 h-3.5" />
                     {t("dash.tabCounter")}
@@ -1634,11 +2069,7 @@ export function Dashboard() {
                   {!viewedPokemon.completed_at && (
                     <button
                       onClick={() => setRightPanelTab("detector")}
-                      className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                        rightPanelTab === "detector"
-                          ? "bg-accent-blue text-white shadow"
-                          : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                      }`}
+                      className={tabButtonClass(rightPanelTab === "detector")}
                     >
                       <Eye className="w-3.5 h-3.5" />
                       {t("dash.tabDetector")}
@@ -1649,22 +2080,14 @@ export function Dashboard() {
                   )}
                   <button
                     onClick={() => setRightPanelTab("overlay")}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                      rightPanelTab === "overlay"
-                        ? "bg-accent-blue text-white shadow"
-                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                    }`}
+                    className={tabButtonClass(rightPanelTab === "overlay")}
                   >
                     <Layers className="w-3.5 h-3.5" />
                     {t("dash.tabOverlay")}
                   </button>
                   <button
                     onClick={() => setRightPanelTab("statistics")}
-                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                      rightPanelTab === "statistics"
-                        ? "bg-accent-blue text-white shadow"
-                        : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
-                    }`}
+                    className={tabButtonClass(rightPanelTab === "statistics")}
                   >
                     <BarChart3 className="w-3.5 h-3.5" />
                     {t("dash.tabStatistics")}
@@ -1736,125 +2159,18 @@ export function Dashboard() {
               )}
 
               {/* 4. Hunt start/stop — primary CTA, rightmost */}
-              {!viewedPokemon.completed_at && (() => {
-                const p = viewedPokemon;
-                const timerRunning = !!p.timer_started_at;
-                const detRunning = !!detectorStatus[p.id];
-                const detReady = hasDetectorReady(p);
-                const huntMode = p.hunt_mode || "both";
-                const anyRunning = timerRunning || detRunning;
-
-                const buttonLabel = (() => {
-                  if (anyRunning) {
-                    if (huntMode === "timer") return t("sidebar.stopTimer");
-                    if (huntMode === "detector") return t("sidebar.stopDetector");
-                    return t("sidebar.stopHunt");
-                  }
-                  if (huntMode === "timer") return t("sidebar.startTimer");
-                  if (huntMode === "detector") return t("sidebar.startDetector");
-                  return t("sidebar.startHunt");
-                })();
-
-                const modeIcon = (() => {
-                  if (huntMode === "timer") return <Timer className="w-3.5 h-3.5" />;
-                  if (huntMode === "detector") return <Eye className="w-3.5 h-3.5" />;
-                  return anyRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />;
-                })();
-
-                const bgColor = (() => {
-                  if (anyRunning) return "bg-red-500/15";
-                  if (huntMode === "detector") return "bg-purple-600";
-                  if (huntMode === "timer") return "bg-accent-green";
-                  return "bg-accent-blue";
-                })();
-
-                return (
-                  <div className="relative shrink-0" data-detector-tutorial="controls">
-                    <div className={`flex items-center rounded-full overflow-hidden ${bgColor}`}>
-                      <button
-                        onClick={() => {
-                          if (anyRunning) {
-                            if (timerRunning) send("timer_stop", { pokemon_id: p.id });
-                            if (detRunning) {
-                              stopDetectionForPokemon(p.id);
-                              clearDetectorStatus(p.id);
-                            }
-                          } else {
-                            if (huntMode !== "detector" && !p.timer_started_at) send("timer_start", { pokemon_id: p.id });
-                            if (huntMode !== "timer" && detReady && !detectorStatus[p.id] && capture.isCapturing(p.id)) {
-                              const cfg = p.detector_config;
-                              if (cfg) {
-                                void fetch(apiUrl(`/api/detector/${p.id}/start`), { method: "POST" }).then(() =>
-                                  startDetectionForPokemon({
-                                    pokemonId: p.id,
-                                    templates: cfg.templates || [],
-                                    config: cfg,
-                                    getVideoElement: () => capture.getVideoElement(p.id),
-                                    onScore: (score, state) => setDetectorStatus(p.id, { state, confidence: score, poll_ms: 100 }),
-                                  }),
-                                ).catch(() => {});
-                              }
-                            }
-                          }
-                        }}
-                        className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-bold transition-colors ${
-                          anyRunning
-                            ? "text-red-400 hover:bg-red-500/20"
-                            : "text-white hover:bg-white/10"
-                        }`}
-                        aria-label={buttonLabel}
-                      >
-                        {modeIcon}
-                        <span className="hidden sm:inline">{buttonLabel}</span>
-                      </button>
-                      <div className={`w-px h-4 ${anyRunning ? "bg-red-400/30" : "bg-white/20"}`} />
-                      <button
-                        onClick={() => setShowHeaderHuntMenu((v) => !v)}
-                        className={`px-1.5 py-1.5 transition-colors ${
-                          anyRunning
-                            ? "text-red-400 hover:bg-red-500/20"
-                            : "text-white hover:bg-white/10"
-                        }`}
-                        aria-label={t("sidebar.both")}
-                      >
-                        <ChevronDown className="w-3 h-3" />
-                      </button>
-                    </div>
-                    {showHeaderHuntMenu && (
-                      <>
-                        <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHeaderHuntMenu(false)} aria-label={t("aria.close")} />
-                        <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
-                          {[
-                            { mode: "both" as const, icon: <><Timer className="w-3.5 h-3.5" /><Eye className="w-3.5 h-3.5 -ml-1" /></>, label: t("sidebar.both") },
-                            { mode: "timer" as const, icon: <Timer className="w-3.5 h-3.5" />, label: t("sidebar.timerOnly") },
-                            { mode: "detector" as const, icon: <Eye className="w-3.5 h-3.5" />, label: t("sidebar.detectorOnly"), disabled: !detReady && !detRunning },
-                          ].map(({ mode, icon, label, disabled }) => (
-                            <button
-                              key={mode}
-                              onClick={() => {
-                                if (p.hunt_mode !== mode) {
-                                  void fetch(apiUrl(`/api/pokemon/${p.id}`), {
-                                    method: "PUT",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({ ...p, hunt_mode: mode }),
-                                  }).catch(() => {});
-                                }
-                                setShowHeaderHuntMenu(false);
-                              }}
-                              disabled={disabled}
-                              className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              {icon}
-                              {label}
-                              {huntMode === mode && <Check className="ml-auto w-3 h-3 text-accent-green" />}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                );
-              })()}
+              {!viewedPokemon.completed_at && (
+                <HeaderHuntButton
+                  pokemon={viewedPokemon}
+                  detectorStatus={detectorStatus}
+                  showMenu={showHeaderHuntMenu}
+                  setShowMenu={setShowHeaderHuntMenu}
+                  send={send}
+                  capture={capture}
+                  setDetectorStatus={setDetectorStatus}
+                  clearDetectorStatus={clearDetectorStatus}
+                />
+              )}
 
               </div>
             </header>
@@ -1872,7 +2188,7 @@ export function Dashboard() {
         <AddPokemonModal
           onAdd={handleAddPokemon}
           onClose={() => setShowAddModal(false)}
-          activeLanguages={appState.settings.languages ?? ["de", "en"]}
+          activeLanguages={activeLanguages}
         />
       )}
       {editingPokemon && (
@@ -1880,7 +2196,7 @@ export function Dashboard() {
           pokemon={editingPokemon}
           onSave={handleSavePokemon}
           onClose={() => setEditingPokemon(null)}
-          activeLanguages={appState.settings.languages ?? ["de", "en"]}
+          activeLanguages={activeLanguages}
         />
       )}
       {confirmConfig.isOpen && (

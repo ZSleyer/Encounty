@@ -4,7 +4,7 @@
  */
 import { ReactElement } from "react";
 import { render, RenderOptions } from "@testing-library/react";
-import { createMemoryRouter, RouterProvider } from "react-router";
+import { BrowserRouter } from "react-router";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { I18nProvider } from "./contexts/I18nContext";
 import { ToastProvider } from "./contexts/ToastContext";
@@ -14,26 +14,21 @@ import type { AppState, Pokemon, OverlaySettings } from "./types";
 /** Wraps children with all application providers for component testing. */
 function AllProviders({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ThemeProvider>
-      <I18nProvider>
-        <CaptureServiceProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </CaptureServiceProvider>
-      </I18nProvider>
-    </ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
+        <I18nProvider>
+          <CaptureServiceProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </CaptureServiceProvider>
+        </I18nProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   );
 }
 
-/**
- * Custom render that wraps components with all providers + a data router.
- * Uses createMemoryRouter so useBlocker and other data-router hooks work.
- */
+/** Custom render that wraps components with all providers. */
 function customRender(ui: ReactElement, options?: Omit<RenderOptions, "wrapper">) {
-  const router = createMemoryRouter(
-    [{ path: "*", element: <AllProviders>{ui}</AllProviders> }],
-    { initialEntries: ["/"] },
-  );
-  return render(<RouterProvider router={router} />, options);
+  return render(ui, { wrapper: AllProviders, ...options });
 }
 
 /** Minimal default OverlaySettings fixture. */

@@ -98,7 +98,6 @@ export class DetectionLoop {
   private hysteresisEnteredAt = 0;
   private consecutiveCount = 0;
   private missCount = 0;
-  private lastScore = 0;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   /** Pending template replacement — picked up at the start of the next loop iteration. */
@@ -155,7 +154,6 @@ export class DetectionLoop {
     this.running = true;
     this.consecutiveCount = 0;
     this.missCount = 0;
-    this.lastScore = 0;
     this.smoothedScore = 0;
     this.inHysteresis = false;
     this.hysteresisEnteredAt = 0;
@@ -220,7 +218,6 @@ export class DetectionLoop {
         );
 
         const adjusted = this.applyNoiseFloor(result.bestScore);
-        this.lastScore = adjusted;
         this.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * this.smoothedScore;
 
         // Periodic score logging for debugging (every ~2s)

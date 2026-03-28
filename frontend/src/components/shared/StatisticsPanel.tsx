@@ -90,7 +90,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
             <h3 className="text-sm font-semibold text-text-primary">
               {t("stats.chartTitle")}
             </h3>
-            <div className="flex gap-1 bg-bg-secondary rounded-lg p-0.5" role="group" aria-label={t("stats.chartTitle")}>
+            <fieldset className="flex gap-1 bg-bg-secondary rounded-lg p-0.5 border-0 m-0" aria-label={t("stats.chartTitle")}>
               {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
                 <button
                   key={iv}
@@ -105,10 +105,10 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
                   {t(`stats.interval.${iv}`)}
                 </button>
               ))}
-            </div>
+            </fieldset>
           </div>
           {chartData.length > 0 ? (
-            <div role="img" aria-label={t("stats.chartTitle")} className="h-[200px] lg:h-[300px] xl:h-[350px]">
+            <div role="img" aria-label={t("stats.chartTitle")} className="h-50 lg:h-75 xl:h-87.5">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -154,11 +154,10 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
             {t("stats.recentHistory")}
           </h3>
           {history.length > 0 ? (
-            <div className="space-y-1 max-h-96 xl:max-h-[500px] overflow-y-auto" role="list">
+            <ul className="space-y-1 max-h-96 xl:max-h-125 overflow-y-auto list-none m-0 p-0">
               {history.map((e) => (
-                <div
+                <li
                   key={e.id}
-                  role="listitem"
                   className="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-bg-hover text-xs transition-colors"
                 >
                   <time dateTime={e.timestamp} className="text-text-muted">
@@ -176,9 +175,9 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
                     → {e.count_after}
                   </span>
                   <span className="text-text-faint">{e.source}</span>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           ) : (
             <p className="text-text-faint text-xs">{t("stats.noHistory")}</p>
           )}

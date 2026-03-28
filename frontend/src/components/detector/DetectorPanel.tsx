@@ -24,7 +24,7 @@ import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { ConfirmModal } from "../shared/ConfirmModal";
 import { apiUrl } from "../../utils/api";
 import { getActiveLoop } from "../../engine/DetectionLoop";
-import { ensureDetector, getDetectorBackend, setForceCPU, isForceCPU, startDetectionForPokemon, stopDetectionForPokemon, reloadDetectionTemplates } from "../../engine/startDetection";
+import { ensureDetector, getDetectorBackend, setForceCPU, isForceCPU, stopDetectionForPokemon, reloadDetectionTemplates } from "../../engine/startDetection";
 import type { DetectionLoop } from "../../engine/DetectionLoop";
 
 // --- Default config ----------------------------------------------------------
@@ -57,6 +57,13 @@ export type DetectorPanelProps = Readonly<{
 }>;
 
 // --- Helpers -----------------------------------------------------------------
+
+/** Derive a user-facing error message from a caught exception. */
+function getErrorMessage(err: unknown, networkMsg: string, fallbackMsg: string): string {
+  if (err instanceof TypeError) return networkMsg;
+  if (err instanceof Error) return err.message;
+  return fallbackMsg;
+}
 
 function stateDotClass(state: string, running: boolean): { dot: string; pulse: boolean } {
   if (!running) return { dot: "bg-text-muted", pulse: false };
@@ -98,7 +105,7 @@ export function DetectorPanel({
   const [cooldownRemaining, setCooldownRemaining] = useState<number | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
-  const [isStarting, setIsStarting] = useState(false);
+  const [isStarting] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [cfg, setCfg] = useState<DetectorConfig>(() => {
     const saved = pokemon.detector_config;
@@ -424,7 +431,7 @@ export function DetectorPanel({
         }, 200);
       }
     } catch (err) {
-      const msg = err instanceof TypeError ? t("detector.errNetworkFailed") : (err instanceof Error ? err.message : t("detector.errSaveFailed"));
+      const msg = getErrorMessage(err, t("detector.errNetworkFailed"), t("detector.errSaveFailed"));
       pushToast({ type: "error", title: msg });
     }
   };
@@ -474,67 +481,6 @@ export function DetectorPanel({
       }
     } catch { pushToast({ type: "error", title: t("detector.errInvalidFile") }); }
     setShowMoreMenu(false);
-  };
-
-  // --- Start / Stop ----------------------------------------------------------
-
-  const handleStart = async () => {
-    if (isStarting) return;
-    // Gate: source must be connected before starting detection.
-    if (!isCapturing) {
-      setErrorMsg(t("detector.errNoStream"));
-      return;
-    }
-    if (templates.length === 0) { setErrorMsg(t("detector.errNoTemplates")); return; }
-
-    setIsStarting(true);
-    setErrorMsg(null);
-    try {
-      // Save config first and wait for it to persist
-      await onConfigChange({ ...cfg, templates });
-      const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/start`), { method: "POST" });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
-        setErrorMsg(body.error ?? t("detector.errStartFailed"));
-        return;
-      }
-
-      // --- Start browser-side detection loop --------------------------------
-      await startDetectionLoop();
-      setErrorMsg(null);
-    } catch { setErrorMsg(t("detector.errStartFailed")); }
-    finally { setIsStarting(false); }
-  };
-
-  /** Create and start the browser-side DetectionLoop for this pokemon. */
-  const startDetectionLoop = async () => {
-    loopRef.current = null;
-    setDetectorBackend(getDetectorBackend());
-
-    const loop = await startDetectionForPokemon({
-      pokemonId: pokemon.id,
-      templates,
-      config: cfg,
-      getVideoElement: () => capture.getVideoElement(pokemon.id),
-      onScore: (score, state, cooldownMs) => {
-        setDetectorStatus(pokemon.id, { state, confidence: score, poll_ms: 100 });
-        setCooldownRemaining(cooldownMs != null && cooldownMs > 0 ? cooldownMs : null);
-      },
-    });
-
-    if (!loop) {
-      setErrorMsg(t("detector.errNoTemplates"));
-      return;
-    }
-
-    loopRef.current = loop;
-  };
-
-  const handleStop = async () => {
-    stopDetectionForPokemon(pokemon.id);
-    loopRef.current = null;
-    clearDetectorStatus(pokemon.id);
-    setCooldownRemaining(null);
   };
 
   // --- Settings handlers -----------------------------------------------------
@@ -702,7 +648,7 @@ export function DetectorPanel({
                 detectorBackend === "gpu" ? "bg-green-500/20 text-green-400" : "text-text-faint"
               }`}>GPU</span>
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
-                detectorBackend !== "gpu" ? "bg-yellow-500/20 text-yellow-400" : "text-text-faint"
+                detectorBackend === "gpu" ? "text-text-faint" : "bg-yellow-500/20 text-yellow-400"
               }`}>CPU</span>
             </button>
           )}
@@ -910,47 +856,51 @@ export function DetectorPanel({
                     {templates.map((tmpl, index) => (
                       <div
                         key={`template-${tmpl.image_path}-${index}`}
-                        className={`relative group rounded-md overflow-hidden transition-all cursor-pointer ${
-                          tmpl.enabled !== false
-                            ? "ring-2 ring-accent-blue bg-bg-primary"
-                            : "ring-1 ring-border-subtle bg-bg-primary opacity-60"
+                        className={`relative group rounded-md overflow-hidden transition-all w-full ${
+                          tmpl.enabled === false
+                            ? "ring-1 ring-border-subtle bg-bg-primary opacity-60"
+                            : "ring-2 ring-accent-blue bg-bg-primary"
                         }`}
-                        onClick={() => handleToggleTemplate(index)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleToggleTemplate(index); } }}
-                        aria-label={`${tmpl.name || `Template ${index + 1}`} — ${t("detector.setActiveTemplate")}`}
                       >
-                        {/* Radio indicator for active selection */}
-                        <div className="absolute top-1 left-1 z-10 pointer-events-none">
-                          <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-                            tmpl.enabled !== false ? "border-accent-blue bg-accent-blue" : "border-text-muted bg-transparent"
-                          }`}>
-                            {tmpl.enabled !== false && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        {/* Clickable toggle area */}
+                        <button
+                          type="button"
+                          className="w-full text-left cursor-pointer bg-transparent border-none p-0"
+                          onClick={() => handleToggleTemplate(index)}
+                          aria-label={`${tmpl.name || "Template " + (index + 1)} — ${t("detector.setActiveTemplate")}`}
+                        >
+                          {/* Radio indicator for active selection */}
+                          <div className="absolute top-1 left-1 z-10 pointer-events-none">
+                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                              tmpl.enabled === false ? "border-text-muted bg-transparent" : "border-accent-blue bg-accent-blue"
+                            }`}>
+                              {tmpl.enabled !== false && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Thumbnail — fixed 16:9 container with centered image */}
-                        <div className="relative w-full aspect-video bg-black/40">
-                          <img
-                            src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
-                            alt={tmpl.name || `Template ${index + 1}`}
-                            className="absolute inset-0 w-full h-full object-contain"
-                          />
-                        </div>
+                          {/* Thumbnail — fixed 16:9 container with centered image */}
+                          <div className="relative w-full aspect-video bg-black/40">
+                            <img
+                              src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
+                              alt={tmpl.name || `Template ${index + 1}`}
+                              className="absolute inset-0 w-full h-full object-contain"
+                            />
+                          </div>
 
-                        {/* Template name — read-only display */}
-                        <div className="px-1.5 py-0.5 bg-bg-primary">
-                          <span className="block text-[10px] text-text-secondary truncate">
-                            {tmpl.name || `Template ${index + 1}`}
-                          </span>
-                        </div>
+                          {/* Template name — read-only display */}
+                          <div className="px-1.5 py-0.5 bg-bg-primary">
+                            <span className="block text-[10px] text-text-secondary truncate">
+                              {tmpl.name || `Template ${index + 1}`}
+                            </span>
+                          </div>
+                        </button>
 
                         {/* Hover overlay with edit/delete buttons — hidden while detection is running */}
                         {!isRunning && (
                           <div className="absolute inset-0 bg-black/50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
                             <button
-                              onClick={(e) => { e.stopPropagation(); handleEditTemplate(index); }}
+                              type="button"
+                              onClick={() => handleEditTemplate(index)}
                               className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-accent-blue transition-colors pointer-events-auto"
                               title={t("detector.editTemplate")}
                               aria-label={t("detector.editTemplate")}
@@ -958,7 +908,8 @@ export function DetectorPanel({
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ index, name: tmpl.name || `Template ${index + 1}` }); }}
+                              type="button"
+                              onClick={() => setDeleteConfirm({ index, name: tmpl.name || `Template ${index + 1}` })}
                               className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-red-500 transition-colors pointer-events-auto"
                               title={t("detector.deleteTemplate")}
                               aria-label={t("detector.deleteTemplate")}
@@ -978,10 +929,10 @@ export function DetectorPanel({
               </div>
 
               {/* Draggable divider */}
-              <div
+              <button
+                type="button"
                 onMouseDown={startDetectorDividerDrag}
-                className="h-1.5 shrink-0 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors"
-                role="separator"
+                className="w-full h-1.5 shrink-0 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
                 aria-label={t("detector.resizeDivider")}
               />
 

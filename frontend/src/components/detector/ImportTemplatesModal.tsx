@@ -38,16 +38,20 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
   }, [appState?.pokemon, currentPokemonId, search]);
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-100 bg-black/70 flex items-center justify-center backdrop-blur-sm p-4"
-      onClick={onClose}
-      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      open
+      className="fixed inset-0 z-100 bg-black/70 flex items-center justify-center backdrop-blur-sm p-4 m-0 w-full h-full max-w-none max-h-none border-none"
       aria-label={t("detector.importFromPokemon")}
     >
+      <button
+        type="button"
+        className="fixed inset-0 w-full h-full cursor-default bg-transparent border-none"
+        aria-label={t("aria.close")}
+        onClick={onClose}
+      />
+      {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- stops event propagation to backdrop */}
       <div
-        className="bg-bg-card border border-border-subtle rounded-2xl shadow-2xl w-full max-w-lg flex flex-col"
+        className="bg-bg-card border border-border-subtle rounded-2xl shadow-2xl w-full max-w-lg flex flex-col relative"
         style={{ maxHeight: "min(80vh, 600px)" }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
@@ -162,7 +166,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
           )}
         </div>
       </div>
-    </div>,
+    </dialog>,
     document.body,
   );
 }

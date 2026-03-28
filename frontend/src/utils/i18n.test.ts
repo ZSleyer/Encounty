@@ -8,7 +8,7 @@ import { LOCALES } from "./i18n";
 
 const allTranslations: Record<string, Record<string, string>> = { de, en, fr, es, ja };
 const referenceLocale = "de";
-const referenceKeys = [...Object.keys(allTranslations[referenceLocale])].sort((a, b) => a.localeCompare(b));
+const referenceKeys = Object.keys(allTranslations[referenceLocale]).sort((a, b) => a.localeCompare(b));
 
 describe("i18n", () => {
   // --- Translation completeness ---

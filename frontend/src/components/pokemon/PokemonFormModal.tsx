@@ -108,6 +108,198 @@ function getPkmnName(
   return p.names?.[lang] || p.names?.["en"] || p.canonical;
 }
 
+/** Build browse-mode suggestions (dex-ordered base forms, capped at 30). */
+function buildBrowseList(allPokemon: PokemonData[]): SearchResult[] {
+  return allPokemon
+    .map((p) => ({
+      id: p.id,
+      canonical: p.canonical,
+      names: p.names,
+      isForm: false,
+      spriteId: p.id,
+    }))
+    .slice(0, 30);
+}
+
+/** Filter pokemon data by query string, grouping forms under their base. */
+function filterByQuery(query: string, allPokemon: PokemonData[]): SearchResult[] {
+  const q = query.trim().toLowerCase();
+  const matchesQuery = (entry: { canonical: string; names?: Record<string, string>; spriteId: number }) => {
+    if (entry.canonical.includes(q)) return true;
+    if (entry.names) {
+      for (const name of Object.values(entry.names)) {
+        if (name?.toLowerCase().includes(q)) return true;
+      }
+    }
+    if (/^\d+$/.test(q) && entry.spriteId === Number.parseInt(q, 10)) return true;
+    return false;
+  };
+
+  const results: SearchResult[] = [];
+  for (const p of allPokemon) {
+    const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id };
+    const baseMatches = matchesQuery(baseEntry);
+    const formEntries: SearchResult[] = (p.forms || []).map((f) => ({
+      id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+    }));
+    const matchingForms = formEntries.filter(matchesQuery);
+
+    if (baseMatches) {
+      results.push(baseEntry, ...formEntries);
+    } else if (matchingForms.length > 0) {
+      results.push(baseEntry, ...matchingForms);
+    }
+    if (results.length >= 20) break;
+  }
+  return results.slice(0, 20);
+}
+
+interface FormDefaults {
+  language: string;
+  customSprite: string;
+  spriteType: SpriteType;
+  spriteStyle: SpriteStyle;
+  title: string;
+  step: number;
+  game: string;
+  huntType: string;
+}
+
+/** Compute initial form values for add mode. */
+function addDefaults(activeLanguages: string[]): FormDefaults {
+  const language = activeLanguages.includes("de") ? "de" : activeLanguages[0] ?? "en";
+  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter" };
+}
+
+/** Compute initial form values for edit mode from existing pokemon data. */
+function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[]): FormDefaults {
+  return {
+    language: pokemon.language || (activeLanguages.includes("de") ? "de" : activeLanguages[0] ?? "en"),
+    customSprite: pokemon.sprite_url,
+    spriteType: pokemon.sprite_type || "shiny",
+    spriteStyle: pokemon.sprite_style || "box",
+    title: pokemon.title || "",
+    step: pokemon.step || 1,
+    game: pokemon.game || "",
+    huntType: pokemon.hunt_type || "encounter",
+  };
+}
+
+/** Build a flat search list of all pokemon including forms. */
+function buildSearchList(data: PokemonData[]): SearchResult[] {
+  const results: SearchResult[] = [];
+  for (const p of data) {
+    results.push({ id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id });
+    if (p.forms) {
+      for (const f of p.forms) {
+        results.push({ id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id });
+      }
+    }
+  }
+  return results;
+}
+
+interface SelectedState {
+  id: number;
+  canonical: string;
+  name: string;
+  sprite: string;
+  spriteId: number;
+}
+
+/** Match an existing pokemon's canonical name against loaded pokedex data (edit mode). */
+function applyEditModeMatch(
+  data: PokemonData[],
+  pokemon: ExistingPokemonData,
+  selectedGame: string,
+  spriteType: SpriteType,
+  spriteStyle: SpriteStyle,
+  setSelected: (s: SelectedState) => void,
+  setQuery: (q: string) => void,
+) {
+  const matchBase = data.find((p) => p.canonical === pokemon.canonical_name);
+  if (matchBase) {
+    const sprite = getSpriteUrl(matchBase.id.toString(), selectedGame, spriteType, spriteStyle, matchBase.canonical);
+    setSelected({ id: matchBase.id, canonical: matchBase.canonical, name: getPkmnName(matchBase, pokemon.language), sprite, spriteId: matchBase.id });
+    setQuery(getPkmnName(matchBase, pokemon.language));
+    return;
+  }
+  for (const p of data) {
+    const form = p.forms?.find((f) => f.canonical === pokemon.canonical_name);
+    if (form) {
+      const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical);
+      setSelected({ id: p.id, canonical: form.canonical, name: getPkmnName(form, pokemon.language), sprite, spriteId: form.sprite_id });
+      setQuery(getPkmnName(form, pokemon.language));
+      return;
+    }
+  }
+}
+
+/** Dispatch the submit action based on modal mode (add vs edit). */
+function submitByMode(props: Readonly<PokemonFormModalProps>, data: NewPokemonData) {
+  if (props.mode === "edit") {
+    props.onSubmit(props.pokemon.id, data);
+  } else {
+    props.onSubmit(data);
+    props.onClose();
+  }
+}
+
+/** Resolve the effective sprite style for a Pokemon, auto-switching if the current style is unavailable. */
+function resolveEffectiveStyle(
+  pokemonId: number,
+  current: SpriteStyle,
+  setSpriteStyle: (s: SpriteStyle) => void,
+): SpriteStyle {
+  const pkGen = getPokemonGeneration(pokemonId);
+  if (isSpriteStyleAvailable(current, pkGen)) return current;
+  const best = bestAvailableStyle(current, pkGen);
+  setSpriteStyle(best);
+  return best;
+}
+
+/** Compute search suggestions based on current query and input state. */
+function computeSuggestions(
+  isEdit: boolean,
+  showSearch: boolean,
+  query: string,
+  inputFocused: boolean,
+  allPokemon: PokemonData[],
+): SearchResult[] {
+  if (isEdit && !showSearch) return [];
+  const q = query.trim();
+  if (!q) {
+    return inputFocused && allPokemon.length > 0
+      ? buildBrowseList(allPokemon)
+      : [];
+  }
+  return filterByQuery(query, allPokemon);
+}
+
+/** Switch sprite style to best available when the current style is unavailable for a generation. */
+function autoSwitchSpriteStyle(
+  gen: number | null,
+  current: SpriteStyle,
+  setSpriteStyle: (s: SpriteStyle) => void,
+) {
+  if (gen == null) return;
+  const best = bestAvailableStyle(current, gen);
+  if (best !== current) setSpriteStyle(best);
+}
+
+/** Clear game selection when the game predates the selected Pokemon's introduction generation. */
+function clearIncompatibleGame(
+  selected: { id: number } | null,
+  selectedGame: string,
+  games: GameEntry[],
+  setSelectedGame: (g: string) => void,
+) {
+  if (!selected || !selectedGame) return;
+  const gameGen = games.find((g) => g.key === selectedGame)?.generation;
+  const pkGen = getPokemonGeneration(selected.id);
+  if (gameGen != null && gameGen < pkGen) setSelectedGame("");
+}
+
 /**
  * Unified modal for adding a new Pokemon or editing an existing one.
  * Operates in "add" or "edit" mode via a discriminated union prop type.
@@ -121,13 +313,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const { t } = useI18n();
 
   // --- State initialization (differs by mode) ---
-  const [language, setLanguage] = useState<string>(
-    isEdit
-      ? props.pokemon.language || "de"
-      : activeLanguages.includes("de")
-        ? "de"
-        : activeLanguages[0] ?? "en",
-  );
+  const defaults = isEdit ? editDefaults(props.pokemon, activeLanguages) : addDefaults(activeLanguages);
+
+  const [language, setLanguage] = useState<string>(defaults.language);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [allPokemon, setAllPokemon] = useState<PokemonData[]>([]);
@@ -136,33 +324,17 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [showCustomSprite, setShowCustomSprite] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
 
-  const [selected, setSelected] = useState<{
-    id: number;
-    canonical: string;
-    name: string;
-    sprite: string;
-    spriteId: number;
-  } | null>(null);
-  const [customSprite, setCustomSprite] = useState(
-    isEdit ? props.pokemon.sprite_url : "",
-  );
-  const [spriteType, setSpriteType] = useState<SpriteType>(
-    isEdit ? props.pokemon.sprite_type || "shiny" : "shiny",
-  );
-  const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>(
-    isEdit ? props.pokemon.sprite_style || "box" : "box",
-  );
+  const [selected, setSelected] = useState<SelectedState | null>(null);
+  const [customSprite, setCustomSprite] = useState(defaults.customSprite);
+  const [spriteType, setSpriteType] = useState<SpriteType>(defaults.spriteType);
+  const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>(defaults.spriteStyle);
 
-  const [title, setTitle] = useState(isEdit ? props.pokemon.title || "" : "");
-  const [step, setStep] = useState(isEdit ? props.pokemon.step || 1 : 1);
+  const [title, setTitle] = useState(defaults.title);
+  const [step, setStep] = useState(defaults.step);
 
   const [games, setGames] = useState<GameEntry[]>([]);
-  const [selectedGame, setSelectedGame] = useState(
-    isEdit ? props.pokemon.game || "" : "",
-  );
-  const [huntType, setHuntType] = useState(
-    isEdit ? props.pokemon.hunt_type || "encounter" : "encounter",
-  );
+  const [selectedGame, setSelectedGame] = useState(defaults.game);
+  const [huntType, setHuntType] = useState(defaults.huntType);
 
   // Get the generation for the currently selected game
   const selectedGameGen: number | null =
@@ -173,30 +345,13 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     ? getPokemonGeneration(selected.id)
     : null;
 
-  // --- Build search list from pokedex data ---
-  const buildSearchList = (data: PokemonData[]): SearchResult[] => {
-    const results: SearchResult[] = [];
-    for (const p of data) {
-      results.push({
-        id: p.id,
-        canonical: p.canonical,
-        names: p.names,
-        isForm: false,
-        spriteId: p.id,
-      });
-      if (p.forms) {
-        for (const f of p.forms) {
-          results.push({
-            id: p.id,
-            canonical: f.canonical,
-            names: f.names,
-            isForm: true,
-            spriteId: f.sprite_id,
-          });
-        }
-      }
+  /** Handle pokedex data after fetch. */
+  const handlePokedexLoaded = (data: PokemonData[]) => {
+    setAllPokemon(data);
+    setMissingNames(!data.some((p) => p.names && Object.keys(p.names).length > 0));
+    if (isEdit) {
+      applyEditModeMatch(data, props.pokemon, selectedGame, spriteType, spriteStyle, setSelected, setQuery);
     }
-    return results;
   };
 
   // --- Open dialog + load pokedex and games on mount ---
@@ -206,62 +361,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
     fetch(apiUrl("/api/pokedex"))
       .then((r) => r.json())
-      .then((data: PokemonData[]) => {
-        setAllPokemon(data);
-        const hasNames = data.some(
-          (p) => (p.names && Object.keys(p.names).length > 0) ?? false,
-        );
-        setMissingNames(!hasNames);
-
-        // In edit mode, match the pokemon's canonical name against loaded data
-        if (isEdit) {
-          const pokemon = props.pokemon;
-          const matchBase = data.find(
-            (p) => p.canonical === pokemon.canonical_name,
-          );
-          if (matchBase) {
-            const sprite = getSpriteUrl(
-              matchBase.id.toString(),
-              selectedGame,
-              spriteType,
-              spriteStyle,
-              matchBase.canonical,
-            );
-            setSelected({
-              id: matchBase.id,
-              canonical: matchBase.canonical,
-              name: getPkmnName(matchBase, pokemon.language),
-              sprite,
-              spriteId: matchBase.id,
-            });
-            setQuery(getPkmnName(matchBase, pokemon.language));
-            return;
-          }
-          for (const p of data) {
-            const form = p.forms?.find(
-              (f) => f.canonical === pokemon.canonical_name,
-            );
-            if (form) {
-              const sprite = getSpriteUrl(
-                form.sprite_id.toString(),
-                selectedGame,
-                spriteType,
-                spriteStyle,
-                form.canonical,
-              );
-              setSelected({
-                id: p.id,
-                canonical: form.canonical,
-                name: getPkmnName(form, pokemon.language),
-                sprite,
-                spriteId: form.sprite_id,
-              });
-              setQuery(getPkmnName(form, pokemon.language));
-              return;
-            }
-          }
-        }
-      })
+      .then(handlePokedexLoaded)
       .catch(() => {});
 
     fetch(apiUrl("/api/games"))
@@ -271,25 +371,16 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   }, []);
 
   // --- Auto-switch style when game changes and current style is unavailable ---
-  useEffect(() => {
-    if (selectedGameGen != null) {
-      const best = bestAvailableStyle(spriteStyle, selectedGameGen);
-      if (best !== spriteStyle) {
-        setSpriteStyle(best);
-      }
-    }
-  }, [selectedGameGen]);
+  useEffect(
+    () => autoSwitchSpriteStyle(selectedGameGen, spriteStyle, setSpriteStyle),
+    [selectedGameGen],
+  );
 
   // --- Clear game selection if it predates the selected Pokemon's generation ---
-  useEffect(() => {
-    if (selected && selectedGame) {
-      const gameGen = games.find((g) => g.key === selectedGame)?.generation;
-      const pkGen = getPokemonGeneration(selected.id);
-      if (gameGen != null && gameGen < pkGen) {
-        setSelectedGame("");
-      }
-    }
-  }, [selected?.id, games]);
+  useEffect(
+    () => clearIncompatibleGame(selected, selectedGame, games, setSelectedGame),
+    [selected?.id, games],
+  );
 
   // --- Search filtering ---
   // When query is empty but input focused, show dex-ordered base Pokemon (browse mode).
@@ -297,60 +388,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const isBrowseMode = inputFocused && !query.trim();
 
   useEffect(() => {
-    if (isEdit && !showSearch) {
-      setSuggestions([]);
-      return;
-    }
-    const q = query.trim().toLowerCase();
-    if (!q) {
-      if (inputFocused && allPokemon.length > 0) {
-        // Browse mode: show base forms sorted by dex number
-        const browselist = allPokemon
-          .map((p) => ({
-            id: p.id,
-            canonical: p.canonical,
-            names: p.names,
-            isForm: false,
-            spriteId: p.id,
-          }))
-          .slice(0, 30);
-        setSuggestions(browselist);
-      } else {
-        setSuggestions([]);
-      }
-      return;
-    }
-    // Search: match base Pokemon and forms, grouping forms under their base.
-    // When a base matches, include its forms. When only a form matches, include
-    // the base first then the matching form.
-    const matchesQuery = (entry: { canonical: string; names?: Record<string, string>; spriteId: number }) => {
-      if (entry.canonical.includes(q)) return true;
-      if (entry.names) {
-        for (const name of Object.values(entry.names)) {
-          if (name?.toLowerCase().includes(q)) return true;
-        }
-      }
-      if (/^\d+$/.test(q) && entry.spriteId === Number.parseInt(q, 10)) return true;
-      return false;
-    };
-
-    const results: SearchResult[] = [];
-    for (const p of allPokemon) {
-      const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id };
-      const baseMatches = matchesQuery(baseEntry);
-      const formEntries: SearchResult[] = (p.forms || []).map((f) => ({
-        id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
-      }));
-      const matchingForms = formEntries.filter(matchesQuery);
-
-      if (baseMatches) {
-        results.push(baseEntry, ...formEntries);
-      } else if (matchingForms.length > 0) {
-        results.push(baseEntry, ...matchingForms);
-      }
-      if (results.length >= 20) break;
-    }
-    setSuggestions(results.slice(0, 20));
+    setSuggestions(
+      computeSuggestions(isEdit, showSearch, query, inputFocused, allPokemon),
+    );
   }, [query, allPokemon, showSearch, inputFocused]);
 
   // --- Select a pokemon from search results ---
@@ -359,64 +399,38 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     setInputFocused(false);
     setQuery(getPkmnName(p, language));
 
-    // Auto-switch sprite style if current style is unavailable for this Pokemon's generation
-    const pkGen = getPokemonGeneration(p.id);
-    let effectiveStyle = spriteStyle;
-    if (!isSpriteStyleAvailable(spriteStyle, pkGen)) {
-      effectiveStyle = bestAvailableStyle(spriteStyle, pkGen);
-      setSpriteStyle(effectiveStyle);
-    }
-
+    const effectiveStyle = resolveEffectiveStyle(p.id, spriteStyle, setSpriteStyle);
     const sprite = getSpriteUrl(
-      p.spriteId.toString(),
-      selectedGame,
-      spriteType,
-      effectiveStyle,
-      p.canonical,
+      p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical,
     );
     setSelected({
-      id: p.id,
-      canonical: p.canonical,
-      name: getPkmnName(p, language),
-      sprite,
-      spriteId: p.spriteId,
+      id: p.id, canonical: p.canonical,
+      name: getPkmnName(p, language), sprite, spriteId: p.spriteId,
     });
     setCustomSprite(sprite);
-    if (isEdit) {
-      setShowSearch(false);
-    }
+    if (isEdit) setShowSearch(false);
   };
 
   // --- Recalculate sprite URL when dependencies change ---
   useEffect(() => {
-    if (selected) {
-      const newSprite = getSpriteUrl(
-        selected.spriteId.toString(),
-        selectedGame,
-        spriteType,
-        spriteStyle,
-        selected.canonical,
-      );
-      setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
-      setCustomSprite(newSprite);
-    }
+    if (!selected) return;
+    const newSprite = getSpriteUrl(
+      selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical,
+    );
+    setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
+    setCustomSprite(newSprite);
   }, [selectedGame, spriteType, spriteStyle, selected?.spriteId]);
 
   // --- Language change handler (updates selected name to match new language) ---
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
-    if (selected) {
-      const searchList = buildSearchList(allPokemon);
-      const fullP = searchList.find(
-        (p) =>
-          p.spriteId === selected.spriteId &&
-          p.canonical === selected.canonical,
-      );
-      if (fullP) {
-        setQuery(getPkmnName(fullP, lang));
-        setSelected({ ...selected, name: getPkmnName(fullP, lang) });
-      }
-    }
+    if (!selected) return;
+    const fullP = buildSearchList(allPokemon).find(
+      (p) => p.spriteId === selected.spriteId && p.canonical === selected.canonical,
+    );
+    if (!fullP) return;
+    setQuery(getPkmnName(fullP, lang));
+    setSelected({ ...selected, name: getPkmnName(fullP, lang) });
   };
 
   // --- Submit handler ---
@@ -434,12 +448,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       hunt_type: huntType,
       step: isEdit && step > 1 ? step : undefined,
     };
-    if (isEdit) {
-      props.onSubmit(props.pokemon.id, data);
-    } else {
-      props.onSubmit(data);
-      props.onClose();
-    }
+    submitByMode(props, data);
   };
 
   const handleCancel = () => {

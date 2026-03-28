@@ -305,7 +305,7 @@ export function OverlayCanvas({
   onMouseUp,
   onSelectElement,
   onDoubleClickElement,
-  onZoomAtPoint,
+  onZoomAtPoint: _onZoomAtPoint,
   onDragStateChange,
   onGuidesChange,
   onUpdate,
@@ -332,10 +332,8 @@ export function OverlayCanvas({
 
   const handCursor = isPanDragging ? "grabbing" : "grab";
   const zoomCursor = altHeld ? "zoom-out" : "zoom-in";
-  const canvasCursor =
-    effectiveTool === "hand" ? handCursor :
-    effectiveTool === "zoom" ? zoomCursor :
-    "default";
+  const toolCursorMap: Record<string, string> = { hand: handCursor, zoom: zoomCursor };
+  const canvasCursor = toolCursorMap[effectiveTool] ?? "default";
   const bgColorMap: Record<string, string | undefined> = { white: "#ffffff", black: "#000000" };
   const canvasBgColor = bgColorMap[canvasBg];
 

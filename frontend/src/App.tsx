@@ -125,7 +125,7 @@ function AppShell() {
   const isOverlay = location.pathname === "/overlay" || location.pathname.startsWith("/overlay/");
   const { setAppState, setConnected, flashPokemon, isConnected, appState, setDetectorStatus, clearDetectorStatus } =
     useCounterStore();
-  const { t, isMachineTranslated, locale } = useI18n();
+  const { t, isMachineTranslated } = useI18n();
   const { push: pushToast } = useToast();
 
   const [restarting] = useState(false);
