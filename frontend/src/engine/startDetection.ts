@@ -144,24 +144,15 @@ export async function startDetectionForPokemon({
 
   loop.loadTemplates(loadedTemplates);
 
-  // Collect all regions from enabled templates for adaptive threshold
-  const allRegions = templates
-    .filter((tmpl) => tmpl.enabled !== false)
-    .flatMap((tmpl) => (tmpl.regions || []).map((r) => ({ rect: r.rect })));
-
   loop.updateConfig({
     precision: config.precision,
     changeThreshold: config.change_threshold,
     consecutiveHits: config.consecutive_hits,
-    adaptiveThreshold: config.adaptive_threshold,
-    regions: allRegions,
     pollIntervalMs: config.poll_interval_ms,
     minPollMs: config.min_poll_ms,
     maxPollMs: config.max_poll_ms,
     hysteresisFactor: 0.7,
     cooldownSec: config.cooldown_sec,
-    adaptiveCooldown: config.adaptive_cooldown ?? false,
-    adaptiveCooldownMin: config.adaptive_cooldown_min ?? 3,
   });
 
   loop.onScore(onScore);

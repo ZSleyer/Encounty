@@ -6,7 +6,7 @@
  * and hunt-type preset integration.
  */
 import { useState } from "react";
-import { ChevronDown, Settings, Save, FlaskConical } from "lucide-react";
+import { ChevronDown, Settings, Save } from "lucide-react";
 import { DetectorConfig, HuntTypePreset } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 
@@ -137,71 +137,6 @@ export function DetectorSettings({
               </div>
             </div>
           )}
-
-          {/* Experimental Features */}
-          <div className="border-t border-border-subtle pt-3">
-            <div className="flex items-center gap-2 mb-1">
-              <FlaskConical className="w-3.5 h-3.5 text-amber-400" />
-              <p className="text-xs 2xl:text-sm text-text-muted font-semibold">{t("detector.experimental")}</p>
-              <span className="px-1.5 py-0.5 bg-amber-500/10 border border-amber-500/30 rounded text-[10px] font-semibold text-amber-400 uppercase tracking-wide">
-                Beta
-              </span>
-            </div>
-            <p className="text-[11px] leading-relaxed text-text-muted mb-3">{t("detector.experimentalHint")}</p>
-
-            <div className="space-y-3">
-              {/* Adaptive Threshold — independent of cooldown */}
-              <div className="flex items-start gap-2">
-                <input
-                  id="det-adaptive-threshold"
-                  type="checkbox"
-                  checked={cfg.adaptive_threshold ?? true}
-                  onChange={(e) => onUpdate({ adaptive_threshold: e.target.checked })}
-                  className="mt-0.5 accent-amber-400"
-                />
-                <div className="flex-1">
-                  <label htmlFor="det-adaptive-threshold" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
-                    {t("detector.adaptiveThreshold")}
-                  </label>
-                  <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.adaptiveThresholdDesc")}</p>
-                </div>
-              </div>
-
-              {/* Adaptive Cooldown — replaces fixed cooldown */}
-              <div className="flex items-start gap-2">
-                <input
-                  id="det-adaptive-cooldown"
-                  type="checkbox"
-                  checked={cfg.adaptive_cooldown ?? false}
-                  onChange={(e) => onUpdate({ adaptive_cooldown: e.target.checked })}
-                  className="mt-0.5 accent-amber-400"
-                />
-                <div className="flex-1">
-                  <label htmlFor="det-adaptive-cooldown" className="block text-xs 2xl:text-sm text-text-muted cursor-pointer">
-                    {t("detector.adaptiveCooldown")}
-                  </label>
-                  <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.adaptiveCooldownDesc")}</p>
-                </div>
-              </div>
-              {cfg.adaptive_cooldown && (
-                <div className="ml-5 pl-2 border-l border-amber-500/30">
-                  <label htmlFor="det-adaptive-cooldown-min" className="block text-xs 2xl:text-sm text-text-muted mb-1">
-                    {t("detector.adaptiveCooldownMin")}
-                  </label>
-                  <input
-                    id="det-adaptive-cooldown-min"
-                    type="number"
-                    min={1}
-                    max={30}
-                    value={cfg.adaptive_cooldown_min ?? 3}
-                    onChange={(e) => onUpdate({ adaptive_cooldown_min: Number.parseInt(e.target.value, 10) || 3 })}
-                    className="w-24 bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-amber-400/50"
-                  />
-                  <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.adaptiveCooldownMinDesc")}</p>
-                </div>
-              )}
-            </div>
-          </div>
 
           {/* Save + Reset */}
           <div className="flex items-center justify-between pt-2 border-t border-border-subtle">

@@ -14,7 +14,7 @@ function makeDetectorConfig(overrides?: Partial<DetectorConfig>): DetectorConfig
     templates: [],
     precision: 0.8,
     consecutive_hits: 1,
-    cooldown_sec: 8,
+    cooldown_sec: 5,
     change_threshold: 0.15,
     poll_interval_ms: 50,
     min_poll_ms: 30,
@@ -100,16 +100,6 @@ describe("DetectorSettings", () => {
     await user.clear(hits);
     await user.type(hits, "5");
     expect(props.onUpdate).toHaveBeenCalled();
-  });
-
-  it("cooldown input stays enabled when adaptive cooldown is active", async () => {
-    const user = userEvent.setup();
-    renderSettings({
-      cfg: makeDetectorConfig({ adaptive_cooldown: true }),
-    });
-    await expandSettings(user);
-    const cooldown = document.getElementById("det-cooldown") as HTMLInputElement;
-    expect(cooldown).not.toBeDisabled();
   });
 
   it("shows save button disabled when settings are not dirty", async () => {
@@ -200,17 +190,6 @@ describe("DetectorSettings", () => {
     expect(screen.queryByText(/683/)).not.toBeInTheDocument();
   });
 
-  it("shows adaptive cooldown minimum input when adaptive cooldown is checked", async () => {
-    const user = userEvent.setup();
-    renderSettings({
-      cfg: makeDetectorConfig({ adaptive_cooldown: true, adaptive_cooldown_min: 5 }),
-    });
-    await expandSettings(user);
-    const minInput = document.getElementById("det-adaptive-cooldown-min") as HTMLInputElement;
-    expect(minInput).toBeInTheDocument();
-    expect(minInput.value).toBe("5");
-  });
-
   it("renders polling interval inputs in expanded state", async () => {
     const user = userEvent.setup();
     renderSettings();
@@ -218,17 +197,6 @@ describe("DetectorSettings", () => {
     expect(document.getElementById("det-base-poll")).toBeInTheDocument();
     expect(document.getElementById("det-min-poll")).toBeInTheDocument();
     expect(document.getElementById("det-max-poll")).toBeInTheDocument();
-  });
-
-  it("toggles adaptive cooldown checkbox", async () => {
-    const user = userEvent.setup();
-    const { props } = renderSettings({
-      cfg: makeDetectorConfig({ adaptive_cooldown: false }),
-    });
-    await expandSettings(user);
-    const checkbox = document.getElementById("det-adaptive-cooldown") as HTMLInputElement;
-    await user.click(checkbox);
-    expect(props.onUpdate).toHaveBeenCalledWith({ adaptive_cooldown: true });
   });
 
 });

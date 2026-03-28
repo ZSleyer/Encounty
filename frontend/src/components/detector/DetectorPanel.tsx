@@ -37,13 +37,11 @@ const DEFAULT_CONFIG: DetectorConfig = {
   templates: [],
   precision: 0.55,
   consecutive_hits: 1,
-  cooldown_sec: 8,
+  cooldown_sec: 5,
   change_threshold: 0.15,
   poll_interval_ms: 50,
   min_poll_ms: 30,
   max_poll_ms: 500,
-  adaptive_cooldown: false,
-  adaptive_cooldown_min: 3,
 };
 
 // --- Props -------------------------------------------------------------------

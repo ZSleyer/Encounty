@@ -12,7 +12,6 @@
  * Includes temporal coherence features:
  * - Exponential Moving Average (EMA) for smoothed confidence display
  * - Hysteresis to prevent double-counting near the threshold
- * - Adaptive threshold that adjusts precision based on region size
  */
 import type { Detector, DetectorResult, TemplateData } from "../engine";
 import { apiUrl } from "../utils/api";
@@ -27,11 +26,6 @@ interface Rect {
   h: number;
 }
 
-/** Region definition for adaptive threshold computation. */
-interface Region {
-  rect: Rect;
-}
-
 /** Configuration for the detection loop. */
 interface DetectionLoopConfig {
   /** NCC score threshold for a positive match (0.0–1.0). */
@@ -42,10 +36,6 @@ interface DetectionLoopConfig {
   changeThreshold: number;
   /** Number of consecutive frames above precision to confirm a match. */
   consecutiveHits: number;
-  /** Whether to adjust precision based on region size (default: true). */
-  adaptiveThreshold?: boolean;
-  /** Template regions used for adaptive threshold computation. */
-  regions?: Region[];
   /** Base polling interval in ms (default: DEFAULT_POLL_MS). */
   pollIntervalMs?: number;
   /** Fastest adaptive polling interval in ms (default: MIN_POLL_MS). */
@@ -56,10 +46,6 @@ interface DetectionLoopConfig {
   hysteresisFactor?: number;
   /** Minimum seconds before hysteresis can exit (default: 0). */
   cooldownSec?: number;
-  /** When true, hysteresis exits as soon as score drops below threshold (after min cooldown). */
-  adaptiveCooldown?: boolean;
-  /** Minimum seconds before adaptive cooldown can exit (default: 3). */
-  adaptiveCooldownMin?: number;
 }
 
 // --- Adaptive polling constants ----------------------------------------------
@@ -99,8 +85,6 @@ export class DetectionLoop {
   private maxPollMs = MAX_POLL_MS;
   private hysteresisFactor = 0.7;
   private cooldownSec = 0;
-  private adaptiveCooldown = false;
-  private adaptiveCooldownMin = 3;
   private hysteresisEnteredAt = 0;
   private consecutiveCount = 0;
   private missCount = 0;
@@ -149,8 +133,6 @@ export class DetectionLoop {
     if (config.maxPollMs !== undefined) this.maxPollMs = config.maxPollMs;
     if (config.hysteresisFactor !== undefined) this.hysteresisFactor = config.hysteresisFactor;
     if (config.cooldownSec !== undefined) this.cooldownSec = config.cooldownSec;
-    if (config.adaptiveCooldown !== undefined) this.adaptiveCooldown = config.adaptiveCooldown;
-    if (config.adaptiveCooldownMin !== undefined) this.adaptiveCooldownMin = config.adaptiveCooldownMin;
   }
 
   /**
@@ -181,25 +163,6 @@ export class DetectionLoop {
   }
 
   // --- Internal loop ---------------------------------------------------------
-
-  /**
-   * Compute the effective precision, optionally adjusted for region size.
-   *
-   * Larger regions tend to produce slightly lower NCC scores due to more
-   * background noise, so we reduce the threshold proportionally (capped).
-   */
-  private computeEffectivePrecision(): number {
-    const { precision, adaptiveThreshold, regions } = this.config;
-
-    // Adaptive threshold is enabled by default unless explicitly disabled
-    if (adaptiveThreshold === false || !regions || regions.length === 0) {
-      return precision;
-    }
-
-    const regionArea = regions.reduce((sum, r) => sum + r.rect.w * r.rect.h, 0);
-    const adjustment = 0.05 * Math.min(regionArea / 500_000, 0.2);
-    return precision - adjustment;
-  }
 
   private async runLoop(getVideo: () => HTMLVideoElement | null): Promise<void> {
     if (!this.running) return;
@@ -233,16 +196,15 @@ export class DetectionLoop {
           console.log(`[Detection] raw=${result.bestScore.toFixed(3)} adj=${adjusted.toFixed(3)} smooth=${this.smoothedScore.toFixed(3)} poll=${this.pollIntervalMs}ms`);
         }
 
-        const effectivePrecision = this.computeEffectivePrecision();
         const wasInHysteresis = this.inHysteresis;
-        this.updateMatchState(adjusted, effectivePrecision);
+        this.updateMatchState(adjusted, this.config.precision);
 
         // Only notify the backend when a match is confirmed (hysteresis just entered)
         if (this.inHysteresis && !wasInHysteresis) {
           this.reportMatch(adjusted, result.frameDelta);
         }
 
-        this.emitScoreCallback(adjusted, effectivePrecision);
+        this.emitScoreCallback(adjusted);
         this.pollIntervalMs = this.computeNextInterval(adjusted, result.frameDelta);
       } catch (err) {
         console.error("[Detection] Error:", err);
@@ -289,19 +251,9 @@ export class DetectionLoop {
     if (this.inHysteresis) {
       const belowThreshold = adjusted < this.config.precision * this.hysteresisFactor;
       const elapsed = Date.now() - this.hysteresisEnteredAt;
-
-      if (this.adaptiveCooldown) {
-        // Adaptive: exit hysteresis when score drops AND minimum cooldown elapsed
-        const minElapsed = elapsed >= this.adaptiveCooldownMin * 1000;
-        if (belowThreshold && minElapsed) {
-          this.inHysteresis = false;
-        }
-      } else {
-        // Fixed: exit hysteresis when score drops AND full cooldown elapsed
-        const cooldownElapsed = elapsed >= this.cooldownSec * 1000;
-        if (belowThreshold && cooldownElapsed) {
-          this.inHysteresis = false;
-        }
+      const cooldownElapsed = elapsed >= this.cooldownSec * 1000;
+      if (belowThreshold && cooldownElapsed) {
+        this.inHysteresis = false;
       }
       this.consecutiveCount = 0;
       this.missCount = 0;
@@ -325,13 +277,13 @@ export class DetectionLoop {
   }
 
   /** Throttled UI callback — fires at most 4 times/second unless the state changes. */
-  private emitScoreCallback(adjusted: number, effectivePrecision: number): void {
+  private emitScoreCallback(adjusted: number): void {
     if (!this.scoreCallback) return;
 
     let state: string;
     if (this.inHysteresis) {
       state = "cooldown";
-    } else if (adjusted >= effectivePrecision) {
+    } else if (adjusted >= this.config.precision) {
       state = "match";
     } else {
       state = "idle";
@@ -347,10 +299,7 @@ export class DetectionLoop {
     let cooldownRemainingMs: number | undefined;
     if (this.inHysteresis) {
       const elapsed = Date.now() - this.hysteresisEnteredAt;
-      const total = this.adaptiveCooldown
-        ? this.adaptiveCooldownMin * 1000
-        : this.cooldownSec * 1000;
-      cooldownRemainingMs = Math.max(0, total - elapsed);
+      cooldownRemainingMs = Math.max(0, this.cooldownSec * 1000 - elapsed);
     }
 
     this.scoreCallback(this.smoothedScore, state, cooldownRemainingMs);
