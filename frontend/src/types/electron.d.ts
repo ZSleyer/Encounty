@@ -12,7 +12,7 @@ interface ElectronAPI {
   isElectron: true;
   apiBaseUrl: string;
   isWayland: boolean;
-  platform: 'win32' | 'linux';
+  platform: 'win32' | 'linux' | 'darwin';
   minimize(): void;
   maximize(): void;
   close(): void;

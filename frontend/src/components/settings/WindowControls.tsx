@@ -15,7 +15,8 @@ export function WindowControls() {
     return api.onMaximizedChange(setMaximized);
   }, []);
 
-  if (!globalThis.electronAPI) {
+  // Hide on non-Electron and on macOS (which uses native traffic light buttons)
+  if (!globalThis.electronAPI || globalThis.electronAPI.platform === 'darwin') {
     return null;
   }
 

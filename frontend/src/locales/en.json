@@ -515,6 +515,7 @@
   "settings.sectionData": "Database & Sync",
   "settings.sectionBackup": "Backup & Restore",
   "settings.sectionAbout": "About Encounty",
+  "settings.sectionPermissions": "Permissions",
   "tooltip.common.save": "Save",
   "tooltip.common.cancel": "Cancel",
   "tooltip.common.close": "Close",
@@ -565,6 +566,7 @@
   "aria.timerPause": "Pause timer",
   "aria.timerReset": "Reset timer",
   "aria.odds": "Probability",
+  "aria.permissionStatus": "Permission status",
   "dash.tooltipIncrement": "Add encounter (+1)",
   "dash.tooltipDecrement": "Remove encounter (-1)",
   "dash.tooltipReset": "Reset counter",
@@ -701,5 +703,12 @@
   "detector.permanentPreview": "Always show",
   "footer.hunts": "Hunts",
   "footer.encounters": "Enc.",
-  "app.machineTranslationDisclaimer": "Translations in this language were machine-generated and may contain errors. Help improve them — corrections are always welcome!"
+  "app.machineTranslationDisclaimer": "Translations in this language were machine-generated and may contain errors. Help improve them — corrections are always welcome!",
+  "permissions.accessibility": "Accessibility",
+  "permissions.accessibilityDesc": "Required for global hotkeys",
+  "permissions.screenRecording": "Screen Recording",
+  "permissions.screenRecordingDesc": "Required for auto-detection",
+  "permissions.granted": "Granted",
+  "permissions.notGranted": "Not granted",
+  "permissions.grant": "Grant"
 }

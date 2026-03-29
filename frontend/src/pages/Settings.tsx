@@ -17,6 +17,7 @@ import {
   Sun,
   Moon,
   Bot,
+  Shield,
 } from "lucide-react";
 
 import { useCounterStore } from "../hooks/useCounterState";
@@ -27,6 +28,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import { CountryFlag } from "../components/shared/CountryFlag";
 import { LicenseDialog } from "../components/settings/LicenseDialog";
+import { MacPermissions } from "../components/settings/MacPermissions";
 import { LOCALES } from "../utils/i18n";
 import { apiUrl } from "../utils/api";
 
@@ -79,7 +81,7 @@ interface SectionDef {
   readonly keywords: string[];
 }
 
-const SECTIONS: SectionDef[] = [
+const BASE_SECTIONS: SectionDef[] = [
   {
     id: "general",
     titleKey: "settings.sectionGeneral",
@@ -117,6 +119,27 @@ const SECTIONS: SectionDef[] = [
     keywords: ["about", "über", "lizenz", "license", "version", "info", "pokeapi", "showdown", "api"],
   },
 ];
+
+const PERMISSIONS_SECTION: SectionDef = {
+  id: "permissions",
+  titleKey: "settings.sectionPermissions",
+  icon: <Shield className="w-4 h-4 text-accent-green" />,
+  keywords: ["permissions", "berechtigungen", "accessibility", "screen", "recording", "macos"],
+};
+
+/** Build the sections array, conditionally including macOS permissions. */
+function buildSections(): SectionDef[] {
+  if (window.electronAPI?.platform === "darwin") {
+    // Insert permissions before the about section
+    const sections = [...BASE_SECTIONS];
+    const aboutIdx = sections.findIndex((s) => s.id === "about");
+    sections.splice(aboutIdx, 0, PERMISSIONS_SECTION);
+    return sections;
+  }
+  return BASE_SECTIONS;
+}
+
+const SECTIONS = buildSections();
 
 // --- Main component ----------------------------------------------------------
 
@@ -753,6 +776,17 @@ export function Settings() {
                   {t("settings.restoreBtn")}
                 </button>
               </div>
+            </section>
+          )}
+
+          {/* ── Permissions (macOS only) ─────────────────────── */}
+          {show("permissions") && (
+            <section className="glass-card rounded-2xl p-6 space-y-5">
+              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
+                <Shield className="w-4 h-4 text-accent-green" />
+                {t("settings.sectionPermissions")}
+              </h2>
+              <MacPermissions />
             </section>
           )}
 

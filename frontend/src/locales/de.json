@@ -515,6 +515,7 @@
   "settings.sectionData": "Datenbank & Sync",
   "settings.sectionBackup": "Backup & Wiederherstellung",
   "settings.sectionAbout": "Über Encounty",
+  "settings.sectionPermissions": "Berechtigungen",
   "tooltip.common.save": "Speichern",
   "tooltip.common.cancel": "Abbrechen",
   "tooltip.common.close": "Schließen",
@@ -565,6 +566,7 @@
   "aria.timerPause": "Timer pausieren",
   "aria.timerReset": "Timer zurücksetzen",
   "aria.odds": "Wahrscheinlichkeit",
+  "aria.permissionStatus": "Berechtigungsstatus",
   "dash.tooltipIncrement": "Encounter hinzufügen (+1)",
   "dash.tooltipDecrement": "Encounter entfernen (-1)",
   "dash.tooltipReset": "Zähler zurücksetzen",
@@ -701,5 +703,12 @@
   "detector.permanentPreview": "Dauerhaft anzeigen",
   "footer.hunts": "Hunts",
   "footer.encounters": "Enc.",
-  "app.machineTranslationDisclaimer": "Die Übersetzungen in dieser Sprache wurden automatisch erstellt und können Fehler enthalten. Hilf mit, sie zu verbessern — Korrekturen sind jederzeit willkommen!"
+  "app.machineTranslationDisclaimer": "Die Übersetzungen in dieser Sprache wurden automatisch erstellt und können Fehler enthalten. Hilf mit, sie zu verbessern — Korrekturen sind jederzeit willkommen!",
+  "permissions.accessibility": "Bedienungshilfen",
+  "permissions.accessibilityDesc": "Erforderlich für globale Hotkeys",
+  "permissions.screenRecording": "Bildschirmaufnahme",
+  "permissions.screenRecordingDesc": "Erforderlich für Auto-Erkennung",
+  "permissions.granted": "Gewährt",
+  "permissions.notGranted": "Nicht gewährt",
+  "permissions.grant": "Erlauben"
 }

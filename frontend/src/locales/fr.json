@@ -516,6 +516,7 @@
   "settings.sectionData": "Base de donnees & Sync",
   "settings.sectionBackup": "Sauvegarde & Restauration",
   "settings.sectionAbout": "A propos d'Encounty",
+  "settings.sectionPermissions": "Autorisations",
   "tooltip.common.save": "Enregistrer",
   "tooltip.common.cancel": "Annuler",
   "tooltip.common.close": "Fermer",
@@ -566,6 +567,7 @@
   "aria.timerPause": "Mettre en pause le timer",
   "aria.timerReset": "Reinitialiser le timer",
   "aria.odds": "Probabilite",
+  "aria.permissionStatus": "Statut de l'autorisation",
   "dash.tooltipIncrement": "Ajouter un encounter (+1)",
   "dash.tooltipDecrement": "Retirer un encounter (-1)",
   "dash.tooltipReset": "Reinitialiser le compteur",
@@ -701,5 +703,12 @@
   "detector.resumePreview": "Reprendre l'apercu",
   "detector.permanentPreview": "Toujours afficher",
   "footer.hunts": "Hunts",
-  "footer.encounters": "Enc."
+  "footer.encounters": "Enc.",
+  "permissions.accessibility": "Accessibilite",
+  "permissions.accessibilityDesc": "Requis pour les raccourcis globaux",
+  "permissions.screenRecording": "Enregistrement d'ecran",
+  "permissions.screenRecordingDesc": "Requis pour la detection automatique",
+  "permissions.granted": "Accorde",
+  "permissions.notGranted": "Non accorde",
+  "permissions.grant": "Autoriser"
 }

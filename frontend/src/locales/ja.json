@@ -516,6 +516,7 @@
   "settings.sectionData": "データベースと同期",
   "settings.sectionBackup": "バックアップと復元",
   "settings.sectionAbout": "Encountyについて",
+  "settings.sectionPermissions": "権限",
   "tooltip.common.save": "保存",
   "tooltip.common.cancel": "キャンセル",
   "tooltip.common.close": "閉じる",
@@ -566,6 +567,7 @@
   "aria.timerPause": "Timerを一時停止",
   "aria.timerReset": "Timerをリセット",
   "aria.odds": "確率",
+  "aria.permissionStatus": "権限のステータス",
   "dash.tooltipIncrement": "Encounterを追加 (+1)",
   "dash.tooltipDecrement": "Encounterを削除 (-1)",
   "dash.tooltipReset": "カウンターをリセット",
@@ -701,5 +703,12 @@
   "detector.resumePreview": "プレビューを再開",
   "detector.permanentPreview": "常に表示",
   "footer.hunts": "Hunts",
-  "footer.encounters": "Enc."
+  "footer.encounters": "Enc.",
+  "permissions.accessibility": "アクセシビリティ",
+  "permissions.accessibilityDesc": "グローバルホットキーに必要",
+  "permissions.screenRecording": "画面収録",
+  "permissions.screenRecordingDesc": "自動検出に必要",
+  "permissions.granted": "許可済み",
+  "permissions.notGranted": "未許可",
+  "permissions.grant": "許可する"
 }
