@@ -275,12 +275,15 @@ jobs:
           go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-darwin main.go
           rm -rf ./frontend
 
-      - name: Build & Publish Electron macOS
+      - name: Build Electron macOS
         working-directory: electron
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           yarn install
           npm pkg set version="$CLEAN_VERSION"
           yarn build
-          yarn package:mac --publish always
+          yarn package:mac --publish never
+
+      - name: Upload macOS artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: electron/release/Encounty.dmg
