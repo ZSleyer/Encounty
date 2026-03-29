@@ -526,52 +526,8 @@ function AppShell() {
             )}
           </div>
 
-          {/* Center: WS connection + Stats */}
-          <div className="flex items-center justify-center gap-3">
-            {(() => {
-              const isConnecting = !isConnected && appState === null;
-
-              let statusColorClass: string;
-              let statusTitle: string;
-              let dotClass: string;
-
-              if (isConnected) {
-                statusColorClass = "text-text-faint";
-                statusTitle = t("nav.connected");
-                dotClass = "bg-accent-green/60";
-              } else if (isConnecting) {
-                statusColorClass = "text-amber-400/70";
-                statusTitle = t("nav.connecting");
-                dotClass = "bg-amber-400/70";
-              } else {
-                statusColorClass = "text-accent-red/70";
-                statusTitle = t("nav.disconnected");
-                dotClass = "bg-accent-red/70";
-              }
-
-              return (
-            <div
-              className={`flex items-center gap-1.5 transition-colors duration-300 ${statusColorClass}`}
-              title={statusTitle}
-            >
-              <div
-                className={`w-1.5 h-1.5 2xl:w-2 2xl:h-2 rounded-full shrink-0 ${dotClass}`}
-              />
-              <span className="font-medium tracking-wide">
-                {statusTitle}
-              </span>
-            </div>
-              );
-            })()}
-            {appState && appState.pokemon.length > 0 && (
-              <>
-                <span className="text-text-faint/30">|</span>
-                <span className="font-medium tracking-wide">
-                  {appState.pokemon.filter((p) => !p.completed_at).length} {t("footer.hunts")} · {appState.pokemon.reduce((s, p) => s + p.encounters, 0)} {t("footer.encounters")}
-                </span>
-              </>
-            )}
-          </div>
+          {/* Center */}
+          <p className="text-center text-text-faint italic tracking-wide">And be not afraid of the dark</p>
 
           {/* Right: Brand Links */}
           <div className="flex items-center justify-end gap-3">
