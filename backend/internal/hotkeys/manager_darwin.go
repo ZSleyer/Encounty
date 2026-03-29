@@ -19,8 +19,9 @@ package hotkeys
 extern CGEventRef goEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *userInfo);
 
 // createEventTap creates a CGEventTap for key-down and flags-changed events.
-// Returns NULL on failure.
-static CFMachPortRef createTap(void *userInfo) {
+// Returns NULL on failure. Uses NULL as userInfo since the Go callback
+// routes events through the globalDarwinMgr singleton.
+static CFMachPortRef createTap(void) {
     CGEventMask mask = (1 << kCGEventKeyDown) | (1 << kCGEventFlagsChanged);
     CFMachPortRef tap = CGEventTapCreate(
         kCGSessionEventTap,
@@ -28,7 +29,7 @@ static CFMachPortRef createTap(void *userInfo) {
         kCGEventTapOptionListenOnly,
         mask,
         (CGEventTapCallBack)goEventCallback,
-        userInfo
+        NULL
     );
     return tap;
 }
@@ -125,7 +126,7 @@ func (m *darwinManager) Start() error {
 		return nil
 	}
 
-	tap := C.createTap(unsafe.Pointer(m))
+	tap := C.createTap()
 	if tap == 0 {
 		m.available = false
 		slog.Warn("Hotkeys: failed to create CGEventTap — global hotkeys disabled")
