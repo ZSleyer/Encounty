@@ -50,7 +50,7 @@ export function OverlayEditorPage() {
   const { appState } = useCounterStore();
 
   const [currentOverlay, setCurrentOverlay] = useState<OverlaySettings | null>(
-    null,
+    appState?.settings.overlay ?? null,
   );
   const [overlayDirty, setOverlayDirty] = useState(false);
   const [overlaySaving, setOverlaySaving] = useState(false);
@@ -71,7 +71,7 @@ export function OverlayEditorPage() {
 
   const [previewPokemon] = useState(() => makePreviewPokemon());
 
-  const [isInitialised, setInitialised] = useState(false);
+  const [isInitialised, setInitialised] = useState(!!appState);
   useEffect(() => {
     if (appState && !isInitialised) {
       setCurrentOverlay(appState.settings.overlay);
@@ -88,7 +88,14 @@ export function OverlayEditorPage() {
   }, []);
 
   if (!currentOverlay) {
-    return <div className="p-6 text-text-muted">Lade...</div>;
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-text-muted">{t("nav.connecting")}</p>
+        </div>
+      </div>
+    );
   }
 
   const saveOverlay = async () => {

@@ -7,8 +7,8 @@ import { useI18n } from "../contexts/I18nContext";
 export function HotkeyPage() {
   const { t } = useI18n();
   const { appState } = useCounterStore();
-  const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(null);
-  const [initialised, setInitialised] = useState(false);
+  const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(appState?.hotkeys ?? null);
+  const [initialised, setInitialised] = useState(!!appState);
 
   useEffect(() => {
     if (appState && !initialised) {
@@ -18,7 +18,14 @@ export function HotkeyPage() {
   }, [appState, initialised]);
 
   if (!hotkeys) {
-    return <div className="p-6 text-text-muted">Lade…</div>;
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-text-muted">{t("nav.connecting")}</p>
+        </div>
+      </div>
+    );
   }
 
   return (

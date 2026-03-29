@@ -29,9 +29,9 @@ describe("HotkeyPage", () => {
     expect(screen.getByText("+1 Encounter")).toBeInTheDocument();
   });
 
-  it("shows loading state when no app state", () => {
+  it("shows loading spinner when no app state", () => {
     useCounterStore.setState({ appState: null });
-    render(<HotkeyPage />);
-    expect(screen.getByText("Lade\u2026")).toBeInTheDocument();
+    const { container } = render(<HotkeyPage />);
+    expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 });

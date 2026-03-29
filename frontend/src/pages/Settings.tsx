@@ -148,7 +148,7 @@ export function Settings() {
   const { theme, toggleTheme } = useTheme();
   const { push: pushToast } = useToast();
   const { appState } = useCounterStore();
-  const [settings, setSettings] = useState<SettingsType | null>(null);
+  const [settings, setSettings] = useState<SettingsType | null>(appState?.settings ?? null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
   const [gamesSyncing, setGamesSyncing] = useState(false);
@@ -181,7 +181,7 @@ export function Settings() {
     }
   };
 
-  const [initialised, setInitialised] = useState(false);
+  const [initialised, setInitialised] = useState(!!appState);
   useEffect(() => {
     if (appState && !initialised) {
       setSettings(appState.settings);
@@ -245,7 +245,14 @@ export function Settings() {
   }, [search, t]);
 
   if (!settings) {
-    return <div className="p-6 text-text-muted">Lade…</div>;
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-accent-blue border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-text-muted">{t("nav.connecting")}</p>
+        </div>
+      </div>
+    );
   }
 
   const toggleLanguage = (code: string) => {

@@ -35,9 +35,9 @@ describe("OverlayEditorPage", () => {
     expect(container).toBeTruthy();
   });
 
-  it("shows loading state when no app state", () => {
+  it("shows loading spinner when no app state", () => {
     useCounterStore.setState({ appState: null });
-    render(<OverlayEditorPage />);
-    expect(screen.getByText("Lade...")).toBeInTheDocument();
+    const { container } = render(<OverlayEditorPage />);
+    expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 });

@@ -31,10 +31,10 @@ describe("Settings", () => {
     expect(container).toBeTruthy();
   });
 
-  it("shows loading state when no app state", () => {
+  it("shows loading spinner when no app state", () => {
     useCounterStore.setState({ appState: null });
-    render(<Settings />);
-    expect(screen.getByText("Lade\u2026")).toBeInTheDocument();
+    const { container } = render(<Settings />);
+    expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
 
   it("renders language selection dropdown", async () => {
