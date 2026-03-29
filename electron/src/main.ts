@@ -350,6 +350,27 @@ ipcMain.handle('capture:select-source', (_e: Electron.IpcMainInvokeEvent, source
   pendingSourceId = sourceId;
 });
 
+// macOS permission status — checks Accessibility and Screen Recording from the Electron process
+ipcMain.handle('permissions:get-status', () => {
+  if (process.platform !== 'darwin') {
+    return { accessibility: true, screen_recording: true };
+  }
+  return {
+    accessibility: systemPreferences.isTrustedAccessibilityClient(false),
+    screen_recording: systemPreferences.getMediaAccessStatus('screen') === 'granted',
+  };
+});
+
+// macOS permission request — opens System Settings or triggers native dialog
+ipcMain.handle('permissions:request', (_e: Electron.IpcMainInvokeEvent, permission: string) => {
+  if (process.platform !== 'darwin') return;
+  if (permission === 'accessibility') {
+    systemPreferences.isTrustedAccessibilityClient(true);
+  } else if (permission === 'screen_recording') {
+    shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture');
+  }
+});
+
 // Request camera access — uses systemPreferences on macOS, no-op elsewhere
 ipcMain.handle('camera:request-access', async (): Promise<boolean> => {
   if (process.platform === 'darwin') {

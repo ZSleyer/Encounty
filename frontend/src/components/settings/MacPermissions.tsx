@@ -8,7 +8,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Keyboard, Monitor, CheckCircle, AlertTriangle } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import { apiUrl } from "../../utils/api";
 
 interface PermissionStatus {
   accessibility: boolean;
@@ -81,9 +80,8 @@ export function MacPermissions() {
   const [permissions, setPermissions] = useState<PermissionStatus | null>(null);
 
   const fetchPermissions = useCallback(() => {
-    fetch(apiUrl("/api/permissions"))
-      .then((r) => r.json())
-      .then((data: PermissionStatus) => setPermissions(data))
+    window.electronAPI?.getPermissionStatus()
+      .then((data) => setPermissions(data))
       .catch(() => {});
   }, []);
 
@@ -99,11 +97,7 @@ export function MacPermissions() {
   if (window.electronAPI?.platform !== "darwin") return null;
 
   const handleGrant = (permission: string) => {
-    fetch(apiUrl("/api/permissions/request"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ permission }),
-    }).catch(() => {});
+    window.electronAPI?.requestPermission(permission).catch(() => {});
   };
 
   if (!permissions) return null;

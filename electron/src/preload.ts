@@ -69,6 +69,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('camera:request-access');
   },
 
+  // --- macOS permissions IPC ---
+  getPermissionStatus(): Promise<{ accessibility: boolean; screen_recording: boolean }> {
+    return ipcRenderer.invoke('permissions:get-status');
+  },
+
+  requestPermission(permission: string): Promise<void> {
+    return ipcRenderer.invoke('permissions:request', permission);
+  },
+
   // --- Auto-update IPC ---
   onUpdateAvailable(callback: (info: { version: string; releaseDate: string }) => void): () => void {
     const handler = (_event: Electron.IpcRendererEvent, info: { version: string; releaseDate: string }) => {
