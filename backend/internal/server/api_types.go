@@ -71,11 +71,6 @@ type UpdateHotkeyRequest struct {
 	Key string `json:"key"`
 }
 
-// UpdateApplyRequest is the body for POST /api/update/apply.
-type UpdateApplyRequest struct {
-	DownloadURL string `json:"download_url"`
-}
-
 // BackgroundUploadRequest is the body for POST /api/backgrounds/upload.
 type BackgroundUploadRequest struct {
 	ImageBase64 string `json:"image_base64"`

@@ -93,7 +93,7 @@ function UpdateNotification({
             {version}
           </p>
           <a
-            href={`https://github.com/ZSleyer/Encounty/releases/tag/v${version}`}
+            href={`https://github.com/ZSleyer/Encounty/releases/tag/${version.startsWith("v") ? version : `v${version}`}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-accent-blue hover:underline"
@@ -153,103 +153,66 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    // In Electron on Linux, updates are handled via IPC from electron-updater.
-    // On Windows the Electron build is portable, so electron-updater cannot
-    // apply updates — fall through to the REST API path instead.
-    if (globalThis.electronAPI && globalThis.electronAPI.platform !== "win32") {
-      const cleanupAvailable = globalThis.electronAPI.onUpdateAvailable((info) => {
-        setUpdateInfo({
-          available: true,
-          latest_version: info.version,
-          download_url: `https://github.com/ZSleyer/Encounty/releases/tag/v${info.version}`,
-        });
-        if (!sessionStorage.getItem("update_dismissed")) {
-          setShowUpdateNotification(true);
-        }
-      });
+    if (!globalThis.electronAPI) return;
 
-      const cleanupProgress = globalThis.electronAPI.onUpdateProgress(() => {
-        // Progress updates received but not currently displayed
+    const cleanupAvailable = globalThis.electronAPI.onUpdateAvailable((info) => {
+      setUpdateInfo({
+        available: true,
+        latest_version: info.version,
+        download_url: `https://github.com/ZSleyer/Encounty/releases/tag/v${info.version}`,
       });
+      if (!sessionStorage.getItem("update_dismissed")) {
+        setShowUpdateNotification(true);
+      }
+    });
 
-      const cleanupDownloaded = globalThis.electronAPI.onUpdateDownloaded(() => {
-        // Auto-install once download completes
+    const cleanupProgress = globalThis.electronAPI.onUpdateProgress(() => {
+      // Progress updates received but not currently displayed
+    });
+
+    const cleanupDownloaded = globalThis.electronAPI.onUpdateDownloaded(() => {
+      // Auto-install on platforms that support it (Linux AppImage, macOS zip).
+      // Windows portable cannot auto-apply — user downloads manually.
+      if (globalThis.electronAPI!.platform !== "win32") {
         globalThis.electronAPI!.installUpdate();
         setUpdateState("restarting");
-      });
+      }
+    });
 
-      const cleanupError = globalThis.electronAPI.onUpdateError((message) => {
-        console.error('[Update] Error:', message);
-        setUpdateState("idle");
-      });
+    const cleanupError = globalThis.electronAPI.onUpdateError((message) => {
+      console.error("[Update] Error:", message);
+      setUpdateState("idle");
+    });
 
-      return () => {
-        cleanupAvailable();
-        cleanupProgress();
-        cleanupDownloaded();
-        cleanupError();
-      };
-    }
-
-    // Non-Electron (or Windows Electron portable): check via Go backend REST API
-    const timer = setTimeout(() => {
-      fetch(apiUrl("/api/update/check"))
-        .then((r) => r.json())
-        .then((d: { available: boolean; latest_version: string; download_url: string }) => {
-          if (d.available) {
-            setUpdateInfo(d);
-            if (!sessionStorage.getItem("update_dismissed")) {
-              setShowUpdateNotification(true);
-            }
-          }
-        })
-        .catch(() => {});
-    }, 3000);
-    return () => clearTimeout(timer);
+    return () => {
+      cleanupAvailable();
+      cleanupProgress();
+      cleanupDownloaded();
+      cleanupError();
+    };
   }, []);
 
   const applyUpdate = async () => {
     if (!updateInfo) return;
 
-    // Windows Electron (portable): open the GitHub release page so the
-    // user can download the new version manually.
+    // Windows portable: open the GitHub release page for manual download.
     if (globalThis.electronAPI?.platform === "win32") {
       globalThis.open(
-        `https://github.com/ZSleyer/Encounty/releases/tag/${updateInfo.latest_version}`,
+        `https://github.com/ZSleyer/Encounty/releases/tag/${updateInfo.latest_version.startsWith("v") ? updateInfo.latest_version : `v${updateInfo.latest_version}`}`,
         "_blank",
       );
       setShowUpdateNotification(false);
       return;
     }
 
+    // Linux/macOS: download via electron-updater IPC (auto-installs on completion)
     setUpdateState("installing");
-
     if (globalThis.electronAPI) {
-      // Electron Linux: download via electron-updater IPC
       try {
         await globalThis.electronAPI.downloadUpdate();
       } catch {
         setUpdateState("idle");
       }
-      return;
-    }
-
-    // Non-Electron: REST-based update
-    try {
-      await fetch(apiUrl("/api/update/apply"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ download_url: updateInfo.download_url }),
-      });
-      setUpdateState("restarting");
-      const pollBackend = () => {
-        fetch(apiUrl("/api/version"), { cache: "no-store" })
-          .then(() => globalThis.location.reload())
-          .catch(() => setTimeout(pollBackend, 1000));
-      };
-      setTimeout(pollBackend, 2000);
-    } catch {
-      setUpdateState("idle");
     }
   };
 
@@ -446,7 +409,7 @@ function AppShell() {
       </div>
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
       <header
-        className="flex items-center h-12 2xl:h-14 px-4 bg-bg-secondary shrink-0 relative z-10"
+        className={`flex items-center h-12 2xl:h-14 bg-bg-secondary shrink-0 relative z-10 ${globalThis.electronAPI?.platform === 'darwin' ? 'pl-[78px] pr-4' : 'px-4'}`}
         style={{
           WebkitAppRegion: "drag",
         } as React.CSSProperties}
@@ -455,13 +418,15 @@ function AppShell() {
       >
         {/* Left: Logo + Nav tabs */}
         <div className="flex items-center gap-1 mr-auto" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-          {/* Logo */}
-          <img
-            src="/app-icon.png"
-            alt="Encounty Logo"
-            className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-md object-contain shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
-            title="Encounty"
-          />
+          {/* Logo — hidden on macOS where traffic light buttons occupy this space */}
+          {globalThis.electronAPI?.platform !== 'darwin' && (
+            <img
+              src="/app-icon.png"
+              alt="Encounty Logo"
+              className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-md object-contain shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
+              title="Encounty"
+            />
+          )}
 
           <NavTab to="/" icon={<LayoutGrid className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.dashboard")}
@@ -489,9 +454,18 @@ function AppShell() {
         </div>
 
 
-        {/* Right: Window controls (Electron only) */}
+        {/* Right: Window controls (Windows/Linux) or logo (macOS) */}
         <div className="flex items-center ml-auto h-full">
-          <WindowControls />
+          {globalThis.electronAPI?.platform === 'darwin' ? (
+            <img
+              src="/app-icon.png"
+              alt="Encounty Logo"
+              className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-md object-contain mr-2 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
+              title="Encounty"
+            />
+          ) : (
+            <WindowControls />
+          )}
         </div>
       </header>
       <div className="glow-line-h shrink-0" />

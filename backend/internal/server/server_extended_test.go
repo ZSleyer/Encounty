@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -149,9 +148,6 @@ func TestBroadcastState(t *testing.T) {
 	}
 }
 
-// TestFetchUpdateInfoMockServer moved to internal/updater/updater_test.go
-// as TestAssetDownloadURLMock.
-
 // --- handleSyncGames wrong method ---
 
 func TestHandleSyncGamesWrongMethod(t *testing.T) {
@@ -165,21 +161,6 @@ func TestHandleSyncGamesWrongMethod(t *testing.T) {
 
 	if w.Code != http.StatusMethodNotAllowed {
 		t.Errorf(extFmtStatus, w.Code, http.StatusMethodNotAllowed)
-	}
-}
-
-// --- handleUpdateApply invalid JSON (not in update_test.go) ---
-
-func TestHandleUpdateApplyInvalidJSON(t *testing.T) {
-	srv := newTestServer(t)
-
-	mux := newTestMux(srv)
-	req := httptest.NewRequest(http.MethodPost, "/api/update/apply", bytes.NewBufferString("{bad"))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Errorf(extFmtStatus, w.Code, http.StatusBadRequest)
 	}
 }
 

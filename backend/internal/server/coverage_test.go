@@ -104,26 +104,6 @@ func TestWritePumpChannelClose(t *testing.T) {
 	}
 }
 
-// --- handleUpdateCheck coverage: non-dev version path ---
-
-// TestUpdateCheckNonDevVersion exercises the path where version != "dev",
-// causing updater.CheckForUpdate to be called. Since it calls the real GitHub
-// API, this test accepts either success or an error response.
-func TestUpdateCheckNonDevVersion(t *testing.T) {
-	srv := newTestServer(t)
-	srv.version = "0.0.1-test"
-
-	mux := newTestMux(srv)
-	req := httptest.NewRequest(http.MethodGet, "/api/update/check", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	// The GitHub API call may succeed or fail depending on network; both are valid.
-	if w.Code != http.StatusOK && w.Code != http.StatusInternalServerError {
-		t.Errorf("unexpected status = %d", w.Code)
-	}
-}
-
 // --- handleDeletePokemon with detectorMgr ---
 
 // TestHandleDeletePokemonWithDetectorMgr exercises the detectorMgr != nil
@@ -149,30 +129,6 @@ func TestHandleDeletePokemonWithDetectorMgr(t *testing.T) {
 	st := srv.state.GetState()
 	if len(st.Pokemon) != 0 {
 		t.Errorf("Pokemon length = %d, want 0", len(st.Pokemon))
-	}
-}
-
-// --- handleUpdateApply with valid download_url ---
-
-func TestHandleUpdateApplyWithURL(t *testing.T) {
-	srv := newTestServer(t)
-
-	mux := newTestMux(srv)
-	body := `{"download_url":"https://example.com/test-binary"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/update/apply", bytes.NewBufferString(body))
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
-	}
-
-	var resp map[string]string
-	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
-		t.Fatal(err)
-	}
-	if resp["status"] != "updating" {
-		t.Errorf("status = %q, want updating", resp["status"])
 	}
 }
 

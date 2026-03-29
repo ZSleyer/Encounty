@@ -1,7 +1,7 @@
 //go:build windows
 
-// reexec_windows.go provides process re-execution on Windows.
-package updater
+// Package reexec provides process re-execution helpers for graceful restarts.
+package reexec
 
 import (
 	"os/exec"

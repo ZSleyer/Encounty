@@ -11,7 +11,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/licenses"
 	"github.com/zsleyer/encounty/backend/internal/state"
-	"github.com/zsleyer/encounty/backend/internal/updater"
+	"github.com/zsleyer/encounty/backend/internal/reexec"
 )
 
 // Deps declares the capabilities that system handlers require from the
@@ -268,7 +268,7 @@ func (h *handler) handleRestart(w http.ResponseWriter, r *http.Request) {
 			slog.Error("Restart: could not get executable path", "error", err)
 			os.Exit(1)
 		}
-		if err := updater.Reexec(exe, os.Args[1:]); err != nil {
+		if err := reexec.Reexec(exe, os.Args[1:]); err != nil {
 			slog.Error("Restart failed", "error", err)
 			os.Exit(1)
 		}
