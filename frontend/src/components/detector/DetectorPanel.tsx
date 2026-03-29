@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
-  X, Plus, Pencil, HelpCircle,
+  X, Plus, Pencil, HelpCircle, RotateCcw,
   MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, Trash2,
 } from "lucide-react";
 import { DetectorConfig, HuntTypePreset, Pokemon, MatchedRegion, Settings as SettingsType } from "../../types";
@@ -950,12 +950,28 @@ export function DetectorPanel({
               </div>
 
               {/* Draggable divider */}
-              <button
-                type="button"
-                onMouseDown={startDetectorDividerDrag}
-                className="w-full h-1.5 shrink-0 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
-                aria-label={t("detector.resizeDivider")}
-              />
+              <div className="relative group shrink-0">
+                <button
+                  type="button"
+                  onMouseDown={startDetectorDividerDrag}
+                  className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
+                  aria-label={t("detector.resizeDivider")}
+                />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTemplatesHeight(300);
+                    try { localStorage.removeItem("encounty_detector_split"); } catch {}
+                  }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-md p-1 text-text-muted hover:text-text-primary transition-opacity z-10"
+                  title={t("detector.resetLayout")}
+                  aria-label={t("detector.resetLayout")}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              </div>
 
               {/* Log + Settings tabs */}
               <div className="flex shrink-0 border-b border-border-subtle items-center">

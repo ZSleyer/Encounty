@@ -945,11 +945,11 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               try { localStorage.removeItem("encounty_editor_split"); } catch {}
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 bg-bg-secondary border border-border-subtle rounded px-1 py-0 text-[9px] text-text-muted hover:text-text-primary transition-opacity z-10"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-md p-1 text-text-muted hover:text-text-primary transition-opacity z-10"
             title={t("tooltip.editor.resetLayout")}
             aria-label={t("tooltip.editor.resetLayout")}
           >
-            <RotateCcw className="w-2.5 h-2.5" />
+            <RotateCcw className="w-3 h-3" />
           </button>
         </div>
 
