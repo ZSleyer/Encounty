@@ -28,6 +28,38 @@ let pendingSourceId: string | null = null;
 let registeredHotkeys: Record<string, string> = {};
 let hotkeysPaused = false;
 
+/** Map of special key names to their Electron accelerator equivalents. */
+const ELECTRON_KEY_MAP: Record<string, string> = {
+  'arrowup': 'Up', 'arrowdown': 'Down', 'arrowleft': 'Left', 'arrowright': 'Right',
+  'escape': 'Escape', 'enter': 'Enter', 'backspace': 'Backspace', 'delete': 'Delete',
+  'tab': 'Tab', 'space': 'Space', 'home': 'Home', 'end': 'End',
+  'pageup': 'PageUp', 'pagedown': 'PageDown',
+  'numpadadd': 'numadd', 'numpadsubtract': 'numsub',
+  'numpadmultiply': 'nummult', 'numpaddivide': 'numdec',
+  'numpadenter': 'Enter', 'numpaddecimal': 'numdec',
+  'numpad0': 'num0', 'numpad1': 'num1', 'numpad2': 'num2', 'numpad3': 'num3',
+  'numpad4': 'num4', 'numpad5': 'num5', 'numpad6': 'num6', 'numpad7': 'num7',
+  'numpad8': 'num8', 'numpad9': 'num9',
+  '+': 'Plus', '-': '-', '=': '=', '[': '[', ']': ']',
+  ';': ';', "'": "'", ',': ',', '.': '.', '/': '/', '\\': '\\', '`': '`',
+};
+
+/**
+ * Resolves a single lowercase key name to its Electron accelerator string.
+ * Returns null for unrecognized keys.
+ */
+function resolveElectronKey(lower: string): string | null {
+  if (lower === 'ctrl' || lower === 'control') return 'Control';
+  if (lower === 'shift') return 'Shift';
+  if (lower === 'alt') return 'Alt';
+
+  const mapped = ELECTRON_KEY_MAP[lower];
+  if (mapped) return mapped;
+  if (lower.startsWith('f') && /^f\d+$/.test(lower)) return lower.toUpperCase();
+  if (lower.length === 1) return lower.toUpperCase();
+  return null;
+}
+
 /**
  * Converts the app's key combo format ("Ctrl+Shift+F1", "a", "+") to Electron's
  * accelerator format ("Control+Shift+F1", "A", "Plus").
@@ -41,41 +73,9 @@ function toElectronAccelerator(combo: string): string | null {
   const mapped: string[] = [];
 
   for (const part of parts) {
-    const lower = part.toLowerCase().trim();
-    switch (lower) {
-      case 'ctrl':
-      case 'control':
-        mapped.push('Control');
-        break;
-      case 'shift':
-        mapped.push('Shift');
-        break;
-      case 'alt':
-        mapped.push('Alt');
-        break;
-      default: {
-        const keyMap: Record<string, string> = {
-          'arrowup': 'Up', 'arrowdown': 'Down', 'arrowleft': 'Left', 'arrowright': 'Right',
-          'escape': 'Escape', 'enter': 'Enter', 'backspace': 'Backspace', 'delete': 'Delete',
-          'tab': 'Tab', 'space': 'Space', 'home': 'Home', 'end': 'End',
-          'pageup': 'PageUp', 'pagedown': 'PageDown',
-          'numpadadd': 'numadd', 'numpadsubtract': 'numsub',
-          'numpadmultiply': 'nummult', 'numpaddivide': 'numdec',
-          'numpadenter': 'Enter', 'numpaddecimal': 'numdec',
-          'numpad0': 'num0', 'numpad1': 'num1', 'numpad2': 'num2', 'numpad3': 'num3',
-          'numpad4': 'num4', 'numpad5': 'num5', 'numpad6': 'num6', 'numpad7': 'num7',
-          'numpad8': 'num8', 'numpad9': 'num9',
-          '+': 'Plus', '-': '-', '=': '=', '[': '[', ']': ']',
-          ';': ';', "'": "'", ',': ',', '.': '.', '/': '/', '\\': '\\', '`': '`',
-        };
-        const electronKey = keyMap[lower] ?? (lower.startsWith('f') && /^f\d+$/.test(lower)
-          ? lower.toUpperCase()
-          : lower.length === 1 ? lower.toUpperCase() : null);
-        if (!electronKey) return null;
-        mapped.push(electronKey);
-        break;
-      }
-    }
+    const electronKey = resolveElectronKey(part.toLowerCase().trim());
+    if (!electronKey) return null;
+    mapped.push(electronKey);
   }
   return mapped.join('+');
 }
@@ -284,6 +284,77 @@ async function createWindow(): Promise<void> {
   await loadContent(mainWindow);
 }
 
+/**
+ * Resolves a zombie backend process occupying the backend port.
+ * Prompts the user to kill the stale process or quit the app.
+ * Returns false if the user chose to quit (caller should return early).
+ */
+async function resolveZombieBackend(proc: GoProcessManager, port: number): Promise<boolean> {
+  const portInUse = await GoProcessManager.checkPort(port);
+  if (!portInUse) return true;
+
+  const stalePid = proc.readStalePid();
+  const zombiePid = stalePid || GoProcessManager.findProcessOnPort(port);
+  if (!zombiePid) return true;
+
+  const { response } = await dialog.showMessageBox({
+    type: 'warning',
+    title: 'Encounty',
+    message: 'Ein Encounty-Backend läuft bereits.',
+    detail: `Prozess ${zombiePid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
+    buttons: ['Ersetzen', 'Beenden'],
+    defaultId: 0,
+    cancelId: 1,
+  });
+
+  if (response !== 0) {
+    app.quit();
+    return false;
+  }
+
+  await GoProcessManager.killProcess(zombiePid);
+  // Wait briefly for port to be released
+  await new Promise(r => setTimeout(r, 1000));
+  return true;
+}
+
+/** Configures electron-updater event listeners and triggers an initial update check. */
+function setupAutoUpdater(): void {
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send('update:available', {
+      version: info.version,
+      releaseDate: info.releaseDate,
+    });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send('update:progress', {
+      percent: progress.percent,
+      bytesPerSecond: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total,
+    });
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    mainWindow?.webContents.send('update:downloaded');
+  });
+
+  autoUpdater.on('error', (err) => {
+    mainWindow?.webContents.send('update:error', err.message);
+  });
+
+  // Check for updates 5 seconds after window creation
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('[Electron] Update check failed:', err);
+    });
+  }, 5000);
+}
+
 async function startApp(): Promise<void> {
   try {
     // In dev mode, Go backend runs separately (via `make dev` / `go run`).
@@ -291,35 +362,8 @@ async function startApp(): Promise<void> {
     if (!isDev) {
       goProcess = new GoProcessManager();
 
-      // Check for zombie backend process before starting a new one
-      const port = BACKEND_PORT;
-      const portInUse = await GoProcessManager.checkPort(port);
-
-      if (portInUse) {
-        const stalePid = goProcess.readStalePid();
-        const zombiePid = stalePid || GoProcessManager.findProcessOnPort(port);
-
-        if (zombiePid) {
-          const { response } = await dialog.showMessageBox({
-            type: 'warning',
-            title: 'Encounty',
-            message: 'Ein Encounty-Backend läuft bereits.',
-            detail: `Prozess ${zombiePid} belegt bereits Port ${port}. Soll die alte Instanz beendet werden?`,
-            buttons: ['Ersetzen', 'Beenden'],
-            defaultId: 0,
-            cancelId: 1,
-          });
-
-          if (response === 0) {
-            await GoProcessManager.killProcess(zombiePid);
-            // Wait briefly for port to be released
-            await new Promise(r => setTimeout(r, 1000));
-          } else {
-            app.quit();
-            return;
-          }
-        }
-      }
+      const canProceed = await resolveZombieBackend(goProcess, BACKEND_PORT);
+      if (!canProceed) return;
 
       // Wait for backend to be ready
       const proc = goProcess;
@@ -357,42 +401,9 @@ async function startApp(): Promise<void> {
       } catch { /* non-critical — About panel keeps empty version */ }
     }
 
-    // --- Auto-updater (electron-updater) ---
-    // Skip in dev mode: app.version is not a valid semver, and updates are irrelevant.
+    // Auto-updater: skip in dev mode (app.version is not valid semver)
     if (!isDev) {
-      autoUpdater.autoDownload = false;
-      autoUpdater.autoInstallOnAppQuit = false;
-
-      autoUpdater.on('update-available', (info) => {
-        mainWindow?.webContents.send('update:available', {
-          version: info.version,
-          releaseDate: info.releaseDate,
-        });
-      });
-
-      autoUpdater.on('download-progress', (progress) => {
-        mainWindow?.webContents.send('update:progress', {
-          percent: progress.percent,
-          bytesPerSecond: progress.bytesPerSecond,
-          transferred: progress.transferred,
-          total: progress.total,
-        });
-      });
-
-      autoUpdater.on('update-downloaded', () => {
-        mainWindow?.webContents.send('update:downloaded');
-      });
-
-      autoUpdater.on('error', (err) => {
-        mainWindow?.webContents.send('update:error', err.message);
-      });
-
-      // Check for updates 5 seconds after window creation
-      setTimeout(() => {
-        autoUpdater.checkForUpdates().catch((err) => {
-          console.error('[Electron] Update check failed:', err);
-        });
-      }, 5000);
+      setupAutoUpdater();
     }
 
   } catch (err) {

@@ -93,11 +93,14 @@ export class GoProcessManager extends EventEmitter {
   }
 
   private getBinaryPath(): string {
-    const binaryName = process.platform === 'win32'
-      ? 'encounty-backend-windows.exe'
-      : process.platform === 'darwin'
-      ? 'encounty-backend-darwin'
-      : 'encounty-backend-linux';
+    let binaryName: string;
+    if (process.platform === 'win32') {
+      binaryName = 'encounty-backend-windows.exe';
+    } else if (process.platform === 'darwin') {
+      binaryName = 'encounty-backend-darwin';
+    } else {
+      binaryName = 'encounty-backend-linux';
+    }
 
     if (app.isPackaged) {
       // Production mode: binary in resources
