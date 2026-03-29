@@ -173,7 +173,9 @@ export function DetectorPanel({
 
   const startCapture = useCallback(() => {
     // Normalize empty/legacy source_type to the default before processing.
-    const sourceType = (cfg.source_type === "" || cfg.source_type === "screen_region" || cfg.source_type === "window" || cfg.source_type === "camera")
+    // The backend may persist an empty string that doesn't match the TS union.
+    const raw = cfg.source_type as string;
+    const sourceType = (!raw || raw === "screen_region" || raw === "window" || raw === "camera")
       ? DEFAULT_CONFIG.source_type
       : cfg.source_type;
 
