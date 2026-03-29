@@ -93,9 +93,10 @@ export class GoProcessManager extends EventEmitter {
   }
 
   private getBinaryPath(): string {
-    // Linux x64 + Windows x64 only
     const binaryName = process.platform === 'win32'
       ? 'encounty-backend-windows.exe'
+      : process.platform === 'darwin'
+      ? 'encounty-backend-darwin'
       : 'encounty-backend-linux';
 
     if (app.isPackaged) {
@@ -182,7 +183,7 @@ export class GoProcessManager extends EventEmitter {
         const match = /\s+(\d+)\s*$/.exec(output.trim().split('\n')[0] ?? "");
         return match ? Number.parseInt(match[1], 10) : null;
       } else {
-        const output = execSync(`fuser ${port}/tcp 2>/dev/null`, { encoding: 'utf8', timeout: 3000 });
+        const output = execSync(`lsof -ti tcp:${port}`, { encoding: 'utf8', timeout: 3000 });
         const pid = Number.parseInt(output.trim(), 10);
         return Number.isNaN(pid) ? null : pid;
       }

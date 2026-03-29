@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, Menu, session, desktopCapturer, ipcMain, shell, systemPreferences, protocol, net } from 'electron';
+import { app, BrowserWindow, dialog, Menu, nativeImage, session, desktopCapturer, ipcMain, shell, systemPreferences, protocol, net } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import { GoProcessManager } from './process-manager';
 import { BACKEND_PORT } from './config';
@@ -11,6 +11,9 @@ const isWayland = process.platform === 'linux' &&
 let mainWindow: BrowserWindow | null = null;
 let goProcess: GoProcessManager | null = null;
 const isDev = process.argv.includes('--dev');
+
+// Set app name early so macOS menu bar shows "Encounty" instead of "Electron".
+app.setName('Encounty');
 
 // Source ID pre-selected by the renderer via capture:select-source IPC.
 // Consumed once by setDisplayMediaRequestHandler, then reset to null.
@@ -136,7 +139,9 @@ async function createWindow(): Promise<void> {
     ...(saved.x !== undefined && saved.y !== undefined ? { x: saved.x, y: saved.y } : {}),
     title: 'Encounty',
     icon: iconPath,
-    frame: false,
+    ...(process.platform === 'darwin'
+      ? { titleBarStyle: 'hiddenInset' as const, trafficLightPosition: { x: 16, y: 17 } }
+      : { frame: false }),
     backgroundColor: '#0f0f13',
     webPreferences: {
       nodeIntegration: false,
@@ -212,6 +217,17 @@ async function startApp(): Promise<void> {
 
     // Create window once backend is ready
     await createWindow();
+
+    // Fetch the real build version from the Go backend and update the About panel.
+    if (process.platform === 'darwin') {
+      try {
+        const res = await net.fetch(`http://localhost:${BACKEND_PORT}/api/version`);
+        const data = await res.json() as { display?: string };
+        if (data.display) {
+          app.setAboutPanelOptions({ applicationVersion: data.display });
+        }
+      } catch { /* non-critical — About panel keeps empty version */ }
+    }
 
     // --- Auto-updater (electron-updater) ---
     autoUpdater.autoDownload = false;
@@ -306,6 +322,15 @@ ipcMain.handle('capture:get-sources', async () => {
     console.log('[Electron] capture:get-sources skipped on Wayland');
     return [];
   }
+  // On macOS, check screen recording permission and log status for debugging.
+  // desktopCapturer.getSources() silently returns empty results when denied.
+  if (process.platform === 'darwin') {
+    const status = systemPreferences.getMediaAccessStatus('screen');
+    console.log('[Electron] macOS screen recording status:', status);
+    if (status !== 'granted') {
+      console.warn('[Electron] Screen recording not granted — sources will be empty. Grant permission in System Settings > Privacy > Screen Recording.');
+    }
+  }
   const sources = await desktopCapturer.getSources({
     types: ['screen', 'window'],
     thumbnailSize: { width: 320, height: 180 },
@@ -383,6 +408,31 @@ app.setPath('userData', path.join(app.getPath('userData'), 'electron'));
 
 // App lifecycle
 app.on('ready', async () => {
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'app-icon.png')
+    : path.join(__dirname, '..', '..', 'frontend', 'public', 'app-icon.png');
+
+  // Configure the macOS Dock icon using the ICNS file for proper macOS styling.
+  if (process.platform === 'darwin') {
+    const icnsPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'icon.icns')
+      : path.join(__dirname, '..', 'build', 'icon.icns');
+    const dockIcon = nativeImage.createFromPath(icnsPath);
+    if (!dockIcon.isEmpty()) {
+      app.dock?.setIcon(dockIcon);
+    }
+
+    // Set initial About panel — version is updated after the backend reports it.
+    const aboutIcon = nativeImage.createFromPath(iconPath);
+    app.setAboutPanelOptions({
+      applicationName: 'Encounty',
+      applicationVersion: '',
+      copyright: '© 2026 ZSleyer',
+      credits: 'Pokémon Shiny Encounter Counter & Tracker',
+      ...(aboutIcon.isEmpty() ? {} : { iconPath }),
+    });
+  }
+
   // Resolve the frontend dist directory and register the encounty:// protocol
   // handler to serve frontend assets from disk.
   const frontendRoot = app.isPackaged
@@ -408,7 +458,47 @@ app.on('ready', async () => {
     }
   });
 
-  Menu.setApplicationMenu(null);
+  // On macOS, setting the menu to null still shows the default Electron menu.
+  // Build a minimal app menu with standard keyboard shortcuts instead.
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'selectAll' },
+        ],
+      },
+      {
+        label: 'Window',
+        submenu: [
+          { role: 'minimize' },
+          { role: 'zoom' },
+          { type: 'separator' },
+          { role: 'front' },
+        ],
+      },
+    ]));
+  } else {
+    Menu.setApplicationMenu(null);
+  }
 
   // Set a strict Content-Security-Policy in production to suppress the
   // Electron CSP warning and harden the renderer against injection attacks.

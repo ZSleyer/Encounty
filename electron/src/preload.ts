@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isElectron: true,
   apiBaseUrl: isDevMode ? '' : `http://localhost:${BACKEND_PORT}`,
   isWayland,
-  platform: process.platform as 'win32' | 'linux',
+  platform: process.platform as 'win32' | 'linux' | 'darwin',
 
   minimize(): void {
     ipcRenderer.invoke('window:minimize');
