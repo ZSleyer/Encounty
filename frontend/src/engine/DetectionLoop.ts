@@ -95,13 +95,11 @@ export class DetectionLoop {
   private maxPollMs = MAX_POLL_MS;
   private hysteresisFactor = 0.7;
   private cooldownSec = 0;
-  private hysteresisEnteredAt = 0;
   /** When true, score has dropped but we're waiting for the cooldown timer. */
   private inCooldown = false;
   private cooldownStartedAt = 0;
   private consecutiveCount = 0;
   private missCount = 0;
-  private lastScore = 0;
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   /** Last video.currentTime seen — used to skip detection when the frame hasn't changed. */
@@ -164,10 +162,8 @@ export class DetectionLoop {
     this.running = true;
     this.consecutiveCount = 0;
     this.missCount = 0;
-    this.lastScore = 0;
     this.smoothedScore = 0;
     this.inHysteresis = false;
-    this.hysteresisEnteredAt = 0;
     this.inCooldown = false;
     this.cooldownStartedAt = 0;
     this.pollIntervalMs = this.config.pollIntervalMs ?? DEFAULT_POLL_MS;
@@ -240,56 +236,13 @@ export class DetectionLoop {
     if (hasValidInput) {
       // Skip detection if the video frame hasn't changed since the last iteration
       if (video.currentTime === this.lastVideoTime) {
-        if (!this.running) return;
-        this.timeoutId = setTimeout(() => {
-          if (!this.running) return;
-          this.runLoop(getVideo);
-        }, this.pollIntervalMs);
+        this.scheduleNext(getVideo);
         return;
       }
       this.lastVideoTime = video.currentTime;
 
       try {
-        const result: DetectorResult = await this.detector.detect(
-          video,
-          this.templates,
-          {
-            precision: this.config.precision,
-            crop: this.config.crop,
-            changeThreshold: this.config.changeThreshold,
-            previousFrame: this.previousFrameBuffer,
-          },
-        );
-
-        // Store frame buffer for next cycle's deduplication
-        if (result.frameBuffer !== undefined) {
-          const old = this.previousFrameBuffer;
-          if (old && typeof old === 'object' && 'destroy' in old && typeof (old as { destroy: unknown }).destroy === 'function') {
-            (old as { destroy(): void }).destroy();
-          }
-          this.previousFrameBuffer = result.frameBuffer;
-        }
-
-        const adjusted = this.applyNoiseFloor(result.bestScore);
-        this.lastScore = adjusted;
-        this.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * this.smoothedScore;
-
-        // Periodic score logging for debugging (every ~2s)
-        if (Math.random() < 0.1) {
-          console.log(`[Detection] raw=${result.bestScore.toFixed(3)} adj=${adjusted.toFixed(3)} smooth=${this.smoothedScore.toFixed(3)} poll=${this.pollIntervalMs}ms`);
-        }
-
-        const effectivePrecision = this.computeEffectivePrecision();
-        const wasInHysteresis = this.inHysteresis;
-        this.updateMatchState(adjusted, effectivePrecision);
-
-        // Only notify the backend when a match is confirmed (hysteresis just entered)
-        if (this.inHysteresis && !wasInHysteresis) {
-          this.reportMatch(adjusted, result.frameDelta);
-        }
-
-        this.emitScoreCallback(adjusted, effectivePrecision);
-        this.pollIntervalMs = this.computeNextInterval(adjusted, result.frameDelta);
+        await this.processFrame(video);
       } catch (err) {
         console.error("[Detection] Error:", err);
         // Detection error — back off to avoid tight error loops
@@ -297,11 +250,62 @@ export class DetectionLoop {
       }
     }
 
+    this.scheduleNext(getVideo);
+  }
+
+  /** Run detection on a single video frame and update scores/match state. */
+  private async processFrame(video: HTMLVideoElement): Promise<void> {
+    const result: DetectorResult = await this.detector.detect(
+      video,
+      this.templates,
+      {
+        precision: this.config.precision,
+        crop: this.config.crop,
+        changeThreshold: this.config.changeThreshold,
+        previousFrame: this.previousFrameBuffer,
+      },
+    );
+
+    this.recycleFrameBuffer(result.frameBuffer);
+
+    const adjusted = this.applyNoiseFloor(result.bestScore);
+    this.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * this.smoothedScore;
+
+    // Periodic score logging for debugging (every ~2s)
+    if (Math.random() < 0.1) {
+      console.log(`[Detection] raw=${result.bestScore.toFixed(3)} adj=${adjusted.toFixed(3)} smooth=${this.smoothedScore.toFixed(3)} poll=${this.pollIntervalMs}ms`);
+    }
+
+    const effectivePrecision = this.computeEffectivePrecision();
+    const wasInHysteresis = this.inHysteresis;
+    this.updateMatchState(adjusted, effectivePrecision);
+
+    // Only notify the backend when a match is confirmed (hysteresis just entered)
+    if (this.inHysteresis && !wasInHysteresis) {
+      this.reportMatch(adjusted, result.frameDelta);
+    }
+
+    this.emitScoreCallback(adjusted, effectivePrecision);
+    this.pollIntervalMs = this.computeNextInterval(adjusted, result.frameDelta);
+  }
+
+  /** Replace the previous frame buffer, destroying the old one if applicable. */
+  private recycleFrameBuffer(newBuffer: DetectorResult["frameBuffer"]): void {
+    if (newBuffer === undefined) return;
+    const old = this.previousFrameBuffer;
+    if (old && typeof old === 'object' && 'destroy' in old && typeof (old as { destroy: unknown }).destroy === 'function') {
+      (old as { destroy(): void }).destroy();
+    }
+    this.previousFrameBuffer = newBuffer;
+  }
+
+  /** Schedule the next detection iteration, guarding against stopped state. */
+  private scheduleNext(getVideo: () => HTMLVideoElement | null): void {
     if (!this.running) return;
 
-    // Schedule next iteration via setTimeout only — no requestAnimationFrame
-    // needed since detection doesn't require frame sync and rAF callbacks
-    // block the browser's rendering pipeline while the async detect() runs.
+    // Use setTimeout only — no requestAnimationFrame needed since detection
+    // doesn't require frame sync and rAF callbacks block the browser's
+    // rendering pipeline while the async detect() runs.
     this.timeoutId = setTimeout(() => {
       if (!this.running) return;
       this.runLoop(getVideo);
@@ -373,7 +377,6 @@ export class DetectionLoop {
       this.consecutiveCount = 0;
       this.missCount = 0;
       this.inHysteresis = true;
-      this.hysteresisEnteredAt = Date.now();
     }
   }
 

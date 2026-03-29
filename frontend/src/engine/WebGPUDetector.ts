@@ -224,11 +224,11 @@ export class WebGPUDetector {
   private destroyed = false;
 
   // Phase 0C: GPU buffer pool for per-frame allocation reuse
-  private pool: BufferPool;
+  private readonly pool: BufferPool;
 
   // Phase 0D: Persistent uniform buffers updated via queue.writeBuffer()
-  private preprocessParamsBuf: GPUBuffer;
-  private deltaResultBuf: GPUBuffer;
+  private readonly preprocessParamsBuf: GPUBuffer;
+  private readonly deltaResultBuf: GPUBuffer;
 
   // Phase 0F: Cached frame texture to avoid per-frame texture recreation
   private frameTexture: GPUTexture | null = null;
