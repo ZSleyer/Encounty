@@ -19,15 +19,8 @@
   ],
   "settings": {
     // Go settings for backend
-    "go.toolsEnvVars": {
-      "GOOS": "linux",
-      "GOARCH": "amd64"
-    },
+    "go.toolsEnvVars": {},
     "gopls": {
-      "env": {
-        "GOOS": "linux",
-        "GOARCH": "amd64"
-      },
       "build.directoryFilters": ["-frontend", "-electron", "-docs"]
     },
     "go.lintTool": "golangci-lint",

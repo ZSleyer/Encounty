@@ -8,6 +8,7 @@ encounty-darwin
 encounty-darwin-arm64
 encounty-backend-linux
 encounty-backend-windows.exe
+encounty-backend-darwin
 __debug_bin*
 *.exe
 
@@ -62,10 +63,13 @@ frontend/coverage/
 electron/dist/
 electron/release/
 
-# Rust sidecar
-capture-sidecar/target/
+# macOS
+*.icns
+*.dmg
 
 # Experimental implementations (not for main branch)
-project-native/# NCC quality test fixtures (large binary files, not committed)
+project-native/
+
+# NCC quality test fixtures (large binary files, not committed)
 frontend/src/engine/__tests__/fixtures/
 frontend/src/engine/__tests__/ncc-*.test.ts

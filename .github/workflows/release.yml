@@ -192,3 +192,102 @@ jobs:
           files: |
             electron/release/Encounty.AppImage
             electron/release/Encounty.exe
+
+  release-macos:
+    name: Build & Publish macOS
+    runs-on: macos-latest
+    needs: [test, lint, release]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set version from tag
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/}
+          CLEAN_VERSION=$(echo "$TAG_VERSION" | sed 's/^v//' | sed 's/-.*//')
+          if [[ "$CLEAN_VERSION" != *.*.* ]]; then
+            CLEAN_VERSION="${CLEAN_VERSION}.0"
+          fi
+          echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
+          echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
+
+      - name: Detect pre-release
+        id: prerelease
+        run: |
+          if [[ "$GITHUB_REF" == *"-pre"* ]] || [[ "$GITHUB_REF" == *"-rc"* ]] || [[ "$GITHUB_REF" == *"-alpha"* ]] || [[ "$GITHUB_REF" == *"-beta"* ]]; then
+            echo "publish_flag=never" >> $GITHUB_OUTPUT
+          else
+            echo "publish_flag=always" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: yarn install
+
+      - name: Set Frontend Version
+        working-directory: frontend
+        run: npm pkg set version="$CLEAN_VERSION"
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: yarn build
+
+      - name: Generate Icons
+        run: |
+          cd backend
+          go run ../scripts/generate_icons.go
+
+      - name: Generate macOS ICNS
+        run: |
+          mkdir -p electron/build/icon.iconset
+          for size in 16 32 64 128 256 512; do
+            sips -z $size $size frontend/public/app-icon.png --out "electron/build/icon.iconset/icon_${size}x${size}.png"
+          done
+          for size in 16 32 128 256; do
+            double=$((size*2))
+            sips -z $double $double frontend/public/app-icon.png --out "electron/build/icon.iconset/icon_${size}x${size}@2x.png"
+          done
+          iconutil -c icns electron/build/icon.iconset -o electron/build/icon.icns
+          rm -rf electron/build/icon.iconset
+
+      - name: Build macOS Binary
+        working-directory: backend
+        env:
+          CGO_ENABLED: '1'
+          GOOS: darwin
+          GOARCH: arm64
+        run: |
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-darwin main.go
+          rm -rf ./frontend
+
+      - name: Build & Publish Electron macOS
+        working-directory: electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          yarn install
+          npm pkg set version="$CLEAN_VERSION"
+          yarn build
+          ln -sf ../encounty-backend-darwin ../encounty-backend-darwin
+          yarn package:mac --publish ${{ steps.prerelease.outputs.publish_flag }}
+
+      - name: Upload macOS artifact to pre-release
+        if: contains(github.ref, '-pre') || contains(github.ref, '-rc') || contains(github.ref, '-alpha') || contains(github.ref, '-beta')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: electron/release/Encounty-arm64-mac.zip

@@ -13,13 +13,11 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 
 **[Download the latest version here](https://github.com/ZSleyer/Encounty/releases/latest)**
 
-| Platform | File                 |
-|----------|----------------------|
-| Windows  | `Encounty.exe`       |
-| Linux    | `Encounty.AppImage`  |
-
-> [!IMPORTANT]
-> Supported platforms: **Linux (Wayland only)** and **Windows 11** (26H1+). macOS is not supported.
+| Platform                   | Architecture | File                        |
+|----------------------------|--------------|-----------------------------|
+| Linux (Wayland)            | x64          | `Encounty.AppImage`         |
+| macOS Tahoe (26+)          | arm64        | `Encounty.zip`    |
+| Windows 11 (26H1+)         | x64          | `Encounty.exe`              |
 
 ## How It Works
 
@@ -32,7 +30,7 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 
 - Unlimited simultaneous multi-hunts with independent capture streams
 - Template management with single-active selection, import/export, and region-based positive/negative matching
-- Manual tracking via configurable platform-native global hotkeys (evdev on Linux, Win32 on Windows)
+- Manual tracking via configurable platform-native global hotkeys (evdev on Linux, CGEventTap on macOS, Win32 on Windows)
 - OBS integration via overlay editor (drag-and-drop, live preview) and text file output
 - Single-instance protection with zombie process detection
 
@@ -67,11 +65,10 @@ backend/          Go API server (REST + WebSocket)
     state/        In-memory state manager
     database/     SQLite persistence (normalized v2 schema)
     detector/     Detection state machine (score-based)
-    hotkeys/      Platform-native global hotkeys (evdev / Win32)
+    hotkeys/      Platform-native global hotkeys (evdev / CGEventTap / Win32)
     fileoutput/   OBS text file integration
     gamesync/     Game catalogue + PokeAPI sync
     pokedex/      Pokedex data + GraphQL sync
-    updater/      Auto-update + platform binary replacement
 frontend/         React + TypeScript SPA (Vite, Tailwind CSS 4, Zustand)
   src/engine/     WebGPU detection engine (WGSL compute shaders)
   src/contexts/   CaptureService (per-Pokemon MediaStream management)
@@ -97,10 +94,12 @@ The Vite dev server proxies `/api` and `/ws` to the Go backend. Electron in dev 
 ### Building
 
 ```bash
-make build-linux               # Linux amd64 binary
-make build-windows             # Windows amd64 binary
-make electron-package-linux    # Electron AppImage
-make electron-package-windows  # Electron portable exe
+make build-linux               # Linux x64 binary
+make build-windows             # Windows x64 binary
+make build-macos               # macOS arm64 binary (requires CGO)
+make electron-package-linux    # Electron AppImage (Linux x64)
+make electron-package-windows  # Electron portable exe (Windows x64)
+make electron-package-macos    # Electron zip (macOS arm64)
 make test                      # Go + frontend tests
 make clean                     # Remove build artifacts
 ```

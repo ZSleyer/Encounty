@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-windows build-linux frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-package-linux electron-package-windows electron-package-all swagger icons
+.PHONY: dev build build-all build-windows build-linux build-darwin build-macos frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-windows electron-package-darwin electron-package-macos electron-package-all swagger icons
 
 BINARY = encounty
 BACKEND_DIR = backend
@@ -35,12 +35,12 @@ frontend-build: frontend
 swagger:
 	cd backend && $(shell go env GOPATH)/bin/swag init -g main.go --parseDependency --parseInternal -o docs --v3.1
 
-build: swagger build-linux build-windows
+build: swagger build-linux build-windows build-darwin
 all: build
 
 electron: electron-package-linux
 
-build-all: build electron-package-linux electron-package-windows
+build-all: build electron-package-linux electron-package-windows electron-package-darwin
 
 icons:
 	@echo "Generating icons from frontend/public/app-icon.png..."
@@ -77,6 +77,11 @@ build-windows: icons
 	@command -v upx >/dev/null 2>&1 && upx --best --compress-icons=0 $(BINARY)-windows.exe || true
 	@echo "Done: ./$(BINARY)-windows.exe"
 
+build-darwin: icons
+	@echo "Building Encounty $(VERSION) ($(COMMIT)) for macOS arm64..."
+	@cd $(BACKEND_DIR) && CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o ../$(BINARY)-darwin main.go
+	@echo "Done: ./$(BINARY)-darwin"
+
 
 # ── Go files excluded from coverage (platform-specific / untestable) ──
 # Platform managers & keycodes  — OS-level evdev/HID/input API
@@ -86,11 +91,11 @@ build-windows: icons
 # games_sync / pokedex        — external PokéAPI HTTP calls
 # detector.go                 — main loop needs screen capture
 # main.go / scripts           — entry points with os.Exit / signal handling
-GO_COVERAGE_EXCLUDE = manager_linux\.go|manager_windows\.go|\
-keycodes_linux\.go|keycodes_windows\.go|\
+GO_COVERAGE_EXCLUDE = manager_linux\.go|manager_windows\.go|manager_darwin\.go|\
+keycodes_linux\.go|keycodes_windows\.go|keycodes_darwin\.go|\
+permissions_darwin\.go|permissions_stub\.go|\
 capture\.go|sound_unix\.go|sound_windows\.go|\
 reexec_unix\.go|reexec_windows\.go|\
-update_unix\.go|update_windows\.go|update\.go|\
 games_sync\.go|detector\.go|\
 pokedex\.go|browser_detector\.go|\
 main\.go|scripts/generate_icons\.go
@@ -116,7 +121,7 @@ coverage:
 	@rm -f $(BACKEND_DIR)/coverage.out $(BACKEND_DIR)/coverage_filtered.out
 
 clean:
-	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-windows.exe *.syso
+	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-darwin $(BINARY)-windows.exe *.syso
 	rm -rf $(FRONTEND_DIR)/dist $(LINUX_DIST)
 
 # ── Electron Targets ─────────────────────────────────────────────────────────
@@ -139,6 +144,19 @@ electron-package-windows: build-windows frontend-build electron-build
 	@ln -sf $(BINARY)-windows.exe $(BINARY)-backend-windows.exe
 	cd electron && yarn package:win
 
-electron-package-all: build-linux build-windows frontend-build electron-build
-	@echo "Building Electron packages for Linux and Windows x64..."
-	cd electron && yarn package:linux && yarn package:win
+electron-package-all: build-linux build-windows build-darwin frontend-build electron-build
+	@echo "Building Electron packages for Linux, Windows, and macOS..."
+	cd electron && yarn package:linux && yarn package:win && yarn package:mac
+
+electron-dev-darwin: build-darwin
+	@ln -sf $(BINARY)-darwin $(BINARY)-backend-darwin
+	cd electron && yarn dev
+
+electron-package-darwin: build-darwin frontend-build electron-build
+	@ln -sf $(BINARY)-darwin $(BINARY)-backend-darwin
+	cd electron && yarn package:mac
+
+# Aliases: "macos" → "darwin" for convenience
+build-macos: build-darwin
+electron-dev-macos: electron-dev-darwin
+electron-package-macos: electron-package-darwin
