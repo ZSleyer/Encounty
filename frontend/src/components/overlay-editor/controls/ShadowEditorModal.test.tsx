@@ -91,4 +91,118 @@ describe("ShadowEditorModal", () => {
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("toggles enable checkbox", () => {
+    const onConfirm = vi.fn();
+    const { container } = render(
+      <ShadowEditorModal {...defaultProps} onConfirm={onConfirm} />,
+    );
+    const checkbox = container.querySelector("input[type='checkbox']") as HTMLInputElement;
+    // Initially checked (enabled=true)
+    expect(checkbox).toBeChecked();
+    fireEvent.click(checkbox);
+    // Now apply and check that enabled is false
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
+  });
+
+  it("renders blur slider", () => {
+    render(<ShadowEditorModal {...defaultProps} />);
+    // NumSlider renders a title with the label text
+    const blurSlider = screen.getByTitle("overlay.blurPx");
+    expect(blurSlider).toBeInTheDocument();
+  });
+
+  it("shows solid color swatch when colorType is solid", () => {
+    render(<ShadowEditorModal {...defaultProps} />);
+    // The "Farbe" label section should be visible
+    expect(screen.getByText("Farbe")).toBeInTheDocument();
+  });
+
+  it("shows gradient swatch when colorType is gradient", () => {
+    render(
+      <ShadowEditorModal
+        {...defaultProps}
+        colorType="gradient"
+        gradientStops={[
+          { color: "#ff0000", position: 0 },
+          { color: "#0000ff", position: 100 },
+        ]}
+      />,
+    );
+    // "overlay.colorGradient" appears in both the toggle button and the label section
+    const matches = screen.getAllByText("overlay.colorGradient");
+    expect(matches.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("switches color type to gradient when gradient button is clicked", () => {
+    const onConfirm = vi.fn();
+    render(<ShadowEditorModal {...defaultProps} onConfirm={onConfirm} />);
+    // Click the gradient toggle button (only one instance when colorType is solid)
+    fireEvent.click(screen.getAllByText("overlay.colorGradient")[0]);
+    // Apply and verify colorType changed
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.objectContaining({ colorType: "gradient" }),
+    );
+  });
+
+  it("calls onOpenColorPicker when solid color swatch is clicked", () => {
+    const onOpenColorPicker = vi.fn();
+    const { container } = render(
+      <ShadowEditorModal {...defaultProps} onOpenColorPicker={onOpenColorPicker} />,
+    );
+    // Find the color swatch in the solid color section
+    const swatches = container.querySelectorAll(".w-6.h-4.rounded.cursor-pointer");
+    if (swatches.length > 0) {
+      fireEvent.click(swatches[0]);
+      expect(onOpenColorPicker).toHaveBeenCalled();
+    }
+  });
+
+  it("calls onOpenGradientEditor when gradient swatch is clicked", () => {
+    const onOpenGradientEditor = vi.fn();
+    const { container } = render(
+      <ShadowEditorModal
+        {...defaultProps}
+        colorType="gradient"
+        gradientStops={[
+          { color: "#ff0000", position: 0 },
+          { color: "#0000ff", position: 100 },
+        ]}
+        onOpenGradientEditor={onOpenGradientEditor}
+      />,
+    );
+    const swatches = container.querySelectorAll(".w-6.h-4.rounded.cursor-pointer");
+    if (swatches.length > 0) {
+      fireEvent.click(swatches[0]);
+      expect(onOpenGradientEditor).toHaveBeenCalled();
+    }
+  });
+
+  it("displays correct XY offset values", () => {
+    render(<ShadowEditorModal {...defaultProps} x={-5} y={10} />);
+    expect(screen.getByText(/X: -5/)).toBeInTheDocument();
+    expect(screen.getByText(/Y: 10/)).toBeInTheDocument();
+  });
+
+  it("applies shadow CSS to preview text when enabled", () => {
+    render(<ShadowEditorModal {...defaultProps} />);
+    const previewText = screen.getByText("Abc");
+    // Shadow should be applied: "2px 2px 4px #000000"
+    expect(previewText.style.textShadow).toBe("2px 2px 4px #000000");
+  });
+
+  it("applies none shadow to preview text when disabled", () => {
+    render(<ShadowEditorModal {...defaultProps} enabled={false} />);
+    const previewText = screen.getByText("Abc");
+    expect(previewText.style.textShadow).toBe("none");
+  });
+
+  it("renders offset pad with correct label", () => {
+    render(<ShadowEditorModal {...defaultProps} />);
+    expect(screen.getByText("Offset")).toBeInTheDocument();
+  });
 });

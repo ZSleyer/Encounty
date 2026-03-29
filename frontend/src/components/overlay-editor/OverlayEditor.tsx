@@ -28,8 +28,6 @@ import { TextColorEditorModal } from "./controls/TextColorEditorModal";
 import { OverlayCanvas } from "./OverlayCanvas";
 import { OverlayPropertyPanel } from "./OverlayPropertyPanel";
 import { VerticalToolbar } from "./VerticalToolbar";
-import { FloatingPropertiesPanel } from "./FloatingPropertiesPanel";
-import { useDraggableWindow } from "../../hooks/useDraggableWindow";
 import { apiUrl } from "../../utils/api";
 
 interface Props {
@@ -283,13 +281,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   // Canvas background for testing (transparent = checkered, white, black)
   const [canvasBg, setCanvasBg] = useState<"transparent" | "white" | "black">("transparent");
-
-  // Floating canvas settings panel
-  const [propertiesPanelOpen, setPropertiesPanelOpen] = useState(false);
-  const { position: panelPosition, handleMouseDown: handlePanelDragStart } = useDraggableWindow({
-    storageKey: "encounty_properties_panel_pos",
-    defaultPosition: { x: window.innerWidth - 320, y: 80 },
-  });
 
   const bgPreviewUrl = localSettings.background_image
     ? apiUrl(`/api/backgrounds/${localSettings.background_image}`)
@@ -600,7 +591,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         if (e.key === "v" || e.key === "V") { setActiveTool("pointer"); return; }
         if (e.key === "h" || e.key === "H") { setActiveTool("hand"); return; }
         if (e.key === "z" || e.key === "Z") { setActiveTool("zoom"); return; }
-        if (e.key === "Enter") { setPropertiesPanelOpen(true); return; }
       }
 
       // Space for hand tool (not in input/select/textarea)
@@ -737,10 +727,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     setZoom(newZoom);
   }, [canvasScale, getPadding]);
 
-  /** Opens the floating properties panel for a specific element. */
+  /** Selects a specific element (e.g. on double-click) and scrolls its properties into view. */
   const openPropertiesForElement = useCallback((key: ElementKey) => {
     setSelectedEl(key);
-    setPropertiesPanelOpen(true);
   }, []);
 
   // Fit-to-view: reset zoom and center canvas via scroll
@@ -1072,29 +1061,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           </div>
         </div>
       </div>
-
-      {/* Floating properties panel */}
-      {propertiesPanelOpen && (
-        <FloatingPropertiesPanel
-          onClose={() => setPropertiesPanelOpen(false)}
-          position={panelPosition}
-          onDragStart={handlePanelDragStart}
-          localSettings={localSettings}
-          selectedEl={selectedEl}
-          updateSelectedEl={updateSelectedEl}
-          readOnly={readOnly}
-          onUpdate={update}
-          openColorPicker={openColorPicker}
-          openOutlineEditor={openOutlineEditor}
-          openShadowEditor={openShadowEditor}
-          openTextColorEditor={openTextColorEditor}
-          fireTest={fireTest}
-          bgPreviewUrl={bgPreviewUrl}
-          bgUploading={bgUploading}
-          onBgUpload={handleBgUpload}
-          onBgRemove={handleBgRemove}
-        />
-      )}
 
       {/* Tutorial overlay */}
       {showTutorial && (
