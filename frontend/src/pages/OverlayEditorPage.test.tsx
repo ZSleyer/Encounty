@@ -40,4 +40,45 @@ describe("OverlayEditorPage", () => {
     const { container } = render(<OverlayEditorPage />);
     expect(container.querySelector(".animate-spin")).toBeInTheDocument();
   });
+
+  it("shows connecting text when no app state", () => {
+    useCounterStore.setState({ appState: null });
+    render(<OverlayEditorPage />);
+    expect(screen.getByText("Verbinde…")).toBeInTheDocument();
+  });
+
+  it("renders save button in disabled state initially", () => {
+    render(<OverlayEditorPage />);
+    const saveBtn = screen.getByLabelText("Overlay speichern");
+    expect(saveBtn).toBeDisabled();
+  });
+
+  it("renders the default layout title", () => {
+    render(<OverlayEditorPage />);
+    expect(screen.getByText("Standard-Layout")).toBeInTheDocument();
+  });
+
+  it("renders hotkeys paused badge", () => {
+    render(<OverlayEditorPage />);
+    expect(screen.getByText("Hotkeys pausiert")).toBeInTheDocument();
+  });
+
+  it("renders OBS hint text", () => {
+    render(<OverlayEditorPage />);
+    expect(screen.getByText(/OBS URL findest du/)).toBeInTheDocument();
+  });
+
+  it("pauses hotkeys on mount", () => {
+    render(<OverlayEditorPage />);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/hotkeys/pause"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("renders main content area with correct id", () => {
+    render(<OverlayEditorPage />);
+    const main = document.getElementById("main-content");
+    expect(main).toBeInTheDocument();
+  });
 });

@@ -66,6 +66,9 @@ import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 import { apiUrl } from "../utils/api";
 import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 
+/** Tab identifiers for the right content panel. */
+type PanelTab = "counter" | "detector" | "overlay" | "statistics";
+
 // --- Timer helpers ---
 
 /** Formats milliseconds as HH:MM:SS. */
@@ -294,7 +297,7 @@ function useForceCounterOnArchive(
   appState: { pokemon: Pokemon[]; active_id: string } | null,
   viewedPokemonId: string | null,
   rightPanelTab: string,
-  setRightPanelTab: (tab: "counter" | "detector" | "overlay" | "statistics") => void,
+  setRightPanelTab: (tab: PanelTab) => void,
 ) {
   useEffect(() => {
     const viewed = appState?.pokemon.find((p) => p.id === (viewedPokemonId || appState?.active_id));
@@ -1576,17 +1579,18 @@ export function Dashboard() {
   const asideRef = useRef<HTMLElement>(null);
 
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
-  const [rightPanelTab, setRightPanelTabRaw] = useState<"counter" | "detector" | "overlay" | "statistics">("counter");
-  const [pendingTab, setPendingTab] = useState<"counter" | "detector" | "overlay" | "statistics" | null>(null);
+  const [panelTab, setPanelTab] = useState<PanelTab>("counter");
+  const rightPanelTab = panelTab;
+  const [pendingTab, setPendingTab] = useState<PanelTab | null>(null);
 
   /** Guarded tab switch — shows confirmation when overlay has unsaved changes. */
-  const setRightPanelTab = (tab: "counter" | "detector" | "overlay" | "statistics") => {
+  const setRightPanelTab = (tab: PanelTab) => {
     if (tab === rightPanelTab) return;
     if (overlayDirty && rightPanelTab === "overlay") {
       setPendingTab(tab);
       return;
     }
-    setRightPanelTabRaw(tab);
+    setPanelTab(tab);
   };
 
   const [setEncounterPokemon, setSetEncounterPokemon] = useState<Pokemon | null>(null);
@@ -2320,7 +2324,7 @@ export function Dashboard() {
                 type="button"
                 onClick={() => {
                   setOverlayDirty(false);
-                  setRightPanelTabRaw(pendingTab);
+                  setRightPanelTab(pendingTab);
                   setPendingTab(null);
                 }}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-accent-red hover:bg-red-500 text-white text-sm font-semibold transition-colors"

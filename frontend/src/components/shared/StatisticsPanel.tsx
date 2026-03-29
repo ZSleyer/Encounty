@@ -4,6 +4,7 @@
  */
 import { useState, useEffect } from "react";
 import { apiUrl } from "../../utils/api";
+import { useCounterStore } from "../../hooks/useCounterState";
 import {
   AreaChart,
   Area,
@@ -26,6 +27,9 @@ type ChartInterval = "hour" | "day" | "week";
 /** StatisticsPanel shows encounter metrics, a chart, and recent history. */
 export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   const { t } = useI18n();
+  const encounters = useCounterStore(
+    (s) => s.appState?.pokemon.find((p) => p.id === pokemonId)?.encounters ?? 0,
+  );
   const [stats, setStats] = useState<EncounterStats | null>(null);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [history, setHistory] = useState<EncounterEvent[]>([]);
@@ -33,7 +37,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
+    if (!stats) setLoading(true);
     Promise.all([
       fetch(apiUrl(`/api/stats/pokemon/${pokemonId}`)).then((r) => r.json()),
       fetch(apiUrl(`/api/stats/pokemon/${pokemonId}/chart?interval=${interval}`)).then((r) => r.json()),
@@ -46,7 +50,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [pokemonId, interval]);
+  }, [pokemonId, interval, encounters]);
 
   if (loading && !stats) {
     return (
