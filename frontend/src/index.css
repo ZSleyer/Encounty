@@ -718,6 +718,10 @@ code {
   background: var(--scrollbar-thumb-hover);
 }
 
+::-webkit-scrollbar-corner {
+  background: var(--scrollbar-track);
+}
+
 /* Sharp scaling for preview */
 .sharp-preview {
   will-change: transform;
