@@ -16,7 +16,7 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 | Platform                   | Architecture | File                        |
 |----------------------------|--------------|-----------------------------|
 | Linux (Wayland)            | x64          | `Encounty.AppImage`         |
-| macOS Tahoe (26+)          | arm64        | `Encounty.zip`    |
+| macOS Tahoe (26+)          | arm64        | `Encounty.zip`              |
 | Windows 11 (26H1+)         | x64          | `Encounty.exe`              |
 
 ## How It Works
