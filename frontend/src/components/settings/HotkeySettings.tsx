@@ -33,6 +33,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
 
   const cancelRecording = useCallback(() => {
     fetch(apiUrl("/api/hotkeys/resume"), { method: 'POST' }).catch(() => {})
+    globalThis.electronAPI?.resumeHotkeys?.()
     setRecording(null)
     setLiveModifiers('')
   }, [])
@@ -46,10 +47,12 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         body: JSON.stringify({ key: combo }),
       })
       await fetch(apiUrl("/api/hotkeys/resume"), { method: 'POST' }).catch(() => {})
+      globalThis.electronAPI?.resumeHotkeys?.()
       if (res.ok) {
         const updated = { ...local, [action]: combo }
         setLocal(updated)
         onUpdate(updated)
+        globalThis.electronAPI?.syncHotkeys?.(updated as unknown as Record<string, string>)
       } else {
         const data = await res.json().catch(() => ({}))
         setError(data.error ?? t('hotkeys.unknownKey'))
@@ -71,6 +74,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       const updated = { ...local, [action]: '' }
       setLocal(updated)
       onUpdate(updated)
+      globalThis.electronAPI?.syncHotkeys?.(updated as unknown as Record<string, string>)
     }
   }
 
@@ -79,6 +83,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
     setLiveModifiers('')
     setError(null)
     fetch(apiUrl("/api/hotkeys/pause"), { method: 'POST' }).catch(() => {})
+    globalThis.electronAPI?.pauseHotkeys?.()
   }
 
   useEffect(() => {

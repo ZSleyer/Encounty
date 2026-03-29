@@ -7,7 +7,7 @@
  * page without any chrome so it can be used as an OBS Browser Source.
  */
 import { useState, useEffect, useCallback } from "react";
-import { Routes, Route, Link, useLocation } from "react-router";
+import { Routes, Route, Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutGrid,
   Settings as SettingsIcon,
@@ -122,6 +122,7 @@ function UpdateNotification({
 
 function AppShell() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isOverlay = location.pathname === "/overlay" || location.pathname.startsWith("/overlay/");
   const { setAppState, setConnected, flashPokemon, isConnected, appState, setDetectorStatus, clearDetectorStatus } =
     useCounterStore();
@@ -171,9 +172,9 @@ function AppShell() {
     });
 
     const cleanupDownloaded = globalThis.electronAPI.onUpdateDownloaded(() => {
-      // Auto-install on platforms that support it (Linux AppImage, macOS zip).
-      // Windows portable cannot auto-apply — user downloads manually.
-      if (globalThis.electronAPI!.platform !== "win32") {
+      // Auto-install on Linux AppImage (electron-updater replaces the binary).
+      // Windows portable and macOS DMG: user downloads manually from GitHub.
+      if (globalThis.electronAPI!.platform === "linux") {
         globalThis.electronAPI!.installUpdate();
         setUpdateState("restarting");
       }
@@ -195,8 +196,8 @@ function AppShell() {
   const applyUpdate = async () => {
     if (!updateInfo) return;
 
-    // Windows portable: open the GitHub release page for manual download.
-    if (globalThis.electronAPI?.platform === "win32") {
+    // Windows portable + macOS DMG: open the GitHub release page for manual download.
+    if (globalThis.electronAPI?.platform === "win32" || globalThis.electronAPI?.platform === "darwin") {
       globalThis.open(
         `https://github.com/ZSleyer/Encounty/releases/tag/${updateInfo.latest_version.startsWith("v") ? updateInfo.latest_version : `v${updateInfo.latest_version}`}`,
         "_blank",
@@ -232,6 +233,13 @@ function AppShell() {
     globalThis.addEventListener("keydown", handleKeyDown);
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [isConnected, quitting, restarting, updateState]);
+
+  // Sync hotkeys to Electron's globalShortcut manager (macOS)
+  useEffect(() => {
+    if (globalThis.electronAPI?.syncHotkeys && appState?.hotkeys) {
+      globalThis.electronAPI.syncHotkeys(appState.hotkeys as unknown as Record<string, string>);
+    }
+  }, [appState?.hotkeys]);
 
   // Sync crisp-sprites attribute from backend settings whenever state arrives
   useEffect(() => {
@@ -286,9 +294,15 @@ function AppShell() {
     } else if (msg.type === "detector_status") {
       const p = msg.payload as { pokemon_id: string; state: string; confidence: number; poll_ms: number };
       setDetectorStatus(p.pokemon_id, { state: p.state, confidence: p.confidence, poll_ms: p.poll_ms } as DetectorStatusEntry);
+    } else if (msg.type === "request_reset_confirm") {
+      // Navigate to dashboard so the reset confirmation modal can be shown.
+      // Without this, the modal is invisible on non-dashboard pages and the
+      // app appears frozen because the modal blocks interaction.
+      globalThis.electronAPI?.focusWindow();
+      navigate("/");
     }
     // detector_match: counter already incremented by backend; encounter_added fires separately
-  }, [appState, t, setAppState, setConnected, flashPokemon, pushToast, clearDetectorStatus, setDetectorStatus]);
+  }, [appState, t, setAppState, setConnected, flashPokemon, pushToast, clearDetectorStatus, setDetectorStatus, navigate]);
 
   function handleStateUpdate(newState: AppState) {
     setAppState(newState);
@@ -393,7 +407,7 @@ function AppShell() {
       {showUpdateNotification && updateInfo && updateState === "idle" && (
         <UpdateNotification
           version={updateInfo.latest_version}
-          manualDownload={globalThis.electronAPI?.platform === "win32"}
+          manualDownload={globalThis.electronAPI?.platform === "win32" || globalThis.electronAPI?.platform === "darwin"}
           onUpdate={() => {
             setShowUpdateNotification(false);
             applyUpdate();
