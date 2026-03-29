@@ -129,7 +129,7 @@ const PERMISSIONS_SECTION: SectionDef = {
 
 /** Build the sections array, conditionally including macOS permissions. */
 function buildSections(): SectionDef[] {
-  if (window.electronAPI?.platform === "darwin") {
+  if (globalThis.electronAPI?.platform === "darwin") {
     // Insert permissions before the about section
     const sections = [...BASE_SECTIONS];
     const aboutIdx = sections.findIndex((s) => s.id === "about");

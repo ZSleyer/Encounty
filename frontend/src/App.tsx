@@ -79,6 +79,7 @@ function UpdateNotification({
   manualDownload?: boolean;
 }>) {
   const { t } = useI18n();
+  const versionTag = version.startsWith("v") ? version : `v${version}`;
   return (
     <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn" role="alert">
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
@@ -93,7 +94,7 @@ function UpdateNotification({
             {version}
           </p>
           <a
-            href={`https://github.com/ZSleyer/Encounty/releases/tag/${version.startsWith("v") ? version : `v${version}`}`}
+            href={`https://github.com/ZSleyer/Encounty/releases/tag/${versionTag}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-accent-blue hover:underline"
@@ -198,8 +199,9 @@ function AppShell() {
 
     // Windows portable + macOS DMG: open the GitHub release page for manual download.
     if (globalThis.electronAPI?.platform === "win32" || globalThis.electronAPI?.platform === "darwin") {
+      const tag = updateInfo.latest_version.startsWith("v") ? updateInfo.latest_version : `v${updateInfo.latest_version}`;
       globalThis.open(
-        `https://github.com/ZSleyer/Encounty/releases/tag/${updateInfo.latest_version.startsWith("v") ? updateInfo.latest_version : `v${updateInfo.latest_version}`}`,
+        `https://github.com/ZSleyer/Encounty/releases/tag/${tag}`,
         "_blank",
       );
       setShowUpdateNotification(false);
@@ -423,7 +425,7 @@ function AppShell() {
       </div>
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
       <header
-        className={`flex items-center h-12 2xl:h-14 bg-bg-secondary shrink-0 relative z-10 ${globalThis.electronAPI?.platform === 'darwin' ? 'pl-[78px] pr-4' : 'px-4'}`}
+        className={`flex items-center h-12 2xl:h-14 bg-bg-secondary shrink-0 relative z-10 ${globalThis.electronAPI?.platform === 'darwin' ? 'pl-19.5 pr-4' : 'px-4'}`}
         style={{
           WebkitAppRegion: "drag",
         } as React.CSSProperties}

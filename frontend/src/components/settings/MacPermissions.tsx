@@ -42,11 +42,10 @@ function PermissionRow({
         </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        <span
+        <output
           className={`inline-flex items-center gap-1.5 text-xs font-medium ${
             granted ? "text-accent-green" : "text-accent-yellow"
           }`}
-          role="status"
           aria-label={t("aria.permissionStatus")}
         >
           {granted ? (
@@ -60,7 +59,7 @@ function PermissionRow({
               {t("permissions.notGranted")}
             </>
           )}
-        </span>
+        </output>
         {!granted && (
           <button
             onClick={() => onGrant(permissionKey)}
@@ -80,24 +79,24 @@ export function MacPermissions() {
   const [permissions, setPermissions] = useState<PermissionStatus | null>(null);
 
   const fetchPermissions = useCallback(() => {
-    window.electronAPI?.getPermissionStatus()
+    globalThis.electronAPI?.getPermissionStatus()
       .then((data) => setPermissions(data))
       .catch(() => {});
   }, []);
 
   // Poll permission status every 2 seconds
   useEffect(() => {
-    if (window.electronAPI?.platform !== "darwin") return;
+    if (globalThis.electronAPI?.platform !== "darwin") return;
 
     fetchPermissions();
     const interval = setInterval(fetchPermissions, 2000);
     return () => clearInterval(interval);
   }, [fetchPermissions]);
 
-  if (window.electronAPI?.platform !== "darwin") return null;
+  if (globalThis.electronAPI?.platform !== "darwin") return null;
 
   const handleGrant = (permission: string) => {
-    window.electronAPI?.requestPermission(permission).catch(() => {});
+    globalThis.electronAPI?.requestPermission(permission).catch(() => {});
   };
 
   if (!permissions) return null;

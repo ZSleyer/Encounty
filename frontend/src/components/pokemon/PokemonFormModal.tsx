@@ -671,7 +671,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 type="button"
                 onClick={() => setLangMenuOpen((v) => !v)}
                 aria-expanded={langMenuOpen}
-                aria-haspopup="listbox"
+                aria-haspopup="true"
                 aria-label={t("modal.language")}
                 className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
@@ -682,15 +682,14 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               {langMenuOpen && (
                 <>
                   <button className="fixed inset-0 z-40 cursor-default" onClick={() => setLangMenuOpen(false)} aria-label={t("aria.close")} />
-                  <div role="listbox" aria-label={t("modal.language")} className="absolute left-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-full max-h-48 overflow-y-auto">
+                  <div aria-label={t("modal.language")} className="absolute left-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-full max-h-48 overflow-y-auto">
                     {availableLangs.map((lang) => {
                       const info = ALL_LANGUAGES.find((l) => l.code === lang);
                       return (
                         <button
                           key={lang}
                           type="button"
-                          role="option"
-                          aria-selected={language === lang}
+                          aria-pressed={language === lang}
                           onClick={() => { handleLanguageChange(lang); setLangMenuOpen(false); }}
                           className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-primary transition-colors"
                         >
