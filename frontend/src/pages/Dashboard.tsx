@@ -1829,7 +1829,7 @@ export function Dashboard() {
         {/* Search bar + Sort + Collapse */}
         <div className="p-3 border-b border-border-subtle min-w-72">
           <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5 focus-within:border-accent-blue/50 transition-colors">
+            <div data-focus-wrapper className="flex-1 flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5 focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors">
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
               <input
                 ref={searchRef}
@@ -1837,7 +1837,7 @@ export function Dashboard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("dash.searchShortcut")}
-                className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none text-xs"
+                className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none focus-visible:outline-none text-xs"
               />
               {searchQuery && (
                 <button

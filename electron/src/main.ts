@@ -358,39 +358,42 @@ async function startApp(): Promise<void> {
     }
 
     // --- Auto-updater (electron-updater) ---
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = false;
+    // Skip in dev mode: app.version is not a valid semver, and updates are irrelevant.
+    if (!isDev) {
+      autoUpdater.autoDownload = false;
+      autoUpdater.autoInstallOnAppQuit = false;
 
-    autoUpdater.on('update-available', (info) => {
-      mainWindow?.webContents.send('update:available', {
-        version: info.version,
-        releaseDate: info.releaseDate,
+      autoUpdater.on('update-available', (info) => {
+        mainWindow?.webContents.send('update:available', {
+          version: info.version,
+          releaseDate: info.releaseDate,
+        });
       });
-    });
 
-    autoUpdater.on('download-progress', (progress) => {
-      mainWindow?.webContents.send('update:progress', {
-        percent: progress.percent,
-        bytesPerSecond: progress.bytesPerSecond,
-        transferred: progress.transferred,
-        total: progress.total,
+      autoUpdater.on('download-progress', (progress) => {
+        mainWindow?.webContents.send('update:progress', {
+          percent: progress.percent,
+          bytesPerSecond: progress.bytesPerSecond,
+          transferred: progress.transferred,
+          total: progress.total,
+        });
       });
-    });
 
-    autoUpdater.on('update-downloaded', () => {
-      mainWindow?.webContents.send('update:downloaded');
-    });
-
-    autoUpdater.on('error', (err) => {
-      mainWindow?.webContents.send('update:error', err.message);
-    });
-
-    // Check for updates 5 seconds after window creation
-    setTimeout(() => {
-      autoUpdater.checkForUpdates().catch((err) => {
-        console.error('[Electron] Update check failed:', err);
+      autoUpdater.on('update-downloaded', () => {
+        mainWindow?.webContents.send('update:downloaded');
       });
-    }, 5000);
+
+      autoUpdater.on('error', (err) => {
+        mainWindow?.webContents.send('update:error', err.message);
+      });
+
+      // Check for updates 5 seconds after window creation
+      setTimeout(() => {
+        autoUpdater.checkForUpdates().catch((err) => {
+          console.error('[Electron] Update check failed:', err);
+        });
+      }, 5000);
+    }
 
   } catch (err) {
     console.error('[Electron] Failed to start app:', err);

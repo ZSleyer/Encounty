@@ -95,9 +95,45 @@ function KR({ className }: Readonly<FlagProps>) {
   return (
     <svg viewBox="0 0 20 14" className={className}>
       <rect width="20" height="14" fill="#fff" />
-      <circle cx="10" cy="7" r="3.5" fill="#C60C30" />
-      <path d="M10 7a1.75 1.75 0 0 1 0-3.5A1.75 1.75 0 0 0 10 7Z" fill="#003478" />
-      <path d="M10 7a1.75 1.75 0 0 1 0 3.5A1.75 1.75 0 0 0 10 7Z" fill="#003478" />
+      {/* Taeguk: blue base circle, red upper half via clip, blue/red small circles for S-curve */}
+      <circle cx="10" cy="7" r="3.5" fill="#0047A0" />
+      <clipPath id="kr-top">
+        <rect x="6" y="3" width="8" height="4" />
+      </clipPath>
+      <circle cx="10" cy="7" r="3.5" fill="#CD2E3A" clipPath="url(#kr-top)" />
+      <circle cx="10" cy="5.25" r="1.75" fill="#CD2E3A" />
+      <circle cx="10" cy="8.75" r="1.75" fill="#0047A0" />
+      {/* Trigram bars — simplified 3-line groups in each corner */}
+      {/* Top-left (☰ Geon) */}
+      <g transform="translate(2.5,1.5) rotate(56)">
+        <rect width="3.5" height=".6" fill="#000" />
+        <rect y="1" width="3.5" height=".6" fill="#000" />
+        <rect y="2" width="3.5" height=".6" fill="#000" />
+      </g>
+      {/* Bottom-right (☷ Gon) */}
+      <g transform="translate(14,10) rotate(56)">
+        <rect width="1.4" height=".6" fill="#000" />
+        <rect x="2.1" width="1.4" height=".6" fill="#000" />
+        <rect y="1" width="1.4" height=".6" fill="#000" />
+        <rect x="2.1" y="1" width="1.4" height=".6" fill="#000" />
+        <rect y="2" width="1.4" height=".6" fill="#000" />
+        <rect x="2.1" y="2" width="1.4" height=".6" fill="#000" />
+      </g>
+      {/* Top-right (☵ Gam) */}
+      <g transform="translate(14.5,1.5) rotate(-56)">
+        <rect width="3.5" height=".6" fill="#000" />
+        <rect y="1" width="1.4" height=".6" fill="#000" />
+        <rect x="2.1" y="1" width="1.4" height=".6" fill="#000" />
+        <rect y="2" width="3.5" height=".6" fill="#000" />
+      </g>
+      {/* Bottom-left (☲ Ri) */}
+      <g transform="translate(2,10) rotate(-56)">
+        <rect width="1.4" height=".6" fill="#000" />
+        <rect x="2.1" width="1.4" height=".6" fill="#000" />
+        <rect y="1" width="3.5" height=".6" fill="#000" />
+        <rect y="2" width="1.4" height=".6" fill="#000" />
+        <rect x="2.1" y="2" width="1.4" height=".6" fill="#000" />
+      </g>
     </svg>
   );
 }

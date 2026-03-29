@@ -78,6 +78,11 @@ option {
   outline-offset: 2px;
 }
 
+/* Suppress inner focus outline when the wrapper handles the ring */
+[data-focus-wrapper] :focus-visible {
+  outline: none;
+}
+
 /* ── Switch Homebrew Style Fluid Waves Background ───────── */
 
 .switch-waves-container {

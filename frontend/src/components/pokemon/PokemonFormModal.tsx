@@ -7,6 +7,7 @@ import {
   ArrowRightLeft,
   Sparkles,
   ChevronDown,
+  Check,
   Package,
   Film,
   Box,
@@ -165,16 +166,24 @@ interface FormDefaults {
   huntType: string;
 }
 
+/** Map UI locale to candidate Pokemon language codes (UI "es" → Pokemon "es-es"/"es-419"). */
+function localeToPokemonLangs(locale: string): string[] {
+  if (locale === "es") return ["es-es", "es-419"];
+  return [locale];
+}
+
 /** Compute initial form values for add mode. */
-function addDefaults(activeLanguages: string[]): FormDefaults {
-  const language = activeLanguages.includes("de") ? "de" : activeLanguages[0] ?? "en";
+function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
+  const candidates = localeToPokemonLangs(locale);
+  const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
   return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter" };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
-function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[]): FormDefaults {
+function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], locale: string): FormDefaults {
+  const candidates = localeToPokemonLangs(locale);
   return {
-    language: pokemon.language || (activeLanguages.includes("de") ? "de" : activeLanguages[0] ?? "en"),
+    language: pokemon.language || (candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en"),
     customSprite: pokemon.sprite_url,
     spriteType: pokemon.sprite_type || "shiny",
     spriteStyle: pokemon.sprite_style || "box",
@@ -310,10 +319,10 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   // --- State initialization (differs by mode) ---
-  const defaults = isEdit ? editDefaults(props.pokemon, activeLanguages) : addDefaults(activeLanguages);
+  const defaults = isEdit ? editDefaults(props.pokemon, activeLanguages, locale) : addDefaults(activeLanguages, locale);
 
   const [language, setLanguage] = useState<string>(defaults.language);
   const [query, setQuery] = useState("");
@@ -323,6 +332,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [showSearch, setShowSearch] = useState(!isEdit);
   const [showCustomSprite, setShowCustomSprite] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
 
   const [selected, setSelected] = useState<SelectedState | null>(null);
   const [customSprite, setCustomSprite] = useState(defaults.customSprite);
@@ -471,6 +481,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // --- Input class reused across form fields ---
   const inputClass =
     "w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors";
+  const selectClass = `${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[position:right_0.5rem_center] bg-no-repeat pr-8`;
 
   return (
     <dialog
@@ -649,32 +660,49 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
           {/* Language selector */}
           <div className="w-full">
-            <label
-              className="flex items-center gap-2 mb-2"
-              htmlFor="lang-select-form"
-            >
+            <label className="flex items-center gap-2 mb-2">
               <Globe className="w-3.5 h-3.5 text-text-muted" />
               <span className="text-xs text-text-muted">
                 {t("modal.language")}
               </span>
             </label>
-            <div className="flex items-center gap-2 bg-bg-primary border border-border-subtle rounded-lg px-3 py-2">
-              <CountryFlag code={language} />
-              <select
-                id="lang-select-form"
-                value={language}
-                onChange={(e) => handleLanguageChange(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-text-primary outline-none"
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setLangMenuOpen((v) => !v)}
+                aria-expanded={langMenuOpen}
+                aria-haspopup="listbox"
+                aria-label={t("modal.language")}
+                className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
-                {availableLangs.map((lang) => {
-                  const info = ALL_LANGUAGES.find((l) => l.code === lang);
-                  return (
-                    <option key={lang} value={lang}>
-                      {info?.label ?? lang.toUpperCase()}
-                    </option>
-                  );
-                })}
-              </select>
+                <CountryFlag code={language} />
+                <span className="flex-1 text-left">{ALL_LANGUAGES.find((l) => l.code === language)?.label ?? language.toUpperCase()}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+              </button>
+              {langMenuOpen && (
+                <>
+                  <button className="fixed inset-0 z-40 cursor-default" onClick={() => setLangMenuOpen(false)} aria-label={t("aria.close")} />
+                  <div role="listbox" aria-label={t("modal.language")} className="absolute left-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-full max-h-48 overflow-y-auto">
+                    {availableLangs.map((lang) => {
+                      const info = ALL_LANGUAGES.find((l) => l.code === lang);
+                      return (
+                        <button
+                          key={lang}
+                          type="button"
+                          role="option"
+                          aria-selected={language === lang}
+                          onClick={() => { handleLanguageChange(lang); setLangMenuOpen(false); }}
+                          className="flex items-center gap-2 w-full px-3 py-1.5 text-sm text-text-secondary hover:bg-bg-primary transition-colors"
+                        >
+                          <CountryFlag code={lang} className="w-4 h-3" />
+                          <span className="flex-1 text-left">{info?.label ?? lang.toUpperCase()}</span>
+                          {language === lang && <Check className="w-3.5 h-3.5 text-accent-green" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -712,7 +740,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             </div>
           ) : (
             <div className="relative">
-              <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 transition-colors rounded-lg px-3 py-2">
+              <div data-focus-wrapper className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-lg px-3 py-2">
                 <Search className="w-4 h-4 text-text-muted shrink-0" />
                 <input
                   ref={inputRef}
@@ -728,7 +756,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     setTimeout(() => setInputFocused(false), 200);
                   }}
                   placeholder={t("modal.searchPokemon")}
-                  className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none text-sm"
+                  className="flex-1 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none focus-visible:outline-none text-sm"
                 />
                 {isEdit && showSearch && (
                   <button
@@ -799,7 +827,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 id="game-select-form"
                 value={selectedGame}
                 onChange={(e) => setSelectedGame(e.target.value)}
-                className={inputClass}
+                className={selectClass}
               >
                 <option value="">{t("modal.noGame")}</option>
                 {Object.entries(genGroups).map(([gen, entries]) => (
@@ -849,7 +877,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   id="hunt-type-select-form"
                   value={huntType}
                   onChange={(e) => setHuntType(e.target.value)}
-                  className={inputClass}
+                  className={selectClass}
                 >
                   {getAvailableHuntMethods(selectedGameGen).map((m) => (
                     <option key={m.key} value={m.key}>
@@ -891,7 +919,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 id="hunt-type-select-form"
                 value={huntType}
                 onChange={(e) => setHuntType(e.target.value)}
-                className={inputClass}
+                className={selectClass}
               >
                 {getAvailableHuntMethods(selectedGameGen).map((m) => (
                   <option key={m.key} value={m.key}>
