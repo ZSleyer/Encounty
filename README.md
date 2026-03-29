@@ -16,7 +16,7 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 | Platform                   | Architecture | File                        |
 |----------------------------|--------------|-----------------------------|
 | Linux (Wayland)            | x64          | `Encounty.AppImage`         |
-| macOS Tahoe (26+)          | arm64        | `Encounty.zip`              |
+| macOS Tahoe (26+)          | arm64        | `Encounty.dmg`              |
 | Windows 11 (26H1+)         | x64          | `Encounty.exe`              |
 
 ## How It Works
@@ -30,9 +30,10 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 
 - Unlimited simultaneous multi-hunts with independent capture streams
 - Template management with single-active selection, import/export, and region-based positive/negative matching
-- Manual tracking via configurable platform-native global hotkeys (evdev on Linux, CGEventTap on macOS, Win32 on Windows)
+- Manual tracking via configurable platform-native global hotkeys (evdev on Linux, Electron globalShortcut on macOS, Win32 on Windows)
 - OBS integration via overlay editor (drag-and-drop, live preview) and text file output
 - Single-instance protection with zombie process detection
+- macOS: requires Accessibility permission (hotkeys) and Screen Recording permission (auto-detection) — prompted on first use
 
 ## Contributing
 
@@ -65,7 +66,7 @@ backend/          Go API server (REST + WebSocket)
     state/        In-memory state manager
     database/     SQLite persistence (normalized v2 schema)
     detector/     Detection state machine (score-based)
-    hotkeys/      Platform-native global hotkeys (evdev / CGEventTap / Win32)
+    hotkeys/      Platform-native global hotkeys (evdev / Win32; macOS via Electron)
     fileoutput/   OBS text file integration
     gamesync/     Game catalogue + PokeAPI sync
     pokedex/      Pokedex data + GraphQL sync
@@ -99,7 +100,7 @@ make build-windows             # Windows x64 binary
 make build-macos               # macOS arm64 binary (requires CGO)
 make electron-package-linux    # Electron AppImage (Linux x64)
 make electron-package-windows  # Electron portable exe (Windows x64)
-make electron-package-macos    # Electron zip (macOS arm64)
+make electron-package-macos    # Electron DMG (macOS arm64)
 make test                      # Go + frontend tests
 make clean                     # Remove build artifacts
 ```
