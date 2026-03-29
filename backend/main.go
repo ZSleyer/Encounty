@@ -300,6 +300,9 @@ func getConfigDir() string {
 			appdata, _ = os.UserHomeDir()
 		}
 		return filepath.Join(appdata, "Encounty")
+	case "darwin":
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, "Library", "Application Support", "Encounty")
 	default:
 		home, _ := os.UserHomeDir()
 		return filepath.Join(home, ".config", "encounty")
