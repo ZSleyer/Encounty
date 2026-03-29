@@ -86,9 +86,9 @@ export function DetectorTutorial({ onComplete }: Props) {
     ? {
         position: "fixed",
         left: Math.min(rect.left, globalThis.innerWidth - 340),
-        top: rect.bottom + pad + 8 > globalThis.innerHeight - 100
+        top: Math.max(40, rect.bottom + pad + 8 > globalThis.innerHeight - 100
           ? rect.top - pad - 120
-          : rect.bottom + pad + 8,
+          : rect.bottom + pad + 8),
         zIndex: 10002,
         width: 320,
       }

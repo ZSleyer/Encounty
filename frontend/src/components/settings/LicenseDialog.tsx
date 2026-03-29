@@ -102,7 +102,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
         </div>
 
         {/* Scrollable full original license text */}
-        <div className="px-8 flex-1 min-h-0 overflow-hidden">
+        <div className="px-8 flex-1 min-h-0 overflow-hidden relative">
           <div
             ref={scrollRef}
             onScroll={handleScroll}
@@ -110,14 +110,14 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
           >
             {AGPLV3_LICENSE}
           </div>
-        </div>
 
-        {/* Scroll hint */}
-        {!hasScrolledToBottom && (
-          <div className="flex justify-center py-1 shrink-0 animate-bounce">
-            <ChevronDown className="w-4 h-4 text-text-faint" />
-          </div>
-        )}
+          {/* Scroll hint overlaid at bottom-center of license area */}
+          {!hasScrolledToBottom && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 animate-bounce pointer-events-none">
+              <ChevronDown className="w-5 h-5 text-text-muted drop-shadow-lg" />
+            </div>
+          )}
+        </div>
 
         {/* Actions */}
         <div className="px-8 py-6 flex flex-col gap-3 shrink-0">

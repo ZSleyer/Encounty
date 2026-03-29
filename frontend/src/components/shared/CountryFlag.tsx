@@ -127,6 +127,7 @@ const FLAG_MAP: Record<string, (props: FlagProps) => React.JSX.Element> = {
   en: GB,
   fr: FR,
   it: IT,
+  es: ES,
   "es-es": ES,
   "es-419": MX,
   "pt-br": BR,
