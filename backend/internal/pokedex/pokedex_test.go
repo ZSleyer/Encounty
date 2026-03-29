@@ -3,6 +3,7 @@ package pokedex
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,8 +13,9 @@ import (
 
 // Duplicated test literals extracted for SonarQube S1192 compliance.
 const (
-	testFormName    = "pikachu-alola"
-	wantOneEntryFmt = "expected 1 entry, got %d"
+	testFormName        = "pikachu-alola"
+	wantOneEntryFmt     = "expected 1 entry, got %d"
+	wantOneSpeciesRowFmt = "expected 1 species row, got %d"
 )
 
 // mockPokedexStore is an in-memory PokedexStore for testing.
@@ -256,7 +258,7 @@ func TestEntriesToRows(t *testing.T) {
 
 	species, forms := EntriesToRows(entries)
 	if len(species) != 1 {
-		t.Fatalf("expected 1 species row, got %d", len(species))
+		t.Fatalf(wantOneSpeciesRowFmt, len(species))
 	}
 	if species[0].ID != 25 {
 		t.Errorf("species ID = %d, want 25", species[0].ID)
@@ -284,7 +286,7 @@ func TestEntriesToRowsNilNames(t *testing.T) {
 	}
 	species, _ := EntriesToRows(entries)
 	if len(species) != 1 {
-		t.Fatalf("expected 1 species row, got %d", len(species))
+		t.Fatalf(wantOneSpeciesRowFmt, len(species))
 	}
 	// nil Names should marshal to "null" or "{}" without error.
 	var names map[string]string
@@ -431,5 +433,141 @@ func TestWriteJSON(t *testing.T) {
 	}
 	if loaded[0].Canonical != "bulbasaur" {
 		t.Errorf("canonical = %q, want bulbasaur", loaded[0].Canonical)
+	}
+}
+
+func TestRowsToEntriesEmptyInput(t *testing.T) {
+	entries := RowsToEntries([]database.PokedexSpeciesRow{}, nil)
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries for empty species, got %d", len(entries))
+	}
+}
+
+func TestRowsToEntriesNilInput(t *testing.T) {
+	entries := RowsToEntries(nil, nil)
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries for nil species, got %d", len(entries))
+	}
+}
+
+func TestRowsToEntriesCorruptFormJSON(t *testing.T) {
+	species := []database.PokedexSpeciesRow{
+		{ID: 25, Canonical: "pikachu", NamesJSON: []byte(`{"en":"Pikachu"}`)},
+	}
+	forms := []database.PokedexFormRow{
+		{SpeciesID: 25, Canonical: "pikachu-corrupt", SpriteID: 10100, NamesJSON: []byte(`{invalid json}`)},
+		{SpeciesID: 25, Canonical: "pikachu-valid", SpriteID: 10101, NamesJSON: []byte(`{"en":"Valid Form"}`)},
+	}
+	entries := RowsToEntries(species, forms)
+	if len(entries) != 1 {
+		t.Fatalf(wantOneEntryFmt, len(entries))
+	}
+	// Both forms should be attached (corrupt JSON results in nil Names, not skipped).
+	if len(entries[0].Forms) != 2 {
+		t.Fatalf("expected 2 forms, got %d", len(entries[0].Forms))
+	}
+	// The corrupt form should have nil/empty Names.
+	if len(entries[0].Forms[0].Names) > 0 {
+		t.Errorf("expected nil/empty names for corrupt form, got %v", entries[0].Forms[0].Names)
+	}
+	// The valid form should have proper Names.
+	if entries[0].Forms[1].Names["en"] != "Valid Form" {
+		t.Errorf("valid form name = %q, want Valid Form", entries[0].Forms[1].Names["en"])
+	}
+}
+
+func TestRowsToEntriesEmptyNamesJSON(t *testing.T) {
+	species := []database.PokedexSpeciesRow{
+		{ID: 1, Canonical: "bulbasaur", NamesJSON: []byte(``)},
+	}
+	entries := RowsToEntries(species, nil)
+	// Empty NamesJSON should not prevent the entry from being created.
+	if len(entries) != 1 {
+		t.Fatalf(wantOneEntryFmt, len(entries))
+	}
+	if entries[0].Names != nil {
+		t.Errorf("expected nil names for empty JSON, got %v", entries[0].Names)
+	}
+}
+
+func TestEntriesToRowsWithForms(t *testing.T) {
+	entries := []Entry{
+		{
+			ID:        1,
+			Canonical: "bulbasaur",
+			Names:     map[string]string{"en": "Bulbasaur"},
+			Forms: []Form{
+				{Canonical: "bulbasaur-mega", SpriteID: 10001, Names: map[string]string{"en": "Mega Bulbasaur"}},
+				{Canonical: "bulbasaur-gmax", SpriteID: 10002, Names: nil},
+			},
+		},
+	}
+	species, forms := EntriesToRows(entries)
+	if len(species) != 1 {
+		t.Fatalf(wantOneSpeciesRowFmt, len(species))
+	}
+	if len(forms) != 2 {
+		t.Fatalf("expected 2 form rows, got %d", len(forms))
+	}
+	// Form with nil Names should still produce valid JSON ("{}").
+	var names map[string]string
+	if err := json.Unmarshal(forms[1].NamesJSON, &names); err != nil {
+		t.Errorf("failed to unmarshal nil-Names form JSON: %v", err)
+	}
+}
+
+func TestEntriesToRowsEmpty(t *testing.T) {
+	species, forms := EntriesToRows([]Entry{})
+	if len(species) != 0 {
+		t.Errorf("expected 0 species rows, got %d", len(species))
+	}
+	if len(forms) != 0 {
+		t.Errorf("expected 0 form rows, got %d", len(forms))
+	}
+}
+
+func TestEntriesToRowsNil(t *testing.T) {
+	species, forms := EntriesToRows(nil)
+	if len(species) != 0 {
+		t.Errorf("expected 0 species rows, got %d", len(species))
+	}
+	if forms != nil {
+		t.Errorf("expected nil forms, got %d", len(forms))
+	}
+}
+
+func TestLoadPokedexNilStore(t *testing.T) {
+	resetPokedexCache(t)
+	entries := LoadPokedex(nil)
+	if entries != nil {
+		t.Errorf("expected nil for nil store, got %d entries", len(entries))
+	}
+}
+
+func TestLoadPokedexLoadError(t *testing.T) {
+	resetPokedexCache(t)
+	store := &mockPokedexStore{
+		hasPokedex: true,
+		count:      2,
+		loadErr:    fmt.Errorf("simulated load error"),
+	}
+	entries := LoadPokedex(store)
+	if entries != nil {
+		t.Errorf("expected nil for load error, got %d entries", len(entries))
+	}
+}
+
+func TestWriteJSONCreatesDirectory(t *testing.T) {
+	baseDir := t.TempDir()
+	nestedDir := filepath.Join(baseDir, "nested", "deep")
+	entries := []Entry{
+		{ID: 1, Canonical: "bulbasaur", Names: map[string]string{"en": "Bulbasaur"}},
+	}
+	if err := WriteJSON(nestedDir, entries); err != nil {
+		t.Fatalf("WriteJSON failed to create nested dir: %v", err)
+	}
+	// Verify the file exists.
+	if _, err := os.Stat(filepath.Join(nestedDir, Filename)); err != nil {
+		t.Errorf("expected file to exist at nested path: %v", err)
 	}
 }

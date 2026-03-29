@@ -13,7 +13,7 @@ import (
 // no external dependencies are required — the permissions package is
 // self-contained — but the interface is kept for consistency with other
 // handler packages.
-type Deps interface{}
+type Deps any
 
 // requestBody is the JSON body for POST /api/permissions/request.
 type requestBody struct {

@@ -560,6 +560,8 @@ func TestUpdatePokemonHuntType(t *testing.T) {
 	}
 }
 
+const errUpdatePokemonFalse = "UpdatePokemon returned false"
+
 func TestUpdatePokemonHuntMode(t *testing.T) {
 	m := NewManager(t.TempDir())
 	p := makePokemon("p1", "Pikachu")
@@ -568,7 +570,7 @@ func TestUpdatePokemonHuntMode(t *testing.T) {
 
 	ok := m.UpdatePokemon("p1", Pokemon{HuntMode: "detector"})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdatePokemonFalse)
 	}
 	st := m.GetState()
 	if st.Pokemon[0].HuntMode != "detector" {
@@ -592,7 +594,7 @@ func TestUpdatePokemonStep(t *testing.T) {
 	// Update step to 0 (should be allowed — means default of 1)
 	ok := m.UpdatePokemon("p1", Pokemon{Name: "Pikachu", Step: 0})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdatePokemonFalse)
 	}
 	st := m.GetState()
 	if st.Pokemon[0].Step != 0 {
@@ -619,7 +621,7 @@ func TestUpdatePokemonSpriteType(t *testing.T) {
 
 	ok := m.UpdatePokemon("p1", Pokemon{SpriteType: "shiny"})
 	if !ok {
-		t.Fatal("UpdatePokemon returned false")
+		t.Fatal(errUpdatePokemonFalse)
 	}
 	st := m.GetState()
 	if st.Pokemon[0].SpriteType != "shiny" {

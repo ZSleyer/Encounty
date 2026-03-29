@@ -201,3 +201,95 @@ func TestInvalidateCache(t *testing.T) {
 		t.Errorf("expected 1 entry after invalidation, got %d", len(second))
 	}
 }
+
+func TestRowsToEntriesEmptyInput(t *testing.T) {
+	entries := RowsToEntries([]database.GameRow{})
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries for empty input, got %d", len(entries))
+	}
+}
+
+func TestRowsToEntriesCorruptJSON(t *testing.T) {
+	rows := []database.GameRow{
+		{Key: "corrupt1", NamesJSON: []byte(`{invalid`), Generation: 1, Platform: "gb"},
+		{Key: "corrupt2", NamesJSON: []byte(`"just a string"`), Generation: 1, Platform: "gb"},
+		{Key: "corrupt3", NamesJSON: []byte(``), Generation: 1, Platform: "gb"},
+		{Key: "valid", NamesJSON: mustMarshal(map[string]string{"en": "Valid"}), Generation: 1, Platform: "gb"},
+	}
+	entries := RowsToEntries(rows)
+	// All corrupt rows should be skipped; only the valid one remains.
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry (corrupt rows skipped), got %d", len(entries))
+	}
+	if entries[0].Key != "valid" {
+		t.Errorf("entry key = %q, want valid", entries[0].Key)
+	}
+}
+
+func TestEntriesToRowsEmptyNames(t *testing.T) {
+	entries := []GameEntry{
+		{Key: "empty-names", Names: map[string]string{}, Generation: 1, Platform: "gb"},
+		{Key: "nil-names", Names: nil, Generation: 2, Platform: "gbc"},
+	}
+	rows := EntriesToRows(entries)
+	if len(rows) != 2 {
+		t.Fatalf("expected 2 rows, got %d", len(rows))
+	}
+	// Both should produce valid JSON (empty map marshals to "{}", nil to "null").
+	for i, r := range rows {
+		if len(r.NamesJSON) == 0 {
+			t.Errorf("row[%d] NamesJSON is empty", i)
+		}
+	}
+	// Verify round-trip: the empty-names row should parse back without error.
+	roundTripped := RowsToEntries(rows)
+	if len(roundTripped) != 2 {
+		t.Fatalf("expected 2 entries after round-trip, got %d", len(roundTripped))
+	}
+}
+
+func TestLoadGamesInvalidatesCache(t *testing.T) {
+	resetCache(t)
+
+	store := &mockGamesStore{rows: fixtureGameRows()}
+	first := LoadGames(store)
+	if len(first) != 3 {
+		t.Fatalf("expected 3 entries on first load, got %d", len(first))
+	}
+
+	// Invalidate the cache.
+	InvalidateCache()
+
+	// Change the store data to confirm we actually re-read from the store.
+	store.rows = []database.GameRow{
+		{Key: "diamond", NamesJSON: mustMarshal(map[string]string{"en": "Diamond"}), Generation: 4, Platform: "nds"},
+	}
+	second := LoadGames(store)
+	if len(second) != 1 {
+		t.Fatalf("expected 1 entry after invalidation with new store data, got %d", len(second))
+	}
+	if second[0].Key != "diamond" {
+		t.Errorf("entry key = %q, want diamond", second[0].Key)
+	}
+}
+
+func TestRowsToEntriesNilInput(t *testing.T) {
+	entries := RowsToEntries(nil)
+	if len(entries) != 0 {
+		t.Errorf("expected 0 entries for nil input, got %d", len(entries))
+	}
+}
+
+func TestEntriesToRowsEmptyInput(t *testing.T) {
+	rows := EntriesToRows([]GameEntry{})
+	if len(rows) != 0 {
+		t.Errorf("expected 0 rows for empty input, got %d", len(rows))
+	}
+}
+
+func TestEntriesToRowsNilInput(t *testing.T) {
+	rows := EntriesToRows(nil)
+	if len(rows) != 0 {
+		t.Errorf("expected 0 rows for nil input, got %d", len(rows))
+	}
+}
