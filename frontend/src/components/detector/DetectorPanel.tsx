@@ -113,6 +113,7 @@ export function DetectorPanel({
     return {
       ...DEFAULT_CONFIG,
       ...saved,
+      source_type: saved.source_type || DEFAULT_CONFIG.source_type,
       precision: saved.precision ?? DEFAULT_CONFIG.precision,
       consecutive_hits: saved.consecutive_hits ?? DEFAULT_CONFIG.consecutive_hits,
       cooldown_sec: saved.cooldown_sec ?? DEFAULT_CONFIG.cooldown_sec,
@@ -171,29 +172,34 @@ export function DetectorPanel({
   const devVideoInputRef = useRef<HTMLInputElement>(null);
 
   const startCapture = useCallback(() => {
+    // Normalize empty/legacy source_type to the default before processing.
+    const sourceType = (cfg.source_type === "" || cfg.source_type === "screen_region" || cfg.source_type === "window" || cfg.source_type === "camera")
+      ? DEFAULT_CONFIG.source_type
+      : cfg.source_type;
+
     // Dev mode: open a file picker for a local video file
-    if (cfg.source_type === "dev_video") {
+    if (sourceType === "dev_video") {
       devVideoInputRef.current?.click();
       return Promise.resolve();
     }
 
-    if (cfg.source_type === "browser_display" || cfg.source_type === "browser_camera") {
+    if (sourceType === "browser_display" || sourceType === "browser_camera") {
       const isElectron = !!globalThis.electronAPI;
       const isWayland = !!globalThis.electronAPI?.isWayland;
 
       // On Wayland + Electron + display capture, skip the source picker and
       // go straight to the native PipeWire/xdg-desktop-portal picker.
-      if (cfg.source_type === "browser_display" && isElectron && isWayland) {
-        return capture.startCapture(pokemon.id, cfg.source_type);
+      if (sourceType === "browser_display" && isElectron && isWayland) {
+        return capture.startCapture(pokemon.id, sourceType);
       }
 
       // In Electron for display capture (non-Wayland), or always for camera, show the source picker
-      if ((cfg.source_type === "browser_display" && isElectron) || cfg.source_type === "browser_camera") {
+      if ((sourceType === "browser_display" && isElectron) || sourceType === "browser_camera") {
         setShowSourcePicker(true);
         return Promise.resolve();
       }
       // Non-Electron display capture: fall through to browser-native picker
-      return capture.startCapture(pokemon.id, cfg.source_type);
+      return capture.startCapture(pokemon.id, sourceType);
     }
     return Promise.resolve();
   }, [cfg.source_type, capture, pokemon.id]);
@@ -701,12 +707,12 @@ export function DetectorPanel({
           {/* Source selector + connect/disconnect */}
           <div className="flex items-center gap-2 shrink-0" data-detector-tutorial="source">
             <select
-              value={cfg.source_type}
+              value={cfg.source_type || "browser_display"}
               onChange={(e) => setCfg((prev) => ({ ...prev, source_type: e.target.value as DetectorConfig["source_type"] }))}
               className="bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-xs text-text-primary outline-none focus:border-accent-blue/50"
             >
-              <option value="browser_camera">{t("detector.sourceCamera")}</option>
               <option value="browser_display">{t("detector.sourceBrowser")}</option>
+              <option value="browser_camera">{t("detector.sourceCamera")}</option>
               {import.meta.env.DEV && (
                 <option value="dev_video">Video File (Dev)</option>
               )}
