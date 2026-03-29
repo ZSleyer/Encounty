@@ -38,7 +38,7 @@ win:
   icon: ../frontend/public/app-icon.png
 mac:
   target:
-    - target: zip
+    - target: dmg
       arch:
         - arm64
   category: public.app-category.utilities
