@@ -30,6 +30,8 @@ type Deps interface {
 	HotkeySetPaused(paused bool)
 	// HotkeyIsAvailable reports whether the hotkey backend is available.
 	HotkeyIsAvailable() bool
+	// DispatchHotkeyAction injects a hotkey action from an external source (e.g. Electron IPC).
+	DispatchHotkeyAction(action, pokemonID string)
 
 	// DB returns the current database handle.
 	DB() *database.DB
@@ -93,6 +95,10 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	mux.HandleFunc("/api/hotkeys/pause", h.handleHotkeysPause)
 	mux.HandleFunc("/api/hotkeys/resume", h.handleHotkeysResume)
 	mux.HandleFunc("/api/hotkeys/status", h.handleHotkeysStatus)
+	mux.HandleFunc("/api/hotkeys/trigger/", func(w http.ResponseWriter, r *http.Request) {
+		action := strings.TrimPrefix(r.URL.Path, "/api/hotkeys/trigger/")
+		h.handleHotkeyTrigger(w, r, action)
+	})
 	mux.HandleFunc("/api/hotkeys/", func(w http.ResponseWriter, r *http.Request) {
 		action := strings.TrimPrefix(r.URL.Path, "/api/hotkeys/")
 		if r.Method == http.MethodPut {
@@ -296,4 +302,20 @@ func (h *handler) handleHotkeysStatus(w http.ResponseWriter, _ *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, hotkeysStatusResponse{
 		Available: h.deps.HotkeyIsAvailable(),
 	})
+}
+
+// handleHotkeyTrigger processes externally triggered hotkey actions (e.g. from Electron).
+// POST /api/hotkeys/trigger/{action}
+func (h *handler) handleHotkeyTrigger(w http.ResponseWriter, r *http.Request, action string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	validActions := map[string]bool{"increment": true, "decrement": true, "reset": true, "next": true}
+	if !validActions[action] {
+		httputil.WriteJSON(w, http.StatusBadRequest, statusResponse{Status: "unknown action"})
+		return
+	}
+	h.deps.DispatchHotkeyAction(action, "")
+	httputil.WriteJSON(w, http.StatusOK, statusResponse{Status: "ok"})
 }

@@ -93,6 +93,7 @@ func (d *testDeps) HotkeySetPaused(paused bool) {
 func (d *testDeps) HotkeyIsAvailable() bool {
 	return d.hk.available
 }
+func (d *testDeps) DispatchHotkeyAction(_, _ string) {}
 
 // --- Helpers -----------------------------------------------------------------
 

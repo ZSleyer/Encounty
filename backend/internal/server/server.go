@@ -477,6 +477,11 @@ func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
 	}
 }
 
+// DispatchHotkeyAction injects a hotkey action from an external source.
+func (s *Server) DispatchHotkeyAction(actionType, pokemonID string) {
+	s.dispatchHotkeyAction(hotkeys.Action{Type: actionType, PokemonID: pokemonID})
+}
+
 // handleHotkeyNext advances to the next Pokémon in the list.
 func (s *Server) handleHotkeyNext() {
 	s.state.NextPokemon()

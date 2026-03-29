@@ -9,11 +9,10 @@
 package hotkeys
 
 /*
-#cgo LDFLAGS: -framework CoreGraphics -framework CoreFoundation -framework ApplicationServices
+#cgo LDFLAGS: -framework CoreGraphics -framework CoreFoundation
 
 #include <CoreGraphics/CoreGraphics.h>
 #include <CoreFoundation/CoreFoundation.h>
-#include <ApplicationServices/ApplicationServices.h>
 
 // Forward declaration of the Go callback trampoline.
 extern CGEventRef goEventCallback(CGEventTapProxy proxy, CGEventType type, CGEventRef event, void *userInfo);
@@ -49,6 +48,7 @@ import "C"
 import (
 	"context"
 	"log/slog"
+	"os"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -119,17 +119,24 @@ func (m *darwinManager) IsAvailable() bool { return m.available }
 func (m *darwinManager) Start() error {
 	m.loadBindings(m.stateMgr.GetState().Hotkeys)
 
-	// Check Accessibility permission (required for event taps).
-	if C.AXIsProcessTrusted() == 0 {
+	// In Electron mode, the Electron main process handles hotkey registration
+	// via globalShortcut and relays actions to the backend over HTTP. The Go
+	// child process cannot create a CGEventTap because macOS grants Accessibility
+	// permission to the parent Electron app, not the embedded binary.
+	if os.Getenv("ENCOUNTY_ELECTRON") == "1" {
 		m.available = false
-		slog.Warn("Hotkeys: Accessibility permission not granted — global hotkeys disabled")
+		slog.Info("Hotkeys: Electron mode — native hotkeys disabled, Electron handles registration")
 		return nil
 	}
 
+	// Attempt to create the event tap directly. On macOS, CGEventTapCreate
+	// checks the "responsible process" (parent app bundle) for Accessibility
+	// permission, which works correctly when running inside an Electron .app
+	// bundle — unlike AXIsProcessTrusted() which only checks the calling binary.
 	tap := C.createTap()
 	if tap == 0 {
 		m.available = false
-		slog.Warn("Hotkeys: failed to create CGEventTap — global hotkeys disabled")
+		slog.Warn("Hotkeys: failed to create CGEventTap (Accessibility permission not granted?) — global hotkeys disabled")
 		return nil
 	}
 	m.tap = tap
