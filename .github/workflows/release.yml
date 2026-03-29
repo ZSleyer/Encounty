@@ -281,7 +281,7 @@ jobs:
           yarn install
           npm pkg set version="$CLEAN_VERSION"
           yarn build
-          yarn package:mac
+          yarn package:mac --publish never
 
       - name: Upload macOS artifact to release
         uses: softprops/action-gh-release@v2
