@@ -10,20 +10,8 @@ files:
 extraResources:
   - from: ../frontend/public/app-icon.png
     to: app-icon.png
-  - from: build/icon.icns
-    to: icon.icns
-    filter: icon.icns
   - from: ../frontend/dist
     to: frontend-dist
-  - from: ../encounty-backend-linux
-    to: encounty-backend-linux
-    filter: encounty-backend-linux
-  - from: ../encounty-backend-windows.exe
-    to: encounty-backend-windows.exe
-    filter: encounty-backend-windows.exe
-  - from: ../encounty-backend-darwin
-    to: encounty-backend-darwin
-    filter: encounty-backend-darwin
 publish:
   provider: github
   owner: ZSleyer
@@ -35,11 +23,19 @@ linux:
       arch:
         - x64
   category: Utility
+  extraResources:
+    - from: ../encounty-backend-linux
+      to: encounty-backend-linux
+  icon: ../frontend/public/app-icon.png
 win:
   target:
     - target: portable
       arch:
         - x64
+  extraResources:
+    - from: ../encounty-backend-windows.exe
+      to: encounty-backend-windows.exe
+  icon: ../frontend/public/app-icon.png
 mac:
   target:
     - target: zip
@@ -48,6 +44,11 @@ mac:
   category: public.app-category.utilities
   icon: build/icon.icns
   identity: null
+  extraResources:
+    - from: ../encounty-backend-darwin
+      to: encounty-backend-darwin
+    - from: build/icon.icns
+      to: icon.icns
   extendInfo:
     NSScreenCaptureUsageDescription: "Encounty needs screen recording access to detect shiny Pokémon via template matching."
     NSCameraUsageDescription: "Encounty needs camera access to capture your game screen for auto-detection."
