@@ -78,6 +78,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('permissions:request', permission);
   },
 
+  // --- Hotkey relay IPC (macOS) ---
+  syncHotkeys(hotkeyMap: Record<string, string>): Promise<void> {
+    return ipcRenderer.invoke('hotkeys:sync', hotkeyMap);
+  },
+
+  pauseHotkeys(): Promise<void> {
+    return ipcRenderer.invoke('hotkeys:pause');
+  },
+
+  resumeHotkeys(): Promise<void> {
+    return ipcRenderer.invoke('hotkeys:resume');
+  },
+
   // --- Auto-update IPC ---
   onUpdateAvailable(callback: (info: { version: string; releaseDate: string }) => void): () => void {
     const handler = (_event: Electron.IpcRendererEvent, info: { version: string; releaseDate: string }) => {
