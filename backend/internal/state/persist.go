@@ -130,6 +130,10 @@ func migratePokemonDefaults(pokemon []Pokemon) {
 		if dc != nil && dc.AdaptiveCooldownMin == 0 {
 			dc.AdaptiveCooldownMin = 3
 		}
+		// HysteresisFactor 0 is never a valid value; default to 0.7.
+		if dc != nil && dc.HysteresisFactor == 0 {
+			dc.HysteresisFactor = 0.7
+		}
 	}
 }
 

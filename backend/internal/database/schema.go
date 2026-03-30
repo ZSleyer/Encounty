@@ -187,6 +187,7 @@ var schemaV2 = []string{
 		max_poll_ms         INTEGER NOT NULL DEFAULT 2000,
 		adaptive_cooldown     INTEGER NOT NULL DEFAULT 0,
 		adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3,
+		hysteresis_factor     REAL    NOT NULL DEFAULT 0.7,
 		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
 	)`,
 

@@ -5,10 +5,11 @@
  * Uses CaptureService for browser-native capture and DetectionLoop for
  * WebGPU/CPU template matching in the browser.
  */
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import {
   X, Plus, Pencil, HelpCircle, RotateCcw,
   MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, Trash2,
+  FlaskConical,
 } from "lucide-react";
 import { DetectorConfig, HuntTypePreset, Pokemon, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
@@ -22,6 +23,11 @@ import { DetectorPreview } from "./DetectorPreview";
 import { DetectorSettings } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { ConfirmModal } from "../shared/ConfirmModal";
+
+// Dev-only: lazy-loaded GPU equivalence test modal
+const GpuEquivalenceTest = import.meta.env.DEV
+  ? lazy(() => import("./GpuEquivalenceTest"))
+  : null;
 import { apiUrl } from "../../utils/api";
 import { getActiveLoop } from "../../engine/DetectionLoop";
 import { ensureDetector, getDetectorBackend, setForceCPU, isForceCPU, stopDetectionForPokemon, reloadDetectionTemplates } from "../../engine/startDetection";
@@ -138,6 +144,7 @@ export function DetectorPanel({
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showGpuTest, setShowGpuTest] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ index: number; name: string } | null>(null);
   const [rightTab, setRightTab] = useState<"log" | "settings">("log");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -719,6 +726,16 @@ export function DetectorPanel({
                 <option value="dev_video">Video File (Dev)</option>
               )}
             </select>
+            {import.meta.env.DEV && (
+              <button
+                onClick={() => setShowGpuTest(true)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-purple-400 hover:border-purple-400/30 transition-colors"
+                aria-label="GPU Equivalence Test"
+                title="GPU Equivalence Test"
+              >
+                <FlaskConical className="w-3.5 h-3.5" />
+              </button>
+            )}
             {isCapturing ? (
               <>
                 {captureSourceLabel && (
@@ -1153,6 +1170,12 @@ export function DetectorPanel({
           onConfirm={confirmDisconnect}
           onClose={() => setShowDisconnectConfirm(false)}
         />
+      )}
+
+      {import.meta.env.DEV && showGpuTest && GpuEquivalenceTest && (
+        <Suspense fallback={null}>
+          <GpuEquivalenceTest onClose={() => setShowGpuTest(false)} />
+        </Suspense>
       )}
     </>
   );

@@ -1,13 +1,38 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, type Plugin } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { resolve } from "path";
+import { createReadStream, existsSync } from "fs";
 
 /** Backend port — must match backend/internal/server/port.go DefaultPort. */
 const BACKEND_PORT = 8192;
 
+/** Dev-only plugin: serves test fixture files at /test-fixtures/. */
+function serveTestFixtures(): Plugin {
+  const fixturesDir = resolve(__dirname, "src/engine/__tests__/fixtures");
+  const mimeTypes: Record<string, string> = {
+    ".mp4": "video/mp4",
+    ".png": "image/png",
+    ".json": "application/json",
+  };
+  return {
+    name: "serve-test-fixtures",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use("/test-fixtures", (req, res, next) => {
+        const filePath = resolve(fixturesDir, (req.url ?? "").replace(/^\//, ""));
+        if (!filePath.startsWith(fixturesDir) || !existsSync(filePath)) return next();
+        const ext = filePath.slice(filePath.lastIndexOf("."));
+        if (mimeTypes[ext]) res.setHeader("Content-Type", mimeTypes[ext]);
+        createReadStream(filePath).pipe(res);
+      });
+    },
+  };
+}
+
 export default defineConfig({
   base: "./",
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), serveTestFixtures()],
   optimizeDeps: {
     include: ["tesseract.js"],
   },

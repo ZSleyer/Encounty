@@ -79,9 +79,23 @@ export function DetectorSettings({
               <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.hitsDesc")}</p>
             </div>
           </div>
+          {/* Hysteresis factor slider */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="det-hysteresis" className="text-xs 2xl:text-sm text-text-muted">{t("detector.hysteresis")}</label>
+              <span className="text-xs 2xl:text-sm text-text-secondary font-mono">{((cfg.hysteresis_factor ?? 0.7) * 100).toFixed(0)}%</span>
+            </div>
+            <input
+              id="det-hysteresis" type="range" min={0.5} max={0.95} step={0.05}
+              value={cfg.hysteresis_factor ?? 0.7}
+              onChange={(e) => onUpdate({ hysteresis_factor: Number.parseFloat(e.target.value) })}
+              className="w-full accent-accent-blue"
+            />
+            <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.hysteresisDesc")}</p>
+          </div>
           {/* Hysteresis explanation */}
           <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
-            {t("detector.cooldownHint", { pct: "70" })}
+            {t("detector.cooldownHint", { pct: String(Math.round((cfg.hysteresis_factor ?? 0.7) * 100)) })}
           </p>
 
           {/* Adaptive Polling section */}

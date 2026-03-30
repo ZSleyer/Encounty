@@ -10,10 +10,9 @@ import type { DetectResult, TemplateData } from "./WebGPUDetector";
 import {
   fitDimensions,
   pixelDelta,
-  pearsonCorrelation,
-  histogramCorrelation,
-  madSimilarity,
-  blockSSIM,
+  scoreRegionHybrid,
+  andLogicAcrossRegions,
+  applyNegativePenalty,
   cropTemplateGray,
   adaptiveBlockSizeForRegion,
   matchWholeTemplate,
@@ -55,6 +54,10 @@ export class CPUDetector {
 
   /** Pool of Float32Array buffers keyed by length, for temporary crop data. */
   private readonly grayPool = new Map<number, Float32Array[]>();
+
+  /** Reusable canvas for full-resolution frame in region matching (avoids ~33MB alloc per frame at 4K). */
+  regionCanvas: OffscreenCanvas | null = null;
+  regionCtx: OffscreenCanvasRenderingContext2D | null = null;
 
   constructor() {
     this.canvas = new OffscreenCanvas(1, 1);
@@ -189,10 +192,9 @@ export class CPUDetector {
         (r) => r.polarity === "negative",
       );
       if (negRegions.length > 0 && score > 0) {
-        // Score negative regions using the same hybrid match pipeline
         const negativeTmpl = { ...tmpl, regions: negRegions };
         const negScore = matchTemplate(this, source, negativeTmpl, frameGray, maxDim, config.crop);
-        score = score * Math.max(0, 1 - negScore);
+        score = applyNegativePenalty(score, negScore);
       }
 
       if (score > bestScore) {
@@ -210,6 +212,8 @@ export class CPUDetector {
     this.previousGray = null;
     this.frameGrayBuf = null;
     this.grayPool.clear();
+    this.regionCanvas = null;
+    this.regionCtx = null;
   }
 
   /** Acquire a Float32Array from the pool, or allocate a new one. */
@@ -342,13 +346,7 @@ function scoreRegionSlidingWindow(
 
       const frameCrop = detector.cropGrayscale(tmpCtx, ox, oy, frameRw, frameRh, dw, dh);
 
-      const ssimScore = blockSSIM(frameCrop.gray, tmplCrop, dw, dh, blockSize);
-      const nccScore = pearsonCorrelation(frameCrop.gray, tmplCrop);
-      const histScore = histogramCorrelation(frameCrop.gray, tmplCrop);
-      const madScore = madSimilarity(frameCrop.gray, tmplCrop);
-
-      // Hybrid: weighted combination of SSIM, NCC, MAD, and histogram
-      const combined = 0.333 * ssimScore + 0.278 * nccScore + 0.222 * madScore + 0.167 * histScore;
+      const combined = scoreRegionHybrid(frameCrop.gray, tmplCrop, dw, dh, blockSize);
       if (combined > bestRegionScore) bestRegionScore = combined;
 
       // Release pooled frame crop buffer after scoring
@@ -387,8 +385,12 @@ function matchTemplate(
   const srcH = source instanceof ImageBitmap ? source.height : source.videoHeight;
   if (srcW === 0 || srcH === 0) return 0;
 
-  const tmpCanvas = new OffscreenCanvas(srcW, srcH);
-  const tmpCtx = tmpCanvas.getContext("2d", { willReadFrequently: true });
+  // Reuse the cached region canvas when dimensions match (avoids ~33MB alloc per frame at 4K)
+  if (detector.regionCanvas?.width !== srcW || detector.regionCanvas?.height !== srcH) {
+    detector.regionCanvas = new OffscreenCanvas(srcW, srcH);
+    detector.regionCtx = detector.regionCanvas.getContext("2d", { willReadFrequently: true });
+  }
+  const tmpCtx = detector.regionCtx;
   if (!tmpCtx) return 0;
   tmpCtx.drawImage(source, 0, 0, srcW, srcH);
 
@@ -396,8 +398,7 @@ function matchTemplate(
   const scaleY = srcH / tmpl.height;
 
   // Region-scoped matching (AND-logic across all regions)
-  let minScore = 1;
-  let evaluated = 0;
+  const regionScores: number[] = [];
 
   for (const region of regions) {
     if (region.type !== "image") continue;
@@ -419,14 +420,14 @@ function matchTemplate(
       blockSize,
     );
 
-    evaluated++;
-    if (bestRegionScore < minScore) minScore = bestRegionScore;
-    if (minScore < 0.3) return minScore;
+    regionScores.push(bestRegionScore);
+    // Early exit when any region scores too low to recover
+    if (bestRegionScore < 0.3) return andLogicAcrossRegions(regionScores);
   }
 
-  if (evaluated === 0) {
+  if (regionScores.length === 0) {
     return matchWholeTemplate(frameGray, tmpl, maxDim);
   }
 
-  return minScore;
+  return andLogicAcrossRegions(regionScores);
 }

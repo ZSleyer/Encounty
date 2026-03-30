@@ -31,6 +31,11 @@ import histogramShader from "./shaders/histogram.wgsl?raw";
 import fuseScoresShader from "./shaders/fuse_scores.wgsl?raw";
 import reduceMinShader from "./shaders/reduce_min.wgsl?raw";
 import ssimMedianShader from "./shaders/ssim_median.wgsl?raw";
+import {
+  adaptiveBlockSizeForRegion,
+  applyNegativePenalty,
+  fitDimensions,
+} from "./math";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -681,7 +686,8 @@ export class WebGPUDetector {
         ssimResult.totalBlocks,
       );
 
-      // Assemble the 4 scores into a buffer for the fuse shader
+      // Assemble the 4 scores into a buffer for the fuse shader.
+      // GPU weights are hardcoded in fuse_scores.wgsl and must match HYBRID_WEIGHTS from math.ts.
       const scoresInputBuf = this.pool.acquire(
         16,
         GPUBufferUsage.STORAGE |
@@ -949,7 +955,7 @@ export class WebGPUDetector {
     if (negativeRegionCrops && negativeRegionCrops.length > 0 && score > 0) {
       const negativeTmpl = { ...tmpl, regionCrops: negativeRegionCrops };
       const negScore = await this.regionHybridMatch(texture, negativeTmpl);
-      score = score * Math.max(0, 1 - negScore);
+      score = applyNegativePenalty(score, negScore);
     }
 
     return score;
@@ -1696,8 +1702,7 @@ export class WebGPUDetector {
       GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
       `template_region_${x}_${y}`,
     );
-    const minSide = Math.min(w, h);
-    const blockSize = adaptiveBlockSize(minSide);
+    const blockSize = adaptiveBlockSizeForRegion(w, h);
     return { buffer, width: w, height: h, rect: { x, y, w, h }, blockSize };
   }
 
@@ -1730,22 +1735,3 @@ function divCeil(a: number, b: number): number {
   return Math.ceil(a / b);
 }
 
-/** Choose SSIM block size based on the smaller region dimension. */
-function adaptiveBlockSize(minSide: number): number {
-  if (minSide >= 64) return 16;
-  if (minSide >= 32) return 8;
-  return 4;
-}
-
-/**
- * Calculate output dimensions that fit within maxDim, preserving aspect ratio.
- */
-function fitDimensions(w: number, h: number, maxDim: number): [number, number] {
-  if (w <= maxDim && h <= maxDim) {
-    return [w, h];
-  }
-  const scale = maxDim / Math.max(w, h);
-  const dstW = Math.max(Math.round(w * scale), 1);
-  const dstH = Math.max(Math.round(h * scale), 1);
-  return [dstW, dstH];
-}

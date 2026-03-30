@@ -115,7 +115,8 @@ type DetectorConfig struct {
 	MinPollMs       int                `json:"min_poll_ms"`            // fastest adaptive poll interval (high activity), default 30
 	MaxPollMs       int                `json:"max_poll_ms"`            // slowest adaptive poll interval (static screen), default 500
 	AdaptiveCooldown    bool           `json:"adaptive_cooldown"`
-	AdaptiveCooldownMin int            `json:"adaptive_cooldown_min"` // Minimum seconds, default 3
+	AdaptiveCooldownMin int            `json:"adaptive_cooldown_min"`  // Minimum seconds, default 3
+	HysteresisFactor    float64        `json:"hysteresis_factor"`      // 0.0–1.0, multiplier for hysteresis exit threshold (default 0.7)
 	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 
@@ -131,6 +132,7 @@ func DefaultDetectorConfig() *DetectorConfig {
 		MinPollMs:           50,
 		MaxPollMs:           2000,
 		AdaptiveCooldownMin: 3,
+		HysteresisFactor:    0.7,
 	}
 }
 

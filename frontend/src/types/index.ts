@@ -128,6 +128,7 @@ export interface DetectorConfig {
   adaptive_cooldown?: boolean;
   adaptive_cooldown_min?: number;
   adaptive_threshold?: boolean;        // auto-adjust precision based on region size (default: true)
+  hysteresis_factor?: number;          // 0.0–1.0, hysteresis exit threshold multiplier (default 0.7)
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
   ocr_backend?: "tesseract";  // OCR engine (only tesseract supported)
 }

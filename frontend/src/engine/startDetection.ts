@@ -151,7 +151,7 @@ export async function startDetectionForPokemon({
     pollIntervalMs: config.poll_interval_ms,
     minPollMs: config.min_poll_ms,
     maxPollMs: config.max_poll_ms,
-    hysteresisFactor: 0.7,
+    hysteresisFactor: config.hysteresis_factor ?? 0.7,
     cooldownSec: config.cooldown_sec,
   });
 

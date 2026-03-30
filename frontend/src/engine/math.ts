@@ -38,6 +38,23 @@ export interface NccTemplate {
 }
 
 // ---------------------------------------------------------------------------
+// Scoring pipeline constants
+// ---------------------------------------------------------------------------
+
+/** Hybrid fusion weights for region-based matching (source of truth for CPU + GPU). */
+export const HYBRID_WEIGHTS = { ssim: 0.333, pearson: 0.278, mad: 0.222, histogram: 0.167 } as const;
+
+/**
+ * Half-range constant for MAD similarity normalisation.
+ *
+ * CPU grayscale values are [0, 255], half-range is 128 (integer midpoint).
+ * The GPU operates in [0, 1] and uses 0.5 (= 127.5 / 255), producing a
+ * ~0.4% difference that is negligible in practice.  Using 128 on the CPU
+ * preserves the original scoring behaviour and avoids false-positive drift.
+ */
+export const MAD_HALF_RANGE = 128;
+
+// ---------------------------------------------------------------------------
 // Geometry helpers
 // ---------------------------------------------------------------------------
 
@@ -53,9 +70,15 @@ export function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
 }
 
-/** Select adaptive block size for SSIM based on region dimensions. */
+/**
+ * Select adaptive block size for SSIM based on region dimensions.
+ *
+ * Unified implementation used by both CPU and GPU paths.
+ * The GPU's block_ssim.wgsl shader receives this value as a parameter.
+ */
 export function adaptiveBlockSizeForRegion(dw: number, dh: number): number {
   const regionMinDim = Math.min(dw, dh);
+  if (regionMinDim < 32) return 4;
   if (regionMinDim < 64) return 8;
   if (regionMinDim <= 256) return 16;
   return 32;
@@ -179,7 +202,7 @@ export function madSimilarity(a: Float32Array, b: Float32Array): number {
   for (let i = 0; i < n; i++) {
     sum += Math.abs(a[i] - b[i]);
   }
-  return Math.max(0, 1 - sum / (n * 128));
+  return Math.max(0, 1 - sum / (n * MAD_HALF_RANGE));
 }
 
 // ---------------------------------------------------------------------------
@@ -343,6 +366,71 @@ export function ncc(
   }
 
   return clamp01(best);
+}
+
+// ---------------------------------------------------------------------------
+// Hybrid scoring pipeline
+// ---------------------------------------------------------------------------
+
+/**
+ * Fuse four metric scores into a single hybrid detection score.
+ *
+ * Uses the fixed weights defined in HYBRID_WEIGHTS. The GPU fuse_scores.wgsl
+ * shader must use identical weights.
+ */
+export function fuseHybridScores(
+  ssim: number, pearson: number, mad: number, histogram: number,
+): number {
+  const { ssim: ws, pearson: wp, mad: wm, histogram: wh } = HYBRID_WEIGHTS;
+  return clamp01(ws * ssim + wp * pearson + wm * mad + wh * histogram);
+}
+
+/**
+ * Score a single region crop using all four metrics and fusion.
+ *
+ * Both frameCrop and tmplCrop must be same-sized Float32Array grayscale
+ * buffers (0-255 range for CPU, 0-1 range produces equivalent results
+ * due to scale-invariant metrics).
+ */
+export function scoreRegionHybrid(
+  frameCrop: Float32Array,
+  tmplCrop: Float32Array,
+  w: number,
+  h: number,
+  blockSize: number,
+): number {
+  const ssim = blockSSIM(frameCrop, tmplCrop, w, h, blockSize);
+  const pearson = pearsonCorrelation(frameCrop, tmplCrop);
+  const mad = madSimilarity(frameCrop, tmplCrop);
+  const histogram = histogramCorrelation(frameCrop, tmplCrop);
+  return fuseHybridScores(ssim, pearson, mad, histogram);
+}
+
+/**
+ * AND-logic across region scores: return the minimum.
+ *
+ * Every region must match for a detection to be confirmed. An empty
+ * array returns 0 (no regions evaluated = no match).
+ */
+export function andLogicAcrossRegions(regionScores: number[]): number {
+  if (regionScores.length === 0) return 0;
+  let min = regionScores[0];
+  for (let i = 1; i < regionScores.length; i++) {
+    if (regionScores[i] < min) min = regionScores[i];
+  }
+  return min;
+}
+
+/**
+ * Apply negative region penalty to a positive score.
+ *
+ * A high match on a negative region suppresses the overall detection:
+ * result = positiveScore * max(0, 1 - negativeScore).
+ */
+export function applyNegativePenalty(
+  positiveScore: number, negativeScore: number,
+): number {
+  return positiveScore * Math.max(0, 1 - negativeScore);
 }
 
 // ---------------------------------------------------------------------------

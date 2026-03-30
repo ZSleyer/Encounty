@@ -244,12 +244,13 @@ func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, er
 	var enabled, adaptiveCooldown int
 	err := db.QueryRow(`SELECT enabled, source_type, region_x, region_y, region_w, region_h,
 		window_title, precision_val, consecutive_hits, cooldown_sec, change_threshold,
-		poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min
+		poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min,
+		hysteresis_factor
 		FROM detector_configs WHERE pokemon_id = ?`, pokemonID).
 		Scan(&enabled, &dc.SourceType, &dc.Region.X, &dc.Region.Y, &dc.Region.W, &dc.Region.H,
 			&dc.WindowTitle, &dc.Precision, &dc.ConsecutiveHits, &dc.CooldownSec,
 			&dc.ChangeThreshold, &dc.PollIntervalMs, &dc.MinPollMs, &dc.MaxPollMs,
-			&adaptiveCooldown, &dc.AdaptiveCooldownMin)
+			&adaptiveCooldown, &dc.AdaptiveCooldownMin, &dc.HysteresisFactor)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

@@ -4,6 +4,8 @@
 // using fixed weights:
 //   0.333 * SSIM + 0.278 * Pearson + 0.222 * MAD + 0.167 * histogram
 //
+// IMPORTANT: These weights must match HYBRID_WEIGHTS in math.ts.
+//
 // Runs as a single thread since the input is only 4 values.
 
 @group(0) @binding(0) var<storage, read> scores: array<f32>;

@@ -194,7 +194,7 @@ describe("madSimilarity", () => {
     expect(madSimilarity(a, a)).toBeCloseTo(1, 6);
   });
 
-  it("returns 0.0 when average difference is >= 128", () => {
+  it("returns 0 when average difference is >= 128", () => {
     const a = makeGray(8, 8, () => 0);
     const b = makeGray(8, 8, () => 128);
     expect(madSimilarity(a, b)).toBeCloseTo(0, 6);

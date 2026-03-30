@@ -255,8 +255,9 @@ func prepareDetectorConfigStmt(tx *sql.Tx) (*sql.Stmt, error) {
 		INSERT INTO detector_configs (pokemon_id, enabled, source_type,
 			region_x, region_y, region_w, region_h, window_title,
 			precision_val, consecutive_hits, cooldown_sec, change_threshold,
-			poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min,
+			hysteresis_factor)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(pokemon_id) DO UPDATE SET
 			enabled               = excluded.enabled,
 			source_type           = excluded.source_type,
@@ -273,7 +274,8 @@ func prepareDetectorConfigStmt(tx *sql.Tx) (*sql.Stmt, error) {
 			min_poll_ms           = excluded.min_poll_ms,
 			max_poll_ms           = excluded.max_poll_ms,
 			adaptive_cooldown     = excluded.adaptive_cooldown,
-			adaptive_cooldown_min = excluded.adaptive_cooldown_min`)
+			adaptive_cooldown_min = excluded.adaptive_cooldown_min,
+			hysteresis_factor     = excluded.hysteresis_factor`)
 	if err != nil {
 		return nil, fmt.Errorf("prepare detector_configs upsert: %w", err)
 	}
@@ -297,6 +299,7 @@ func upsertSingleDetectorConfig(tx *sql.Tx, stmt *sql.Stmt, p state.Pokemon) err
 		cfg.CooldownSec, cfg.ChangeThreshold,
 		cfg.PollIntervalMs, cfg.MinPollMs, cfg.MaxPollMs,
 		boolToInt(cfg.AdaptiveCooldown), cfg.AdaptiveCooldownMin,
+		cfg.HysteresisFactor,
 	); err != nil {
 		return fmt.Errorf("upsert detector_config for %q: %w", p.ID, err)
 	}
