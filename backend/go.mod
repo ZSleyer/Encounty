@@ -7,7 +7,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/kbinani/screenshot v0.0.0-20250624051815-089614a94018
 	github.com/swaggo/swag/v2 v2.0.0-rc5
-	golang.org/x/image v0.36.0
+	golang.org/x/image v0.38.0
 	modernc.org/sqlite v1.47.0
 )
 
