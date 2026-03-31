@@ -1,8 +1,8 @@
 import { defineConfig, type Plugin } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { resolve } from "path";
-import { createReadStream, existsSync } from "fs";
+import { resolve } from "node:path";
+import { createReadStream, existsSync } from "node:fs";
 
 /** Backend port — must match backend/internal/server/port.go DefaultPort. */
 const BACKEND_PORT = 8192;
@@ -82,6 +82,7 @@ export default defineConfig({
         "src/engine/shaders/**",
         "src/engine/index.ts",
         "src/components/settings/MacPermissions.tsx",
+        "src/components/detector/GpuEquivalenceTest.tsx",
         "src/utils/i18n.ts",
       ],
     },

@@ -750,4 +750,523 @@ describe("OverlayPropertyPanel", () => {
       expect.objectContaining({ border_radius: 15 }),
     );
   });
+
+  // --- Position & size input changes ---
+
+  it("calls updateSelectedEl when X input is changed for sprite", () => {
+    const props = makeProps({ selectedEl: "sprite" });
+    render(<OverlayPropertyPanel {...props} />);
+    // NumInput renders a number input — find the one associated with X
+    const xInputs = screen.getAllByRole("spinbutton");
+    // X is the first, Y second, W third, H fourth
+    fireEvent.change(xInputs[0], { target: { value: "50" } });
+    expect(props.updateSelectedEl).toHaveBeenCalledWith({ x: 50 });
+  });
+
+  it("calls updateSelectedEl when Y input is changed for sprite", () => {
+    const props = makeProps({ selectedEl: "sprite" });
+    render(<OverlayPropertyPanel {...props} />);
+    const inputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(inputs[1], { target: { value: "75" } });
+    expect(props.updateSelectedEl).toHaveBeenCalledWith({ y: 75 });
+  });
+
+  it("calls updateSelectedEl when W input is changed for sprite", () => {
+    const props = makeProps({ selectedEl: "sprite" });
+    render(<OverlayPropertyPanel {...props} />);
+    const inputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(inputs[2], { target: { value: "120" } });
+    expect(props.updateSelectedEl).toHaveBeenCalledWith({ width: 120 });
+  });
+
+  it("calls updateSelectedEl when H input is changed for sprite", () => {
+    const props = makeProps({ selectedEl: "sprite" });
+    render(<OverlayPropertyPanel {...props} />);
+    const inputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(inputs[3], { target: { value: "90" } });
+    expect(props.updateSelectedEl).toHaveBeenCalledWith({ height: 90 });
+  });
+
+  // --- Canvas width/height slider changes ---
+
+  it("calls onUpdate when canvas width slider is changed", () => {
+    const props = makeProps({ selectedEl: "canvas" });
+    render(<OverlayPropertyPanel {...props} />);
+    // Canvas has width and height NumSliders — get the spinbutton inputs
+    const inputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(inputs[0], { target: { value: "800" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ canvas_width: 800 }),
+    );
+  });
+
+  it("calls onUpdate when canvas height slider is changed", () => {
+    const props = makeProps({ selectedEl: "canvas" });
+    render(<OverlayPropertyPanel {...props} />);
+    const inputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(inputs[1], { target: { value: "600" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ canvas_height: 600 }),
+    );
+  });
+
+  // --- Glow opacity and blur slider changes ---
+
+  it("calls onUpdate when glow opacity slider is changed", () => {
+    const settings = makeOverlaySettings({
+      sprite: {
+        ...makeOverlaySettings().sprite,
+        show_glow: true,
+        glow_opacity: 0.5,
+      },
+    });
+    const props = makeProps({ selectedEl: "sprite", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    // The glow opacity NumSlider contains a range input
+    const sliders = screen.getAllByRole("slider");
+    // Find the opacity slider (the first one after glow is enabled)
+    fireEvent.change(sliders[0], { target: { value: "0.8" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sprite: expect.objectContaining({ glow_opacity: 0.8 }),
+      }),
+    );
+  });
+
+  it("calls onUpdate when glow blur slider is changed", () => {
+    const settings = makeOverlaySettings({
+      sprite: {
+        ...makeOverlaySettings().sprite,
+        show_glow: true,
+        glow_blur: 10,
+      },
+    });
+    const props = makeProps({ selectedEl: "sprite", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    const sliders = screen.getAllByRole("slider");
+    // Blur is the second slider
+    fireEvent.change(sliders[1], { target: { value: "40" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sprite: expect.objectContaining({ glow_blur: 40 }),
+      }),
+    );
+  });
+
+  // --- Glow color swatch click ---
+
+  it("calls openColorPicker when glow color swatch is clicked", () => {
+    const settings = makeOverlaySettings({
+      sprite: {
+        ...makeOverlaySettings().sprite,
+        show_glow: true,
+        glow_color: "#ff0000",
+      },
+    });
+    const props = makeProps({ selectedEl: "sprite", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    const glowColorButton = screen.getByText(/Glow Farbe/).closest("button")!;
+    fireEvent.click(glowColorButton);
+    expect(props.openColorPicker).toHaveBeenCalledWith(
+      "#ff0000",
+      expect.any(Function),
+      expect.objectContaining({ showOpacity: true }),
+    );
+  });
+
+  // --- Text style editor: font family change ---
+
+  it("calls onUpdate when font family is changed for name text style", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    const fontSelect = screen.getByText("Schriftart").closest("label")!.querySelector("select")!;
+    fireEvent.change(fontSelect, { target: { value: "Roboto" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.objectContaining({
+          style: expect.objectContaining({ font_family: "Roboto" }),
+        }),
+      }),
+    );
+  });
+
+  // --- Text style editor: font weight change ---
+
+  it("calls onUpdate when font weight is changed for name text style", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    const weightSelect = screen.getByText("Gewicht").closest("label")!.querySelector("select")!;
+    fireEvent.change(weightSelect, { target: { value: "700" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.objectContaining({
+          style: expect.objectContaining({ font_weight: 700 }),
+        }),
+      }),
+    );
+  });
+
+  // --- Text style editor: alignment button click ---
+
+  it("calls onUpdate when text alignment is changed for name text style", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    // Click the center alignment button
+    const alignButtons = screen.getByText("Ausrichtung").closest("div")!.querySelectorAll("button");
+    // center is the second button (left=0, center=1, right=2)
+    fireEvent.click(alignButtons[1]);
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.objectContaining({
+          style: expect.objectContaining({ text_align: "center" }),
+        }),
+      }),
+    );
+  });
+
+  it("calls onUpdate when right alignment is clicked for name text style", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    const alignButtons = screen.getByText("Ausrichtung").closest("div")!.querySelectorAll("button");
+    fireEvent.click(alignButtons[2]);
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.objectContaining({
+          style: expect.objectContaining({ text_align: "right" }),
+        }),
+      }),
+    );
+  });
+
+  // --- Text color swatch click ---
+
+  it("calls openTextColorEditor when text color swatch is clicked for name", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    // The color swatch shows the color label
+    const colorButton = screen.getByText(/Farbe #ffffff/).closest("button")!;
+    fireEvent.click(colorButton);
+    expect(props.openTextColorEditor).toHaveBeenCalledWith(
+      "solid",
+      "#ffffff",
+      expect.any(Array),
+      expect.any(Number),
+      expect.any(Function),
+    );
+  });
+
+  // --- Outline swatch click ---
+
+  it("calls openOutlineEditor when outline swatch is clicked for name", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    // ColorSwatch uses title={label}, outline label uses "Umriss"
+    const outlineButton = screen.getByTitle(/Umriss/);
+    fireEvent.click(outlineButton);
+    expect(props.openOutlineEditor).toHaveBeenCalledWith(
+      "none",
+      "#000000",
+      0,
+      expect.any(Function),
+    );
+  });
+
+  // --- Shadow swatch click ---
+
+  it("calls openShadowEditor when shadow swatch is clicked for name", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    const shadowButton = screen.getByText(/Schatten \(/).closest("button")!;
+    fireEvent.click(shadowButton);
+    expect(props.openShadowEditor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: false,
+        color: "#000000",
+        onConfirm: expect.any(Function),
+      }),
+    );
+  });
+
+  // --- Border width slider change ---
+
+  it("calls onUpdate when border width slider is changed", () => {
+    const settings = makeOverlaySettings({ show_border: true, border_width: 2 });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    const borderWidthSlider = screen.getByLabelText(/Kontur Stärke/);
+    fireEvent.change(borderWidthSlider, { target: { value: "5" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ border_width: 5 }),
+    );
+  });
+
+  // --- Background color swatch click ---
+
+  it("calls openColorPicker when background color swatch is clicked for canvas", () => {
+    const props = makeProps({ selectedEl: "canvas" });
+    render(<OverlayPropertyPanel {...props} />);
+    // ColorSwatch uses title={label} — background color swatch title is the hex value
+    const bgColorButton = screen.getByTitle("#000000");
+    fireEvent.click(bgColorButton);
+    expect(props.openColorPicker).toHaveBeenCalledWith(
+      "#000000",
+      expect.any(Function),
+    );
+  });
+
+  // --- Border color swatch click ---
+
+  it("calls openColorPicker when border color swatch is clicked", () => {
+    const settings = makeOverlaySettings({ show_border: true, border_color: "#ffffff" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    // Border color swatch
+    const borderColorButton = screen.getByText(/Kontur Farbe/).parentElement!.querySelector("button")!;
+    fireEvent.click(borderColorButton);
+    expect(props.openColorPicker).toHaveBeenCalledWith(
+      "#ffffff",
+      expect.any(Function),
+    );
+  });
+
+  // --- Animation speed slider interaction ---
+
+  it("calls onUpdate when animation speed slider is changed", () => {
+    const settings = makeOverlaySettings({
+      background_animation: "waves",
+      background_animation_speed: 1,
+    });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    // Speed is one of the sliders — find via the label text
+    const speedSlider = screen.getByTitle(/Geschwindigkeit/);
+    fireEvent.change(speedSlider, { target: { value: "2" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ background_animation_speed: 2 }),
+    );
+  });
+
+  // --- Show_label toggle ON ---
+
+  it("calls onUpdate when show_label checkbox is toggled on", () => {
+    const settings = makeOverlaySettings({
+      counter: {
+        ...makeOverlaySettings().counter,
+        show_label: false,
+      },
+    });
+    const props = makeProps({ selectedEl: "counter", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    const labelCheckbox = screen.getByRole("checkbox", { name: /Label anzeigen/ });
+    fireEvent.click(labelCheckbox);
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        counter: expect.objectContaining({ show_label: true }),
+      }),
+    );
+  });
+
+  // --- Text style editor for counter ---
+
+  it("shows counter style editor when counter is selected", () => {
+    const props = makeProps({ selectedEl: "counter" });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText("Zähler-Stil")).toBeInTheDocument();
+  });
+
+  // --- Text style font size slider for name ---
+
+  it("calls onUpdate when font size is changed for name text style", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    // The font size NumSlider has a range input with title containing the size label
+    const sizeSlider = screen.getByTitle(/Größe/);
+    fireEvent.change(sizeSlider, { target: { value: "24" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: expect.objectContaining({
+          style: expect.objectContaining({ font_size: 24 }),
+        }),
+      }),
+    );
+  });
+
+  // --- Counter font family change ---
+
+  it("calls onUpdate when font family is changed for counter text style", () => {
+    const props = makeProps({ selectedEl: "counter" });
+    render(<OverlayPropertyPanel {...props} />);
+    // Counter style is the first TextStyleEditor — its font selector
+    const fontSelects = screen.getAllByText("Schriftart");
+    const fontSelect = fontSelects[0].closest("label")!.querySelector("select")!;
+    fireEvent.change(fontSelect, { target: { value: "monospace" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        counter: expect.objectContaining({
+          style: expect.objectContaining({ font_family: "monospace" }),
+        }),
+      }),
+    );
+  });
+
+  // --- Title font family change ---
+
+  it("calls onUpdate when font family is changed for title text style", () => {
+    const props = makeProps({ selectedEl: "title" });
+    render(<OverlayPropertyPanel {...props} />);
+    const fontSelect = screen.getByText("Schriftart").closest("label")!.querySelector("select")!;
+    fireEvent.change(fontSelect, { target: { value: "serif" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: expect.objectContaining({
+          style: expect.objectContaining({ font_family: "serif" }),
+        }),
+      }),
+    );
+  });
+
+  // --- Position inputs for name element ---
+
+  it("calls updateSelectedEl when X input is changed for name", () => {
+    const props = makeProps({ selectedEl: "name" });
+    render(<OverlayPropertyPanel {...props} />);
+    const inputs = screen.getAllByRole("spinbutton");
+    fireEvent.change(inputs[0], { target: { value: "150" } });
+    expect(props.updateSelectedEl).toHaveBeenCalledWith({ x: 150 });
+  });
+
+  // --- Label style text editor for counter ---
+
+  it("calls onUpdate when label style font family is changed", () => {
+    const settings = makeOverlaySettings({
+      counter: {
+        ...makeOverlaySettings().counter,
+        show_label: true,
+      },
+    });
+    const props = makeProps({ selectedEl: "counter", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    // There are two TextStyleEditors when show_label is true: counter style + label style
+    const fontSelects = screen.getAllByText("Schriftart");
+    // The second one is the label style
+    const labelFontSelect = fontSelects[1].closest("label")!.querySelector("select")!;
+    fireEvent.change(labelFontSelect, { target: { value: "pokemon" } });
+    expect(props.onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        counter: expect.objectContaining({
+          label_style: expect.objectContaining({ font_family: "pokemon" }),
+        }),
+      }),
+    );
+  });
+
+  // --- NumInput increment/decrement buttons ---
+
+  it("calls updateSelectedEl when X increment button is clicked", () => {
+    const props = makeProps({ selectedEl: "sprite" });
+    render(<OverlayPropertyPanel {...props} />);
+    // Each NumInput has a + button; click the first + (for X)
+    const incrementButtons = screen.getAllByText("+");
+    fireEvent.click(incrementButtons[0]);
+    expect(props.updateSelectedEl).toHaveBeenCalledWith({ x: 11 });
+  });
+
+  it("calls updateSelectedEl when X decrement button is clicked", () => {
+    const props = makeProps({ selectedEl: "sprite" });
+    render(<OverlayPropertyPanel {...props} />);
+    // The minus sign in NumInput is "−" (U+2212)
+    const decrementButtons = screen.getAllByText("−");
+    fireEvent.click(decrementButtons[0]);
+    expect(props.updateSelectedEl).toHaveBeenCalledWith({ x: 9 });
+  });
+
+  // --- Outline swatch with solid outline ---
+
+  it("calls openOutlineEditor with solid params when outline is solid", () => {
+    const settings = makeOverlaySettings({
+      name: {
+        ...makeOverlaySettings().name,
+        style: {
+          ...makeOverlaySettings().name.style,
+          outline_type: "solid" as const,
+          outline_color: "#ff0000",
+          outline_width: 3,
+        },
+      },
+    });
+    const props = makeProps({ selectedEl: "name", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    const outlineButton = screen.getByTitle(/Umriss 3px/);
+    fireEvent.click(outlineButton);
+    expect(props.openOutlineEditor).toHaveBeenCalledWith(
+      "solid",
+      "#ff0000",
+      3,
+      expect.any(Function),
+    );
+  });
+
+  // --- Shadow swatch with shadow enabled ---
+
+  it("calls openShadowEditor with enabled params when shadow is on", () => {
+    const settings = makeOverlaySettings({
+      name: {
+        ...makeOverlaySettings().name,
+        style: {
+          ...makeOverlaySettings().name.style,
+          text_shadow: true,
+          text_shadow_color: "#333333",
+          text_shadow_blur: 4,
+          text_shadow_x: 1,
+          text_shadow_y: 1,
+        },
+      },
+    });
+    const props = makeProps({ selectedEl: "name", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    const shadowButton = screen.getByText(/Schatten 4px/).closest("button")!;
+    fireEvent.click(shadowButton);
+    expect(props.openShadowEditor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        enabled: true,
+        color: "#333333",
+        blur: 4,
+        x: 1,
+        y: 1,
+      }),
+    );
+  });
+
+  // --- Text color with gradient ---
+
+  it("calls openTextColorEditor with gradient params when color_type is gradient", () => {
+    const settings = makeOverlaySettings({
+      name: {
+        ...makeOverlaySettings().name,
+        style: {
+          ...makeOverlaySettings().name.style,
+          color_type: "gradient" as const,
+          gradient_stops: [
+            { color: "#ff0000", position: 0 },
+            { color: "#0000ff", position: 100 },
+          ],
+          gradient_angle: 90,
+        },
+      },
+    });
+    const props = makeProps({ selectedEl: "name", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    const colorButton = screen.getByText(/Farbe \(/).closest("button")!;
+    fireEvent.click(colorButton);
+    expect(props.openTextColorEditor).toHaveBeenCalledWith(
+      "gradient",
+      "#ffffff",
+      [
+        { color: "#ff0000", position: 0 },
+        { color: "#0000ff", position: 100 },
+      ],
+      90,
+      expect.any(Function),
+    );
+  });
 });

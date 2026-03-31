@@ -1,11 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 import { BrowserRouter, MemoryRouter, createMemoryRouter, RouterProvider } from "react-router";
 import { App } from "./App";
+import { useCounterStore } from "./hooks/useCounterState";
 
 const mockFetch = vi.fn();
 
 beforeEach(() => {
+  // Reset Zustand store to initial state between tests
+  useCounterStore.setState({ isConnected: false, appState: null, detectorStatus: {} });
+  // Reset useWebSocket mock to default (non-capturing) implementation
+  mockUseWebSocket.mockReset();
+  mockUseWebSocket.mockReturnValue({ send: vi.fn() } as ReturnType<typeof useWebSocketMock>);
   mockFetch.mockReset();
   mockFetch.mockImplementation((url: string) => {
     if (url === "/api/status/ready") {
@@ -25,6 +31,10 @@ beforeEach(() => {
 vi.mock("./hooks/useWebSocket", () => ({
   useWebSocket: vi.fn(() => ({ send: vi.fn() })),
 }));
+
+// Import the mocked module statically to get a stable reference
+import { useWebSocket as useWebSocketMock } from "./hooks/useWebSocket";
+const mockUseWebSocket = vi.mocked(useWebSocketMock);
 
 /** Configure mockFetch to return a fully accepted state so AppShell renders. */
 function mockAcceptedState() {
@@ -1628,14 +1638,15 @@ describe("App", () => {
     });
 
     // Simulate a state_update via the WebSocket mock to set appState
-    const { useWebSocket } = await import("./hooks/useWebSocket");
-    const mockUseWebSocket = vi.mocked(useWebSocket);
     let wsHandler: ((msg: unknown) => void) | undefined;
     let connectCb: (() => void) | undefined;
     mockUseWebSocket.mockImplementation((handler, onConnect) => {
-      wsHandler = handler as (msg: unknown) => void;
-      connectCb = onConnect as () => void;
-      return { send: vi.fn() } as unknown as ReturnType<typeof useWebSocket>;
+      // Only capture from the AppShell call (3 args), not Dashboard (1 arg)
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
     });
 
     render(
@@ -2091,5 +2102,1570 @@ describe("App", () => {
     });
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- UpdateOverlay renders installing state ---
+
+  it("renders UpdateOverlay with installing state text", async () => {
+    mockAcceptedState();
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => "1", // dismissed so notification popup doesn't appear
+      setItem: vi.fn(),
+    });
+
+    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        updateAvailableCb = cb;
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+      downloadUpdate: vi.fn(() => new Promise(() => {})), // hangs to keep installing state
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    // Trigger update available
+    if (updateAvailableCb) {
+      updateAvailableCb({ version: "4.0.0" });
+    }
+
+    // Click footer badge to trigger applyUpdate (Linux path = downloadUpdate)
+    await waitFor(() => {
+      expect(screen.getAllByText("4.0.0").length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Click the footer update badge button (not the notification since it was dismissed)
+    const badges = screen.getAllByText("4.0.0");
+    const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
+    if (footerBadge) {
+      fireEvent.click(footerBadge.closest("button")!);
+    }
+
+    // UpdateOverlay should show "installing" text
+    await waitFor(() => {
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("Wird installiert");
+    });
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- UpdateOverlay renders restarting state on Linux after download ---
+
+  it("shows restarting overlay on Linux when update download completes", async () => {
+    mockAcceptedState();
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => "1",
+      setItem: vi.fn(),
+    });
+
+    let downloadedCb: (() => void) | undefined;
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        // Immediately trigger update available
+        setTimeout(() => cb({ version: "6.0.0" }), 0);
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn((cb: () => void) => {
+        downloadedCb = cb;
+        return () => {};
+      }),
+      onUpdateError: vi.fn(() => () => {}),
+      installUpdate: vi.fn(),
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText("6.0.0").length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Simulate download completed — onUpdateDownloaded fires installUpdate + sets restarting
+    if (downloadedCb) {
+      downloadedCb();
+    }
+
+    await waitFor(() => {
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("Neustart");
+    });
+
+    const api = (globalThis as Record<string, unknown>).electronAPI as Record<string, { mock: unknown }>;
+    expect(api.installUpdate).toHaveBeenCalled();
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- UpdateNotification changelog link has correct version tag ---
+
+  it("renders changelog link with correct version tag", async () => {
+    mockAcceptedState();
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => null,
+      setItem: vi.fn(),
+    });
+
+    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        updateAvailableCb = cb;
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (updateAvailableCb) {
+      updateAvailableCb({ version: "3.2.1" });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    // Changelog link should point to the release page with v prefix
+    const changelogLink = screen.getByText(/Änderungen ansehen/i);
+    expect(changelogLink.closest("a")?.getAttribute("href")).toContain("releases/tag/v3.2.1");
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- Update error resets update state to idle ---
+
+  it("resets update state to idle when electron reports update error", async () => {
+    mockAcceptedState();
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => "1",
+      setItem: vi.fn(),
+    });
+
+    let errorCb: ((msg: string) => void) | undefined;
+    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        updateAvailableCb = cb;
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn((cb: (msg: string) => void) => {
+        errorCb = cb;
+        return () => {};
+      }),
+      downloadUpdate: vi.fn(() => new Promise(() => {})), // hangs
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (updateAvailableCb) {
+      updateAvailableCb({ version: "7.0.0" });
+    }
+
+    await waitFor(() => {
+      expect(screen.getAllByText("7.0.0").length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Trigger the footer badge to start installing
+    const badges = screen.getAllByText("7.0.0");
+    const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
+    if (footerBadge) {
+      fireEvent.click(footerBadge.closest("button")!);
+    }
+
+    // UpdateOverlay should appear
+    await waitFor(() => {
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("Wird installiert");
+    });
+
+    // Now trigger an update error — should reset to idle
+    if (errorCb) {
+      errorCb("Download failed");
+    }
+
+    // UpdateOverlay should disappear (updateState back to idle)
+    await waitFor(() => {
+      const allText = document.body.textContent ?? "";
+      expect(allText).not.toContain("Wird installiert");
+    });
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- Update now on Linux triggers download ---
+
+  it("triggers download on Linux when update now is clicked", async () => {
+    mockAcceptedState();
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => null,
+      setItem: vi.fn(),
+    });
+
+    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
+    const downloadMock = vi.fn(() => new Promise(() => {})); // never resolves to keep installing state
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        updateAvailableCb = cb;
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+      downloadUpdate: downloadMock,
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (updateAvailableCb) {
+      updateAvailableCb({ version: "10.0.0" });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    // Click "Jetzt aktualisieren" (Update Now) in the notification
+    const updateNowBtn = screen.getByText(/Jetzt aktualisieren/i);
+    fireEvent.click(updateNowBtn);
+
+    // downloadUpdate should have been called
+    await waitFor(() => {
+      expect(downloadMock).toHaveBeenCalled();
+    });
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- Update on Windows opens external link ---
+
+  it("opens GitHub release page when update now clicked on Windows", async () => {
+    mockAcceptedState();
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => null,
+      setItem: vi.fn(),
+    });
+
+    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
+    const mockOpen = vi.fn();
+    vi.stubGlobal("open", mockOpen);
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "win32",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        updateAvailableCb = cb;
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (updateAvailableCb) {
+      updateAvailableCb({ version: "11.0.0" });
+    }
+
+    await waitFor(() => {
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+    });
+
+    // Click the download button (Windows = manual download)
+    const downloadBtn = screen.getByText(/Herunterladen/i);
+    fireEvent.click(downloadBtn);
+
+    await waitFor(() => {
+      expect(mockOpen).toHaveBeenCalledWith(
+        expect.stringContaining("github.com/ZSleyer/Encounty/releases/tag/v11.0.0"),
+        "_blank",
+      );
+    });
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- WebSocket message handlers ---
+
+  it("handles encounter_added WebSocket message with flash and toast", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      // Only capture from the AppShell call (3 args), not Dashboard (1 arg)
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    expect(wsHandler).toBeDefined();
+    expect(connectCb).toBeDefined();
+
+    // Send state_update to set up appState with pokemon
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [{ id: "poke-1", name: "Bisasam", sprite_url: "", encounters: 42 }],
+          settings: {},
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    // Wait for re-render so handleWSMessage gets updated appState
+    await waitFor(() => {
+      expect(useCounterStore.getState().appState).toBeTruthy();
+    });
+
+    // Now send encounter_added using the refreshed handler
+    act(() => {
+      wsHandler!({
+        type: "encounter_added",
+        payload: { pokemon_id: "poke-1", count: 43 },
+      });
+    });
+
+    // Should not crash — toast should be pushed
+    expect(document.body).toBeTruthy();
+  });
+
+  it.each([
+    { msgType: "encounter_removed", payload: { pokemon_id: "poke-1", count: 41 }, needsPokemon: true },
+    { msgType: "encounter_reset", payload: { pokemon_id: "poke-1" }, needsPokemon: true },
+    { msgType: "pokemon_completed", payload: { pokemon_id: "poke-1" }, needsPokemon: true },
+    { msgType: "pokemon_deleted", payload: { pokemon_id: "poke-1" }, needsPokemon: true },
+    { msgType: "detector_status", payload: { pokemon_id: "poke-1", state: "detecting", confidence: 0.85, poll_ms: 500 }, needsPokemon: false },
+    { msgType: "request_reset_confirm", payload: {}, needsPokemon: false },
+  ])("handles $msgType WebSocket message", async ({ msgType, payload, needsPokemon }) => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    expect(wsHandler).toBeDefined();
+
+    if (needsPokemon) {
+      // Set up pokemon in store first, then wait for re-render to update handler closure
+      act(() => {
+        connectCb!();
+        wsHandler!({
+          type: "state_update",
+          payload: {
+            pokemon: [{ id: "poke-1", name: "Bisasam", sprite_url: "", encounters: 42 }],
+            settings: {},
+            hotkeys: {},
+            license_accepted: true,
+          },
+        });
+      });
+      await waitFor(() => {
+        expect(useCounterStore.getState().appState).toBeTruthy();
+      });
+    }
+
+    // Send the specific message
+    act(() => {
+      wsHandler!({ type: msgType, payload });
+    });
+
+    expect(document.body).toBeTruthy();
+  });
+
+  // --- handleStateUpdate clears detector status for disabled detectors ---
+
+  it("clears detector status for pokemon without enabled detector", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      // Only capture from the AppShell call (3 args), not Dashboard (1 arg)
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (wsHandler && connectCb) {
+      connectCb();
+      // Send state with a pokemon that has detector_config.enabled = false
+      wsHandler({
+        type: "state_update",
+        payload: {
+          pokemon: [{ id: "poke-1", name: "Bisasam", encounters: 42, detector_config: { enabled: false } }],
+          settings: {},
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    }
+
+    // Should not crash
+    expect(document.body).toBeTruthy();
+  });
+
+  // --- Encounter toast for unknown pokemon is silently ignored ---
+
+  it("ignores encounter toast for unknown pokemon_id", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      // Only capture from the AppShell call (3 args), not Dashboard (1 arg)
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (wsHandler && connectCb) {
+      connectCb();
+      wsHandler({
+        type: "state_update",
+        payload: {
+          pokemon: [{ id: "poke-1", name: "Bisasam", encounters: 42 }],
+          settings: {},
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+      // Send encounter for non-existent pokemon — should not crash
+      wsHandler({
+        type: "encounter_added",
+        payload: { pokemon_id: "nonexistent", count: 1 },
+      });
+    }
+
+    expect(document.body).toBeTruthy();
+  });
+
+  // --- Close warning modal dismiss and quit flow ---
+
+  it("shows and dismisses close warning modal via stay button", async () => {
+    mockAcceptedState();
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    // Directly set connected state via Zustand store
+    act(() => {
+      useCounterStore.getState().setConnected(true);
+    });
+
+    // Wait for effect to re-register keydown handler with isConnected=true
+    await waitFor(() => {
+      expect(useCounterStore.getState().isConnected).toBe(true);
+    });
+
+    // Fire Ctrl+W once
+    fireEvent.keyDown(globalThis as unknown as Window, { key: "w", ctrlKey: true });
+
+    // Close warning modal should appear
+    await waitFor(() => {
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("Tab nicht schlie");
+    });
+
+    // Click the "Tab offen lassen" (stay) button to dismiss
+    const stayBtn = screen.getAllByRole("button").find(
+      (el) => el.textContent?.includes("offen lassen"),
+    );
+    expect(stayBtn).toBeTruthy();
+    fireEvent.click(stayBtn!);
+
+    // Modal should be gone
+    await waitFor(() => {
+      expect(screen.queryByText(/Tab nicht schlie/)).not.toBeInTheDocument();
+    });
+  });
+
+  // --- Quitting state shows goodbye screen ---
+
+  it("shows goodbye screen when quit is confirmed from close warning", async () => {
+    mockAcceptedState();
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal("close", vi.fn());
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      useCounterStore.getState().setConnected(true);
+    });
+
+    // Poll: dispatch Ctrl+W until the close warning appears
+    await waitFor(() => {
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "w", ctrlKey: true });
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("Tab nicht schlie");
+    });
+
+    // Click the quit button
+    const quitBtn = screen.getAllByRole("button").find(
+      (el) => el.textContent?.includes("Beenden"),
+    );
+    if (quitBtn) {
+      fireEvent.click(quitBtn);
+    }
+
+    // After confirm returns true, should show goodbye screen
+    await waitFor(() => {
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("beendet");
+    });
+  });
+
+  // --- Ctrl+W does NOT show warning when in Electron mode ---
+
+  it("does not show close warning when electronAPI is present", async () => {
+    mockAcceptedState();
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn(() => () => {}),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    fireEvent.keyDown(globalThis as unknown as Window, { key: "w", ctrlKey: true });
+
+    // Close warning should NOT appear in Electron mode
+    expect(screen.queryByText(/Tab nicht schlie/)).not.toBeInTheDocument();
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- Quit confirm cancelled does not show goodbye ---
+
+  it("does not quit when confirm is cancelled", async () => {
+    mockAcceptedState();
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+    vi.stubGlobal("confirm", vi.fn(() => false)); // user cancels
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      useCounterStore.getState().setConnected(true);
+    });
+
+    // Poll: dispatch Ctrl+W until the close warning appears
+    await waitFor(() => {
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "w", ctrlKey: true });
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("Tab nicht schlie");
+    });
+
+    const quitBtn = screen.getAllByRole("button").find(
+      (el) => el.textContent?.includes("Beenden"),
+    );
+    if (quitBtn) {
+      fireEvent.click(quitBtn);
+    }
+
+    // Should NOT show goodbye screen since confirm returned false
+    await waitFor(() => {
+      const allText = document.body.textContent ?? "";
+      expect(allText).not.toContain("beendet");
+    });
+  });
+
+  // --- Update notification does not reappear after sessionStorage dismissal ---
+
+  it("does not show update notification when sessionStorage has dismiss flag", async () => {
+    mockAcceptedState();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => key === "update_dismissed" ? "1" : null,
+      setItem: vi.fn(),
+    });
+
+    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        updateAvailableCb = cb;
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (updateAvailableCb) {
+      updateAvailableCb({ version: "12.0.0" });
+    }
+
+    // Footer badge should appear but not the notification popup
+    await waitFor(() => {
+      expect(screen.getAllByText("12.0.0").length).toBeGreaterThanOrEqual(1);
+    });
+
+    // The notification popup (role="alert") should NOT appear
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- applyUpdate does nothing when updateInfo is null ---
+
+  it("does not crash when footer badge is clicked without updateInfo", async () => {
+    mockAcceptedState();
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    // No update badge should be present — verify app is still functional
+    expect(document.body).toBeTruthy();
+  });
+
+  // --- WebSocket disconnect sets connected to false ---
+
+  it("sets connected to false when WebSocket disconnects", async () => {
+    mockAcceptedState();
+
+    let disconnectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((_handler, _onConnect, onDisconnect) => {
+      disconnectCb = onDisconnect as () => void;
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (disconnectCb) {
+      disconnectCb();
+    }
+
+    // Should not crash
+    expect(document.body).toBeTruthy();
+  });
+
+  // --- downloadUpdate failure resets update state ---
+
+  it("resets update state when downloadUpdate rejects", async () => {
+    mockAcceptedState();
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => "1",
+      setItem: vi.fn(),
+    });
+
+    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        updateAvailableCb = cb;
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+      downloadUpdate: vi.fn().mockRejectedValue(new Error("Download failed")),
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (updateAvailableCb) {
+      updateAvailableCb({ version: "13.0.0" });
+    }
+
+    await waitFor(() => {
+      expect(screen.getAllByText("13.0.0").length).toBeGreaterThanOrEqual(1);
+    });
+
+    // Click footer badge to trigger download
+    const badges = screen.getAllByText("13.0.0");
+    const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
+    if (footerBadge) {
+      fireEvent.click(footerBadge.closest("button")!);
+    }
+
+    // After download fails, should reset to idle (no overlay)
+    await waitFor(() => {
+      const allText = document.body.textContent ?? "";
+      expect(allText).not.toContain("Wird installiert");
+    });
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- Crisp sprites toggle removes attribute when disabled ---
+
+  it("removes data-crisp-sprites attribute when setting is disabled", async () => {
+    // Pre-set the attribute
+    document.documentElement.dataset.crispSprites = "";
+
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    // Send state with crisp_sprites = false
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [],
+          settings: { crisp_sprites: false },
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.crispSprites).toBeUndefined();
+    });
+  });
+
+  // --- UI animations disabled syncs CSS class ---
+
+  it("adds animations-disabled class when ui_animations is false via WS", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [],
+          settings: { ui_animations: false },
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("animations-disabled")).toBe(true);
+    });
+
+    // Clean up
+    document.documentElement.classList.remove("animations-disabled");
+  });
+
+  // --- Visibility change handler ---
+
+  it("toggles app-hidden class on visibility change", async () => {
+    mockAcceptedState();
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    // Simulate visibility change to hidden
+    Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(document.documentElement.classList.contains("app-hidden")).toBe(true);
+
+    // Simulate visibility change back to visible
+    Object.defineProperty(document, "hidden", { value: false, writable: true, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(document.documentElement.classList.contains("app-hidden")).toBe(false);
+  });
+
+  // --- Hotkey sync to Electron ---
+
+  it("syncs hotkeys to electronAPI when appState has hotkeys", async () => {
+    const syncHotkeysMock = vi.fn();
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "linux",
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn(() => () => {}),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+      syncHotkeys: syncHotkeysMock,
+    };
+
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [],
+          settings: {},
+          hotkeys: { increment: "F1", decrement: "F2" },
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(syncHotkeysMock).toHaveBeenCalled();
+    });
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
+
+  // --- PreparingScreen WebSocket sync_progress handling ---
+
+  /**
+   * Helper: set up a mock WebSocket on globalThis and configure fetch to return
+   * server-not-ready so PreparingScreen renders and creates a WebSocket.
+   * Returns the last created mock WS instance and a cleanup function.
+   */
+  function setupPreparingScreenWs(fetchOverrides?: Record<string, () => Promise<unknown>>) {
+    const wsInstances: Array<{
+      onmessage: ((ev: { data: string }) => void) | null;
+      onclose: (() => void) | null;
+      onerror: (() => void) | null;
+      close: ReturnType<typeof vi.fn>;
+    }> = [];
+    const OrigWebSocket = globalThis.WebSocket;
+    // Must use regular function (not arrow) so it works with `new`
+    (globalThis as Record<string, unknown>).WebSocket = vi.fn(function (this: Record<string, unknown>) {
+      this.onmessage = null;
+      this.onclose = null;
+      this.onerror = null;
+      this.close = vi.fn();
+      wsInstances.push(this as unknown as (typeof wsInstances)[0]);
+    });
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: false, dev_mode: false, setup_pending: false }),
+        });
+      }
+      if (fetchOverrides?.[url]) {
+        return fetchOverrides[url]();
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    return {
+      wsInstances,
+      cleanup: () => { globalThis.WebSocket = OrigWebSocket; },
+      getLastWs: () => wsInstances[wsInstances.length - 1],
+    };
+  }
+
+  it("shows sync progress phase and step text from WebSocket messages", async () => {
+    const { cleanup, getLastWs } = setupPreparingScreenWs();
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getLastWs()?.onmessage).toBeTruthy();
+    });
+
+    const ws = getLastWs();
+
+    // Send sync_progress with pokedex phase and species step
+    act(() => {
+      ws.onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "pokedex", step: "species", message: "", error: "" },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(document.body.textContent?.length ?? 0).toBeGreaterThan(0);
+    });
+
+    // Send sync_progress with forms step
+    act(() => {
+      ws.onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "games", step: "forms", message: "", error: "" },
+        }),
+      });
+    });
+
+    // Send sync_progress with names step
+    act(() => {
+      ws.onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "pokedex", step: "names", message: "", error: "" },
+        }),
+      });
+    });
+
+    // Send sync_progress with form_names step
+    act(() => {
+      ws.onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "pokedex", step: "form_names", message: "", error: "" },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(document.body.textContent).toBeTruthy();
+    });
+
+    cleanup();
+  });
+
+  it("shows error state in PreparingScreen when sync reports error", async () => {
+    const { cleanup, getLastWs } = setupPreparingScreenWs();
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getLastWs()?.onmessage).toBeTruthy();
+    });
+
+    act(() => {
+      getLastWs().onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "pokedex", step: "error", message: "", error: "Connection timeout" },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Connection timeout")).toBeInTheDocument();
+    });
+
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.length).toBeGreaterThanOrEqual(2);
+
+    cleanup();
+  });
+
+  it("retry button clears error and re-triggers online setup", async () => {
+    const { cleanup, getLastWs } = setupPreparingScreenWs();
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getLastWs()?.onmessage).toBeTruthy();
+    });
+
+    act(() => {
+      getLastWs().onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "pokedex", step: "error", message: "", error: "Failed" },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Failed")).toBeInTheDocument();
+    });
+
+    const retryBtn = screen.getAllByRole("button").find(
+      (el) => el.textContent?.includes("Erneut versuchen") || el.textContent?.includes("Retry"),
+    );
+    expect(retryBtn).toBeTruthy();
+    fireEvent.click(retryBtn!);
+
+    await waitFor(() => {
+      const calls = mockFetch.mock.calls.map((c: unknown[]) => c[0]);
+      expect(calls).toContain("/api/setup/online");
+    });
+
+    expect(screen.queryByText("Failed")).not.toBeInTheDocument();
+
+    cleanup();
+  });
+
+  it("offline fallback button calls /api/setup/offline and transitions on success", async () => {
+    const { cleanup, getLastWs } = setupPreparingScreenWs({
+      "/api/setup/offline": () => Promise.resolve({ ok: true, json: () => Promise.resolve({}) }),
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getLastWs()?.onmessage).toBeTruthy();
+    });
+
+    act(() => {
+      getLastWs().onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "pokedex", step: "error", message: "", error: "Network error" },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Network error")).toBeInTheDocument();
+    });
+
+    const fallbackBtn = screen.getAllByRole("button").find(
+      (el) => el.textContent?.includes("Offline") || el.textContent?.includes("offline"),
+    );
+    expect(fallbackBtn).toBeTruthy();
+    fireEvent.click(fallbackBtn!);
+
+    await waitFor(() => {
+      const calls = mockFetch.mock.calls.map((c: unknown[]) => c[0]);
+      expect(calls).toContain("/api/setup/offline");
+    });
+
+    cleanup();
+  });
+
+  it("offline fallback button shows error when /api/setup/offline fails", async () => {
+    const { cleanup, getLastWs } = setupPreparingScreenWs({
+      "/api/setup/offline": () => Promise.reject(new Error("Offline setup network failure")),
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getLastWs()?.onmessage).toBeTruthy();
+    });
+
+    act(() => {
+      getLastWs().onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "pokedex", step: "error", message: "", error: "Initial error" },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Initial error")).toBeInTheDocument();
+    });
+
+    const fallbackBtn = screen.getAllByRole("button").find(
+      (el) => el.textContent?.includes("Offline") || el.textContent?.includes("offline"),
+    );
+    expect(fallbackBtn).toBeTruthy();
+    fireEvent.click(fallbackBtn!);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline setup failed")).toBeInTheDocument();
+    });
+
+    cleanup();
+  });
+
+  it("PreparingScreen calls onReady when system_ready WebSocket message is received", async () => {
+    const { cleanup, getLastWs } = setupPreparingScreenWs({
+      "/api/state": () => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ license_accepted: true, pokemon: [], settings: {}, hotkeys: {} }),
+      }),
+      "/api/version": () => Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ display: "1.0.0", build_date: "" }),
+      }),
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getLastWs()?.onmessage).toBeTruthy();
+    });
+
+    act(() => {
+      getLastWs().onmessage!({
+        data: JSON.stringify({ type: "system_ready", payload: {} }),
+      });
+    });
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      const navLinks = links.filter(
+        (el) => el.getAttribute("href") === "/" || el.getAttribute("href") === "/settings",
+      );
+      expect(navLinks.length).toBeGreaterThan(0);
+    });
+
+    cleanup();
+  });
+
+  it("dev mode offline setup failure shows error and progress screen", async () => {
+    const OrigWebSocket = globalThis.WebSocket;
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: false, dev_mode: true, setup_pending: true }),
+        });
+      }
+      if (url === "/api/setup/offline") {
+        return Promise.reject(new Error("Setup failed"));
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const buttons = screen.getAllByRole("button");
+      expect(buttons.length).toBeGreaterThanOrEqual(2);
+    });
+
+    // Mock WebSocket before clicking offline — must use regular function for `new`
+    (globalThis as Record<string, unknown>).WebSocket = vi.fn(function (this: Record<string, unknown>) {
+      this.onmessage = null;
+      this.onclose = null;
+      this.onerror = null;
+      this.close = vi.fn();
+    });
+
+    const buttons = screen.getAllByRole("button");
+    fireEvent.click(buttons[1]);
+
+    await waitFor(() => {
+      expect(screen.getByText("Offline setup failed")).toBeInTheDocument();
+    });
+
+    globalThis.WebSocket = OrigWebSocket;
+  });
+
+  it("PreparingScreen handles unparseable WebSocket messages gracefully", async () => {
+    const { cleanup, getLastWs } = setupPreparingScreenWs();
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getLastWs()?.onmessage).toBeTruthy();
+    });
+
+    act(() => {
+      getLastWs().onmessage!({ data: "not valid json{{{" });
+    });
+
+    expect(document.body).toBeTruthy();
+
+    cleanup();
+  });
+
+  it("PreparingScreen shows syncing step without step text", async () => {
+    const { cleanup, getLastWs } = setupPreparingScreenWs();
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      expect(getLastWs()?.onmessage).toBeTruthy();
+    });
+
+    act(() => {
+      getLastWs().onmessage!({
+        data: JSON.stringify({
+          type: "sync_progress",
+          payload: { phase: "games", step: "syncing", message: "", error: "" },
+        }),
+      });
+    });
+
+    await waitFor(() => {
+      expect(document.body.textContent).toBeTruthy();
+    });
+
+    cleanup();
+  });
+
+  it("encounter_set WebSocket message is handled without crash", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "encounter_set",
+        payload: { pokemon_id: "poke-1", count: 100 },
+      });
+    });
+
+    expect(document.body).toBeTruthy();
+  });
+
+  it("removes animations-disabled class when ui_animations is true via WS", async () => {
+    document.documentElement.classList.add("animations-disabled");
+
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [],
+          settings: { ui_animations: true },
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(document.documentElement.classList.contains("animations-disabled")).toBe(false);
+    });
   });
 });

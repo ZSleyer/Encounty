@@ -91,13 +91,16 @@ build-darwin: icons
 # games_sync / pokedex        — external PokéAPI HTTP calls
 # detector.go                 — main loop needs screen capture
 # main.go / scripts           — entry points with os.Exit / signal handling
+# sync.go / fallback.go       — PokéAPI sync functions (gamesync + pokedex)
+# permissions.go              — macOS-only permission checks
 GO_COVERAGE_EXCLUDE = manager_linux\.go|manager_windows\.go|manager_darwin\.go|\
 keycodes_linux\.go|keycodes_windows\.go|keycodes_darwin\.go|\
-permissions_darwin\.go|permissions_stub\.go|\
+permissions_darwin\.go|permissions_stub\.go|permissions\.go|\
 capture\.go|sound_unix\.go|sound_windows\.go|\
 reexec_unix\.go|reexec_windows\.go|\
 games_sync\.go|detector\.go|\
 pokedex\.go|browser_detector\.go|\
+gamesync/sync\.go|pokedex/sync\.go|pokedex/fallback\.go|\
 main\.go|scripts/generate_icons\.go
 
 test:

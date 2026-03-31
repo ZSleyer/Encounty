@@ -19,10 +19,7 @@ import {
   XCircle,
   Loader2,
 } from "lucide-react";
-import {
-  WebGPUDetector,
-  type TemplateData,
-} from "../../engine/WebGPUDetector";
+import { WebGPUDetector } from "../../engine/WebGPUDetector";
 import {
   fitDimensions,
   adaptiveBlockSizeForRegion,
@@ -200,6 +197,29 @@ function toGrayscale(
   return gray;
 }
 
+/** Crop and resample a rectangular region from a grayscale buffer. */
+function cropAndResample(
+  src: Float32Array,
+  srcW: number,
+  srcH: number,
+  region: { x: number; y: number; w: number; h: number },
+  dw: number,
+  dh: number,
+): Float32Array {
+  const out = new Float32Array(dw * dh);
+  const sx = region.w / dw;
+  const sy = region.h / dh;
+  for (let y = 0; y < dh; y++) {
+    for (let x = 0; x < dw; x++) {
+      const idx =
+        Math.min(Math.floor(y * sy) + region.y, srcH - 1) * srcW +
+        Math.min(Math.floor(x * sx) + region.x, srcW - 1);
+      out[y * dw + x] = src[idx];
+    }
+  }
+  return out;
+}
+
 /** CPU region scoring matching the vitest approach. */
 function cpuScoreRegion(
   frameGray: Float32Array,
@@ -220,18 +240,11 @@ function cpuScoreRegion(
   const [dw, dh] = fitDimensions(region.w, region.h, 512);
   const bs = adaptiveBlockSizeForRegion(dw, dh);
 
-  // Pre-crop template
-  const tmplCrop = new Float32Array(dw * dh);
-  const tsx = region.w / dw;
-  const tsy = region.h / dh;
-  for (let y = 0; y < dh; y++) {
-    for (let x = 0; x < dw; x++) {
-      const ti =
-        Math.min(Math.floor(y * tsy) + region.y, tmplH - 1) * tmplW +
-        Math.min(Math.floor(x * tsx) + region.x, tmplW - 1);
-      tmplCrop[y * dw + x] = tmplGray[ti];
-    }
-  }
+  const tmplCrop = cropAndResample(
+    tmplGray, tmplW, tmplH,
+    region,
+    dw, dh,
+  );
 
   // Sliding window: try small offsets around region center, keep best
   let bestScore = 0;
@@ -243,17 +256,11 @@ function cpuScoreRegion(
       const frx = Math.max(0, Math.min(baseX + dx, frameW - frw));
       const fry = Math.max(0, Math.min(baseY + dy, frameH - frh));
 
-      const frameCrop = new Float32Array(dw * dh);
-      const fsx = frw / dw;
-      const fsy = frh / dh;
-      for (let y = 0; y < dh; y++) {
-        for (let x = 0; x < dw; x++) {
-          const fi =
-            Math.min(Math.floor(y * fsy) + fry, frameH - 1) * frameW +
-            Math.min(Math.floor(x * fsx) + frx, frameW - 1);
-          frameCrop[y * dw + x] = frameGray[fi];
-        }
-      }
+      const frameCrop = cropAndResample(
+        frameGray, frameW, frameH,
+        { x: frx, y: fry, w: frw, h: frh },
+        dw, dh,
+      );
 
       const hybrid = scoreRegionHybrid(frameCrop, tmplCrop, dw, dh, bs);
       if (hybrid > bestScore) bestScore = hybrid;
@@ -386,6 +393,13 @@ function captureFrame(video: HTMLVideoElement): {
   return { pixels: imageData.data, width: w, height: h };
 }
 
+/** Return a Tailwind text color class based on the delta magnitude. */
+function deltaColor(delta: number): string {
+  if (delta < 0.05) return "text-green-400";
+  if (delta < 0.1) return "text-yellow-400";
+  return "text-red-400";
+}
+
 /** Group test-config entries by template, returning region rects. */
 function buildRegionMap(
   config: TestConfigEntry[],
@@ -412,11 +426,11 @@ function buildRegionMap(
 // Status icon component
 // ---------------------------------------------------------------------------
 
-function StatusIcon({ delta }: { delta: number }): JSX.Element {
+function StatusIcon({ delta }: Readonly<{ delta: number }>): JSX.Element {
   if (delta < 0.05) {
     return <Check className="w-4 h-4 text-green-400" aria-label="Pass" />;
   }
-  if (delta < 0.10) {
+  if (delta < 0.1) {
     return (
       <AlertTriangle
         className="w-4 h-4 text-yellow-400"
@@ -434,7 +448,7 @@ function StatusIcon({ delta }: { delta: number }): JSX.Element {
 /** Dev-only modal for GPU/CPU equivalence testing. */
 export default function GpuEquivalenceTest({
   onClose,
-}: GpuEquivalenceTestProps): JSX.Element {
+}: Readonly<GpuEquivalenceTestProps>): JSX.Element {
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<TestResult[]>([]);
   const [progress, setProgress] = useState<string>("");
@@ -739,9 +753,9 @@ export default function GpuEquivalenceTest({
   const totalTests = results.length;
   const passed = results.filter((r) => r.delta < 0.05).length;
   const warned = results.filter(
-    (r) => r.delta >= 0.05 && r.delta < 0.10,
+    (r) => r.delta >= 0.05 && r.delta < 0.1,
   ).length;
-  const failed = results.filter((r) => r.delta >= 0.10).length;
+  const failed = results.filter((r) => r.delta >= 0.1).length;
   const avgDelta =
     totalTests > 0
       ? results.reduce((sum, r) => sum + r.delta, 0) / totalTests
@@ -750,10 +764,9 @@ export default function GpuEquivalenceTest({
     totalTests > 0 ? Math.max(...results.map((r) => r.delta)) : 0;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      open
+      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center m-0 p-0 border-none max-w-none max-h-none w-full h-full"
       aria-label="GPU Equivalence Test"
     >
       <div className="bg-bg-card rounded-xl border border-border-subtle shadow-xl max-w-4xl w-full max-h-[85vh] flex flex-col">
@@ -775,7 +788,15 @@ export default function GpuEquivalenceTest({
         {/* --- Controls --- */}
         <div className="px-6 py-3 border-b border-border-subtle space-y-3">
           <div className="flex items-center gap-3">
-            {!running ? (
+            {running ? (
+              <button
+                onClick={handleCancel}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+            ) : (
               <button
                 onClick={runTests}
                 disabled={!gpuAvailable || running}
@@ -783,14 +804,6 @@ export default function GpuEquivalenceTest({
               >
                 <Play className="w-4 h-4" />
                 Run Test
-              </button>
-            ) : (
-              <button
-                onClick={handleCancel}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-accent"
-              >
-                <X className="w-4 h-4" />
-                Cancel
               </button>
             )}
 
@@ -914,13 +927,7 @@ export default function GpuEquivalenceTest({
                       {(r.gpuScore * 100).toFixed(2)}%
                     </td>
                     <td
-                      className={`py-1.5 pr-3 text-right ${
-                        r.delta < 0.05
-                          ? "text-green-400"
-                          : r.delta < 0.10
-                            ? "text-yellow-400"
-                            : "text-red-400"
-                      }`}
+                      className={`py-1.5 pr-3 text-right ${deltaColor(r.delta)}`}
                     >
                       {(r.delta * 100).toFixed(2)}%
                     </td>
@@ -934,6 +941,6 @@ export default function GpuEquivalenceTest({
           )}
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

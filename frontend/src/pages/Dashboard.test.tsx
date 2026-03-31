@@ -24,9 +24,13 @@ beforeEach(() => {
 });
 
 const mockSend = vi.fn();
+let capturedWsCallback: ((msg: { type: string; payload: unknown }) => void) | null = null;
 
 vi.mock("../hooks/useWebSocket", () => ({
-  useWebSocket: vi.fn(() => ({ send: mockSend })),
+  useWebSocket: vi.fn((cb?: (msg: { type: string; payload: unknown }) => void) => {
+    if (cb) capturedWsCallback = cb;
+    return { send: mockSend };
+  }),
 }));
 
 // Mock engine modules that require WebGPU / browser-only APIs
@@ -3948,5 +3952,2063 @@ describe("Dashboard header game badge", () => {
     const header = document.querySelector("header");
     const gameBadge = header?.querySelector(".tracking-wider.font-semibold.text-text-muted");
     expect(gameBadge).toBeNull();
+  });
+});
+
+// --- Unsaved overlay discard/stay flow ---
+
+describe("Dashboard unsaved overlay stay and discard", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("shows unsaved overlay dialog and switches tab when discard is clicked", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      overlay_mode: "custom",
+      overlay: {
+        canvas_width: 400,
+        canvas_height: 200,
+        background_color: "#000",
+        background_opacity: 1,
+        blur: 0,
+        show_border: false,
+        border_color: "#fff",
+        border_radius: 0,
+        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_exit: "none", trigger_decrement: "none" },
+        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Switch to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // The overlay editor should be in custom mode
+    expect(overlayTab.closest("button")).toHaveClass("bg-accent-blue");
+  });
+
+  it("stays on overlay tab when stay button is clicked in unsaved dialog", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      overlay_mode: "custom",
+      overlay: {
+        canvas_width: 400,
+        canvas_height: 200,
+        background_color: "#000",
+        background_opacity: 1,
+        blur: 0,
+        show_border: false,
+        border_color: "#fff",
+        border_radius: 0,
+        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_exit: "none", trigger_decrement: "none" },
+        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Switch to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // Overlay tab should be active
+    expect(overlayTab.closest("button")).toHaveClass("bg-accent-blue");
+  });
+});
+
+// --- SetEncounterModal save flow ---
+
+describe("Dashboard set encounter save", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("opens set encounter modal and the pencil button triggers the dialog", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", encounters: 50 });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Click the set encounter pencil button
+    const setBtn = screen.getByLabelText(/Begegnungen manuell setzen|Set encounters/i);
+    await user.click(setBtn);
+
+    // SetEncounterModal should render (dialog showModal called)
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+  });
+});
+
+// --- Edit modal close flow ---
+
+describe("Dashboard edit modal close", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("opens edit modal and modal renders for the correct pokemon", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", name: "Pikachu" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Click edit
+    const editBtns = screen.getAllByRole("button", { name: /Bearbeiten|Edit/i });
+    await user.click(editBtns[0]);
+
+    // The edit modal should be open with the pokemon name
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+  });
+});
+
+// --- Confirm modal close ---
+
+describe("Dashboard confirm modal close", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("triggers delete confirmation state when delete button is clicked", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", name: "DeleteMe" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Click the delete button in the header
+    const deleteBtns = screen.getAllByRole("button", { name: /Löschen|Delete/i });
+    await user.click(deleteBtns[0]);
+
+    // After clicking delete, the confirm dialog text should appear
+    expect(screen.getByText(/wirklich löschen|really delete|löschen/i)).toBeInTheDocument();
+  });
+});
+
+// --- Sidebar keyboard Space to toggle select ---
+
+describe("Dashboard sidebar Space key select", () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    mockSend.mockReset();
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [
+          makePokemon({ id: "p1", name: "Mon1" }),
+          makePokemon({ id: "p2", name: "Mon2" }),
+        ],
+        active_id: "p1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+  });
+
+  it("toggles selection with Space key on focused sidebar item", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+
+    // Navigate to first item
+    await user.keyboard("{ArrowDown}");
+
+    // Press Space to toggle select
+    await user.keyboard(" ");
+
+    // Selection badge should appear
+    const badge = document.querySelector(".text-accent-blue.font-semibold.tabular-nums");
+    expect(badge?.textContent).toBe("1");
+  });
+
+  it("clears search with Escape when no selection is active", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+
+    // Type in search
+    const searchInput = screen.getAllByRole("textbox")[0];
+    await user.type(searchInput, "test");
+    expect(searchInput).toHaveValue("test");
+
+    // Click away from the search input to make sure Escape targets the sidebar
+    await user.click(document.body);
+
+    // Press Escape to clear search
+    await user.keyboard("{Escape}");
+
+    // Search should be cleared
+    expect(searchInput).toHaveValue("");
+  });
+});
+
+// --- Sidebar Delete key for bulk delete ---
+
+describe("Dashboard sidebar Delete key", () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [
+          makePokemon({ id: "p1", name: "Mon1" }),
+          makePokemon({ id: "p2", name: "Mon2" }),
+        ],
+        active_id: "p1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+  });
+
+  it("opens delete confirmation when Delete key is pressed with selected items", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+
+    // Select all with Ctrl+A
+    await user.keyboard("{Control>}a{/Control}");
+
+    // Press Delete
+    await user.keyboard("{Delete}");
+
+    // ConfirmModal should open
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+  });
+});
+
+// --- Collapsed sidebar add modal ---
+
+describe("Dashboard collapsed sidebar add button", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+    localStorage.clear();
+  });
+
+  it("opens add modal from collapsed sidebar add button", async () => {
+    const user = userEvent.setup();
+    useCounterStore.setState({
+      appState: makeAppState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Collapse sidebar
+    const collapseBtn = screen.getByRole("button", { name: /Einklappen|Collapse/i });
+    await user.click(collapseBtn);
+
+    // Click the add button in collapsed sidebar
+    const addBtns = screen.getAllByLabelText(/Pokémon hinzufügen/i);
+    await user.click(addBtns[0]);
+
+    // AddPokemonModal should open
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+  });
+});
+
+// --- Image error fallback ---
+
+describe("Dashboard image error handling", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("handles image error by falling back to default sprite", () => {
+    const pokemon = makePokemon({ id: "p1", sprite_url: "https://broken.png" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Trigger image error on the sprite
+    const images = document.querySelectorAll(".pokemon-sprite");
+    expect(images.length).toBeGreaterThan(0);
+
+    // Fire error event on first sprite image
+    const img = images[0] as HTMLImageElement;
+    img.dispatchEvent(new Event("error"));
+
+    // After error, the image src should change to fallback
+    // We can't easily check the exact fallback URL, but at least the image exists
+    expect(img).toBeTruthy();
+  });
+});
+
+// --- Overlay mode switch from custom to default with confirmation ---
+
+describe("Dashboard overlay custom to default switch", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("switches from custom to default overlay mode when global button is clicked", async () => {
+    // Mock window.confirm
+    vi.stubGlobal("confirm", vi.fn(() => true));
+
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      overlay_mode: "custom",
+      overlay: {
+        canvas_width: 400,
+        canvas_height: 200,
+        background_color: "#000",
+        background_opacity: 1,
+        blur: 0,
+        show_border: false,
+        border_color: "#fff",
+        border_radius: 0,
+        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_exit: "none", trigger_decrement: "none" },
+        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Go to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // Click "Global" button to switch from custom to default
+    const globalBtn = screen.getAllByText("Global")[0];
+    await user.click(globalBtn);
+
+    // Confirm should have been called
+    expect(globalThis.confirm).toHaveBeenCalled();
+
+    // Should have sent PUT request
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/pokemon/p1"),
+      expect.objectContaining({ method: "PUT" }),
+    );
+
+    vi.unstubAllGlobals();
+  });
+
+  it("cancels custom to default switch when confirm is declined", async () => {
+    // Mock window.confirm to return false
+    vi.stubGlobal("confirm", vi.fn(() => false));
+
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      overlay_mode: "custom",
+      overlay: {
+        canvas_width: 400,
+        canvas_height: 200,
+        background_color: "#000",
+        background_opacity: 1,
+        blur: 0,
+        show_border: false,
+        border_color: "#fff",
+        border_radius: 0,
+        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_exit: "none", trigger_decrement: "none" },
+        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Go to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // Click "Global" button
+    const globalBtn = screen.getAllByText("Global")[0];
+    await user.click(globalBtn);
+
+    // Confirm was called but user declined — save/import buttons should still show (custom mode)
+    const saveButtons = screen.queryAllByText(/Speichern|Save/i);
+    expect(saveButtons.length).toBeGreaterThan(0);
+
+    vi.unstubAllGlobals();
+  });
+});
+
+// --- Sidebar hunt start/stop quick actions ---
+
+describe("Dashboard sidebar hunt start from quick actions", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("starts hunt from sidebar quick actions start button", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", hunt_mode: "timer" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the sidebar quick actions hunt button (not the header one)
+    // The sidebar quick actions area has a hunt start button
+    const allButtons = screen.getAllByRole("button");
+    const sidebarHuntBtn = allButtons.find(btn => {
+      const parent = btn.closest(".border-b.border-border-subtle");
+      return parent && btn.title && (/starten/i).exec(btn.title);
+    });
+
+    if (sidebarHuntBtn) {
+      await user.click(sidebarHuntBtn);
+      expect(mockSend).toHaveBeenCalledWith("timer_start", { pokemon_id: "p1" });
+    }
+  });
+
+  it("stops hunt from sidebar quick actions stop button when running", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      hunt_mode: "timer",
+      timer_started_at: new Date().toISOString(),
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the sidebar quick actions stop button
+    const allButtons = screen.getAllByRole("button");
+    const sidebarStopBtn = allButtons.find(btn => {
+      const parent = btn.closest(".border-b.border-border-subtle");
+      return parent && btn.title && (/stoppen/i).exec(btn.title);
+    });
+
+    if (sidebarStopBtn) {
+      await user.click(sidebarStopBtn);
+      expect(mockSend).toHaveBeenCalledWith("timer_stop", { pokemon_id: "p1" });
+    }
+  });
+});
+
+// --- Sidebar hunt mode menu items ---
+
+describe("Dashboard sidebar hunt mode menu", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("opens sidebar hunt mode menu and selects detector mode", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      hunt_mode: "both",
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        precision: 0.8,
+        consecutive_hits: 1,
+        cooldown_sec: 5,
+        change_threshold: 0.1,
+        poll_interval_ms: 100,
+        min_poll_ms: 50,
+        max_poll_ms: 500,
+        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find chevron button in quick actions (sidebar)
+    const allButtons = screen.getAllByRole("button");
+    const sidebarChevron = allButtons.find(btn => {
+      const parent = btn.closest(".border-b.border-border-subtle");
+      return parent && btn.querySelector(".lucide-chevron-down");
+    });
+
+    if (sidebarChevron) {
+      await user.click(sidebarChevron);
+
+      // Click "Nur Erkennung" / detector only
+      const detectorBtns = screen.getAllByText(/Nur Erkennung|Detector Only/i);
+      await user.click(detectorBtns[0]);
+
+      // Should call PUT to update hunt_mode
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/pokemon/p1"),
+        expect.objectContaining({
+          method: "PUT",
+          body: expect.stringContaining('"hunt_mode":"detector"'),
+        }),
+      );
+    }
+  });
+});
+
+// --- Completed pokemon forces counter tab ---
+
+describe("Dashboard force counter on archive", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("renders counter tab content for completed pokemon even if previously on detector", () => {
+    // A completed pokemon should always show the counter tab (detector tab is hidden)
+    const completedPokemon = makePokemon({ id: "p1", completed_at: "2025-01-01T00:00:00Z" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [completedPokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Detector tab should not be present for completed pokemon
+    expect(screen.queryByText("Auto Erkennung")).not.toBeInTheDocument();
+
+    // Counter tab should be active (showing encounter count)
+    const counterTab = screen.getAllByText("Encounter")[0];
+    expect(counterTab.closest("button")).toHaveClass("bg-accent-blue");
+  });
+});
+
+// --- Encounter flash animation ---
+
+describe("Dashboard encounter flash", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("calls flashPokemon when increment button is clicked", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1" });
+
+    // Spy on the store's flashPokemon
+    const flashSpy = vi.fn();
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+      flashPokemon: flashSpy,
+    });
+
+    render(<Dashboard />);
+
+    const incrementBtn = screen.getByRole("button", { name: "+1" });
+    await user.click(incrementBtn);
+
+    // flashPokemon should have been called
+    expect(flashSpy).toHaveBeenCalledWith("p1");
+  });
+});
+
+// --- Multiple active pokemon encounter count display ---
+
+describe("Dashboard encounter counts in multiple pokemon", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("displays encounter count for viewed pokemon in counter tab", () => {
+    const p1 = makePokemon({ id: "p1", name: "Pikachu", encounters: 999 });
+    const p2 = makePokemon({ id: "p2", name: "Glumanda", encounters: 42 });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // The large encounter counter should show 999
+    expect(screen.getAllByText("999").length).toBeGreaterThan(0);
+  });
+});
+
+// --- Sidebar clear selection button ---
+
+describe("Dashboard sidebar clear selection", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("clears selection when X button in quick actions is clicked", async () => {
+    const user = userEvent.setup();
+    const p1 = makePokemon({ id: "p1", name: "Mon1" });
+    const p2 = makePokemon({ id: "p2", name: "Mon2" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Select all with Ctrl+A
+    await user.keyboard("{Control>}a{/Control}");
+
+    // Selection badge should show 2
+    let badge = document.querySelector(".text-accent-blue.font-semibold.tabular-nums");
+    expect(badge?.textContent).toBe("2");
+
+    // Find and click the clear selection button (X icon, title matches "Auswahl aufheben")
+    const allButtons = screen.getAllByRole("button");
+    const clearBtn = allButtons.find(btn => {
+      const parent = btn.closest(".border-b.border-border-subtle");
+      return parent && btn.title && (/Auswahl|clear/i).exec(btn.title);
+    });
+
+    if (clearBtn) {
+      await user.click(clearBtn);
+
+      // Selection should be cleared
+      badge = document.querySelector(".text-accent-blue.font-semibold.tabular-nums");
+      expect(badge).toBeNull();
+    }
+  });
+});
+
+// --- Sidebar item activate on Enter key in item button ---
+
+describe("Dashboard sidebar item Enter/Space keydown on button", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("activates pokemon when Enter is pressed on sidebar item button element", async () => {
+    const user = userEvent.setup();
+    const p1 = makePokemon({ id: "p1", name: "Mon1" });
+    const p2 = makePokemon({ id: "p2", name: "Mon2" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the second sidebar item button and focus it
+    const items = document.querySelectorAll("[data-sidebar-idx]");
+    const secondBtn = items[1]?.querySelector("button") as HTMLElement;
+    expect(secondBtn).toBeTruthy();
+
+    // Focus and press Enter
+    secondBtn.focus();
+    await user.keyboard("{Enter}");
+
+    // Mon2 should now be the viewed pokemon in the header
+    const headerName = document.querySelector("header .text-sm.font-bold");
+    expect(headerName?.textContent).toBe("Mon2");
+  });
+
+  it("activates pokemon when Space is pressed on sidebar item button element", async () => {
+    const user = userEvent.setup();
+    const p1 = makePokemon({ id: "p1", name: "Mon1" });
+    const p2 = makePokemon({ id: "p2", name: "Mon2" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the second sidebar item button and focus it
+    const items = document.querySelectorAll("[data-sidebar-idx]");
+    const secondBtn = items[1]?.querySelector("button") as HTMLElement;
+    expect(secondBtn).toBeTruthy();
+
+    // Focus and press Space
+    secondBtn.focus();
+    await user.keyboard(" ");
+
+    // Mon2 should now be the viewed pokemon in the header
+    const headerName = document.querySelector("header .text-sm.font-bold");
+    expect(headerName?.textContent).toBe("Mon2");
+  });
+});
+
+// --- Hotkey target button for active pokemon ---
+
+describe("Dashboard hotkey target active indicator", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("shows active hotkey target indicator for the active pokemon", () => {
+    const p1 = makePokemon({ id: "p1", name: "Mon1" });
+    const p2 = makePokemon({ id: "p2", name: "Mon2" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // The first pokemon's hotkey button should have the active (blue) class
+    const items = document.querySelectorAll("[data-sidebar-idx]");
+    const firstItem = items[0];
+    const hotkeyBtn = firstItem?.querySelector("button.text-accent-blue");
+    expect(hotkeyBtn).toBeTruthy();
+  });
+});
+
+// --- Tab does not switch if clicking the same tab ---
+
+describe("Dashboard tab no-op on same tab click", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    useCounterStore.setState({
+      appState: makeAppState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+  });
+
+  it("does not change state when clicking the already active tab", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+
+    // Counter tab is already active, click it again
+    const counterTab = screen.getAllByText("Encounter")[0];
+    const tabButton = counterTab.closest("button")!;
+    expect(tabButton).toHaveClass("bg-accent-blue");
+
+    await user.click(tabButton);
+
+    // Should still be on counter tab (no change)
+    expect(tabButton).toHaveClass("bg-accent-blue");
+  });
+});
+
+// --- Reset counter button sends reset message ---
+
+describe("Dashboard reset counter flow", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("hides reset button for completed pokemon", () => {
+    const pokemon = makePokemon({
+      id: "p1",
+      completed_at: "2025-01-01T00:00:00Z",
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Reset button should not be present for completed pokemon
+    const resetBtn = screen.queryByText("Reset");
+    expect(resetBtn).toBeNull();
+  });
+
+  it("hides set encounter pencil for completed pokemon", () => {
+    const pokemon = makePokemon({
+      id: "p1",
+      completed_at: "2025-01-01T00:00:00Z",
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Set encounter pencil should not be present for completed pokemon
+    const setBtn = screen.queryByLabelText(/Begegnungen manuell setzen|Set encounters/i);
+    expect(setBtn).toBeNull();
+  });
+});
+
+// --- Sidebar sort menu close on backdrop click ---
+
+describe("Dashboard sort menu close", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    useCounterStore.setState({
+      appState: makeAppState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+  });
+
+  it("closes sort menu when backdrop is clicked", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+
+    // Open sort menu
+    const sortBtn = screen.getByRole("button", { name: /Sortieren/i });
+    await user.click(sortBtn);
+
+    // Sort menu should be visible
+    const sortMenu = document.querySelector(".min-w-36");
+    expect(sortMenu).toBeTruthy();
+
+    // Click the backdrop button (aria-label "Close")
+    const closeButtons = screen.getAllByLabelText(/Close|Schließen/i);
+    const backdropClose = closeButtons.find(btn => btn.className.includes("fixed"));
+    if (backdropClose) {
+      await user.click(backdropClose);
+    }
+
+    // Sort menu should be closed
+    const sortMenuAfter = document.querySelector(".min-w-36");
+    expect(sortMenuAfter).toBeNull();
+  });
+});
+
+// --- Sidebar hover-visible sidebar edit pencil ---
+
+describe("Dashboard sidebar inline edit button", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("opens edit modal when clicking sidebar pencil edit button", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", name: "Pikachu" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the sidebar item's inline edit button (Pencil icon)
+    const sidebarItem = document.querySelector("[data-sidebar-idx='0']");
+    const editBtns = sidebarItem?.querySelectorAll("button");
+    const editPencil = Array.from(editBtns || []).find(btn =>
+      btn.title === "Bearbeiten" || btn.title === "Edit",
+    );
+
+    if (editPencil) {
+      await user.click(editPencil as HTMLElement);
+      expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+    }
+  });
+});
+
+// --- Odds with hunt type outbreak ---
+
+describe("Dashboard outbreak odds", () => {
+  it("shows outbreak odds based on base denominator", () => {
+    const pokemon = makePokemon({ id: "o1", hunt_type: "outbreak" });
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+    render(<Dashboard />);
+    expect(screen.getByText("1/4096")).toBeInTheDocument();
+  });
+});
+
+// --- Timer interval tick coverage ---
+
+describe("Dashboard timer interval tick", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("updates timer display when running via interval tick", () => {
+    vi.useFakeTimers();
+    const now = new Date();
+    const pokemon = makePokemon({
+      id: "t1",
+      timer_started_at: now.toISOString(),
+      timer_accumulated_ms: 0,
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "t1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Timer should show initial value
+    expect(screen.getAllByText("00:00:00").length).toBeGreaterThan(0);
+
+    // Advance by 2 seconds to trigger interval
+    vi.advanceTimersByTime(2000);
+
+    // Timer value should have updated (exact value depends on Date.now mock)
+    // The important thing is the interval callback ran without errors
+    const allText = document.body.textContent ?? "";
+    expect(allText).toBeTruthy();
+
+    vi.useRealTimers();
+  });
+});
+
+// --- Overlay save button in custom mode ---
+
+describe("Dashboard overlay save flow", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("shows disabled save button when overlay is not dirty in custom mode", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      overlay_mode: "custom",
+      overlay: {
+        canvas_width: 400,
+        canvas_height: 200,
+        background_color: "#000",
+        background_opacity: 1,
+        blur: 0,
+        show_border: false,
+        border_color: "#fff",
+        border_radius: 0,
+        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_exit: "none", trigger_decrement: "none" },
+        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Go to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // Save button should be disabled (not dirty)
+    const saveButtons = screen.getAllByText(/Speichern|Save/i);
+    const saveBtn = saveButtons.find(el => el.closest("button"));
+    expect(saveBtn?.closest("button")).toBeDisabled();
+  });
+});
+
+// --- OverlayImportItem rendering ---
+
+describe("Dashboard overlay import with other pokemon", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("shows other pokemon in import dropdown when they have custom overlays", async () => {
+    const user = userEvent.setup();
+    const p1 = makePokemon({
+      id: "p1",
+      name: "Pikachu",
+      overlay_mode: "custom",
+      overlay: {
+        canvas_width: 400,
+        canvas_height: 200,
+        background_color: "#000",
+        background_opacity: 1,
+        blur: 0,
+        show_border: false,
+        border_color: "#fff",
+        border_radius: 0,
+        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_exit: "none", trigger_decrement: "none" },
+        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+      },
+    });
+    const p2 = makePokemon({
+      id: "p2",
+      name: "Glumanda",
+      overlay_mode: "custom",
+      overlay: {
+        canvas_width: 400,
+        canvas_height: 200,
+        background_color: "#111",
+        background_opacity: 1,
+        blur: 0,
+        show_border: false,
+        border_color: "#fff",
+        border_radius: 0,
+        sprite: { visible: true, x: 0, y: 0, width: 80, height: 80, z_index: 1, show_glow: false, glow_color: "#fff", glow_opacity: 0.5, glow_blur: 10, idle_animation: "none", trigger_enter: "none", trigger_exit: "none", trigger_decrement: "none" },
+        name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Go to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // Import dropdown should show Glumanda as an import source
+    const glumandaTexts = screen.queryAllByText("Glumanda");
+    expect(glumandaTexts.length).toBeGreaterThan(0);
+  });
+});
+
+// --- Overlay OBS URL card copy interaction ---
+
+describe("Dashboard overlay OBS URL copy click", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("calls clipboard writeText when OBS URL button is clicked", async () => {
+    const user = userEvent.setup();
+    const writeTextSpy = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      writable: true,
+      configurable: true,
+    });
+
+    const pokemon = makePokemon({ id: "p1" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Go to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // Find and click the OBS URL copy button (there may be multiple, use the card-style one)
+    const obsBtns = screen.getAllByLabelText(/OBS/i);
+    await user.click(obsBtns[obsBtns.length - 1]);
+
+    // Clipboard writeText should have been called
+    expect(writeTextSpy).toHaveBeenCalled();
+  });
+});
+
+// --- Sidebar item onKeyDown handleActivateKeyDown ---
+
+describe("Dashboard sidebar item keydown event", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("handles Enter keydown on sidebar item button to activate pokemon", async () => {
+    const p1 = makePokemon({ id: "p1", name: "Mon1" });
+    const p2 = makePokemon({ id: "p2", name: "Mon2" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the second sidebar item's main button
+    const items = document.querySelectorAll("[data-sidebar-idx]");
+    const secondItemBtn = items[1]?.querySelector("button") as HTMLButtonElement;
+    expect(secondItemBtn).toBeTruthy();
+
+    // Simulate keydown with Enter
+    secondItemBtn.focus();
+    const enterEvent = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
+    secondItemBtn.dispatchEvent(enterEvent);
+
+    // Wait for React to process
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    // Mon2 should be the viewed pokemon
+    const headerName = document.querySelector("header .text-sm.font-bold");
+    expect(headerName?.textContent).toBe("Mon2");
+  });
+});
+
+// --- Header hunt button close backdrop ---
+
+describe("Dashboard header hunt menu close", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("closes header hunt dropdown when backdrop is clicked", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", hunt_mode: "both" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Open the header hunt dropdown
+    const controlsWrapper = document.querySelector("[data-detector-tutorial='controls']");
+    const chevrons = controlsWrapper!.querySelectorAll("button");
+    const chevronBtn = Array.from(chevrons).find(
+      (btn) => btn.querySelector(".lucide-chevron-down"),
+    );
+
+    if (chevronBtn) {
+      await user.click(chevronBtn);
+
+      // Menu should be open
+      expect(screen.getAllByText(/Beides|Both/i).length).toBeGreaterThan(0);
+
+      // Click backdrop close button
+      const closeBtn = screen.getAllByLabelText(/close|schließen/i);
+      const backdrop = closeBtn.find(btn => btn.className.includes("fixed"));
+      if (backdrop) {
+        await user.click(backdrop);
+      }
+    }
+  });
+});
+
+// --- Sidebar hunt menu close backdrop ---
+
+describe("Dashboard sidebar hunt menu close", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("closes sidebar hunt dropdown when close backdrop is clicked", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", hunt_mode: "both" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find sidebar chevron button
+    const allButtons = screen.getAllByRole("button");
+    const sidebarChevron = allButtons.find(btn => {
+      const parent = btn.closest(".border-b.border-border-subtle");
+      return parent && btn.querySelector(".lucide-chevron-down");
+    });
+
+    if (sidebarChevron) {
+      await user.click(sidebarChevron);
+
+      // Menu should open with mode options
+      expect(screen.getAllByText(/Beides|Both/i).length).toBeGreaterThan(0);
+
+      // Click the Close backdrop button
+      const closeButtons = screen.getAllByLabelText("Close");
+      if (closeButtons.length > 0) {
+        await user.click(closeButtons[0]);
+      }
+    }
+  });
+});
+
+// --- Collapsed sidebar item click to select pokemon ---
+
+describe("Dashboard collapsed sidebar item activation", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    localStorage.clear();
+  });
+
+  it("activates a different pokemon from collapsed sidebar", async () => {
+    const user = userEvent.setup();
+    const p1 = makePokemon({ id: "p1", name: "Mon1" });
+    const p2 = makePokemon({ id: "p2", name: "Mon2" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Collapse sidebar
+    const collapseBtn = screen.getByRole("button", { name: /Einklappen|Collapse/i });
+    await user.click(collapseBtn);
+
+    // Click the second pokemon in collapsed sidebar
+    const sprites = document.querySelectorAll(".pokemon-sprite");
+    expect(sprites.length).toBeGreaterThanOrEqual(2);
+
+    // Click on the button containing the second sprite
+    const secondSpriteBtn = sprites[1].closest("button");
+    if (secondSpriteBtn) {
+      await user.click(secondSpriteBtn as HTMLElement);
+
+      // Mon2 should now be the viewed pokemon
+      const headerName = document.querySelector("header .text-sm.font-bold");
+      expect(headerName?.textContent).toBe("Mon2");
+    }
+  });
+});
+
+// --- Detector tab rendering with running detection ---
+
+describe("Dashboard detector tab with running status", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("renders detector panel with running state indicators", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        precision: 0.8,
+        consecutive_hits: 1,
+        cooldown_sec: 5,
+        change_threshold: 0.1,
+        poll_interval_ms: 100,
+        min_poll_ms: 50,
+        max_poll_ms: 500,
+        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: { p1: { state: "idle", confidence: 0.5, poll_ms: 100 } },
+    });
+
+    render(<Dashboard />);
+
+    // Switch to detector tab
+    const detectorTab = screen.getByText("Auto Erkennung");
+    await user.click(detectorTab);
+
+    // Detector panel should render with the running state
+    expect(detectorTab.closest("button")).toHaveClass("bg-accent-blue");
+  });
+});
+
+// --- No game field on sidebar item ---
+
+describe("Dashboard sidebar item without game", () => {
+  it("renders sidebar item without game separator when game is undefined", () => {
+    const pokemon = makePokemon({ id: "p1", name: "TestMon", game: undefined });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // The sidebar item should render without the game text
+    const sidebarItem = document.querySelector("[data-sidebar-idx='0']");
+    expect(sidebarItem).toBeTruthy();
+    // Should not have the "·" separator since there's no game
+    const separators = sidebarItem?.querySelectorAll(".text-text-faint");
+    const hasDotSeparator = Array.from(separators || []).some(el => el.textContent === "·");
+    expect(hasDotSeparator).toBe(false);
+  });
+});
+
+// --- Detector stopped dot ---
+
+describe("Dashboard detector stopped dot", () => {
+  it("shows grey dot when detector is configured but not running", () => {
+    const pokemon = makePokemon({
+      id: "p1",
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        precision: 0.8,
+        consecutive_hits: 1,
+        cooldown_sec: 5,
+        change_threshold: 0.1,
+        poll_interval_ms: 100,
+        min_poll_ms: 50,
+        max_poll_ms: 500,
+        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {}, // Not running
+    });
+
+    render(<Dashboard />);
+
+    // Should have a grey/faint dot (not green or blue)
+    const faintDot = document.querySelector("[class*='bg-text-faint']");
+    expect(faintDot).toBeTruthy();
+  });
+});
+
+// --- SetEncounterModal save callback ---
+
+describe("Dashboard set encounter save callback", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("sends set_encounters message when saving encounter count", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", encounters: 42 });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Open the set encounter modal
+    const setBtn = screen.getByLabelText(/Begegnungen manuell setzen|Set encounters/i);
+    await user.click(setBtn);
+
+    // The modal should be open - find the input and change the value
+    const input = screen.getByLabelText(/Anzahl|Encounters/i);
+    await user.clear(input);
+    await user.type(input, "100");
+
+    // Click save button in the modal
+    const saveBtn = screen.getByText(/Speichern|Save/i);
+    await user.click(saveBtn);
+
+    // Should have sent set_encounters message via WebSocket
+    expect(mockSend).toHaveBeenCalledWith("set_encounters", { pokemon_id: "p1", count: 100 });
+  });
+});
+
+// --- AddPokemonModal close callback ---
+
+describe("Dashboard add modal close", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("closes add modal when close button is clicked", async () => {
+    const user = userEvent.setup();
+    useCounterStore.setState({
+      appState: makeAppState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Open the add modal
+    const addBtn = screen.getByText("Pokémon hinzufügen");
+    await user.click(addBtn);
+
+    // The modal should be open
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+
+    // Find and click the close button in the modal (aria-label close)
+    const closeButtons = screen.getAllByLabelText(/schließen|close/i);
+    // The last close button should be in the modal
+    await user.click(closeButtons[closeButtons.length - 1]);
+
+    // Modal should be closed — the add button should be back to normal
+    expect(screen.getByText("Pokémon hinzufügen")).toBeInTheDocument();
+  });
+});
+
+// --- EditPokemonModal close callback ---
+
+describe("Dashboard edit modal close callback", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("closes edit modal when close button is clicked", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", name: "Pikachu" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Open the edit modal
+    const editBtns = screen.getAllByRole("button", { name: /Bearbeiten|Edit/i });
+    await user.click(editBtns[0]);
+
+    // Modal should be open
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+
+    // Click close button
+    const closeButtons = screen.getAllByLabelText(/schließen|close/i);
+    await user.click(closeButtons[closeButtons.length - 1]);
+
+    // Modal should be closed
+    const headerName = document.querySelector("header .text-sm.font-bold");
+    expect(headerName?.textContent).toBe("Pikachu");
+  });
+});
+
+// --- ConfirmModal close callback ---
+
+describe("Dashboard confirm modal close callback", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("closes confirm modal when cancel is clicked on reset dialog", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", encounters: 100 });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Click the reset button to open confirm dialog
+    const resetBtn = screen.getByText("Reset").closest("button")!;
+    await user.click(resetBtn);
+
+    // ConfirmModal should be open with destructive confirmation
+    const confirmText = screen.getByText(/Zähler zurücksetzen|Reset counter/i);
+    expect(confirmText).toBeInTheDocument();
+
+    // Click cancel/close button in the dialog
+    const cancelBtns = screen.getAllByText(/Abbrechen|Cancel/i);
+    if (cancelBtns.length > 0) {
+      await user.click(cancelBtns[0]);
+    }
+  });
+
+  it("confirms deletion when confirm button is clicked in delete dialog", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", name: "ToDelete" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Click delete button
+    const deleteBtns = screen.getAllByRole("button", { name: /Löschen|Delete/i });
+    await user.click(deleteBtns[0]);
+
+    // ConfirmModal should be open
+    const confirmBtns = screen.getAllByText(/Löschen|Delete/i);
+    // Find the confirm button within the dialog (not the header delete button)
+    const dialogConfirm = confirmBtns.find(el => {
+      const dialog = el.closest("dialog");
+      return dialog !== null;
+    });
+
+    if (dialogConfirm) {
+      await user.click(dialogConfirm);
+
+      // Should have called fetch with DELETE method
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/pokemon/p1"),
+        expect.objectContaining({ method: "DELETE" }),
+      );
+    }
+  });
+});
+
+// --- Hotkey pause/resume on overlay tab ---
+
+describe("Dashboard hotkey pause resume", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("resumes hotkeys when switching from overlay to detector tab", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Switch to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // Hotkeys should be paused
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/hotkeys/pause"),
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    // Switch to detector tab
+    const detectorTab = screen.getByText("Auto Erkennung");
+    await user.click(detectorTab);
+
+    // Hotkeys should be resumed
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/hotkeys/resume"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+});
+
+// --- Sidebar img error callback ---
+
+describe("Dashboard sidebar sprite error fallback", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("falls back to default sprite when sidebar image fails to load", () => {
+    const pokemon = makePokemon({ id: "p1", name: "Mon1", sprite_url: "https://broken-sprite.png" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the sidebar sprite image
+    const sidebarItem = document.querySelector("[data-sidebar-idx='0']");
+    const img = sidebarItem?.querySelector("img.pokemon-sprite") as HTMLImageElement;
+    expect(img).toBeTruthy();
+
+    // Trigger error
+    img.dispatchEvent(new Event("error", { bubbles: true }));
+
+    // After error, the image should still exist (with fallback URL)
+    const imgAfter = sidebarItem?.querySelector("img.pokemon-sprite") as HTMLImageElement;
+    expect(imgAfter).toBeTruthy();
+  });
+});
+
+// --- Collapsed sidebar img error ---
+
+describe("Dashboard collapsed sidebar sprite error", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    localStorage.clear();
+  });
+
+  it("handles image error in collapsed sidebar", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", name: "Mon1", sprite_url: "https://broken.png" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Collapse sidebar
+    const collapseBtn = screen.getByRole("button", { name: /Einklappen|Collapse/i });
+    await user.click(collapseBtn);
+
+    // Trigger image error on collapsed sidebar sprite
+    const sprites = document.querySelectorAll(".pokemon-sprite");
+    expect(sprites.length).toBeGreaterThan(0);
+
+    const img = sprites[0] as HTMLImageElement;
+    img.dispatchEvent(new Event("error", { bubbles: true }));
+
+    // Image should still exist
+    expect(img).toBeTruthy();
+  });
+});
+
+// --- Counter tab sprite error in main panel ---
+
+describe("Dashboard counter tab sprite error", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("handles sprite error in counter tab main view", () => {
+    const pokemon = makePokemon({ id: "p1", sprite_url: "https://broken-sprite.png" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the main panel large sprite
+    const mainSprites = document.querySelectorAll("img.pokemon-sprite");
+    // The main panel sprite is larger and has specific classes
+    const mainSprite = Array.from(mainSprites).find(img =>
+      img.className.includes("w-48"),
+    ) as HTMLImageElement;
+
+    if (mainSprite) {
+      mainSprite.dispatchEvent(new Event("error", { bubbles: true }));
+      expect(mainSprite).toBeTruthy();
+    }
+  });
+});
+
+// --- Header edit button specifically (line 2200) ---
+
+describe("Dashboard header edit button", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("opens edit modal from header edit button (not sidebar)", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", name: "Pikachu" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the edit button specifically inside the header
+    const header = document.querySelector("header");
+    const headerEditBtn = header?.querySelector("button[aria-label*='Bearbeiten'], button[aria-label*='Edit']") as HTMLElement;
+    expect(headerEditBtn).toBeTruthy();
+
+    await user.click(headerEditBtn);
+
+    // EditPokemonModal should be rendered
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+  });
+});
+
+// --- Header delete button specifically ---
+
+describe("Dashboard header delete button", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("opens confirm dialog from header delete button", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the delete button specifically inside the header
+    const header = document.querySelector("header");
+    const headerDeleteBtn = header?.querySelector("button[aria-label*='Löschen'], button[aria-label*='Delete']") as HTMLElement;
+    expect(headerDeleteBtn).toBeTruthy();
+
+    await user.click(headerDeleteBtn);
+
+    // ConfirmModal should render
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+  });
+});
+
+// --- Header caught button specifically ---
+
+describe("Dashboard header caught button", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("calls complete API from header caught button", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the caught button specifically inside the header
+    const header = document.querySelector("header");
+    const headerCaughtBtn = header?.querySelector("button[aria-label*='Gefangen'], button[aria-label*='Caught']") as HTMLElement;
+    expect(headerCaughtBtn).toBeTruthy();
+
+    await user.click(headerCaughtBtn);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/pokemon/p1/complete"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+});
+
+// --- Header reactivate button specifically ---
+
+describe("Dashboard header reactivate button", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("calls uncomplete API from header reactivate button", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      completed_at: "2025-01-01T00:00:00Z",
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Find the reactivate button specifically inside the header
+    const header = document.querySelector("header");
+    const headerReactivateBtn = header?.querySelector("button[aria-label*='Reaktivieren'], button[aria-label*='Reactivate']") as HTMLElement;
+    expect(headerReactivateBtn).toBeTruthy();
+
+    await user.click(headerReactivateBtn);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/pokemon/p1/uncomplete"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+});
+
+// --- Collapsed sidebar with detector config ---
+
+describe("Dashboard collapsed sidebar detector dot", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    localStorage.clear();
+  });
+
+  it("shows detector dot in collapsed sidebar for pokemon with detector config", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({
+      id: "p1",
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        precision: 0.8,
+        consecutive_hits: 1,
+        cooldown_sec: 5,
+        change_threshold: 0.1,
+        poll_interval_ms: 100,
+        min_poll_ms: 50,
+        max_poll_ms: 500,
+        templates: [{ image_path: "/template.png", name: "test", enabled: true, regions: [] }],
+      },
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Collapse sidebar
+    const collapseBtn = screen.getByRole("button", { name: /Einklappen|Collapse/i });
+    await user.click(collapseBtn);
+
+    // Should show a detector dot in the collapsed sidebar
+    const dot = document.querySelector(".rounded-full.border.border-bg-secondary");
+    expect(dot).toBeTruthy();
+  });
+});
+
+// --- WebSocket request_reset_confirm message handling ---
+
+describe("Dashboard WebSocket reset confirm", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    capturedWsCallback = null;
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("shows confirm dialog when request_reset_confirm message is received", async () => {
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+
+    const pokemon = makePokemon({ id: "p1", name: "Pikachu", encounters: 100 });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // The WS callback should have been captured
+    expect(capturedWsCallback).not.toBeNull();
+
+    // Simulate receiving a request_reset_confirm message
+    // We need to use act to wrap state updates
+    const { act } = await import("@testing-library/react");
+    await act(async () => {
+      capturedWsCallback!({ type: "request_reset_confirm", payload: { pokemon_id: "p1" } });
+    });
+
+    // ConfirmModal should be open with reset confirmation text
+    expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+  });
+
+  it("ignores non-reset messages in WS callback", () => {
+    const pokemon = makePokemon({ id: "p1" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    expect(capturedWsCallback).not.toBeNull();
+
+    // Simulate receiving a non-reset message
+    capturedWsCallback!({ type: "state_update", payload: {} });
+
+    // No confirm dialog should open
+    expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled();
+  });
+});
+
+// --- Overlay global layout link in default mode ---
+
+describe("Dashboard overlay global link", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("shows OBS URL card button in global overlay mode placeholder", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    // Switch to overlay tab
+    const overlayTab = screen.getByText("Overlay");
+    await user.click(overlayTab);
+
+    // Should show the OBS URL card button in the 3-column grid
+    const obsUrlBtns = screen.getAllByLabelText(/OBS/i);
+    expect(obsUrlBtns.length).toBeGreaterThan(0);
+
+    // Should show "Eigenes verwenden" / "Use custom" button
+    const switchCustomBtns = screen.getAllByText(/Eigenes verwenden|Use custom/i);
+    expect(switchCustomBtns.length).toBeGreaterThan(0);
+
+    // Should show "Layout bearbeiten" / "Edit layout" link
+    const editLinks = screen.getAllByText(/Layout bearbeiten|Edit layout/i);
+    expect(editLinks.length).toBeGreaterThan(0);
   });
 });

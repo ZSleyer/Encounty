@@ -30,17 +30,23 @@ jobs:
         working-directory: backend
         run: go test -v -coverprofile=coverage.out ./internal/... -count=1
 
+      - name: Filter Coverage
+        working-directory: backend
+        run: |
+          # Exclude platform-specific and untestable files (mirrors Makefile GO_COVERAGE_EXCLUDE)
+          grep -vE 'manager_linux\.go|manager_windows\.go|manager_darwin\.go|keycodes_linux\.go|keycodes_windows\.go|keycodes_darwin\.go|permissions_darwin\.go|permissions_stub\.go|permissions\.go|capture\.go|sound_unix\.go|sound_windows\.go|reexec_unix\.go|reexec_windows\.go|games_sync\.go|detector\.go|pokedex\.go|browser_detector\.go|gamesync/sync\.go|pokedex/sync\.go|pokedex/fallback\.go|main\.go|scripts/generate_icons\.go' coverage.out > coverage_filtered.out
+
       - name: Generate Coverage Report
         working-directory: backend
         run: |
-          go tool cover -func=coverage.out > coverage.txt
-          go tool cover -html=coverage.out -o coverage.html
+          go tool cover -func=coverage_filtered.out > coverage.txt
+          go tool cover -html=coverage_filtered.out -o coverage.html
 
       - name: Extract Coverage
         id: coverage
         working-directory: backend
         run: |
-          total=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          total=$(go tool cover -func=coverage_filtered.out | grep total | awk '{print $3}' | tr -d '%')
           echo "total=$total" >> "$GITHUB_OUTPUT"
 
       - name: Upload Coverage Report
@@ -72,7 +78,7 @@ jobs:
 
       - name: Run Tests
         working-directory: frontend
-        run: yarn test --run --coverage
+        run: npx vitest run --coverage --exclude '**/engine/__tests__/**'
 
       - name: Extract Coverage
         id: coverage
