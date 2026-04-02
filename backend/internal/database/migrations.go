@@ -54,6 +54,11 @@ var migrations = []migration{
 		description: "add hysteresis_factor column to detector_configs",
 		fn:          migrateAddHysteresisFactor,
 	},
+	{
+		version:     8,
+		description: "add background_animation_config column to overlay_settings",
+		fn:          migrateAddBgAnimConfig,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -224,5 +229,12 @@ func migrateAddTriggerDecrement(tx *sql.Tx) error {
 // detector_configs. Errors are ignored for idempotency.
 func migrateAddHysteresisFactor(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE detector_configs ADD COLUMN hysteresis_factor REAL NOT NULL DEFAULT 0.7`)
+	return nil
+}
+
+// migrateAddBgAnimConfig adds the background_animation_config column to
+// overlay_settings for storing per-animation configuration as JSON.
+func migrateAddBgAnimConfig(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE overlay_settings ADD COLUMN background_animation_config TEXT NOT NULL DEFAULT ''`)
 	return nil
 }

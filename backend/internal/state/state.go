@@ -5,6 +5,7 @@
 package state
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -250,8 +251,9 @@ type OverlaySettings struct {
 	Hidden            bool           `json:"hidden"`
 	BackgroundColor   string         `json:"background_color"`
 	BackgroundOpacity float64        `json:"background_opacity"`
-	BackgroundAnimation      string  `json:"background_animation"`
-	BackgroundAnimationSpeed float64 `json:"background_animation_speed"`
+	BackgroundAnimation       string  `json:"background_animation"`
+	BackgroundAnimationSpeed  float64 `json:"background_animation_speed"`
+	BackgroundAnimationConfig json.RawMessage `json:"background_animation_config,omitempty"`
 	BackgroundImage          string  `json:"background_image"`
 	BackgroundImageFit       string  `json:"background_image_fit"`
 	Blur              int            `json:"blur"`

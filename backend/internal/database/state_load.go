@@ -6,6 +6,7 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -430,14 +431,15 @@ func loadOverlayBase(db *sql.DB, ownerType, ownerID string) (*state.OverlaySetti
 	var overlayID int64
 	var hidden, showBorder int
 
+	var bgAnimConfig string
 	err := db.QueryRow(`SELECT id, canvas_width, canvas_height, hidden, background_color,
 		background_opacity, background_animation, background_animation_speed,
-		background_image, background_image_fit, blur, show_border, border_color,
-		border_width, border_radius
+		background_animation_config, background_image, background_image_fit,
+		blur, show_border, border_color, border_width, border_radius
 		FROM overlay_settings WHERE owner_type = ? AND owner_id = ?`, ownerType, ownerID).
 		Scan(&overlayID, &ov.CanvasWidth, &ov.CanvasHeight, &hidden, &ov.BackgroundColor,
 			&ov.BackgroundOpacity, &ov.BackgroundAnimation, &ov.BackgroundAnimationSpeed,
-			&ov.BackgroundImage, &ov.BackgroundImageFit, &ov.Blur, &showBorder,
+			&bgAnimConfig, &ov.BackgroundImage, &ov.BackgroundImageFit, &ov.Blur, &showBorder,
 			&ov.BorderColor, &ov.BorderWidth, &ov.BorderRadius)
 	if err == sql.ErrNoRows {
 		return nil, 0, nil
@@ -447,6 +449,9 @@ func loadOverlayBase(db *sql.DB, ownerType, ownerID string) (*state.OverlaySetti
 	}
 	ov.Hidden = hidden != 0
 	ov.ShowBorder = showBorder != 0
+	if bgAnimConfig != "" {
+		ov.BackgroundAnimationConfig = json.RawMessage(bgAnimConfig)
+	}
 	return &ov, overlayID, nil
 }
 
