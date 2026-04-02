@@ -87,7 +87,7 @@ function computeTimerMs(pokemon: Pokemon): number {
 }
 
 /** PokemonTimer renders play/pause/reset controls and a live timer display for the main panel. */
-function PokemonTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void }>) {
+function PokemonTimer({ pokemon, send, disabled = false }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void; disabled?: boolean }>) {
   const { t } = useI18n();
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const isRunning = !!pokemon.timer_started_at;
@@ -115,7 +115,8 @@ function PokemonTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
         ) : (
           <button
             onClick={() => send("timer_start", { pokemon_id: pokemon.id })}
-            className="p-1.5 rounded-lg bg-accent-green/20 hover:bg-accent-green/30 text-accent-green transition-colors"
+            disabled={disabled}
+            className="p-1.5 rounded-lg bg-accent-green/20 hover:bg-accent-green/30 text-accent-green transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title={t("timer.start")}
             aria-label={t("aria.timerStart")}
           >
@@ -124,7 +125,8 @@ function PokemonTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
         )}
         <button
           onClick={() => send("timer_reset", { pokemon_id: pokemon.id })}
-          className="p-1.5 rounded-lg bg-bg-card hover:bg-bg-hover text-text-muted hover:text-text-primary border border-border-subtle transition-colors"
+          disabled={disabled}
+          className="p-1.5 rounded-lg bg-bg-card hover:bg-bg-hover text-text-muted hover:text-text-primary border border-border-subtle transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title={t("timer.reset")}
           aria-label={t("aria.timerReset")}
         >
@@ -143,7 +145,7 @@ function hasDetectorReady(pokemon: Pokemon): boolean {
 }
 
 /** SidebarTimer shows a compact timer + play/pause in the sidebar Pokemon list. */
-function SidebarTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void }>) {
+function SidebarTimer({ pokemon, send, disabled = false }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void; disabled?: boolean }>) {
   const { t } = useI18n();
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const isRunning = !!pokemon.timer_started_at;
@@ -155,19 +157,22 @@ function SidebarTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
   }, [isRunning]);
 
   const totalMs = computeTimerMs(pokemon);
+  const canToggle = isRunning || !disabled;
+
+  const toggleClass = isRunning
+    ? "text-accent-green hover:text-accent-yellow"
+    : "text-text-faint hover:text-accent-green";
+  const disabledClass = "text-text-faint opacity-50 cursor-not-allowed";
 
   return (
     <div className="flex items-center gap-1 mt-0.5">
       <button
         onClick={(e) => {
           e.stopPropagation();
-          send(isRunning ? "timer_stop" : "timer_start", { pokemon_id: pokemon.id });
+          if (canToggle) send(isRunning ? "timer_stop" : "timer_start", { pokemon_id: pokemon.id });
         }}
-        className={`p-0.5 rounded transition-colors ${
-          isRunning
-            ? "text-accent-green hover:text-accent-yellow"
-            : "text-text-faint hover:text-accent-green"
-        }`}
+        disabled={!canToggle}
+        className={`p-0.5 rounded transition-colors ${canToggle ? toggleClass : disabledClass}`}
         title={isRunning ? t("timer.stop") : t("timer.start")}
       >
         {isRunning ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
@@ -1231,7 +1236,7 @@ function DashboardCounterTab({
         {pokemon.name}
       </h2>
 
-      <PokemonTimer pokemon={pokemon} send={send} />
+      <PokemonTimer pokemon={pokemon} send={send} disabled={isCompleted} />
 
       <div className="flex items-center gap-4 2xl:gap-6 mt-6 w-full justify-center">
         <button
@@ -2035,7 +2040,7 @@ export function Dashboard() {
                     </div>
                     </button>
                     {/* Timer */}
-                    <SidebarTimer pokemon={p} send={send} />
+                    <SidebarTimer pokemon={p} send={send} disabled={!!p.completed_at} />
                     {/* Actions (visible on hover) */}
                     <div className="flex gap-0.5 items-center shrink-0">
                       <button
