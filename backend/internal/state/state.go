@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"log/slog"
 )
 
 // Shared string literals used in default overlay settings and overlay resolution.
@@ -318,18 +320,22 @@ type StateStore interface {
 // hold the appropriate lock and then dispatch onChange callbacks so
 // that the WebSocket hub can broadcast the updated state.
 type Manager struct {
-	mu        sync.RWMutex
-	state     AppState
-	configDir string
-	db        StateStore
-	onChange  []func(AppState)
+	mu           sync.RWMutex
+	state        AppState
+	configDir    string
+	db           StateStore
+	onChange     []func(AppState)
+	dirty        chan struct{}
+	stopNotifier chan struct{}
 }
 
 // NewManager creates a Manager with sensible defaults for all settings.
 // The defaults are used as-is until Load() overwrites them from disk.
 func NewManager(configDir string) *Manager {
 	m := &Manager{
-		configDir: configDir,
+		configDir:    configDir,
+		dirty:        make(chan struct{}, 1),
+		stopNotifier: make(chan struct{}),
 		state: AppState{
 			DataPath: configDir,
 			Pokemon:  []Pokemon{},
@@ -447,15 +453,77 @@ func (m *Manager) OnChange(fn func(AppState)) {
 	m.onChange = append(m.onChange, fn)
 }
 
-// notify dispatches all registered onChange callbacks with a copy of the
-// current state. Each callback runs in its own goroutine so that slow
-// subscribers (e.g. WebSocket broadcast) cannot block the caller.
-// Must be called without holding mu (callbacks take their own locks).
-func (m *Manager) notify() {
-	state := m.state
-	for _, fn := range m.onChange {
-		go fn(state)
+// markDirty signals the notifier goroutine that state has changed.
+// Multiple rapid calls are coalesced into a single notification cycle.
+// Safe to call without holding any lock.
+func (m *Manager) markDirty() {
+	select {
+	case m.dirty <- struct{}{}:
+	default:
+		// Already marked dirty — coalescing
 	}
+}
+
+// StartNotifier launches the background goroutine that coalesces rapid
+// state mutations into batched onChange dispatches. It should be called
+// once during application startup, after all OnChange callbacks are
+// registered.
+func (m *Manager) StartNotifier() {
+	go func() {
+		for {
+			select {
+			case <-m.stopNotifier:
+				return
+			case <-m.dirty:
+				// Coalesce: keep waiting while more mutations arrive
+				// within 50 ms windows, then dispatch once.
+				m.coalesceAndDispatch()
+			}
+		}
+	}()
+	slog.Debug("State notifier started")
+}
+
+// coalesceAndDispatch waits for a 50 ms quiet period, draining any
+// additional dirty signals, then reads the current state under RLock
+// and dispatches all onChange callbacks.
+func (m *Manager) coalesceAndDispatch() {
+	timer := time.NewTimer(50 * time.Millisecond)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-m.dirty:
+			// Reset the timer on each new dirty signal
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(50 * time.Millisecond)
+		case <-timer.C:
+			// 50 ms elapsed with no new mutations — dispatch now
+			m.mu.RLock()
+			state := m.state
+			callbacks := m.onChange
+			m.mu.RUnlock()
+
+			for _, fn := range callbacks {
+				go fn(state)
+			}
+			return
+		case <-m.stopNotifier:
+			return
+		}
+	}
+}
+
+// StopNotifier shuts down the background notifier goroutine.
+// It should be called during graceful application shutdown.
+func (m *Manager) StopNotifier() {
+	close(m.stopNotifier)
+	slog.Debug("State notifier stopped")
 }
 
 // GetState returns a value copy of the current application state.
@@ -493,7 +561,7 @@ func (m *Manager) AddPokemon(p Pokemon) {
 		}
 	}
 	m.mu.Unlock()
-	m.notify()
+	m.markDirty()
 }
 
 // applyPokemonUpdate merges non-zero fields from update into dst. Only
@@ -556,7 +624,7 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			applyPokemonUpdate(&m.state.Pokemon[i], update)
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -589,7 +657,7 @@ func (m *Manager) DeletePokemon(id string) bool {
 				}
 			}
 			m.resetLinkedOverlays(id)
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -610,7 +678,7 @@ func (m *Manager) Increment(id string) (int, bool) {
 			}
 			m.state.Pokemon[i].Encounters += step
 			count := m.state.Pokemon[i].Encounters
-			go m.notify()
+			m.markDirty()
 			return count, true
 		}
 	}
@@ -635,7 +703,7 @@ func (m *Manager) Decrement(id string) (int, bool) {
 				m.state.Pokemon[i].Encounters = 0
 			}
 			count := m.state.Pokemon[i].Encounters
-			go m.notify()
+			m.markDirty()
 			return count, true
 		}
 	}
@@ -650,7 +718,7 @@ func (m *Manager) Reset(id string) bool {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].Encounters = 0
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -668,7 +736,7 @@ func (m *Manager) SetEncounters(id string, count int) (int, bool) {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].Encounters = count
-			go m.notify()
+			m.markDirty()
 			return count, true
 		}
 	}
@@ -686,7 +754,7 @@ func (m *Manager) StartTimer(id string) bool {
 				now := time.Now()
 				m.state.Pokemon[i].TimerStartedAt = &now
 			}
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -705,7 +773,7 @@ func (m *Manager) StopTimer(id string) bool {
 				m.state.Pokemon[i].TimerAccumulatedMs += elapsed.Milliseconds()
 				m.state.Pokemon[i].TimerStartedAt = nil
 			}
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -735,7 +803,7 @@ func (m *Manager) ResetTimer(id string) bool {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].TimerStartedAt = nil
 			m.state.Pokemon[i].TimerAccumulatedMs = 0
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -761,7 +829,7 @@ func (m *Manager) SetActive(id string) bool {
 	for i := range m.state.Pokemon {
 		m.state.Pokemon[i].IsActive = m.state.Pokemon[i].ID == id
 	}
-	go m.notify()
+	m.markDirty()
 	return true
 }
 
@@ -774,7 +842,7 @@ func (m *Manager) CompletePokemon(id string) bool {
 		if m.state.Pokemon[i].ID == id {
 			now := time.Now()
 			m.state.Pokemon[i].CompletedAt = &now
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -789,7 +857,7 @@ func (m *Manager) UncompletePokemon(id string) bool {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].CompletedAt = nil
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -815,7 +883,7 @@ func (m *Manager) NextPokemon() {
 	for i := range m.state.Pokemon {
 		m.state.Pokemon[i].IsActive = m.state.Pokemon[i].ID == m.state.ActiveID
 	}
-	go m.notify()
+	m.markDirty()
 }
 
 // UpdateSettings replaces the application settings atomically and notifies
@@ -824,7 +892,7 @@ func (m *Manager) UpdateSettings(s Settings) {
 	m.mu.Lock()
 	m.state.Settings = s
 	m.mu.Unlock()
-	m.notify()
+	m.markDirty()
 }
 
 // UpdateHotkeys replaces the full hotkey map and notifies listeners.
@@ -832,7 +900,7 @@ func (m *Manager) UpdateHotkeys(h HotkeyMap) {
 	m.mu.Lock()
 	m.state.Hotkeys = h
 	m.mu.Unlock()
-	m.notify()
+	m.markDirty()
 }
 
 // UpdateSingleHotkey updates one field of the HotkeyMap and notifies listeners.
@@ -853,7 +921,7 @@ func (m *Manager) UpdateSingleHotkey(action, key string) bool {
 		return false
 	}
 	m.mu.Unlock()
-	m.notify()
+	m.markDirty()
 	return true
 }
 
@@ -863,7 +931,7 @@ func (m *Manager) AcceptLicense() {
 	m.mu.Lock()
 	m.state.LicenseAccepted = true
 	m.mu.Unlock()
-	m.notify()
+	m.markDirty()
 }
 
 // AddSession appends a new session record. Sessions are informational only
@@ -896,7 +964,7 @@ func (m *Manager) SetDetectorConfig(id string, cfg *DetectorConfig) bool {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].DetectorConfig = cfg
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -959,7 +1027,7 @@ func (m *Manager) SetConfigDir(newDir string) error {
 		return fmt.Errorf("failed to save in new location: %w", err)
 	}
 
-	m.notify()
+	m.markDirty()
 	return nil
 }
 
@@ -1025,7 +1093,7 @@ func (m *Manager) UnlinkOverlay(pokemonID string) bool {
 		if p.ID == pokemonID {
 			m.state.Pokemon[i].OverlayMode = "custom"
 			m.state.Pokemon[i].Overlay = &resolved
-			go m.notify()
+			m.markDirty()
 			return true
 		}
 	}
@@ -1061,7 +1129,7 @@ func (m *Manager) ClearDetectionLog(id string) {
 		p := &m.state.Pokemon[i]
 		if p.ID == id && p.DetectorConfig != nil {
 			p.DetectorConfig.DetectionLog = nil
-			go m.notify()
+			m.markDirty()
 			return
 		}
 	}
@@ -1076,7 +1144,7 @@ func (m *Manager) ClearAllTemplates(id string) {
 		p := &m.state.Pokemon[i]
 		if p.ID == id && p.DetectorConfig != nil {
 			p.DetectorConfig.Templates = nil
-			go m.notify()
+			m.markDirty()
 			return
 		}
 	}

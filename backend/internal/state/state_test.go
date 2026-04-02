@@ -497,11 +497,13 @@ func TestOnChangeNotification(t *testing.T) {
 		callCount++
 		mu.Unlock()
 	})
+	m.StartNotifier()
+	defer m.StopNotifier()
 
 	m.AddPokemon(makePokemon("p1", "Pikachu"))
 
-	// Give goroutine time to fire
-	time.Sleep(50 * time.Millisecond)
+	// Give debounce coalescing (50 ms) plus callback goroutine time to fire
+	time.Sleep(150 * time.Millisecond)
 
 	mu.Lock()
 	if callCount == 0 {

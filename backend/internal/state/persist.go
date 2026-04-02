@@ -263,7 +263,7 @@ func (m *Manager) Reload() error {
 	if err := m.Load(); err != nil {
 		return err
 	}
-	m.notify()
+	m.markDirty()
 	return nil
 }
 

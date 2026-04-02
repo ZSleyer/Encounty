@@ -468,6 +468,8 @@ func TestReload(t *testing.T) {
 		default:
 		}
 	})
+	m2.StartNotifier()
+	defer m2.StopNotifier()
 
 	if err := m2.Reload(); err != nil {
 		t.Fatalf("Reload failed: %v", err)
@@ -481,7 +483,7 @@ func TestReload(t *testing.T) {
 		t.Errorf("Encounters = %d, want 1 after reload", st.Pokemon[0].Encounters)
 	}
 
-	// Verify notification was sent
+	// Verify notification was sent (debounce adds ~50 ms latency)
 	select {
 	case <-notified:
 		// ok

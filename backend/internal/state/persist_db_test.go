@@ -221,13 +221,15 @@ func TestReloadNotifiesListeners(t *testing.T) {
 	m.OnChange(func(_ state.AppState) {
 		called.Add(1)
 	})
+	m.StartNotifier()
+	defer m.StopNotifier()
 
 	if err := m.Reload(); err != nil {
 		t.Fatalf("Reload: %v", err)
 	}
 
-	// notify() dispatches callbacks in goroutines; give them a moment to run.
-	time.Sleep(50 * time.Millisecond)
+	// Debounce coalescing (50 ms) plus callback goroutine dispatch time.
+	time.Sleep(150 * time.Millisecond)
 
 	if called.Load() == 0 {
 		t.Error("OnChange listener was not called after Reload")

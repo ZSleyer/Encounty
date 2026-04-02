@@ -71,6 +71,7 @@ func main() {
 	slog.Info("Config directory", "path", configDir)
 
 	stateMgr, db := initStateAndDB(configDir)
+	stateMgr.StartNotifier()
 
 	port := server.DefaultPort
 
@@ -194,6 +195,7 @@ func startGracefulShutdown(srv *server.Server, hotkeyMgr hotkeys.Manager, db *da
 		}()
 
 		srv.Hub().CloseAll()
+		stateMgr.StopNotifier()
 		hotkeyMgr.Stop()
 		// Stop all running timers so elapsed time is folded into accumulated_ms
 		// before the state is persisted. This ensures timers start paused on restart.
