@@ -466,6 +466,17 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     props.onClose();
   };
 
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) handleCancel();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [handleCancel]);
+
   const activeName = selected ? selected.name : "";
   const availableLangs =
     activeLanguages.length > 0 ? activeLanguages : ["en"];
@@ -487,8 +498,6 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
-      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
-      aria-modal="true"
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
     >
       {/* --- Header --- */}

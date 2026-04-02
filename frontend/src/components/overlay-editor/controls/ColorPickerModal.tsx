@@ -238,6 +238,17 @@ export function ColorPickerModal({
     onClose();
   };
 
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) handleCancel();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [handleCancel]);
+
   const handleConfirm = () => {
     const finalHex = hsvToHex(h, s, v);
     onConfirm(finalHex, showOpacity ? opacity : undefined);
@@ -252,7 +263,6 @@ export function ColorPickerModal({
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
-      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-xs animate-slide-in backdrop:bg-black/70"
     >
       {/* Header */}

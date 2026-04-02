@@ -58,6 +58,17 @@ export function ShadowEditorModal({
     dialogRef.current?.showModal();
   }, []);
 
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) onClose();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [onClose]);
+
   const [enabled, setEnabled] = useState(initialEnabled);
   const [color, setColor] = useState(initialColor);
   const [colorType, setColorType] = useState<"solid" | "gradient">(initialColorType);
@@ -110,7 +121,6 @@ export function ShadowEditorModal({
       ref={dialogRef}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm backdrop:bg-black/70"
       onCancel={onClose}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* --- Header --- */}
       <div className="flex items-center justify-between mb-4">

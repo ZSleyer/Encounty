@@ -29,6 +29,17 @@ export function OutlineEditorModal({
     dialogRef.current?.showModal();
   }, []);
 
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) onClose();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [onClose]);
+
   const [type, setType] = useState<"none" | "solid">(initialType);
   const [color, setColor] = useState(initialColor);
   const [width, setWidth] = useState(initialWidth);
@@ -45,7 +56,6 @@ export function OutlineEditorModal({
       ref={dialogRef}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm backdrop:bg-black/70"
       onCancel={onClose}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* --- Header --- */}
       <div className="flex items-center justify-between mb-4">
