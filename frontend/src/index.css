@@ -747,31 +747,51 @@ code {
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.96);
+    transform: translateY(100%);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 
 @keyframes toast-out {
   from {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
   to {
     opacity: 0;
-    transform: translateY(8px) scale(0.96);
+    transform: translateY(100%);
   }
 }
 
 .animate-toast-in {
-  animation: toast-in 0.2s ease-out forwards;
+  animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-toast-out {
-  animation: toast-out 0.2s ease-in forwards;
+  animation: toast-out 0.25s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-toast-in {
+    animation: toast-in 0.15s ease-out forwards;
+  }
+
+  .animate-toast-out {
+    animation: toast-out 0.15s ease-in forwards;
+  }
+
+  @keyframes toast-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes toast-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
 }
 
 /* ── Update overlay fade-in ──────────────────────────────────── */

@@ -564,6 +564,7 @@
   "aria.close": "Close",
   "aria.skipToContent": "Skip to content",
   "aria.copyObsUrl": "Copy OBS URL",
+  "aria.dismissNotification": "Dismiss notification",
   "aria.saveOverlay": "Save overlay",
   "aria.canvasSettings": "Canvas settings",
   "aria.elementProperties": "Element properties",

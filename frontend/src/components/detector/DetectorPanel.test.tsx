@@ -2232,6 +2232,8 @@ describe("DetectorPanel", () => {
 
   it("does not call toggle when clicking template while running", async () => {
     const user = userEvent.setup();
+    // Flush any pending promises leaked from previous tests
+    await new Promise(r => setTimeout(r, 0));
     vi.mocked(globalThis.fetch).mockClear();
 
     const pokemon = makePokemon({

@@ -565,6 +565,7 @@
   "aria.close": "閉じる",
   "aria.skipToContent": "コンテンツへスキップ",
   "aria.copyObsUrl": "OBS URLをコピー",
+  "aria.dismissNotification": "通知を閉じる",
   "aria.saveOverlay": "Overlayを保存",
   "aria.canvasSettings": "Canvas設定",
   "aria.elementProperties": "要素のプロパティ",

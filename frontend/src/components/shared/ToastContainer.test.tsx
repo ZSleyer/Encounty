@@ -203,8 +203,8 @@ describe("ToastContainer", () => {
     );
     act(() => dismissButtons[dismissButtons.length - 1].click());
 
-    // After the dismiss animation timeout (200ms)
-    act(() => vi.advanceTimersByTime(200));
+    // After the dismiss animation timeout (250ms)
+    act(() => vi.advanceTimersByTime(250));
     expect(screen.queryByText("Success!")).not.toBeInTheDocument();
   });
 
@@ -212,13 +212,13 @@ describe("ToastContainer", () => {
     renderWithProvider();
     act(() => screen.getByTestId("push-info").click());
 
-    // Info toast has 2000ms duration; exit animation starts at duration - 300 = 1700ms
-    act(() => vi.advanceTimersByTime(1700));
+    // Info toast has 2000ms duration; exit animation starts at duration - 350 = 1650ms
+    act(() => vi.advanceTimersByTime(1650));
     // Toast should still be in the DOM (leaving animation in progress)
     expect(screen.getByText("Info")).toBeInTheDocument();
 
     // After full duration, auto-dismiss fires
-    act(() => vi.advanceTimersByTime(300));
+    act(() => vi.advanceTimersByTime(350));
     expect(screen.queryByText("Info")).not.toBeInTheDocument();
   });
 
@@ -234,5 +234,18 @@ describe("ToastContainer", () => {
     // The encounter-delete push has a message, but let's verify encounter toast renders title
     act(() => screen.getByTestId("push-encounter-delete").click());
     expect(screen.getByText("Pikachu")).toBeInTheDocument();
+  });
+
+  it("has correct ARIA attributes for screen reader announcement", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-success").click());
+    const container = screen.getByRole("status");
+    expect(container).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("dismiss buttons have accessible labels", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-success").click());
+    expect(screen.getByLabelText(/Dismiss notification|Benachrichtigung schließen/)).toBeInTheDocument();
   });
 });
