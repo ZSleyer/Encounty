@@ -676,7 +676,7 @@ app.on('ready', async () => {
               "default-src 'self' encounty:",
               "script-src 'self' encounty:",
               "style-src 'self' 'unsafe-inline' encounty: https://fonts.googleapis.com",
-              "img-src 'self' encounty: data: blob: http://localhost:* https://raw.githubusercontent.com https://play.pokemonshowdown.com",
+              "img-src 'self' encounty: data: blob: http://localhost:* https:",
               "connect-src 'self' encounty: http://localhost:* ws://localhost:* https://pokeapi.co https://*.pokemon.com https://fonts.googleapis.com",
               "media-src 'self' blob: mediastream:",
               "worker-src 'self' blob:",
