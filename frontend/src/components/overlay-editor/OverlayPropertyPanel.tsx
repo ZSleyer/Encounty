@@ -302,6 +302,10 @@ export function OverlayPropertyPanel({
     onUpdate(s);
   };
 
+  const bgConfig = localSettings.background_animation_config ?? {};
+  const setBgConfig = (key: string, value: unknown) =>
+    update({ ...localSettings, background_animation_config: { ...bgConfig, [key]: value } });
+
   return (
     <div data-tutorial="properties" className={embedded ? "flex-1 min-h-0" : "bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"}>
       <div className="mb-4">
@@ -349,6 +353,14 @@ export function OverlayPropertyPanel({
               <option value="pulse-bg">{t("overlay.animPulse")}</option>
               <option value="shimmer-bg">{t("overlay.animShimmer")}</option>
               <option value="particles">{t("overlay.animParticles")}</option>
+              <option value="rb-aurora">{t("overlay.animAurora")}</option>
+              <option value="rb-particles">{t("overlay.animRbParticles")}</option>
+              <option value="rb-galaxy">{t("overlay.animGalaxy")}</option>
+              <option value="rb-silk">{t("overlay.animSilk")}</option>
+              <option value="rb-softaurora">{t("overlay.animSoftAurora")}</option>
+              <option value="rb-radar">{t("overlay.animRadar")}</option>
+              <option value="rb-floatinglines">{t("overlay.animFloatingLines")}</option>
+              <option value="rb-pixelblast">{t("overlay.animPixelBlast")}</option>
             </select>
           </label>
 
@@ -362,6 +374,179 @@ export function OverlayPropertyPanel({
               step={0.1}
               onChange={(v) => update({ ...localSettings, background_animation_speed: v })}
             />
+          )}
+
+          {/* Reactbits animation-specific settings */}
+          {(localSettings.background_animation ?? "none").startsWith("rb-") && (
+            <div className="space-y-2 pt-1 border-t border-border-subtle">
+              <span className="text-[10px] font-medium text-text-faint uppercase tracking-wider">
+                {t("overlay.animSettings")}
+              </span>
+
+              {/* Aurora: color stops */}
+              {localSettings.background_animation === "rb-aurora" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
+                    <input type="color" value={(bgConfig.auroraColor1 as string) ?? "#3A29FF"}
+                      onChange={(e) => setBgConfig("auroraColor1", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
+                    <input type="color" value={(bgConfig.auroraColor2 as string) ?? "#FF94B4"}
+                      onChange={(e) => setBgConfig("auroraColor2", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 3</span>
+                    <input type="color" value={(bgConfig.auroraColor3 as string) ?? "#FF3232"}
+                      onChange={(e) => setBgConfig("auroraColor3", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animAmplitude")} value={(bgConfig.auroraAmplitude as number) ?? 1}
+                    min={0.1} max={3} step={0.1}
+                    onChange={(v) => setBgConfig("auroraAmplitude", v)} />
+                  <NumSlider label={t("overlay.animBlend")} value={(bgConfig.auroraBlend as number) ?? 0.5}
+                    min={0} max={1} step={0.05}
+                    onChange={(v) => setBgConfig("auroraBlend", v)} />
+                </>
+              )}
+
+              {/* Particles (3D): count, colors, size */}
+              {localSettings.background_animation === "rb-particles" && (
+                <>
+                  <NumSlider label={t("overlay.animParticleCount")} value={(bgConfig.particleCount as number) ?? 200}
+                    min={50} max={1000} step={50}
+                    onChange={(v) => setBgConfig("particleCount", v)} />
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                    <input type="color" value={(bgConfig.particleColor as string) ?? "#ffffff"}
+                      onChange={(e) => setBgConfig("particleColor", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animParticleSize")} value={(bgConfig.particleSize as number) ?? 1}
+                    min={0.1} max={5} step={0.1}
+                    onChange={(v) => setBgConfig("particleSize", v)} />
+                  <NumSlider label={t("overlay.animParticleSpread")} value={(bgConfig.particleSpread as number) ?? 10}
+                    min={1} max={50} step={1}
+                    onChange={(v) => setBgConfig("particleSpread", v)} />
+                </>
+              )}
+
+              {/* Galaxy: density, glow, saturation */}
+              {localSettings.background_animation === "rb-galaxy" && (
+                <>
+                  <NumSlider label={t("overlay.animDensity")} value={(bgConfig.galaxyDensity as number) ?? 0.7}
+                    min={0.1} max={2} step={0.1}
+                    onChange={(v) => setBgConfig("galaxyDensity", v)} />
+                  <NumSlider label={t("overlay.animGlow")} value={(bgConfig.galaxyGlow as number) ?? 0.5}
+                    min={0} max={2} step={0.1}
+                    onChange={(v) => setBgConfig("galaxyGlow", v)} />
+                  <NumSlider label={t("overlay.animSaturation")} value={(bgConfig.galaxySaturation as number) ?? 1}
+                    min={0} max={2} step={0.1}
+                    onChange={(v) => setBgConfig("galaxySaturation", v)} />
+                </>
+              )}
+
+              {/* Silk: color, scale, noise */}
+              {localSettings.background_animation === "rb-silk" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                    <input type="color" value={(bgConfig.silkColor as string) ?? "#5227FF"}
+                      onChange={(e) => setBgConfig("silkColor", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animScale")} value={(bgConfig.silkScale as number) ?? 1}
+                    min={0.1} max={5} step={0.1}
+                    onChange={(v) => setBgConfig("silkScale", v)} />
+                  <NumSlider label={t("overlay.animNoise")} value={(bgConfig.silkNoise as number) ?? 1.5}
+                    min={0} max={5} step={0.1}
+                    onChange={(v) => setBgConfig("silkNoise", v)} />
+                </>
+              )}
+
+              {/* Soft Aurora: colors, brightness, band height */}
+              {localSettings.background_animation === "rb-softaurora" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
+                    <input type="color" value={(bgConfig.softAuroraColor1 as string) ?? "#0ea5e9"}
+                      onChange={(e) => setBgConfig("softAuroraColor1", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
+                    <input type="color" value={(bgConfig.softAuroraColor2 as string) ?? "#6366f1"}
+                      onChange={(e) => setBgConfig("softAuroraColor2", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animBrightness")} value={(bgConfig.softAuroraBrightness as number) ?? 0.5}
+                    min={0.1} max={2} step={0.1}
+                    onChange={(v) => setBgConfig("softAuroraBrightness", v)} />
+                </>
+              )}
+
+              {/* Radar: color, ring count, sweep speed */}
+              {localSettings.background_animation === "rb-radar" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                    <input type="color" value={(bgConfig.radarColor as string) ?? "#22c55e"}
+                      onChange={(e) => setBgConfig("radarColor", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animRingCount")} value={(bgConfig.radarRings as number) ?? 5}
+                    min={1} max={12} step={1}
+                    onChange={(v) => setBgConfig("radarRings", v)} />
+                  <NumSlider label={t("overlay.animBrightness")} value={(bgConfig.radarBrightness as number) ?? 1}
+                    min={0.1} max={3} step={0.1}
+                    onChange={(v) => setBgConfig("radarBrightness", v)} />
+                </>
+              )}
+
+              {/* Floating Lines: color, line count */}
+              {localSettings.background_animation === "rb-floatinglines" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                    <input type="color" value={(bgConfig.linesColor as string) ?? "#ffffff"}
+                      onChange={(e) => setBgConfig("linesColor", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animLineCount")} value={(bgConfig.linesCount as number) ?? 40}
+                    min={10} max={100} step={5}
+                    onChange={(v) => setBgConfig("linesCount", v)} />
+                </>
+              )}
+
+              {/* Pixel Blast: color, pixel size, variant */}
+              {localSettings.background_animation === "rb-pixelblast" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                    <input type="color" value={(bgConfig.pixelColor as string) ?? "#1a1a2e"}
+                      onChange={(e) => setBgConfig("pixelColor", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animPixelSize")} value={(bgConfig.pixelSize as number) ?? 10}
+                    min={3} max={30} step={1}
+                    onChange={(v) => setBgConfig("pixelSize", v)} />
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animVariant")}</span>
+                    <select value={(bgConfig.pixelVariant as string) ?? "circle"}
+                      onChange={(e) => setBgConfig("pixelVariant", e.target.value)}
+                      className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1">
+                      <option value="circle">Circle</option>
+                      <option value="square">Square</option>
+                      <option value="diamond">Diamond</option>
+                      <option value="triangle">Triangle</option>
+                    </select>
+                  </label>
+                </>
+              )}
+            </div>
           )}
 
           {/* Background image upload */}

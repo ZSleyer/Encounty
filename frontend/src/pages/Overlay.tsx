@@ -1,10 +1,19 @@
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { useParams } from "react-router";
 import { Pokemon, OverlaySettings, TextStyle } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
+
+const Aurora = lazy(() => import("../components/backgrounds/Aurora"));
+const Particles = lazy(() => import("../components/backgrounds/Particles"));
+const Galaxy = lazy(() => import("../components/backgrounds/Galaxy"));
+const Silk = lazy(() => import("../components/backgrounds/Silk"));
+const SoftAurora = lazy(() => import("../components/backgrounds/SoftAurora"));
+const Radar = lazy(() => import("../components/backgrounds/Radar"));
+const FloatingLines = lazy(() => import("../components/backgrounds/FloatingLines"));
+const PixelBlast = lazy(() => import("../components/backgrounds/PixelBlast"));
 
 interface Props {
   previewSettings?: OverlaySettings;
@@ -310,6 +319,8 @@ const BG_ANIM_CLASS: Record<string, string> = {
   particles: "canvas-particles",
 };
 
+const RB_ANIMS = new Set(["rb-aurora", "rb-particles", "rb-galaxy", "rb-silk", "rb-softaurora", "rb-radar", "rb-floatinglines", "rb-pixelblast"]);
+
 const BG_ANIM_DEFAULT_DURATION: Record<string, number> = {
   waves: 30,
   "gradient-shift": 8,
@@ -545,7 +556,7 @@ function buildOverlayStyles(
   const borderWidth = settings.border_width ?? 2;
 
   const bgAnimKey = settings.background_animation ?? "none";
-  const hasBgAnim = bgAnimKey !== "none" && bgAnimKey in BG_ANIM_CLASS;
+  const hasBgAnim = bgAnimKey !== "none" && (bgAnimKey in BG_ANIM_CLASS || RB_ANIMS.has(bgAnimKey));
 
   const bgStyle: React.CSSProperties = hidden
     ? { position: "absolute", inset: 0, pointerEvents: "none" }
@@ -655,7 +666,7 @@ export function Overlay({
       {/* Card background — clipped to border-radius, does NOT clip content */}
       <div style={bgStyle}>
         {bgImageStyle && <div style={bgImageStyle} />}
-        {hasBgAnim && (
+        {hasBgAnim && !RB_ANIMS.has(bgAnimKey) && (
           <div
             className={BG_ANIM_CLASS[bgAnimKey]}
             style={
@@ -664,6 +675,95 @@ export function Overlay({
                 : undefined
             }
           />
+        )}
+        {RB_ANIMS.has(bgAnimKey) && (
+          <Suspense fallback={null}>
+            <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: "inherit" }}>
+              {(() => {
+                const cfg = settings.background_animation_config ?? {};
+                const speed = settings.background_animation_speed ?? 1;
+                switch (bgAnimKey) {
+                  case "rb-aurora":
+                    return (
+                      <Aurora
+                        colorStops={[
+                          (cfg.auroraColor1 as string) ?? "#3A29FF",
+                          (cfg.auroraColor2 as string) ?? "#FF94B4",
+                          (cfg.auroraColor3 as string) ?? "#FF3232",
+                        ]}
+                        amplitude={(cfg.auroraAmplitude as number) ?? 1}
+                        blend={(cfg.auroraBlend as number) ?? 0.5}
+                        speed={speed}
+                      />
+                    );
+                  case "rb-particles":
+                    return (
+                      <Particles
+                        particleColors={[(cfg.particleColor as string) ?? "#ffffff"]}
+                        particleCount={(cfg.particleCount as number) ?? 200}
+                        particleBaseSize={(cfg.particleSize as number) ?? 1}
+                        particleSpread={(cfg.particleSpread as number) ?? 10}
+                        speed={speed}
+                      />
+                    );
+                  case "rb-galaxy":
+                    return (
+                      <Galaxy
+                        density={(cfg.galaxyDensity as number) ?? 0.7}
+                        glowIntensity={(cfg.galaxyGlow as number) ?? 0.5}
+                        saturation={(cfg.galaxySaturation as number) ?? 1}
+                        speed={speed}
+                      />
+                    );
+                  case "rb-silk":
+                    return (
+                      <Silk
+                        color={(cfg.silkColor as string) ?? "#5227FF"}
+                        scale={(cfg.silkScale as number) ?? 1}
+                        noiseIntensity={(cfg.silkNoise as number) ?? 1.5}
+                        speed={speed}
+                      />
+                    );
+                  case "rb-softaurora":
+                    return (
+                      <SoftAurora
+                        color1={(cfg.softAuroraColor1 as string) ?? "#0ea5e9"}
+                        color2={(cfg.softAuroraColor2 as string) ?? "#6366f1"}
+                        brightness={(cfg.softAuroraBrightness as number) ?? 0.5}
+                        speed={speed}
+                      />
+                    );
+                  case "rb-radar":
+                    return (
+                      <Radar
+                        color={(cfg.radarColor as string) ?? "#22c55e"}
+                        ringCount={(cfg.radarRings as number) ?? 5}
+                        brightness={(cfg.radarBrightness as number) ?? 1}
+                        speed={speed}
+                      />
+                    );
+                  case "rb-floatinglines":
+                    return (
+                      <FloatingLines
+                        linesGradient={[(cfg.linesColor as string) ?? "#ffffff"]}
+                        lineCount={(cfg.linesCount as number) ?? 40}
+                        animationSpeed={speed}
+                      />
+                    );
+                  case "rb-pixelblast":
+                    return (
+                      <PixelBlast
+                        color={(cfg.pixelColor as string) ?? "#1a1a2e"}
+                        pixelSize={(cfg.pixelSize as number) ?? 10}
+                        variant={((cfg.pixelVariant as string) ?? "circle") as "circle" | "square" | "diamond" | "triangle"}
+                      />
+                    );
+                  default:
+                    return null;
+                }
+              })()}
+            </div>
+          </Suspense>
         )}
       </div>
 
