@@ -269,9 +269,9 @@ function TemplateNameDialog({ initialName, onConfirm, onCancel, t }: Readonly<{
       className="fixed inset-0 z-120 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={handleBackdropClick}
     >
-      <div
+      <dialog
+        open
         className="relative bg-bg-card rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-border-subtle"
-        role="dialog"
         aria-label={t("templateEditor.nameDialogTitle")}
       >
         <button
@@ -299,7 +299,7 @@ function TemplateNameDialog({ initialName, onConfirm, onCancel, t }: Readonly<{
           <Save className="w-4 h-4 shrink-0" />
           {t("templateEditor.saveTemplate")}
         </button>
-      </div>
+      </dialog>
     </div>,
     document.body,
   );
@@ -328,6 +328,16 @@ function getHeadingAndHint(
   };
 }
 
+/** Returns the container class for an inactive step (done vs upcoming). */
+function getStepInactiveStyle(isDone: boolean): string {
+  return isDone ? "bg-white/10 text-white/70" : "bg-white/5 text-white/30";
+}
+
+/** Returns the badge class for an inactive step (done vs upcoming). */
+function getBadgeInactiveStyle(isDone: boolean): string {
+  return isDone ? "bg-white/20 text-white/70" : "bg-white/10 text-white/30";
+}
+
 /** Visual step indicator showing progress through the 3-step template flow. */
 function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => string }>) {
   const currentStep = phaseToStep(phase);
@@ -343,25 +353,22 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
         const isActive = step === currentStep;
         const isDone = step < currentStep;
         const stepLabel = label.replace(/^.*?:\s*/, "");
+
+        const containerStyle = isActive
+          ? "bg-accent-blue/20 text-accent-blue ring-1 ring-accent-blue/40"
+          : getStepInactiveStyle(isDone);
+
+        const badgeStyle = isActive
+          ? "bg-accent-blue text-white"
+          : getBadgeInactiveStyle(isDone);
+
         return (
           <React.Fragment key={step}>
             {step > 1 && (
               <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-white/20"}`} />
             )}
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-              isActive
-                ? "bg-accent-blue/20 text-accent-blue ring-1 ring-accent-blue/40"
-                : isDone
-                  ? "bg-white/10 text-white/70"
-                  : "bg-white/5 text-white/30"
-            }`}>
-              <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${
-                isActive
-                  ? "bg-accent-blue text-white"
-                  : isDone
-                    ? "bg-white/20 text-white/70"
-                    : "bg-white/10 text-white/30"
-              }`}>
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${containerStyle}`}>
+              <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${badgeStyle}`}>
                 {isDone ? "✓" : step}
               </span>
               <span className="hidden sm:inline whitespace-nowrap">{stepLabel}</span>

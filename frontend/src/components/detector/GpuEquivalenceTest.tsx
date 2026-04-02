@@ -400,6 +400,246 @@ function deltaColor(delta: number): string {
   return "text-red-400";
 }
 
+/** Count total frames across all ground-truth entries. */
+function countTotalFrames(groundTruth: TemplateGT[]): number {
+  let total = 0;
+  for (const gt of groundTruth) {
+    total += gt.encounters.length + gt.negativeFrames.length;
+  }
+  return total;
+}
+
+/** Group ground-truth entries by video name. */
+function groupByVideo(groundTruth: TemplateGT[]): Map<string, TemplateGT[]> {
+  const byVideo = new Map<string, TemplateGT[]>();
+  for (const gt of groundTruth) {
+    const list = byVideo.get(gt.videoName) ?? [];
+    list.push(gt);
+    byVideo.set(gt.videoName, list);
+  }
+  return byVideo;
+}
+
+/** Create and wait for a video element to be ready. */
+async function loadVideoElement(
+  videoName: string,
+  signal: AbortSignal,
+): Promise<HTMLVideoElement> {
+  const video = document.createElement("video");
+  video.preload = "auto";
+  video.muted = true;
+  video.crossOrigin = "anonymous";
+  video.src = `/test-fixtures/${videoName}.mp4`;
+  await waitForVideoReady(video, signal);
+  return video;
+}
+
+/** Clean up a video element after use. */
+function cleanupVideo(video: HTMLVideoElement): void {
+  video.pause();
+  video.removeAttribute("src");
+  video.load();
+}
+
+/** Load a template PNG and return its bitmap and grayscale data. */
+async function loadTemplatePng(
+  gt: TemplateGT,
+): Promise<{ bitmap: ImageBitmap; gray: Float32Array } | null> {
+  const tmplUrl = `/test-fixtures/${gt.videoName}_${gt.pokemonName}_${gt.templateId}.png`;
+  const tmplResp = await fetch(tmplUrl);
+  if (!tmplResp.ok) return null;
+
+  const tmplBlob = await tmplResp.blob();
+  const tmplBitmap = await createImageBitmap(tmplBlob);
+
+  const tmplCanvas = new OffscreenCanvas(tmplBitmap.width, tmplBitmap.height);
+  const tmplCtx = tmplCanvas.getContext("2d")!;
+  tmplCtx.drawImage(tmplBitmap, 0, 0);
+  const tmplImageData = tmplCtx.getImageData(
+    0, 0, tmplBitmap.width, tmplBitmap.height,
+  );
+  const tmplGray = toGrayscale(
+    tmplImageData.data, tmplBitmap.width, tmplBitmap.height,
+  );
+
+  return { bitmap: tmplBitmap, gray: tmplGray };
+}
+
+/** Shared context for single-frame scoring, avoiding long param lists. */
+interface ScoreContext {
+  video: HTMLVideoElement;
+  tmplGray: Float32Array;
+  tmplW: number;
+  tmplH: number;
+  regions: Array<{ x: number; y: number; w: number; h: number }>;
+  gpuDetector: WebGPUDetector;
+  gpuTemplate: NonNullable<Awaited<ReturnType<WebGPUDetector["loadTemplate"]>>>;
+}
+
+/** Score a single video frame using both CPU and GPU backends. */
+async function scoreSingleFrame(
+  ctx: ScoreContext,
+): Promise<{ cpuScore: number; gpuScore: number }> {
+  const captured = captureFrame(ctx.video);
+  const frameGray = toGrayscale(
+    captured.pixels, captured.width, captured.height,
+  );
+  const cpuScore = cpuScoreFrame(
+    frameGray, captured.width, captured.height,
+    ctx.tmplGray, ctx.tmplW, ctx.tmplH,
+    ctx.regions,
+  );
+  const gpuResult = await ctx.gpuDetector.detect(
+    ctx.video, [ctx.gpuTemplate], { precision: 0 },
+  );
+  return { cpuScore, gpuScore: gpuResult.bestScore };
+}
+
+/** Find the best CPU and GPU scores across frame offsets for one encounter. */
+async function scoreBestMatchFromOffsets(
+  enc: EncounterGT,
+  ctx: ScoreContext,
+  signal: AbortSignal,
+): Promise<{ bestCpu: number; bestGpu: number }> {
+  let bestCpu = 0;
+  let bestGpu = 0;
+
+  for (const offset of [-5, -2, 0, 2, 5]) {
+    if (signal.aborted) break;
+
+    const timeSec = (enc.matchFrame + offset) / FPS;
+    try {
+      await seekVideo(ctx.video, timeSec, signal);
+    } catch {
+      continue;
+    }
+
+    const { cpuScore, gpuScore } = await scoreSingleFrame(ctx);
+    if (cpuScore > bestCpu) bestCpu = cpuScore;
+    if (gpuScore > bestGpu) bestGpu = gpuScore;
+  }
+
+  return { bestCpu, bestGpu };
+}
+
+/** Load test config and create the GPU detector. */
+async function initTestEnvironment(
+  setProgress: (msg: string) => void,
+): Promise<{
+  regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>;
+  detector: WebGPUDetector;
+}> {
+  setProgress("Loading test-config.json...");
+  const configResp = await fetch("/test-fixtures/test-config.json");
+  if (!configResp.ok) {
+    throw new Error(
+      "Could not load /test-fixtures/test-config.json. " +
+      "Make sure test fixture files are served (e.g. via Vite public dir or dev server).",
+    );
+  }
+  const testConfig: TestConfigEntry[] = await configResp.json();
+  const regionMap = buildRegionMap(testConfig);
+
+  setProgress("Creating WebGPU detector...");
+  const detector = await WebGPUDetector.create();
+  return { regionMap, detector };
+}
+
+/** Shared context for frame-processing helpers, avoiding long param lists. */
+interface ProcessFramesContext {
+  video: HTMLVideoElement;
+  tmplData: { bitmap: ImageBitmap; gray: Float32Array };
+  regions: Array<{ x: number; y: number; w: number; h: number }>;
+  gpuDetector: WebGPUDetector;
+  gpuTemplate: NonNullable<Awaited<ReturnType<WebGPUDetector["loadTemplate"]>>>;
+  signal: AbortSignal;
+  allResults: TestResult[];
+  setProgress: (msg: string) => void;
+  updateProgress: (frames: number) => void;
+  publishResults: () => void;
+}
+
+/** Process all match-frame encounters for a single template. */
+async function processMatchFrames(
+  gt: TemplateGT,
+  ctx: ProcessFramesContext,
+): Promise<void> {
+  for (const enc of gt.encounters) {
+    if (ctx.signal.aborted) break;
+
+    ctx.setProgress(
+      `${gt.pokemonName} (${gt.templateId}) -- Frame ${enc.matchFrame}`,
+    );
+
+    const scoreCtx: ScoreContext = {
+      video: ctx.video, tmplGray: ctx.tmplData.gray,
+      tmplW: ctx.tmplData.bitmap.width, tmplH: ctx.tmplData.bitmap.height,
+      regions: ctx.regions, gpuDetector: ctx.gpuDetector,
+      gpuTemplate: ctx.gpuTemplate,
+    };
+    const { bestCpu, bestGpu } = await scoreBestMatchFromOffsets(
+      enc, scoreCtx, ctx.signal,
+    );
+
+    ctx.allResults.push(buildResult(gt, enc.matchFrame, "match", bestCpu, bestGpu));
+    ctx.updateProgress(1);
+    ctx.publishResults();
+  }
+}
+
+/** Process all negative frames for a single template. */
+async function processNegativeFrames(
+  gt: TemplateGT,
+  ctx: ProcessFramesContext,
+): Promise<void> {
+  for (const negFrame of gt.negativeFrames) {
+    if (ctx.signal.aborted) break;
+
+    ctx.setProgress(
+      `${gt.pokemonName} (${gt.templateId}) -- Neg frame ${negFrame}`,
+    );
+
+    const timeSec = negFrame / FPS;
+    try {
+      await seekVideo(ctx.video, timeSec, ctx.signal);
+    } catch {
+      ctx.updateProgress(1);
+      continue;
+    }
+
+    const scoreCtx: ScoreContext = {
+      video: ctx.video, tmplGray: ctx.tmplData.gray,
+      tmplW: ctx.tmplData.bitmap.width, tmplH: ctx.tmplData.bitmap.height,
+      regions: ctx.regions, gpuDetector: ctx.gpuDetector,
+      gpuTemplate: ctx.gpuTemplate,
+    };
+    const { cpuScore, gpuScore } = await scoreSingleFrame(scoreCtx);
+
+    ctx.allResults.push(buildResult(gt, negFrame, "negative", cpuScore, gpuScore));
+    ctx.updateProgress(1);
+    ctx.publishResults();
+  }
+}
+
+/** Build a TestResult from scoring data. */
+function buildResult(
+  gt: TemplateGT,
+  frame: number,
+  type: "match" | "negative",
+  cpuScore: number,
+  gpuScore: number,
+): TestResult {
+  return {
+    pokemonName: gt.pokemonName,
+    templateId: gt.templateId,
+    frame,
+    type,
+    cpuScore,
+    gpuScore,
+    delta: Math.abs(cpuScore - gpuScore),
+  };
+}
+
 /** Group test-config entries by template, returning region rects. */
 function buildRegionMap(
   config: TestConfigEntry[],
@@ -445,6 +685,96 @@ function StatusIcon({ delta }: Readonly<{ delta: number }>): JSX.Element {
 // Component
 // ---------------------------------------------------------------------------
 
+/** Try to load a video, skipping its entries on failure. Returns null if skipped. */
+async function tryLoadVideo(
+  videoName: string,
+  gtEntries: TemplateGT[],
+  signal: AbortSignal,
+  setProgress: (msg: string) => void,
+  updateProgress: (frames: number) => void,
+): Promise<HTMLVideoElement | null> {
+  setProgress(`Loading video: ${videoName}.mp4...`);
+  try {
+    return await loadVideoElement(videoName, signal);
+  } catch (e) {
+    if (signal.aborted) return null;
+    const msg = e instanceof Error ? e.message : String(e);
+    setProgress(`Skipping ${videoName}: ${msg}`);
+    for (const gt of gtEntries) {
+      updateProgress(gt.encounters.length + gt.negativeFrames.length);
+    }
+    return null;
+  }
+}
+
+/** Process a single template entry: load template, run match + negative frames, cleanup. */
+async function processTemplate(
+  gt: TemplateGT,
+  regions: Array<{ x: number; y: number; w: number; h: number }>,
+  gpuDetector: WebGPUDetector,
+  ctx: Omit<ProcessFramesContext, "tmplData" | "regions" | "gpuDetector" | "gpuTemplate">,
+): Promise<void> {
+  const tmplData = await loadTemplatePng(gt);
+  const skipFrameCount = gt.encounters.length + gt.negativeFrames.length;
+  if (!tmplData) {
+    ctx.updateProgress(skipFrameCount);
+    return;
+  }
+
+  const gpuRegions = regions.map((r) => ({
+    type: "image" as const,
+    rect: r,
+  }));
+  const gpuTemplate = await gpuDetector.loadTemplate(
+    tmplData.bitmap, gpuRegions,
+  );
+  if (!gpuTemplate) {
+    ctx.updateProgress(skipFrameCount);
+    tmplData.bitmap.close();
+    return;
+  }
+
+  const fullCtx: ProcessFramesContext = {
+    ...ctx,
+    tmplData,
+    regions,
+    gpuDetector,
+    gpuTemplate,
+  };
+
+  await processMatchFrames(gt, fullCtx);
+  await processNegativeFrames(gt, fullCtx);
+  tmplData.bitmap.close();
+}
+
+/** Run all templates for a single video group. */
+async function processVideoGroup(
+  videoName: string,
+  gtEntries: TemplateGT[],
+  regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>,
+  gpuDetector: WebGPUDetector,
+  ctx: Omit<ProcessFramesContext, "video" | "tmplData" | "regions" | "gpuDetector" | "gpuTemplate">,
+): Promise<void> {
+  const video = await tryLoadVideo(
+    videoName, gtEntries, ctx.signal, ctx.setProgress, ctx.updateProgress,
+  );
+  if (!video) return;
+
+  for (const gt of gtEntries) {
+    if (ctx.signal.aborted) break;
+
+    const regions = regionMap.get(gt.templateId);
+    if (!regions || regions.length === 0) {
+      ctx.updateProgress(gt.encounters.length + gt.negativeFrames.length);
+      continue;
+    }
+
+    await processTemplate(gt, regions, gpuDetector, { ...ctx, video });
+  }
+
+  cleanupVideo(video);
+}
+
 /** Dev-only modal for GPU/CPU equivalence testing. */
 export default function GpuEquivalenceTest({
   onClose,
@@ -485,252 +815,31 @@ export default function GpuEquivalenceTest({
     let gpuDetector: WebGPUDetector | null = null;
 
     try {
-      // --- Load test config ---
-      setProgress("Loading test-config.json...");
-      const configResp = await fetch("/test-fixtures/test-config.json");
-      if (!configResp.ok) {
-        throw new Error(
-          "Could not load /test-fixtures/test-config.json. " +
-          "Make sure test fixture files are served (e.g. via Vite public dir or dev server).",
-        );
-      }
-      const testConfig: TestConfigEntry[] = await configResp.json();
-      const regionMap = buildRegionMap(testConfig);
+      const { regionMap, detector } = await initTestEnvironment(setProgress);
+      gpuDetector = detector;
 
-      // --- Create GPU detector ---
-      setProgress("Creating WebGPU detector...");
-      gpuDetector = await WebGPUDetector.create();
-
-      // --- Count total frames to process ---
-      let totalFrames = 0;
-      for (const gt of GROUND_TRUTH) {
-        // Match frames: each encounter tests offsets [-5, -2, 0, 2, 5] but we report 1 result
-        totalFrames += gt.encounters.length;
-        totalFrames += gt.negativeFrames.length;
-      }
-
+      const totalFrames = countTotalFrames(GROUND_TRUTH);
       let completedFrames = 0;
       const allResults: TestResult[] = [];
 
-      // --- Group GROUND_TRUTH by video to reuse video elements ---
-      const byVideo = new Map<string, TemplateGT[]>();
-      for (const gt of GROUND_TRUTH) {
-        const list = byVideo.get(gt.videoName) ?? [];
-        list.push(gt);
-        byVideo.set(gt.videoName, list);
-      }
+      const updateProgress = (frames: number) => {
+        completedFrames += frames;
+        setProgressPct((completedFrames / totalFrames) * 100);
+      };
 
-      for (const [videoName, gtEntries] of byVideo) {
+      const publishResults = () => {
+        setResults([...allResults]);
+      };
+
+      const ctx = { signal, allResults, setProgress, updateProgress, publishResults };
+
+      for (const [videoName, gtEntries] of groupByVideo(GROUND_TRUTH)) {
         if (signal.aborted) break;
-
-        // --- Load video ---
-        setProgress(`Loading video: ${videoName}.mp4...`);
-        const video = document.createElement("video");
-        video.preload = "auto";
-        video.muted = true;
-        video.crossOrigin = "anonymous";
-        video.src = `/test-fixtures/${videoName}.mp4`;
-
-        try {
-          await waitForVideoReady(video, signal);
-        } catch (e) {
-          if (signal.aborted) break;
-          // Skip this video if unavailable
-          const msg = e instanceof Error ? e.message : String(e);
-          setProgress(`Skipping ${videoName}: ${msg}`);
-          for (const gt of gtEntries) {
-            completedFrames +=
-              gt.encounters.length + gt.negativeFrames.length;
-          }
-          setProgressPct((completedFrames / totalFrames) * 100);
-          continue;
-        }
-
-        for (const gt of gtEntries) {
-          if (signal.aborted) break;
-
-          const regions = regionMap.get(gt.templateId);
-          if (!regions || regions.length === 0) {
-            completedFrames +=
-              gt.encounters.length + gt.negativeFrames.length;
-            setProgressPct((completedFrames / totalFrames) * 100);
-            continue;
-          }
-
-          // --- Load template PNG ---
-          const tmplUrl = `/test-fixtures/${gt.videoName}_${gt.pokemonName}_${gt.templateId}.png`;
-          const tmplResp = await fetch(tmplUrl);
-          if (!tmplResp.ok) {
-            completedFrames +=
-              gt.encounters.length + gt.negativeFrames.length;
-            setProgressPct((completedFrames / totalFrames) * 100);
-            continue;
-          }
-          const tmplBlob = await tmplResp.blob();
-          const tmplBitmap = await createImageBitmap(tmplBlob);
-
-          // Extract template grayscale for CPU scoring
-          const tmplCanvas = new OffscreenCanvas(
-            tmplBitmap.width,
-            tmplBitmap.height,
-          );
-          const tmplCtx = tmplCanvas.getContext("2d")!;
-          tmplCtx.drawImage(tmplBitmap, 0, 0);
-          const tmplImageData = tmplCtx.getImageData(
-            0, 0, tmplBitmap.width, tmplBitmap.height,
-          );
-          const tmplGray = toGrayscale(
-            tmplImageData.data,
-            tmplBitmap.width,
-            tmplBitmap.height,
-          );
-
-          // Load template into GPU detector
-          const gpuRegions = regions.map((r) => ({
-            type: "image" as const,
-            rect: r,
-          }));
-          const gpuTemplate = await gpuDetector.loadTemplate(
-            tmplBitmap,
-            gpuRegions,
-          );
-          if (!gpuTemplate) {
-            completedFrames +=
-              gt.encounters.length + gt.negativeFrames.length;
-            setProgressPct((completedFrames / totalFrames) * 100);
-            tmplBitmap.close();
-            continue;
-          }
-
-          // --- Process match frames (with offsets) ---
-          for (const enc of gt.encounters) {
-            if (signal.aborted) break;
-
-            setProgress(
-              `${gt.pokemonName} (${gt.templateId}) -- Frame ${enc.matchFrame}`,
-            );
-
-            let bestCpu = 0;
-            let bestGpu = 0;
-
-            for (const offset of [-5, -2, 0, 2, 5]) {
-              if (signal.aborted) break;
-
-              const frame = enc.matchFrame + offset;
-              const timeSec = frame / FPS;
-
-              try {
-                await seekVideo(video, timeSec, signal);
-              } catch {
-                continue;
-              }
-
-              // CPU scoring
-              const captured = captureFrame(video);
-              const frameGray = toGrayscale(
-                captured.pixels,
-                captured.width,
-                captured.height,
-              );
-              const cpuScore = cpuScoreFrame(
-                frameGray, captured.width, captured.height,
-                tmplGray, tmplBitmap.width, tmplBitmap.height,
-                regions,
-              );
-
-              // GPU scoring
-              const gpuResult = await gpuDetector.detect(
-                video,
-                [gpuTemplate],
-                { precision: 0 },
-              );
-              const gpuScore = gpuResult.bestScore;
-
-              if (cpuScore > bestCpu) bestCpu = cpuScore;
-              if (gpuScore > bestGpu) bestGpu = gpuScore;
-            }
-
-            allResults.push({
-              pokemonName: gt.pokemonName,
-              templateId: gt.templateId,
-              frame: enc.matchFrame,
-              type: "match",
-              cpuScore: bestCpu,
-              gpuScore: bestGpu,
-              delta: Math.abs(bestCpu - bestGpu),
-            });
-            completedFrames++;
-            setProgressPct((completedFrames / totalFrames) * 100);
-            setResults([...allResults]);
-          }
-
-          // --- Process negative frames ---
-          for (const negFrame of gt.negativeFrames) {
-            if (signal.aborted) break;
-
-            setProgress(
-              `${gt.pokemonName} (${gt.templateId}) -- Neg frame ${negFrame}`,
-            );
-
-            const timeSec = negFrame / FPS;
-            try {
-              await seekVideo(video, timeSec, signal);
-            } catch {
-              completedFrames++;
-              setProgressPct((completedFrames / totalFrames) * 100);
-              continue;
-            }
-
-            // CPU scoring
-            const captured = captureFrame(video);
-            const frameGray = toGrayscale(
-              captured.pixels,
-              captured.width,
-              captured.height,
-            );
-            const cpuScore = cpuScoreFrame(
-              frameGray, captured.width, captured.height,
-              tmplGray, tmplBitmap.width, tmplBitmap.height,
-              regions,
-            );
-
-            // GPU scoring
-            const gpuResult = await gpuDetector.detect(
-              video,
-              [gpuTemplate],
-              { precision: 0 },
-            );
-            const gpuScore = gpuResult.bestScore;
-
-            allResults.push({
-              pokemonName: gt.pokemonName,
-              templateId: gt.templateId,
-              frame: negFrame,
-              type: "negative",
-              cpuScore,
-              gpuScore,
-              delta: Math.abs(cpuScore - gpuScore),
-            });
-            completedFrames++;
-            setProgressPct((completedFrames / totalFrames) * 100);
-            setResults([...allResults]);
-          }
-
-          tmplBitmap.close();
-        }
-
-        // Cleanup video element
-        video.pause();
-        video.removeAttribute("src");
-        video.load();
+        await processVideoGroup(videoName, gtEntries, regionMap, gpuDetector, ctx);
       }
 
-      if (signal.aborted) {
-        setProgress("Cancelled.");
-      } else {
-        setProgress("Complete.");
-        setProgressPct(100);
-      }
+      setProgress(signal.aborted ? "Cancelled." : "Complete.");
+      if (!signal.aborted) setProgressPct(100);
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
         setProgress("Cancelled.");

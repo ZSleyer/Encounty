@@ -27,6 +27,17 @@ export function SetEncounterModal({ pokemon, onSave, onClose }: Readonly<SetEnco
     onClose();
   };
 
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) handleCancel();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [handleCancel]);
+
   const handleSave = () => {
     onSave(Math.max(0, count));
     handleCancel();
@@ -36,7 +47,6 @@ export function SetEncounterModal({ pokemon, onSave, onClose }: Readonly<SetEnco
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
-      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm animate-slide-in backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-4">

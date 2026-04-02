@@ -72,6 +72,48 @@ function mockAcceptedState() {
 }
 
 
+/**
+ * Helper: set up a mock WebSocket on globalThis and configure fetch to return
+ * server-not-ready so PreparingScreen renders and creates a WebSocket.
+ * Returns the last created mock WS instance and a cleanup function.
+ */
+function setupPreparingScreenWs(fetchOverrides?: Record<string, () => Promise<unknown>>) {
+  const wsInstances: Array<{
+    onmessage: ((ev: { data: string }) => void) | null;
+    onclose: (() => void) | null;
+    onerror: (() => void) | null;
+    close: ReturnType<typeof vi.fn>;
+  }> = [];
+  const OrigWebSocket = globalThis.WebSocket;
+  // Must use regular function (not arrow) so it works with `new`
+  (globalThis as Record<string, unknown>).WebSocket = vi.fn(function (this: Record<string, unknown>) {
+    this.onmessage = null;
+    this.onclose = null;
+    this.onerror = null;
+    this.close = vi.fn();
+    wsInstances.push(this as unknown as (typeof wsInstances)[0]);
+  });
+
+  mockFetch.mockImplementation((url: string) => {
+    if (url === "/api/status/ready") {
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ ready: false, dev_mode: false, setup_pending: false }),
+      });
+    }
+    if (fetchOverrides?.[url]) {
+      return fetchOverrides[url]();
+    }
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+  });
+
+  return {
+    wsInstances,
+    cleanup: () => { globalThis.WebSocket = OrigWebSocket; },
+    getLastWs: () => wsInstances[wsInstances.length - 1],
+  };
+}
+
 describe("App", () => {
   it("renders without crashing", () => {
     // App does not include BrowserRouter, so wrap it here.
@@ -3189,48 +3231,6 @@ describe("App", () => {
   });
 
   // --- PreparingScreen WebSocket sync_progress handling ---
-
-  /**
-   * Helper: set up a mock WebSocket on globalThis and configure fetch to return
-   * server-not-ready so PreparingScreen renders and creates a WebSocket.
-   * Returns the last created mock WS instance and a cleanup function.
-   */
-  function setupPreparingScreenWs(fetchOverrides?: Record<string, () => Promise<unknown>>) {
-    const wsInstances: Array<{
-      onmessage: ((ev: { data: string }) => void) | null;
-      onclose: (() => void) | null;
-      onerror: (() => void) | null;
-      close: ReturnType<typeof vi.fn>;
-    }> = [];
-    const OrigWebSocket = globalThis.WebSocket;
-    // Must use regular function (not arrow) so it works with `new`
-    (globalThis as Record<string, unknown>).WebSocket = vi.fn(function (this: Record<string, unknown>) {
-      this.onmessage = null;
-      this.onclose = null;
-      this.onerror = null;
-      this.close = vi.fn();
-      wsInstances.push(this as unknown as (typeof wsInstances)[0]);
-    });
-
-    mockFetch.mockImplementation((url: string) => {
-      if (url === "/api/status/ready") {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ready: false, dev_mode: false, setup_pending: false }),
-        });
-      }
-      if (fetchOverrides?.[url]) {
-        return fetchOverrides[url]();
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
-    });
-
-    return {
-      wsInstances,
-      cleanup: () => { globalThis.WebSocket = OrigWebSocket; },
-      getLastWs: () => wsInstances[wsInstances.length - 1],
-    };
-  }
 
   it("shows sync progress phase and step text from WebSocket messages", async () => {
     const { cleanup, getLastWs } = setupPreparingScreenWs();
