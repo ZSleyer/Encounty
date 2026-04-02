@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Minus, RotateCcw, Star, Edit2, Gamepad2 } from "lucide-react";
+import { Plus, Minus, RotateCcw, Star, Edit2, Gamepad2, Zap } from "lucide-react";
 import { Pokemon } from "../../types";
 import { useCounterStore, DetectorStatusEntry } from "../../hooks/useCounterState";
 import { useI18n } from "../../contexts/I18nContext";
@@ -57,17 +57,12 @@ export function PokemonCard({
   };
 
   return (
-    <button
-      type="button"
-      tabIndex={0}
+    <div
       className={`relative rounded-xl border transition-all duration-300 overflow-hidden flex flex-col text-left w-full p-0 ${
         pokemon.is_active
           ? "border-accent-blue/50 bg-linear-to-b from-bg-card to-accent-blue/5 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-[1.02]"
-          : "border-border-subtle bg-bg-card hover:border-border-active/40 hover:shadow-lg cursor-pointer"
+          : "border-border-subtle bg-bg-card hover:border-border-active/40 hover:shadow-lg"
       } ${isFlashing ? "animate-flash" : ""}`}
-      onClick={() => {
-        if (!pokemon.is_active) onActivate(pokemon.id);
-      }}
     >
       {/* Active Top Bar Indicator */}
       {pokemon.is_active && (
@@ -98,10 +93,7 @@ export function PokemonCard({
           </div>
         )}
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(pokemon);
-          }}
+          onClick={() => onEdit(pokemon)}
           className="p-1.5 rounded-md bg-bg-secondary/80 hover:bg-accent-blue hover:text-white text-text-secondary backdrop-blur-sm transition-colors"
           title={t("dash.tooltipEdit")}
           aria-label={t("dash.tooltipEdit")}
@@ -158,10 +150,7 @@ export function PokemonCard({
         {/* Primary Controls */}
         <div className="grid grid-cols-[1fr_2fr_1fr] gap-2 w-full">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDecrement(pokemon.id);
-            }}
+            onClick={() => onDecrement(pokemon.id)}
             className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
             title={t("dash.tooltipDecrement")}
             aria-label={t("dash.tooltipDecrement")}
@@ -169,10 +158,7 @@ export function PokemonCard({
             <Minus className="w-4 h-4" />
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onIncrement(pokemon.id);
-            }}
+            onClick={() => onIncrement(pokemon.id)}
             className="flex flex-col items-center justify-center rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
             title={t("dash.tooltipIncrement")}
             aria-label={t("dash.tooltipIncrement")}
@@ -180,10 +166,7 @@ export function PokemonCard({
             <Plus className="w-5 h-5 mb-0.5" />
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onReset(pokemon.id);
-            }}
+            onClick={() => onReset(pokemon.id)}
             className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-red-400 transition-colors"
             title={t("dash.tooltipReset")}
             aria-label={t("dash.tooltipReset")}
@@ -192,13 +175,21 @@ export function PokemonCard({
           </button>
         </div>
 
-        {/* Secondary controls (Delete) */}
+        {/* Secondary controls */}
         <div className="flex gap-2 w-full mt-3 pt-3 border-t border-border-subtle/50">
+          {!pokemon.is_active && (
+            <button
+              onClick={() => onActivate(pokemon.id)}
+              title={t("dash.activate")}
+              aria-label={t("dash.activate")}
+              className="flex-1 py-1.5 rounded-md text-xs font-medium text-text-muted hover:text-accent-blue border border-transparent hover:border-accent-blue/30 hover:bg-accent-blue/10 transition-all flex items-center justify-center gap-1"
+            >
+              <Zap className="w-3 h-3" />
+              {t("dash.activate")}
+            </button>
+          )}
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(pokemon.id);
-            }}
+            onClick={() => onDelete(pokemon.id)}
             title={t("dash.tooltipDelete")}
             aria-label={t("dash.tooltipDelete")}
             className="flex-1 py-1.5 rounded-md text-xs font-medium text-text-muted hover:text-red-400 border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all"
@@ -207,6 +198,6 @@ export function PokemonCard({
           </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 }

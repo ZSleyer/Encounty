@@ -61,7 +61,7 @@ describe("PokemonCard", () => {
     expect(onEdit).toHaveBeenCalledWith(defaultProps.pokemon);
   });
 
-  it("calls onActivate when an inactive card is clicked", async () => {
+  it("calls onActivate when the activate button is clicked", async () => {
     const onActivate = vi.fn();
     const inactivePokemon = makePokemon({ is_active: false });
     const { userEvent } = await import("../../test-utils");
@@ -69,8 +69,7 @@ describe("PokemonCard", () => {
     render(
       <PokemonCard {...defaultProps} pokemon={inactivePokemon} onActivate={onActivate} />,
     );
-    // Click the card body (not a button)
-    await user.click(screen.getByText("Bisasam"));
+    await user.click(screen.getByText("Aktivieren"));
     expect(onActivate).toHaveBeenCalledWith("poke-1");
   });
 
