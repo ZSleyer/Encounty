@@ -28,6 +28,15 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
   // Auto-focus search on mount
   useEffect(() => { searchRef.current?.focus(); }, []);
 
+  // Close on ESC key
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
   const candidates = useMemo(() => {
     const all = (appState?.pokemon ?? []).filter(
       (p) => p.id !== currentPokemonId && (p.detector_config?.templates?.length ?? 0) > 0,

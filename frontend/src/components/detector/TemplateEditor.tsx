@@ -10,7 +10,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon,
-  Type, Loader2, ScanText, Play, ShieldBan,
+  Type, Loader2, ScanText, Play, ShieldBan, ArrowRight,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { MatchedRegion } from "../../types";
@@ -67,9 +67,9 @@ function NewTemplateControls({
     return (
       <button
         onClick={onTakeSnapshot}
-        className="flex items-center justify-center gap-2 w-full py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+        className="flex items-center justify-center gap-2 w-full px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
       >
-        <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
+        <Camera className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
         {t("templateEditor.takeSnapshot")}
       </button>
     );
@@ -80,16 +80,16 @@ function NewTemplateControls({
       <div className="flex w-full gap-3">
         <button
           onClick={onBackToLive}
-          className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
         >
-          <Play className="w-4 h-4 2xl:w-5 2xl:h-5" />
+          <Play className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.backToLive")}
         </button>
         <button
           onClick={onUseFrame}
-          className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+          className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
         >
-          <Camera className="w-5 h-5 2xl:w-6 2xl:h-6" />
+          <Camera className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
           {t("templateEditor.useFrame")}
         </button>
       </div>
@@ -101,18 +101,18 @@ function NewTemplateControls({
       <button
         onClick={onResetSnapshot}
         disabled={isSaving}
-        className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
+        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
       >
-        <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5" />
+        <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
         {t("templateEditor.retake")}
       </button>
       <button
         onClick={onSave}
         disabled={isSaving}
-        className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+        className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
       >
-        <Save className="w-5 h-5 2xl:w-6 2xl:h-6" />
-        {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
+        {isSaving ? t("templateEditor.saving") : t("templateEditor.next")}
+        <ArrowRight className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
       </button>
     </div>
   );
@@ -185,12 +185,16 @@ function handleReplayKeyDown(
   }
 }
 
-/** Convert a relative bounding box to a pixel region if large enough. */
+/** Convert a relative bounding box to a pixel region, clamped to canvas bounds. */
 function boxToRegion(box: { x: number; y: number; w: number; h: number }, canvas: HTMLCanvasElement): MatchedRegion | null {
-  const pxX = Math.floor(box.x * canvas.width);
-  const pxY = Math.floor(box.y * canvas.height);
-  const pxW = Math.max(1, Math.floor(box.w * canvas.width));
-  const pxH = Math.max(1, Math.floor(box.h * canvas.height));
+  const cw = canvas.width;
+  const ch = canvas.height;
+  // Clamp origin to [0, canvas size)
+  const pxX = Math.max(0, Math.min(cw - 1, Math.floor(box.x * cw)));
+  const pxY = Math.max(0, Math.min(ch - 1, Math.floor(box.y * ch)));
+  // Clamp dimensions so region never exceeds canvas bounds
+  const pxW = Math.max(1, Math.min(cw - pxX, Math.floor(box.w * cw)));
+  const pxH = Math.max(1, Math.min(ch - pxY, Math.floor(box.h * ch)));
   if (pxW <= 5 || pxH <= 5) return null;
   return { type: "image", expected_text: "", rect: { x: pxX, y: pxY, w: pxW, h: pxH } };
 }
@@ -239,6 +243,75 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight }: R
   );
 }
 
+/** Modal dialog for naming a template before saving. */
+function TemplateNameDialog({ initialName, onConfirm, onCancel, t }: Readonly<{
+  initialName: string;
+  onConfirm: (name: string) => void;
+  onCancel: () => void;
+  t: (k: string) => string;
+}>) {
+  const [name, setName] = useState(initialName);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") onConfirm(name);
+    if (e.key === "Escape") onCancel();
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) onCancel();
+  };
+
+  return createPortal(
+    <div // NOSONAR — backdrop click is intentional dismiss behaviour
+      className="fixed inset-0 z-120 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
+      <div
+        className="relative bg-bg-card rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-border-subtle"
+        role="dialog"
+        aria-label={t("templateEditor.nameDialogTitle")}
+      >
+        <button
+          onClick={onCancel}
+          className="absolute top-3 right-3 p-1.5 rounded-full text-text-muted hover:bg-white/10 hover:text-text-primary transition-colors"
+          aria-label={t("templateEditor.cancel")}
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <h3 className="text-lg font-bold text-text-primary mb-4">{t("templateEditor.nameDialogTitle")}</h3>
+        <input
+          ref={inputRef}
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={t("templateEditor.templateName")}
+          className="w-full px-3 py-2 text-sm bg-white/10 border border-border-subtle rounded-lg text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors mb-4"
+          aria-label={t("templateEditor.templateName")}
+        />
+        <button
+          onClick={() => onConfirm(name)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap bg-accent-blue text-white hover:bg-accent-blue/90 transition-all"
+        >
+          <Save className="w-4 h-4 shrink-0" />
+          {t("templateEditor.saveTemplate")}
+        </button>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/** Maps each phase to its step number (1-indexed). */
+function phaseToStep(phase: Phase): number {
+  if (phase === "video") return 1;
+  if (phase === "replay") return 2;
+  return 3;
+}
+
 /** Returns the heading and hint text for the current editor phase. */
 function getHeadingAndHint(
   isEditMode: boolean,
@@ -248,13 +321,56 @@ function getHeadingAndHint(
   if (isEditMode) {
     return { heading: t("templateEditor.editTitle"), hint: t("templateEditor.editHint") };
   }
-  if (phase === "video") {
-    return { heading: t("templateEditor.step1Title"), hint: t("templateEditor.step1Hint") };
-  }
-  if (phase === "replay") {
-    return { heading: t("templateEditor.replayTitle"), hint: t("templateEditor.replayHint") };
-  }
-  return { heading: t("templateEditor.step2Title"), hint: t("templateEditor.step2Hint") };
+  const step = phaseToStep(phase);
+  return {
+    heading: t(`templateEditor.step${step}Title`),
+    hint: t(`templateEditor.step${step}Hint`),
+  };
+}
+
+/** Visual step indicator showing progress through the 3-step template flow. */
+function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => string }>) {
+  const currentStep = phaseToStep(phase);
+  const steps = [
+    { step: 1, label: t("templateEditor.step1Title") },
+    { step: 2, label: t("templateEditor.step2Title") },
+    { step: 3, label: t("templateEditor.step3Title") },
+  ];
+
+  return (
+    <div className="flex items-center gap-1 sm:gap-2">
+      {steps.map(({ step, label }) => {
+        const isActive = step === currentStep;
+        const isDone = step < currentStep;
+        const stepLabel = label.replace(/^.*?:\s*/, "");
+        return (
+          <React.Fragment key={step}>
+            {step > 1 && (
+              <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-white/20"}`} />
+            )}
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+              isActive
+                ? "bg-accent-blue/20 text-accent-blue ring-1 ring-accent-blue/40"
+                : isDone
+                  ? "bg-white/10 text-white/70"
+                  : "bg-white/5 text-white/30"
+            }`}>
+              <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${
+                isActive
+                  ? "bg-accent-blue text-white"
+                  : isDone
+                    ? "bg-white/20 text-white/70"
+                    : "bg-white/10 text-white/30"
+              }`}>
+                {isDone ? "✓" : step}
+              </span>
+              <span className="hidden sm:inline whitespace-nowrap">{stepLabel}</span>
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
 }
 
 /** Persists the current template (new or updated regions). */
@@ -552,7 +668,7 @@ export function TemplateEditor({
   const [templateName, setTemplateName] = useState(initialName ?? "");
 
   // Browser-based replay buffer capturing from the stream at 60fps
-  const replayBuffer = useReplayBuffer(stream ? videoEl : null, 30, 60);
+  const replayBuffer = useReplayBuffer(stream ? videoEl : null);
   const [snapshotWidth, setSnapshotWidth] = useState(0);
   const [snapshotHeight, setSnapshotHeight] = useState(0);
 
@@ -694,8 +810,15 @@ export function TemplateEditor({
     if (recognized) updateRegion(regionIndex, { expected_text: recognized });
   };
 
-  const handleSave = () =>
-    saveTemplate({ phase, canvas: canvasRef.current, regions, templateName, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg });
+  const [showNameDialog, setShowNameDialog] = useState(false);
+
+  const handleSaveClick = () => setShowNameDialog(true);
+
+  const confirmSave = (name: string) => {
+    setShowNameDialog(false);
+    setTemplateName(name);
+    saveTemplate({ phase, canvas: canvasRef.current, regions, templateName: name, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg });
+  };
 
   const hasTextRegion = regions.some((r) => r.type === "text");
   const isEditMode = !!initialImageUrl || !!onUpdateRegions;
@@ -703,7 +826,6 @@ export function TemplateEditor({
   const { heading, hint } = getHeadingAndHint(isEditMode, phase, t);
 
   const isSnapshotPhase = phase === "snapshot";
-  const showNameInput = isSnapshotPhase || isEditMode;
   const cursorClass = isSnapshotPhase ? "cursor-crosshair" : "cursor-default";
   const pointerDown = isSnapshotPhase ? onPointerDown : undefined;
   const pointerMove = isSnapshotPhase ? onPointerMove : undefined;
@@ -721,19 +843,13 @@ export function TemplateEditor({
       </button>
 
       <div className="text-white text-center mb-2 mt-4 shrink-0">
+        {!isEditMode && (
+          <div className="flex justify-center mb-3">
+            <StepIndicator phase={phase} t={t} />
+          </div>
+        )}
         <h2 className="text-xl 2xl:text-2xl font-bold mb-1">{heading}</h2>
         <p className="text-sm 2xl:text-base text-gray-400 mb-2">{hint}</p>
-        {/* Template name input — always visible in snapshot/edit phase */}
-        {showNameInput && (
-          <input
-            type="text"
-            value={templateName}
-            onChange={(e) => setTemplateName(e.target.value)}
-            placeholder={t("templateEditor.templateName")}
-            className="mx-auto w-full max-w-xs px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 outline-none focus:border-accent-blue/50 transition-colors text-center"
-            aria-label={t("templateEditor.templateName")}
-          />
-        )}
       </div>
 
       {/* Region drawing surface — pointer events only active in snapshot phase */}
@@ -760,9 +876,15 @@ export function TemplateEditor({
               muted
             />
             {phase === "video" && replayBuffer.isBuffering && (
-              <div className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-mono text-white">
+              <div
+                className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-mono text-white"
+                title={t("templateEditor.bufferLoopHint")}
+              >
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                {Math.floor(replayBuffer.bufferedSeconds)}s / 30s
+                {Math.floor(replayBuffer.bufferedSeconds)}s / {replayBuffer.maxSeconds}s
+                {replayBuffer.bufferedSeconds >= replayBuffer.maxSeconds && (
+                  <RefreshCw className="w-3 h-3 text-white/60 animate-spin" style={{ animationDuration: "3s" }} aria-label={t("templateEditor.bufferLoopHint")} />
+                )}
               </div>
             )}
           </>
@@ -887,22 +1009,22 @@ export function TemplateEditor({
       )}
 
       {/* Flow Controls */}
-      <div className="flex flex-col items-center gap-3 w-full max-w-sm 2xl:max-w-md shrink-0">
+      <div className="flex flex-col items-center gap-3 w-full max-w-md 2xl:max-w-lg shrink-0">
         {isEditMode ? (
           <div className="flex w-full gap-3">
             <button
               onClick={onClose}
               disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
             >
               {t("templateEditor.cancel")}
             </button>
             <button
-              onClick={handleSave}
+              onClick={handleSaveClick}
               disabled={isSaving}
-              className="flex-2 flex items-center justify-center gap-2 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+              className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
             >
-              <Save className="w-5 h-5 2xl:w-6 2xl:h-6" />
+              <Save className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
               {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
             </button>
           </div>
@@ -912,7 +1034,7 @@ export function TemplateEditor({
             isSaving={isSaving}
             onTakeSnapshot={handleTakeSnapshot}
             onResetSnapshot={resetSnapshot}
-            onSave={handleSave}
+            onSave={handleSaveClick}
             onUseFrame={handleUseFrame}
             onBackToLive={handleBackToLive}
             t={t}
@@ -925,6 +1047,16 @@ export function TemplateEditor({
           </div>
         )}
       </div>
+
+      {/* Save name dialog */}
+      {showNameDialog && (
+        <TemplateNameDialog
+          initialName={templateName}
+          onConfirm={confirmSave}
+          onCancel={() => setShowNameDialog(false)}
+          t={t}
+        />
+      )}
     </div>
   );
 

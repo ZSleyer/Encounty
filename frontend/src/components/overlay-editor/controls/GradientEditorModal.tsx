@@ -139,7 +139,8 @@ export function GradientEditorModal({
     <dialog
       ref={dialogRef}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm backdrop:bg-black/70"
-      onClose={onClose}
+      onCancel={onClose}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* --- Header --- */}
       <div className="flex items-center justify-between mb-4">

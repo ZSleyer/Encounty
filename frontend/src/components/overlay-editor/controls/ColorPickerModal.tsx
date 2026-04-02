@@ -252,6 +252,7 @@ export function ColorPickerModal({
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
+      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-xs animate-slide-in backdrop:bg-black/70"
     >
       {/* Header */}

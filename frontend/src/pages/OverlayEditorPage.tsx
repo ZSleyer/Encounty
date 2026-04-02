@@ -176,7 +176,11 @@ export function OverlayEditorPage() {
 
       {/* Unsaved-changes confirmation modal */}
       {blocker.state === "blocked" && (
-        <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+        <div // NOSONAR — backdrop click dismisses unsaved-changes dialog
+          className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
+          onClick={(e) => { if (e.target === e.currentTarget) blocker.reset?.(); }}
+          onKeyDown={(e) => { if (e.key === "Escape") blocker.reset?.(); }}
+        >
           <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
             <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />

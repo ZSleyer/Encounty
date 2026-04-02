@@ -487,6 +487,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
+      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
       aria-modal="true"
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
     >

@@ -436,6 +436,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
+      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-0 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
     >
       {/* Header */}

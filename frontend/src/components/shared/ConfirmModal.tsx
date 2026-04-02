@@ -44,7 +44,8 @@ export function ConfirmModal({
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm animate-slide-in backdrop:bg-black/70"
+      onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
+      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-md animate-slide-in backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -66,13 +67,13 @@ export function ConfirmModal({
       <div className="flex gap-3">
         <button
           onClick={handleCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          className="flex-1 px-4 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
         >
           {resolvedCancel}
         </button>
         <button
           onClick={handleConfirm}
-          className={`flex-1 py-2 rounded-lg text-white font-semibold text-sm transition-colors shadow-sm ${
+          className={`flex-1 px-4 py-2 rounded-lg text-white font-semibold text-sm transition-colors shadow-sm whitespace-nowrap ${
             isDestructive
               ? "bg-accent-red/80 hover:bg-accent-red border border-accent-red/50"
               : "bg-accent-blue hover:bg-accent-blue/80"
