@@ -346,9 +346,6 @@ export function Settings() {
 
   return (
     <main id="main-content" className="flex-1 flex flex-col min-h-0 bg-transparent">
-      <div className="switch-waves-container">
-        <div className="switch-waves" />
-      </div>
       <div className="flex-1 min-h-0 overflow-auto p-6 relative z-10">
         <div className="max-w-2xl 2xl:max-w-3xl mx-auto space-y-6">
           <h1 className="sr-only">{t("settings.title")}</h1>

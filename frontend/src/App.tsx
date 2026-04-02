@@ -6,7 +6,7 @@
  * the global WebSocket connection. The /overlay route renders the bare Overlay
  * page without any chrome so it can be used as an OBS Browser Source.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { Routes, Route, Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutGrid,
@@ -36,6 +36,9 @@ import { WindowControls } from "./components/settings/WindowControls";
 import { LicenseDialog } from "./components/settings/LicenseDialog";
 import { apiUrl, wsUrl } from "./utils/api";
 import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
+import { ErrorBoundary } from "./components/shared/ErrorBoundary";
+
+const PixelBlast = lazy(() => import("./components/backgrounds/PixelBlast"));
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
 function UpdateOverlay({
@@ -420,9 +423,22 @@ function AppShell() {
           }}
         />
       )}
-      <div className="switch-waves-container">
-        <div className="switch-waves" />
-      </div>
+      {appState?.settings.ui_animations !== false && !isOverlay && location.pathname !== "/overlay-editor" && (
+        <div className="switch-waves-container">
+          <ErrorBoundary fallbackMessage="">
+            <Suspense fallback={null}>
+              <PixelBlast
+                color="#1a1a2e"
+                speed={0.3}
+                pixelSize={15}
+                variant="circle"
+                autoPauseOffscreen
+                className="w-full h-full"
+              />
+            </Suspense>
+          </ErrorBoundary>
+        </div>
+      )}
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
       <header
         className={`flex items-center h-12 2xl:h-14 bg-bg-secondary shrink-0 relative z-10 ${globalThis.electronAPI?.platform === 'darwin' ? 'pl-19.5 pr-4' : 'px-4'}`}
@@ -493,28 +509,35 @@ function AppShell() {
       </div>
       {location.pathname !== "/" && (
         <div className="flex-1 overflow-hidden flex flex-col">
-          <Routes>
-            <Route path="/" element={null} />
-            <Route path="/hotkeys" element={<HotkeyPage />} />
-            <Route path="/overlay-editor" element={<OverlayEditorPage />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/overlay/:pokemonId" element={<Overlay />} />
-            <Route path="/overlay" element={<Overlay />} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={null} />
+              <Route path="/hotkeys" element={<HotkeyPage />} />
+              <Route path="/overlay-editor" element={<OverlayEditorPage />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/overlay/:pokemonId" element={<Overlay />} />
+              <Route path="/overlay" element={<Overlay />} />
+            </Routes>
+          </ErrorBoundary>
         </div>
       )}
 
       {/* ── Footer ───────────────────────────────────────────── */}
       <div className="shrink-0">
         <div className="footer-line" />
-        <footer className="h-8 2xl:h-10 px-5 grid grid-cols-3 items-center text-xs text-text-faint select-none">
+        <footer className="h-8 2xl:h-10 px-5 grid grid-cols-3 items-center text-xs text-text-muted select-none bg-bg-secondary">
           {/* Left: Build Info + Build Date + Update Badge */}
           <div className="flex items-center justify-start gap-2">
-            <span className="font-semibold tracking-wide text-text-muted">
+            <a
+              href="https://github.com/ZSleyer/Encounty"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold tracking-wide text-text-muted hover:text-text-primary transition-colors"
+            >
               {buildInfo}
-            </span>
+            </a>
             {buildDate && (
-              <span className="text-text-faint/50">({buildDate})</span>
+              <span className="text-text-muted">({buildDate})</span>
             )}
             {updateInfo && updateState === "idle" && (
               <button
@@ -528,37 +551,21 @@ function AppShell() {
             )}
           </div>
 
-          {/* Center */}
-          <p className="text-center text-text-faint italic tracking-wide">And be not afraid of the dark</p>
+          {/* Center: empty */}
+          <div />
 
-          {/* Right: Brand Links */}
-          <div className="flex items-center justify-end gap-3">
-            <a
-              href="https://github.com/ZSleyer/Encounty"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 hover:text-text-muted transition-colors font-medium"
-            >
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" /><path d="M9 18c-4.51 2-5-2-7-2" /></svg>
-              <span>GitHub</span>
-            </a>
-            <span className="text-text-faint/30">|</span>
+          {/* Right: Copyright */}
+          <span className="text-end">
+            {"\u00A9 " + (new Date().getFullYear() === 2026 ? "2026" : "2026\u2013" + new Date().getFullYear()) + " "}
             <a
               href="https://youtube.com/@ZSleyer"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded-full hover:bg-accent-red/10 text-text-faint hover:text-accent-red transition-all"
+              className="text-text-muted hover:text-text-primary transition-colors"
             >
-              <svg
-                viewBox="0 0 24 24"
-                className="w-3 h-3 fill-current"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
-              </svg>
-              <span className="font-semibold tracking-wide">@ZSleyer</span>
+              ZSleyer
             </a>
-          </div>
+          </span>
         </footer>
       </div>
     </div>
