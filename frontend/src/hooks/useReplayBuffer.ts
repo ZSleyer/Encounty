@@ -2,8 +2,8 @@
  * useReplayBuffer.ts — Ring buffer of recent video frames at 60fps.
  *
  * Captures ImageData from a video element into a fixed-size ring buffer,
- * keeping the last 30 seconds of footage (1800 frames at 60fps).
- * Used for replay review after an auto-detection match.
+ * keeping the last 5 seconds of footage (300 frames at 60fps).
+ * Used for replay review and template snapshot selection.
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 
@@ -19,6 +19,8 @@ export interface UseReplayBufferResult {
   isBuffering: boolean;
   /** Seconds of footage currently buffered. */
   bufferedSeconds: number;
+  /** Maximum buffer duration in seconds. */
+  maxSeconds: number;
   /** Clear all buffered frames. */
   clear: () => void;
   /** Stop capturing new frames (freezes the buffer). */
@@ -28,7 +30,7 @@ export interface UseReplayBufferResult {
 }
 
 /** Default replay buffer duration in seconds. */
-const DEFAULT_DURATION_SEC = 30;
+const DEFAULT_DURATION_SEC = 5;
 
 /** Default capture rate in frames per second. */
 const DEFAULT_FPS = 60;
@@ -59,6 +61,11 @@ export function useReplayBuffer(
   const captureIntervalMs = Math.round(1000 / fps);
 
   const clear = useCallback(() => {
+    // Explicitly null out all slots so GC can reclaim ImageData sooner
+    const buf = bufferRef.current;
+    for (let i = 0; i < buf.length; i++) {
+      (buf as (ImageData | undefined)[])[i] = undefined;
+    }
     bufferRef.current = [];
     writeIndexRef.current = 0;
     filledRef.current = 0;
@@ -211,6 +218,7 @@ export function useReplayBuffer(
     getFrame,
     isBuffering,
     bufferedSeconds,
+    maxSeconds: durationSec,
     clear,
     stop,
     restart,
