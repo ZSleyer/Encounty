@@ -19,7 +19,7 @@
   --text-primary: #f1f5f9;       /* near-white, crisp */
   --text-secondary: #b8c9da;     /* ~6.5:1 on #0f0f13 — replaces #94a3b8 (~4.6) */
   --text-muted: #94aabf;         /* ~4.8:1 on #0f0f13 — replaces #64748b (~2.8) */
-  --text-faint: #6b7e91;         /* ~4.0:1 on #0f0f13, decorative/boundaries only */
+  --text-faint: #7b8fa3;         /* ~4.6:1 on #1e1e2e (bg-card), WCAG AA compliant */
   --scrollbar-track: #0f0f13;
   --scrollbar-thumb: #333345;
   --scrollbar-thumb-hover: #4a5568;

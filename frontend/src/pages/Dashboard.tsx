@@ -173,7 +173,7 @@ function SidebarTimer({ pokemon, send }: Readonly<{ pokemon: Pokemon; send: (typ
         {isRunning ? <Pause className="w-2.5 h-2.5" /> : <Play className="w-2.5 h-2.5" />}
       </button>
       {(isRunning || totalMs > 0) && (
-        <span className={`text-[10px] font-mono tabular-nums ${isRunning ? "text-accent-green" : "text-text-faint"}`}>
+        <span className={`text-[10px] font-mono tabular-nums ${isRunning ? "text-accent-green" : "text-text-muted"}`}>
           {formatTimer(totalMs)}
         </span>
       )}
@@ -1089,7 +1089,7 @@ function HeaderHuntButton({
         <button
           onClick={handleToggle}
           className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-bold transition-colors ${
-            anyRunning ? "text-red-400 hover:bg-red-500/20" : "text-white hover:bg-white/10"
+            anyRunning ? "text-red-400 hover:bg-red-500/20" : "hover:bg-white/10"
           }`}
           aria-label={buttonLabel}
         >
@@ -1100,7 +1100,7 @@ function HeaderHuntButton({
         <button
           onClick={() => setShowMenu((v: boolean) => !v)}
           className={`px-1.5 py-1.5 transition-colors ${
-            anyRunning ? "text-red-400 hover:bg-red-500/20" : "text-white hover:bg-white/10"
+            anyRunning ? "text-red-400 hover:bg-red-500/20" : "hover:bg-white/10"
           }`}
           aria-label={t("sidebar.both")}
         >
@@ -1265,12 +1265,11 @@ function DashboardCounterTab({
           {!isCompleted && (
             <button
               onClick={() => onReset(pokemon.id)}
-              className="mt-3 text-[11px] text-text-faint hover:text-text-muted transition-colors flex items-center gap-1 mx-auto"
+              className="mt-3 text-[11px] text-text-muted hover:text-text-secondary transition-colors flex items-center gap-1 mx-auto"
               title={t("tooltip.common.reset")}
-              aria-label={t("tooltip.common.reset")}
             >
               <RotateCcw className="w-3 h-3" />
-              Reset
+              {t("tooltip.common.reset")}
             </button>
           )}
         </div>

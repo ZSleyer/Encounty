@@ -47,7 +47,7 @@ export function NumInput({
         step={step}
         aria-label={ariaLabel ?? `${value}`}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 min-w-0 bg-transparent text-[10px] 2xl:text-xs text-text-primary text-center outline-none py-0.5 2xl:py-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="flex-1 min-w-6 min-h-6 bg-transparent text-[10px] 2xl:text-xs text-text-primary text-center outline-none py-0.5 2xl:py-1 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       <button
         type="button"

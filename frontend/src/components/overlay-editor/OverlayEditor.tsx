@@ -985,7 +985,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       title={t("tooltip.editor.moveUp")}
                       aria-label={t("tooltip.editor.moveUp")}
                       onClick={() => moveLayer(key, "up")}
-                      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                      className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
                     >
                       <ChevronUp className="w-3 h-3" />
                     </button>
@@ -994,7 +994,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                       title={t("tooltip.editor.moveDown")}
                       aria-label={t("tooltip.editor.moveDown")}
                       onClick={() => moveLayer(key, "down")}
-                      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                      className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
                     >
                       <ChevronDown className="w-3 h-3" />
                     </button>
@@ -1008,7 +1008,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                           [key]: { ...el, visible: !el.visible },
                         });
                       }}
-                      className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                      className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
                     >
                       {el.visible ? (
                         <Eye className="w-3 h-3" />
@@ -1049,7 +1049,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
                 title={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
                 aria-label={localSettings.hidden ? t("tooltip.editor.show") : t("tooltip.editor.hide")}
                 onClick={() => update({ ...localSettings, hidden: !localSettings.hidden })}
-                className="p-1 text-text-muted hover:text-text-primary transition-colors"
+                className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
               >
                 {localSettings.hidden ? (
                   <EyeOff className="w-3 h-3" />

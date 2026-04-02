@@ -669,13 +669,12 @@ export function DetectorPanel({
                 backgroundColor: "rgba(148,163,184,0.05)",
               }}
               title={`Switch to ${detectorBackend === "gpu" ? "CPU" : "GPU"} backend`}
-              aria-label={`Switch to ${detectorBackend === "gpu" ? "CPU" : "GPU"} backend`}
             >
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
-                detectorBackend === "gpu" ? "bg-green-500/20 text-green-400" : "text-text-faint"
+                detectorBackend === "gpu" ? "bg-green-500/20 text-green-400" : "text-text-muted"
               }`}>GPU</span>
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
-                detectorBackend === "gpu" ? "text-text-faint" : "bg-yellow-500/20 text-yellow-400"
+                detectorBackend === "gpu" ? "text-text-muted" : "bg-yellow-500/20 text-yellow-400"
               }`}>CPU</span>
             </button>
           )}
@@ -718,6 +717,7 @@ export function DetectorPanel({
             <select
               value={cfg.source_type || "browser_display"}
               onChange={(e) => setCfg((prev) => ({ ...prev, source_type: e.target.value as DetectorConfig["source_type"] }))}
+              aria-label={t("detector.source")}
               className="bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-xs text-text-primary outline-none focus:border-accent-blue/50"
             >
               <option value="browser_display">{t("detector.sourceBrowser")}</option>
@@ -960,7 +960,7 @@ export function DetectorPanel({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-text-faint text-center py-4">
+                  <p className="text-xs text-text-muted text-center py-4">
                     {t("detector.noTemplates")}
                   </p>
                 )}
@@ -971,7 +971,7 @@ export function DetectorPanel({
                 <button
                   type="button"
                   onMouseDown={startDetectorDividerDrag}
-                  className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
+                  className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none block py-3 -my-3 bg-clip-content"
                   aria-label={t("detector.resizeDivider")}
                 />
                 <button
@@ -996,7 +996,7 @@ export function DetectorPanel({
                   <button
                     key={tab}
                     onClick={() => setRightTab(tab)}
-                    className={`flex-1 px-2 py-2 text-xs font-medium transition-colors ${
+                    className={`flex-1 px-2 py-2 min-h-6 text-xs font-medium transition-colors ${
                       rightTab === tab
                         ? "text-accent-blue border-b-2 border-accent-blue bg-accent-blue/5"
                         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -1035,7 +1035,7 @@ export function DetectorPanel({
                       const log = pokemon.detector_config?.detection_log;
                       if (!log || log.length === 0) {
                         return (
-                          <p className="text-xs text-text-faint text-center py-4">
+                          <p className="text-xs text-text-muted text-center py-4">
                             {t("detector.noLogEntries")}
                           </p>
                         );
