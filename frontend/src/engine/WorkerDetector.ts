@@ -150,8 +150,24 @@ export class WorkerDetector {
 
     const bitmap = await createImageBitmap(captureEl);
 
+    // Reject any previous pending detect that was never resolved (e.g. worker stall)
+    if (this.pendingDetect) {
+      this.pendingDetect.reject(new Error("Superseded by new detect call"));
+      this.pendingDetect = null;
+    }
+
     return new Promise<DetectorResult>((resolve, reject) => {
-      this.pendingDetect = { resolve, reject };
+      const timeout = setTimeout(() => {
+        if (this.pendingDetect?.reject === reject) {
+          this.pendingDetect = null;
+          reject(new Error("detect() timed out after 5 s"));
+        }
+      }, 5000);
+
+      this.pendingDetect = {
+        resolve: (r) => { clearTimeout(timeout); resolve(r); },
+        reject: (e) => { clearTimeout(timeout); reject(e); },
+      };
       this.worker.postMessage(
         { cmd: "detect", frame: bitmap, config },
         [bitmap],

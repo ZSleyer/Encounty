@@ -16,6 +16,7 @@ import {
   cropTemplateGray,
   adaptiveBlockSizeForRegion,
   matchWholeTemplate,
+  IntegralImagePool,
 } from "./math";
 
 /** Source type accepted by CPUDetector: video element or transferable bitmap. */
@@ -54,6 +55,9 @@ export class CPUDetector {
 
   /** Pool of Float32Array buffers keyed by length, for temporary crop data. */
   private readonly grayPool = new Map<number, Float32Array[]>();
+
+  /** Pool of Float64Array buffers for integral image reuse across frames. */
+  private readonly iiPool = new IntegralImagePool();
 
   /** Reusable canvas for full-resolution frame in region matching (avoids ~33MB alloc per frame at 4K). */
   regionCanvas: OffscreenCanvas | null = null;
@@ -185,7 +189,7 @@ export class CPUDetector {
       const tmpl = templates[i];
       if (!tmpl.gray) continue;
 
-      let score = matchTemplate(this, source, tmpl, frameGray, maxDim, config.crop);
+      let score = matchTemplate(this, source, tmpl, frameGray, maxDim, config.crop, this.iiPool);
 
       // Apply negative region penalty: high match on negative region suppresses detection
       const negRegions = tmpl.regions.filter(
@@ -193,7 +197,7 @@ export class CPUDetector {
       );
       if (negRegions.length > 0 && score > 0) {
         const negativeTmpl = { ...tmpl, regions: negRegions };
-        const negScore = matchTemplate(this, source, negativeTmpl, frameGray, maxDim, config.crop);
+        const negScore = matchTemplate(this, source, negativeTmpl, frameGray, maxDim, config.crop, this.iiPool);
         score = applyNegativePenalty(score, negScore);
       }
 
@@ -212,6 +216,7 @@ export class CPUDetector {
     this.previousGray = null;
     this.frameGrayBuf = null;
     this.grayPool.clear();
+    this.iiPool.clear();
     this.regionCanvas = null;
     this.regionCtx = null;
   }
@@ -372,12 +377,13 @@ function matchTemplate(
   frameGray: { gray: Float32Array; width: number; height: number },
   maxDim: number,
   _crop?: { x: number; y: number; w: number; h: number },
+  pool?: IntegralImagePool,
 ): number {
   const regions = tmpl.regions ?? [];
 
   // No regions defined — fall back to whole-template matching
   if (regions.length === 0) {
-    return matchWholeTemplate(frameGray, tmpl, maxDim);
+    return matchWholeTemplate(frameGray, tmpl, maxDim, pool);
   }
 
   // We need the full-resolution frame pixels for region cropping.
@@ -426,7 +432,7 @@ function matchTemplate(
   }
 
   if (regionScores.length === 0) {
-    return matchWholeTemplate(frameGray, tmpl, maxDim);
+    return matchWholeTemplate(frameGray, tmpl, maxDim, pool);
   }
 
   return andLogicAcrossRegions(regionScores);

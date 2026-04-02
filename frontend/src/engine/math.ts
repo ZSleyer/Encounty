@@ -273,16 +273,68 @@ export function blockSSIM(
 }
 
 // ---------------------------------------------------------------------------
+// Integral image pooling
+// ---------------------------------------------------------------------------
+
+/**
+ * Object pool for Float64Array buffers used by integral image computation.
+ *
+ * Avoids repeated allocation of large (~824 KB at 320x320) typed arrays
+ * on every frame by reusing previously allocated buffers of the same size.
+ */
+export class IntegralImagePool {
+  private readonly pool = new Map<number, Float64Array[]>();
+
+  /** Maximum buffers retained per size bucket. */
+  private static readonly MAX_PER_BUCKET = 4;
+
+  /** Acquire a zero-filled Float64Array of the given length, reusing a pooled buffer when available. */
+  acquire(size: number): Float64Array {
+    const bucket = this.pool.get(size);
+    if (bucket && bucket.length > 0) {
+      const buf = bucket.pop()!;
+      buf.fill(0);
+      return buf;
+    }
+    return new Float64Array(size);
+  }
+
+  /** Return a buffer to the pool for future reuse. */
+  release(buf: Float64Array): void {
+    let bucket = this.pool.get(buf.length);
+    if (!bucket) {
+      bucket = [];
+      this.pool.set(buf.length, bucket);
+    }
+    if (bucket.length < IntegralImagePool.MAX_PER_BUCKET) {
+      bucket.push(buf);
+    }
+  }
+
+  /** Discard all pooled buffers, freeing memory. */
+  clear(): void {
+    this.pool.clear();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Integral images & NCC
 // ---------------------------------------------------------------------------
 
-/** Build integral images (sum and sum-of-squares) for a grayscale frame. */
+/**
+ * Build integral images (sum and sum-of-squares) for a grayscale frame.
+ *
+ * When a pool is provided, buffers are acquired from it instead of allocating
+ * new Float64Arrays. Callers are responsible for releasing them after use.
+ */
 export function buildIntegralImages(
   frame: Float32Array, fw: number, fh: number,
+  pool?: IntegralImagePool,
 ): IntegralImages {
   const stride = fw + 1;
-  const ii = new Float64Array(stride * (fh + 1));
-  const ii2 = new Float64Array(stride * (fh + 1));
+  const size = stride * (fh + 1);
+  const ii = pool ? pool.acquire(size) : new Float64Array(size);
+  const ii2 = pool ? pool.acquire(size) : new Float64Array(size);
 
   for (let y = 1; y <= fh; y++) {
     for (let x = 1; x <= fw; x++) {
@@ -324,17 +376,21 @@ export function crossCorrelation(
  *
  * Both frame and template are grayscale arrays in the 0-255 range.
  * Returns the best NCC score in [0, 1].
+ *
+ * When a pool is provided, integral image buffers are acquired from it
+ * and released back automatically after computation.
  */
 export function ncc(
   frame: Float32Array, fw: number, fh: number,
   tmpl: NccTemplate,
+  pool?: IntegralImagePool,
 ): number {
   const { width: tw, height: th, stdDev: tmplStd } = tmpl;
   if (tw > fw || th > fh || tw < 4 || th < 4) return 0;
   if (tmplStd < 1e-9) return 0;
 
   const n = tw * th;
-  const { ii, ii2, stride } = buildIntegralImages(frame, fw, fh);
+  const { ii, ii2, stride } = buildIntegralImages(frame, fw, fh, pool);
 
   let best = 0;
 
@@ -363,6 +419,12 @@ export function ncc(
       const val = cc / (n * pStd * tmplStd);
       if (val > best) best = val;
     }
+  }
+
+  // Release integral image buffers back to the pool
+  if (pool) {
+    pool.release(ii);
+    pool.release(ii2);
   }
 
   return clamp01(best);
@@ -532,6 +594,7 @@ export function cropTemplateGray(
 export function matchMultiScale(
   frameGray: Float32Array, fw: number, fh: number,
   tmpl: TemplateData,
+  pool?: IntegralImagePool,
 ): number {
   const minDim = 12;
   const maxDim = Math.min(fw, fh);
@@ -542,7 +605,7 @@ export function matchMultiScale(
   for (let targetDim = minDim; targetDim <= maxDim; targetDim += step) {
     const scaled = downscaleTemplate(tmpl, targetDim);
     if (scaled.width < 4 || scaled.height < 4) continue;
-    const score = ncc(frameGray, fw, fh, scaled);
+    const score = ncc(frameGray, fw, fh, scaled, pool);
     if (score > best) best = score;
     // Early exit when score is high enough
     if (best >= 0.95) break;
@@ -556,10 +619,11 @@ export function matchWholeTemplate(
   frameGray: { gray: Float32Array; width: number; height: number },
   tmpl: TemplateData,
   maxDim: number,
+  pool?: IntegralImagePool,
 ): number {
   if (tmpl.width <= 128 && tmpl.height <= 128) {
-    return matchMultiScale(frameGray.gray, frameGray.width, frameGray.height, tmpl);
+    return matchMultiScale(frameGray.gray, frameGray.width, frameGray.height, tmpl, pool);
   }
   const tmplGray = downscaleTemplate(tmpl, maxDim);
-  return ncc(frameGray.gray, frameGray.width, frameGray.height, tmplGray);
+  return ncc(frameGray.gray, frameGray.width, frameGray.height, tmplGray, pool);
 }
