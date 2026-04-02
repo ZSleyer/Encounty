@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, userEvent, waitFor } from "../../test-utils";
+import { render, screen, userEvent, waitFor, within } from "../../test-utils";
 import { TemplateEditor } from "./TemplateEditor";
 import type { MatchedRegion } from "../../types";
 
@@ -20,6 +20,7 @@ const mockReplayBuffer = {
   getFrame: vi.fn().mockReturnValue(null) as ReturnType<typeof vi.fn>,
   isBuffering: false,
   bufferedSeconds: 0,
+  maxSeconds: 5,
   clear: vi.fn(),
   stop: vi.fn(),
   restart: vi.fn(),
@@ -87,15 +88,29 @@ async function renderEditMode(props: {
     />,
   );
   // Wait for the mocked Image.onload to fire and phase to transition to "snapshot".
-  // The template name input is a reliable signal since the component renders it in
-  // snapshot phase. Also wait for regions to be populated if provided.
+  // The no-regions hint or region delete buttons are reliable signals that the
+  // snapshot phase is active (they only render when phase === "snapshot").
   await waitFor(() => {
-    expect(screen.getByLabelText("Template-Name (optional)")).toBeInTheDocument();
     if ((props.initialRegions?.length ?? 0) > 0) {
       expect(screen.getAllByTitle("Region löschen").length).toBe(props.initialRegions!.length);
+    } else {
+      expect(screen.getByText("Keine Regionen — ganzes Bild wird verglichen")).toBeInTheDocument();
     }
   });
   return result;
+}
+
+/**
+ * Clicks the save button in the main editor, waits for the name dialog to open,
+ * then clicks the save button inside the dialog to confirm the save.
+ */
+async function clickSaveThroughDialog(user: ReturnType<typeof userEvent.setup>) {
+  // Click the main "Speichern" button to open the name dialog
+  await user.click(screen.getByText("Speichern"));
+  // Wait for the dialog to appear and click save inside it
+  const dialog = await waitFor(() => screen.getByRole("dialog"));
+  const dialogSaveBtn = within(dialog).getByText("Speichern");
+  await user.click(dialogSaveBtn);
 }
 
 describe("TemplateEditor", () => {
@@ -107,6 +122,7 @@ describe("TemplateEditor", () => {
     mockReplayBuffer.getFrame = vi.fn().mockReturnValue(null);
     mockReplayBuffer.isBuffering = false;
     mockReplayBuffer.bufferedSeconds = 0;
+    mockReplayBuffer.maxSeconds = 5;
     mockReplayBuffer.stop = vi.fn();
     mockReplayBuffer.restart = vi.fn();
     mockReplayBuffer.clear = vi.fn();
@@ -148,7 +164,7 @@ describe("TemplateEditor", () => {
       />,
     );
     // Step 1 title in German (default locale)
-    expect(screen.getByText("Schritt 1: Frame auswählen")).toBeInTheDocument();
+    expect(screen.getByText("Schritt 1: Aufnahme")).toBeInTheDocument();
   });
 
   it("shows edit heading in edit mode", () => {
@@ -162,16 +178,13 @@ describe("TemplateEditor", () => {
     expect(screen.getByText("Template bearbeiten")).toBeInTheDocument();
   });
 
-  it("displays template name input in edit mode", () => {
-    render(
-      <TemplateEditor
-        initialImageUrl="/api/detector/poke-1/template/0"
-        initialName="My Template"
-        onClose={vi.fn()}
-        onUpdateRegions={vi.fn()}
-      />,
-    );
-    const nameInput = screen.getByLabelText("Template-Name (optional)");
+  it("displays template name input in save dialog when save is clicked", async () => {
+    const user = userEvent.setup();
+    await renderEditMode({ initialRegions: [], initialName: "My Template" });
+    // Click save to open the name dialog
+    await user.click(screen.getByText("Speichern"));
+    // The dialog should contain the name input pre-filled with initialName
+    const nameInput = await waitFor(() => screen.getByLabelText("Template-Name (optional)"));
     expect(nameInput).toBeInTheDocument();
     expect(nameInput).toHaveValue("My Template");
   });
@@ -211,19 +224,15 @@ describe("TemplateEditor", () => {
       />,
     );
     expect(screen.getByText("Abbrechen")).toBeInTheDocument();
-    expect(screen.getByText("Template speichern")).toBeInTheDocument();
+    expect(screen.getByText("Speichern")).toBeInTheDocument();
   });
 
-  it("pre-fills template name from initialName prop", () => {
-    render(
-      <TemplateEditor
-        initialImageUrl="/api/detector/poke-1/template/0"
-        initialName="Test Name"
-        onClose={vi.fn()}
-        onUpdateRegions={vi.fn()}
-      />,
-    );
-    const input = screen.getByLabelText("Template-Name (optional)");
+  it("pre-fills template name from initialName prop in save dialog", async () => {
+    const user = userEvent.setup();
+    await renderEditMode({ initialRegions: [], initialName: "Test Name" });
+    // Open save dialog
+    await user.click(screen.getByText("Speichern"));
+    const input = await waitFor(() => screen.getByLabelText("Template-Name (optional)"));
     expect(input).toHaveValue("Test Name");
   });
 
@@ -248,7 +257,7 @@ describe("TemplateEditor", () => {
       />,
     );
     expect(
-      screen.getByText("Warte auf den richtigen Moment und pausiere das Bild."),
+      screen.getByText("Die letzten 5 Sekunden werden aufgezeichnet. Drücke Schnappschuss, wenn bereit."),
     ).toBeInTheDocument();
   });
 
@@ -269,10 +278,12 @@ describe("TemplateEditor", () => {
     expect(screen.getByText("Template bearbeiten")).toBeInTheDocument();
   });
 
-  it("allows editing template name via input", async () => {
+  it("allows editing template name via input in save dialog", async () => {
     const user = userEvent.setup();
     await renderEditMode({ initialRegions: [] });
-    const input = screen.getByLabelText("Template-Name (optional)");
+    // Open save dialog
+    await user.click(screen.getByText("Speichern"));
+    const input = await waitFor(() => screen.getByLabelText("Template-Name (optional)"));
     await user.clear(input);
     await user.type(input, "New Name");
     expect(input).toHaveValue("New Name");
@@ -452,8 +463,7 @@ describe("TemplateEditor", () => {
       { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
     ];
     await renderEditMode({ initialRegions: regions, initialName: "Test Template", onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalledWith(
@@ -467,8 +477,7 @@ describe("TemplateEditor", () => {
     const user = userEvent.setup();
     const onUpdateRegions = vi.fn().mockResolvedValue(undefined);
     await renderEditMode({ initialRegions: [], onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalledTimes(1);
@@ -487,8 +496,7 @@ describe("TemplateEditor", () => {
       { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
     ];
     await renderEditMode({ initialRegions: regions, onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     expect(await screen.findByText("Network error")).toBeInTheDocument();
   });
@@ -500,8 +508,7 @@ describe("TemplateEditor", () => {
       { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
     ];
     await renderEditMode({ initialRegions: regions, initialName: "  Trimmed  ", onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalledWith(regions, "Trimmed");
@@ -515,8 +522,7 @@ describe("TemplateEditor", () => {
       { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
     ];
     await renderEditMode({ initialRegions: regions, initialName: "", onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalledWith(regions, undefined);
@@ -602,8 +608,7 @@ describe("TemplateEditor", () => {
       { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
     ];
     await renderEditMode({ initialRegions: regions, onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     // The save button should show "Speichere…" text while saving
     await waitFor(() => {
@@ -673,8 +678,7 @@ describe("TemplateEditor", () => {
     const user = userEvent.setup();
     const onUpdateRegions = vi.fn().mockResolvedValue(undefined);
     await renderEditMode({ initialRegions: [], onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalledTimes(1);
@@ -705,14 +709,15 @@ describe("TemplateEditor", () => {
       { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
     ];
     await renderEditMode({ initialRegions: regions, initialName: "Keep This" });
-    const nameInput = screen.getByLabelText<HTMLInputElement>("Template-Name (optional)");
-    expect(nameInput.value).toBe("Keep This");
 
     // Delete the region
-    const deleteBtn = screen.getByTitle("Region löschen");
+    const deleteBtn = await waitFor(() => screen.getByTitle("Region löschen"));
     await user.click(deleteBtn);
 
-    // Name should be preserved
+    // Open save dialog to verify name is still preserved
+    await user.click(screen.getByText("Speichern"));
+    const dialog = await waitFor(() => screen.getByRole("dialog"));
+    const nameInput = within(dialog).getByLabelText<HTMLInputElement>("Template-Name (optional)");
     expect(nameInput.value).toBe("Keep This");
   });
 
@@ -775,8 +780,7 @@ describe("TemplateEditor", () => {
     await user.clear(textInput);
     await user.type(textInput, "Glumanda");
 
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalled();
@@ -823,8 +827,7 @@ describe("TemplateEditor", () => {
     const polarityBtn = screen.getByTitle("Als negative Region markieren");
     await user.click(polarityBtn);
 
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalled();
@@ -847,14 +850,13 @@ describe("TemplateEditor", () => {
       { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
     ];
     await renderEditMode({ initialRegions: regions, onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
 
     // First save fails
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
     expect(await screen.findByText("First failure")).toBeInTheDocument();
 
     // Second save succeeds
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
     await waitFor(() => {
       expect(screen.queryByText("First failure")).not.toBeInTheDocument();
     });
@@ -869,8 +871,7 @@ describe("TemplateEditor", () => {
       { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
     ];
     await renderEditMode({ initialRegions: regions, onUpdateRegions });
-    const saveBtn = screen.getByText("Template speichern");
-    await user.click(saveBtn);
+    await clickSaveThroughDialog(user);
 
     expect(await screen.findByText("Failed to save template")).toBeInTheDocument();
   });
@@ -952,7 +953,7 @@ describe("TemplateEditor", () => {
     await user.click(screen.getByText("Diesen Frame verwenden"));
 
     await waitFor(() => {
-      expect(screen.getByText("Template speichern")).toBeInTheDocument();
+      expect(screen.getByText("Weiter")).toBeInTheDocument();
     });
   });
 
@@ -1019,11 +1020,11 @@ describe("TemplateEditor", () => {
     });
     await user.click(screen.getByText("Diesen Frame verwenden"));
     await waitFor(() => {
-      expect(screen.getByText("Neu aufnehmen")).toBeInTheDocument();
+      expect(screen.getByText("Wiederholen")).toBeInTheDocument();
     });
 
     // Click retake
-    await user.click(screen.getByText("Neu aufnehmen"));
+    await user.click(screen.getByText("Wiederholen"));
 
     // Should be back in video phase
     await waitFor(() => {
@@ -1064,11 +1065,13 @@ describe("TemplateEditor", () => {
     });
     await user.click(screen.getByText("Diesen Frame verwenden"));
     await waitFor(() => {
-      expect(screen.getByText("Template speichern")).toBeInTheDocument();
+      expect(screen.getByText("Weiter")).toBeInTheDocument();
     });
 
-    // Click save
-    await user.click(screen.getByText("Template speichern"));
+    // Click "Weiter" to open the name dialog, then confirm save
+    await user.click(screen.getByText("Weiter"));
+    const dialog = await waitFor(() => screen.getByRole("dialog"));
+    await user.click(within(dialog).getByText("Speichern"));
 
     await waitFor(() => {
       expect(onSaveTemplate).toHaveBeenCalled();
@@ -1120,7 +1123,7 @@ describe("TemplateEditor", () => {
     await user.click(screen.getByText("Schnappschuss"));
 
     await waitFor(() => {
-      expect(screen.getByText("Frame aus Aufnahme wählen")).toBeInTheDocument();
+      expect(screen.getByText("Schritt 2: Frame wählen")).toBeInTheDocument();
     });
   });
 
@@ -1154,7 +1157,7 @@ describe("TemplateEditor", () => {
     await user.click(screen.getByText("Diesen Frame verwenden"));
 
     await waitFor(() => {
-      expect(screen.getByText("Schritt 2: Regionen definieren")).toBeInTheDocument();
+      expect(screen.getByText("Schritt 3: Regionen definieren")).toBeInTheDocument();
     });
   });
 });
