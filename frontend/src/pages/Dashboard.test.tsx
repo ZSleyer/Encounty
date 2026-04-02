@@ -1929,7 +1929,7 @@ describe("Dashboard reset confirmation", () => {
     render(<Dashboard />);
 
     // Click the reset button in the counter tab
-    const resetBtn = screen.getByText("Reset").closest("button")!;
+    const resetBtn = screen.getByText("Zurücksetzen").closest("button")!;
     await user.click(resetBtn);
 
     // ConfirmModal should open
@@ -5532,7 +5532,7 @@ describe("Dashboard confirm modal close callback", () => {
     render(<Dashboard />);
 
     // Click the reset button to open confirm dialog
-    const resetBtn = screen.getByText("Reset").closest("button")!;
+    const resetBtn = screen.getByText("Zurücksetzen").closest("button")!;
     await user.click(resetBtn);
 
     // ConfirmModal should be open with destructive confirmation

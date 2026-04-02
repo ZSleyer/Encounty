@@ -2313,7 +2313,7 @@ describe("DetectorPanel", () => {
     renderPanel();
 
     // In dev mode, the GPU/CPU toggle button should exist
-    const toggleBtn = screen.queryByLabelText(/Switch to CPU backend|Switch to GPU backend/i);
+    const toggleBtn = screen.queryByTitle(/Switch to CPU backend|Switch to GPU backend/i);
     if (toggleBtn) {
       await user.click(toggleBtn);
       // Should not crash; ensureDetector and related functions are mocked
@@ -2619,7 +2619,7 @@ describe("DetectorPanel", () => {
 
     renderPanel();
 
-    const toggleBtn = screen.getByLabelText(/Switch to (CPU|GPU) backend/i);
+    const toggleBtn = screen.getByTitle(/Switch to (CPU|GPU) backend/i);
     await user.click(toggleBtn);
 
     await waitFor(() => {
@@ -2637,7 +2637,7 @@ describe("DetectorPanel", () => {
 
     renderPanel({ isRunning: true, confidence: 0.5, detectorState: "idle" });
 
-    const toggleBtn = screen.getByLabelText(/Switch to (CPU|GPU) backend/i);
+    const toggleBtn = screen.getByTitle(/Switch to (CPU|GPU) backend/i);
     await user.click(toggleBtn);
 
     await waitFor(() => {

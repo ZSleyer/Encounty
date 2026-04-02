@@ -1,7 +1,16 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, makeAppState, makeOverlaySettings, makePokemon } from "../test-utils";
 import { Overlay } from "./Overlay";
 import { useCounterStore } from "../hooks/useCounterState";
+
+vi.mock("../components/backgrounds/Aurora", () => ({ default: () => <div data-testid="bg-aurora" /> }));
+vi.mock("../components/backgrounds/Particles", () => ({ default: () => <div data-testid="bg-particles" /> }));
+vi.mock("../components/backgrounds/Galaxy", () => ({ default: () => <div data-testid="bg-galaxy" /> }));
+vi.mock("../components/backgrounds/Silk", () => ({ default: () => <div data-testid="bg-silk" /> }));
+vi.mock("../components/backgrounds/SoftAurora", () => ({ default: () => <div data-testid="bg-softaurora" /> }));
+vi.mock("../components/backgrounds/Radar", () => ({ default: () => <div data-testid="bg-radar" /> }));
+vi.mock("../components/backgrounds/FloatingLines", () => ({ default: () => <div data-testid="bg-floatinglines" /> }));
+vi.mock("../components/backgrounds/PixelBlast", () => ({ default: () => <div data-testid="bg-pixelblast" /> }));
 
 describe("Overlay", () => {
   beforeEach(() => {
@@ -333,5 +342,54 @@ describe("Overlay", () => {
     expect(img).toBeInTheDocument();
     // SPRITE_FALLBACK is used when sprite_url is empty
     expect(img?.getAttribute("src")).not.toBe("");
+  });
+
+  // --- Background animation ---
+
+  it("applies CSS animation class for CSS-based background animation", () => {
+    const settings = makeOverlaySettings({
+      background_animation: "waves",
+    });
+    const pokemon = makePokemon();
+    const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    const wavesDiv = container.querySelector(".canvas-waves");
+    expect(wavesDiv).toBeInTheDocument();
+  });
+
+  it("applies custom animation speed", () => {
+    const settings = makeOverlaySettings({
+      background_animation: "waves",
+      background_animation_speed: 2,
+    });
+    const pokemon = makePokemon();
+    const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    const wavesDiv = container.querySelector(".canvas-waves");
+    expect(wavesDiv).toBeInTheDocument();
+    // Default duration for waves is 30s, divided by speed 2 = 15s
+    expect((wavesDiv as HTMLElement).style.animationDuration).toBe("15s");
+  });
+
+  it("does not render animation div when background_animation is none", () => {
+    const settings = makeOverlaySettings({
+      background_animation: "none",
+    });
+    const pokemon = makePokemon();
+    const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    expect(container.querySelector(".canvas-waves")).not.toBeInTheDocument();
+    expect(container.querySelector(".canvas-particles")).not.toBeInTheDocument();
+    expect(container.querySelector(".canvas-gradient-shift")).not.toBeInTheDocument();
+    expect(container.querySelector(".canvas-pulse-bg")).not.toBeInTheDocument();
+    expect(container.querySelector(".canvas-shimmer-bg")).not.toBeInTheDocument();
+  });
+
+  it("renders Suspense wrapper for reactbits animations", async () => {
+    const settings = makeOverlaySettings({
+      background_animation: "rb-aurora",
+    });
+    const pokemon = makePokemon();
+    // Should not crash even though lazy components are mocked
+    render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    const auroraEl = await screen.findByTestId("bg-aurora");
+    expect(auroraEl).toBeInTheDocument();
   });
 });

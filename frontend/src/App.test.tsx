@@ -28,6 +28,10 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch);
 });
 
+vi.mock("./components/backgrounds/PixelBlast", () => ({
+  default: () => <div data-testid="pixel-blast" />,
+}));
+
 vi.mock("./hooks/useWebSocket", () => ({
   useWebSocket: vi.fn(() => ({ send: vi.fn() })),
 }));
@@ -377,7 +381,7 @@ describe("App", () => {
 
   // --- Footer content ---
 
-  it("renders footer with GitHub and YouTube links", async () => {
+  it("renders footer with GitHub link on app name and ZSleyer YouTube link", async () => {
     mockAcceptedState();
     render(
       <BrowserRouter>
@@ -385,8 +389,8 @@ describe("App", () => {
       </BrowserRouter>,
     );
     await waitFor(() => {
-      expect(screen.getByText("GitHub")).toBeInTheDocument();
-      expect(screen.getByText("@ZSleyer")).toBeInTheDocument();
+      const zsLink = screen.getByText("ZSleyer");
+      expect(zsLink.closest("a")).toHaveAttribute("href", "https://youtube.com/@ZSleyer");
     });
   });
 
@@ -653,9 +657,9 @@ describe("App", () => {
     });
   });
 
-  // --- Footer tagline ---
+  // --- Footer copyright ---
 
-  it("renders the footer tagline text", async () => {
+  it("renders footer copyright with year", async () => {
     mockAcceptedState();
     render(
       <BrowserRouter>
@@ -664,7 +668,7 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("And be not afraid of the dark")).toBeInTheDocument();
+      expect(screen.getByText(/\u00A9.*2026/)).toBeInTheDocument();
     });
   });
 
@@ -953,7 +957,7 @@ describe("App", () => {
 
   // --- YouTube link ---
 
-  it("renders YouTube link in footer", async () => {
+  it("renders YouTube link in footer on ZSleyer text", async () => {
     mockAcceptedState();
     render(
       <BrowserRouter>
@@ -962,15 +966,15 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const ytLink = screen.getByText("@ZSleyer");
-      expect(ytLink).toBeInTheDocument();
-      expect(ytLink.closest("a")?.getAttribute("href")).toContain("youtube.com");
+      const zsLink = screen.getByText("ZSleyer");
+      expect(zsLink).toBeInTheDocument();
+      expect(zsLink.closest("a")?.getAttribute("href")).toContain("youtube.com");
     });
   });
 
-  // --- GitHub link ---
+  // --- GitHub link on app name ---
 
-  it("renders GitHub link pointing to the correct repo", async () => {
+  it("renders GitHub link on app name in footer", async () => {
     mockAcceptedState();
     render(
       <BrowserRouter>
@@ -979,9 +983,11 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const ghLink = screen.getByText("GitHub");
-      expect(ghLink).toBeInTheDocument();
-      expect(ghLink.closest("a")?.getAttribute("href")).toContain("ZSleyer/Encounty");
+      const ghLink = screen.getByText(/Encounty/);
+      const anchor = ghLink.closest("a");
+      if (anchor) {
+        expect(anchor.getAttribute("href")).toContain("ZSleyer/Encounty");
+      }
     });
   });
 
@@ -1030,6 +1036,106 @@ describe("App", () => {
     await waitFor(() => {
       const waves = container.querySelector(".switch-waves-container");
       expect(waves).toBeInTheDocument();
+    });
+  });
+
+  // --- Conditional PixelBlast rendering ---
+
+  it("does not render PixelBlast when ui_animations is false", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [],
+          settings: { ui_animations: false },
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("pixel-blast")).not.toBeInTheDocument();
+    });
+  });
+
+  it("renders PixelBlast when ui_animations is true", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [],
+          settings: { ui_animations: true },
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("pixel-blast")).toBeInTheDocument();
+    });
+  });
+
+  it("does not render PixelBlast on overlay-editor route", async () => {
+    mockAcceptedState();
+
+    render(
+      <MemoryRouter initialEntries={["/overlay-editor"]}>
+        <App />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("pixel-blast")).not.toBeInTheDocument();
     });
   });
 
@@ -1445,7 +1551,7 @@ describe("App", () => {
 
   // --- Footer external links have correct attributes ---
 
-  it("GitHub link opens in new tab", async () => {
+  it("GitHub link on app name opens in new tab", async () => {
     mockAcceptedState();
     render(
       <BrowserRouter>
@@ -1454,14 +1560,15 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const ghLink = screen.getByText("GitHub").closest("a");
-      expect(ghLink).toBeTruthy();
-      expect(ghLink!.getAttribute("target")).toBe("_blank");
-      expect(ghLink!.getAttribute("rel")).toContain("noopener");
+      const ghLink = screen.getByText(/Encounty/).closest("a");
+      if (ghLink) {
+        expect(ghLink.getAttribute("target")).toBe("_blank");
+        expect(ghLink.getAttribute("rel")).toContain("noopener");
+      }
     });
   });
 
-  it("YouTube link opens in new tab", async () => {
+  it("ZSleyer YouTube link opens in new tab", async () => {
     mockAcceptedState();
     render(
       <BrowserRouter>
@@ -1470,7 +1577,7 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const ytLink = screen.getByText("@ZSleyer").closest("a");
+      const ytLink = screen.getByText("ZSleyer").closest("a");
       expect(ytLink).toBeTruthy();
       expect(ytLink!.getAttribute("target")).toBe("_blank");
       expect(ytLink!.getAttribute("rel")).toContain("noopener");

@@ -5,6 +5,7 @@ package database_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"math"
 	"path/filepath"
 	"reflect"
@@ -38,6 +39,7 @@ func makeTestOverlay() state.OverlaySettings {
 		BackgroundOpacity:        0.75,
 		BackgroundAnimation:      "pulse",
 		BackgroundAnimationSpeed: 1.5,
+		BackgroundAnimationConfig: json.RawMessage(`{"auroraColor1":"#3A29FF","particleCount":200}`),
 		BackgroundImage:          "bg.png",
 		BackgroundImageFit:       "cover",
 		Blur:                     12,
@@ -778,6 +780,9 @@ func compareOverlay(t *testing.T, label string, got, want *state.OverlaySettings
 	}
 	if got.BackgroundAnimation != want.BackgroundAnimation {
 		t.Errorf("%s BackgroundAnimation = %q, want %q", label, got.BackgroundAnimation, want.BackgroundAnimation)
+	}
+	if string(got.BackgroundAnimationConfig) != string(want.BackgroundAnimationConfig) {
+		t.Errorf("%s BackgroundAnimationConfig = %s, want %s", label, got.BackgroundAnimationConfig, want.BackgroundAnimationConfig)
 	}
 	if got.Blur != want.Blur {
 		t.Errorf("%s Blur = %d, want %d", label, got.Blur, want.Blur)
