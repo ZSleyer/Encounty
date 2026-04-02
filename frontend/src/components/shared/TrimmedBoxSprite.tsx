@@ -93,7 +93,6 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
 
   useEffect(() => {
     setFailed(false);
-    setSrc(null);
 
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -119,7 +118,7 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
     return <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite ${className}`} />;
   }
 
-  if (!src) return null;
+  if (!src) return <div className={className} aria-hidden="true" />;
 
   return (
     <img
