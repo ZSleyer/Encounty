@@ -64,6 +64,11 @@ var migrations = []migration{
 		description: "force auto_save enabled for all users",
 		fn:          migrateForceAutoSave,
 	},
+	{
+		version:     10,
+		description: "add shiny_charm column to pokemon",
+		fn:          migrateAddShinyCharm,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -249,4 +254,11 @@ func migrateAddBgAnimConfig(tx *sql.Tx) error {
 func migrateForceAutoSave(tx *sql.Tx) error {
 	_, err := tx.Exec(`UPDATE settings SET auto_save = 1`)
 	return err
+}
+
+// migrateAddShinyCharm adds the shiny_charm column to the pokemon table.
+// Errors are ignored for idempotency.
+func migrateAddShinyCharm(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN shiny_charm INTEGER NOT NULL DEFAULT 0`)
+	return nil
 }

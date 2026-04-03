@@ -48,6 +48,7 @@ type Pokemon struct {
 	Overlay       *OverlaySettings `json:"overlay,omitempty"`      // Pokemon-specific overlay settings
 	OverlayMode    string          `json:"overlay_mode"`           // "default" | "custom" | "linked:<pokemon-id>"
 	HuntType       string          `json:"hunt_type,omitempty"`
+	ShinyCharm     bool            `json:"shiny_charm"`
 	DetectorConfig *DetectorConfig `json:"detector_config,omitempty"`
 	TimerStartedAt  *time.Time     `json:"timer_started_at,omitempty"`
 	TimerAccumulatedMs int64       `json:"timer_accumulated_ms"`

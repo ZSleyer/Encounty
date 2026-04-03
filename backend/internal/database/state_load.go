@@ -194,7 +194,7 @@ func loadLanguages(db *sql.DB) ([]string, error) {
 func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	rows, err := db.Query(`SELECT id, name, title, canonical_name, sprite_url, sprite_type,
 		sprite_style, encounters, step, is_active, created_at, language, game,
-		completed_at, overlay_mode, hunt_type, timer_started_at, timer_accumulated_ms,
+		completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
 		hunt_mode
 		FROM pokemon ORDER BY sort_order`)
 	if err != nil {
@@ -206,16 +206,18 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	for rows.Next() {
 		var p state.Pokemon
 		var isActive int
+		var shinyCharm int
 		var createdAtStr string
 		var completedAt, timerStartedAt sql.NullString
 
 		if err := rows.Scan(&p.ID, &p.Name, &p.Title, &p.CanonicalName, &p.SpriteURL,
 			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
 			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
-			&p.HuntType, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode); err != nil {
+			&p.HuntType, &shinyCharm, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode); err != nil {
 			return nil, err
 		}
 		p.IsActive = isActive != 0
+		p.ShinyCharm = shinyCharm != 0
 		if t, err := time.Parse(time.RFC3339, createdAtStr); err == nil {
 			p.CreatedAt = t
 		}
