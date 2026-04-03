@@ -257,6 +257,29 @@ option {
   animation-play-state: paused !important;
 }
 
+/* Static background when animations are disabled — matches PixelBlast visual tone */
+.static-bg-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 120% 80% at 50% 50%,
+    #1a1a2e 0%,
+    #141420 40%,
+    #0f0f13 100%
+  );
+  opacity: 0.6;
+}
+
+[data-theme="light"] .static-bg-overlay {
+  background: radial-gradient(
+    ellipse 120% 80% at 50% 50%,
+    #e4e8ee 0%,
+    #eaf0f6 40%,
+    #f0f4f8 100%
+  );
+  opacity: 0.5;
+}
+
 /* Disable UI animations when user toggles them off (performance) */
 .animations-disabled .switch-waves,
 .animations-disabled .footer-line,

@@ -431,20 +431,24 @@ function AppShell() {
           }}
         />
       )}
-      {appState?.settings.ui_animations !== false && !isOverlay && location.pathname !== "/overlay-editor" && (
+      {!isOverlay && location.pathname !== "/overlay-editor" && (
         <div className="switch-waves-container">
-          <ErrorBoundary fallbackMessage="">
-            <Suspense fallback={null}>
-              <PixelBlast
-                color="#1a1a2e"
-                speed={0.3}
-                pixelSize={15}
-                variant="circle"
-                autoPauseOffscreen
-                className="w-full h-full"
-              />
-            </Suspense>
-          </ErrorBoundary>
+          {appState?.settings.ui_animations !== false ? (
+            <ErrorBoundary fallbackMessage="">
+              <Suspense fallback={null}>
+                <PixelBlast
+                  color="#1a1a2e"
+                  speed={0.3}
+                  pixelSize={15}
+                  variant="circle"
+                  autoPauseOffscreen
+                  className="w-full h-full"
+                />
+              </Suspense>
+            </ErrorBoundary>
+          ) : (
+            <div className="static-bg-overlay" />
+          )}
         </div>
       )}
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
