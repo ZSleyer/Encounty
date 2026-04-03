@@ -22,6 +22,7 @@ export interface Pokemon {
   overlay_mode: OverlayMode;
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
   hunt_type?: string;
+  shiny_charm?: boolean;
   detector_config?: DetectorConfig;
   timer_started_at?: string; // ISO timestamp when timer was started
   timer_accumulated_ms?: number; // Accumulated timer in milliseconds
