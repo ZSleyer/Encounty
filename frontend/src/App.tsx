@@ -310,11 +310,19 @@ function AppShell() {
   }, [appState, t, setAppState, setConnected, flashPokemon, pushToast, clearDetectorStatus, setDetectorStatus, navigate]);
 
   function handleStateUpdate(newState: AppState) {
+    const prev = appState;
     setAppState(newState);
     setConnected(true);
+    // Only clear detector status when a pokemon's detector was explicitly
+    // disabled (enabled toggled off), not on every state_update broadcast.
+    // Clearing on every broadcast caused a brief "idle" flash during active
+    // detection because the backend broadcasts state after each match.
     for (const p of newState.pokemon ?? []) {
       if (!p.detector_config?.enabled) {
-        clearDetectorStatus(p.id);
+        const wasPreviouslyEnabled = prev?.pokemon?.find(pp => pp.id === p.id)?.detector_config?.enabled;
+        if (wasPreviouslyEnabled) {
+          clearDetectorStatus(p.id);
+        }
       }
     }
   }

@@ -387,7 +387,7 @@
   "detector.stopSelected": "選択項目の検出を停止",
   "detector.notConfigured": "検出が設定されていません：",
   "detector.stopped": "停止中",
-  "detector.stateIdle": "待機中",
+  "detector.stateIdle": "検索中",
   "detector.stateMatch": "一致",
   "detector.stateCooldown": "Cooldown",
   "sidebar.timerOnly": "Timerのみ",

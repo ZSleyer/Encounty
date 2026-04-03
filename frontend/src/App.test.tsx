@@ -2784,6 +2784,136 @@ describe("App", () => {
     expect(document.body).toBeTruthy();
   });
 
+  // --- handleStateUpdate preserves detector status during active detection ---
+
+  it("does not clear detector status when state_update arrives during active detection", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (wsHandler && connectCb) {
+      // 1. Initial state: pokemon has detector enabled
+      act(() => {
+        connectCb!();
+        wsHandler!({
+          type: "state_update",
+          payload: {
+            pokemon: [{ id: "poke-1", name: "Pikachu", encounters: 0, detector_config: { enabled: true } }],
+            settings: {},
+            hotkeys: {},
+            license_accepted: true,
+          },
+        });
+      });
+
+      // 2. Simulate active detection by setting detector status
+      act(() => {
+        useCounterStore.getState().setDetectorStatus("poke-1", { state: "match", confidence: 0.95, poll_ms: 100 });
+      });
+
+      // 3. Backend broadcasts state_update after match (counter incremented).
+      //    The detector_config.enabled is still true, so detector status must NOT be cleared.
+      act(() => {
+        wsHandler!({
+          type: "state_update",
+          payload: {
+            pokemon: [{ id: "poke-1", name: "Pikachu", encounters: 1, detector_config: { enabled: true } }],
+            settings: {},
+            hotkeys: {},
+            license_accepted: true,
+          },
+        });
+      });
+
+      // Detector status must still be present
+      const status = useCounterStore.getState().detectorStatus["poke-1"];
+      expect(status).toBeDefined();
+      expect(status?.state).toBe("match");
+    }
+  });
+
+  it("clears detector status only when detector is explicitly disabled", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    if (wsHandler && connectCb) {
+      // 1. Initial state: detector enabled
+      act(() => {
+        connectCb!();
+        wsHandler!({
+          type: "state_update",
+          payload: {
+            pokemon: [{ id: "poke-1", name: "Pikachu", encounters: 5, detector_config: { enabled: true } }],
+            settings: {},
+            hotkeys: {},
+            license_accepted: true,
+          },
+        });
+      });
+
+      // 2. Set detector status (simulating active detection)
+      act(() => {
+        useCounterStore.getState().setDetectorStatus("poke-1", { state: "cooldown", confidence: 0.1, poll_ms: 100, cooldown_remaining_ms: 3000 });
+      });
+
+      // 3. Detector explicitly disabled (enabled toggled from true → false)
+      act(() => {
+        wsHandler!({
+          type: "state_update",
+          payload: {
+            pokemon: [{ id: "poke-1", name: "Pikachu", encounters: 5, detector_config: { enabled: false } }],
+            settings: {},
+            hotkeys: {},
+            license_accepted: true,
+          },
+        });
+      });
+
+      // Detector status should be cleared because enabled changed from true → false
+      const status = useCounterStore.getState().detectorStatus["poke-1"];
+      expect(status).toBeUndefined();
+    }
+  });
+
   // --- Encounter toast for unknown pokemon is silently ignored ---
 
   it("ignores encounter toast for unknown pokemon_id", async () => {

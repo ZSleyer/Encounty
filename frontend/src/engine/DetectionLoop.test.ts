@@ -512,6 +512,198 @@ describe("DetectionLoop", () => {
     expect(loop).toBeInstanceOf(DetectionLoop);
   });
 
+  it("does not emit match state during consecutive-hit buildup", async () => {
+    // Two above-threshold scores followed by a low score that resets the counter.
+    // The match is never confirmed because consecutiveHits=3 is not reached.
+    // State must stay "idle" throughout — no premature "match" flicker.
+    const scores = [0.95, 0.95, 0.1, 0.1, 0.1];
+    const detector = createMockDetector(scores);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({ consecutiveHits: 3, precision: 0.85 });
+
+    const states: string[] = [];
+    loop.onScore((_score, state) => {
+      states.push(state);
+    });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+
+    // Run enough ticks for all scores to be processed
+    for (let i = 0; i < 6; i++) {
+      await tickLoop(300);
+    }
+
+    loop.stop();
+
+    // Every emitted state must be "idle" — no premature "match"
+    expect(states.length).toBeGreaterThanOrEqual(1);
+    expect(states.every((s) => s === "idle")).toBe(true);
+  });
+
+  it("skips detect() calls during cooldown phase", async () => {
+    let detectCount = 0;
+    let inCooldownPhase = false;
+    let detectCountAtCooldownStart = 0;
+
+    const detector: Detector = {
+      loadTemplate: () => null,
+      detect: async () => {
+        detectCount++;
+        // First 4 calls: high scores for match confirmation
+        // After that: low scores to exit hysteresis into cooldown
+        return {
+          bestScore: detectCount <= 4 ? 0.95 : 0.1,
+          frameDelta: 0.5,
+          templateIndex: 0,
+        };
+      },
+      destroy: () => {},
+    };
+
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({ consecutiveHits: 3, precision: 0.85, cooldownSec: 30 });
+
+    loop.onScore((_score, state) => {
+      if (state === "cooldown" && !inCooldownPhase) {
+        inCooldownPhase = true;
+        detectCountAtCooldownStart = detectCount;
+      }
+    });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+
+    // Run enough ticks to trigger match, enter hysteresis, then exit into cooldown
+    for (let i = 0; i < 10; i++) {
+      await tickLoop(300);
+    }
+
+    // Cooldown should have been entered by now
+    expect(inCooldownPhase).toBe(true);
+
+    // Run many more ticks during cooldown — detect() must NOT be called
+    for (let i = 0; i < 15; i++) {
+      await tickLoop(200);
+    }
+
+    loop.stop();
+
+    // No additional detect() calls after cooldown started
+    expect(detectCount).toBe(detectCountAtCooldownStart);
+  });
+
+  it("cooldown countdown includes all seconds without skipping", async () => {
+    // Build a detector that returns high scores first, then low scores
+    let callIndex = 0;
+    const detector: Detector = {
+      loadTemplate: () => null,
+      detect: async () => {
+        callIndex++;
+        // First 4 calls: high score for match confirmation + hysteresis
+        // Then low scores to exit hysteresis into cooldown
+        const score = callIndex <= 4 ? 0.95 : 0.1;
+        return { bestScore: score, frameDelta: 0.5, templateIndex: 0 };
+      },
+      destroy: () => {},
+    };
+
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({ consecutiveHits: 3, precision: 0.85, cooldownSec: 5 });
+
+    const cooldownSecondsReceived: number[] = [];
+    loop.onScore((_score, state, cooldownRemainingMs) => {
+      if (state === "cooldown" && cooldownRemainingMs !== undefined) {
+        const sec = Math.ceil(cooldownRemainingMs / 1000);
+        // Collect unique second values
+        if (!cooldownSecondsReceived.includes(sec)) {
+          cooldownSecondsReceived.push(sec);
+        }
+      }
+    });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+
+    // Trigger match then exit hysteresis
+    for (let i = 0; i < 8; i++) {
+      await tickLoop(300);
+    }
+
+    // Run through the entire 5s cooldown with fast ticks
+    for (let i = 0; i < 60; i++) {
+      await tickLoop(200);
+    }
+
+    loop.stop();
+
+    // Should have seen all countdown seconds 5, 4, 3, 2, 1
+    for (const sec of [5, 4, 3, 2, 1]) {
+      expect(cooldownSecondsReceived).toContain(sec);
+    }
+  });
+
+  it("state transitions follow idle -> match -> cooldown -> idle without idle flash between match and cooldown", async () => {
+    let callIndex = 0;
+    const detector: Detector = {
+      loadTemplate: () => null,
+      detect: async () => {
+        callIndex++;
+        // High scores for match, then low scores to exit hysteresis
+        const score = callIndex <= 5 ? 0.95 : 0.1;
+        return { bestScore: score, frameDelta: 0.5, templateIndex: 0 };
+      },
+      destroy: () => {},
+    };
+
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({ consecutiveHits: 3, precision: 0.85, cooldownSec: 2 });
+
+    const allStates: string[] = [];
+    loop.onScore((_score, state) => {
+      allStates.push(state);
+    });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+
+    // Run through match, hysteresis exit, cooldown, and back to idle
+    for (let i = 0; i < 40; i++) {
+      await tickLoop(300);
+    }
+
+    loop.stop();
+
+    // Find the first "match" occurrence
+    const matchIdx = allStates.indexOf("match");
+    expect(matchIdx).toBeGreaterThanOrEqual(0);
+
+    // After the first "match", find the next non-"match" state
+    let afterMatchIdx = matchIdx + 1;
+    while (afterMatchIdx < allStates.length && allStates[afterMatchIdx] === "match") {
+      afterMatchIdx++;
+    }
+
+    // The state after "match" must be "cooldown", not "idle"
+    expect(afterMatchIdx).toBeLessThan(allStates.length);
+    expect(allStates[afterMatchIdx]).toBe("cooldown");
+
+    // After cooldown, we should eventually see "idle"
+    const idleAfterCooldown = allStates.slice(afterMatchIdx).includes("idle");
+    expect(idleAfterCooldown).toBe(true);
+
+    // Verify no "idle" appears between "match" and "cooldown"
+    const statesFromMatch = allStates.slice(matchIdx, afterMatchIdx + 1);
+    const hasIdleBetween = statesFromMatch.slice(0, -1).some(
+      (s, i) => i > 0 && s === "idle",
+    );
+    expect(hasIdleBetween).toBe(false);
+  });
+
   it("loadTemplates defers replacement when loop is running", async () => {
     let detectCallTemplates: unknown[] = [];
     const detector: Detector = {

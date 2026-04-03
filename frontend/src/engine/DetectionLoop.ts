@@ -66,6 +66,8 @@ const MIN_POLL_MS = 150;
 const MAX_POLL_MS = 500;
 /** Default starting interval in ms. */
 const DEFAULT_POLL_MS = 100;
+/** Fast tick interval during cooldown/hysteresis (no GPU work, just timer updates). */
+const COOLDOWN_TICK_MS = 100;
 
 // --- EMA smoothing constant --------------------------------------------------
 
@@ -215,6 +217,16 @@ export class DetectionLoop {
   private async runLoop(getVideo: () => HTMLVideoElement | null): Promise<void> {
     if (!this.running) return;
 
+    // During cooldown, skip expensive GPU detection — just tick the timer
+    // and update the UI at a fast interval. Hysteresis still needs real
+    // detection so we can tell when the match disappears from the screen.
+    if (this.inCooldown) {
+      this.tickCooldownPhase();
+      this.pollIntervalMs = COOLDOWN_TICK_MS;
+      this.scheduleNext(getVideo);
+      return;
+    }
+
     // Apply pending template swap at a safe point (between iterations)
     if (this.pendingTemplates) {
       this.templates = this.pendingTemplates;
@@ -253,6 +265,19 @@ export class DetectionLoop {
     this.scheduleNext(getVideo);
   }
 
+  /**
+   * Lightweight tick for the cooldown phase only.
+   *
+   * Advances the cooldown timer and emits UI callbacks without running
+   * GPU detection. Hysteresis is intentionally excluded — it needs real
+   * detection scores to know when the match leaves the screen.
+   */
+  private tickCooldownPhase(): void {
+    const effectivePrecision = this.computeEffectivePrecision();
+    this.updateMatchState(0, effectivePrecision);
+    this.emitScoreCallback(0, effectivePrecision);
+  }
+
   /** Run detection on a single video frame and update scores/match state. */
   private async processFrame(video: HTMLVideoElement): Promise<void> {
     const result: DetectorResult = await this.detector.detect(
@@ -286,7 +311,12 @@ export class DetectionLoop {
     }
 
     this.emitScoreCallback(adjusted, effectivePrecision);
-    this.pollIntervalMs = this.computeNextInterval(adjusted, result.frameDelta);
+
+    // When we just entered cooldown, switch to fast ticks immediately instead
+    // of using the adaptive interval (which would be slow for low scores).
+    this.pollIntervalMs = this.inCooldown
+      ? COOLDOWN_TICK_MS
+      : this.computeNextInterval(adjusted, result.frameDelta);
   }
 
   /** Replace the previous frame buffer, destroying the old one if applicable. */
@@ -389,17 +419,19 @@ export class DetectionLoop {
       state = "match";
     } else if (this.inCooldown) {
       state = "cooldown";
-    } else if (adjusted >= effectivePrecision) {
-      state = "match";
     } else {
+      // Only show "match" for confirmed detections (inHysteresis).
+      // Individual above-threshold frames during consecutive-hit buildup
+      // stay as "idle" to prevent Bereit→Treffer→Bereit flicker.
       state = "idle";
     }
 
     const now = performance.now();
     const stateChanged = state !== this.lastCallbackState;
-    // Fire immediately on state change or during cooldown (for countdown),
-    // otherwise throttle to every 250ms to avoid excessive React re-renders.
-    if (!stateChanged && state !== "cooldown" && now - this.lastScoreCallbackTime < 250) return;
+    // Fire immediately on state change; during cooldown throttle to 200ms
+    // for responsive countdown display; otherwise throttle to 250ms.
+    const throttleMs = state === "cooldown" ? 200 : 250;
+    if (!stateChanged && now - this.lastScoreCallbackTime < throttleMs) return;
 
     this.lastScoreCallbackTime = now;
     this.lastCallbackState = state;

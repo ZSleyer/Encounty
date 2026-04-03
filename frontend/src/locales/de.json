@@ -386,7 +386,7 @@
   "detector.stopSelected": "Erkennung für Auswahl stoppen",
   "detector.notConfigured": "Erkennung nicht konfiguriert für",
   "detector.stopped": "Gestoppt",
-  "detector.stateIdle": "Bereit",
+  "detector.stateIdle": "Suche",
   "detector.stateMatch": "Treffer",
   "detector.stateCooldown": "Pause",
   "sidebar.timerOnly": "Nur Timer",

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, userEvent } from "../../test-utils";
 import { PokemonFormModal } from "./PokemonFormModal";
 import type { ExistingPokemonData } from "./PokemonFormModal";
