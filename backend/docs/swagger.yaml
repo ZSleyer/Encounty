@@ -530,6 +530,8 @@ components:
         overlay_mode:
           description: '"default" | "custom" | "linked:<pokemon-id>"'
           type: string
+        shiny_charm:
+          type: boolean
         sprite_style:
           description: '"classic" | "animated" | "3d" | "artwork"'
           type: string

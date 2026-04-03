@@ -792,6 +792,9 @@ const docTemplate = `{
                         "description": "\"default\" | \"custom\" | \"linked:\u003cpokemon-id\u003e\"",
                         "type": "string"
                     },
+                    "shiny_charm": {
+                        "type": "boolean"
+                    },
                     "sprite_style": {
                         "description": "\"classic\" | \"animated\" | \"3d\" | \"artwork\"",
                         "type": "string"
