@@ -44,7 +44,6 @@ const OriginalImage = globalThis.Image;
 
 /**
  * Mock Image that auto-fires onload with configurable natural dimensions.
- * This simulates successful image loading in jsdom where images never load.
  */
 function createMockImage(width = 640, height = 480) {
   return class MockImage {
@@ -56,7 +55,6 @@ function createMockImage(width = 640, height = 480) {
     get src() { return this._src; }
     set src(val: string) {
       this._src = val;
-      // Fire onload asynchronously to match real behavior
       setTimeout(() => this.onload?.(), 0);
     }
   } as unknown as typeof Image;
@@ -114,9 +112,42 @@ async function clickSaveThroughDialog(user: ReturnType<typeof userEvent.setup>) 
 }
 
 describe("TemplateEditor", () => {
+  let getContextSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     // Mock Image constructor so onload fires in jsdom
     globalThis.Image = createMockImage();
+
+    // Stub getContext to return a mock 2d context so drawImage doesn't
+    // validate the mock Image against the real canvas implementation.
+    const mockCanvas = { width: 640, height: 480, toDataURL: vi.fn().mockReturnValue("data:image/png;base64,") };
+    const mockContext = {
+      drawImage: vi.fn(),
+      getImageData: vi.fn().mockReturnValue({ data: new Uint8ClampedArray(4) }),
+      putImageData: vi.fn(),
+      createImageData: vi.fn().mockReturnValue({ data: new Uint8ClampedArray(4), width: 1, height: 1 }),
+      clearRect: vi.fn(),
+      fillRect: vi.fn(),
+      strokeRect: vi.fn(),
+      beginPath: vi.fn(),
+      closePath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      scale: vi.fn(),
+      translate: vi.fn(),
+      setTransform: vi.fn(),
+      fillText: vi.fn(),
+      measureText: vi.fn().mockReturnValue({ width: 0 }),
+      canvas: mockCanvas,
+    };
+    getContextSpy = vi.spyOn(HTMLCanvasElement.prototype, "getContext")
+      .mockReturnValue(mockContext as never);
+
     // Reset replay buffer mock to default (no frames)
     mockReplayBuffer.frameCount = 0;
     mockReplayBuffer.getFrame = vi.fn().mockReturnValue(null);
@@ -130,6 +161,7 @@ describe("TemplateEditor", () => {
 
   afterEach(() => {
     globalThis.Image = OriginalImage;
+    getContextSpy.mockRestore();
   });
 
   it("renders in edit mode with an initial image URL", () => {

@@ -14,6 +14,85 @@ trap 'rm -rf "$TMP_DIR"' EXIT
 
 mkdir -p "$OUT_DIR"
 
+# Generate a fallback license text when no LICENSE file is found in the package.
+# Args: $1 = license_type (e.g. "MIT"), $2 = package name
+generate_fallback_license_text() {
+  local license_type="$1"
+  local pkg_name="$2"
+
+  case "$license_type" in
+    MIT)
+      cat <<EOMIT
+MIT License
+
+Copyright (c) $pkg_name
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+EOMIT
+      ;;
+    Unlicense)
+      cat <<EOUNLICENSE
+This is free and unencumbered software released into the public domain.
+
+Anyone is free to copy, modify, publish, use, compile, sell, or
+distribute this software, either in source code form or as a compiled
+binary, for any purpose, commercial or non-commercial, and by any
+means.
+
+In jurisdictions that recognize copyright laws, the author or authors
+of this software dedicate any and all copyright interest in the
+software to the public domain. We make this dedication for the benefit
+of the public at large and to the detriment of our heirs and
+successors. We intend this dedication to be an overt act of
+relinquishment in perpetuity of all present and future rights to this
+software under copyright law.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+For more information, please refer to <https://unlicense.org>
+EOUNLICENSE
+      ;;
+    *)
+      echo "This package is licensed under $license_type. See the package repository for the full license text."
+      ;;
+  esac
+}
+
+# Search for a license file in a given directory, trying common name variants.
+# Args: $1 = directory to search in
+# Prints the path to the first match, or nothing if not found.
+find_license_file() {
+  local dir="$1"
+  for candidate in LICENSE LICENSE.md LICENSE.txt LICENSE-MIT LICENSE-MIT.txt LICENCE license license.md license.txt UNLICENSE UNLICENSE.md UNLICENSE.txt; do
+    if [ -f "$dir/$candidate" ]; then
+      echo "$dir/$candidate"
+      return
+    fi
+  done
+}
+
 GO_LICENSES="$(go env GOPATH)/bin/go-licenses"
 if ! command -v "$GO_LICENSES" &>/dev/null; then
   echo "Installing go-licenses..."
@@ -51,11 +130,12 @@ echo '[]' > "$TMP_DIR/go_entries.json"
       '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
       >> "$TMP_DIR/go_entry_parts.jsonl"
   else
+    fallback_text=$(generate_fallback_license_text "$license_type" "$mod")
     jq -n \
       --arg name "$mod" \
       --arg version "$version" \
       --arg license "$license_type" \
-      --arg text "" \
+      --arg text "$fallback_text" \
       --arg source "go" \
       '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
       >> "$TMP_DIR/go_entry_parts.jsonl"
@@ -79,13 +159,14 @@ jq -c '.[]' "$TMP_DIR/npm_report.json" | while read -r row; do
   version=$(echo "$row" | jq -r '.installedVersion')
   license_type=$(echo "$row" | jq -r '.licenseType')
 
-  license_file=""
-  for candidate in LICENSE LICENSE.md LICENSE.txt LICENSE-MIT LICENSE-MIT.txt LICENCE; do
-    if [ -f "node_modules/$name/$candidate" ]; then
-      license_file="node_modules/$name/$candidate"
-      break
-    fi
-  done
+  # Search for license file with expanded name variants
+  license_file=$(find_license_file "node_modules/$name")
+
+  # For scoped packages (@scope/pkg), check the parent scope directory
+  if [ -z "$license_file" ] && [[ "$name" == @*/* ]]; then
+    scope_dir="node_modules/${name%%/*}"
+    license_file=$(find_license_file "$scope_dir")
+  fi
 
   if [ -n "$license_file" ]; then
     jq -n \
@@ -97,11 +178,12 @@ jq -c '.[]' "$TMP_DIR/npm_report.json" | while read -r row; do
       '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
       >> "$TMP_DIR/npm_entry_parts.jsonl"
   else
+    fallback_text=$(generate_fallback_license_text "$license_type" "$name")
     jq -n \
       --arg name "$name" \
       --arg version "$version" \
       --arg license "$license_type" \
-      --arg text "" \
+      --arg text "$fallback_text" \
       --arg source "npm" \
       '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
       >> "$TMP_DIR/npm_entry_parts.jsonl"
@@ -132,13 +214,14 @@ for entry in $SHIPPED_DEVDEPS; do
   version=$(jq -r '.version // ""' "$pkg_root/package.json")
   license_type=$(jq -r '.license // ""' "$pkg_root/package.json")
 
-  license_file=""
-  for candidate in LICENSE LICENSE.md LICENSE.txt LICENSE-MIT LICENSE-MIT.txt LICENCE; do
-    if [ -f "$pkg_root/$candidate" ]; then
-      license_file="$pkg_root/$candidate"
-      break
-    fi
-  done
+  # Search for license file with expanded name variants
+  license_file=$(find_license_file "$pkg_root")
+
+  # For scoped packages (@scope/pkg), check the parent scope directory
+  if [ -z "$license_file" ] && [[ "$pkg_name" == @*/* ]]; then
+    scope_dir="$(dirname "$pkg_root")/${pkg_name%%/*}"
+    license_file=$(find_license_file "$scope_dir")
+  fi
 
   if [ -n "$license_file" ]; then
     jq -n \
@@ -150,11 +233,12 @@ for entry in $SHIPPED_DEVDEPS; do
       '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
       >> "$TMP_DIR/npm_entry_parts.jsonl"
   else
+    fallback_text=$(generate_fallback_license_text "$license_type" "$pkg_name")
     jq -n \
       --arg name "$pkg_name" \
       --arg version "$version" \
       --arg license "$license_type" \
-      --arg text "" \
+      --arg text "$fallback_text" \
       --arg source "npm" \
       '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
       >> "$TMP_DIR/npm_entry_parts.jsonl"

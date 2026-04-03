@@ -299,7 +299,7 @@ export function DetectorPanel({
   useEffect(() => {
     fetch(apiUrl("/api/hunt-types"))
       .then((r) => r.json())
-      .then((data) => setHuntTypePresets(data as HuntTypePreset[]))
+      .then((data) => { if (Array.isArray(data)) setHuntTypePresets(data); })
       .catch(() => {});
   }, []);
 

@@ -200,27 +200,26 @@ export function GradientEditorModal({
       {/* --- Stop list --- */}
       <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
         {stops.map((stop, idx) => (
-          <button
-            type="button"
+          <div
             key={`stop-${stop.color}-${stop.position}-${idx}`}
-            className={`flex items-center gap-2 p-1.5 rounded-lg w-full text-left ${
+            className={`flex items-center gap-2 p-1.5 rounded-lg w-full ${
               selectedIdx === idx ? "bg-accent-blue/10" : ""
             }`}
-            style={{ background: "none", border: "none", cursor: "pointer" }}
-            onClick={() => setSelectedIdx(idx)}
           >
             <ColorSwatch
               color={stop.color}
               className="w-6 h-4 rounded cursor-pointer shrink-0"
-              onClick={() =>
-                onOpenColorPicker(stop.color, (c) => updateStopColor(idx, c))
-              }
+              onClick={() => {
+                setSelectedIdx(idx);
+                onOpenColorPicker(stop.color, (c) => updateStopColor(idx, c));
+              }}
             />
             <input
               type="number"
               min={0}
               max={100}
               value={stop.position}
+              onFocus={() => setSelectedIdx(idx)}
               onChange={(e) => updateStopPosition(idx, Number(e.target.value))}
               className="w-14 bg-bg-primary border border-border-subtle rounded px-1.5 py-0.5 text-xs text-text-primary text-center"
             />
@@ -228,16 +227,14 @@ export function GradientEditorModal({
             {stops.length > 2 && (
               <button
                 title={t("modal.tooltipRemoveStop")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteStop(idx);
-                }}
+                onClick={() => deleteStop(idx)}
+                onFocus={() => setSelectedIdx(idx)}
                 className="ml-auto text-text-muted hover:text-red-400 transition-colors"
               >
                 <X size={12} />
               </button>
             )}
-          </button>
+          </div>
         ))}
       </div>
 

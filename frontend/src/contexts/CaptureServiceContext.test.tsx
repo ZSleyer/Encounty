@@ -209,6 +209,14 @@ describe("CaptureServiceProvider", () => {
       getTracks: () => [mockTrack],
     } as unknown as MediaStream;
 
+    // Stub canvas getContext so drawImage (from the canvas npm package) does
+    // not reject the mock video element during the green-frame check.
+    const origGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+      drawImage: vi.fn(),
+      getImageData: vi.fn().mockReturnValue({ data: new Uint8ClampedArray([255, 255, 255, 255]) }),
+    }) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
     // Use a real video element so appendChild works in jsdom,
     // but override readyState and videoWidth/Height for the flow.
     const origCreateElement = document.createElement.bind(document);
@@ -224,6 +232,10 @@ describe("CaptureServiceProvider", () => {
       return origCreateElement(tag);
     });
 
+    // Restore canvas getContext after this test
+    const restoreGetContext = () => { HTMLCanvasElement.prototype.getContext = origGetContext; };
+    try {
+
     const { result } = renderHook(() => useCaptureService(), {
       wrapper: Wrapper,
     });
@@ -233,6 +245,9 @@ describe("CaptureServiceProvider", () => {
     expect(result.current.captureError).toBeNull();
     expect(result.current.isCapturing("poke-1")).toBe(true);
     expect(result.current.getSourceLabel("poke-1")).toBe("My Source");
+    } finally {
+      restoreGetContext();
+    }
   });
 
   // --- stopCapture ---
@@ -248,6 +263,13 @@ describe("CaptureServiceProvider", () => {
       getTracks: () => [mockTrack],
     } as unknown as MediaStream;
 
+    // Stub canvas getContext so drawImage does not reject the mock video.
+    const origGetContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue({
+      drawImage: vi.fn(),
+      getImageData: vi.fn().mockReturnValue({ data: new Uint8ClampedArray([255, 255, 255, 255]) }),
+    }) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+
     const origCreateElement = document.createElement.bind(document);
     vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
       if (tag === "video") {
@@ -261,6 +283,7 @@ describe("CaptureServiceProvider", () => {
       return origCreateElement(tag);
     });
 
+    try {
     const { result } = renderHook(() => useCaptureService(), {
       wrapper: Wrapper,
     });
@@ -272,6 +295,9 @@ describe("CaptureServiceProvider", () => {
 
     expect(result.current.isCapturing("poke-1")).toBe(false);
     expect(mockTrack.stop).toHaveBeenCalled();
+    } finally {
+      HTMLCanvasElement.prototype.getContext = origGetContext;
+    }
   });
 
   // --- dev_video source type ---

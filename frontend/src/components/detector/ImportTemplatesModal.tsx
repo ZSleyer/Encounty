@@ -118,7 +118,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                           ? <ChevronDown className="w-3.5 h-3.5 text-text-muted shrink-0" />
                           : <ChevronRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
                         }
-                        <img src={p.sprite_url} alt="" className="w-7 h-7 object-contain shrink-0" />
+                        <img src={p.sprite_url || undefined} alt="" className="w-7 h-7 object-contain shrink-0" />
                         <div className="flex-1 min-w-0">
                           <span className="text-sm text-text-primary font-medium truncate block">{p.name}</span>
                           <span className="text-[10px] text-text-muted">
