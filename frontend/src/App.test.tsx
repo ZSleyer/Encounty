@@ -1009,6 +1009,27 @@ describe("App", () => {
     });
   });
 
+  // --- Footer center link ---
+
+  it("renders footer center link to YouTube video", async () => {
+    mockAcceptedState();
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const link = screen.getByText("let magic stitch you back together");
+      expect(link).toBeInTheDocument();
+      expect(link.closest("a")).toHaveAttribute(
+        "href",
+        "https://www.youtube.com/watch?v=VDGG9zi53rQ",
+      );
+      expect(link.closest("a")).toHaveAttribute("target", "_blank");
+    });
+  });
+
   // --- Footer line separator ---
 
   it("renders the footer line separator", async () => {

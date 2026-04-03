@@ -563,8 +563,17 @@ function AppShell() {
             )}
           </div>
 
-          {/* Center: empty */}
-          <div />
+          {/* Center */}
+          <p className="text-center">
+            <a
+              href="https://www.youtube.com/watch?v=VDGG9zi53rQ"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-text-faint italic tracking-wide hover:text-text-muted transition-colors"
+            >
+              let magic stitch you back together
+            </a>
+          </p>
 
           {/* Right: Copyright */}
           <span className="text-end">
