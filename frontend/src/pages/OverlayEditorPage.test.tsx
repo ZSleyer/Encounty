@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, makeAppState, waitFor, userEvent } from "../test-utils";
+import { render, screen, makeAppState, waitFor, userEvent, act } from "../test-utils";
+import { render as rawRender } from "@testing-library/react";
+import { createMemoryRouter, RouterProvider, Link } from "react-router";
 import { OverlayEditorPage } from "./OverlayEditorPage";
 import { useCounterStore } from "../hooks/useCounterState";
+import { ThemeProvider } from "../contexts/ThemeContext";
+import { I18nProvider } from "../contexts/I18nContext";
+import { ToastProvider } from "../contexts/ToastContext";
+import { CaptureServiceProvider } from "../contexts/CaptureServiceContext";
 
 const fetchMock = vi.fn(() =>
   Promise.resolve({
@@ -29,6 +35,47 @@ vi.mock("../utils/overlay", () => ({
   resolveOverlay: (_p: unknown, _all: unknown, settings: unknown) => settings,
   wouldCreateCircularLink: () => false,
 }));
+
+/**
+ * Link component used to trigger navigation away from the editor page,
+ * allowing the useBlocker hook to fire.
+ */
+function NavTrigger() {
+  return (
+    <Link to="/other" data-testid="nav-away">
+      Go away
+    </Link>
+  );
+}
+
+/**
+ * Renders OverlayEditorPage inside a multi-route memory router so that
+ * navigating to "/other" triggers the useBlocker confirmation modal.
+ */
+function renderForBlocker() {
+  const router = createMemoryRouter(
+    [
+      {
+        path: "/editor",
+        element: (
+          <ThemeProvider>
+            <I18nProvider>
+              <CaptureServiceProvider>
+                <ToastProvider>
+                  <OverlayEditorPage />
+                  <NavTrigger />
+                </ToastProvider>
+              </CaptureServiceProvider>
+            </I18nProvider>
+          </ThemeProvider>
+        ),
+      },
+      { path: "/other", element: <div data-testid="other-page">Other</div> },
+    ],
+    { initialEntries: ["/editor"] },
+  );
+  return rawRender(<RouterProvider router={router} />);
+}
 
 describe("OverlayEditorPage", () => {
   beforeEach(() => {
@@ -216,5 +263,124 @@ describe("OverlayEditorPage", () => {
   it("save button text is visible", () => {
     render(<OverlayEditorPage />);
     expect(screen.getByText("Overlay speichern")).toBeInTheDocument();
+  });
+});
+
+/** Dirty the overlay and attempt to navigate away so the blocker fires. */
+async function dirtyAndNavigate(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByTestId("trigger-change"));
+  await user.click(screen.getByTestId("nav-away"));
+}
+
+describe("OverlayEditorPage — unsaved changes modal", () => {
+  beforeEach(() => {
+    fetchMock.mockClear();
+    useCounterStore.setState({
+      appState: makeAppState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows the unsaved changes modal when navigating with dirty state", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+
+    expect(screen.getByText("Ungespeicherte Änderungen")).toBeInTheDocument();
+    expect(
+      screen.getByText("Du hast Änderungen am Overlay, die noch nicht gespeichert wurden."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Zurück zum Editor")).toBeInTheDocument();
+    expect(screen.getByText("Verwerfen")).toBeInTheDocument();
+  });
+
+  it("does not show the modal when navigating without changes", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await user.click(screen.getByTestId("nav-away"));
+
+    // Should have navigated away — editor should be gone
+    expect(screen.queryByTestId("overlay-editor")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ungespeicherte Änderungen")).not.toBeInTheDocument();
+  });
+
+  it("stays on editor when clicking the stay button", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+
+    await user.click(screen.getByText("Zurück zum Editor"));
+
+    // Modal should close
+    expect(screen.queryByText("Ungespeicherte Änderungen")).not.toBeInTheDocument();
+    // Editor should still be visible
+    expect(screen.getByTestId("overlay-editor")).toBeInTheDocument();
+  });
+
+  it("navigates away when clicking the discard button", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+
+    await user.click(screen.getByText("Verwerfen"));
+
+    // Should have navigated to the other page
+    await waitFor(() => {
+      expect(screen.getByTestId("other-page")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("overlay-editor")).not.toBeInTheDocument();
+  });
+
+  it("closes the modal when clicking the backdrop", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+
+    // The backdrop is the outermost fixed div containing the modal
+    const backdrop = screen.getByText("Ungespeicherte Änderungen").closest(
+      ".fixed",
+    ) as HTMLElement;
+    expect(backdrop).toBeTruthy();
+
+    // Click directly on the backdrop (not on child elements)
+    await user.click(backdrop);
+
+    // Modal should close, editor should remain
+    expect(screen.queryByText("Ungespeicherte Änderungen")).not.toBeInTheDocument();
+    expect(screen.getByTestId("overlay-editor")).toBeInTheDocument();
+  });
+
+  it("closes the modal when pressing Escape on the backdrop", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+
+    await waitFor(() => {
+      expect(screen.getByText("Ungespeicherte Änderungen")).toBeInTheDocument();
+    });
+
+    // Dispatch a native keyDown event on the backdrop element
+    const backdrop = screen.getByText("Ungespeicherte Änderungen").closest(
+      ".fixed",
+    ) as HTMLElement;
+    act(() => { backdrop.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+
+    // Modal should close, editor should remain
+    await waitFor(() => {
+      expect(screen.queryByText("Ungespeicherte Änderungen")).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("overlay-editor")).toBeInTheDocument();
   });
 });

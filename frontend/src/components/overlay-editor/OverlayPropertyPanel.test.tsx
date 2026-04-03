@@ -1269,4 +1269,125 @@ describe("OverlayPropertyPanel", () => {
       expect.any(Function),
     );
   });
+
+  // --- Reactbits animation-specific settings ---
+
+  it("shows aurora color inputs when rb-aurora animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "rb-aurora" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    const colorInputs = screen.getAllByText(/Farbe/);
+    expect(colorInputs.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("shows particle controls when rb-particles animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "rb-particles" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Partikelanzahl/)).toBeInTheDocument();
+  });
+
+  it("shows galaxy controls when rb-galaxy animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "rb-galaxy" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Dichte/)).toBeInTheDocument();
+  });
+
+  it("shows silk controls when rb-silk animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "rb-silk" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Skalierung/)).toBeInTheDocument();
+  });
+
+  it("shows soft aurora controls when rb-softaurora animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "rb-softaurora" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Helligkeit/)).toBeInTheDocument();
+  });
+
+  it("shows radar controls when rb-radar animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "rb-radar" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Ringanzahl/)).toBeInTheDocument();
+  });
+
+  it("shows floating lines controls when rb-floatinglines animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "rb-floatinglines" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Linienanzahl/)).toBeInTheDocument();
+  });
+
+  it("shows pixel blast controls when rb-pixelblast animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "rb-pixelblast" });
+    const props = makeProps({ selectedEl: "canvas", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Pixelgröße/)).toBeInTheDocument();
+  });
+
+  // --- Outline type solid branch ---
+
+  it("shows outline color in swatch when outline type is solid", () => {
+    const settings = makeOverlaySettings({
+      name: {
+        ...makeOverlaySettings().name,
+        style: {
+          ...makeOverlaySettings().name.style,
+          outline_type: "solid",
+          outline_color: "#ff0000",
+          outline_width: 3,
+        },
+      },
+    });
+    const props = makeProps({ selectedEl: "name", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Umriss 3px #ff0000/)).toBeInTheDocument();
+  });
+
+  // --- Shadow enabled branch ---
+
+  it("shows shadow details in swatch when text shadow is enabled", () => {
+    const settings = makeOverlaySettings({
+      name: {
+        ...makeOverlaySettings().name,
+        style: {
+          ...makeOverlaySettings().name.style,
+          text_shadow: true,
+          text_shadow_blur: 4,
+          text_shadow_x: 2,
+          text_shadow_y: 3,
+        },
+      },
+    });
+    const props = makeProps({ selectedEl: "name", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    expect(screen.getByText(/Schatten 4px 2,3/)).toBeInTheDocument();
+  });
+
+  // --- Shadow with gradient type ---
+
+  it("shows gradient shadow swatch when shadow color type is gradient", () => {
+    const settings = makeOverlaySettings({
+      name: {
+        ...makeOverlaySettings().name,
+        style: {
+          ...makeOverlaySettings().name.style,
+          text_shadow: true,
+          text_shadow_color_type: "gradient",
+          text_shadow_gradient_stops: [
+            { color: "#ff0000", position: 0 },
+            { color: "#0000ff", position: 100 },
+          ],
+        },
+      },
+    });
+    const props = makeProps({ selectedEl: "name", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    // Shadow should show details with gradient applied
+    expect(screen.getByText(/Schatten/)).toBeInTheDocument();
+  });
 });
