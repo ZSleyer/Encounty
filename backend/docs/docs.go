@@ -220,6 +220,25 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "permissions.Status": {
+                "properties": {
+                    "accessibility": {
+                        "type": "boolean"
+                    },
+                    "screen_recording": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "permissions.requestBody": {
+                "properties": {
+                    "permission": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "pokedex.Entry": {
                 "properties": {
                     "canonical": {
@@ -451,6 +470,10 @@ const docTemplate = `{
                     "enabled": {
                         "type": "boolean"
                     },
+                    "hysteresis_factor": {
+                        "description": "0.0–1.0, multiplier for hysteresis exit threshold (default 0.7)",
+                        "type": "number"
+                    },
                     "max_poll_ms": {
                         "description": "slowest adaptive poll interval (static screen), default 500",
                         "type": "integer"
@@ -657,6 +680,13 @@ const docTemplate = `{
                 "properties": {
                     "background_animation": {
                         "type": "string"
+                    },
+                    "background_animation_config": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     },
                     "background_animation_speed": {
                         "type": "number"
@@ -1077,39 +1107,6 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "version": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "update.statusResponse": {
-                "properties": {
-                    "status": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "update.updateApplyRequest": {
-                "properties": {
-                    "download_url": {
-                        "type": "string"
-                    }
-                },
-                "type": "object"
-            },
-            "updater.UpdateInfo": {
-                "properties": {
-                    "available": {
-                        "type": "boolean"
-                    },
-                    "current_version": {
-                        "type": "string"
-                    },
-                    "download_url": {
-                        "type": "string"
-                    },
-                    "latest_version": {
                         "type": "string"
                     }
                 },
@@ -2368,6 +2365,91 @@ const docTemplate = `{
                 ]
             }
         },
+        "/permissions": {
+            "get": {
+                "description": "Returns the current Accessibility and Screen Recording permission state",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/permissions.Status"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "Get permission status",
+                "tags": [
+                    "permissions"
+                ]
+            }
+        },
+        "/permissions/request": {
+            "post": {
+                "description": "Opens the system dialog or settings pane for the specified permission",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/permissions.requestBody",
+                                        "summary": "body",
+                                        "description": "Permission to request"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Permission to request",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Request permission",
+                "tags": [
+                    "permissions"
+                ]
+            }
+        },
         "/pokedex": {
             "get": {
                 "responses": {
@@ -3382,86 +3464,6 @@ const docTemplate = `{
                 "summary": "Sync Pokedex from PokeAPI",
                 "tags": [
                     "pokedex"
-                ]
-            }
-        },
-        "/update/apply": {
-            "post": {
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "oneOf": [
-                                    {
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/update.updateApplyRequest",
-                                        "summary": "body",
-                                        "description": "Download URL"
-                                    }
-                                ]
-                            }
-                        }
-                    },
-                    "description": "Download URL",
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/update.statusResponse"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Bad Request"
-                    }
-                },
-                "summary": "Apply a downloaded update",
-                "tags": [
-                    "system"
-                ]
-            }
-        },
-        "/update/check": {
-            "get": {
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/updater.UpdateInfo"
-                                }
-                            }
-                        },
-                        "description": "OK"
-                    },
-                    "500": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/httputil.ErrResp"
-                                }
-                            }
-                        },
-                        "description": "Internal Server Error"
-                    }
-                },
-                "summary": "Check for available updates",
-                "tags": [
-                    "system"
                 ]
             }
         },
