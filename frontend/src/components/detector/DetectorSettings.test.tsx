@@ -199,4 +199,81 @@ describe("DetectorSettings", () => {
     expect(document.getElementById("det-max-poll")).toBeInTheDocument();
   });
 
+  it("calls onUpdate when base poll input changes", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings();
+    await expandSettings(user);
+    const basePoll = document.getElementById("det-base-poll") as HTMLInputElement;
+    fireEvent.change(basePoll, { target: { value: "100" } });
+    expect(props.onUpdate).toHaveBeenCalledWith({ poll_interval_ms: 100 });
+  });
+
+  it("calls onUpdate when min poll input changes", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings();
+    await expandSettings(user);
+    const minPoll = document.getElementById("det-min-poll") as HTMLInputElement;
+    fireEvent.change(minPoll, { target: { value: "20" } });
+    expect(props.onUpdate).toHaveBeenCalledWith({ min_poll_ms: 20 });
+  });
+
+  it("calls onUpdate when max poll input changes", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings();
+    await expandSettings(user);
+    const maxPoll = document.getElementById("det-max-poll") as HTMLInputElement;
+    fireEvent.change(maxPoll, { target: { value: "1000" } });
+    expect(props.onUpdate).toHaveBeenCalledWith({ max_poll_ms: 1000 });
+  });
+
+  it("calls onUpdate when hysteresis slider changes", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings();
+    await expandSettings(user);
+    const hysteresis = document.getElementById("det-hysteresis") as HTMLInputElement;
+    fireEvent.change(hysteresis, { target: { value: "0.85" } });
+    expect(props.onUpdate).toHaveBeenCalledWith({ hysteresis_factor: 0.85 });
+  });
+
+  it("uses NaN fallback of 50 for base poll when input is cleared", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings();
+    await expandSettings(user);
+    const basePoll = document.getElementById("det-base-poll") as HTMLInputElement;
+    fireEvent.change(basePoll, { target: { value: "" } });
+    expect(props.onUpdate).toHaveBeenCalledWith({ poll_interval_ms: 50 });
+  });
+
+  it("uses NaN fallback of 30 for min poll when input is cleared", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings();
+    await expandSettings(user);
+    const minPoll = document.getElementById("det-min-poll") as HTMLInputElement;
+    fireEvent.change(minPoll, { target: { value: "" } });
+    expect(props.onUpdate).toHaveBeenCalledWith({ min_poll_ms: 30 });
+  });
+
+  it("uses NaN fallback of 500 for max poll when input is cleared", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings();
+    await expandSettings(user);
+    const maxPoll = document.getElementById("det-max-poll") as HTMLInputElement;
+    fireEvent.change(maxPoll, { target: { value: "" } });
+    expect(props.onUpdate).toHaveBeenCalledWith({ max_poll_ms: 500 });
+  });
+
+  it("renders settings content directly when embedded is true", () => {
+    renderSettings({ embedded: true });
+    // Settings should be visible without clicking toggle
+    expect(document.getElementById("det-precision")).toBeInTheDocument();
+    expect(document.getElementById("det-base-poll")).toBeInTheDocument();
+  });
+
+  it("sets aria-disabled when disabled is true in embedded mode", () => {
+    const { container } = renderSettings({ embedded: true, disabled: true });
+    const settingsDiv = container.querySelector("[aria-disabled]");
+    expect(settingsDiv).toBeInTheDocument();
+    expect(settingsDiv).toHaveAttribute("aria-disabled", "true");
+  });
+
 });
