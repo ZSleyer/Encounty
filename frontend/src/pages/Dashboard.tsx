@@ -61,6 +61,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { useCaptureService } from "../contexts/CaptureServiceContext";
 import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
+import { getMethodOdds, formatOdds } from "../utils/gameGroups";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 
@@ -237,26 +238,20 @@ function resolveCopySource(
 function computeOddsDisplay(pokemon: Pokemon | null, games: GameEntry[]): string {
   if (!pokemon) return "1/4096";
 
-  const gameGen = pokemon.game
-    ? games.find((g) => g.key === pokemon.game)?.generation ?? null
-    : null;
-  const isOldGen = gameGen !== null && gameGen >= 2 && gameGen <= 5;
-  const baseDenom = isOldGen ? 8192 : 4096;
+  const gameKey = pokemon.game || "";
+  const hasCharm = pokemon.shiny_charm ?? false;
+  const ht = pokemon.hunt_type || "encounter";
 
-  const ht = pokemon.hunt_type;
-  if (!ht || ht === "encounter" || ht === "soft_reset" || ht === "fossil" || ht === "gift") {
-    return `1/${baseDenom}`;
+  // Use game-group-specific odds when available
+  if (gameKey) {
+    const odds = getMethodOdds(gameKey, ht, hasCharm);
+    return formatOdds(odds);
   }
 
-  const METHOD_ODDS: Record<string, string> = {
-    masuda: "683", radar: "~200", horde: "~820",
-    sos: "683", outbreak: `${baseDenom}`, sandwich: "683",
-    dynamax_adventure: "100", max_raid: `${baseDenom}`,
-    chain_fishing: "~100", friend_safari: "819",
-    dexnav: "~512", ultra_wormhole: "~3",
-    catch_combo: "~273", tera_raid: `${baseDenom}`,
-  };
-  return `1/${METHOD_ODDS[ht] ?? baseDenom}`;
+  // Fallback for pokemon without a game set
+  const gameGen = games.find((g) => g.key === gameKey)?.generation ?? null;
+  const isOldGen = gameGen !== null && gameGen >= 2 && gameGen <= 5;
+  return isOldGen ? "1/8192" : "1/4096";
 }
 
 /** Formats a game key into a short display string. */

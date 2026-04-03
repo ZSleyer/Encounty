@@ -411,7 +411,7 @@ describe("Dashboard", () => {
 
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/683")).toBeInTheDocument();
+    expect(screen.getByText("1/682")).toBeInTheDocument();
   });
 
   // --- Custom step display ---
@@ -2029,7 +2029,7 @@ describe("Dashboard odds display", () => {
   });
 
   it("shows radar odds when hunt_type is radar", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "radar" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "radar", game: "pokemon-x" });
 
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2041,27 +2041,11 @@ describe("Dashboard odds display", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    expect(screen.getByText("1/~200")).toBeInTheDocument();
+    expect(screen.getByText("1/99")).toBeInTheDocument();
   });
 
   it("shows chain_fishing odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "chain_fishing" });
-
-    useCounterStore.setState({
-      appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
-      isConnected: true,
-      lastEncounterPokemonId: null,
-      detectorStatus: {},
-    });
-
-    render(<Dashboard />);
-    await act(async () => {});
-
-    expect(screen.getByText("1/~100")).toBeInTheDocument();
-  });
-
-  it("shows dynamax_adventure odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "dynamax_adventure" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "chain_fishing", game: "pokemon-x" });
 
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2074,6 +2058,22 @@ describe("Dashboard odds display", () => {
     await act(async () => {});
 
     expect(screen.getByText("1/100")).toBeInTheDocument();
+  });
+
+  it("shows dynamax_adventure odds", async () => {
+    const pokemon = makePokemon({ id: "o1", hunt_type: "dynamax_adventure", game: "pokemon-sword" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.getByText("1/300")).toBeInTheDocument();
   });
 
   it("shows default odds for soft_reset hunt type", async () => {
@@ -2093,7 +2093,7 @@ describe("Dashboard odds display", () => {
   });
 
   it("shows friend_safari odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "friend_safari" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "friend_safari", game: "pokemon-x" });
 
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2598,7 +2598,7 @@ describe("Dashboard additional odds display", () => {
   });
 
   it("shows horde odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "horde" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "horde", game: "pokemon-x" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
@@ -2607,11 +2607,11 @@ describe("Dashboard additional odds display", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/~820")).toBeInTheDocument();
+    expect(screen.getByText("5/4096")).toBeInTheDocument();
   });
 
   it("shows sos odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "sos" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "sos", game: "pokemon-sun" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
@@ -2620,11 +2620,11 @@ describe("Dashboard additional odds display", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/683")).toBeInTheDocument();
+    expect(screen.getByText("1/315")).toBeInTheDocument();
   });
 
   it("shows ultra_wormhole odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "ultra_wormhole" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "ultra_wormhole", game: "pokemon-ultra-sun" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
@@ -2633,11 +2633,11 @@ describe("Dashboard additional odds display", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/~3")).toBeInTheDocument();
+    expect(screen.getByText("1/3")).toBeInTheDocument();
   });
 
   it("shows dexnav odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "dexnav" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "dexnav", game: "pokemon-omega-ruby" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
@@ -2646,11 +2646,11 @@ describe("Dashboard additional odds display", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/~512")).toBeInTheDocument();
+    expect(screen.getByText("1/42")).toBeInTheDocument();
   });
 
   it("shows catch_combo odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "catch_combo" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "catch_combo", game: "pokemon-lets-go-pikachu" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
@@ -2659,7 +2659,7 @@ describe("Dashboard additional odds display", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/~273")).toBeInTheDocument();
+    expect(screen.getByText("1/315")).toBeInTheDocument();
   });
 
   it("shows sandwich odds", async () => {
@@ -2672,7 +2672,7 @@ describe("Dashboard additional odds display", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/683")).toBeInTheDocument();
+    expect(screen.getByText("1/1024")).toBeInTheDocument();
   });
 
   it("shows default odds for fossil hunt type", async () => {
@@ -2702,7 +2702,7 @@ describe("Dashboard additional odds display", () => {
   });
 
   it("shows max_raid odds", async () => {
-    const pokemon = makePokemon({ id: "o1", hunt_type: "max_raid" });
+    const pokemon = makePokemon({ id: "o1", hunt_type: "max_raid", game: "pokemon-sword" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
       isConnected: true,
@@ -2724,7 +2724,7 @@ describe("Dashboard additional odds display", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/4096")).toBeInTheDocument();
+    expect(screen.getByText("1/4103")).toBeInTheDocument();
   });
 
   it("falls back to default odds for unknown hunt type", async () => {
@@ -5010,7 +5010,7 @@ describe("Dashboard outbreak odds", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/4096")).toBeInTheDocument();
+    expect(screen.getByText("1/1365")).toBeInTheDocument();
   });
 });
 

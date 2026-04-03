@@ -30,6 +30,7 @@ import {
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { getGameName, ALL_LANGUAGES } from "../../utils/games";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
+import { gameSupportsCharm } from "../../utils/gameGroups";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
 
@@ -45,6 +46,7 @@ export interface NewPokemonData {
   language: string;
   game: string;
   hunt_type: string;
+  shiny_charm?: boolean;
   step?: number;
 }
 
@@ -59,6 +61,7 @@ export interface ExistingPokemonData {
   language: string;
   game: string;
   hunt_type?: string;
+  shiny_charm?: boolean;
   step?: number;
 }
 
@@ -164,6 +167,7 @@ interface FormDefaults {
   step: number;
   game: string;
   huntType: string;
+  shinyCharm: boolean;
 }
 
 /** Map UI locale to candidate Pokemon language codes (UI "es" → Pokemon "es-es"/"es-419"). */
@@ -176,7 +180,7 @@ function localeToPokemonLangs(locale: string): string[] {
 function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
   const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter" };
+  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
@@ -191,6 +195,7 @@ function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], l
     step: pokemon.step || 1,
     game: pokemon.game || "",
     huntType: pokemon.hunt_type || "encounter",
+    shinyCharm: pokemon.shiny_charm ?? false,
   };
 }
 
@@ -345,6 +350,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [games, setGames] = useState<GameEntry[]>([]);
   const [selectedGame, setSelectedGame] = useState(defaults.game);
   const [huntType, setHuntType] = useState(defaults.huntType);
+  const [shinyCharm, setShinyCharm] = useState(defaults.shinyCharm);
 
   // Get the generation for the currently selected game
   const selectedGameGen: number | null =
@@ -385,6 +391,18 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     () => autoSwitchSpriteStyle(selectedGameGen, spriteStyle, setSpriteStyle),
     [selectedGameGen],
   );
+
+  // --- Reset hunt type when game changes if current method is no longer available ---
+  useEffect(() => {
+    if (!selectedGame) return;
+    const available = getAvailableHuntMethods(selectedGame);
+    if (!available.some((m) => m.key === huntType)) {
+      setHuntType("encounter");
+    }
+    if (!gameSupportsCharm(selectedGame)) {
+      setShinyCharm(false);
+    }
+  }, [selectedGame]);
 
   // --- Clear game selection if it predates the selected Pokemon's generation ---
   useEffect(
@@ -456,6 +474,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       language,
       game: selectedGame,
       hunt_type: huntType,
+      shiny_charm: shinyCharm || undefined,
       step: isEdit && step > 1 ? step : undefined,
     };
     submitByMode(props, data);
@@ -888,7 +907,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   onChange={(e) => setHuntType(e.target.value)}
                   className={selectClass}
                 >
-                  {getAvailableHuntMethods(selectedGameGen).map((m) => (
+                  {getAvailableHuntMethods(selectedGame).map((m) => (
                     <option key={m.key} value={m.key}>
                       {t(`huntType.${m.key}`)}
                     </option>
@@ -930,13 +949,33 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 onChange={(e) => setHuntType(e.target.value)}
                 className={selectClass}
               >
-                {getAvailableHuntMethods(selectedGameGen).map((m) => (
+                {getAvailableHuntMethods(selectedGame).map((m) => (
                   <option key={m.key} value={m.key}>
                     {t(`huntType.${m.key}`)}
                   </option>
                 ))}
               </select>
             </div>
+          )}
+
+          {/* Shiny Charm toggle — only shown for games that support it */}
+          {gameSupportsCharm(selectedGame) && (
+            <label
+              htmlFor="shiny-charm-toggle"
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              <input
+                id="shiny-charm-toggle"
+                type="checkbox"
+                checked={shinyCharm}
+                onChange={(e) => setShinyCharm(e.target.checked)}
+                className="rounded border-border-subtle text-accent focus:ring-accent"
+              />
+              <Sparkles size={14} className="text-yellow-400" />
+              <span className="text-xs text-text-secondary">
+                {t("huntType.shinyCharm")}
+              </span>
+            </label>
           )}
 
           {/* Divider */}
