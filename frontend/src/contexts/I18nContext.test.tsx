@@ -91,6 +91,19 @@ describe("I18nContext", () => {
     expect(document.documentElement.lang).toBe("en");
   });
 
+  it("falls back to 'de' when i18n.language is empty", () => {
+    // Force i18n.language to be empty
+    Object.defineProperty(i18n, "language", { value: "", writable: true, configurable: true });
+    render(
+      <I18nProvider>
+        <I18nTester />
+      </I18nProvider>,
+    );
+    expect(screen.getByTestId("locale").textContent).toBe("de");
+    // Restore
+    Object.defineProperty(i18n, "language", { value: "de", writable: true, configurable: true });
+  });
+
   it("t() returns a translated string for a known key", () => {
     render(
       <I18nProvider>

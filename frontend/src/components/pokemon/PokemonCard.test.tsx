@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, makePokemon } from "../../test-utils";
 import { PokemonCard } from "./PokemonCard";
+import { useCounterStore } from "../../hooks/useCounterState";
 
 describe("PokemonCard", () => {
   const defaultProps = {
@@ -138,5 +139,43 @@ describe("PokemonCard", () => {
     const pokemon = makePokemon({ game: "pokemon-letsgo-pikachu" });
     render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
     expect(screen.getByText("L.G. -PIKACHU")).toBeInTheDocument();
+  });
+
+  it("shows detector match indicator when status is match", () => {
+    useCounterStore.setState({
+      detectorStatus: { "poke-1": { state: "match", confidence: 0.95, poll_ms: 50 } },
+    });
+    const { container } = render(<PokemonCard {...defaultProps} />);
+    const dot = container.querySelector(".bg-green-400");
+    expect(dot).toBeInTheDocument();
+  });
+
+  it("shows detector cooldown indicator when status is cooldown", () => {
+    useCounterStore.setState({
+      detectorStatus: { "poke-1": { state: "cooldown", confidence: 0.9, poll_ms: 50 } },
+    });
+    const { container } = render(<PokemonCard {...defaultProps} />);
+    const dot = container.querySelector(".bg-amber-400");
+    expect(dot).toBeInTheDocument();
+  });
+
+  it("shows detector running indicator with pulse when status is running", () => {
+    useCounterStore.setState({
+      detectorStatus: { "poke-1": { state: "running", confidence: 0, poll_ms: 50 } },
+    });
+    const { container } = render(<PokemonCard {...defaultProps} />);
+    const dot = container.querySelector(".bg-accent-blue.animate-pulse");
+    expect(dot).toBeInTheDocument();
+  });
+
+  it("does not show detector indicator when no status entry exists", () => {
+    useCounterStore.setState({ detectorStatus: {} });
+    const { container } = render(<PokemonCard {...defaultProps} />);
+    const greenDot = container.querySelector(".bg-green-400");
+    const amberDot = container.querySelector(".bg-amber-400");
+    const blueDot = container.querySelector(".bg-accent-blue.animate-pulse");
+    expect(greenDot).not.toBeInTheDocument();
+    expect(amberDot).not.toBeInTheDocument();
+    expect(blueDot).not.toBeInTheDocument();
   });
 });

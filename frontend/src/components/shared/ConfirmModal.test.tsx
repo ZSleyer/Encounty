@@ -68,4 +68,20 @@ describe("ConfirmModal", () => {
     await user.click(screen.getByText("Cancel"));
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it("calls onClose on backdrop click", () => {
+    const onClose = vi.fn();
+    const { container } = render(
+      <ConfirmModal
+        title="Confirm"
+        message="Sure?"
+        cancelLabel="Cancel"
+        onConfirm={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    const dialog = container.querySelector("dialog")!;
+    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onClose).toHaveBeenCalled();
+  });
 });

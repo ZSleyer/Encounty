@@ -160,4 +160,18 @@ describe("SetEncounterModal", () => {
     );
     expect(container.querySelector("dialog")).toBeInTheDocument();
   });
+
+  it("calls onClose on backdrop click", () => {
+    const onClose = vi.fn();
+    const { container } = render(
+      <SetEncounterModal
+        pokemon={defaultPokemon}
+        onSave={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+    const dialog = container.querySelector("dialog")!;
+    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onClose).toHaveBeenCalled();
+  });
 });

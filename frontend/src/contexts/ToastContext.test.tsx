@@ -151,4 +151,70 @@ describe("ToastContext", () => {
     expect(() => render(<Orphan />)).toThrow("useToast must be used within ToastProvider");
     spy.mockRestore();
   });
+
+  it("shows system notification when page hidden and permission granted", () => {
+    const notificationSpy = vi.fn();
+    vi.stubGlobal("Notification", Object.assign(
+      function MockNotification(...args: unknown[]) { notificationSpy(...args); },
+      { permission: "granted", requestPermission: vi.fn() },
+    ));
+    Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
+
+    renderToastTester();
+    act(() => screen.getByTestId("push-info").click());
+
+    expect(notificationSpy).toHaveBeenCalledWith("Info toast", expect.objectContaining({ body: undefined }));
+
+    Object.defineProperty(document, "hidden", { value: false, writable: true, configurable: true });
+  });
+
+  it("requests notification permission when not denied", async () => {
+    const notificationSpy = vi.fn();
+    const requestMock = vi.fn().mockResolvedValue("granted");
+    vi.stubGlobal("Notification", Object.assign(
+      function MockNotification(...args: unknown[]) { notificationSpy(...args); },
+      { permission: "default", requestPermission: requestMock },
+    ));
+    Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
+
+    renderToastTester();
+    act(() => screen.getByTestId("push-info").click());
+
+    expect(requestMock).toHaveBeenCalled();
+
+    await vi.waitFor(() => {
+      expect(notificationSpy).toHaveBeenCalled();
+    });
+
+    Object.defineProperty(document, "hidden", { value: false, writable: true, configurable: true });
+  });
+
+  it("does not show notification when page is visible", () => {
+    const notificationSpy = vi.fn();
+    vi.stubGlobal("Notification", Object.assign(
+      function MockNotification(...args: unknown[]) { notificationSpy(...args); },
+      { permission: "granted", requestPermission: vi.fn() },
+    ));
+
+    renderToastTester();
+    act(() => screen.getByTestId("push-info").click());
+
+    expect(notificationSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not request permission when denied", () => {
+    const requestMock = vi.fn();
+    vi.stubGlobal("Notification", Object.assign(
+      function MockNotification() { /* no-op */ },
+      { permission: "denied", requestPermission: requestMock },
+    ));
+    Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
+
+    renderToastTester();
+    act(() => screen.getByTestId("push-info").click());
+
+    expect(requestMock).not.toHaveBeenCalled();
+
+    Object.defineProperty(document, "hidden", { value: false, writable: true, configurable: true });
+  });
 });
