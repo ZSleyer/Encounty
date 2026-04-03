@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeOverlaySettings, makePokemon, userEvent, fireEvent, act } from "../../test-utils";
+import { render, screen, makeOverlaySettings, makePokemon, userEvent, fireEvent, act, waitFor } from "../../test-utils";
 import { OverlayEditor } from "./OverlayEditor";
 
 // Mock the overlay utils
@@ -978,7 +978,7 @@ describe("OverlayEditor", () => {
 
   // --- Undo/redo keyboard shortcuts ---
 
-  it("handles Ctrl+Z shortcut without errors when no history available", () => {
+  it("handles Ctrl+Z shortcut without errors when no history available", async () => {
     render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -989,10 +989,12 @@ describe("OverlayEditor", () => {
 
     // Dispatch Ctrl+Z when there is nothing to undo — should not crash
     fireEvent.keyDown(document, { key: "z", ctrlKey: true });
-    expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    });
   });
 
-  it("handles Ctrl+Y shortcut without errors when no history available", () => {
+  it("handles Ctrl+Y shortcut without errors when no history available", async () => {
     render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -1003,12 +1005,14 @@ describe("OverlayEditor", () => {
 
     // Dispatch Ctrl+Y when there is nothing to redo — should not crash
     fireEvent.keyDown(document, { key: "y", ctrlKey: true });
-    expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    });
   });
 
   // --- Space bar for hand tool ---
 
-  it("activates hand tool when Space key is held", () => {
+  it("activates hand tool when Space key is held", async () => {
     render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -1023,12 +1027,14 @@ describe("OverlayEditor", () => {
     // Release Space
     fireEvent.keyUp(document, { code: "Space", key: " " });
     // Should not crash
-    expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    });
   });
 
   // --- Alt key tracking ---
 
-  it("tracks Alt key press and release", () => {
+  it("tracks Alt key press and release", async () => {
     render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -1040,7 +1046,9 @@ describe("OverlayEditor", () => {
     fireEvent.keyDown(document, { key: "Alt" });
     fireEvent.keyUp(document, { key: "Alt" });
     // Should not crash
-    expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    });
   });
 
   // --- Delete key does NOT remove element (no delete handler in OverlayEditor) ---
@@ -1338,7 +1346,7 @@ describe("OverlayEditor", () => {
 
   // --- Mouse interaction: canvas mousedown/up for hand tool ---
 
-  it("handles pan drag mousedown and mouseup on canvas container", () => {
+  it("handles pan drag mousedown and mouseup on canvas container", async () => {
     const { container } = render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -1357,12 +1365,14 @@ describe("OverlayEditor", () => {
       fireEvent.mouseUp(canvasArea, { clientX: 150, clientY: 150 });
     }
     // Should not crash
-    expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    });
   });
 
   // --- Space held temporarily activates hand tool ---
 
-  it("temporarily activates hand tool while Space is held and reverts on release", () => {
+  it("temporarily activates hand tool while Space is held and reverts on release", async () => {
     render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -1381,7 +1391,9 @@ describe("OverlayEditor", () => {
     fireEvent.keyUp(document, { code: "Space", key: " " });
 
     // Pointer tool should still be selected after space release
-    expect(pointerBtn).toBeInTheDocument();
+    await waitFor(() => {
+      expect(pointerBtn).toBeInTheDocument();
+    });
   });
 
   // --- Tab wraps around to first element ---
@@ -1463,7 +1475,7 @@ describe("OverlayEditor", () => {
 
   // --- Keyboard shortcuts ignored in input fields ---
 
-  it("does not switch tool when typing in an input field", () => {
+  it("does not switch tool when typing in an input field", async () => {
     render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -1481,7 +1493,9 @@ describe("OverlayEditor", () => {
     document.dispatchEvent(event);
 
     // Should not crash; pointer tool should remain active (not hand)
-    expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
+    });
   });
 
   // --- Title layer visibility toggle ---
@@ -2131,7 +2145,7 @@ describe("OverlayEditor", () => {
     expect(onUpdate).toHaveBeenCalled();
 
     // Wait for history debounce
-    await new Promise(r => setTimeout(r, 500));
+    await act(async () => { await new Promise(r => setTimeout(r, 500)); });
 
     // Now click undo
     const undoBtn = screen.getByLabelText(/Rückgängig.*Strg\+Z/i);
@@ -2160,7 +2174,7 @@ describe("OverlayEditor", () => {
     await user.click(moveUpButtons[0]);
 
     // Wait for debounce
-    await new Promise(r => setTimeout(r, 500));
+    await act(async () => { await new Promise(r => setTimeout(r, 500)); });
 
     // Undo
     const undoBtn = screen.getByLabelText(/Rückgängig.*Strg\+Z/i);
@@ -2548,7 +2562,7 @@ describe("OverlayEditor", () => {
 
   // --- Window resize handler ---
 
-  it("handles window resize event without crashing", () => {
+  it("handles window resize event without crashing", async () => {
     render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -2556,9 +2570,10 @@ describe("OverlayEditor", () => {
         activePokemon={makePokemon()}
       />,
     );
+    await act(async () => {});
 
     // Trigger resize event
-    globalThis.dispatchEvent(new Event("resize"));
+    act(() => { globalThis.dispatchEvent(new Event("resize")); });
 
     expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
   });
@@ -3568,9 +3583,9 @@ describe("OverlayEditor", () => {
     const input = capturedInput!;
     const mockFile = new File(["test"], "test.png", { type: "image/png" });
     Object.defineProperty(input, "files", { value: [mockFile] });
-    input.dispatchEvent(new Event("change"));
-    // Wait for FileReader onload + fetch
     await act(async () => {
+      input.dispatchEvent(new Event("change"));
+      // Wait for FileReader onload + fetch
       await new Promise(r => setTimeout(r, 50));
     });
 
@@ -3691,8 +3706,8 @@ describe("OverlayEditor", () => {
     const fileInput = capturedInput!;
     const mockFile = new File(["test"], "test.png", { type: "image/png" });
     Object.defineProperty(fileInput, "files", { value: [mockFile] });
-    fileInput.dispatchEvent(new Event("change"));
     await act(async () => {
+      fileInput.dispatchEvent(new Event("change"));
       await new Promise(r => setTimeout(r, 50));
     });
 
@@ -3908,7 +3923,7 @@ describe("OverlayEditor", () => {
 
   // --- Ctrl+Z and Ctrl+Y early return paths ---
 
-  it("Ctrl+Z prevents default and returns early from handler", () => {
+  it("Ctrl+Z prevents default and returns early from handler", async () => {
     render(
       <OverlayEditor
         settings={makeOverlaySettings()}
@@ -3916,14 +3931,19 @@ describe("OverlayEditor", () => {
         activePokemon={makePokemon()}
       />,
     );
+    await act(async () => {});
 
     // Fire Ctrl+Z (no history, canUndo is false, but handler still runs)
-    const event = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
-    document.dispatchEvent(event);
+    act(() => {
+      const event = new KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true, cancelable: true });
+      document.dispatchEvent(event);
+    });
 
     // Fire Ctrl+Y (no history, canRedo is false, but handler still runs)
-    const event2 = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, bubbles: true, cancelable: true });
-    document.dispatchEvent(event2);
+    act(() => {
+      const event2 = new KeyboardEvent("keydown", { key: "y", ctrlKey: true, bubbles: true, cancelable: true });
+      document.dispatchEvent(event2);
+    });
 
     expect(screen.getAllByText("Sprite").length).toBeGreaterThan(0);
   });

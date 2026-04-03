@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, userEvent } from "../../test-utils";
 import { PokemonFormModal } from "./PokemonFormModal";
 import type { ExistingPokemonData } from "./PokemonFormModal";
@@ -72,44 +72,54 @@ const basePokemon: ExistingPokemonData = {
 
 describe("PokemonFormModal", () => {
   describe("add mode", () => {
-    it("renders without crashing", () => {
+    it("renders without crashing", async () => {
       const { container } = render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      expect(container.querySelector("dialog")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(container.querySelector("dialog")).toBeInTheDocument();
+      });
     });
 
-    it("renders cancel and add buttons inside the dialog", () => {
+    it("renders cancel and add buttons inside the dialog", async () => {
       const { container } = render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      const buttons = container.querySelectorAll("dialog button");
-      expect(buttons.length).toBeGreaterThan(0);
+      await waitFor(() => {
+        const buttons = container.querySelectorAll("dialog button");
+        expect(buttons.length).toBeGreaterThan(0);
+      });
     });
 
-    it("calls showModal on mount", () => {
+    it("calls showModal on mount", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+      });
     });
 
-    it("displays the add title heading", () => {
+    it("displays the add title heading", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument();
+      });
     });
 
-    it("disables the submit button when no pokemon is selected", () => {
+    it("disables the submit button when no pokemon is selected", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      // The add/submit button should be disabled
-      const buttons = screen.getAllByRole("button");
-      const addBtn = buttons.find((b) => b.hasAttribute("disabled"));
-      expect(addBtn).toBeTruthy();
-      expect(addBtn).toBeDisabled();
+      await waitFor(() => {
+        // The add/submit button should be disabled
+        const buttons = screen.getAllByRole("button");
+        const addBtn = buttons.find((b) => b.hasAttribute("disabled"));
+        expect(addBtn).toBeTruthy();
+        expect(addBtn).toBeDisabled();
+      });
     });
 
     it("does not call onSubmit when clicking add with no pokemon selected", async () => {
@@ -124,20 +134,24 @@ describe("PokemonFormModal", () => {
       expect(onSubmit).not.toHaveBeenCalled();
     });
 
-    it("shows search input for pokemon selection", () => {
+    it("shows search input for pokemon selection", async () => {
       const { container } = render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      const searchInput = container.querySelector("input[type='text']");
-      expect(searchInput).toBeInTheDocument();
+      await waitFor(() => {
+        const searchInput = container.querySelector("input[type='text']");
+        expect(searchInput).toBeInTheDocument();
+      });
     });
 
-    it("shows question mark placeholder when no pokemon is selected", () => {
+    it("shows question mark placeholder when no pokemon is selected", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      // Multiple "?" elements exist (main placeholder + sprite style previews)
-      expect(screen.getAllByText("?").length).toBeGreaterThan(0);
+      await waitFor(() => {
+        // Multiple "?" elements exist (main placeholder + sprite style previews)
+        expect(screen.getAllByText("?").length).toBeGreaterThan(0);
+      });
     });
 
     it("displays suggestions when typing a pokemon name", async () => {
@@ -246,7 +260,7 @@ describe("PokemonFormModal", () => {
   });
 
   describe("edit mode", () => {
-    it("renders without crashing", () => {
+    it("renders without crashing", async () => {
       const { container } = render(
         <PokemonFormModal
           mode="edit"
@@ -255,10 +269,12 @@ describe("PokemonFormModal", () => {
           onClose={vi.fn()}
         />,
       );
-      expect(container.querySelector("dialog")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(container.querySelector("dialog")).toBeInTheDocument();
+      });
     });
 
-    it("displays edit title heading", () => {
+    it("displays edit title heading", async () => {
       render(
         <PokemonFormModal
           mode="edit"
@@ -267,7 +283,9 @@ describe("PokemonFormModal", () => {
           onClose={vi.fn()}
         />,
       );
-      expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { level: 2 })).toBeInTheDocument();
+      });
     });
 
     it("pre-fills the selected pokemon from props", async () => {
@@ -341,8 +359,10 @@ describe("PokemonFormModal", () => {
           onClose={vi.fn()}
         />,
       );
-      const stepInput = screen.getByRole("spinbutton");
-      expect(stepInput).toBeInTheDocument();
+      await waitFor(() => {
+        const stepInput = screen.getByRole("spinbutton");
+        expect(stepInput).toBeInTheDocument();
+      });
     });
 
     it("calls onSubmit with pokemon id when saving in edit mode", async () => {
@@ -387,9 +407,11 @@ describe("PokemonFormModal", () => {
         />,
       );
 
-      // Step input should be pre-filled with 3
-      const stepInput = screen.getByRole("spinbutton");
-      expect(stepInput).toHaveValue(3);
+      await waitFor(() => {
+        // Step input should be pre-filled with 3
+        const stepInput = screen.getByRole("spinbutton");
+        expect(stepInput).toHaveValue(3);
+      });
     });
   });
 
@@ -427,16 +449,18 @@ describe("PokemonFormModal", () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
-    it("calls onClose when dialog cancel event fires (Escape key)", () => {
+    it("calls onClose when dialog cancel event fires (Escape key)", async () => {
       const onClose = vi.fn();
       const { container } = render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={onClose} />,
       );
 
-      const dialog = container.querySelector("dialog")!;
-      // Simulate the native dialog cancel event
-      dialog.dispatchEvent(new Event("cancel", { bubbles: true }));
-      expect(onClose).toHaveBeenCalledTimes(1);
+      await waitFor(() => {
+        const dialog = container.querySelector("dialog")!;
+        // Simulate the native dialog cancel event
+        dialog.dispatchEvent(new Event("cancel", { bubbles: true }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+      });
     });
   });
 
@@ -445,18 +469,22 @@ describe("PokemonFormModal", () => {
 
   describe("game selection", () => {
 
-    it("renders a game select dropdown", () => {
+    it("renders a game select dropdown", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      expect(getGameSelect()).toBeInTheDocument();
+      await waitFor(() => {
+        expect(getGameSelect()).toBeInTheDocument();
+      });
     });
 
-    it("shows 'no game' default option", () => {
+    it("shows 'no game' default option", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      expect(getGameSelect()).toHaveValue("");
+      await waitFor(() => {
+        expect(getGameSelect()).toHaveValue("");
+      });
     });
 
     it("populates game options after loading", async () => {
@@ -508,18 +536,22 @@ describe("PokemonFormModal", () => {
 
   describe("hunt type selection", () => {
 
-    it("renders a hunt type select", () => {
+    it("renders a hunt type select", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      expect(getHuntTypeSelect()).toBeInTheDocument();
+      await waitFor(() => {
+        expect(getHuntTypeSelect()).toBeInTheDocument();
+      });
     });
 
-    it("defaults to encounter hunt type", () => {
+    it("defaults to encounter hunt type", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      expect(getHuntTypeSelect()).toHaveValue("encounter");
+      await waitFor(() => {
+        expect(getHuntTypeSelect()).toHaveValue("encounter");
+      });
     });
 
     it("allows changing the hunt type", async () => {
@@ -532,12 +564,14 @@ describe("PokemonFormModal", () => {
   });
 
   describe("sprite variant toggle", () => {
-    it("renders shiny and normal toggle buttons", () => {
+    it("renders shiny and normal toggle buttons", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      expect(screen.getByText("Shiny")).toBeInTheDocument();
-      expect(screen.getByText("Normal")).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText("Shiny")).toBeInTheDocument();
+        expect(screen.getByText("Normal")).toBeInTheDocument();
+      });
     });
 
     it("can toggle between shiny and normal", async () => {
@@ -552,13 +586,15 @@ describe("PokemonFormModal", () => {
   });
 
   describe("title input", () => {
-    it("renders the title input field", () => {
+    it("renders the title input field", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      // The title input has an id of "title-form"
-      const titleField = document.getElementById("title-form") as HTMLInputElement;
-      expect(titleField).toBeInTheDocument();
+      await waitFor(() => {
+        // The title input has an id of "title-form"
+        const titleField = document.getElementById("title-form") as HTMLInputElement;
+        expect(titleField).toBeInTheDocument();
+      });
     });
 
     it("allows typing a title", async () => {
@@ -570,7 +606,7 @@ describe("PokemonFormModal", () => {
       expect(titleField).toHaveValue("My Hunt");
     });
 
-    it("pre-fills title in edit mode", () => {
+    it("pre-fills title in edit mode", async () => {
       const pokemonWithTitle: ExistingPokemonData = {
         ...basePokemon,
         title: "Sub-Odds Hunt",
@@ -583,18 +619,22 @@ describe("PokemonFormModal", () => {
           onClose={vi.fn()}
         />,
       );
-      const titleField = document.getElementById("title-form") as HTMLInputElement;
-      expect(titleField).toHaveValue("Sub-Odds Hunt");
+      await waitFor(() => {
+        const titleField = document.getElementById("title-form") as HTMLInputElement;
+        expect(titleField).toHaveValue("Sub-Odds Hunt");
+      });
     });
   });
 
   describe("custom sprite URL", () => {
-    it("hides the custom sprite input by default", () => {
+    it("hides the custom sprite input by default", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
-      const customSpriteInput = document.getElementById("custom-sprite-form");
-      expect(customSpriteInput).not.toBeInTheDocument();
+      await waitFor(() => {
+        const customSpriteInput = document.getElementById("custom-sprite-form");
+        expect(customSpriteInput).not.toBeInTheDocument();
+      });
     });
 
     it("shows the custom sprite input when expanded", async () => {
@@ -615,7 +655,7 @@ describe("PokemonFormModal", () => {
   });
 
   describe("language selector", () => {
-    it("renders a language selector button", () => {
+    it("renders a language selector button", async () => {
       render(
         <PokemonFormModal
           mode="add"
@@ -624,11 +664,13 @@ describe("PokemonFormModal", () => {
           activeLanguages={["de", "en"]}
         />,
       );
-      // The language button has aria-haspopup="listbox"
-      const langBtn = screen.getAllByRole("button").find(
-        (b) => b.getAttribute("aria-haspopup") === "true",
-      );
-      expect(langBtn).toBeTruthy();
+      await waitFor(() => {
+        // The language button has aria-haspopup="listbox"
+        const langBtn = screen.getAllByRole("button").find(
+          (b) => b.getAttribute("aria-haspopup") === "true",
+        );
+        expect(langBtn).toBeTruthy();
+      });
     });
 
     it("opens language dropdown on click", async () => {

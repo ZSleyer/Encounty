@@ -119,7 +119,7 @@ function setupPreparingScreenWs(fetchOverrides?: Record<string, () => Promise<un
 }
 
 describe("App", () => {
-  it("renders without crashing", () => {
+  it("renders without crashing", async () => {
     // App does not include BrowserRouter, so wrap it here.
     // App contains ThemeProvider, I18nProvider, ToastProvider already.
     const { container } = render(
@@ -127,7 +127,9 @@ describe("App", () => {
         <App />
       </BrowserRouter>,
     );
-    expect(container).toBeTruthy();
+    await waitFor(() => {
+      expect(container).toBeTruthy();
+    });
   });
 
   it("fetches and displays version information", async () => {
@@ -1133,6 +1135,7 @@ describe("App", () => {
         <App />
       </MemoryRouter>,
     );
+    await act(async () => {});
 
     await waitFor(() => {
       expect(screen.queryByTestId("pixel-blast")).not.toBeInTheDocument();
@@ -1811,15 +1814,17 @@ describe("App", () => {
 
     // Send a state_update with crisp_sprites enabled
     if (wsHandler && connectCb) {
-      connectCb();
-      wsHandler({
-        type: "state_update",
-        payload: {
-          pokemon: [],
-          settings: { crisp_sprites: true },
-          hotkeys: {},
-          license_accepted: true,
-        },
+      act(() => {
+        connectCb!();
+        wsHandler!({
+          type: "state_update",
+          payload: {
+            pokemon: [],
+            settings: { crisp_sprites: true },
+            hotkeys: {},
+            license_accepted: true,
+          },
+        });
       });
     }
 
@@ -2063,7 +2068,7 @@ describe("App", () => {
 
     // Trigger the update available callback
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "9.9.9" });
+      act(() => { updateAvailableCb!({ version: "9.9.9" }); });
     }
 
     // Update notification should appear with the version (may appear multiple times: popup + footer)
@@ -2114,7 +2119,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "9.9.9" });
+      act(() => { updateAvailableCb!({ version: "9.9.9" }); });
     }
 
     await waitFor(() => {
@@ -2123,7 +2128,7 @@ describe("App", () => {
 
     // Click the "Later" dismiss button
     const laterBtn = screen.getByText(/Später/i);
-    fireEvent.click(laterBtn);
+    act(() => { fireEvent.click(laterBtn); });
 
     // Session storage should have the flag set
     expect(mockSessionStorage["update_dismissed"]).toBe("1");
@@ -2174,7 +2179,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "5.0.0" });
+      act(() => { updateAvailableCb!({ version: "5.0.0" }); });
     }
 
     await waitFor(() => {
@@ -2183,7 +2188,7 @@ describe("App", () => {
 
     // Click the "Download" / "Herunterladen" button (macOS manual download)
     const updateBtn = screen.getByText(/Herunterladen/i);
-    fireEvent.click(updateBtn);
+    act(() => { fireEvent.click(updateBtn); });
 
     // Should open external URL
     await waitFor(() => {
@@ -2233,7 +2238,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "8.0.0" });
+      act(() => { updateAvailableCb!({ version: "8.0.0" }); });
     }
 
     // Dismiss the notification popup first
@@ -2241,7 +2246,7 @@ describe("App", () => {
       expect(screen.getAllByText("8.0.0").length).toBeGreaterThanOrEqual(1);
     });
     const laterBtn = screen.getByText(/Später/i);
-    fireEvent.click(laterBtn);
+    act(() => { fireEvent.click(laterBtn); });
 
     // Footer badge button should show the version
     await waitFor(() => {
@@ -2291,7 +2296,7 @@ describe("App", () => {
 
     // Trigger update available
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "4.0.0" });
+      act(() => { updateAvailableCb!({ version: "4.0.0" }); });
     }
 
     // Click footer badge to trigger applyUpdate (Linux path = downloadUpdate)
@@ -2303,7 +2308,7 @@ describe("App", () => {
     const badges = screen.getAllByText("4.0.0");
     const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
     if (footerBadge) {
-      fireEvent.click(footerBadge.closest("button")!);
+      act(() => { fireEvent.click(footerBadge.closest("button")!); });
     }
 
     // UpdateOverlay should show "installing" text
@@ -2356,7 +2361,7 @@ describe("App", () => {
 
     // Simulate download completed — onUpdateDownloaded fires installUpdate + sets restarting
     if (downloadedCb) {
-      downloadedCb();
+      act(() => { downloadedCb!(); });
     }
 
     await waitFor(() => {
@@ -2406,7 +2411,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "3.2.1" });
+      act(() => { updateAvailableCb!({ version: "3.2.1" }); });
     }
 
     await waitFor(() => {
@@ -2461,7 +2466,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "7.0.0" });
+      act(() => { updateAvailableCb!({ version: "7.0.0" }); });
     }
 
     await waitFor(() => {
@@ -2472,7 +2477,7 @@ describe("App", () => {
     const badges = screen.getAllByText("7.0.0");
     const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
     if (footerBadge) {
-      fireEvent.click(footerBadge.closest("button")!);
+      act(() => { fireEvent.click(footerBadge.closest("button")!); });
     }
 
     // UpdateOverlay should appear
@@ -2483,7 +2488,7 @@ describe("App", () => {
 
     // Now trigger an update error — should reset to idle
     if (errorCb) {
-      errorCb("Download failed");
+      act(() => { errorCb!("Download failed"); });
     }
 
     // UpdateOverlay should disappear (updateState back to idle)
@@ -2533,7 +2538,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "10.0.0" });
+      act(() => { updateAvailableCb!({ version: "10.0.0" }); });
     }
 
     await waitFor(() => {
@@ -2542,7 +2547,7 @@ describe("App", () => {
 
     // Click "Jetzt aktualisieren" (Update Now) in the notification
     const updateNowBtn = screen.getByText(/Jetzt aktualisieren/i);
-    fireEvent.click(updateNowBtn);
+    act(() => { fireEvent.click(updateNowBtn); });
 
     // downloadUpdate should have been called
     await waitFor(() => {
@@ -2590,7 +2595,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "11.0.0" });
+      act(() => { updateAvailableCb!({ version: "11.0.0" }); });
     }
 
     await waitFor(() => {
@@ -2599,7 +2604,7 @@ describe("App", () => {
 
     // Click the download button (Windows = manual download)
     const downloadBtn = screen.getByText(/Herunterladen/i);
-    fireEvent.click(downloadBtn);
+    act(() => { fireEvent.click(downloadBtn); });
 
     await waitFor(() => {
       expect(mockOpen).toHaveBeenCalledWith(
@@ -2760,16 +2765,18 @@ describe("App", () => {
     });
 
     if (wsHandler && connectCb) {
-      connectCb();
-      // Send state with a pokemon that has detector_config.enabled = false
-      wsHandler({
-        type: "state_update",
-        payload: {
-          pokemon: [{ id: "poke-1", name: "Bisasam", encounters: 42, detector_config: { enabled: false } }],
-          settings: {},
-          hotkeys: {},
-          license_accepted: true,
-        },
+      act(() => {
+        connectCb!();
+        // Send state with a pokemon that has detector_config.enabled = false
+        wsHandler!({
+          type: "state_update",
+          payload: {
+            pokemon: [{ id: "poke-1", name: "Bisasam", encounters: 42, detector_config: { enabled: false } }],
+            settings: {},
+            hotkeys: {},
+            license_accepted: true,
+          },
+        });
       });
     }
 
@@ -2805,20 +2812,22 @@ describe("App", () => {
     });
 
     if (wsHandler && connectCb) {
-      connectCb();
-      wsHandler({
-        type: "state_update",
-        payload: {
-          pokemon: [{ id: "poke-1", name: "Bisasam", encounters: 42 }],
-          settings: {},
-          hotkeys: {},
-          license_accepted: true,
-        },
-      });
-      // Send encounter for non-existent pokemon — should not crash
-      wsHandler({
-        type: "encounter_added",
-        payload: { pokemon_id: "nonexistent", count: 1 },
+      act(() => {
+        connectCb!();
+        wsHandler!({
+          type: "state_update",
+          payload: {
+            pokemon: [{ id: "poke-1", name: "Bisasam", encounters: 42 }],
+            settings: {},
+            hotkeys: {},
+            license_accepted: true,
+          },
+        });
+        // Send encounter for non-existent pokemon — should not crash
+        wsHandler!({
+          type: "encounter_added",
+          payload: { pokemon_id: "nonexistent", count: 1 },
+        });
       });
     }
 
@@ -3032,7 +3041,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "12.0.0" });
+      act(() => { updateAvailableCb!({ version: "12.0.0" }); });
     }
 
     // Footer badge should appear but not the notification popup
@@ -3133,7 +3142,7 @@ describe("App", () => {
     });
 
     if (updateAvailableCb) {
-      updateAvailableCb({ version: "13.0.0" });
+      act(() => { updateAvailableCb!({ version: "13.0.0" }); });
     }
 
     await waitFor(() => {
@@ -3144,7 +3153,7 @@ describe("App", () => {
     const badges = screen.getAllByText("13.0.0");
     const footerBadge = badges.find((el) => el.closest("button") && el.closest("footer"));
     if (footerBadge) {
-      fireEvent.click(footerBadge.closest("button")!);
+      act(() => { fireEvent.click(footerBadge.closest("button")!); });
     }
 
     // After download fails, should reset to idle (no overlay)

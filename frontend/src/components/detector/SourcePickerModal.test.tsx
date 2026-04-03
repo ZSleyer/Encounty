@@ -63,7 +63,9 @@ describe("SourcePickerModal", () => {
     );
 
     // The dialog should render without crashing
-    expect(screen.getByRole("dialog", { hidden: true })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { hidden: true })).toBeInTheDocument();
+    });
 
     // Restore
     Object.defineProperty(navigator, "mediaDevices", {
@@ -584,7 +586,9 @@ describe("SourcePickerModal", () => {
     );
 
     // Should render without crashing
-    expect(screen.getByRole("dialog", { hidden: true })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { hidden: true })).toBeInTheDocument();
+    });
 
     Object.defineProperty(navigator, "mediaDevices", {
       value: originalMediaDevices,
@@ -670,8 +674,10 @@ describe("SourcePickerModal", () => {
     );
 
     // Screens tab should be active (has bg-accent-blue)
-    const screensTab = screen.getByText("Bildschirme").closest("button")!;
-    expect(screensTab.className).toContain("bg-accent-blue");
+    await waitFor(() => {
+      const screensTab = screen.getByText("Bildschirme").closest("button")!;
+      expect(screensTab.className).toContain("bg-accent-blue");
+    });
 
     delete (globalThis as Record<string, unknown>).electronAPI;
   });

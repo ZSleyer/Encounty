@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makePokemon, makeAppState, userEvent, waitFor, fireEvent } from "../../test-utils";
+import { render, screen, makePokemon, makeAppState, userEvent, waitFor, fireEvent, act } from "../../test-utils";
 import { DetectorPanel } from "./DetectorPanel";
 import { CaptureServiceProvider } from "../../contexts/CaptureServiceContext";
 import { useCounterStore } from "../../hooks/useCounterState";
@@ -147,49 +147,61 @@ describe("DetectorPanel", () => {
     );
   });
 
-  it("renders without crashing", () => {
+  it("renders without crashing", async () => {
     renderPanel();
-    // Should show the source type selector (combobox)
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    await waitFor(() => {
+      // Should show the source type selector (combobox)
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+    });
   });
 
-  it("shows status label when running", () => {
+  it("shows status label when running", async () => {
     renderPanel({ isRunning: true, confidence: 0.9 });
-    // Should show source selector and confidence
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    await waitFor(() => {
+      // Should show source selector and confidence
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+    });
   });
 
   // --- Status dot and label rendering ---
 
-  it("shows stopped label when not running", () => {
+  it("shows stopped label when not running", async () => {
     renderPanel({ isRunning: false, detectorState: "idle" });
-    // The status label should show the stopped/dash text
-    expect(screen.getByText(/\u2013|stopped|Gestoppt/i)).toBeInTheDocument();
+    await waitFor(() => {
+      // The status label should show the stopped/dash text
+      expect(screen.getByText(/\u2013|stopped|Gestoppt/i)).toBeInTheDocument();
+    });
   });
 
-  it("shows match state label when running with match", () => {
+  it("shows match state label when running with match", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "match", confidence: 0.95 });
-    // The match state label should be visible with the green-400 color class
-    const matchLabel = container.querySelector(".text-green-400");
-    expect(matchLabel).toBeTruthy();
-    expect(matchLabel?.textContent).toBeTruthy();
+    await waitFor(() => {
+      // The match state label should be visible with the green-400 color class
+      const matchLabel = container.querySelector(".text-green-400");
+      expect(matchLabel).toBeTruthy();
+      expect(matchLabel?.textContent).toBeTruthy();
+    });
   });
 
-  it("shows cooldown state label when in cooldown", () => {
+  it("shows cooldown state label when in cooldown", async () => {
     renderPanel({ isRunning: true, detectorState: "cooldown", confidence: 0.5 });
-    // Cooldown label is rendered via stateLabel helper
-    const allText = document.body.textContent ?? "";
-    // Should contain a cooldown-related string (i18n key: detector.stateCooldown)
-    expect(allText.length).toBeGreaterThan(0);
+    await waitFor(() => {
+      // Cooldown label is rendered via stateLabel helper
+      const allText = document.body.textContent ?? "";
+      // Should contain a cooldown-related string (i18n key: detector.stateCooldown)
+      expect(allText.length).toBeGreaterThan(0);
+    });
   });
 
   // --- CPU fallback badge ---
 
-  it("does not show CPU fallback badge when backend is GPU", () => {
+  it("does not show CPU fallback badge when backend is GPU", async () => {
     const { container } = renderPanel();
-    // The CPU fallback badge has bg-yellow-500/10 styling — should not be present with GPU backend
-    const cpuBadge = container.querySelector(String.raw`.bg-yellow-500\/10`);
-    expect(cpuBadge).not.toBeInTheDocument();
+    await waitFor(() => {
+      // The CPU fallback badge has bg-yellow-500/10 styling — should not be present with GPU backend
+      const cpuBadge = container.querySelector(String.raw`.bg-yellow-500\/10`);
+      expect(cpuBadge).not.toBeInTheDocument();
+    });
   });
 
   it("shows CPU fallback badge when backend is CPU", async () => {
@@ -198,6 +210,7 @@ describe("DetectorPanel", () => {
     vi.mocked(getDetectorBackend).mockReturnValue("cpu");
 
     const { container } = renderPanel();
+    await act(async () => {});
     // The CPU badge is a span with specific styling and "CPU" text
     const cpuBadge = container.querySelector(String.raw`.bg-yellow-500\/10`);
     expect(cpuBadge).toBeInTheDocument();
@@ -209,81 +222,99 @@ describe("DetectorPanel", () => {
 
   // --- Confidence bar rendering ---
 
-  it("shows confidence bar when running", () => {
+  it("shows confidence bar when running", async () => {
     const { container } = renderPanel({ isRunning: true, confidence: 0.75 });
-    // Confidence value displayed as percentage
-    expect(screen.getByText("75.0%")).toBeInTheDocument();
-    // The progress bar element should exist
-    const bar = container.querySelector("[style*='width: 75%']");
-    expect(bar).toBeInTheDocument();
+    await waitFor(() => {
+      // Confidence value displayed as percentage
+      expect(screen.getByText("75.0%")).toBeInTheDocument();
+      // The progress bar element should exist
+      const bar = container.querySelector("[style*='width: 75%']");
+      expect(bar).toBeInTheDocument();
+    });
   });
 
-  it("does not show confidence bar when not running", () => {
+  it("does not show confidence bar when not running", async () => {
     renderPanel({ isRunning: false, confidence: 0.5 });
-    expect(screen.queryByText("50.0%")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText("50.0%")).not.toBeInTheDocument();
+    });
   });
 
-  it("caps confidence bar at 100%", () => {
+  it("caps confidence bar at 100%", async () => {
     const { container } = renderPanel({ isRunning: true, confidence: 1.5 });
-    expect(screen.getByText("150.0%")).toBeInTheDocument();
-    const bar = container.querySelector("[style*='width: 100%']");
-    expect(bar).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("150.0%")).toBeInTheDocument();
+      const bar = container.querySelector("[style*='width: 100%']");
+      expect(bar).toBeInTheDocument();
+    });
   });
 
   // --- Source selector ---
 
-  it("displays source selector with browser display option", () => {
+  it("displays source selector with browser display option", async () => {
     renderPanel();
-    const select = screen.getByRole("combobox");
-    expect(select).toBeInTheDocument();
-    // Should have browser_display as default value
-    expect(select).toHaveValue("browser_display");
+    await waitFor(() => {
+      const select = screen.getByRole("combobox");
+      expect(select).toBeInTheDocument();
+      // Should have browser_display as default value
+      expect(select).toHaveValue("browser_display");
+    });
   });
 
   // --- Connect / Disconnect button states ---
 
-  it("shows connect button when not capturing", () => {
+  it("shows connect button when not capturing", async () => {
     renderPanel();
-    expect(screen.getByRole("button", { name: /connect|Verbinden/i })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /connect|Verbinden/i })).toBeInTheDocument();
+    });
   });
 
   // --- Error badge ---
 
-  it("does not show error badge by default", () => {
+  it("does not show error badge by default", async () => {
     const { container } = renderPanel();
-    // Error badge uses AlertTriangle + text; should not be present initially
-    const errorBadges = container.querySelectorAll("[title]");
-    const errorBadge = Array.from(errorBadges).find(
-      (el) => el.classList.contains("bg-red-500/10"),
-    );
-    expect(errorBadge).toBeUndefined();
+    await waitFor(() => {
+      // Error badge uses AlertTriangle + text; should not be present initially
+      const errorBadges = container.querySelectorAll("[title]");
+      const errorBadge = Array.from(errorBadges).find(
+        (el) => el.classList.contains("bg-red-500/10"),
+      );
+      expect(errorBadge).toBeUndefined();
+    });
   });
 
   // --- Tutorial button ---
 
-  it("renders tutorial button", () => {
+  it("renders tutorial button", async () => {
     renderPanel();
-    expect(screen.getByRole("button", { name: "Tutorial" })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Tutorial" })).toBeInTheDocument();
+    });
   });
 
   // --- Pokemon name in control bar ---
 
-  it("displays the pokemon name in the control bar", () => {
+  it("displays the pokemon name in the control bar", async () => {
     renderPanel({ pokemon: makePokemon({ name: "Pikachu" }) });
-    expect(screen.getByText("Pikachu")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Pikachu")).toBeInTheDocument();
+    });
   });
 
   // --- Template list in sidebar ---
 
-  it("shows no templates message when templates list is empty", () => {
+  it("shows no templates message when templates list is empty", async () => {
     renderPanel({ pokemon: makePokemon({ detector_config: undefined }) });
-    // The "no templates" placeholder should appear
-    const allText = document.body.textContent ?? "";
-    // There should be a templates heading
-    expect(allText).toContain("Template");
+    await waitFor(() => {
+      // The "no templates" placeholder should appear
+      const allText = document.body.textContent ?? "";
+      // There should be a templates heading
+      expect(allText).toContain("Template");
+    });
   });
 
-  it("renders template items when pokemon has templates", () => {
+  it("renders template items when pokemon has templates", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -314,19 +345,23 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
-    // Template names should appear
-    expect(screen.getAllByText("Shiny Check").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Battle Screen").length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      // Template names should appear
+      expect(screen.getAllByText("Shiny Check").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Battle Screen").length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   // --- Sidebar tabs (log / settings) ---
 
-  it("renders log and settings tabs in the sidebar", () => {
+  it("renders log and settings tabs in the sidebar", async () => {
     renderPanel();
-    // The tab buttons should be present (i18n keys: detector.logTitle, detector.settingsTitle)
-    const buttons = screen.getAllByRole("button");
-    // Find tab-like buttons — there should be at least two in the right panel
-    expect(buttons.length).toBeGreaterThan(2);
+    await waitFor(() => {
+      // The tab buttons should be present (i18n keys: detector.logTitle, detector.settingsTitle)
+      const buttons = screen.getAllByRole("button");
+      // Find tab-like buttons — there should be at least two in the right panel
+      expect(buttons.length).toBeGreaterThan(2);
+    });
   });
 
   // --- Settings tab rendering ---
@@ -347,7 +382,7 @@ describe("DetectorPanel", () => {
 
   // --- Log tab with entries ---
 
-  it("renders detection log entries when present", () => {
+  it("renders detection log entries when present", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -369,13 +404,15 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Confidence percentages should appear in the log
-    expect(screen.getByText("80.0%")).toBeInTheDocument();
-    expect(screen.getByText("30.0%")).toBeInTheDocument();
+      // Confidence percentages should appear in the log
+      expect(screen.getByText("80.0%")).toBeInTheDocument();
+      expect(screen.getByText("30.0%")).toBeInTheDocument();
+    });
   });
 
-  it("shows match badge for log entries above precision threshold", () => {
+  it("shows match badge for log entries above precision threshold", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -396,16 +433,20 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // The "Match" label should appear for entries above threshold
-    expect(screen.getByText("Match")).toBeInTheDocument();
+      // The "Match" label should appear for entries above threshold
+      expect(screen.getByText("Match")).toBeInTheDocument();
+    });
   });
 
-  it("shows empty log message when no detection log entries exist", () => {
+  it("shows empty log message when no detection log entries exist", async () => {
     renderPanel();
-    // The "no log entries" placeholder should appear (i18n: detector.noLogEntries)
-    const allText = document.body.textContent ?? "";
-    expect(allText).toBeTruthy();
+    await waitFor(() => {
+      // The "no log entries" placeholder should appear (i18n: detector.noLogEntries)
+      const allText = document.body.textContent ?? "";
+      expect(allText).toBeTruthy();
+    });
   });
 
   // --- Source type selector ---
@@ -437,15 +478,17 @@ describe("DetectorPanel", () => {
 
   // --- Import templates button ---
 
-  it("renders import templates button", () => {
+  it("renders import templates button", async () => {
     renderPanel();
-    const importBtn = screen.getByLabelText(/importieren|import/i);
-    expect(importBtn).toBeInTheDocument();
+    await waitFor(() => {
+      const importBtn = screen.getByLabelText(/importieren|import/i);
+      expect(importBtn).toBeInTheDocument();
+    });
   });
 
   // --- Template deletion confirmation ---
 
-  it("renders delete button on template cards when not running", () => {
+  it("renders delete button on template cards when not running", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -465,10 +508,12 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon, isRunning: false });
+    await waitFor(() => {
 
-    // The delete button should exist in the template overlay
-    const deleteBtn = screen.getByLabelText(/Template löschen|Delete template/i);
-    expect(deleteBtn).toBeInTheDocument();
+      // The delete button should exist in the template overlay
+      const deleteBtn = screen.getByLabelText(/Template löschen|Delete template/i);
+      expect(deleteBtn).toBeInTheDocument();
+    });
   });
 
   // --- More menu ---
@@ -489,6 +534,7 @@ describe("DetectorPanel", () => {
   it("shows disconnect confirmation when disconnecting while running", async () => {
     // This test exercises the disconnect-while-running confirmation flow
     renderPanel({ isRunning: true });
+    await act(async () => {});
 
     // When running, the disconnect button should trigger confirmation
     // (the button is only visible when isCapturing is true, but the control
@@ -532,7 +578,7 @@ describe("DetectorPanel", () => {
 
   // --- Clear log button ---
 
-  it("renders clear log button when log entries exist", () => {
+  it("renders clear log button when log entries exist", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -553,38 +599,46 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    const clearBtn = screen.getByLabelText(/löschen|clear/i);
-    expect(clearBtn).toBeInTheDocument();
+      const clearBtn = screen.getByLabelText(/löschen|clear/i);
+      expect(clearBtn).toBeInTheDocument();
+    });
   });
 
   // --- Reset layout divider button ---
 
-  it("renders reset layout button for the divider", () => {
+  it("renders reset layout button for the divider", async () => {
     renderPanel();
-    const resetBtns = screen.getAllByLabelText(/Layout zurücksetzen|Reset layout/i);
-    expect(resetBtns.length).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      const resetBtns = screen.getAllByLabelText(/Layout zurücksetzen|Reset layout/i);
+      expect(resetBtns.length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   // --- Stopped label ---
 
-  it("displays stopped state text in the control bar", () => {
+  it("displays stopped state text in the control bar", async () => {
     renderPanel({ isRunning: false });
-    // The stopped label should contain translated text (detector.stopped)
-    const allText = document.body.textContent ?? "";
-    // The stopped label is shown as "Gestoppt" or an en-dash depending on i18n
-    expect(allText).toBeTruthy();
+    await waitFor(() => {
+      // The stopped label should contain translated text (detector.stopped)
+      const allText = document.body.textContent ?? "";
+      // The stopped label is shown as "Gestoppt" or an en-dash depending on i18n
+      expect(allText).toBeTruthy();
+    });
   });
 
   // --- Cooldown with remaining time ---
 
-  it("renders cooldown state in the control bar while running", () => {
+  it("renders cooldown state in the control bar while running", async () => {
     renderPanel({ isRunning: true, detectorState: "cooldown", confidence: 0.5 });
+    await waitFor(() => {
 
-    // The cooldown state label should be visible
-    const allText = document.body.textContent ?? "";
-    // i18n key: detector.stateCooldown should produce a translated label
-    expect(allText.length).toBeGreaterThan(0);
+      // The cooldown state label should be visible
+      const allText = document.body.textContent ?? "";
+      // i18n key: detector.stateCooldown should produce a translated label
+      expect(allText.length).toBeGreaterThan(0);
+    });
   });
 
   // --- Export templates ---
@@ -651,31 +705,37 @@ describe("DetectorPanel", () => {
 
   // --- Buttons disabled while running ---
 
-  it("disables add template button while detection is running", () => {
+  it("disables add template button while detection is running", async () => {
     renderPanel({ isRunning: true });
-    const addBtn = screen.getByLabelText(/Video/i);
-    expect(addBtn).toBeDisabled();
+    await waitFor(() => {
+      const addBtn = screen.getByLabelText(/Video/i);
+      expect(addBtn).toBeDisabled();
+    });
   });
 
   // --- Import button disabled while running ---
 
-  it("disables import templates button while detection is running", () => {
+  it("disables import templates button while detection is running", async () => {
     renderPanel({ isRunning: true });
-    const importBtn = screen.getByLabelText(/importieren|import/i);
-    expect(importBtn).toBeDisabled();
+    await waitFor(() => {
+      const importBtn = screen.getByLabelText(/importieren|import/i);
+      expect(importBtn).toBeDisabled();
+    });
   });
 
   // --- More menu button disabled while running ---
 
-  it("disables more menu button while detection is running", () => {
+  it("disables more menu button while detection is running", async () => {
     renderPanel({ isRunning: true });
-    const moreBtn = screen.getByLabelText(/Mehr|More/i);
-    expect(moreBtn).toBeDisabled();
+    await waitFor(() => {
+      const moreBtn = screen.getByLabelText(/Mehr|More/i);
+      expect(moreBtn).toBeDisabled();
+    });
   });
 
   // --- Template count badge ---
 
-  it("shows template count badge when templates exist", () => {
+  it("shows template count badge when templates exist", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -696,23 +756,27 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Template count badge should show "2"
-    expect(screen.getByText("2")).toBeInTheDocument();
+      // Template count badge should show "2"
+      expect(screen.getByText("2")).toBeInTheDocument();
+    });
   });
 
   // --- No templates placeholder message ---
 
-  it("shows no templates placeholder text when template list is empty", () => {
+  it("shows no templates placeholder text when template list is empty", async () => {
     renderPanel();
-    // The "no templates" text should be visible
-    const allText = document.body.textContent ?? "";
-    expect(allText.length).toBeGreaterThan(0);
+    await waitFor(() => {
+      // The "no templates" text should be visible
+      const allText = document.body.textContent ?? "";
+      expect(allText.length).toBeGreaterThan(0);
+    });
   });
 
   // --- Template edit button ---
 
-  it("renders edit button on template cards", () => {
+  it("renders edit button on template cards", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -732,14 +796,16 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon, isRunning: false });
+    await waitFor(() => {
 
-    const editBtn = screen.getByLabelText(/Bearbeiten|Edit/i);
-    expect(editBtn).toBeInTheDocument();
+      const editBtn = screen.getByLabelText(/Bearbeiten|Edit/i);
+      expect(editBtn).toBeInTheDocument();
+    });
   });
 
   // --- Template thumbnail rendering ---
 
-  it("renders template thumbnail images", () => {
+  it("renders template thumbnail images", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -759,15 +825,17 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    const img = screen.getByAltText("Shiny Template");
-    expect(img).toBeInTheDocument();
-    expect(img.getAttribute("src")).toContain("template/0");
+      const img = screen.getByAltText("Shiny Template");
+      expect(img).toBeInTheDocument();
+      expect(img.getAttribute("src")).toContain("template/0");
+    });
   });
 
   // --- Template radio indicator ---
 
-  it("shows active radio indicator for enabled template", () => {
+  it("shows active radio indicator for enabled template", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -788,19 +856,21 @@ describe("DetectorPanel", () => {
       },
     });
     const { container } = renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Active template should have the blue ring
-    const activeRing = container.querySelector(".ring-2.ring-accent-blue");
-    expect(activeRing).toBeInTheDocument();
+      // Active template should have the blue ring
+      const activeRing = container.querySelector(".ring-2.ring-accent-blue");
+      expect(activeRing).toBeInTheDocument();
 
-    // Inactive template should have subtle ring
-    const inactiveRing = container.querySelector(".ring-1.ring-border-subtle");
-    expect(inactiveRing).toBeInTheDocument();
+      // Inactive template should have subtle ring
+      const inactiveRing = container.querySelector(".ring-1.ring-border-subtle");
+      expect(inactiveRing).toBeInTheDocument();
+    });
   });
 
   // --- Template overlay buttons hidden when running ---
 
-  it("hides template edit/delete overlay when detection is running", () => {
+  it("hides template edit/delete overlay when detection is running", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -820,29 +890,35 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon, isRunning: true });
+    await waitFor(() => {
 
-    // The edit/delete buttons should not be rendered when running
-    expect(screen.queryByLabelText(/Template bearbeiten|Edit template/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Template löschen|Delete template/i)).not.toBeInTheDocument();
+      // The edit/delete buttons should not be rendered when running
+      expect(screen.queryByLabelText(/Template bearbeiten|Edit template/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Template löschen|Delete template/i)).not.toBeInTheDocument();
+    });
   });
 
   // --- Divider drag button ---
 
-  it("renders the resize divider button", () => {
+  it("renders the resize divider button", async () => {
     renderPanel();
-    const dividerBtn = screen.getByLabelText(/Größe ändern|Resize/i);
-    expect(dividerBtn).toBeInTheDocument();
+    await waitFor(() => {
+      const dividerBtn = screen.getByLabelText(/Größe ändern|Resize/i);
+      expect(dividerBtn).toBeInTheDocument();
+    });
   });
 
   // --- Log tab is default active tab ---
 
-  it("shows log tab as default active", () => {
+  it("shows log tab as default active", async () => {
     renderPanel();
-    // The log tab button should have the active styling
-    const logTab = screen.getAllByRole("button").find(
-      (btn) => /Verlauf|Log/i.exec(btn.textContent ?? "") && btn.className.includes("border-accent-blue")
-    );
-    expect(logTab).toBeTruthy();
+    await waitFor(() => {
+      // The log tab button should have the active styling
+      const logTab = screen.getAllByRole("button").find(
+        (btn) => /Verlauf|Log/i.exec(btn.textContent ?? "") && btn.className.includes("border-accent-blue")
+      );
+      expect(logTab).toBeTruthy();
+    });
   });
 
   // --- Settings tab shows DetectorSettings ---
@@ -862,7 +938,7 @@ describe("DetectorPanel", () => {
 
   // --- Precision threshold context in log ---
 
-  it("shows precision threshold context when log entries exist", () => {
+  it("shows precision threshold context when log entries exist", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -883,15 +959,17 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Should show the precision threshold percentage
-    const allText = document.body.textContent ?? "";
-    expect(allText).toContain("55%");
+      // Should show the precision threshold percentage
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("55%");
+    });
   });
 
   // --- Log entry time display ---
 
-  it("shows timestamps in log entries", () => {
+  it("shows timestamps in log entries", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -912,15 +990,17 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // A <time> element should be rendered with the log entry timestamp
-    const timeEl = document.querySelector("time");
-    expect(timeEl).toBeInTheDocument();
+      // A <time> element should be rendered with the log entry timestamp
+      const timeEl = document.querySelector("time");
+      expect(timeEl).toBeInTheDocument();
+    });
   });
 
   // --- Multiple log entries render in reverse order ---
 
-  it("renders log entries in reverse chronological order", () => {
+  it("renders log entries in reverse chronological order", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -942,20 +1022,24 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Both percentages should be visible
-    expect(screen.getByText("30.0%")).toBeInTheDocument();
-    expect(screen.getByText("90.0%")).toBeInTheDocument();
+      // Both percentages should be visible
+      expect(screen.getByText("30.0%")).toBeInTheDocument();
+      expect(screen.getByText("90.0%")).toBeInTheDocument();
+    });
   });
 
   // --- Starting state label ---
 
-  it("renders starting label when isStarting flag is set", () => {
+  it("renders starting label when isStarting flag is set", async () => {
     // The isStarting state is internally managed, but we can test via detectorState
     renderPanel({ isRunning: true, detectorState: "idle", confidence: 0 });
-    // When running with idle state, the stateLabel should show "idle" label
-    const allText = document.body.textContent ?? "";
-    expect(allText.length).toBeGreaterThan(0);
+    await waitFor(() => {
+      // When running with idle state, the stateLabel should show "idle" label
+      const allText = document.body.textContent ?? "";
+      expect(allText.length).toBeGreaterThan(0);
+    });
   });
 
   // --- Error badge rendering ---
@@ -998,23 +1082,27 @@ describe("DetectorPanel", () => {
 
   // --- Confidence bar color changes at threshold ---
 
-  it("shows green confidence bar when confidence exceeds precision", () => {
+  it("shows green confidence bar when confidence exceeds precision", async () => {
     const { container } = renderPanel({ isRunning: true, confidence: 0.8 });
-    // Confidence bar should be green (bg-green-400) when above 0.55 precision
-    const greenBar = container.querySelector(".bg-green-400");
-    expect(greenBar).toBeInTheDocument();
+    await waitFor(() => {
+      // Confidence bar should be green (bg-green-400) when above 0.55 precision
+      const greenBar = container.querySelector(".bg-green-400");
+      expect(greenBar).toBeInTheDocument();
+    });
   });
 
-  it("shows blue confidence bar when confidence is below precision", () => {
+  it("shows blue confidence bar when confidence is below precision", async () => {
     const { container } = renderPanel({ isRunning: true, confidence: 0.2 });
-    // Confidence bar should be blue (bg-accent-blue/50) when below precision
-    const blueBar = container.querySelector("[class*='bg-accent-blue']");
-    expect(blueBar).toBeInTheDocument();
+    await waitFor(() => {
+      // Confidence bar should be blue (bg-accent-blue/50) when below precision
+      const blueBar = container.querySelector("[class*='bg-accent-blue']");
+      expect(blueBar).toBeInTheDocument();
+    });
   });
 
   // --- Template default name fallback ---
 
-  it("shows fallback name for templates without a name", () => {
+  it("shows fallback name for templates without a name", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -1034,14 +1122,16 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Should show "Template 1" as fallback name
-    expect(screen.getAllByText("Template 1").length).toBeGreaterThanOrEqual(1);
+      // Should show "Template 1" as fallback name
+      expect(screen.getAllByText("Template 1").length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   // --- Log entry count label ---
 
-  it("shows log entry count in the precision context", () => {
+  it("shows log entry count in the precision context", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -1064,10 +1154,12 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Should show "3" for the log entry count
-    const allText = document.body.textContent ?? "";
-    expect(allText).toContain("3");
+      // Should show "3" for the log entry count
+      const allText = document.body.textContent ?? "";
+      expect(allText).toContain("3");
+    });
   });
 
   // --- Delete template confirmation flow ---
@@ -1237,7 +1329,7 @@ describe("DetectorPanel", () => {
 
   // --- No match badge for low confidence log entries ---
 
-  it("does not show match badge for log entries below precision threshold", () => {
+  it("does not show match badge for log entries below precision threshold", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -1258,11 +1350,13 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // "Match" label should NOT appear for entries below threshold
-    expect(screen.queryByText("Match")).not.toBeInTheDocument();
-    // But the confidence percentage should still show
-    expect(screen.getByText("30.0%")).toBeInTheDocument();
+      // "Match" label should NOT appear for entries below threshold
+      expect(screen.queryByText("Match")).not.toBeInTheDocument();
+      // But the confidence percentage should still show
+      expect(screen.getByText("30.0%")).toBeInTheDocument();
+    });
   });
 
   // --- Source type change updates config ---
@@ -1280,16 +1374,18 @@ describe("DetectorPanel", () => {
 
   // --- Connect button starts capture flow ---
 
-  it("connect button is rendered with correct label", () => {
+  it("connect button is rendered with correct label", async () => {
     renderPanel();
+    await waitFor(() => {
 
-    const connectBtn = screen.getByRole("button", { name: /connect|Verbinden/i });
-    expect(connectBtn).toBeInTheDocument();
+      const connectBtn = screen.getByRole("button", { name: /connect|Verbinden/i });
+      expect(connectBtn).toBeInTheDocument();
+    });
   });
 
   // --- Config initialization from pokemon with saved config ---
 
-  it("initializes config from pokemon detector_config", () => {
+  it("initializes config from pokemon detector_config", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -1307,21 +1403,25 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Source type should be browser_camera from the config
-    const select = screen.getByRole("combobox");
-    expect(select).toHaveValue("browser_camera");
+      // Source type should be browser_camera from the config
+      const select = screen.getByRole("combobox");
+      expect(select).toHaveValue("browser_camera");
+    });
   });
 
   // --- Default config when no detector_config exists ---
 
-  it("uses default config when pokemon has no detector_config", () => {
+  it("uses default config when pokemon has no detector_config", async () => {
     const pokemon = makePokemon({ detector_config: undefined });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Should use default browser_display source type
-    const select = screen.getByRole("combobox");
-    expect(select).toHaveValue("browser_display");
+      // Should use default browser_display source type
+      const select = screen.getByRole("combobox");
+      expect(select).toHaveValue("browser_display");
+    });
   });
 
   // --- Template toggle calls API ---
@@ -1437,7 +1537,7 @@ describe("DetectorPanel", () => {
 
   // --- Multiple log entries with mixed match/no-match ---
 
-  it("renders both match and non-match log entries correctly", () => {
+  it("renders both match and non-match log entries correctly", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -1461,16 +1561,18 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Should show all percentages
-    expect(screen.getByText("80.0%")).toBeInTheDocument();
-    expect(screen.getByText("30.0%")).toBeInTheDocument();
-    expect(screen.getByText("60.0%")).toBeInTheDocument();
-    expect(screen.getByText("10.0%")).toBeInTheDocument();
+      // Should show all percentages
+      expect(screen.getByText("80.0%")).toBeInTheDocument();
+      expect(screen.getByText("30.0%")).toBeInTheDocument();
+      expect(screen.getByText("60.0%")).toBeInTheDocument();
+      expect(screen.getByText("10.0%")).toBeInTheDocument();
 
-    // Should show "Match" for entries above 0.55 threshold (80%, 60%)
-    const matchLabels = screen.getAllByText("Match");
-    expect(matchLabels.length).toBe(2);
+      // Should show "Match" for entries above 0.55 threshold (80%, 60%)
+      const matchLabels = screen.getAllByText("Match");
+      expect(matchLabels.length).toBe(2);
+    });
   });
 
   // --- Import templates button opens modal ---
@@ -1490,17 +1592,19 @@ describe("DetectorPanel", () => {
 
   // --- Cooldown with remaining time display ---
 
-  it("renders cooldown label when in cooldown state", () => {
+  it("renders cooldown label when in cooldown state", async () => {
     renderPanel({
       isRunning: true,
       detectorState: "cooldown",
       confidence: 0.5,
     });
+    await waitFor(() => {
 
-    // Should display the cooldown state label
-    const allText = document.body.textContent ?? "";
-    // The cooldown label is from i18n key detector.stateCooldown
-    expect(allText.length).toBeGreaterThan(0);
+      // Should display the cooldown state label
+      const allText = document.body.textContent ?? "";
+      // The cooldown label is from i18n key detector.stateCooldown
+      expect(allText.length).toBeGreaterThan(0);
+    });
   });
 
   // --- Reset layout button click resets split height ---
@@ -1734,18 +1838,20 @@ describe("DetectorPanel", () => {
 
   // --- Saved localStorage split height is restored ---
 
-  it("restores template split height from localStorage", () => {
+  it("restores template split height from localStorage", async () => {
     localStorage.setItem("encounty_detector_split", "500");
     renderPanel();
-    // The component should use 500 from localStorage as the template height
-    const templateGrid = document.querySelector("[style*='height: 500px']");
-    expect(templateGrid).toBeInTheDocument();
+    await waitFor(() => {
+      // The component should use 500 from localStorage as the template height
+      const templateGrid = document.querySelector("[style*='height: 500px']");
+      expect(templateGrid).toBeInTheDocument();
+    });
     localStorage.removeItem("encounty_detector_split");
   });
 
   // --- Config normalization for legacy source_type values ---
 
-  it("normalizes legacy source_type values to browser_display", () => {
+  it("normalizes legacy source_type values to browser_display", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -1763,25 +1869,29 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Source selector should fall back to browser_display
-    const select = screen.getByRole("combobox");
-    expect(select).toHaveValue("browser_display");
+      // Source selector should fall back to browser_display
+      const select = screen.getByRole("combobox");
+      expect(select).toHaveValue("browser_display");
+    });
   });
 
   // --- Capturing source label display ---
 
-  it("shows capturing source label when provided", () => {
+  it("shows capturing source label when provided", async () => {
     // The source label is only shown when isCapturing, which depends on CaptureService state
     // We verify the base rendering without capture doesn't show a source label
     renderPanel();
-    const labels = document.querySelectorAll(".max-w-35");
-    expect(labels.length).toBe(0);
+    await waitFor(() => {
+      const labels = document.querySelectorAll(".max-w-35");
+      expect(labels.length).toBe(0);
+    });
   });
 
   // --- Config with partial values uses defaults ---
 
-  it("uses default values when config has undefined fields", () => {
+  it("uses default values when config has undefined fields", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -1792,9 +1902,11 @@ describe("DetectorPanel", () => {
       } as never,
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Should render without crashing with partial config
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+      // Should render without crashing with partial config
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+    });
   });
 
   // --- Import templates modal opens and renders ---
@@ -1866,17 +1978,19 @@ describe("DetectorPanel", () => {
       cooldown_remaining_ms: 3000,
     });
 
-    renderPanel({
+    const { unmount } = renderPanel({
       isRunning: true,
       detectorState: "cooldown",
       confidence: 0.6,
     });
+    await act(async () => {});
 
     // Should show the "3s" countdown
     const allText = document.body.textContent ?? "";
     expect(allText).toContain("3s");
 
-    // Clean up
+    // Clean up — unmount before clearing store to avoid stale state updates
+    unmount();
     store.clearDetectorStatus("poke-1");
   });
 
@@ -2002,6 +2116,7 @@ describe("DetectorPanel", () => {
     // Since CaptureServiceProvider manages real state, we test that the
     // disconnect flow code path exists by verifying button states when running
     renderPanel({ isRunning: true });
+    await act(async () => {});
 
     // When running but not capturing, the connect button is shown (not disconnect)
     const connectBtn = screen.getByRole("button", { name: /connect|Verbinden/i });
@@ -2187,9 +2302,9 @@ describe("DetectorPanel", () => {
 
   // --- Divider drag starts ---
 
-  it("starts divider drag on mousedown", () => {
+  it("starts divider drag on mousedown", async () => {
     renderPanel();
-    const dividerBtn = screen.getByLabelText(/Größe ändern|Resize/i);
+    const dividerBtn = await screen.findByLabelText(/Größe ändern|Resize/i);
     // Simulate mousedown on the divider
     const mousedownEvent = new MouseEvent("mousedown", {
       clientY: 300,
@@ -2203,7 +2318,7 @@ describe("DetectorPanel", () => {
 
   // --- Config sync from external changes ---
 
-  it("syncs config when pokemon detector_config changes externally", () => {
+  it("syncs config when pokemon detector_config changes externally", async () => {
     // Render with initial config (browser_display)
     const pokemon = makePokemon({
       detector_config: {
@@ -2222,10 +2337,12 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Verify initial source type
-    const select = screen.getByRole("combobox");
-    expect(select).toHaveValue("browser_display");
+      // Verify initial source type
+      const select = screen.getByRole("combobox");
+      expect(select).toHaveValue("browser_display");
+    });
   });
 
   // --- Template toggle while running is blocked ---
@@ -2268,42 +2385,52 @@ describe("DetectorPanel", () => {
 
   // --- Stopped state text uses en-dash ---
 
-  it("shows Gestoppt label when not running", () => {
+  it("shows Gestoppt label when not running", async () => {
     renderPanel({ isRunning: false, detectorState: "idle" });
-    // The stopped state shows the translated "Gestoppt" text
-    expect(screen.getByText("Gestoppt")).toBeInTheDocument();
+    await waitFor(() => {
+      // The stopped state shows the translated "Gestoppt" text
+      expect(screen.getByText("Gestoppt")).toBeInTheDocument();
+    });
   });
 
   // --- stateDotClass helper: idle while running uses blue pulse ---
 
-  it("shows pulsing blue dot when running in idle state", () => {
+  it("shows pulsing blue dot when running in idle state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "idle", confidence: 0 });
-    const pulsingDot = container.querySelector(".animate-pulse.bg-accent-blue");
-    expect(pulsingDot).toBeInTheDocument();
+    await waitFor(() => {
+      const pulsingDot = container.querySelector(".animate-pulse.bg-accent-blue");
+      expect(pulsingDot).toBeInTheDocument();
+    });
   });
 
   // --- stateDotClass helper: match state uses green dot ---
 
-  it("shows green dot when in match state", () => {
+  it("shows green dot when in match state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "match", confidence: 0.9 });
-    const greenDot = container.querySelector(".bg-green-400:not(.animate-pulse)");
-    expect(greenDot).toBeInTheDocument();
+    await waitFor(() => {
+      const greenDot = container.querySelector(".bg-green-400:not(.animate-pulse)");
+      expect(greenDot).toBeInTheDocument();
+    });
   });
 
   // --- stateDotClass helper: cooldown state uses amber dot ---
 
-  it("shows amber dot when in cooldown state", () => {
+  it("shows amber dot when in cooldown state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "cooldown", confidence: 0.5 });
-    const amberDot = container.querySelector(".bg-amber-400:not(.animate-pulse)");
-    expect(amberDot).toBeInTheDocument();
+    await waitFor(() => {
+      const amberDot = container.querySelector(".bg-amber-400:not(.animate-pulse)");
+      expect(amberDot).toBeInTheDocument();
+    });
   });
 
   // --- stateDotClass helper: not running uses muted dot ---
 
-  it("shows muted dot when not running", () => {
+  it("shows muted dot when not running", async () => {
     const { container } = renderPanel({ isRunning: false });
-    const mutedDot = container.querySelector(".bg-text-muted");
-    expect(mutedDot).toBeInTheDocument();
+    await waitFor(() => {
+      const mutedDot = container.querySelector(".bg-text-muted");
+      expect(mutedDot).toBeInTheDocument();
+    });
   });
 
   // --- GPU/CPU toggle button click (dev mode) ---
@@ -2325,16 +2452,23 @@ describe("DetectorPanel", () => {
 
   it("handles divider drag with mouse movement via React events", async () => {
     renderPanel();
+    await act(async () => {});
     const dividerBtn = screen.getByLabelText(/Größe ändern|Resize/i);
 
     // Use fireEvent to trigger React's onMouseDown handler
-    fireEvent.mouseDown(dividerBtn, { clientY: 300 });
+    await act(async () => {
+      fireEvent.mouseDown(dividerBtn, { clientY: 300 });
+    });
 
     // Move mouse during drag (ref is set)
-    globalThis.dispatchEvent(new MouseEvent("mousemove", { clientY: 350, bubbles: true }));
+    await act(async () => {
+      globalThis.dispatchEvent(new MouseEvent("mousemove", { clientY: 350, bubbles: true }));
+    });
 
     // Release mouse — clears the ref and removes listeners
-    globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    await act(async () => {
+      globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    });
 
     // After mouseup, localStorage should be set with the new height
     await waitFor(() => {
@@ -2345,7 +2479,9 @@ describe("DetectorPanel", () => {
     // Dispatch another mousemove after mouseup — the onMove callback was
     // already removed in onUp, so this tests that the listener is properly
     // cleaned up. This also covers the early return in onMove when ref is null.
-    globalThis.dispatchEvent(new MouseEvent("mousemove", { clientY: 400, bubbles: true }));
+    await act(async () => {
+      globalThis.dispatchEvent(new MouseEvent("mousemove", { clientY: 400, bubbles: true }));
+    });
   });
 
   // --- Settings update through settings tab sliders ---
@@ -2383,13 +2519,15 @@ describe("DetectorPanel", () => {
 
   // --- Dev video source type renders file input ---
 
-  it("renders dev_video option in source selector in dev mode", () => {
+  it("renders dev_video option in source selector in dev mode", async () => {
     renderPanel();
-    const select = screen.getByRole("combobox");
-    // Check that the dev_video option exists
-    const options = Array.from(select.querySelectorAll("option"));
-    const devOption = options.find(o => o.value === "dev_video");
-    expect(devOption).toBeTruthy();
+    await waitFor(() => {
+      const select = screen.getByRole("combobox");
+      // Check that the dev_video option exists
+      const options = Array.from(select.querySelectorAll("option"));
+      const devOption = options.find(o => o.value === "dev_video");
+      expect(devOption).toBeTruthy();
+    });
   });
 
   // --- Template delete with network error ---
@@ -2454,6 +2592,7 @@ describe("DetectorPanel", () => {
     vi.mocked(globalThis.fetch).mockClear();
 
     renderPanel();
+    await act(async () => {});
 
     // Find the hidden file input for template import
     const fileInputs = document.querySelectorAll("input[type='file']");
@@ -2463,20 +2602,24 @@ describe("DetectorPanel", () => {
 
   // --- Confidence bar renders correctly at exactly threshold ---
 
-  it("shows green confidence bar when confidence equals precision exactly", () => {
+  it("shows green confidence bar when confidence equals precision exactly", async () => {
     const { container } = renderPanel({ isRunning: true, confidence: 0.55 });
-    // At exactly 0.55 (equal to default precision), should be green
-    const greenBar = container.querySelector(".bg-green-400");
-    expect(greenBar).toBeInTheDocument();
+    await waitFor(() => {
+      // At exactly 0.55 (equal to default precision), should be green
+      const greenBar = container.querySelector(".bg-green-400");
+      expect(greenBar).toBeInTheDocument();
+    });
   });
 
   // --- State label for match ---
 
-  it("shows correct state label text for match state", () => {
+  it("shows correct state label text for match state", async () => {
     renderPanel({ isRunning: true, detectorState: "match", confidence: 0.9 });
-    // Match state should show a specific translated label
-    const allText = document.body.textContent ?? "";
-    expect(allText.length).toBeGreaterThan(0);
+    await waitFor(() => {
+      // Match state should show a specific translated label
+      const allText = document.body.textContent ?? "";
+      expect(allText.length).toBeGreaterThan(0);
+    });
   });
 
   // --- Settings tab content has slider-like inputs ---
@@ -2567,8 +2710,10 @@ describe("DetectorPanel", () => {
     // Change the precision slider value
     const slider = document.getElementById("det-precision") as HTMLInputElement;
     // fireEvent.change works better than userEvent for range inputs
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(slider, "0.8");
-    slider.dispatchEvent(new Event("change", { bubbles: true }));
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set?.call(slider, "0.8");
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    });
 
     // Save should now work (settings are dirty from the change)
     const saveBtn = screen.getByText(/Speichern|Save/i);
@@ -2712,7 +2857,8 @@ describe("DetectorPanel", () => {
     // Clear appState settings
     useCounterStore.setState({ appState: undefined });
 
-    renderPanel();
+    const { unmount } = renderPanel();
+    await act(async () => {});
 
     await user.click(screen.getByRole("button", { name: "Tutorial" }));
     await waitFor(() => {
@@ -2725,6 +2871,8 @@ describe("DetectorPanel", () => {
       expect(screen.queryByText("Überspringen")).not.toBeInTheDocument();
     });
 
+    // Unmount before restoring appState to avoid stale state updates
+    unmount();
     // Restore appState for other tests
     useCounterStore.setState({ appState: makeAppState() });
   });
@@ -2835,8 +2983,11 @@ describe("DetectorPanel", () => {
 
   // --- handleImportFromFile with no file selected ---
 
-  it("does nothing when file import input fires with no file", () => {
+  it("does nothing when file import input fires with no file", async () => {
     renderPanel();
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+    });
 
     const fileInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept*='.encounty-templates']");
     const fileInput = fileInputs[0];
@@ -2850,12 +3001,15 @@ describe("DetectorPanel", () => {
 
   // --- handleDevVideoFile ---
 
-  it("handles dev video file selection", () => {
+  it("handles dev video file selection", async () => {
     renderPanel();
+    await waitFor(() => {
+      // In dev mode, there should be a hidden file input for video
+      const videoInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept='video/*']");
+      expect(videoInputs.length).toBe(1);
+    });
 
-    // In dev mode, there should be a hidden file input for video
     const videoInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept='video/*']");
-    expect(videoInputs.length).toBe(1);
     const videoInput = videoInputs[0];
 
     // Create a mock file and trigger change
@@ -2876,8 +3030,11 @@ describe("DetectorPanel", () => {
 
   // --- handleDevVideoFile with no file ---
 
-  it("does nothing when dev video input fires with no file", () => {
+  it("does nothing when dev video input fires with no file", async () => {
     renderPanel();
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+    });
 
     const videoInputs = document.querySelectorAll<HTMLInputElement>("input[type='file'][accept='video/*']");
     const videoInput = videoInputs[0];
@@ -3036,7 +3193,8 @@ describe("DetectorPanel", () => {
     const mockLoop = { onScore: vi.fn() };
     vi.mocked(getActiveLoop).mockReturnValue(mockLoop as never);
 
-    renderPanel({ pokemon, isRunning: true });
+    const { unmount } = renderPanel({ pokemon, isRunning: true });
+    await act(async () => {});
 
     // Wait for the loop to be attached
     await waitFor(() => {
@@ -3045,6 +3203,9 @@ describe("DetectorPanel", () => {
 
     // Template buttons are disabled when running, but handleToggleTemplate checks isRunning internally
     // The button itself is disabled so we can't click it directly
+    // Unmount before resetting mocks to avoid stale state updates
+    unmount();
+
     // Reset getActiveLoop
     vi.mocked(getActiveLoop).mockReturnValue(null);
 
@@ -3358,18 +3519,22 @@ describe("DetectorPanel", () => {
 
   // --- Pokemon OCR language mapping ---
 
-  it("maps pokemon language to OCR language code", () => {
+  it("maps pokemon language to OCR language code", async () => {
     // Render with German pokemon — the OCR lang used internally should be "deu"
     const pokemon = makePokemon({ language: "de" });
     renderPanel({ pokemon });
-    // Component renders without crashing; OCR lang is used internally by TemplateEditor
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    await waitFor(() => {
+      // Component renders without crashing; OCR lang is used internally by TemplateEditor
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+    });
   });
 
-  it("uses eng fallback for unknown pokemon language", () => {
+  it("uses eng fallback for unknown pokemon language", async () => {
     const pokemon = makePokemon({ language: "unknown_lang" });
     renderPanel({ pokemon });
-    expect(screen.getByRole("combobox")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+    });
   });
 
   // --- Capture error propagation ---
@@ -3379,6 +3544,7 @@ describe("DetectorPanel", () => {
     // The simplest way is via startCapture with browser_display in non-Electron
     // which will call capture.startCapture and potentially set captureError
     renderPanel();
+    await act(async () => {});
 
     // Verify the capture error effect runs by checking error badge is not shown initially
     expect(document.querySelector(String.raw`.bg-red-500\/10`)).not.toBeInTheDocument();
@@ -3386,16 +3552,18 @@ describe("DetectorPanel", () => {
 
   // --- stateLabel for idle while running ---
 
-  it("shows idle state label when running in idle state", () => {
+  it("shows idle state label when running in idle state", async () => {
     renderPanel({ isRunning: true, detectorState: "idle", confidence: 0.1 });
-    // The idle label should be translated via detector.stateIdle
-    const allText = document.body.textContent ?? "";
-    expect(allText.length).toBeGreaterThan(0);
+    await waitFor(() => {
+      // The idle label should be translated via detector.stateIdle
+      const allText = document.body.textContent ?? "";
+      expect(allText.length).toBeGreaterThan(0);
+    });
   });
 
   // --- Multiple templates with mixed states ---
 
-  it("renders correctly with multiple templates of different states", () => {
+  it("renders correctly with multiple templates of different states", async () => {
     const pokemon = makePokemon({
       detector_config: {
         enabled: true,
@@ -3417,14 +3585,16 @@ describe("DetectorPanel", () => {
       },
     });
     renderPanel({ pokemon });
+    await waitFor(() => {
 
-    // Template count badge should show 3
-    expect(screen.getByText("3")).toBeInTheDocument();
-    // Named templates appear
-    expect(screen.getAllByText("First").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText("Second").length).toBeGreaterThanOrEqual(1);
-    // Unnamed template gets fallback "Template 3"
-    expect(screen.getAllByText("Template 3").length).toBeGreaterThanOrEqual(1);
+      // Template count badge should show 3
+      expect(screen.getByText("3")).toBeInTheDocument();
+      // Named templates appear
+      expect(screen.getAllByText("First").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Second").length).toBeGreaterThanOrEqual(1);
+      // Unnamed template gets fallback "Template 3"
+      expect(screen.getAllByText("Template 3").length).toBeGreaterThanOrEqual(1);
+    });
   });
 
   // --- Settings disabled while running ---
@@ -3457,6 +3627,7 @@ describe("DetectorPanel", () => {
     // Since CaptureService state is managed internally, we can't easily mock isCapturing
     // Instead, test the confirmDisconnect path indirectly
     renderPanel({ isRunning: true, onStopHunt });
+    await act(async () => {});
 
     // The disconnect confirm modal would be triggered via handleDisconnect
     // which requires isCapturing to show the disconnect button
@@ -4244,6 +4415,7 @@ describe("DetectorPanel", () => {
     } as never);
 
     renderPanel();
+    await act(async () => {});
 
     // The source label should be displayed
     expect(screen.getByText("My Screen")).toBeInTheDocument();

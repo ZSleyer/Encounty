@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent } from "../test-utils";
+import { render, screen, makeAppState, makePokemon, userEvent, act } from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -61,20 +61,22 @@ describe("Dashboard", () => {
     });
   });
 
-  it("renders without crashing when state is available", () => {
+  it("renders without crashing when state is available", async () => {
     render(<Dashboard />);
+    await act(async () => {});
     // The active pokemon name should appear at least once in the DOM
     const matches = screen.getAllByText("Bisasam");
     expect(matches.length).toBeGreaterThan(0);
   });
 
-  it("renders when no app state", () => {
+  it("renders when no app state", async () => {
     useCounterStore.setState({ appState: null });
     const { container } = render(<Dashboard />);
+    await act(async () => {});
     expect(container).toBeTruthy();
   });
 
-  it("displays timer in correct format", () => {
+  it("displays timer in correct format", async () => {
     const pokemon = makePokemon({
       id: "test-1",
       timer_accumulated_ms: 3661000, // 1 hour, 1 minute, 1 second
@@ -89,13 +91,14 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Timer should be formatted as HH:MM:SS (multiple instances exist - sidebar and main panel)
     const timers = screen.getAllByText("01:01:01");
     expect(timers.length).toBeGreaterThan(0);
   });
 
-  it("displays encounters count", () => {
+  it("displays encounters count", async () => {
     const pokemon = makePokemon({
       id: "test-1",
       encounters: 123,
@@ -109,14 +112,16 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Encounter count should be visible (appears in multiple places)
     const encounters = screen.getAllByText("123");
     expect(encounters.length).toBeGreaterThan(0);
   });
 
-  it("renders tab buttons for counter, detector, overlay, and statistics", () => {
+  it("renders tab buttons for counter, detector, overlay, and statistics", async () => {
     render(<Dashboard />);
+    await act(async () => {});
 
     // All four tabs should be present
     const buttons = screen.getAllByRole("button");
@@ -129,6 +134,7 @@ describe("Dashboard", () => {
   it("switches between tabs when clicked", async () => {
     userEvent.setup();
     render(<Dashboard />);
+    await act(async () => {});
 
     // Get all buttons
     const buttons = screen.getAllByRole("button");
@@ -151,6 +157,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Both pokemon should be in the sidebar (appear in multiple places)
     const mon1Elements = screen.getAllByText("TestMon1");
@@ -159,8 +166,9 @@ describe("Dashboard", () => {
     expect(mon2Elements.length).toBeGreaterThan(0);
   });
 
-  it("displays add pokemon button", () => {
+  it("displays add pokemon button", async () => {
     render(<Dashboard />);
+    await act(async () => {});
 
     // Add button should be present in the sidebar
     const buttons = screen.getAllByRole("button");
@@ -173,7 +181,7 @@ describe("Dashboard", () => {
     expect(addButton).toBeDefined();
   });
 
-  it("shows timer with play button when timer is not running", () => {
+  it("shows timer with play button when timer is not running", async () => {
     const pokemon = makePokemon({
       id: "test-1",
       timer_started_at: undefined,
@@ -188,6 +196,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Timer display should show 00:00:00
     expect(screen.getByText("00:00:00")).toBeInTheDocument();
@@ -197,15 +206,16 @@ describe("Dashboard", () => {
     expect(buttons.length).toBeGreaterThan(0);
   });
 
-  it("renders search input in sidebar", () => {
+  it("renders search input in sidebar", async () => {
     render(<Dashboard />);
+    await act(async () => {});
 
     // Search input should be present
     const searchInputs = screen.getAllByRole("textbox");
     expect(searchInputs.length).toBeGreaterThan(0);
   });
 
-  it("displays game information for pokemon", () => {
+  it("displays game information for pokemon", async () => {
     const pokemon = makePokemon({
       id: "test-1",
       game: "red",
@@ -220,16 +230,19 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Game info should be displayed somewhere
     const { container } = render(<Dashboard />);
+    await act(async () => {});
     expect(container).toBeTruthy();
   });
 
   // --- Sidebar tabs: active vs archived ---
 
-  it("shows active and archived sidebar tabs", () => {
+  it("shows active and archived sidebar tabs", async () => {
     render(<Dashboard />);
+    await act(async () => {});
     // Both sidebar tab labels should be present
     expect(screen.getByText(/Aktiv|Active/i)).toBeInTheDocument();
     expect(screen.getByText(/Archiv|Archive/i)).toBeInTheDocument();
@@ -267,7 +280,7 @@ describe("Dashboard", () => {
 
   // --- Completed Pokemon rendering ---
 
-  it("shows caught banner for completed pokemon", () => {
+  it("shows caught banner for completed pokemon", async () => {
     const completedPokemon = makePokemon({
       id: "c1",
       name: "CaughtMon",
@@ -283,12 +296,13 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
     // Caught banner text should be present
     const bannerTexts = screen.getAllByText(/Gefangen|Caught/i);
     expect(bannerTexts.length).toBeGreaterThan(0);
   });
 
-  it("hides detector tab for completed pokemon", () => {
+  it("hides detector tab for completed pokemon", async () => {
     const completedPokemon = makePokemon({
       id: "c1",
       name: "CaughtMon",
@@ -304,6 +318,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Detector tab button should NOT be present for a completed pokemon
     const buttons = screen.getAllByRole("button");
@@ -315,7 +330,7 @@ describe("Dashboard", () => {
 
   // --- No pokemon selected (empty right panel) ---
 
-  it("shows no active pokemon message when list is empty", () => {
+  it("shows no active pokemon message when list is empty", async () => {
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [], active_id: "" }),
       isConnected: true,
@@ -324,6 +339,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
     // The empty state heading should be visible
     const headings = screen.getAllByRole("heading");
     expect(headings.length).toBeGreaterThan(0);
@@ -331,8 +347,9 @@ describe("Dashboard", () => {
 
   // --- Tab rendering ---
 
-  it("renders counter tab by default with encounter controls", () => {
+  it("renders counter tab by default with encounter controls", async () => {
     render(<Dashboard />);
+    await act(async () => {});
     // Encounter count should be visible
     expect(screen.getAllByText("42").length).toBeGreaterThan(0);
     // Timer display should be visible
@@ -367,7 +384,7 @@ describe("Dashboard", () => {
 
   // --- Odds display ---
 
-  it("shows default odds for standard encounter method", () => {
+  it("shows default odds for standard encounter method", async () => {
     const pokemon = makePokemon({ id: "o1", encounters: 100 });
 
     useCounterStore.setState({
@@ -378,10 +395,11 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 
-  it("shows masuda odds when hunt type is masuda", () => {
+  it("shows masuda odds when hunt type is masuda", async () => {
     const pokemon = makePokemon({ id: "m1", encounters: 50, hunt_type: "masuda" });
 
     useCounterStore.setState({
@@ -392,12 +410,13 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/683")).toBeInTheDocument();
   });
 
   // --- Custom step display ---
 
-  it("shows custom step value on encounter buttons", () => {
+  it("shows custom step value on encounter buttons", async () => {
     const pokemon = makePokemon({ id: "s1", encounters: 10, step: 5 });
 
     useCounterStore.setState({
@@ -408,13 +427,14 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
     // The step should appear in the increment/decrement buttons
     expect(screen.getByText("+5")).toBeInTheDocument();
   });
 
   // --- Timer with running state ---
 
-  it("shows pause button when timer is running", () => {
+  it("shows pause button when timer is running", async () => {
     const pokemon = makePokemon({
       id: "t1",
       timer_started_at: new Date().toISOString(),
@@ -429,6 +449,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Pause buttons should be present (both sidebar timer and main timer)
     const pauseButtons = screen.getAllByLabelText(/pause|stopp/i);
@@ -437,7 +458,7 @@ describe("Dashboard", () => {
 
   // --- Loading state ---
 
-  it("shows loading spinner when not connected", () => {
+  it("shows loading spinner when not connected", async () => {
     useCounterStore.setState({
       appState: null,
       isConnected: false,
@@ -446,6 +467,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
     // Loading label should be visible
     expect(screen.getByText(/Verbinde|Connecting/i)).toBeInTheDocument();
   });
@@ -481,8 +503,9 @@ describe("Dashboard", () => {
 
   // --- Header action buttons ---
 
-  it("shows edit, delete and caught buttons in header", () => {
+  it("shows edit, delete and caught buttons in header", async () => {
     render(<Dashboard />);
+    await act(async () => {});
 
     // All action buttons should have aria-labels
     expect(screen.getByLabelText(/Bearbeiten|Edit/i)).toBeInTheDocument();
@@ -490,7 +513,7 @@ describe("Dashboard", () => {
     expect(screen.getByLabelText(/Gefangen|Caught/i)).toBeInTheDocument();
   });
 
-  it("shows reactivate button for completed pokemon instead of caught", () => {
+  it("shows reactivate button for completed pokemon instead of caught", async () => {
     const completedPokemon = makePokemon({
       id: "r1",
       name: "ReactivateMon",
@@ -506,6 +529,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByLabelText(/Reaktivieren|Reactivate/i)).toBeInTheDocument();
   });
 
@@ -547,7 +571,7 @@ describe("Dashboard", () => {
 
   // --- Multiple pokemon encounters total ---
 
-  it("shows total encounter count in sidebar quick actions", () => {
+  it("shows total encounter count in sidebar quick actions", async () => {
     const mon1 = makePokemon({ id: "e1", name: "Mon1", encounters: 100, is_active: true });
     const mon2 = makePokemon({ id: "e2", name: "Mon2", encounters: 200, is_active: false });
 
@@ -559,6 +583,7 @@ describe("Dashboard", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Total encounters (100 + 200 = 300) should be displayed
     expect(screen.getByText("300")).toBeInTheDocument();
@@ -578,8 +603,9 @@ describe("Dashboard tab switching", () => {
     });
   });
 
-  it("renders all four header tabs when a pokemon is active", () => {
+  it("renders all four header tabs when a pokemon is active", async () => {
     render(<Dashboard />);
+    await act(async () => {});
 
     // "Encounter" appears multiple times (tab + stats label), so use getAllByText
     expect(screen.getAllByText("Encounter").length).toBeGreaterThan(0);
@@ -588,7 +614,7 @@ describe("Dashboard tab switching", () => {
     expect(screen.getByText("Statistik")).toBeInTheDocument();
   });
 
-  it("hides the detector tab when the viewed pokemon is completed", () => {
+  it("hides the detector tab when the viewed pokemon is completed", async () => {
     const pokemon = makePokemon({
       id: "p1",
       completed_at: "2025-01-01T00:00:00Z",
@@ -602,12 +628,13 @@ describe("Dashboard tab switching", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // "Auto Erkennung" tab should not be rendered for completed pokemon
     expect(screen.queryByText("Auto Erkennung")).not.toBeInTheDocument();
   });
 
-  it("shows the detector tab when the viewed pokemon is not completed", () => {
+  it("shows the detector tab when the viewed pokemon is not completed", async () => {
     const pokemon = makePokemon({ id: "p1" });
 
     useCounterStore.setState({
@@ -618,6 +645,7 @@ describe("Dashboard tab switching", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getByText("Auto Erkennung")).toBeInTheDocument();
   });
@@ -651,7 +679,7 @@ describe("Dashboard pokemon list", () => {
     mockSend.mockReset();
   });
 
-  it("renders active pokemon in the sidebar", () => {
+  it("renders active pokemon in the sidebar", async () => {
     const p1 = makePokemon({ id: "p1", name: "Pikachu", is_active: true });
     const p2 = makePokemon({ id: "p2", name: "Glumanda", is_active: true });
 
@@ -663,6 +691,7 @@ describe("Dashboard pokemon list", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getAllByText("Pikachu").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Glumanda").length).toBeGreaterThan(0);
@@ -695,7 +724,7 @@ describe("Dashboard pokemon list", () => {
     expect(screen.getAllByText("Schiggy").length).toBeGreaterThan(0);
   });
 
-  it("shows active count badge in sidebar tab", () => {
+  it("shows active count badge in sidebar tab", async () => {
     const p1 = makePokemon({ id: "p1", name: "Mon1" });
     const p2 = makePokemon({ id: "p2", name: "Mon2" });
 
@@ -707,6 +736,7 @@ describe("Dashboard pokemon list", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The active tab badge should show count of 2
     expect(screen.getByText("2")).toBeInTheDocument();
@@ -725,6 +755,7 @@ describe("Dashboard pokemon list", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Archive tab badge should show 2
     const archiveTab = screen.getByText("Archiv");
@@ -732,7 +763,7 @@ describe("Dashboard pokemon list", () => {
     expect(badge).toBeTruthy();
   });
 
-  it("displays encounter count for each pokemon in the sidebar", () => {
+  it("displays encounter count for each pokemon in the sidebar", async () => {
     const p1 = makePokemon({ id: "p1", name: "Mon1", encounters: 500 });
     const p2 = makePokemon({ id: "p2", name: "Mon2", encounters: 1234 });
 
@@ -744,6 +775,7 @@ describe("Dashboard pokemon list", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Encounters are displayed with toLocaleString() — German locale uses "." as separator
     expect(screen.getAllByText("500").length).toBeGreaterThan(0);
@@ -910,7 +942,7 @@ describe("Dashboard pokemon selection", () => {
     expect(headerName?.textContent).toBe("Glumanda");
   });
 
-  it("renders multiple pokemon that can be ctrl-clicked for selection", () => {
+  it("renders multiple pokemon that can be ctrl-clicked for selection", async () => {
     const p1 = makePokemon({ id: "p1", name: "Mon1" });
     const p2 = makePokemon({ id: "p2", name: "Mon2" });
 
@@ -922,6 +954,7 @@ describe("Dashboard pokemon selection", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Both pokemon should be rendered in the sidebar
     const items = document.querySelectorAll("[data-sidebar-idx]");
@@ -936,7 +969,7 @@ describe("Dashboard hunt button", () => {
     mockSend.mockReset();
   });
 
-  it("shows hunt start button for active pokemon (mode: both)", () => {
+  it("shows hunt start button for active pokemon (mode: both)", async () => {
     const pokemon = makePokemon({ id: "p1", hunt_mode: "both" });
 
     useCounterStore.setState({
@@ -947,13 +980,14 @@ describe("Dashboard hunt button", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Both sidebar and header have hunt buttons — check that at least one exists
     const huntButtons = screen.getAllByRole("button", { name: /Hunt starten/ });
     expect(huntButtons.length).toBeGreaterThan(0);
   });
 
-  it("shows timer-specific button when hunt_mode is timer", () => {
+  it("shows timer-specific button when hunt_mode is timer", async () => {
     const pokemon = makePokemon({ id: "p1", hunt_mode: "timer" });
 
     useCounterStore.setState({
@@ -964,12 +998,13 @@ describe("Dashboard hunt button", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     const huntButtons = screen.getAllByRole("button", { name: /Timer starten/ });
     expect(huntButtons.length).toBeGreaterThan(0);
   });
 
-  it("shows detector-specific button when hunt_mode is detector", () => {
+  it("shows detector-specific button when hunt_mode is detector", async () => {
     const pokemon = makePokemon({ id: "p1", hunt_mode: "detector" });
 
     useCounterStore.setState({
@@ -980,12 +1015,13 @@ describe("Dashboard hunt button", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     const huntButtons = screen.getAllByRole("button", { name: /Erkennung starten/ });
     expect(huntButtons.length).toBeGreaterThan(0);
   });
 
-  it("shows red stop button when timer is running", () => {
+  it("shows red stop button when timer is running", async () => {
     const pokemon = makePokemon({
       id: "p1",
       hunt_mode: "both",
@@ -1000,6 +1036,7 @@ describe("Dashboard hunt button", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     const huntButtons = screen.getAllByRole("button", { name: /Hunt stoppen/ });
     expect(huntButtons.length).toBeGreaterThan(0);
@@ -1008,7 +1045,7 @@ describe("Dashboard hunt button", () => {
     expect(hasRedButton).toBe(true);
   });
 
-  it("does not show header hunt button for completed pokemon", () => {
+  it("does not show header hunt button for completed pokemon", async () => {
     const pokemon = makePokemon({
       id: "p1",
       completed_at: "2025-01-01T00:00:00Z",
@@ -1022,6 +1059,7 @@ describe("Dashboard hunt button", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The header's data-detector-tutorial="controls" wrapper should not exist for completed pokemon
     const headerHuntWrapper = document.querySelector("[data-detector-tutorial='controls']");
@@ -1036,7 +1074,7 @@ describe("Dashboard action buttons", () => {
     mockSend.mockReset();
   });
 
-  it("shows edit, delete, and caught buttons in the header", () => {
+  it("shows edit, delete, and caught buttons in the header", async () => {
     const pokemon = makePokemon({ id: "p1" });
 
     useCounterStore.setState({
@@ -1047,6 +1085,7 @@ describe("Dashboard action buttons", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Action buttons exist (may appear in both sidebar and header, so use getAll)
     const editButtons = screen.getAllByRole("button", { name: /Bearbeiten/ });
@@ -1057,7 +1096,7 @@ describe("Dashboard action buttons", () => {
     expect(caughtButtons.length).toBeGreaterThan(0);
   });
 
-  it("shows reactivate button for completed pokemon instead of caught", () => {
+  it("shows reactivate button for completed pokemon instead of caught", async () => {
     const pokemon = makePokemon({
       id: "p1",
       completed_at: "2025-01-01T00:00:00Z",
@@ -1071,6 +1110,7 @@ describe("Dashboard action buttons", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     const reactivateButtons = screen.getAllByRole("button", { name: /Reaktivieren/ });
     expect(reactivateButtons.length).toBeGreaterThan(0);
@@ -1129,7 +1169,7 @@ describe("Dashboard action buttons", () => {
 // --- Empty State ---
 
 describe("Dashboard empty state", () => {
-  it("shows empty state when no pokemon exists", () => {
+  it("shows empty state when no pokemon exists", async () => {
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [], active_id: "" }),
       isConnected: true,
@@ -1138,6 +1178,7 @@ describe("Dashboard empty state", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Should show "Noch kein Pokémon" empty state
     expect(screen.getByText("Noch kein Pokémon")).toBeInTheDocument();
@@ -1145,7 +1186,7 @@ describe("Dashboard empty state", () => {
     expect(screen.getByText(/Erstes Pokémon hinzufügen/)).toBeInTheDocument();
   });
 
-  it("shows no-active-pokemon panel when no pokemon is selected", () => {
+  it("shows no-active-pokemon panel when no pokemon is selected", async () => {
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [], active_id: "" }),
       isConnected: true,
@@ -1154,6 +1195,7 @@ describe("Dashboard empty state", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Should show the "Kein aktives Pokémon" main panel message
     expect(screen.getByText("Kein aktives Pokémon")).toBeInTheDocument();
@@ -1179,7 +1221,7 @@ describe("Dashboard empty state", () => {
     expect(screen.getByText("Noch keine Hunts archiviert")).toBeInTheDocument();
   });
 
-  it("shows loading spinner when app state is null", () => {
+  it("shows loading spinner when app state is null", async () => {
     useCounterStore.setState({
       appState: null,
       isConnected: false,
@@ -1188,6 +1230,7 @@ describe("Dashboard empty state", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Loading spinner should appear with "Verbinden..." text
     expect(screen.getByText(/Verbinde/)).toBeInTheDocument();
@@ -1201,7 +1244,7 @@ describe("Dashboard counter tab", () => {
     mockSend.mockReset();
   });
 
-  it("shows completed banner for caught pokemon", () => {
+  it("shows completed banner for caught pokemon", async () => {
     const pokemon = makePokemon({
       id: "p1",
       completed_at: "2025-06-15T12:00:00Z",
@@ -1215,12 +1258,13 @@ describe("Dashboard counter tab", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // "Gefangen!" banner should appear
     expect(screen.getByText("Gefangen!")).toBeInTheDocument();
   });
 
-  it("disables increment and decrement buttons for completed pokemon", () => {
+  it("disables increment and decrement buttons for completed pokemon", async () => {
     const pokemon = makePokemon({
       id: "p1",
       completed_at: "2025-01-01T00:00:00Z",
@@ -1234,6 +1278,7 @@ describe("Dashboard counter tab", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     const incrementBtn = screen.getByRole("button", { name: "+1" });
     const decrementBtn = screen.getByRole("button", { name: /−1/ });
@@ -1241,7 +1286,7 @@ describe("Dashboard counter tab", () => {
     expect(decrementBtn).toBeDisabled();
   });
 
-  it("shows custom step labels when pokemon has a custom step", () => {
+  it("shows custom step labels when pokemon has a custom step", async () => {
     const pokemon = makePokemon({
       id: "p1",
       step: 5,
@@ -1255,6 +1300,7 @@ describe("Dashboard counter tab", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Buttons should show +5 and -5
     expect(screen.getByRole("button", { name: "+5" })).toBeInTheDocument();
@@ -1299,7 +1345,7 @@ describe("Dashboard counter tab", () => {
     expect(mockSend).toHaveBeenCalledWith("decrement", { pokemon_id: "p1" });
   });
 
-  it("shows odds display as 1/4096 by default", () => {
+  it("shows odds display as 1/4096 by default", async () => {
     const pokemon = makePokemon({ id: "p1" });
 
     useCounterStore.setState({
@@ -1310,11 +1356,12 @@ describe("Dashboard counter tab", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 
-  it("displays total encounters in sidebar quick actions bar", () => {
+  it("displays total encounters in sidebar quick actions bar", async () => {
     const p1 = makePokemon({ id: "p1", encounters: 100 });
     const p2 = makePokemon({ id: "p2", encounters: 200 });
 
@@ -1326,6 +1373,7 @@ describe("Dashboard counter tab", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Total encounters = 300
     expect(screen.getByText("300")).toBeInTheDocument();
@@ -1335,7 +1383,7 @@ describe("Dashboard counter tab", () => {
 // --- Sidebar State ---
 
 describe("Dashboard sidebar", () => {
-  it("shows add pokemon button in active tab", () => {
+  it("shows add pokemon button in active tab", async () => {
     useCounterStore.setState({
       appState: makeAppState(),
       isConnected: true,
@@ -1344,6 +1392,7 @@ describe("Dashboard sidebar", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // "Pokémon hinzufügen" button should be present
     expect(screen.getByText("Pokémon hinzufügen")).toBeInTheDocument();
@@ -1371,7 +1420,7 @@ describe("Dashboard sidebar", () => {
     expect(addButtons.length).toBe(0);
   });
 
-  it("displays game info in sidebar items", () => {
+  it("displays game info in sidebar items", async () => {
     const pokemon = makePokemon({ id: "p1", game: "red" });
 
     useCounterStore.setState({
@@ -1382,12 +1431,13 @@ describe("Dashboard sidebar", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Game should be formatted as uppercase short string
     expect(screen.getAllByText("RED").length).toBeGreaterThan(0);
   });
 
-  it("shows sort menu button", () => {
+  it("shows sort menu button", async () => {
     useCounterStore.setState({
       appState: makeAppState(),
       isConnected: true,
@@ -1396,12 +1446,13 @@ describe("Dashboard sidebar", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     const sortButton = screen.getByRole("button", { name: /Sortieren/ });
     expect(sortButton).toBeInTheDocument();
   });
 
-  it("highlights the currently viewed pokemon in sidebar", () => {
+  it("highlights the currently viewed pokemon in sidebar", async () => {
     const p1 = makePokemon({ id: "p1", name: "Mon1" });
     const p2 = makePokemon({ id: "p2", name: "Mon2" });
 
@@ -1413,6 +1464,7 @@ describe("Dashboard sidebar", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The active pokemon sidebar item should have the highlighted border class
     const firstItem = document.querySelector("[data-sidebar-idx='0']");
@@ -1755,7 +1807,7 @@ describe("Dashboard timer controls", () => {
     expect(mockSend).toHaveBeenCalledWith("timer_reset", { pokemon_id: "t1" });
   });
 
-  it("formats timer correctly for large values", () => {
+  it("formats timer correctly for large values", async () => {
     // 2 hours, 30 minutes, 45 seconds
     const pokemon = makePokemon({
       id: "t1",
@@ -1771,6 +1823,7 @@ describe("Dashboard timer controls", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getAllByText("02:30:45").length).toBeGreaterThan(0);
   });
@@ -1975,7 +2028,7 @@ describe("Dashboard odds display", () => {
     mockSend.mockReset();
   });
 
-  it("shows radar odds when hunt_type is radar", () => {
+  it("shows radar odds when hunt_type is radar", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "radar" });
 
     useCounterStore.setState({
@@ -1986,11 +2039,12 @@ describe("Dashboard odds display", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getByText("1/~200")).toBeInTheDocument();
   });
 
-  it("shows chain_fishing odds", () => {
+  it("shows chain_fishing odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "chain_fishing" });
 
     useCounterStore.setState({
@@ -2001,11 +2055,12 @@ describe("Dashboard odds display", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getByText("1/~100")).toBeInTheDocument();
   });
 
-  it("shows dynamax_adventure odds", () => {
+  it("shows dynamax_adventure odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "dynamax_adventure" });
 
     useCounterStore.setState({
@@ -2016,11 +2071,12 @@ describe("Dashboard odds display", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getByText("1/100")).toBeInTheDocument();
   });
 
-  it("shows default odds for soft_reset hunt type", () => {
+  it("shows default odds for soft_reset hunt type", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "soft_reset" });
 
     useCounterStore.setState({
@@ -2031,11 +2087,12 @@ describe("Dashboard odds display", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 
-  it("shows friend_safari odds", () => {
+  it("shows friend_safari odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "friend_safari" });
 
     useCounterStore.setState({
@@ -2046,6 +2103,7 @@ describe("Dashboard odds display", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(screen.getByText("1/819")).toBeInTheDocument();
   });
@@ -2221,7 +2279,7 @@ describe("Dashboard hotkey target", () => {
 // --- Detector Status Dots ---
 
 describe("Dashboard detector status", () => {
-  it("shows detector dot on pokemon with detector config", () => {
+  it("shows detector dot on pokemon with detector config", async () => {
     const pokemon = makePokemon({
       id: "p1",
       detector_config: {
@@ -2248,13 +2306,14 @@ describe("Dashboard detector status", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Detector dot should be present in the sidebar
     const dot = document.querySelector(".rounded-full.border.border-bg-secondary");
     expect(dot).toBeTruthy();
   });
 
-  it("shows match state dot when detector has a match", () => {
+  it("shows match state dot when detector has a match", async () => {
     const pokemon = makePokemon({
       id: "p1",
       detector_config: {
@@ -2281,6 +2340,7 @@ describe("Dashboard detector status", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Green dot should be present for match state
     const greenDot = document.querySelector(".bg-accent-green.rounded-full");
@@ -2373,7 +2433,7 @@ describe("Dashboard sidebar timer", () => {
     mockSend.mockReset();
   });
 
-  it("shows timer in sidebar when pokemon has accumulated time", () => {
+  it("shows timer in sidebar when pokemon has accumulated time", async () => {
     const pokemon = makePokemon({
       id: "p1",
       timer_accumulated_ms: 60000, // 1 minute
@@ -2387,12 +2447,13 @@ describe("Dashboard sidebar timer", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Should show timer in the sidebar (00:01:00)
     expect(screen.getAllByText("00:01:00").length).toBeGreaterThan(0);
   });
 
-  it("does not show timer text in sidebar when no time accumulated and not running", () => {
+  it("does not show timer text in sidebar when no time accumulated and not running", async () => {
     const pokemon = makePokemon({
       id: "p1",
       timer_accumulated_ms: 0,
@@ -2407,6 +2468,7 @@ describe("Dashboard sidebar timer", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Sidebar timer should not show 00:00:00 (only main panel does)
     // The sidebar timer span is hidden when totalMs === 0 and not running
@@ -2535,7 +2597,7 @@ describe("Dashboard additional odds display", () => {
     mockSend.mockReset();
   });
 
-  it("shows horde odds", () => {
+  it("shows horde odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "horde" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2544,10 +2606,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/~820")).toBeInTheDocument();
   });
 
-  it("shows sos odds", () => {
+  it("shows sos odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "sos" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2556,10 +2619,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/683")).toBeInTheDocument();
   });
 
-  it("shows ultra_wormhole odds", () => {
+  it("shows ultra_wormhole odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "ultra_wormhole" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2568,10 +2632,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/~3")).toBeInTheDocument();
   });
 
-  it("shows dexnav odds", () => {
+  it("shows dexnav odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "dexnav" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2580,10 +2645,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/~512")).toBeInTheDocument();
   });
 
-  it("shows catch_combo odds", () => {
+  it("shows catch_combo odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "catch_combo" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2592,10 +2658,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/~273")).toBeInTheDocument();
   });
 
-  it("shows sandwich odds", () => {
+  it("shows sandwich odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "sandwich" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2604,10 +2671,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/683")).toBeInTheDocument();
   });
 
-  it("shows default odds for fossil hunt type", () => {
+  it("shows default odds for fossil hunt type", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "fossil" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2616,10 +2684,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 
-  it("shows default odds for gift hunt type", () => {
+  it("shows default odds for gift hunt type", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "gift" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2628,10 +2697,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 
-  it("shows max_raid odds", () => {
+  it("shows max_raid odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "max_raid" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2640,10 +2710,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 
-  it("shows tera_raid odds", () => {
+  it("shows tera_raid odds", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "tera_raid" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2652,10 +2723,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 
-  it("falls back to default odds for unknown hunt type", () => {
+  it("falls back to default odds for unknown hunt type", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "unknown_method" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -2664,10 +2736,11 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 
-  it("returns 1/4096 when pokemon is null", () => {
+  it("returns 1/4096 when pokemon is null", async () => {
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [], active_id: "" }),
       isConnected: true,
@@ -2675,6 +2748,7 @@ describe("Dashboard additional odds display", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     // No pokemon selected, default odds not shown in panel
     const allText = document.body.textContent ?? "";
     expect(allText).toBeTruthy();
@@ -2688,7 +2762,7 @@ describe("Dashboard helper functions", () => {
     mockSend.mockReset();
   });
 
-  it("renders game info formatted as uppercase in header", () => {
+  it("renders game info formatted as uppercase in header", async () => {
     const pokemon = makePokemon({ id: "p1", game: "pokemon-sword" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
@@ -2697,11 +2771,12 @@ describe("Dashboard helper functions", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     // formatGame should produce "SWORD" (removing "pokemon-" prefix)
     expect(screen.getAllByText("SWORD").length).toBeGreaterThan(0);
   });
 
-  it("renders em dash for pokemon without game", () => {
+  it("renders em dash for pokemon without game", async () => {
     const pokemon = makePokemon({ id: "p1", game: undefined });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
@@ -2710,6 +2785,7 @@ describe("Dashboard helper functions", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     // When no game is set, the header should not show a game badge
     const header = document.querySelector("header");
     expect(header).toBeTruthy();
@@ -2772,7 +2848,7 @@ describe("Dashboard helper functions", () => {
 // --- Detector status dot styling ---
 
 describe("Dashboard detector dot states", () => {
-  it("shows pulsing blue dot when detector is running but no match", () => {
+  it("shows pulsing blue dot when detector is running but no match", async () => {
     const pokemon = makePokemon({
       id: "p1",
       detector_config: {
@@ -2799,6 +2875,7 @@ describe("Dashboard detector dot states", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Should have a pulsing blue dot
     const blueDot = document.querySelector(".bg-accent-blue.animate-pulse");
@@ -3175,7 +3252,7 @@ describe("Dashboard sidebar quick actions", () => {
     expect(selBadge?.textContent).toBe("1");
   });
 
-  it("shows timer running indicator when a timer is running", () => {
+  it("shows timer running indicator when a timer is running", async () => {
     const pokemon = makePokemon({
       id: "p1",
       timer_started_at: new Date().toISOString(),
@@ -3189,13 +3266,14 @@ describe("Dashboard sidebar quick actions", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Timer running indicator (green timer icon) should be visible in quick actions bar
     const allText = document.body.textContent ?? "";
     expect(allText).toBeTruthy();
   });
 
-  it("shows detector running indicator when detection is active", () => {
+  it("shows detector running indicator when detection is active", async () => {
     const pokemon = makePokemon({
       id: "p1",
       detector_config: {
@@ -3222,13 +3300,14 @@ describe("Dashboard sidebar quick actions", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Detector running indicator (blue eye icon) should be in the sidebar quick actions
     const allText = document.body.textContent ?? "";
     expect(allText).toBeTruthy();
   });
 
-  it("disables hunt start button when no pokemon in selection", () => {
+  it("disables hunt start button when no pokemon in selection", async () => {
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [], active_id: "" }),
       isConnected: true,
@@ -3237,6 +3316,7 @@ describe("Dashboard sidebar quick actions", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The hunt start button in quick actions should be disabled
     const allButtons = screen.getAllByRole("button");
@@ -3247,7 +3327,7 @@ describe("Dashboard sidebar quick actions", () => {
 // --- Detector match indicator on header tab ---
 
 describe("Dashboard detector match indicator", () => {
-  it("shows match dot on detector tab when detector status is match", () => {
+  it("shows match dot on detector tab when detector status is match", async () => {
     const pokemon = makePokemon({ id: "p1" });
 
     useCounterStore.setState({
@@ -3258,6 +3338,7 @@ describe("Dashboard detector match indicator", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The detector tab should show a green match dot
     const matchDot = document.querySelector("header .bg-green-400.rounded-full");
@@ -3714,7 +3795,7 @@ describe("Dashboard sort persistence", () => {
     expect(localStorage.getItem("encounty-sort-dir")).toBe("asc");
   });
 
-  it("loads persisted sort mode from localStorage", () => {
+  it("loads persisted sort mode from localStorage", async () => {
     localStorage.setItem("encounty-sort-mode", "name");
     localStorage.setItem("encounty-sort-dir", "desc");
 
@@ -3729,6 +3810,7 @@ describe("Dashboard sort persistence", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Items should be sorted by name desc (Zubat first)
     const items = document.querySelectorAll("[data-sidebar-idx]");
@@ -3920,7 +4002,7 @@ describe("Dashboard overlay import dropdown", () => {
 // --- Game badge in header ---
 
 describe("Dashboard header game badge", () => {
-  it("shows formatted game badge when pokemon has a game with pokemon- prefix", () => {
+  it("shows formatted game badge when pokemon has a game with pokemon- prefix", async () => {
     const pokemon = makePokemon({ id: "p1", game: "pokemon-letsgo-pikachu" });
 
     useCounterStore.setState({
@@ -3931,12 +4013,13 @@ describe("Dashboard header game badge", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // formatGame removes "pokemon-" and replaces "letsgo" with "L.G. "
     expect(screen.getAllByText("L.G. -PIKACHU").length).toBeGreaterThan(0);
   });
 
-  it("does not show game badge when pokemon has no game", () => {
+  it("does not show game badge when pokemon has no game", async () => {
     const pokemon = makePokemon({ id: "p1", game: undefined });
 
     useCounterStore.setState({
@@ -3947,6 +4030,7 @@ describe("Dashboard header game badge", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Header center should not have a game badge line
     const header = document.querySelector("header");
@@ -4267,7 +4351,7 @@ describe("Dashboard image error handling", () => {
     mockSend.mockReset();
   });
 
-  it("handles image error by falling back to default sprite", () => {
+  it("handles image error by falling back to default sprite", async () => {
     const pokemon = makePokemon({ id: "p1", sprite_url: "https://broken.png" });
 
     useCounterStore.setState({
@@ -4278,6 +4362,7 @@ describe("Dashboard image error handling", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Trigger image error on the sprite
     const images = document.querySelectorAll(".pokemon-sprite");
@@ -4285,7 +4370,7 @@ describe("Dashboard image error handling", () => {
 
     // Fire error event on first sprite image
     const img = images[0] as HTMLImageElement;
-    img.dispatchEvent(new Event("error"));
+    act(() => { img.dispatchEvent(new Event("error")); });
 
     // After error, the image src should change to fallback
     // We can't easily check the exact fallback URL, but at least the image exists
@@ -4539,7 +4624,7 @@ describe("Dashboard force counter on archive", () => {
     mockSend.mockReset();
   });
 
-  it("renders counter tab content for completed pokemon even if previously on detector", () => {
+  it("renders counter tab content for completed pokemon even if previously on detector", async () => {
     // A completed pokemon should always show the counter tab (detector tab is hidden)
     const completedPokemon = makePokemon({ id: "p1", completed_at: "2025-01-01T00:00:00Z" });
 
@@ -4551,6 +4636,7 @@ describe("Dashboard force counter on archive", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Detector tab should not be present for completed pokemon
     expect(screen.queryByText("Auto Erkennung")).not.toBeInTheDocument();
@@ -4599,7 +4685,7 @@ describe("Dashboard encounter counts in multiple pokemon", () => {
     mockSend.mockReset();
   });
 
-  it("displays encounter count for viewed pokemon in counter tab", () => {
+  it("displays encounter count for viewed pokemon in counter tab", async () => {
     const p1 = makePokemon({ id: "p1", name: "Pikachu", encounters: 999 });
     const p2 = makePokemon({ id: "p2", name: "Glumanda", encounters: 42 });
 
@@ -4611,6 +4697,7 @@ describe("Dashboard encounter counts in multiple pokemon", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The large encounter counter should show 999
     expect(screen.getAllByText("999").length).toBeGreaterThan(0);
@@ -4733,7 +4820,7 @@ describe("Dashboard hotkey target active indicator", () => {
     mockSend.mockReset();
   });
 
-  it("shows active hotkey target indicator for the active pokemon", () => {
+  it("shows active hotkey target indicator for the active pokemon", async () => {
     const p1 = makePokemon({ id: "p1", name: "Mon1" });
     const p2 = makePokemon({ id: "p2", name: "Mon2" });
 
@@ -4745,6 +4832,7 @@ describe("Dashboard hotkey target active indicator", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The first pokemon's hotkey button should have the active (blue) class
     const items = document.querySelectorAll("[data-sidebar-idx]");
@@ -4792,7 +4880,7 @@ describe("Dashboard reset counter flow", () => {
     HTMLDialogElement.prototype.close = vi.fn();
   });
 
-  it("hides reset button for completed pokemon", () => {
+  it("hides reset button for completed pokemon", async () => {
     const pokemon = makePokemon({
       id: "p1",
       completed_at: "2025-01-01T00:00:00Z",
@@ -4806,13 +4894,14 @@ describe("Dashboard reset counter flow", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Reset button should not be present for completed pokemon
     const resetBtn = screen.queryByText("Reset");
     expect(resetBtn).toBeNull();
   });
 
-  it("hides set encounter pencil for completed pokemon", () => {
+  it("hides set encounter pencil for completed pokemon", async () => {
     const pokemon = makePokemon({
       id: "p1",
       completed_at: "2025-01-01T00:00:00Z",
@@ -4826,6 +4915,7 @@ describe("Dashboard reset counter flow", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Set encounter pencil should not be present for completed pokemon
     const setBtn = screen.queryByLabelText(/Begegnungen manuell setzen|Set encounters/i);
@@ -4910,7 +5000,7 @@ describe("Dashboard sidebar inline edit button", () => {
 // --- Odds with hunt type outbreak ---
 
 describe("Dashboard outbreak odds", () => {
-  it("shows outbreak odds based on base denominator", () => {
+  it("shows outbreak odds based on base denominator", async () => {
     const pokemon = makePokemon({ id: "o1", hunt_type: "outbreak" });
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "o1" }),
@@ -4919,6 +5009,7 @@ describe("Dashboard outbreak odds", () => {
       detectorStatus: {},
     });
     render(<Dashboard />);
+    await act(async () => {});
     expect(screen.getByText("1/4096")).toBeInTheDocument();
   });
 });
@@ -4930,7 +5021,7 @@ describe("Dashboard timer interval tick", () => {
     mockSend.mockReset();
   });
 
-  it("updates timer display when running via interval tick", () => {
+  it("updates timer display when running via interval tick", async () => {
     vi.useFakeTimers();
     const now = new Date();
     const pokemon = makePokemon({
@@ -4947,12 +5038,13 @@ describe("Dashboard timer interval tick", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Timer should show initial value
     expect(screen.getAllByText("00:00:00").length).toBeGreaterThan(0);
 
     // Advance by 2 seconds to trigger interval
-    vi.advanceTimersByTime(2000);
+    act(() => { vi.advanceTimersByTime(2000); });
 
     // Timer value should have updated (exact value depends on Date.now mock)
     // The important thing is the interval callback ran without errors
@@ -5139,6 +5231,7 @@ describe("Dashboard sidebar item keydown event", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Find the second sidebar item's main button
     const items = document.querySelectorAll("[data-sidebar-idx]");
@@ -5146,12 +5239,11 @@ describe("Dashboard sidebar item keydown event", () => {
     expect(secondItemBtn).toBeTruthy();
 
     // Simulate keydown with Enter
-    secondItemBtn.focus();
-    const enterEvent = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
-    secondItemBtn.dispatchEvent(enterEvent);
-
-    // Wait for React to process
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await act(async () => {
+      secondItemBtn.focus();
+      const enterEvent = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
+      secondItemBtn.dispatchEvent(enterEvent);
+    });
 
     // Mon2 should be the viewed pokemon
     const headerName = document.querySelector("header .text-sm.font-bold");
@@ -5334,7 +5426,7 @@ describe("Dashboard detector tab with running status", () => {
 // --- No game field on sidebar item ---
 
 describe("Dashboard sidebar item without game", () => {
-  it("renders sidebar item without game separator when game is undefined", () => {
+  it("renders sidebar item without game separator when game is undefined", async () => {
     const pokemon = makePokemon({ id: "p1", name: "TestMon", game: undefined });
 
     useCounterStore.setState({
@@ -5345,6 +5437,7 @@ describe("Dashboard sidebar item without game", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The sidebar item should render without the game text
     const sidebarItem = document.querySelector("[data-sidebar-idx='0']");
@@ -5359,7 +5452,7 @@ describe("Dashboard sidebar item without game", () => {
 // --- Detector stopped dot ---
 
 describe("Dashboard detector stopped dot", () => {
-  it("shows grey dot when detector is configured but not running", () => {
+  it("shows grey dot when detector is configured but not running", async () => {
     const pokemon = makePokemon({
       id: "p1",
       detector_config: {
@@ -5386,6 +5479,7 @@ describe("Dashboard detector stopped dot", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Should have a grey/faint dot (not green or blue)
     const faintDot = document.querySelector("[class*='bg-text-faint']");
@@ -5632,7 +5726,7 @@ describe("Dashboard sidebar sprite error fallback", () => {
     mockSend.mockReset();
   });
 
-  it("falls back to default sprite when sidebar image fails to load", () => {
+  it("falls back to default sprite when sidebar image fails to load", async () => {
     const pokemon = makePokemon({ id: "p1", name: "Mon1", sprite_url: "https://broken-sprite.png" });
 
     useCounterStore.setState({
@@ -5643,6 +5737,7 @@ describe("Dashboard sidebar sprite error fallback", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Find the sidebar sprite image
     const sidebarItem = document.querySelector("[data-sidebar-idx='0']");
@@ -5650,7 +5745,7 @@ describe("Dashboard sidebar sprite error fallback", () => {
     expect(img).toBeTruthy();
 
     // Trigger error
-    img.dispatchEvent(new Event("error", { bubbles: true }));
+    act(() => { img.dispatchEvent(new Event("error", { bubbles: true })); });
 
     // After error, the image should still exist (with fallback URL)
     const imgAfter = sidebarItem?.querySelector("img.pokemon-sprite") as HTMLImageElement;
@@ -5688,7 +5783,7 @@ describe("Dashboard collapsed sidebar sprite error", () => {
     expect(sprites.length).toBeGreaterThan(0);
 
     const img = sprites[0] as HTMLImageElement;
-    img.dispatchEvent(new Event("error", { bubbles: true }));
+    act(() => { img.dispatchEvent(new Event("error", { bubbles: true })); });
 
     // Image should still exist
     expect(img).toBeTruthy();
@@ -5702,7 +5797,7 @@ describe("Dashboard counter tab sprite error", () => {
     mockSend.mockReset();
   });
 
-  it("handles sprite error in counter tab main view", () => {
+  it("handles sprite error in counter tab main view", async () => {
     const pokemon = makePokemon({ id: "p1", sprite_url: "https://broken-sprite.png" });
 
     useCounterStore.setState({
@@ -5713,6 +5808,7 @@ describe("Dashboard counter tab sprite error", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // Find the main panel large sprite
     const mainSprites = document.querySelectorAll("img.pokemon-sprite");
@@ -5722,7 +5818,7 @@ describe("Dashboard counter tab sprite error", () => {
     ) as HTMLImageElement;
 
     if (mainSprite) {
-      mainSprite.dispatchEvent(new Event("error", { bubbles: true }));
+      act(() => { mainSprite.dispatchEvent(new Event("error", { bubbles: true })); });
       expect(mainSprite).toBeTruthy();
     }
   });
@@ -5938,13 +6034,12 @@ describe("Dashboard WebSocket reset confirm", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     // The WS callback should have been captured
     expect(capturedWsCallback).not.toBeNull();
 
     // Simulate receiving a request_reset_confirm message
-    // We need to use act to wrap state updates
-    const { act } = await import("@testing-library/react");
     await act(async () => {
       capturedWsCallback!({ type: "request_reset_confirm", payload: { pokemon_id: "p1" } });
     });
@@ -5953,7 +6048,7 @@ describe("Dashboard WebSocket reset confirm", () => {
     expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
   });
 
-  it("ignores non-reset messages in WS callback", () => {
+  it("ignores non-reset messages in WS callback", async () => {
     const pokemon = makePokemon({ id: "p1" });
 
     useCounterStore.setState({
@@ -5964,6 +6059,7 @@ describe("Dashboard WebSocket reset confirm", () => {
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
     expect(capturedWsCallback).not.toBeNull();
 

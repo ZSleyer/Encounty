@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState } from "../test-utils";
+import { render, screen, makeAppState, waitFor } from "../test-utils";
 import { HotkeyPage } from "./HotkeyPage";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -23,10 +23,12 @@ describe("HotkeyPage", () => {
     });
   });
 
-  it("renders the hotkey settings when state is available", () => {
+  it("renders the hotkey settings when state is available", async () => {
     render(<HotkeyPage />);
-    // Should render hotkey action labels
-    expect(screen.getByText("+1 Encounter")).toBeInTheDocument();
+    await waitFor(() => {
+      // Should render hotkey action labels
+      expect(screen.getByText("+1 Encounter")).toBeInTheDocument();
+    });
   });
 
   it("shows loading spinner when no app state", () => {

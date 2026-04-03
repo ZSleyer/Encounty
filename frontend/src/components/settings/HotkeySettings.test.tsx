@@ -43,11 +43,14 @@ describe("HotkeySettings", () => {
     });
   });
 
-  it("shows empty dash for unbound hotkeys", () => {
+  it("shows empty dash for unbound hotkeys", async () => {
     render(<HotkeySettings hotkeys={hotkeys} onUpdate={vi.fn()} />);
-    // decrement, reset, next_pokemon are unbound — shown as em dash
-    const dashes = screen.getAllByText("\u2014");
-    expect(dashes.length).toBe(3);
+    // Wait for the async status fetch to settle
+    await waitFor(() => {
+      // decrement, reset, next_pokemon are unbound — shown as em dash
+      const dashes = screen.getAllByText("\u2014");
+      expect(dashes.length).toBe(3);
+    });
   });
 
   it("enters recording mode when Aufzeichnen is clicked", async () => {
@@ -205,7 +208,7 @@ describe("HotkeySettings", () => {
     });
   });
 
-  it("shows conflict warning when two actions have the same binding", () => {
+  it("shows conflict warning when two actions have the same binding", async () => {
     const conflicting: HotkeyMap = {
       increment: "Ctrl+Up",
       decrement: "Ctrl+Up",
@@ -213,9 +216,11 @@ describe("HotkeySettings", () => {
       next_pokemon: "",
     };
     render(<HotkeySettings hotkeys={conflicting} onUpdate={vi.fn()} />);
-    // Should show conflict warning
-    const warnings = screen.getAllByText(/Gleiche Taste wie/);
-    expect(warnings.length).toBeGreaterThan(0);
+    // Wait for the async status fetch to settle
+    await waitFor(() => {
+      const warnings = screen.getAllByText(/Gleiche Taste wie/);
+      expect(warnings.length).toBeGreaterThan(0);
+    });
   });
 
   it("shows error when PUT request fails", async () => {
