@@ -74,4 +74,24 @@ describe("OutlineEditorModal", () => {
     render(<OutlineEditorModal {...defaultProps} />);
     expect(screen.getByText("Abc")).toBeInTheDocument();
   });
+
+  it("calls onClose on backdrop click", () => {
+    const onClose = vi.fn();
+    const { container } = render(<OutlineEditorModal {...defaultProps} onClose={onClose} />);
+    const dialog = container.querySelector("dialog")!;
+    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("applies stroke style to preview when type is solid", () => {
+    render(<OutlineEditorModal {...defaultProps} type="solid" color="#ff0000" width={3} />);
+    const preview = screen.getByText("Abc");
+    expect(preview.style.webkitTextStroke).toBeTruthy();
+  });
+
+  it("does not apply stroke style when type is none", () => {
+    render(<OutlineEditorModal {...defaultProps} type="none" />);
+    const preview = screen.getByText("Abc");
+    expect(preview.style.webkitTextStroke).toBeFalsy();
+  });
 });

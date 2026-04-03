@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "../../../test-utils";
+import { render, screen, fireEvent, act } from "../../../test-utils";
 import { GradientEditorModal } from "./GradientEditorModal";
 
 // jsdom does not implement showModal
@@ -195,5 +195,96 @@ describe("GradientEditorModal", () => {
     expect(screen.getByLabelText("Stop 1")).toBeInTheDocument();
     expect(screen.getByLabelText("Stop 2")).toBeInTheDocument();
     expect(screen.getByLabelText("Stop 3")).toBeInTheDocument();
+  });
+
+  it("drags a stop handle to update position", () => {
+    const onConfirm = vi.fn();
+    const { container } = render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
+    const handle1 = screen.getByLabelText("Stop 1");
+
+    // Mock barRef getBoundingClientRect
+    const bar = container.querySelector("button.cursor-crosshair") as HTMLElement;
+    vi.spyOn(bar, "getBoundingClientRect").mockReturnValue({
+      left: 0, top: 0, width: 200, height: 32, x: 0, y: 0, right: 200, bottom: 32, toJSON: () => {},
+    });
+
+    // Start drag via mouseDown on the handle
+    fireEvent.mouseDown(handle1, { preventDefault: vi.fn() });
+
+    // Dispatch mousemove and mouseup on globalThis
+    act(() => {
+      globalThis.dispatchEvent(new MouseEvent("mousemove", { clientX: 100, clientY: 16, bubbles: true }));
+    });
+    act(() => {
+      globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    });
+
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    const stops = onConfirm.mock.calls[0][0];
+    // Stop 1 position should have been updated to ~50 (100px / 200px * 100)
+    expect(stops[0].position).toBe(50);
+  });
+
+  it("adds interpolated color stop when clicking between existing stops", () => {
+    const onConfirm = vi.fn();
+    const { container } = render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
+    const bar = container.querySelector("button.cursor-crosshair") as HTMLElement;
+    vi.spyOn(bar, "getBoundingClientRect").mockReturnValue({
+      left: 0, top: 0, width: 200, height: 32, x: 0, y: 0, right: 200, bottom: 32, toJSON: () => {},
+    });
+    // Click at 50% (clientX=100)
+    fireEvent.click(bar, { clientX: 100 });
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    const stops = onConfirm.mock.calls[0][0];
+    expect(stops.length).toBe(3);
+    // Middle stop should be at position 50 with interpolated color
+    const middleStop = stops.find((s: { position: number }) => s.position === 50);
+    expect(middleStop).toBeDefined();
+  });
+
+  it("clears selection when selected stop is deleted", () => {
+    const threeStops = [
+      { color: "#ff0000", position: 0 },
+      { color: "#00ff00", position: 50 },
+      { color: "#0000ff", position: 100 },
+    ];
+    render(<GradientEditorModal {...defaultProps} stops={threeStops} />);
+    // Select stop 2 by mouseDown on its handle
+    fireEvent.mouseDown(screen.getByLabelText("Stop 2"), { preventDefault: vi.fn() });
+    // Verify it is selected (has border-accent-blue)
+    expect(screen.getByLabelText("Stop 2").className).toContain("border-accent-blue");
+    // Delete stop 2
+    const removeButtons = screen.getAllByTitle("Farbstopp entfernen");
+    fireEvent.click(removeButtons[1]);
+    // After deletion, only 2 stops remain
+    expect(screen.queryByLabelText("Stop 3")).not.toBeInTheDocument();
+  });
+
+  it("calls onClose on backdrop click", () => {
+    const onClose = vi.fn();
+    const { container } = render(<GradientEditorModal {...defaultProps} onClose={onClose} />);
+    const dialog = container.querySelector("dialog")!;
+    // Simulate click on the dialog element itself (backdrop)
+    fireEvent.click(dialog);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("updates stop color via color picker callback", () => {
+    const onOpenColorPicker = vi.fn();
+    const onConfirm = vi.fn();
+    const { container } = render(
+      <GradientEditorModal {...defaultProps} onOpenColorPicker={onOpenColorPicker} onConfirm={onConfirm} />,
+    );
+    const swatches = container.querySelectorAll(".w-6.h-4.rounded.cursor-pointer");
+    fireEvent.click(swatches[0]);
+    // onOpenColorPicker receives (currentColor, callback)
+    expect(onOpenColorPicker).toHaveBeenCalledWith("#ff0000", expect.any(Function));
+    // Simulate the callback with a new color
+    const callback = onOpenColorPicker.mock.calls[0][1];
+    act(() => { callback("#00ff00"); });
+    // Apply and verify the color changed
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    const stops = onConfirm.mock.calls[0][0];
+    expect(stops[0].color).toBe("#00ff00");
   });
 });

@@ -205,4 +205,79 @@ describe("ShadowEditorModal", () => {
     render(<ShadowEditorModal {...defaultProps} />);
     expect(screen.getByText("Offset")).toBeInTheDocument();
   });
+
+  it("updates XY offset when pad is dragged (mouseDown only)", () => {
+    const onConfirm = vi.fn();
+    render(<ShadowEditorModal {...defaultProps} x={0} y={0} onConfirm={onConfirm} />);
+    const pad = screen.getByLabelText("Shadow offset picker");
+
+    vi.spyOn(pad, "getBoundingClientRect").mockReturnValue({
+      left: 0, top: 0, width: 120, height: 120, x: 0, y: 0, right: 120, bottom: 120, toJSON: () => {},
+    });
+
+    // mouseDown at center (60, 60) -> ratio 0.5 -> value 0
+    fireEvent.mouseDown(pad, { clientX: 60, clientY: 60 });
+
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ x: 0, y: 0 }));
+  });
+
+  it("updates XY offset via mousemove and mouseup during drag", async () => {
+    const onConfirm = vi.fn();
+    render(<ShadowEditorModal {...defaultProps} x={0} y={0} onConfirm={onConfirm} />);
+    const pad = screen.getByLabelText("Shadow offset picker");
+
+    vi.spyOn(pad, "getBoundingClientRect").mockReturnValue({
+      left: 0, top: 0, width: 120, height: 120, x: 0, y: 0, right: 120, bottom: 120, toJSON: () => {},
+    });
+
+    // Start drag at center (ratio 0.5 → value 0)
+    fireEvent.mouseDown(pad, { clientX: 60, clientY: 60 });
+
+    // Move to bottom-right corner and release via act
+    const { act } = await import("@testing-library/react");
+    act(() => {
+      globalThis.dispatchEvent(new MouseEvent("mousemove", { clientX: 120, clientY: 120, bubbles: true }));
+    });
+    act(() => {
+      globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+    });
+
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    // mousemove to (120, 120) → ratio 1.0 → value 30
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ x: 30, y: 30 }));
+  });
+
+  it("uses first gradient stop color for preview when colorType is gradient", () => {
+    render(
+      <ShadowEditorModal
+        {...defaultProps}
+        colorType="gradient"
+        gradientStops={[
+          { color: "#ff0000", position: 0 },
+          { color: "#0000ff", position: 100 },
+        ]}
+      />,
+    );
+    const previewText = screen.getByText("Abc");
+    expect(previewText.style.textShadow).toContain("#ff0000");
+  });
+
+  it("calls onClose on backdrop click", () => {
+    const onClose = vi.fn();
+    const { container } = render(<ShadowEditorModal {...defaultProps} onClose={onClose} />);
+    const dialog = container.querySelector("dialog")!;
+    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("updates blur via slider and reflects in confirm output", () => {
+    const onConfirm = vi.fn();
+    render(<ShadowEditorModal {...defaultProps} blur={4} onConfirm={onConfirm} />);
+    // NumSlider renders a range input with title="overlay.blurPx"
+    const blurRange = screen.getByTitle("overlay.blurPx") as HTMLInputElement;
+    fireEvent.change(blurRange, { target: { value: "12" } });
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ blur: 12 }));
+  });
 });
