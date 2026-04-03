@@ -7,7 +7,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)](https://github.com/ZSleyer/Encounty/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)](https://github.com/ZSleyer/Encounty/releases)
 
-Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. It captures your game screen directly in the browser, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts — limited only by your hardware.
+Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. It captures your game screen directly in the browser, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware.
 
 ## Download
 
@@ -21,93 +21,27 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 
 ## How It Works
 
-1. The browser captures your screen, window, or camera feed per Pokemon via `getDisplayMedia` / `getUserMedia`
-2. WebGPU compute shaders run a 4-metric hybrid match (SSIM, NCC, MAD, histogram correlation) directly on the GPU — with automatic CPU fallback and buffer pooling for minimal allocation overhead
-3. Hysteresis, consecutive-hit confirmation, and a configurable cooldown prevent false positives and double-counts
-4. A confirmed match increments the encounter counter and broadcasts the result via WebSocket to the dashboard and OBS overlays
+1. Capture your game screen, window, or camera feed (one source per hunt)
+2. Encounty compares each frame against your template images on the GPU to detect encounters automatically
+3. Built-in safeguards prevent false positives and double-counts
+4. Every confirmed encounter updates your counter in real time, including any connected OBS overlays
 
 ### Features
 
-- Unlimited simultaneous multi-hunts with independent capture streams
-- Template management with single-active selection, import/export, and region-based positive/negative matching
-- Manual tracking via configurable platform-native global hotkeys (evdev on Linux, Electron globalShortcut on macOS, Win32 on Windows)
-- OBS integration via overlay editor (drag-and-drop, live preview) and text file output
-- Single-instance protection with zombie process detection
-- macOS: requires Accessibility permission (hotkeys) and Screen Recording permission (auto-detection) — prompted on first use
+- **All mainline Pokémon games** from Gen 1 (Red/Blue/Yellow) through Gen 9 (Legends Z-A) with game-specific shiny odds
+- **60+ hunt methods** including Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts, and many more
+- **Shiny Charm toggle** with accurate per-method odds for every supported game
+- **Unlimited simultaneous hunts** with independent capture streams
+- **GPU-accelerated auto-detection** via WebGPU compute shaders with automatic CPU fallback
+- **Template management** with import/export and region-based positive/negative matching
+- **Manual tracking** via configurable global hotkeys
+- **OBS integration** with drag-and-drop overlay editor, live preview, and text file output
+- **Pokédex** with sprite support and PokeAPI sync
+- **Multi-language** support for English, German, Spanish, French, and Japanese
 
 ## Contributing
 
-Pull requests are welcome — translations, features, bug fixes, or documentation.
-
-## Development
-
-### Prerequisites
-
-| Tool    | Version | Purpose             |
-|---------|---------|---------------------|
-| Go      | 1.25+   | Backend API server  |
-| Node.js | 22+     | Frontend + Electron |
-| Yarn    | any     | Package manager     |
-| Make    | any     | Build orchestration |
-
-### Architecture
-
-Encounty uses a two-process architecture:
-
-- **Go backend** (`localhost:8192`) — REST API, WebSocket hub, SQLite persistence, hotkeys, file output, and OBS overlay serving
-- **Electron** — desktop shell managing the Go process lifecycle; hosts the browser-based capture and detection engine
-
-Detection state flows unidirectionally: Go backend (in-memory + SQLite) → WebSocket → Zustand store → React UI.
-
-```text
-backend/          Go API server (REST + WebSocket)
-  internal/
-    server/       HTTP handlers, WebSocket hub, Swagger UI
-    state/        In-memory state manager
-    database/     SQLite persistence (normalized v2 schema)
-    detector/     Detection state machine (score-based)
-    hotkeys/      Platform-native global hotkeys (evdev / Win32; macOS via Electron)
-    fileoutput/   OBS text file integration
-    gamesync/     Game catalogue + PokeAPI sync
-    pokedex/      Pokedex data + GraphQL sync
-frontend/         React + TypeScript SPA (Vite, Tailwind CSS 4, Zustand)
-  src/engine/     WebGPU detection engine (WGSL compute shaders)
-  src/contexts/   CaptureService (per-Pokemon MediaStream management)
-electron/         Electron wrapper (custom protocol, process manager)
-```
-
-### Quick Start
-
-```bash
-make dev    # Starts Vite dev server (:5173) and Go backend (:8192)
-```
-
-Or manually in separate terminals:
-
-```bash
-cd backend  && go run -ldflags="-X main.version=dev" main.go --dev
-cd frontend && yarn dev
-cd electron && yarn dev    # optional
-```
-
-The Vite dev server proxies `/api` and `/ws` to the Go backend. Electron in dev mode loads from Vite and does not spawn its own Go process.
-
-### Building
-
-```bash
-make build-linux               # Linux x64 binary
-make build-windows             # Windows x64 binary
-make build-macos               # macOS arm64 binary (requires CGO)
-make electron-package-linux    # Electron AppImage (Linux x64)
-make electron-package-windows  # Electron portable exe (Windows x64)
-make electron-package-macos    # Electron DMG (macOS arm64)
-make test                      # Go + frontend tests
-make clean                     # Remove build artifacts
-```
-
-### API
-
-Swagger UI: `http://localhost:8192/swagger/`
+Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and build instructions.
 
 ## License
 
