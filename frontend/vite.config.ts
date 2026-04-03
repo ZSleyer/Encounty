@@ -85,6 +85,8 @@ export default defineConfig({
         "src/components/settings/MacPermissions.tsx",
         "src/components/detector/GpuEquivalenceTest.tsx",
         "src/utils/i18n.ts",
+        "src/locales/index.ts",
+        "src/components/backgrounds/**",
       ],
     },
   },
