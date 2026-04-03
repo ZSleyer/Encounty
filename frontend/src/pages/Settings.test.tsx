@@ -121,26 +121,8 @@ describe("Settings", () => {
 
     // All section headings should be present (h2 elements)
     const headings = screen.getAllByRole("heading", { level: 2 });
-    // Expect at least: General, Display, Output, Data, Backup, About
-    expect(headings.length).toBeGreaterThanOrEqual(6);
-  });
-
-  it("toggles auto-save via the switch", async () => {
-    const user = userEvent.setup();
-    render(<Settings />);
-
-    // Find the auto-save toggle by its switch role and aria-label
-    const switches = screen.getAllByRole("switch");
-    // auto_save defaults to true in makeAppState, so find the checked one
-    const autoSaveToggle = switches.find(
-      (s) => s.getAttribute("aria-checked") === "true",
-    );
-    expect(autoSaveToggle).toBeTruthy();
-
-    await user.click(autoSaveToggle!);
-
-    // After clicking, the switch should flip to unchecked
-    expect(autoSaveToggle!.getAttribute("aria-checked")).toBe("false");
+    // Expect at least: Display, Output, Data, Backup, About
+    expect(headings.length).toBeGreaterThanOrEqual(5);
   });
 
   it("toggles output enabled and enables the directory input", async () => {
@@ -239,7 +221,7 @@ describe("Settings", () => {
     // Search should be cleared and all sections visible again
     expect(searchInput).toHaveValue("");
     const headings = screen.getAllByRole("heading", { level: 2 });
-    expect(headings.length).toBeGreaterThanOrEqual(6);
+    expect(headings.length).toBeGreaterThanOrEqual(5);
   });
 
   it("renders theme toggle buttons with correct pressed state for dark mode", () => {
@@ -400,8 +382,8 @@ describe("Settings", () => {
 
     // Crisp sprites toggle should be in the display section
     const switches = screen.getAllByRole("switch");
-    // At least: auto_save, output_enabled, crisp_sprites, ui_animations = 4 toggles
-    expect(switches.length).toBeGreaterThanOrEqual(4);
+    // At least: output_enabled, crisp_sprites, ui_animations = 3 toggles
+    expect(switches.length).toBeGreaterThanOrEqual(3);
   });
 
   it("toggles crisp sprites setting", async () => {
@@ -622,14 +604,14 @@ describe("Settings", () => {
     render(<Settings />);
 
     // ui_animations defaults to true (via ?? true), so find checked switches
-    // that are NOT auto_save. The UI animations toggle is the last blue one.
+    // The UI animations toggle is the last checked one.
     const switches = screen.getAllByRole("switch");
-    // There are 4 switches: auto_save(true), output(false), crisp(false), animations(true)
+    // There are 3 switches: output(false), crisp(false), animations(true)
     // The last checked switch should be ui_animations
     const checkedSwitches = switches.filter(
       (s) => s.getAttribute("aria-checked") === "true",
     );
-    expect(checkedSwitches.length).toBeGreaterThanOrEqual(2);
+    expect(checkedSwitches.length).toBeGreaterThanOrEqual(1);
 
     // Click the last checked switch (ui_animations)
     const animationsToggle = checkedSwitches[checkedSwitches.length - 1];

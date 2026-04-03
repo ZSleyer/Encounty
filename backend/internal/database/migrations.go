@@ -59,6 +59,11 @@ var migrations = []migration{
 		description: "add background_animation_config column to overlay_settings",
 		fn:          migrateAddBgAnimConfig,
 	},
+	{
+		version:     9,
+		description: "force auto_save enabled for all users",
+		fn:          migrateForceAutoSave,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -237,4 +242,11 @@ func migrateAddHysteresisFactor(tx *sql.Tx) error {
 func migrateAddBgAnimConfig(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE overlay_settings ADD COLUMN background_animation_config TEXT NOT NULL DEFAULT ''`)
 	return nil
+}
+
+// migrateForceAutoSave sets auto_save to enabled for all users.
+// Auto-save is now always on and the toggle has been removed from the UI.
+func migrateForceAutoSave(tx *sql.Tx) error {
+	_, err := tx.Exec(`UPDATE settings SET auto_save = 1`)
+	return err
 }

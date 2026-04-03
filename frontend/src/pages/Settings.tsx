@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
-  Save,
   FolderOpen,
   RefreshCw,
-  Settings as SettingsIcon,
   Globe,
   Database,
   Download,
@@ -82,12 +80,6 @@ interface SectionDef {
 }
 
 const BASE_SECTIONS: SectionDef[] = [
-  {
-    id: "general",
-    titleKey: "settings.sectionGeneral",
-    icon: <SettingsIcon className="w-4 h-4 text-text-muted" />,
-    keywords: ["server", "port", "auto", "save", "speichern", "allgemein", "general"],
-  },
   {
     id: "display",
     titleKey: "settings.sectionDisplay",
@@ -228,7 +220,6 @@ export function Settings() {
   }, [
     settings?.output_enabled,
     settings?.output_dir,
-    settings?.auto_save,
     settings?.crisp_sprites,
     settings?.ui_animations,
     JSON.stringify(settings?.languages),
@@ -376,34 +367,6 @@ export function Settings() {
             <p className="text-sm text-text-muted text-center py-8">
               {t("settings.noResults")}
             </p>
-          )}
-
-          {/* ── General ──────────────────────────────────────── */}
-          {show("general") && (
-            <section className="glass-card rounded-2xl p-6 space-y-5">
-              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
-                <SettingsIcon className="w-4 h-4 text-text-muted" />
-                {t("settings.sectionGeneral")}
-              </h2>
-
-              {/* Auto-save */}
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-text-primary flex items-center gap-2">
-                    <Save className="w-3.5 h-3.5 text-accent-green" />
-                    {t("settings.autoSave")}
-                  </p>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    {t("settings.autoSaveDesc")}
-                  </p>
-                </div>
-                <Toggle
-                  enabled={settings.auto_save}
-                  onChange={() => setSettings({ ...settings, auto_save: !settings.auto_save })}
-                  label={t("settings.autoSave")}
-                />
-              </div>
-            </section>
           )}
 
           {/* ── Display ──────────────────────────────────────── */}
