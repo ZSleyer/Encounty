@@ -2067,9 +2067,8 @@ describe("App", () => {
     });
 
     // Trigger the update available callback
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "9.9.9" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "9.9.9" }); });
 
     // Update notification should appear with the version (may appear multiple times: popup + footer)
     await waitFor(() => {
@@ -2118,9 +2117,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "9.9.9" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "9.9.9" }); });
 
     await waitFor(() => {
       expect(screen.getAllByText("9.9.9").length).toBeGreaterThanOrEqual(1);
@@ -2178,9 +2176,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "5.0.0" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "5.0.0" }); });
 
     await waitFor(() => {
       expect(screen.getAllByText("5.0.0").length).toBeGreaterThanOrEqual(1);
@@ -2237,9 +2234,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "8.0.0" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "8.0.0" }); });
 
     // Dismiss the notification popup first
     await waitFor(() => {
@@ -2295,9 +2291,8 @@ describe("App", () => {
     });
 
     // Trigger update available
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "4.0.0" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "4.0.0" }); });
 
     // Click footer badge to trigger applyUpdate (Linux path = downloadUpdate)
     await waitFor(() => {
@@ -2410,9 +2405,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "3.2.1" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "3.2.1" }); });
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
@@ -2465,9 +2459,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "7.0.0" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "7.0.0" }); });
 
     await waitFor(() => {
       expect(screen.getAllByText("7.0.0").length).toBeGreaterThanOrEqual(1);
@@ -2487,9 +2480,8 @@ describe("App", () => {
     });
 
     // Now trigger an update error — should reset to idle
-    if (errorCb) {
-      act(() => { errorCb!("Download failed"); });
-    }
+    await waitFor(() => { expect(errorCb).toBeDefined(); });
+    act(() => { errorCb!("Download failed"); });
 
     // UpdateOverlay should disappear (updateState back to idle)
     await waitFor(() => {
@@ -2537,9 +2529,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "10.0.0" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "10.0.0" }); });
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
@@ -2594,9 +2585,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "11.0.0" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "11.0.0" }); });
 
     await waitFor(() => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
@@ -3170,9 +3160,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "12.0.0" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "12.0.0" }); });
 
     // Footer badge should appear but not the notification popup
     await waitFor(() => {
@@ -3271,9 +3260,8 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    if (updateAvailableCb) {
-      act(() => { updateAvailableCb!({ version: "13.0.0" }); });
-    }
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "13.0.0" }); });
 
     await waitFor(() => {
       expect(screen.getAllByText("13.0.0").length).toBeGreaterThanOrEqual(1);

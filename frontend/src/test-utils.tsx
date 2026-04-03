@@ -146,7 +146,7 @@ export function makePokemon(overrides?: Partial<Pokemon>): Pokemon {
     is_active: true,
     created_at: "2024-01-01T00:00:00Z",
     language: "de",
-    game: "red",
+    game: "pokemon-scarlet",
     overlay_mode: "default",
     ...overrides,
   };
@@ -162,7 +162,7 @@ export function makeAppState(overrides?: Partial<AppState>): AppState {
       canonical_name: "charmander",
       encounters: 7,
       is_active: false,
-      game: "blue",
+      game: "pokemon-violet",
     }),
   ];
   return {
