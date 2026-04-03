@@ -40,8 +40,8 @@ body:
       label: Platform
       options:
         - Linux (Wayland)
-        - macOS (Tahoe)
-        - Windows (11)
+        - macOS (26+)
+        - Windows (11+)
     validations:
       required: true
   - type: input

@@ -16,6 +16,7 @@ import {
   Moon,
   Bot,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
 
 import { useCounterStore } from "../hooks/useCounterState";
@@ -150,6 +151,7 @@ export function Settings() {
   const [search, setSearch] = useState("");
   const [licensesOpen, setLicensesOpen] = useState(false);
   const [dataSourcesOpen, setDataSourcesOpen] = useState(false);
+  const [trademarkOpen, setTrademarkOpen] = useState(false);
   const [licenses, setLicenses] = useState<LicenseEntry[]>([]);
   const [expandedLicense, setExpandedLicense] = useState<string | null>(null);
   const [showLicenseDialog, setShowLicenseDialog] = useState(false);
@@ -891,6 +893,26 @@ export function Settings() {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {/* Trademark Notice */}
+              <button
+                onClick={() => setTrademarkOpen(!trademarkOpen)}
+                className="w-full flex items-center justify-between py-1"
+              >
+                <span className="text-sm text-text-primary flex items-center gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-text-muted" />
+                  {t("licenses.trademarkTitle")}
+                </span>
+                <ChevronDown
+                  className={`w-4 h-4 text-text-muted transition-transform duration-200 ${trademarkOpen ? "rotate-180" : ""}`}
+                />
+              </button>
+
+              {trademarkOpen && (
+                <p className="text-xs text-text-muted leading-relaxed">
+                  {t("licenses.trademark")}
+                </p>
               )}
             </section>
           )}

@@ -584,6 +584,8 @@
   "licenses.project": "Encounty steht unter der",
   "licenses.dataSources": "Datenquellen & APIs",
   "licenses.dataSourcesDesc": "Encounty verwendet folgende externe Datenquellen für Pokémon-Sprites und -Daten:",
+  "licenses.trademarkTitle": "Markenrechtshinweis",
+  "licenses.trademark": "Encounty ist eine inoffizielle Fan-Anwendung und steht in keiner Verbindung zu Nintendo, Creatures Inc., GAME FREAK inc. oder The Pokémon Company und wird von diesen weder unterstützt noch genehmigt. Pokémon und alle zugehörigen Marken und Urheberrechte sind Eigentum ihrer jeweiligen Inhaber.",
   "settings.search": "Einstellungen durchsuchen…",
   "settings.noResults": "Keine Einstellungen gefunden",
   "settings.sectionDisplay": "Darstellung",

@@ -585,6 +585,8 @@
   "licenses.project": "Encounty est licence sous la",
   "licenses.dataSources": "Sources de donnees & APIs",
   "licenses.dataSourcesDesc": "Encounty utilise les sources de donnees externes suivantes pour les sprites et donnees Pokemon :",
+  "licenses.trademarkTitle": "Avis relatif aux marques",
+  "licenses.trademark": "Encounty est une application non officielle créée par des fans. Elle n'est ni affiliée, ni approuvée, ni liée à Nintendo, Creatures Inc., GAME FREAK inc. ou The Pokémon Company. Pokémon et toutes les marques et droits d'auteur associés sont la propriété de leurs détenteurs respectifs.",
   "settings.search": "Rechercher dans les parametres...",
   "settings.noResults": "Aucun parametre trouve",
   "settings.sectionDisplay": "Affichage",

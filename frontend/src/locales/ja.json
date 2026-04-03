@@ -585,6 +585,8 @@
   "licenses.project": "Encountyは以下のライセンスの下で提供されています：",
   "licenses.dataSources": "データソースとAPI",
   "licenses.dataSourcesDesc": "Encountyはポケモンのスプライトとデータに以下の外部データソースを使用しています：",
+  "licenses.trademarkTitle": "商標に関する通知",
+  "licenses.trademark": "Encountyは非公式のファンメイドアプリケーションであり、Nintendo、Creatures Inc.、GAME FREAK inc.、The Pokémon Companyとは一切関係がなく、これらの企業による承認・提携もありません。Pokémonおよび関連するすべての商標と著作権は、それぞれの権利者に帰属します。",
   "settings.search": "設定を検索...",
   "settings.noResults": "設定が見つかりません",
   "settings.sectionDisplay": "表示",

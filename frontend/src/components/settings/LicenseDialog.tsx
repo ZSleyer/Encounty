@@ -101,6 +101,13 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
           </div>
         </div>
 
+        {/* Trademark disclaimer */}
+        <div className="px-8 pb-2 shrink-0">
+          <p className="text-[10px] text-text-faint leading-relaxed">
+            {t("licenses.trademark")}
+          </p>
+        </div>
+
         {/* Scrollable full original license text */}
         <div className="px-8 flex-1 min-h-0 overflow-hidden relative">
           <div
