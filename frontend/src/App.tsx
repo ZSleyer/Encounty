@@ -157,44 +157,63 @@ function AppShell() {
       .catch(() => setBuildInfo("Encounty"));
   }, []);
 
+  // --- Update check ---
+  // Linux Electron: electron-updater handles updates via AppImage IPC.
+  // Windows/macOS Electron + browser: check via Go backend REST API.
   useEffect(() => {
-    if (!globalThis.electronAPI) return;
-
-    const cleanupAvailable = globalThis.electronAPI.onUpdateAvailable((info) => {
-      setUpdateInfo({
-        available: true,
-        latest_version: info.version,
-        download_url: `https://github.com/ZSleyer/Encounty/releases/tag/v${info.version}`,
+    if (globalThis.electronAPI?.platform === "linux") {
+      const cleanupAvailable = globalThis.electronAPI.onUpdateAvailable((info) => {
+        setUpdateInfo({
+          available: true,
+          latest_version: info.version,
+          download_url: `https://github.com/ZSleyer/Encounty/releases/tag/v${info.version}`,
+        });
+        if (!sessionStorage.getItem("update_dismissed")) {
+          setShowUpdateNotification(true);
+        }
       });
-      if (!sessionStorage.getItem("update_dismissed")) {
-        setShowUpdateNotification(true);
-      }
-    });
 
-    const cleanupProgress = globalThis.electronAPI.onUpdateProgress(() => {
-      // Progress updates received but not currently displayed
-    });
+      const cleanupProgress = globalThis.electronAPI.onUpdateProgress(() => {
+        // Progress updates received but not currently displayed
+      });
 
-    const cleanupDownloaded = globalThis.electronAPI.onUpdateDownloaded(() => {
-      // Auto-install on Linux AppImage (electron-updater replaces the binary).
-      // Windows portable and macOS DMG: user downloads manually from GitHub.
-      if (globalThis.electronAPI!.platform === "linux") {
+      const cleanupDownloaded = globalThis.electronAPI.onUpdateDownloaded(() => {
         globalThis.electronAPI!.installUpdate();
         setUpdateState("restarting");
-      }
-    });
+      });
 
-    const cleanupError = globalThis.electronAPI.onUpdateError((message) => {
-      console.error("[Update] Error:", message);
-      setUpdateState("idle");
-    });
+      const cleanupError = globalThis.electronAPI.onUpdateError((message) => {
+        console.error("[Update] Error:", message);
+        setUpdateState("idle");
+      });
 
-    return () => {
-      cleanupAvailable();
-      cleanupProgress();
-      cleanupDownloaded();
-      cleanupError();
-    };
+      return () => {
+        cleanupAvailable();
+        cleanupProgress();
+        cleanupDownloaded();
+        cleanupError();
+      };
+    }
+
+    // Windows/macOS Electron or browser: check via backend REST API
+    const timer = setTimeout(() => {
+      fetch(apiUrl("/api/update/check"))
+        .then((r) => r.json())
+        .then((d: { available: boolean; latest_version: string }) => {
+          if (d.available) {
+            setUpdateInfo({
+              available: true,
+              latest_version: d.latest_version,
+              download_url: `https://github.com/ZSleyer/Encounty/releases/tag/${d.latest_version}`,
+            });
+            if (!sessionStorage.getItem("update_dismissed")) {
+              setShowUpdateNotification(true);
+            }
+          }
+        })
+        .catch(() => {});
+    }, 5000);
+    return () => clearTimeout(timer);
   }, []);
 
   const applyUpdate = async () => {

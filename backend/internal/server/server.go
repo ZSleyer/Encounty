@@ -24,6 +24,7 @@ import (
 	detectorhandler "github.com/zsleyer/encounty/backend/internal/server/handler/detector"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/games"
 	permissionshandler "github.com/zsleyer/encounty/backend/internal/server/handler/permissions"
+	updatehandler "github.com/zsleyer/encounty/backend/internal/server/handler/update"
 	pokemonhandler "github.com/zsleyer/encounty/backend/internal/server/handler/pokemon"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/settings"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/stats"
@@ -113,6 +114,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	system.RegisterRoutes(mux, s)
 	detectorhandler.RegisterRoutes(mux, s)
 	permissionshandler.RegisterRoutes(mux, s)
+	updatehandler.RegisterRoutes(mux, s)
 	mux.Handle("/swagger/", swaggerHandler())
 
 	if s.frontendDir != "" {

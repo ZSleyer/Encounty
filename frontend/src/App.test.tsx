@@ -2163,13 +2163,11 @@ describe("App", () => {
   // --- Update now button on win32/darwin opens external link ---
 
   it("opens GitHub release page when update now clicked on macOS", async () => {
-    mockAcceptedState();
     vi.stubGlobal("sessionStorage", {
       getItem: () => null,
       setItem: vi.fn(),
     });
 
-    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
     const mockOpen = vi.fn();
     vi.stubGlobal("open", mockOpen);
 
@@ -2177,14 +2175,45 @@ describe("App", () => {
       platform: "darwin",
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
-      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
-        updateAvailableCb = cb;
-        return () => {};
-      }),
+      onUpdateAvailable: vi.fn(() => () => {}),
       onUpdateProgress: vi.fn(() => () => {}),
       onUpdateDownloaded: vi.fn(() => () => {}),
       onUpdateError: vi.fn(() => () => {}),
     };
+
+    // macOS uses the REST API path for update checks
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: true }),
+        });
+      }
+      if (url === "/api/state") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            license_accepted: true,
+            pokemon: [],
+            settings: {},
+            hotkeys: {},
+          }),
+        });
+      }
+      if (url === "/api/version") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ display: "v0.8.0-abc", build_date: "01.01.26" }),
+        });
+      }
+      if (url === "/api/update/check") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ available: true, latest_version: "v5.0.0" }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
 
     render(
       <BrowserRouter>
@@ -2193,16 +2222,8 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const links = screen.getAllByRole("link");
-      expect(links.length).toBeGreaterThan(0);
-    });
-
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "5.0.0" }); });
-
-    await waitFor(() => {
-      expect(screen.getAllByText("5.0.0").length).toBeGreaterThanOrEqual(1);
-    });
+      expect(screen.getAllByText("v5.0.0").length).toBeGreaterThanOrEqual(1);
+    }, { timeout: 8000 });
 
     // Click the "Download" / "Herunterladen" button (macOS manual download)
     const updateBtn = screen.getByText(/Herunterladen/i);
@@ -2217,7 +2238,7 @@ describe("App", () => {
     });
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
-  });
+  }, 10000);
 
   // --- Footer update badge renders and triggers applyUpdate ---
 
@@ -2572,13 +2593,11 @@ describe("App", () => {
   // --- Update on Windows opens external link ---
 
   it("opens GitHub release page when update now clicked on Windows", async () => {
-    mockAcceptedState();
     vi.stubGlobal("sessionStorage", {
       getItem: () => null,
       setItem: vi.fn(),
     });
 
-    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
     const mockOpen = vi.fn();
     vi.stubGlobal("open", mockOpen);
 
@@ -2586,14 +2605,45 @@ describe("App", () => {
       platform: "win32",
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
-      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
-        updateAvailableCb = cb;
-        return () => {};
-      }),
+      onUpdateAvailable: vi.fn(() => () => {}),
       onUpdateProgress: vi.fn(() => () => {}),
       onUpdateDownloaded: vi.fn(() => () => {}),
       onUpdateError: vi.fn(() => () => {}),
     };
+
+    // Windows uses the REST API path for update checks
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: true }),
+        });
+      }
+      if (url === "/api/state") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            license_accepted: true,
+            pokemon: [],
+            settings: {},
+            hotkeys: {},
+          }),
+        });
+      }
+      if (url === "/api/version") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ display: "v0.8.0-abc", build_date: "01.01.26" }),
+        });
+      }
+      if (url === "/api/update/check") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ available: true, latest_version: "v11.0.0" }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
 
     render(
       <BrowserRouter>
@@ -2602,16 +2652,8 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      const links = screen.getAllByRole("link");
-      expect(links.length).toBeGreaterThan(0);
-    });
-
-    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
-    act(() => { updateAvailableCb!({ version: "11.0.0" }); });
-
-    await waitFor(() => {
       expect(screen.getByRole("alert")).toBeInTheDocument();
-    });
+    }, { timeout: 8000 });
 
     // Click the download button (Windows = manual download)
     const downloadBtn = screen.getByText(/Herunterladen/i);
@@ -2625,7 +2667,7 @@ describe("App", () => {
     });
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
-  });
+  }, 10000);
 
   // --- WebSocket message handlers ---
 
@@ -3923,4 +3965,154 @@ describe("App", () => {
       expect(document.documentElement.classList.contains("animations-disabled")).toBe(false);
     });
   });
+
+  // --- REST API update check for Windows/macOS ---
+
+  it("shows update notification via REST API when no electronAPI is present", async () => {
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+
+    // Use a short delay: mock setTimeout to fire the update check immediately
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: true }),
+        });
+      }
+      if (url === "/api/state") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            license_accepted: true,
+            pokemon: [],
+            settings: {},
+            hotkeys: {},
+          }),
+        });
+      }
+      if (url === "/api/version") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ display: "v0.8.0-abc", build_date: "01.01.26" }),
+        });
+      }
+      if (url === "/api/update/check") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ available: true, latest_version: "v0.9.0" }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    // Wait for update notification to appear (5s delay + fetch resolution)
+    await waitFor(() => {
+      expect(screen.getAllByText("v0.9.0").length).toBeGreaterThanOrEqual(1);
+    }, { timeout: 8000 });
+  }, 10000);
+
+  it("does not show update notification via REST API when not available", async () => {
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: true }),
+        });
+      }
+      if (url === "/api/state") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            license_accepted: true,
+            pokemon: [],
+            settings: {},
+            hotkeys: {},
+          }),
+        });
+      }
+      if (url === "/api/version") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ display: "v0.8.0-abc", build_date: "01.01.26" }),
+        });
+      }
+      if (url === "/api/update/check") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ available: false, latest_version: "v0.8.0" }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    // Wait for the update check to complete (5s + fetch)
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith("/api/update/check");
+    }, { timeout: 8000 });
+
+    // No update notification should appear
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  }, 10000);
+
+  it("handles REST API update check failure gracefully", async () => {
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+
+    mockFetch.mockImplementation((url: string) => {
+      if (url === "/api/status/ready") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ ready: true }),
+        });
+      }
+      if (url === "/api/state") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            license_accepted: true,
+            pokemon: [],
+            settings: {},
+            hotkeys: {},
+          }),
+        });
+      }
+      if (url === "/api/version") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ display: "v0.8.0-abc", build_date: "01.01.26" }),
+        });
+      }
+      if (url === "/api/update/check") {
+        return Promise.reject(new Error("Network error"));
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    // Wait for the update check to have been attempted
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith("/api/update/check");
+    }, { timeout: 8000 });
+
+    // No crash, no notification
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  }, 10000);
 });
