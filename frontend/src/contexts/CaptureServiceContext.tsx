@@ -131,14 +131,46 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     if (!navigator.mediaDevices?.getDisplayMedia) {
       throw new Error("getDisplayMedia not available. Ensure context is secure (HTTPS/localhost).");
     }
-    // In Electron with a pre-selected source, tell main process first
-    if (sourceId && globalThis.electronAPI) {
-      await globalThis.electronAPI.selectCaptureSource(sourceId);
+
+    const isElectron = !!globalThis.electronAPI;
+
+    // In Electron with a pre-selected source, tell main process and WAIT for
+    // the IPC to complete so pendingSourceId is set before getDisplayMedia
+    // triggers the handler. Electron's setDisplayMediaRequestHandler does not
+    // require a user gesture, so awaiting is safe here.
+    if (sourceId && isElectron) {
+      await globalThis.electronAPI!.selectCaptureSource(sourceId);
     }
-    return navigator.mediaDevices.getDisplayMedia({
-      video: { displaySurface: "window" },
-      audio: false,
-    });
+
+    try {
+      return await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+    } catch (err) {
+      // Electron ≥41.1 regression: desktopCapturer source IDs may produce
+      // OverconstrainedError on deviceId. Fall back to the native system
+      // picker (macOS/Windows) automatically. Linux/Wayland already uses
+      // the system picker and never reaches this code path.
+      const isOverconstrained = err instanceof Error && err.name === "OverconstrainedError";
+
+      if (isOverconstrained && isElectron) {
+        console.warn("[CaptureService] OverconstrainedError — falling back to system picker");
+        await globalThis.electronAPI!.setSystemPicker(true);
+        try {
+          const stream = await navigator.mediaDevices.getDisplayMedia({
+            video: true,
+            audio: false,
+          });
+          globalThis.electronAPI!.setSystemPicker(false);
+          return stream;
+        } catch (retryErr) {
+          globalThis.electronAPI!.setSystemPicker(false);
+          throw retryErr;
+        }
+      }
+      throw err;
+    }
   };
 
   /** Acquire a stream from a local dev video file. Throws if sourceId is missing. */

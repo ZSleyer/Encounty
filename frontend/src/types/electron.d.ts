@@ -20,6 +20,7 @@ interface ElectronAPI {
   onMaximizedChange(callback: (maximized: boolean) => void): () => void;
   getCaptureSources(): Promise<CaptureSource[]>;
   selectCaptureSource(sourceId: string): Promise<void>;
+  setSystemPicker(enabled: boolean): Promise<void>;
   requestCameraAccess(): Promise<boolean>;
   getPermissionStatus(): Promise<{ accessibility: boolean; screen_recording: boolean }>;
   requestPermission(permission: string): Promise<void>;

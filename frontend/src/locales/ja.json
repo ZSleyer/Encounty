@@ -474,6 +474,8 @@
   "detector.errSaveFailed": "Templateの保存に失敗しました。",
   "detector.errTemplateNotFound": "Templateが見つかりません",
   "detector.errNetworkFailed": "ネットワークエラー – バックエンドに接続できません",
+  "detector.errNoSource": "ソースが接続されていません – 先にキャプチャソースを接続してください。",
+  "detector.errNoTemplates": "Templateがありません – 先にTemplateを作成してください。",
   "detector.errDismiss": "クリックして閉じる",
   "detector.logTitle": "検出ログ",
   "detector.noLogEntries": "まだ検出はありません",

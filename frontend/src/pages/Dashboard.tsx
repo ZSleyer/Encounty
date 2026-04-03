@@ -59,6 +59,7 @@ import { useWebSocket } from "../hooks/useWebSocket";
 import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry, AppState } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { useCaptureService } from "../contexts/CaptureServiceContext";
+import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
@@ -1064,6 +1065,7 @@ function HeaderHuntButton({
   clearDetectorStatus: (id: string) => void;
 }>) {
   const { t } = useI18n();
+  const { push: pushToast } = useToast();
   const timerRunning = !!pokemon.timer_started_at;
   const detRunning = !!detectorStatus[pokemon.id] || isLoopRunning(pokemon.id);
   const detReady = hasDetectorReady(pokemon);
@@ -1081,6 +1083,20 @@ function HeaderHuntButton({
       stopDetectionForPokemon(pokemon.id);
       clearDetectorStatus(pokemon.id);
     } else {
+      const needsDetector = huntMode !== "timer";
+
+      // Block start if detection is required but prerequisites are missing
+      if (needsDetector) {
+        if (!hasDetectorReady(pokemon)) {
+          pushToast({ type: "error", title: t("detector.errNoTemplates") });
+          return;
+        }
+        if (!capture.isCapturing(pokemon.id)) {
+          pushToast({ type: "error", title: t("detector.errNoSource") });
+          return;
+        }
+      }
+
       if (huntMode !== "detector" && !pokemon.timer_started_at) send("timer_start", { pokemon_id: pokemon.id });
       if (canStartDetector(pokemon, detectorStatus, capture)) {
         tryStartDetection(pokemon, capture, setDetectorStatus);

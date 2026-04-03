@@ -473,6 +473,8 @@
   "detector.errSaveFailed": "Failed to save template.",
   "detector.errTemplateNotFound": "Template not found",
   "detector.errNetworkFailed": "Network error – backend unreachable",
+  "detector.errNoSource": "No source connected – please connect a capture source first.",
+  "detector.errNoTemplates": "No templates configured – please create a template first.",
   "detector.errDismiss": "Click to dismiss",
   "detector.logTitle": "Detection Log",
   "detector.noLogEntries": "No detections yet",

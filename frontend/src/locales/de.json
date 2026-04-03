@@ -473,6 +473,8 @@
   "detector.errSaveFailed": "Template konnte nicht gespeichert werden.",
   "detector.errTemplateNotFound": "Template nicht gefunden",
   "detector.errNetworkFailed": "Netzwerkfehler – Backend nicht erreichbar",
+  "detector.errNoSource": "Keine Quelle verbunden – bitte zuerst eine Capture-Quelle verbinden.",
+  "detector.errNoTemplates": "Keine Templates vorhanden – bitte zuerst ein Template erstellen.",
   "detector.errDismiss": "Klicken zum Schließen",
   "detector.logTitle": "Erkennungs-Verlauf",
   "detector.noLogEntries": "Noch keine Erkennungen",

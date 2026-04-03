@@ -202,7 +202,7 @@ export function DetectorPanel({
         return capture.startCapture(pokemon.id, sourceType);
       }
 
-      // In Electron for display capture (non-Wayland), or always for camera, show the source picker
+      // In Electron for display capture, or always for camera, show the source picker
       if ((sourceType === "browser_display" && isElectron) || sourceType === "browser_camera") {
         setShowSourcePicker(true);
         return Promise.resolve();
@@ -225,9 +225,11 @@ export function DetectorPanel({
   /** Handle a source selection from the SourcePickerModal. */
   const handleSourceSelected = useCallback((source: SelectedSource) => {
     setShowSourcePicker(false);
-    const st = cfg.source_type as "browser_display" | "browser_camera";
+    // Derive source type from the SelectedSource itself — cfg.source_type may
+    // be empty or a legacy value that doesn't match the CaptureSourceType union.
+    const st = source.type === "camera" ? "browser_camera" : "browser_display";
     capture.startCapture(pokemon.id, st, source.sourceId, source.label, source.stream);
-  }, [capture, pokemon.id, cfg.source_type]);
+  }, [capture, pokemon.id]);
 
   /** Disconnect the capture source. If a hunt is active, show a confirmation modal first. */
   const handleDisconnect = useCallback(() => {

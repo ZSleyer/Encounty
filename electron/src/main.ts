@@ -459,6 +459,11 @@ ipcMain.handle('update:install', () => {
 });
 
 // Capture source enumeration — returns screens and windows with thumbnails
+// Also caches the raw DesktopCapturerSource objects for reuse in the display
+// media handler, avoiding a second getSources() call whose IDs may not resolve
+// correctly in Electron ≥41.1 (OverconstrainedError on deviceId).
+let cachedCaptureSources: Electron.DesktopCapturerSource[] = [];
+
 ipcMain.handle('capture:get-sources', async () => {
   if (isWayland) {
     console.log('[Electron] capture:get-sources skipped on Wayland');
@@ -477,6 +482,7 @@ ipcMain.handle('capture:get-sources', async () => {
     types: ['screen', 'window'],
     thumbnailSize: { width: 320, height: 180 },
   });
+  cachedCaptureSources = sources;
   return sources.map(s => ({
     id: s.id,
     name: s.name,
@@ -712,11 +718,19 @@ app.on('ready', async () => {
   // triggers the PipeWire portal once per call, which is fine here (only called
   // when the user actually clicks Connect). The repeated thumbnail polling
   // (capture:get-sources IPC) is already guarded to skip on Wayland.
-  session.defaultSession.setDisplayMediaRequestHandler(async (_request, callback) => {
-    console.log('[Electron] setDisplayMediaRequestHandler invoked, isWayland:', isWayland, 'pendingSourceId:', pendingSourceId);
+  // Uses cachedCaptureSources from the SourcePickerModal's thumbnail fetch to
+  // avoid a second getSources() call that may produce stale/invalid source IDs
+  // in Electron ≥41.1. Falls back to a fresh query if cache is empty.
+  const displayMediaHandler: Parameters<typeof session.defaultSession.setDisplayMediaRequestHandler>[0] = async (_request, callback) => {
+    console.log('[Electron] setDisplayMediaRequestHandler invoked, isWayland:', isWayland, 'pendingSourceId:', pendingSourceId, 'cached:', cachedCaptureSources.length);
     try {
-      const sources = await desktopCapturer.getSources({ types: ['screen', 'window'] });
-      console.log('[Electron] desktopCapturer returned', sources.length, 'sources');
+      // Prefer cached sources from the SourcePickerModal's thumbnail fetch —
+      // the same objects that Chromium's device enumeration already knows about.
+      const sources = cachedCaptureSources.length > 0
+        ? cachedCaptureSources
+        : await desktopCapturer.getSources({ types: ['screen', 'window'] });
+      console.log('[Electron] Using', sources.length, 'sources (cached:', cachedCaptureSources.length > 0, ')');
+
       if (!sources.length) {
         // @ts-expect-error -- calling with no args denies the request
         callback();
@@ -739,6 +753,18 @@ app.on('ready', async () => {
       // @ts-expect-error -- calling with no args denies the request
       callback();
     }
+  };
+
+  session.defaultSession.setDisplayMediaRequestHandler(displayMediaHandler);
+
+  // Allow the renderer to dynamically switch to the macOS system picker
+  // as a fallback when the custom handler produces OverconstrainedError.
+  ipcMain.handle('capture:set-system-picker', (_e: Electron.IpcMainInvokeEvent, enabled: boolean) => {
+    console.log('[Electron] capture:set-system-picker:', enabled);
+    session.defaultSession.setDisplayMediaRequestHandler(
+      displayMediaHandler,
+      { useSystemPicker: enabled },
+    );
   });
 
   await startApp();

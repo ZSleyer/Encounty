@@ -3103,9 +3103,9 @@ describe("Dashboard header hunt button interactions", () => {
     mockSend.mockReset();
   });
 
-  it("starts hunt in both mode (sends timer_start)", async () => {
+  it("starts hunt in timer mode (sends timer_start)", async () => {
     const user = userEvent.setup();
-    const pokemon = makePokemon({ id: "p1", hunt_mode: "both" });
+    const pokemon = makePokemon({ id: "p1", hunt_mode: "timer" });
 
     useCounterStore.setState({
       appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),

@@ -474,6 +474,8 @@
   "detector.errSaveFailed": "Echec de l'enregistrement du template.",
   "detector.errTemplateNotFound": "Template introuvable",
   "detector.errNetworkFailed": "Erreur reseau – backend inaccessible",
+  "detector.errNoSource": "Aucune source connectée – veuillez d'abord connecter une source de capture.",
+  "detector.errNoTemplates": "Aucun template – veuillez d'abord créer un template.",
   "detector.errDismiss": "Cliquez pour fermer",
   "detector.logTitle": "Journal de detection",
   "detector.noLogEntries": "Pas encore de detections",

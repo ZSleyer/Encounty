@@ -474,6 +474,8 @@
   "detector.errSaveFailed": "Error al guardar el template.",
   "detector.errTemplateNotFound": "Template no encontrado",
   "detector.errNetworkFailed": "Error de red – backend inaccesible",
+  "detector.errNoSource": "Sin fuente conectada – conecte una fuente de captura primero.",
+  "detector.errNoTemplates": "Sin templates – cree un template primero.",
   "detector.errDismiss": "Clic para cerrar",
   "detector.logTitle": "Registro de deteccion",
   "detector.noLogEntries": "Aun no hay detecciones",

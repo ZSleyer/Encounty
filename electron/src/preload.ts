@@ -65,6 +65,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('capture:select-source', sourceId);
   },
 
+  setSystemPicker(enabled: boolean): Promise<void> {
+    return ipcRenderer.invoke('capture:set-system-picker', enabled);
+  },
+
   requestCameraAccess(): Promise<boolean> {
     return ipcRenderer.invoke('camera:request-access');
   },
