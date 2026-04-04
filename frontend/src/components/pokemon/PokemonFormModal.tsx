@@ -46,7 +46,7 @@ export interface NewPokemonData {
   language: string;
   game: string;
   hunt_type: string;
-  shiny_charm?: boolean;
+  shiny_charm: boolean;
   step?: number;
 }
 
@@ -61,7 +61,7 @@ export interface ExistingPokemonData {
   language: string;
   game: string;
   hunt_type?: string;
-  shiny_charm?: boolean;
+  shiny_charm: boolean;
   step?: number;
 }
 
@@ -474,7 +474,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       language,
       game: selectedGame,
       hunt_type: huntType,
-      shiny_charm: shinyCharm || undefined,
+      shiny_charm: shinyCharm,
       step: isEdit && step > 1 ? step : undefined,
     };
     submitByMode(props, data);

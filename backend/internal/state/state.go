@@ -603,6 +603,8 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	}
 	// Always update HuntMode (allow clearing to "" which means "both")
 	dst.HuntMode = update.HuntMode
+	// Always update ShinyCharm (bool zero-value = false is a valid state)
+	dst.ShinyCharm = update.ShinyCharm
 }
 
 // applyOverlayUpdate handles overlay and overlay-mode changes, clearing the

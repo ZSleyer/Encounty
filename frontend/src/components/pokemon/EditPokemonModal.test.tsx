@@ -31,6 +31,7 @@ const pokemonFixture = {
   sprite_type: "normal" as const,
   language: "de",
   game: "red",
+  shiny_charm: false,
 };
 
 describe("EditPokemonModal", () => {

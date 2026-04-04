@@ -39,6 +39,7 @@ const GAMES_DATA = [
   { key: "red", names: { de: "Rot", en: "Red" }, generation: 1, platform: "gb" },
   { key: "gold", names: { de: "Gold", en: "Gold" }, generation: 2, platform: "gbc" },
   { key: "sword", names: { de: "Schwert", en: "Sword" }, generation: 8, platform: "switch" },
+  { key: "pokemon-x", names: { de: "X", en: "X" }, generation: 6, platform: "3ds" },
 ];
 
 /** Creates a fetch mock that returns pokedex and games data */
@@ -68,6 +69,7 @@ const basePokemon: ExistingPokemonData = {
   sprite_type: "shiny",
   language: "de",
   game: "red",
+  shiny_charm: false,
 };
 
 describe("PokemonFormModal", () => {
@@ -412,6 +414,129 @@ describe("PokemonFormModal", () => {
         const stepInput = screen.getByRole("spinbutton");
         expect(stepInput).toHaveValue(3);
       });
+    });
+  });
+
+  describe("shiny charm toggle in edit mode", () => {
+    const charmPokemon: ExistingPokemonData = {
+      ...basePokemon,
+      game: "pokemon-x",
+      shiny_charm: false,
+    };
+
+    it("reflects the pokemon's current shiny_charm value (unchecked)", async () => {
+      render(
+        <PokemonFormModal
+          mode="edit"
+          pokemon={charmPokemon}
+          onSubmit={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText("#bulbasaur")).toBeInTheDocument());
+
+      const checkbox = document.getElementById("shiny-charm-toggle") as HTMLInputElement;
+      expect(checkbox).toBeInTheDocument();
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it("reflects the pokemon's current shiny_charm value (checked)", async () => {
+      render(
+        <PokemonFormModal
+          mode="edit"
+          pokemon={{ ...charmPokemon, shiny_charm: true }}
+          onSubmit={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText("#bulbasaur")).toBeInTheDocument());
+
+      const checkbox = document.getElementById("shiny-charm-toggle") as HTMLInputElement;
+      expect(checkbox).toBeInTheDocument();
+      expect(checkbox.checked).toBe(true);
+    });
+
+    it("can toggle the shiny charm checkbox", async () => {
+      render(
+        <PokemonFormModal
+          mode="edit"
+          pokemon={charmPokemon}
+          onSubmit={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText("#bulbasaur")).toBeInTheDocument());
+
+      const checkbox = document.getElementById("shiny-charm-toggle") as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+
+      await userEvent.click(checkbox);
+      expect(checkbox.checked).toBe(true);
+
+      await userEvent.click(checkbox);
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it("submits shiny_charm: false explicitly (not undefined) when unchecked", async () => {
+      const onSubmit = vi.fn();
+      render(
+        <PokemonFormModal
+          mode="edit"
+          pokemon={charmPokemon}
+          onSubmit={onSubmit}
+          onClose={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText("#bulbasaur")).toBeInTheDocument());
+
+      // Verify the checkbox is unchecked
+      const checkbox = document.getElementById("shiny-charm-toggle") as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+
+      // Submit the form
+      const saveBtn = screen.getAllByRole("button").find(
+        (b) => (/save|speichern/i).exec(b.textContent ?? ""),
+      );
+      await userEvent.click(saveBtn!);
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      const submittedData = onSubmit.mock.calls[0][1];
+      expect(submittedData.shiny_charm).toBe(false);
+      // Ensure the value is explicitly false, not undefined
+      expect("shiny_charm" in submittedData).toBe(true);
+    });
+
+    it("submits shiny_charm: true when toggled on", async () => {
+      const onSubmit = vi.fn();
+      render(
+        <PokemonFormModal
+          mode="edit"
+          pokemon={charmPokemon}
+          onSubmit={onSubmit}
+          onClose={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText("#bulbasaur")).toBeInTheDocument());
+
+      // Toggle shiny charm on
+      const checkbox = document.getElementById("shiny-charm-toggle") as HTMLInputElement;
+      await userEvent.click(checkbox);
+      expect(checkbox.checked).toBe(true);
+
+      // Submit the form
+      const saveBtn = screen.getAllByRole("button").find(
+        (b) => (/save|speichern/i).exec(b.textContent ?? ""),
+      );
+      await userEvent.click(saveBtn!);
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      const submittedData = onSubmit.mock.calls[0][1];
+      expect(submittedData.shiny_charm).toBe(true);
     });
   });
 

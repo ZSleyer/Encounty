@@ -657,6 +657,37 @@ func TestUpdatePokemonCanonicalName(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// applyBasicFields: ShinyCharm (bool zero-value is a valid state)
+// ---------------------------------------------------------------------------
+
+func TestUpdatePokemonShinyCharm(t *testing.T) {
+	m := NewManager(t.TempDir())
+	p := makePokemon("p1", "Pikachu")
+	p.ShinyCharm = false
+	m.AddPokemon(p)
+
+	// Enable ShinyCharm
+	ok := m.UpdatePokemon("p1", Pokemon{ShinyCharm: true})
+	if !ok {
+		t.Fatal(errUpdatePokemonFalse)
+	}
+	st := m.GetState()
+	if !st.Pokemon[0].ShinyCharm {
+		t.Error("ShinyCharm should be true after enabling")
+	}
+
+	// Disable ShinyCharm (bool zero-value must still be applied)
+	ok = m.UpdatePokemon("p1", Pokemon{ShinyCharm: false})
+	if !ok {
+		t.Fatal(errUpdatePokemonFalse)
+	}
+	st = m.GetState()
+	if st.Pokemon[0].ShinyCharm {
+		t.Error("ShinyCharm should be false after disabling")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Timer accumulation across start/stop cycles
 // ---------------------------------------------------------------------------
 
