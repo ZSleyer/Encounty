@@ -457,7 +457,9 @@ function AppShell() {
       )}
       {!isOverlay && location.pathname !== "/overlay-editor" && (
         <div className="switch-waves-container">
-          {appState?.settings.ui_animations !== false ? (
+          {appState?.settings.ui_animations === false ? (
+            <div className="static-bg-overlay" />
+          ) : (
             <ErrorBoundary fallbackMessage="">
               <Suspense fallback={null}>
                 <PixelBlast
@@ -470,8 +472,6 @@ function AppShell() {
                 />
               </Suspense>
             </ErrorBoundary>
-          ) : (
-            <div className="static-bg-overlay" />
           )}
         </div>
       )}

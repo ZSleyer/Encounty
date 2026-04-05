@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 
 import { useCounterStore } from "../hooks/useCounterState";
-import { Settings as SettingsType } from "../types";
+import { AppState, Settings as SettingsType } from "../types";
 import { ALL_LANGUAGES } from "../utils/games";
 import { useI18n } from "../contexts/I18nContext";
 import { useTheme } from "../contexts/ThemeContext";
@@ -29,6 +29,7 @@ import { CountryFlag } from "../components/shared/CountryFlag";
 import { LicenseDialog } from "../components/settings/LicenseDialog";
 import { MacPermissions } from "../components/settings/MacPermissions";
 import { LOCALES } from "../utils/i18n";
+import type { Locale } from "../locales";
 import { apiUrl } from "../utils/api";
 
 // --- Licenses types ----------------------------------------------------------
@@ -134,6 +135,374 @@ function buildSections(): SectionDef[] {
 
 const SECTIONS = buildSections();
 
+/** Apply crisp-sprites DOM attribute and update settings state. */
+function applyCrispSprites(
+  v: boolean,
+  setSettings: (updater: (s: SettingsType | null) => SettingsType | null) => void,
+): void {
+  setSettings((s) => (s ? { ...s, crisp_sprites: v } : s));
+  if (v) {
+    document.documentElement.dataset.crispSprites = "";
+  } else {
+    delete document.documentElement.dataset.crispSprites;
+  }
+}
+
+/** Apply UI animations class toggle and update settings state. */
+function applyUIAnimations(
+  v: boolean,
+  setSettings: (updater: (s: SettingsType | null) => SettingsType | null) => void,
+): void {
+  setSettings((s) => (s ? { ...s, ui_animations: v } : s));
+  if (v) {
+    document.documentElement.classList.remove('animations-disabled');
+  } else {
+    document.documentElement.classList.add('animations-disabled');
+  }
+}
+
+async function performPokemonSync(
+  t: (key: string) => string,
+  setSyncing: (v: boolean) => void,
+  setSyncResult: (v: string | null) => void,
+): Promise<void> {
+  setSyncing(true);
+  setSyncResult(null);
+  try {
+    const res = await fetch(apiUrl("/api/sync/pokemon"), { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      setSyncResult(
+        `${t("settings.syncSuccess")} ${data.added} neue Pokémon (${data.total} gesamt)`,
+      );
+    } else {
+      setSyncResult(`${t("settings.syncError")} ${data.error}`);
+    }
+  } catch {
+    setSyncResult(t("settings.syncFailed"));
+  } finally {
+    setSyncing(false);
+  }
+}
+
+async function performGamesSync(
+  t: (key: string) => string,
+  setGamesSyncing: (v: boolean) => void,
+  setGamesSyncResult: (v: string | null) => void,
+): Promise<void> {
+  setGamesSyncing(true);
+  setGamesSyncResult(null);
+  try {
+    const res = await fetch(apiUrl("/api/games/sync"), { method: "POST" });
+    const data = await res.json();
+    if (res.ok) {
+      const { added, updated } = data;
+      if (added === 0 && updated === 0) {
+        setGamesSyncResult(t("settings.syncNoChanges"));
+      } else {
+        setGamesSyncResult(
+          `${t("settings.syncSuccess")} ${added} neue Spiele, ${updated} Sprachen ergänzt.`,
+        );
+      }
+    } else {
+      setGamesSyncResult(`${t("settings.syncError")} ${data.error}`);
+    }
+  } catch {
+    setGamesSyncResult(t("settings.syncFailed"));
+  } finally {
+    setGamesSyncing(false);
+  }
+}
+
+async function performRestore(
+  file: File,
+  t: (key: string) => string,
+  pushToast: (toast: { type: "success" | "error"; title: string; message?: string }) => void,
+  setRestoring: (v: boolean) => void,
+  restoreInputRef: React.RefObject<HTMLInputElement | null>,
+): Promise<void> {
+  setRestoring(true);
+  const form = new FormData();
+  form.append("backup", file);
+  try {
+    const res = await fetch(apiUrl("/api/restore"), { method: "POST", body: form });
+    if (res.ok) {
+      pushToast({ type: "success", title: t("settings.restoreSuccess") });
+    } else {
+      const data = await res.json().catch(() => ({}));
+      pushToast({
+        type: "error",
+        title: t("settings.restoreError"),
+        message: data.error ?? String(res.status),
+      });
+    }
+  } catch {
+    pushToast({ type: "error", title: t("settings.restoreError") });
+  } finally {
+    setRestoring(false);
+    if (restoreInputRef.current) restoreInputRef.current.value = "";
+  }
+}
+
+function useVisibleSections(
+  search: string,
+  t: (key: string) => string,
+): string[] {
+  return useMemo(() => {
+    if (!search.trim()) return SECTIONS.map((s) => s.id);
+    const q = search.toLowerCase();
+    return SECTIONS.filter(
+      (s) =>
+        t(s.titleKey).toLowerCase().includes(q) ||
+        s.keywords.some((kw) => kw.includes(q)),
+    ).map((s) => s.id);
+  }, [search, t]);
+}
+
+function useInitFromAppState(
+  appState: AppState | null,
+  setSettings: (s: SettingsType | null) => void,
+) {
+  const [initialised, setInitialised] = useState(!!appState);
+  useEffect(() => {
+    if (appState && !initialised) {
+      setSettings(appState.settings);
+      setInitialised(true);
+    }
+  }, [appState, initialised, setSettings]);
+}
+
+function useAutoSave(
+  settings: SettingsType | null,
+  t: (key: string) => string,
+  pushToast: (toast: { type: "success"; title: string; duration?: number }) => void,
+) {
+  useEffect(() => {
+    if (!settings) return;
+    const timer = setTimeout(() => {
+      fetch(apiUrl("/api/settings"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      }).then(() => {
+        pushToast({ type: "success", title: t("settings.saved"), duration: 1500 });
+      });
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    settings?.output_enabled,
+    settings?.output_dir,
+    settings?.crisp_sprites,
+    settings?.ui_animations,
+    JSON.stringify(settings?.languages),
+  ]);
+}
+
+function useLazyLicenses(
+  licensesOpen: boolean,
+  count: number,
+  setLicenses: (data: LicenseEntry[]) => void,
+) {
+  useEffect(() => {
+    if (licensesOpen && count === 0) {
+      fetch(apiUrl("/api/licenses"))
+        .then((r) => r.json())
+        .then((data: LicenseEntry[]) => setLicenses(data))
+        .catch(() => {});
+    }
+  }, [licensesOpen, count, setLicenses]);
+}
+
+function useSearchFocusShortcut(searchRef: React.RefObject<HTMLInputElement | null>) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    globalThis.addEventListener("keydown", handler);
+    return () => globalThis.removeEventListener("keydown", handler);
+  }, [searchRef]);
+}
+
+function toggleLang(
+  code: string,
+  settings: SettingsType,
+  setSettings: (s: SettingsType) => void,
+): void {
+  const current = settings.languages ?? ["de", "en"];
+  const next = current.includes(code)
+    ? current.filter((l) => l !== code)
+    : [...current, code];
+  if (next.length === 0) return;
+  setSettings({ ...settings, languages: next });
+}
+
+// --- Display section ---------------------------------------------------------
+
+function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCrispSprites, setUIAnimations, toggleLanguage, t }: Readonly<{
+  settings: SettingsType;
+  theme: string;
+  toggleTheme: () => void;
+  locale: string;
+  setLocale: (code: Locale) => void;
+  setCrispSprites: (v: boolean) => void;
+  setUIAnimations: (v: boolean) => void;
+  toggleLanguage: (code: string) => void;
+  t: (key: string) => string;
+}>) {
+  return (
+    <section className="glass-card rounded-2xl p-6 space-y-5">
+      <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
+        <Image className="w-4 h-4 text-accent-blue" />
+        {t("settings.sectionDisplay")}
+      </h2>
+
+      {/* Theme */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-text-primary flex items-center gap-2">
+            {theme === "dark" ? <Moon className="w-3.5 h-3.5 text-accent-blue" /> : <Sun className="w-3.5 h-3.5 text-accent-yellow" />}
+            {t("settings.themeDark")} / {t("settings.themeLight")}
+          </p>
+        </div>
+        <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
+          <button
+            onClick={() => { if (theme !== "dark") toggleTheme(); }}
+            aria-label={t("settings.themeDark")}
+            aria-pressed={theme === "dark"}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              theme === "dark"
+                ? "bg-accent-blue/15 text-accent-blue"
+                : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            <Moon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => { if (theme !== "light") toggleTheme(); }}
+            aria-label={t("settings.themeLight")}
+            aria-pressed={theme === "light"}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              theme === "light"
+                ? "bg-accent-blue/15 text-accent-blue"
+                : "text-text-muted hover:text-text-primary"
+            }`}
+          >
+            <Sun className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="border-t border-border-subtle/50" />
+
+      {/* UI Language */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-text-primary flex items-center gap-2">
+            <Globe className="w-3.5 h-3.5 text-accent-blue" />
+            {t("settings.uiLanguage") || "UI Language"}
+          </p>
+        </div>
+        <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
+          {LOCALES.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => setLocale(l.code)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                locale === l.code
+                  ? "bg-accent-blue/15 text-accent-blue"
+                  : "text-text-muted hover:text-text-primary"
+              }`}
+              title={l.machineTranslated ? `${l.label} (${t("settings.autoTranslated")})` : l.label}
+            >
+              {l.code.toUpperCase()}
+              {l.machineTranslated && (
+                <Bot className="inline w-2.5 h-2.5 ml-0.5 text-text-faint" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="border-t border-border-subtle/50" />
+
+      {/* Crisp sprites */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-text-primary">
+            {t("settings.crispSprites")}
+          </p>
+          <p className="text-xs text-text-muted mt-0.5 max-w-sm">
+            {t("settings.crispSpritesDesc")}
+          </p>
+        </div>
+        <Toggle
+          enabled={settings.crisp_sprites ?? false}
+          onChange={() => setCrispSprites(!(settings.crisp_sprites ?? false))}
+          label={t("settings.crispSprites")}
+          color="bg-accent-blue/80"
+        />
+      </div>
+
+      <div className="border-t border-border-subtle/50" />
+
+      {/* UI Animations */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-text-primary">
+            {t("settings.uiAnimations")}
+          </p>
+          <p className="text-xs text-text-muted mt-0.5 max-w-sm">
+            {t("settings.uiAnimationsDesc")}
+          </p>
+        </div>
+        <Toggle
+          enabled={settings.ui_animations ?? true}
+          onChange={() => setUIAnimations(!(settings.ui_animations ?? true))}
+          label={t("settings.uiAnimations")}
+          color="bg-accent-blue/80"
+        />
+      </div>
+
+      <div className="border-t border-border-subtle/50" />
+
+      {/* Languages */}
+      <div>
+        <p className="text-sm text-text-primary flex items-center gap-2">
+          <Globe className="w-3.5 h-3.5 text-accent-blue" />
+          {t("settings.languages")}
+        </p>
+        <p className="text-xs text-text-muted mt-0.5 mb-3">
+          {t("settings.languagesDesc")}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {ALL_LANGUAGES.map(({ code, label }) => {
+            const active = (settings.languages ?? ["de", "en"]).includes(code);
+            return (
+              <button
+                key={code}
+                onClick={() => toggleLanguage(code)}
+                title={code}
+                className={`flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-full text-xs 2xl:text-sm font-medium border transition-colors ${
+                  active
+                    ? "bg-accent-blue/20 border-accent-blue/50 text-text-primary"
+                    : "bg-bg-secondary border-border-subtle text-text-muted hover:text-text-primary"
+                }`}
+              >
+                <CountryFlag code={code} className="w-4 h-3" />
+                <span>{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // --- Main component ----------------------------------------------------------
 
 export function Settings() {
@@ -157,85 +526,16 @@ export function Settings() {
   const [showLicenseDialog, setShowLicenseDialog] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const setCrispSprites = (v: boolean) => {
-    setSettings((s) => (s ? { ...s, crisp_sprites: v } : s));
-    if (v) {
-      document.documentElement.dataset.crispSprites = "";
-    } else {
-      delete document.documentElement.dataset.crispSprites;
-    }
-  };
+  const setCrispSprites = (v: boolean) => applyCrispSprites(v, setSettings);
 
-  const setUIAnimations = (v: boolean) => {
-    setSettings((s) => (s ? { ...s, ui_animations: v } : s));
-    if (v) {
-      document.documentElement.classList.remove('animations-disabled');
-    } else {
-      document.documentElement.classList.add('animations-disabled');
-    }
-  };
+  const setUIAnimations = (v: boolean) => applyUIAnimations(v, setSettings);
 
-  const [initialised, setInitialised] = useState(!!appState);
-  useEffect(() => {
-    if (appState && !initialised) {
-      setSettings(appState.settings);
-      setInitialised(true);
-    }
-  }, [appState, initialised]);
+  useInitFromAppState(appState, setSettings);
+  useLazyLicenses(licensesOpen, licenses.length, setLicenses);
+  useSearchFocusShortcut(searchRef);
+  useAutoSave(settings, t, pushToast);
 
-  // Fetch license data from API (lazy, on first expand)
-  useEffect(() => {
-    if (licensesOpen && licenses.length === 0) {
-      fetch(apiUrl("/api/licenses"))
-        .then((r) => r.json())
-        .then((data: LicenseEntry[]) => setLicenses(data))
-        .catch(() => {});
-    }
-  }, [licensesOpen]);
-
-  // Ctrl+K focuses search
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault();
-        searchRef.current?.focus();
-      }
-    };
-    globalThis.addEventListener("keydown", handler);
-    return () => globalThis.removeEventListener("keydown", handler);
-  }, []);
-
-  // Auto-save with debounce
-  useEffect(() => {
-    if (!settings) return;
-    const timer = setTimeout(() => {
-      fetch(apiUrl("/api/settings"), {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
-      }).then(() => {
-        pushToast({ type: "success", title: t("settings.saved"), duration: 1500 });
-      });
-    }, 800);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    settings?.output_enabled,
-    settings?.output_dir,
-    settings?.crisp_sprites,
-    settings?.ui_animations,
-    JSON.stringify(settings?.languages),
-  ]);
-
-  const visibleSections = useMemo(() => {
-    if (!search.trim()) return SECTIONS.map((s) => s.id);
-    const q = search.toLowerCase();
-    return SECTIONS.filter(
-      (s) =>
-        t(s.titleKey).toLowerCase().includes(q) ||
-        s.keywords.some((kw) => kw.includes(q)),
-    ).map((s) => s.id);
-  }, [search, t]);
+  const visibleSections = useVisibleSections(search, t);
 
   if (!settings) {
     return (
@@ -248,59 +548,11 @@ export function Settings() {
     );
   }
 
-  const toggleLanguage = (code: string) => {
-    const current = settings.languages ?? ["de", "en"];
-    const next = current.includes(code)
-      ? current.filter((l) => l !== code)
-      : [...current, code];
-    if (next.length === 0) return;
-    setSettings({ ...settings, languages: next });
-  };
+  const toggleLanguage = (code: string) => toggleLang(code, settings, setSettings);
 
-  const syncPokemonData = async () => {
-    setSyncing(true);
-    setSyncResult(null);
-    try {
-      const res = await fetch(apiUrl("/api/sync/pokemon"), { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setSyncResult(
-          `${t("settings.syncSuccess")} ${data.added} neue Pokémon (${data.total} gesamt)`,
-        );
-      } else {
-        setSyncResult(`${t("settings.syncError")} ${data.error}`);
-      }
-    } catch {
-      setSyncResult(t("settings.syncFailed"));
-    } finally {
-      setSyncing(false);
-    }
-  };
+  const syncPokemonData = () => performPokemonSync(t, setSyncing, setSyncResult);
 
-  const syncGamesData = async () => {
-    setGamesSyncing(true);
-    setGamesSyncResult(null);
-    try {
-      const res = await fetch(apiUrl("/api/games/sync"), { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        const { added, updated } = data;
-        if (added === 0 && updated === 0) {
-          setGamesSyncResult(t("settings.syncNoChanges"));
-        } else {
-          setGamesSyncResult(
-            `${t("settings.syncSuccess")} ${added} neue Spiele, ${updated} Sprachen ergänzt.`,
-          );
-        }
-      } else {
-        setGamesSyncResult(`${t("settings.syncError")} ${data.error}`);
-      }
-    } catch {
-      setGamesSyncResult(t("settings.syncFailed"));
-    } finally {
-      setGamesSyncing(false);
-    }
-  };
+  const syncGamesData = () => performGamesSync(t, setGamesSyncing, setGamesSyncResult);
 
   const downloadBackup = () => {
     const a = document.createElement("a");
@@ -311,28 +563,8 @@ export function Settings() {
     a.remove();
   };
 
-  const handleRestoreFile = async (file: File) => {
-    setRestoring(true);
-    const form = new FormData();
-    form.append("backup", file);
-    try {
-      const res = await fetch(apiUrl("/api/restore"), { method: "POST", body: form });
-      if (res.ok) {
-        pushToast({ type: "success", title: t("settings.restoreSuccess") });
-      } else {
-        const data = await res.json().catch(() => ({}));
-        pushToast({
-          type: "error",
-          title: t("settings.restoreError"),
-          message: data.error ?? String(res.status),
-        });
-      }
-    } catch {
-      pushToast({ type: "error", title: t("settings.restoreError") });
-    } finally {
-      setRestoring(false);
-      if (restoreInputRef.current) restoreInputRef.current.value = "";
-    }
+  const handleRestoreFile = (file: File) => {
+    performRestore(file, t, pushToast, setRestoring, restoreInputRef);
   };
 
   const show = (id: string) => visibleSections.includes(id);
@@ -371,154 +603,18 @@ export function Settings() {
             </p>
           )}
 
-          {/* ── Display ──────────────────────────────────────── */}
           {show("display") && (
-            <section className="glass-card rounded-2xl p-6 space-y-5">
-              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
-                <Image className="w-4 h-4 text-accent-blue" />
-                {t("settings.sectionDisplay")}
-              </h2>
-
-              {/* Theme */}
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-text-primary flex items-center gap-2">
-                    {theme === "dark" ? <Moon className="w-3.5 h-3.5 text-accent-blue" /> : <Sun className="w-3.5 h-3.5 text-accent-yellow" />}
-                    {t("settings.themeDark")} / {t("settings.themeLight")}
-                  </p>
-                </div>
-                <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
-                  <button
-                    onClick={() => { if (theme !== "dark") toggleTheme(); }}
-                    aria-label={t("settings.themeDark")}
-                    aria-pressed={theme === "dark"}
-                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                      theme === "dark"
-                        ? "bg-accent-blue/15 text-accent-blue"
-                        : "text-text-muted hover:text-text-primary"
-                    }`}
-                  >
-                    <Moon className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => { if (theme !== "light") toggleTheme(); }}
-                    aria-label={t("settings.themeLight")}
-                    aria-pressed={theme === "light"}
-                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                      theme === "light"
-                        ? "bg-accent-blue/15 text-accent-blue"
-                        : "text-text-muted hover:text-text-primary"
-                    }`}
-                  >
-                    <Sun className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="border-t border-border-subtle/50" />
-
-              {/* UI Language */}
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-text-primary flex items-center gap-2">
-                    <Globe className="w-3.5 h-3.5 text-accent-blue" />
-                    {t("settings.uiLanguage") || "UI Language"}
-                  </p>
-                </div>
-                <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
-                  {LOCALES.map((l) => (
-                    <button
-                      key={l.code}
-                      onClick={() => setLocale(l.code)}
-                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                        locale === l.code
-                          ? "bg-accent-blue/15 text-accent-blue"
-                          : "text-text-muted hover:text-text-primary"
-                      }`}
-                      title={l.machineTranslated ? `${l.label} (${t("settings.autoTranslated")})` : l.label}
-                    >
-                      {l.code.toUpperCase()}
-                      {l.machineTranslated && (
-                        <Bot className="inline w-2.5 h-2.5 ml-0.5 text-text-faint" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-border-subtle/50" />
-
-              {/* Crisp sprites */}
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-text-primary">
-                    {t("settings.crispSprites")}
-                  </p>
-                  <p className="text-xs text-text-muted mt-0.5 max-w-sm">
-                    {t("settings.crispSpritesDesc")}
-                  </p>
-                </div>
-                <Toggle
-                  enabled={settings.crisp_sprites ?? false}
-                  onChange={() => setCrispSprites(!(settings.crisp_sprites ?? false))}
-                  label={t("settings.crispSprites")}
-                  color="bg-accent-blue/80"
-                />
-              </div>
-
-              <div className="border-t border-border-subtle/50" />
-
-              {/* UI Animations */}
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm text-text-primary">
-                    {t("settings.uiAnimations")}
-                  </p>
-                  <p className="text-xs text-text-muted mt-0.5 max-w-sm">
-                    {t("settings.uiAnimationsDesc")}
-                  </p>
-                </div>
-                <Toggle
-                  enabled={settings.ui_animations ?? true}
-                  onChange={() => setUIAnimations(!(settings.ui_animations ?? true))}
-                  label={t("settings.uiAnimations")}
-                  color="bg-accent-blue/80"
-                />
-              </div>
-
-              <div className="border-t border-border-subtle/50" />
-
-              {/* Languages */}
-              <div>
-                <p className="text-sm text-text-primary flex items-center gap-2">
-                  <Globe className="w-3.5 h-3.5 text-accent-blue" />
-                  {t("settings.languages")}
-                </p>
-                <p className="text-xs text-text-muted mt-0.5 mb-3">
-                  {t("settings.languagesDesc")}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {ALL_LANGUAGES.map(({ code, label }) => {
-                    const active = (settings.languages ?? ["de", "en"]).includes(code);
-                    return (
-                      <button
-                        key={code}
-                        onClick={() => toggleLanguage(code)}
-                        title={code}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-full text-xs 2xl:text-sm font-medium border transition-colors ${
-                          active
-                            ? "bg-accent-blue/20 border-accent-blue/50 text-text-primary"
-                            : "bg-bg-secondary border-border-subtle text-text-muted hover:text-text-primary"
-                        }`}
-                      >
-                        <CountryFlag code={code} className="w-4 h-3" />
-                        <span>{label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </section>
+            <DisplaySection
+              settings={settings}
+              theme={theme}
+              toggleTheme={toggleTheme}
+              locale={locale}
+              setLocale={setLocale}
+              setCrispSprites={setCrispSprites}
+              setUIAnimations={setUIAnimations}
+              toggleLanguage={toggleLanguage}
+              t={t}
+            />
           )}
 
           {/* ── File Output ──────────────────────────────────── */}

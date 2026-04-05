@@ -1072,31 +1072,31 @@ function HeaderHuntButton({
   const modeIcon = resolveHuntIcon(anyRunning, huntMode);
   const bgColor = resolveHuntBgColor(anyRunning, huntMode);
 
+  const startHunt = () => {
+    const needsDetector = huntMode !== "timer";
+
+    if (needsDetector && !hasDetectorReady(pokemon)) {
+      pushToast({ type: "error", title: t("detector.errNoTemplates") });
+      return;
+    }
+    if (needsDetector && !capture.isCapturing(pokemon.id)) {
+      pushToast({ type: "error", title: t("detector.errNoSource") });
+      return;
+    }
+
+    if (huntMode !== "detector" && !pokemon.timer_started_at) send("timer_start", { pokemon_id: pokemon.id });
+    if (canStartDetector(pokemon, detectorStatus, capture)) {
+      tryStartDetection(pokemon, capture, setDetectorStatus);
+    }
+  };
+
   const handleToggle = () => {
     if (anyRunning) {
       if (timerRunning) send("timer_stop", { pokemon_id: pokemon.id });
-      // Always stop loop + clear status when stopping a hunt
       stopDetectionForPokemon(pokemon.id);
       clearDetectorStatus(pokemon.id);
     } else {
-      const needsDetector = huntMode !== "timer";
-
-      // Block start if detection is required but prerequisites are missing
-      if (needsDetector) {
-        if (!hasDetectorReady(pokemon)) {
-          pushToast({ type: "error", title: t("detector.errNoTemplates") });
-          return;
-        }
-        if (!capture.isCapturing(pokemon.id)) {
-          pushToast({ type: "error", title: t("detector.errNoSource") });
-          return;
-        }
-      }
-
-      if (huntMode !== "detector" && !pokemon.timer_started_at) send("timer_start", { pokemon_id: pokemon.id });
-      if (canStartDetector(pokemon, detectorStatus, capture)) {
-        tryStartDetection(pokemon, capture, setDetectorStatus);
-      }
+      startHunt();
     }
   };
 
