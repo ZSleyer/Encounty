@@ -33,8 +33,9 @@ func (s *Server) broadcastState() {
 }
 
 // logEncounter writes an encounter event to the database.
-// It resolves the Pokemon name and computes the delta from the previous count.
-func (s *Server) logEncounter(pokemonID string, countAfter int, source string) {
+// It resolves the Pokemon name and computes the delta from the configured step.
+// sign must be +1 for increments or -1 for decrements.
+func (s *Server) logEncounter(pokemonID string, countAfter int, sign int, source string) {
 	if s.db == nil {
 		return
 	}
@@ -50,11 +51,7 @@ func (s *Server) logEncounter(pokemonID string, countAfter int, source string) {
 			break
 		}
 	}
-	// For increment the delta is +step, for decrement -step.
-	// We infer direction from the source context; callers use this after Increment/Decrement.
-	// Since we don't know direction here, log step as positive (most common).
-	// Actual delta = countAfter - previous. We approximate with step.
-	_ = s.db.LogEncounter(pokemonID, name, step, countAfter, source)
+	_ = s.db.LogEncounter(pokemonID, name, step*sign, countAfter, source)
 }
 
 // FindPokemon returns a pointer to the Pokemon with the given id within st,

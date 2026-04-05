@@ -130,7 +130,7 @@ func TestLogEncounterNilDB(t *testing.T) {
 	srv := newTestServer(t)
 	addTestPokemon(t, srv, "p1", "Pikachu")
 	// srv.db is nil by default; logEncounter should return early without panic.
-	srv.logEncounter("p1", 1, "test")
+	srv.logEncounter("p1", 1, 1, "test")
 }
 
 func TestLogEncounterWithStep(t *testing.T) {
@@ -142,13 +142,13 @@ func TestLogEncounterWithStep(t *testing.T) {
 		CreatedAt: time.Now(),
 	})
 	// No db set, but exercises the name/step resolution path before the early return.
-	srv.logEncounter("p1", 3, "hotkey")
+	srv.logEncounter("p1", 3, 1, "hotkey")
 }
 
 func TestLogEncounterUnknownPokemon(t *testing.T) {
 	srv := newTestServer(t)
 	// No pokemon added; the loop finds no match, name stays as the id.
-	srv.logEncounter("unknown-id", 0, "test")
+	srv.logEncounter("unknown-id", 0, 1, "test")
 }
 
 // --- Server accessor methods ---

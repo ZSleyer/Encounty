@@ -51,6 +51,11 @@ func (m *mockEncounterLogger) LogEncounter(pokemonID, pokemonName string, delta,
 	return nil
 }
 
+// DeleteEncounterEvents is a no-op mock for clearing encounter events on reset.
+func (m *mockEncounterLogger) DeleteEncounterEvents(_ string) error {
+	return nil
+}
+
 // mockBroadcaster records broadcast calls for verification.
 type mockBroadcaster struct {
 	messages []broadcastMsg

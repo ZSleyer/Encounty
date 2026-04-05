@@ -308,7 +308,10 @@ function AppShell() {
     } else if (msg.type === "encounter_added") {
       handleEncounterAdded(msg.payload as { pokemon_id: string; count: number });
     } else if (msg.type === "encounter_removed") {
-      handleEncounterToast(msg.payload as { pokemon_id: string; count: number }, "-1");
+      const rmPayload = msg.payload as { pokemon_id: string; count: number };
+      const rmStep = appState?.pokemon.find((x) => x.id === rmPayload.pokemon_id)?.step;
+      const rmEffective = rmStep && rmStep > 0 ? rmStep : 1;
+      handleEncounterToast(rmPayload, `-${rmEffective}`);
     } else if (msg.type === "encounter_reset") {
       handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "0", t("app.counterReset") || "Zähler zurückgesetzt");
     } else if (msg.type === "pokemon_completed") {
@@ -348,7 +351,9 @@ function AppShell() {
 
   function handleEncounterAdded(p: { pokemon_id: string; count: number }) {
     flashPokemon(p.pokemon_id);
-    handleEncounterToast(p);
+    const step = appState?.pokemon.find((x) => x.id === p.pokemon_id)?.step;
+    const effectiveStep = step && step > 0 ? step : 1;
+    handleEncounterToast(p, `+${effectiveStep}`);
   }
 
   function handleEncounterToast(p: { pokemon_id: string; count: number }, badge?: string) {

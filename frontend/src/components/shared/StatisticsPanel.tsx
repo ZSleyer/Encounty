@@ -61,36 +61,23 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   }
 
   return (
-    <div className="w-full space-y-6 pb-8">
-      {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard
-          icon={<BarChart3 className="w-4 h-4 text-accent-blue" />}
-          label={t("stats.total")}
-          value={stats?.total?.toLocaleString() ?? "0"}
-        />
-        <MetricCard
-          icon={<Calendar className="w-4 h-4 text-accent-green" />}
-          label={t("stats.today")}
-          value={stats?.today?.toLocaleString() ?? "0"}
-        />
-        <MetricCard
-          icon={<TrendingUp className="w-4 h-4 text-accent-yellow" />}
-          label={t("stats.ratePerHour")}
-          value={stats?.rate_per_hour ? stats.rate_per_hour.toFixed(1) : "—"}
-        />
-        <MetricCard
-          icon={<Clock className="w-4 h-4 text-accent-purple" />}
-          label={t("stats.firstEncounter")}
-          value={stats?.first_at ? new Date(stats.first_at).toLocaleDateString() : "—"}
-        />
+    <div className="w-full h-full flex flex-col gap-4 min-h-0">
+      {/* Metrics strip */}
+      <div className="bg-bg-card border border-border-subtle rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-around gap-y-2 gap-x-3 shrink-0">
+        <MetricItem icon={<BarChart3 className="w-3.5 h-3.5 text-accent-blue" />} label={t("stats.total")} value={stats?.total?.toLocaleString() ?? "0"} />
+        <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
+        <MetricItem icon={<Calendar className="w-3.5 h-3.5 text-accent-green" />} label={t("stats.today")} value={stats?.today?.toLocaleString() ?? "0"} />
+        <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
+        <MetricItem icon={<TrendingUp className="w-3.5 h-3.5 text-accent-yellow" />} label={t("stats.ratePerHour")} value={stats?.rate_per_hour ? stats.rate_per_hour.toFixed(1) : "—"} />
+        <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
+        <MetricItem icon={<Clock className="w-3.5 h-3.5 text-accent-purple" />} label={t("stats.firstEncounter")} value={stats?.first_at && stats.total > 0 ? new Date(stats.first_at).toLocaleDateString() : "—"} />
       </div>
 
-      {/* Chart + History (side-by-side on xl) */}
-      <div className="xl:grid xl:grid-cols-[2fr_1fr] xl:gap-6 space-y-6 xl:space-y-0">
+      {/* Chart + History side-by-side, both fill height */}
+      <div className="flex-1 grid grid-cols-[2fr_1fr] gap-4 min-h-0">
         {/* Chart */}
-        <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-3 shrink-0">
             <h3 className="text-sm font-semibold text-text-primary">
               {t("stats.chartTitle")}
             </h3>
@@ -112,7 +99,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
             </fieldset>
           </div>
           {chartData.length > 0 ? (
-            <div role="img" aria-label={t("stats.chartTitle")} className="h-50 lg:h-75 xl:h-87.5">
+            <div role="img" aria-label={t("stats.chartTitle")} className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -146,42 +133,48 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="flex items-center justify-center h-50 text-text-faint text-sm">
+            <div className="flex items-center justify-center flex-1 min-h-0 text-text-faint text-sm">
               {t("stats.noData")}
             </div>
           )}
         </div>
 
         {/* Recent History */}
-        <div className="bg-bg-card border border-border-subtle rounded-2xl p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-3">
+        <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-0">
+          <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
             {t("stats.recentHistory")}
           </h3>
           {history.length > 0 ? (
-            <ul className="space-y-1 max-h-96 xl:max-h-125 overflow-y-auto list-none m-0 p-0">
-              {history.map((e) => (
-                <li
-                  key={e.id}
-                  className="flex items-center justify-between px-3 py-1.5 rounded-lg hover:bg-bg-hover text-xs transition-colors"
-                >
-                  <time dateTime={e.timestamp} className="text-text-muted">
-                    {new Date(e.timestamp).toLocaleString()}
-                  </time>
-                  <span
-                    className={`font-mono font-semibold ${
-                      e.delta > 0 ? "text-accent-green" : "text-accent-red"
-                    }`}
-                  >
-                    {e.delta > 0 ? "+" : ""}
-                    {e.delta}
-                  </span>
-                  <span className="text-text-secondary tabular-nums">
-                    → {e.count_after}
-                  </span>
-                  <span className="text-text-faint">{e.source}</span>
-                </li>
-              ))}
-            </ul>
+            <div className="overflow-y-auto flex-1 min-h-0">
+              <table className="w-full text-xs" aria-label={t("stats.recentHistory")}>
+                <thead className="sticky top-0 bg-bg-card">
+                  <tr className="border-b border-border-subtle text-text-muted font-semibold">
+                    <th className="text-left py-1.5 px-2 font-semibold">{t("stats.colTime")}</th>
+                    <th className="text-right py-1.5 px-2 font-semibold">{t("stats.colChange")}</th>
+                    <th className="text-right py-1.5 px-2 font-semibold">{t("stats.colCount")}</th>
+                    <th className="text-right py-1.5 px-2 font-semibold">{t("stats.colSource")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((e) => (
+                    <tr key={e.id} className="hover:bg-bg-hover transition-colors">
+                      <td className="py-1.5 px-2 text-text-muted whitespace-nowrap">
+                        <time dateTime={e.timestamp}>{new Date(e.timestamp).toLocaleString()}</time>
+                      </td>
+                      <td className={`py-1.5 px-2 text-right font-mono font-semibold ${e.delta > 0 ? "text-accent-green" : "text-accent-red"}`}>
+                        {e.delta > 0 ? "+" : ""}{e.delta}
+                      </td>
+                      <td className="py-1.5 px-2 text-right text-text-secondary tabular-nums">
+                        {e.count_after}
+                      </td>
+                      <td className="py-1.5 px-2 text-right text-text-faint">
+                        {e.source}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <p className="text-text-faint text-xs">{t("stats.noHistory")}</p>
           )}
@@ -191,9 +184,9 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   );
 }
 
-// --- MetricCard ---------------------------------------------------------------
+// --- MetricItem --------------------------------------------------------------
 
-function MetricCard({
+function MetricItem({
   icon,
   label,
   value,
@@ -203,12 +196,10 @@ function MetricCard({
   value: string;
 }>) {
   return (
-    <div className="bg-bg-card border border-border-subtle rounded-xl p-4 flex flex-col items-center text-center">
-      <div className="mb-1.5">{icon}</div>
-      <div className="text-[10px] text-text-muted uppercase tracking-wider font-bold mb-0.5">
-        {label}
-      </div>
-      <div className="text-lg font-black text-text-primary">{value}</div>
+    <div className="flex items-center gap-2">
+      <div className="shrink-0 opacity-60">{icon}</div>
+      <span className="text-sm font-bold text-text-primary tabular-nums">{value}</span>
+      <span className="text-xs text-text-muted">{label}</span>
     </div>
   );
 }

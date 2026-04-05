@@ -69,13 +69,15 @@ function ToastItem({
           )}
         </div>
         {(() => {
-          const badgeStyles: Record<string, string> = {
-            "-1": "text-accent-yellow bg-accent-yellow/15",
-            "0": "text-text-muted bg-bg-secondary",
-            "\u{1F5D1}": "text-accent-red bg-accent-red/15",
-            "\u2714": "text-accent-green bg-accent-green/15",
+          const badge = toast.badge ?? "";
+          const getBadgeClass = (b: string): string => {
+            if (b === "0") return "text-text-muted bg-bg-secondary";
+            if (b === "\u{1F5D1}") return "text-accent-red bg-accent-red/15";
+            if (b === "\u2714") return "text-accent-green bg-accent-green/15";
+            if (b.startsWith("-")) return "text-accent-yellow bg-accent-yellow/15";
+            return "text-accent-blue bg-accent-blue/15";
           };
-          const badgeClass = badgeStyles[toast.badge ?? ""] ?? "text-accent-blue bg-accent-blue/15";
+          const badgeClass = getBadgeClass(badge);
           return (
             <span
               className={`text-[clamp(0.8125rem,0.9vw,1rem)] font-bold px-3 py-1 rounded-full shrink-0 ${badgeClass}`}

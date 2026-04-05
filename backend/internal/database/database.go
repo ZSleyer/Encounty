@@ -131,6 +131,13 @@ func (d *DB) MigrationVersion() int {
 	return v
 }
 
+// DeleteEncounterEvents removes all encounter events for a Pokemon,
+// typically called when its counter is reset.
+func (d *DB) DeleteEncounterEvents(pokemonID string) error {
+	_, err := d.db.Exec(`DELETE FROM encounter_events WHERE pokemon_id = ?`, pokemonID)
+	return err
+}
+
 // LogEncounter records an encounter event.
 func (d *DB) LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string) error {
 	_, err := d.db.Exec(
@@ -174,19 +181,19 @@ func (d *DB) GetEncounterHistory(pokemonID string, limit, offset int) ([]Encount
 func (d *DB) GetEncounterStats(pokemonID string) (*EncounterStats, error) {
 	stats := &EncounterStats{}
 
-	// Total positive encounters
+	// Total encounters (increments minus decrements)
 	err := d.db.QueryRow(
-		`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE pokemon_id = ? AND delta > 0`,
+		`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE pokemon_id = ?`,
 		pokemonID,
 	).Scan(&stats.Total)
 	if err != nil {
 		return nil, err
 	}
 
-	// Today's encounters
+	// Today's encounters (increments minus decrements)
 	todayStart := time.Now().UTC().Truncate(24 * time.Hour).Format(time.RFC3339)
 	err = d.db.QueryRow(
-		`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE pokemon_id = ? AND delta > 0 AND timestamp >= ?`,
+		`SELECT COALESCE(SUM(delta), 0) FROM encounter_events WHERE pokemon_id = ? AND timestamp >= ?`,
 		pokemonID, todayStart,
 	).Scan(&stats.Today)
 	if err != nil {
@@ -198,6 +205,14 @@ func (d *DB) GetEncounterStats(pokemonID string) (*EncounterStats, error) {
 		`SELECT MIN(timestamp), MAX(timestamp) FROM encounter_events WHERE pokemon_id = ? AND delta > 0`,
 		pokemonID,
 	).Scan(&stats.FirstAt, &stats.LastAt)
+
+	// Clamp negative totals to zero (more decrements than increments).
+	if stats.Total < 0 {
+		stats.Total = 0
+	}
+	if stats.Today < 0 {
+		stats.Today = 0
+	}
 
 	// Rate per hour
 	if stats.FirstAt != "" && stats.LastAt != "" && stats.Total > 0 {
@@ -230,9 +245,9 @@ func (d *DB) GetChartData(pokemonID, interval string) ([]ChartPoint, error) {
 	cutoff := time.Now().UTC().AddDate(0, 0, -mustAtoi(limitDays)).Format(time.RFC3339)
 	rows, err := d.db.Query(
 		fmt.Sprintf(
-			`SELECT %s AS label, COALESCE(SUM(delta), 0) AS cnt
+			`SELECT %s AS label, MAX(COALESCE(SUM(delta), 0), 0) AS cnt
 			 FROM encounter_events
-			 WHERE pokemon_id = ? AND delta > 0 AND timestamp >= ?
+			 WHERE pokemon_id = ? AND timestamp >= ?
 			 GROUP BY label ORDER BY label`, groupExpr),
 		pokemonID, cutoff,
 	)

@@ -147,8 +147,18 @@ jobs:
           echo "> Commit: \`${GITHUB_SHA::7}\`" >> "$GITHUB_OUTPUT"
           echo "${EOF_MARKER}" >> "$GITHUB_OUTPUT"
 
-      - name: Extract annotated tag message
+      - name: Check for existing release
         if: steps.prerelease.outputs.is_pre != 'true'
+        id: existing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$VERSION" --json name,body --jq '.name' 2>/dev/null | grep -q .; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Extract annotated tag message
+        if: steps.prerelease.outputs.is_pre != 'true' && steps.existing.outputs.exists != 'true'
         id: tagmsg
         run: |
           TAG_MSG=$(git tag -l --format='%(contents)' "$VERSION")
@@ -161,6 +171,7 @@ jobs:
           fi
 
       - name: Create GitHub Release
+        if: steps.existing.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: ${{ steps.tagmsg.outputs.has_body != 'true' }}

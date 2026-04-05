@@ -425,7 +425,7 @@ func (s *Server) handleHotkeyIncrement(id string) {
 	if !ok {
 		return
 	}
-	s.logEncounter(id, count, "hotkey")
+	s.logEncounter(id, count, 1, "hotkey")
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_added", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()
@@ -437,7 +437,10 @@ func (s *Server) handleHotkeyDecrement(id string) {
 	if !ok {
 		return
 	}
-	s.logEncounter(id, count, "hotkey")
+	s.logEncounter(id, count, -1, "hotkey")
+	if count == 0 && s.db != nil {
+		_ = s.db.DeleteEncounterEvents(id)
+	}
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
 	s.broadcastState()

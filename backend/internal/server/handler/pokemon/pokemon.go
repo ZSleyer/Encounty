@@ -40,6 +40,7 @@ type DetectorStopper interface {
 // EncounterLogger persists encounter events to the database.
 type EncounterLogger interface {
 	LogEncounter(pokemonID, pokemonName string, delta, countAfter int, source string) error
+	DeleteEncounterEvents(pokemonID string) error
 }
 
 // Broadcaster sends typed messages to all connected WebSocket clients.
@@ -256,7 +257,7 @@ func (h *handler) handleIncrement(w http.ResponseWriter, _ *http.Request, id str
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return
 	}
-	h.logEncounter(id, count, "api")
+	h.logEncounter(id, count, 1, "api")
 	h.deps.StateScheduleSave()
 	h.deps.Broadcaster().BroadcastRaw("encounter_added", map[string]any{"pokemon_id": id, "count": count})
 	h.deps.BroadcastState()
@@ -280,7 +281,12 @@ func (h *handler) handleDecrement(w http.ResponseWriter, _ *http.Request, id str
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return
 	}
-	h.logEncounter(id, count, "api")
+	h.logEncounter(id, count, -1, "api")
+	if count == 0 {
+		if logger := h.deps.EncounterLogger(); logger != nil {
+			_ = logger.DeleteEncounterEvents(id)
+		}
+	}
 	h.deps.StateScheduleSave()
 	h.deps.Broadcaster().BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})
 	h.deps.BroadcastState()
@@ -298,7 +304,17 @@ func (h *handler) handleDecrement(w http.ResponseWriter, _ *http.Request, id str
 // @Failure      404 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/reset [post]
 func (h *handler) handleReset(w http.ResponseWriter, _ *http.Request, id string) {
-	h.pokemonMutate(w, id, "encounter_reset", h.deps.StateReset)
+	if !h.deps.StateReset(id) {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+	if logger := h.deps.EncounterLogger(); logger != nil {
+		_ = logger.DeleteEncounterEvents(id)
+	}
+	h.deps.StateScheduleSave()
+	h.deps.Broadcaster().BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": id})
+	h.deps.BroadcastState()
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleSetEncounters sets the encounter count to an exact value.
@@ -460,7 +476,9 @@ func (h *handler) pokemonMutate(w http.ResponseWriter, id string, eventType stri
 
 // logEncounter writes an encounter event to the database.
 // It resolves the Pokemon name and computes the step delta.
-func (h *handler) logEncounter(pokemonID string, countAfter int, source string) {
+// sign must be +1 for increments or -1 for decrements so the logged
+// step value correctly reflects the direction of the count change.
+func (h *handler) logEncounter(pokemonID string, countAfter int, sign int, source string) {
 	logger := h.deps.EncounterLogger()
 	if logger == nil {
 		return
@@ -477,5 +495,5 @@ func (h *handler) logEncounter(pokemonID string, countAfter int, source string) 
 			break
 		}
 	}
-	_ = logger.LogEncounter(pokemonID, name, step, countAfter, source)
+	_ = logger.LogEncounter(pokemonID, name, step*sign, countAfter, source)
 }

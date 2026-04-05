@@ -649,15 +649,16 @@ function getWorkAreaClasses(tab: string): { innerMaxWidth: string; outerOverflow
   const innerMaxWidthMap: Record<string, string> = {
     counter: "max-w-3xl mt-0",
     overlay: "max-w-full mt-0",
-    statistics: "max-w-full mt-0 pb-16",
+    statistics: "max-w-full mt-0",
     detector: "max-w-full mt-0",
   };
   const isFullBleed = tab === "overlay" || tab === "detector";
+  const needsFullHeight = isFullBleed || tab === "statistics";
   return {
     innerMaxWidth: innerMaxWidthMap[tab] ?? "max-w-2xl mt-0 pb-16",
     outerOverflow: isFullBleed ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8",
     outerJustify: tab === "counter" ? "justify-center" : "justify-start",
-    innerHeight: isFullBleed ? "h-full" : "",
+    innerHeight: needsFullHeight ? "h-full" : "",
   };
 }
 
@@ -702,7 +703,7 @@ function resolveTabContent(
   }
   if (tab === "statistics") {
     return (
-      <div className="w-full">
+      <div className="w-full h-full">
         <StatisticsPanel pokemonId={pokemon.id} />
       </div>
     );
