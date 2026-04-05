@@ -1325,3 +1325,99 @@ func TestApplyOverlayElementCounterLabelError(t *testing.T) {
 		t.Error("applyOverlayElement should fail for counter when gradient_stops is dropped")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Migration 11: remove negative and full-frame fallback regions
+// ---------------------------------------------------------------------------
+
+// TestMigration11RemovesNegativeAndFullFrameRegions verifies that migration 11
+// deletes negative regions and single full-frame fallback regions at (0,0).
+func TestMigration11RemovesNegativeAndFullFrameRegions(t *testing.T) {
+	d := openInternalTestDB(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	st := &state.AppState{
+		ActiveID: "p1",
+		Pokemon: []state.Pokemon{
+			{
+				ID: "p1", Name: "Pikachu", CanonicalName: "pikachu",
+				SpriteURL: "u", SpriteType: "normal", Language: "en",
+				CreatedAt: now, IsActive: true, OverlayMode: "default",
+				DetectorConfig: &state.DetectorConfig{
+					Enabled:    true,
+					SourceType: "screen_region",
+					Precision:  0.55,
+					Templates: []state.DetectorTemplate{
+						{
+							Name:      "tmpl-with-negative",
+							ImageData: []byte{0x89, 0x50, 0x4e, 0x47},
+							Regions: []state.MatchedRegion{
+								{Type: "image", Rect: state.DetectorRect{X: 10, Y: 20, W: 50, H: 60}},
+							},
+						},
+						{
+							Name:      "tmpl-fullframe",
+							ImageData: []byte{0x89, 0x50, 0x4e, 0x47},
+							Regions: []state.MatchedRegion{
+								{Type: "image", Rect: state.DetectorRect{X: 0, Y: 0, W: 1920, H: 1080}},
+							},
+						},
+						{
+							Name:      "tmpl-two-regions",
+							ImageData: []byte{0x89, 0x50, 0x4e, 0x47},
+							Regions: []state.MatchedRegion{
+								{Type: "image", Rect: state.DetectorRect{X: 0, Y: 0, W: 100, H: 100}},
+								{Type: "text", ExpectedText: "hello", Rect: state.DetectorRect{X: 200, Y: 200, W: 50, H: 30}},
+							},
+						},
+					},
+				},
+			},
+		},
+		Sessions: []state.Session{},
+		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+	}
+	if err := d.SaveFullState(st); err != nil {
+		t.Fatalf("SaveFullState: %v", err)
+	}
+
+	// Mark the region in tmpl-with-negative as is_negative = 1
+	if _, err := d.db.Exec(`UPDATE template_regions SET is_negative = 1 WHERE template_id = (
+		SELECT id FROM detector_templates WHERE name = 'tmpl-with-negative'
+	)`); err != nil {
+		t.Fatalf("set is_negative: %v", err)
+	}
+
+	// Roll back migration 11 so it runs again against the dirty data
+	if _, err := d.db.Exec(`DELETE FROM migrations WHERE version = 11`); err != nil {
+		t.Fatalf("rollback migration record: %v", err)
+	}
+
+	// Re-run migrations (migration 11 should clean up)
+	if err := RunMigrations(d.db); err != nil {
+		t.Fatalf("RunMigrations: %v", err)
+	}
+
+	// Reload and verify
+	loaded, err := d.LoadFullState()
+	if err != nil {
+		t.Fatalf("LoadFullState: %v", err)
+	}
+
+	templates := loaded.Pokemon[0].DetectorConfig.Templates
+
+	// tmpl-with-negative: negative region deleted → 0 regions
+	if len(templates[0].Regions) != 0 {
+		t.Errorf("tmpl-with-negative: regions = %d, want 0", len(templates[0].Regions))
+	}
+
+	// tmpl-fullframe: single (0,0) region deleted → 0 regions
+	if len(templates[1].Regions) != 0 {
+		t.Errorf("tmpl-fullframe: regions = %d, want 0", len(templates[1].Regions))
+	}
+
+	// tmpl-two-regions: multi-region template untouched → 2 regions
+	if len(templates[2].Regions) != 2 {
+		t.Errorf("tmpl-two-regions: regions = %d, want 2", len(templates[2].Regions))
+	}
+}

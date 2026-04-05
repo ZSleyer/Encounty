@@ -69,6 +69,11 @@ var migrations = []migration{
 		description: "add shiny_charm column to pokemon",
 		fn:          migrateAddShinyCharm,
 	},
+	{
+		version:     11,
+		description: "remove negative regions and full-frame fallback regions",
+		fn:          migrateRemoveNegativeAndFullFrameRegions,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -260,5 +265,43 @@ func migrateForceAutoSave(tx *sql.Tx) error {
 // Errors are ignored for idempotency.
 func migrateAddShinyCharm(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN shiny_charm INTEGER NOT NULL DEFAULT 0`)
+	return nil
+}
+
+// migrateRemoveNegativeAndFullFrameRegions cleans up legacy region data:
+//  1. Delete all negative regions (is_negative = 1) since polarity was removed.
+//  2. Delete full-frame fallback regions: templates with exactly one region
+//     starting at (0,0). These were auto-created by the old frontend when saving
+//     without user-defined regions.
+//
+// After cleanup, affected templates will have zero regions and must be edited
+// by the user before they can be used for detection.
+func migrateRemoveNegativeAndFullFrameRegions(tx *sql.Tx) error {
+	// Step 1: delete all negative regions.
+	if _, err := tx.Exec(`DELETE FROM template_regions WHERE is_negative = 1`); err != nil {
+		return fmt.Errorf("delete negative regions: %w", err)
+	}
+
+	// Step 2: delete full-frame fallback regions.
+	// A full-frame fallback is identified as the sole region of a template
+	// that starts at origin (0,0). Templates with multiple regions are left
+	// untouched since the user explicitly defined them.
+	if _, err := tx.Exec(`
+		DELETE FROM template_regions
+		WHERE id IN (
+			SELECT r.id
+			FROM template_regions r
+			JOIN (
+				SELECT template_id
+				FROM template_regions
+				GROUP BY template_id
+				HAVING COUNT(*) = 1
+			) singles ON singles.template_id = r.template_id
+			WHERE r.rect_x = 0 AND r.rect_y = 0
+		)
+	`); err != nil {
+		return fmt.Errorf("delete full-frame fallback regions: %w", err)
+	}
+
 	return nil
 }
