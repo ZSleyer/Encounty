@@ -12,6 +12,9 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
+// runMigrationsFmt is the shared format string for RunMigrations fatal errors.
+const runMigrationsFmt = "RunMigrations: %v"
+
 // ---------------------------------------------------------------------------
 // Pokedex error paths
 // ---------------------------------------------------------------------------
@@ -92,7 +95,7 @@ func TestMigrationVersionFresh(t *testing.T) {
 
 	// Run migrations.
 	if err := RunMigrations(db); err != nil {
-		t.Fatalf("RunMigrations: %v", err)
+		t.Fatalf(runMigrationsFmt, err)
 	}
 
 	v = d.MigrationVersion()
@@ -111,7 +114,7 @@ func TestRunMigrationsTxBeginError(t *testing.T) {
 	db := openRawTestDB(t)
 	// Run migrations first.
 	if err := RunMigrations(db); err != nil {
-		t.Fatalf("RunMigrations: %v", err)
+		t.Fatalf(runMigrationsFmt, err)
 	}
 
 	// Close the DB and try appending a new migration that would require begin.
@@ -1395,7 +1398,7 @@ func TestMigration11RemovesNegativeAndFullFrameRegions(t *testing.T) {
 
 	// Re-run migrations (migration 11 should clean up)
 	if err := RunMigrations(d.db); err != nil {
-		t.Fatalf("RunMigrations: %v", err)
+		t.Fatalf(runMigrationsFmt, err)
 	}
 
 	// Reload and verify

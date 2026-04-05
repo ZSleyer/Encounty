@@ -2,6 +2,9 @@
 // manager. Hunt type presets live here and drive detector defaults and odds display.
 package state
 
+// eggHatchDescription is the shared template tip for egg-hatch based hunt types.
+const eggHatchDescription = "Capture the egg-hatch animation frame."
+
 // HuntTypePreset holds metadata and detector defaults for one shiny hunting method.
 type HuntTypePreset struct {
 	// Key is the canonical identifier stored in Pokemon.HuntType.
@@ -232,7 +235,7 @@ var HuntTypePresets = []HuntTypePreset{
 		OddsDenom:              4096,
 		DefaultCooldownSec:     15,
 		DefaultConsecutiveHits: 2,
-		TemplateTip:            "Capture the egg-hatch animation frame.",
+		TemplateTip:            eggHatchDescription,
 	},
 	{
 		Key:                    "dv_method",
@@ -262,7 +265,7 @@ var HuntTypePresets = []HuntTypePreset{
 		OddsDenom:              7,
 		DefaultCooldownSec:     15,
 		DefaultConsecutiveHits: 2,
-		TemplateTip:            "Capture the egg-hatch animation frame.",
+		TemplateTip:            eggHatchDescription,
 	},
 	{
 		Key:                    "dv_breeding",
@@ -272,7 +275,7 @@ var HuntTypePresets = []HuntTypePreset{
 		OddsDenom:              64,
 		DefaultCooldownSec:     15,
 		DefaultConsecutiveHits: 2,
-		TemplateTip:            "Capture the egg-hatch animation frame.",
+		TemplateTip:            eggHatchDescription,
 	},
 	{
 		Key:                    "headbutt",
