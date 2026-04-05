@@ -10,12 +10,13 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon,
-  Type, Loader2, ScanText, Play, ShieldBan, ArrowRight,
+  Type, Loader2, ScanText, Play, ArrowRight, BarChart3, ArrowLeft,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { MatchedRegion } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
 import { useReplayBuffer } from "../../hooks/useReplayBuffer";
+import { useTemplateTest } from "../../hooks/useTemplateTest";
 
 // --- Props -------------------------------------------------------------------
 
@@ -37,30 +38,37 @@ export type TemplateEditorProps = Readonly<{
   pokemonName?: string;
   /** Tesseract language code for OCR auto-recognition (e.g. "deu", "eng"). */
   ocrLang?: string;
+  /** Detection precision threshold (0.0–1.0) for test step visualization. */
+  precision?: number;
+  /** Cooldown in seconds after a confirmed match. */
+  cooldownSec?: number;
 }>;
 
-type Phase = "video" | "replay" | "snapshot";
+type Phase = "video" | "replay" | "snapshot" | "test" | "confirm";
 
 // --- Flow Controls -----------------------------------------------------------
 
-/** Flow controls for creating a new template (video/replay/snapshot phases). */
+/** Flow controls for creating a new template (all 5 phases). */
 function NewTemplateControls({
-  phase,
-  isSaving,
-  onTakeSnapshot,
-  onResetSnapshot,
-  onSave,
-  onUseFrame,
-  onBackToLive,
+  phase, isSaving, hasRegions,
+  onTakeSnapshot, onResetSnapshot, onSave,
+  onUseFrame, onBackToLive,
+  onGoToTest, onPickFrame, onAdjustRegions, onLooksGood, onBackToTest,
   t,
 }: Readonly<{
   phase: Phase;
   isSaving: boolean;
+  hasRegions: boolean;
   onTakeSnapshot: () => void;
   onResetSnapshot: () => void;
   onSave: () => void;
   onUseFrame: () => void;
   onBackToLive: () => void;
+  onGoToTest: () => void;
+  onPickFrame: () => void;
+  onAdjustRegions: () => void;
+  onLooksGood: () => void;
+  onBackToTest: () => void;
   t: (k: string) => string;
 }>) {
   if (phase === "video") {
@@ -96,23 +104,74 @@ function NewTemplateControls({
     );
   }
 
+  if (phase === "snapshot") {
+    return (
+      <div className="flex w-full gap-3">
+        <button
+          onClick={onResetSnapshot}
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
+        >
+          <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
+          {t("templateEditor.retake")}
+        </button>
+        <button
+          onClick={onGoToTest}
+          disabled={!hasRegions}
+          className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+        >
+          <BarChart3 className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
+          {t("templateEditor.next")}
+          <ArrowRight className="w-4 h-4 shrink-0" />
+        </button>
+      </div>
+    );
+  }
+
+  if (phase === "test") {
+    return (
+      <div className="flex w-full gap-3">
+        <button
+          onClick={onPickFrame}
+          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
+        >
+          <Camera className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
+          {t("templateEditor.pickFrame")}
+        </button>
+        <button
+          onClick={onAdjustRegions}
+          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
+        >
+          <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
+          {t("templateEditor.adjustRegions")}
+        </button>
+        <button
+          onClick={onLooksGood}
+          className="flex-1 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+        >
+          {t("templateEditor.next")}
+          <ArrowRight className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
+        </button>
+      </div>
+    );
+  }
+
+  // confirm phase
   return (
     <div className="flex w-full gap-3">
       <button
-        onClick={onResetSnapshot}
-        disabled={isSaving}
-        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
+        onClick={onBackToTest}
+        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
       >
-        <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
-        {t("templateEditor.retake")}
+        <ArrowLeft className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
+        {t("templateEditor.back")}
       </button>
       <button
         onClick={onSave}
         disabled={isSaving}
         className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
       >
-        {isSaving ? t("templateEditor.saving") : t("templateEditor.next")}
-        <ArrowRight className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
+        <Save className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
+        {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
       </button>
     </div>
   );
@@ -200,26 +259,16 @@ function boxToRegion(box: { x: number; y: number; w: number; h: number }, canvas
 }
 
 /** Renders a single region overlay marker on the snapshot preview. */
-function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight }: Readonly<{
+function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, scoreBadge }: Readonly<{
   region: MatchedRegion; index: number; snapshotWidth: number; snapshotHeight: number;
+  scoreBadge?: number;
 }>) {
-  const isNeg = region.polarity === "negative";
   const isText = region.type === "text";
-
-  let borderStyle: string;
-  if (isNeg) borderStyle = "border-red-500 bg-red-500/20 border-dashed";
-  else if (isText) borderStyle = "border-purple-500 bg-purple-500/30";
-  else borderStyle = "border-accent-blue bg-accent-blue/30";
-
-  let labelColor: string;
-  if (isNeg) labelColor = "text-red-400";
-  else if (isText) labelColor = "text-purple-400";
-  else labelColor = "text-accent-blue";
-
-  let regionIcon: React.ReactNode;
-  if (isNeg) regionIcon = <ShieldBan className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-red-400" />;
-  else if (isText) regionIcon = <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />;
-  else regionIcon = <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />;
+  const borderStyle = isText ? "border-purple-500 bg-purple-500/30" : "border-accent-blue bg-accent-blue/30";
+  const labelColor = isText ? "text-purple-400" : "text-accent-blue";
+  const regionIcon = isText
+    ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+    : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />;
 
   return (
     <div
@@ -234,82 +283,233 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight }: R
       <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
         <strong className={labelColor}>#{index + 1}</strong>
         {regionIcon}
-        {isNeg && <span className="text-red-400 font-bold">NOT</span>}
-        {!isNeg && isText && region.expected_text ? (
+        {isText && region.expected_text ? (
           <span className="opacity-80 ml-1 truncate max-w-15">"{region.expected_text}"</span>
         ) : null}
+        {scoreBadge !== undefined && (
+          <span className={`ml-1 font-bold ${scoreBadge >= 0.8 ? "text-green-400" : scoreBadge >= 0.5 ? "text-amber-400" : "text-red-400"}`}>
+            {(scoreBadge * 100).toFixed(0)}%
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-/** Modal dialog for naming a template before saving. */
-function TemplateNameDialog({ initialName, onConfirm, onCancel, t }: Readonly<{
-  initialName: string;
-  onConfirm: (name: string) => void;
-  onCancel: () => void;
-  t: (k: string) => string;
-}>) {
-  const [name, setName] = useState(initialName);
-  const inputRef = useRef<HTMLInputElement>(null);
+// --- Score Display Components ------------------------------------------------
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") onConfirm(name);
-    if (e.key === "Escape") onCancel();
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onCancel();
-  };
-
-  return createPortal(
-    <div // NOSONAR — backdrop click is intentional dismiss behaviour
-      className="fixed inset-0 z-120 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={handleBackdropClick}
+/** Score bar with precision threshold marker. */
+function ScoreBar({ label, score, precision, precisionLabel }: {
+  label: string; score: number; precision?: number; precisionLabel?: string;
+}) {
+  const threshold = precision ?? 0.55;
+  const isMatch = score >= threshold;
+  const pct = (score * 100).toFixed(0);
+  const thresholdPct = (threshold * 100).toFixed(0);
+  return (
+    <div
+      className="flex items-center gap-3 text-sm text-white"
+      role="meter"
+      aria-label={`${label}: ${pct}%`}
+      aria-valuenow={Math.round(score * 100)}
+      aria-valuemin={0}
+      aria-valuemax={100}
     >
-      <dialog
-        open
-        className="relative bg-bg-card rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-border-subtle"
-        aria-label={t("templateEditor.nameDialogTitle")}
-      >
-        <button
-          onClick={onCancel}
-          className="absolute top-3 right-3 p-1.5 rounded-full text-text-muted hover:bg-white/10 hover:text-text-primary transition-colors"
-          aria-label={t("templateEditor.cancel")}
-        >
-          <X className="w-4 h-4" />
-        </button>
-        <h3 className="text-lg font-bold text-text-primary mb-4">{t("templateEditor.nameDialogTitle")}</h3>
-        <input
-          ref={inputRef}
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={t("templateEditor.templateName")}
-          className="w-full px-3 py-2 text-sm bg-white/10 border border-border-subtle rounded-lg text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors mb-4"
-          aria-label={t("templateEditor.templateName")}
+      <span className="w-28 truncate text-text-muted text-xs 2xl:text-sm">{label}</span>
+      <div className="relative flex-1 h-2.5 bg-white/[0.06] rounded-full">
+        <div
+          className={`h-full rounded-full transition-all ${isMatch ? "bg-green-500" : "bg-white/20"}`}
+          style={{ width: `${score * 100}%` }}
         />
-        <button
-          onClick={() => onConfirm(name)}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap bg-accent-blue text-white hover:bg-accent-blue/90 transition-all"
+        {/* Precision threshold marker */}
+        <div
+          className="absolute top-[-4px] bottom-[-4px] w-0.5 bg-green-400/70 rounded-full"
+          style={{ left: `${threshold * 100}%` }}
+          aria-label={`${precisionLabel ?? "Precision"}: ${thresholdPct}%`}
         >
-          <Save className="w-4 h-4 shrink-0" />
-          {t("templateEditor.saveTemplate")}
-        </button>
-      </dialog>
-    </div>,
-    document.body,
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[8px] 2xl:text-[9px] text-green-400/70 font-mono whitespace-nowrap pointer-events-none">
+            {thresholdPct}%
+          </div>
+        </div>
+      </div>
+      <span className={`w-12 text-right font-mono text-xs font-bold ${isMatch ? "text-green-400" : "text-text-muted"}`}>
+        {pct}%
+      </span>
+    </div>
+  );
+}
+
+/** Hysteresis factor: after a match, score must drop to precision × this value. */
+const HYSTERESIS_FACTOR = 0.7;
+
+/** Detection flow state for each frame. */
+type FlowState = "searching" | "match" | "hysteresis" | "cooldown";
+
+/** Zone span in the sparkline. */
+interface FlowZone { startIdx: number; endIdx: number; type: "hysteresis" | "cooldown" }
+
+/**
+ * Simulate the full detection state machine: Searching → Match → Hysteresis → Cooldown → Searching.
+ * Cooldown is estimated from cooldownSec and the replay buffer's fps (~60fps, sampled every 5th).
+ */
+function simulateDetectionFlow(
+  entries: [number, { overallScore: number }][],
+  threshold: number,
+  cooldownFrames: number,
+): { states: Map<number, FlowState>; zones: FlowZone[] } {
+  const states = new Map<number, FlowState>();
+  const zones: FlowZone[] = [];
+  const hysteresisExit = threshold * HYSTERESIS_FACTOR;
+
+  let phase: "searching" | "hysteresis" | "cooldown" = "searching";
+  let zoneStart = -1;
+  let cooldownRemaining = 0;
+
+  for (const [idx, r] of entries) {
+    if (phase === "hysteresis") {
+      if (r.overallScore < hysteresisExit) {
+        // Hysteresis ends — start cooldown
+        zones.push({ startIdx: zoneStart, endIdx: idx, type: "hysteresis" });
+        phase = "cooldown";
+        cooldownRemaining = cooldownFrames;
+        zoneStart = idx;
+        states.set(idx, "cooldown");
+      } else {
+        states.set(idx, "hysteresis");
+      }
+    } else if (phase === "cooldown") {
+      cooldownRemaining -= 5; // sampled every 5th frame
+      if (cooldownRemaining <= 0) {
+        zones.push({ startIdx: zoneStart, endIdx: idx, type: "cooldown" });
+        phase = "searching";
+        zoneStart = -1;
+        // This frame could be a new match
+        if (r.overallScore >= threshold) {
+          states.set(idx, "match");
+          phase = "hysteresis";
+          zoneStart = idx;
+        } else {
+          states.set(idx, "searching");
+        }
+      } else {
+        states.set(idx, "cooldown");
+      }
+    } else if (r.overallScore >= threshold) {
+      states.set(idx, "match");
+      phase = "hysteresis";
+      zoneStart = idx;
+    } else {
+      states.set(idx, "searching");
+    }
+  }
+
+  // Close trailing zone
+  if (phase !== "searching" && zoneStart >= 0 && entries.length > 0) {
+    const lastIdx = entries[entries.length - 1][0];
+    zones.push({ startIdx: zoneStart, endIdx: lastIdx, type: phase === "hysteresis" ? "hysteresis" : "cooldown" });
+  }
+
+  return { states, zones };
+}
+
+/** Score timeline visualizing the detection flow: Searching → Match → Hysteresis → Cooldown → Searching. */
+function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, cooldownSec, t }: {
+  batchResults: Map<number, { overallScore: number }>;
+  frameCount: number;
+  selectedIndex: number;
+  precision?: number;
+  cooldownSec?: number;
+  t: (k: string) => string;
+}) {
+  if (batchResults.size === 0) return null;
+  const threshold = precision ?? 0.55;
+  const cooldownFrames = (cooldownSec ?? 5) * 60; // 60 fps
+  const entries = Array.from(batchResults.entries()).sort(([a], [b]) => a - b) as [number, { overallScore: number }][];
+  const barWidth = 100 / Math.max(entries.length, 1);
+  const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+
+  const matchCount = Array.from(states.values()).filter((s) => s === "match").length;
+  const maxFrame = Math.max(frameCount - 1, 1);
+  const hasHysteresis = zones.some((z) => z.type === "hysteresis");
+  const hasCooldown = zones.some((z) => z.type === "cooldown");
+
+  return (
+    <div className="bg-white/[0.03] rounded-xl px-4 py-3 space-y-2">
+      {/* Legend */}
+      <div className="flex items-center justify-between text-[10px] 2xl:text-xs">
+        <div className="flex items-center gap-3 text-text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />
+            {t("detector.stateMatch")}
+          </span>
+          {hasHysteresis && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-amber-500/25 inline-block ring-1 ring-amber-500/40" />
+              {t("detector.hysteresis")}
+            </span>
+          )}
+          {hasCooldown && (
+            <span className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-sky-500/20 inline-block ring-1 ring-sky-500/40" />
+              {t("detector.stateCooldown")}
+            </span>
+          )}
+        </div>
+        <span className="text-text-muted font-mono">
+          {matchCount}× {t("detector.stateMatch")} · {t("detector.precision")} {(threshold * 100).toFixed(0)}%
+        </span>
+      </div>
+
+      {/* Chart */}
+      <svg viewBox="0 0 100 40" className="w-full h-12 2xl:h-14" preserveAspectRatio="none" aria-label="Score timeline">
+        {/* Flow zones — background bands */}
+        {zones.map((z, i) => {
+          const x1 = (z.startIdx / maxFrame) * 100;
+          const x2 = Math.min((z.endIdx / maxFrame) * 100 + barWidth, 100);
+          const fill = z.type === "hysteresis" ? "#f59e0b" : "#0ea5e9";
+          return (
+            <rect key={`z-${i}`} x={x1} y={0} width={x2 - x1} height={40}
+              fill={fill} opacity={0.08} rx={0.3} />
+          );
+        })}
+
+        {/* Score bars */}
+        {entries.map(([idx, r]) => {
+          const x = (idx / maxFrame) * 100;
+          const h = r.overallScore * 36;
+          const state = states.get(idx) ?? "searching";
+          let fill: string;
+          if (state === "match") fill = "#22c55e";
+          else if (state === "hysteresis") fill = "#f59e0b";
+          else if (state === "cooldown") fill = "#0ea5e9";
+          else fill = "rgba(255,255,255,0.12)";
+          return (
+            <rect key={idx} x={x} y={40 - h} width={Math.max(barWidth * 0.8, 0.5)} height={h}
+              fill={fill} opacity={state === "searching" ? 1 : 0.7} rx={0.3} />
+          );
+        })}
+
+        {/* Selected frame cursor */}
+        <line
+          x1={(selectedIndex / maxFrame) * 100}
+          x2={(selectedIndex / maxFrame) * 100}
+          y1={0} y2={40}
+          stroke="white" strokeWidth={0.6} opacity={0.8}
+        />
+      </svg>
+    </div>
   );
 }
 
 /** Maps each phase to its step number (1-indexed). */
 function phaseToStep(phase: Phase): number {
-  if (phase === "video") return 1;
-  if (phase === "replay") return 2;
-  return 3;
+  switch (phase) {
+    case "video": return 1;
+    case "replay": return 2;
+    case "snapshot": return 3;
+    case "test": return 4;
+    case "confirm": return 5;
+  }
 }
 
 /** Returns the heading and hint text for the current editor phase. */
@@ -318,7 +518,7 @@ function getHeadingAndHint(
   phase: Phase,
   t: (key: string) => string,
 ): { heading: string; hint: string } {
-  if (isEditMode) {
+  if (isEditMode && phase === "snapshot") {
     return { heading: t("templateEditor.editTitle"), hint: t("templateEditor.editHint") };
   }
   const step = phaseToStep(phase);
@@ -338,13 +538,15 @@ function getBadgeInactiveStyle(isDone: boolean): string {
   return isDone ? "bg-white/20 text-white/70" : "bg-white/10 text-white/30";
 }
 
-/** Visual step indicator showing progress through the 3-step template flow. */
+/** Visual step indicator showing progress through the 5-step template flow. */
 function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => string }>) {
   const currentStep = phaseToStep(phase);
   const steps = [
     { step: 1, label: t("templateEditor.step1Title") },
     { step: 2, label: t("templateEditor.step2Title") },
     { step: 3, label: t("templateEditor.step3Title") },
+    { step: 4, label: t("templateEditor.step4Title") },
+    { step: 5, label: t("templateEditor.step5Title") },
   ];
 
   return (
@@ -368,7 +570,7 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
               <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-white/20"}`} />
             )}
             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${containerStyle}`}>
-              <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold ${badgeStyle}`}>
+              <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold leading-none ${badgeStyle}`}>
                 {isDone ? "✓" : step}
               </span>
               <span className="hidden sm:inline whitespace-nowrap">{stepLabel}</span>
@@ -382,7 +584,6 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
 
 /** Persists the current template (new or updated regions). */
 async function saveTemplate(opts: {
-  phase: Phase;
   canvas: HTMLCanvasElement | null;
   regions: MatchedRegion[];
   templateName: string;
@@ -391,27 +592,18 @@ async function saveTemplate(opts: {
   setIsSaving: (v: boolean) => void;
   setErrorMsg: (v: string | null) => void;
 }) {
-  const { phase, canvas, regions, templateName, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg } = opts;
-  if (phase !== "snapshot" || !canvas) return;
-
-  let finalRegions = regions;
-  if (finalRegions.length === 0) {
-    finalRegions = [{
-      type: "image",
-      expected_text: "",
-      rect: { x: 0, y: 0, w: canvas.width, h: canvas.height },
-    }];
-  }
+  const { canvas, regions, templateName, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg } = opts;
+  if (!canvas) return;
 
   setIsSaving(true);
   setErrorMsg(null);
   try {
     const trimmedName = templateName.trim() || undefined;
     if (onUpdateRegions) {
-      await onUpdateRegions(finalRegions, trimmedName);
+      await onUpdateRegions(regions, trimmedName);
     } else if (onSaveTemplate) {
       const base64Data = canvas.toDataURL("image/png");
-      await onSaveTemplate({ imageBase64: base64Data, regions: finalRegions, name: trimmedName });
+      await onSaveTemplate({ imageBase64: base64Data, regions, name: trimmedName });
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Failed to save template";
@@ -486,7 +678,7 @@ function observeImageBounds(
   updateBounds: () => void,
   setImageBounds: (v: null) => void,
 ): (() => void) | undefined {
-  if ((phase !== "snapshot" && phase !== "replay") || snapshotWidth === 0 || snapshotHeight === 0) {
+  if ((phase !== "snapshot" && phase !== "replay" && phase !== "test" && phase !== "confirm") || snapshotWidth === 0 || snapshotHeight === 0) {
     setImageBounds(null);
     return;
   }
@@ -583,30 +775,21 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
   isRecognizing: boolean;
   t: (key: string) => string;
 }>) {
-  const isNeg = r.polarity === "negative";
-  const textOrAccent = r.type === "text" ? "text-purple-400" : "text-accent-blue";
-  const editLabelColor = isNeg ? "text-red-400" : textOrAccent;
+  const labelColor = r.type === "text" ? "text-purple-400" : "text-accent-blue";
   return (
-    <div className={`flex items-center gap-2 bg-bg-card border rounded-lg px-3 py-2 shadow-lg transition-colors ${isNeg ? "border-red-500/50 hover:border-red-400" : "border-border-subtle hover:border-accent-blue/50"}`}>
-      <span className={`font-mono font-bold w-5 shrink-0 ${editLabelColor}`}>
+    <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-2 shadow-lg transition-colors hover:border-accent-blue/50">
+      <span className={`font-mono font-bold w-5 shrink-0 ${labelColor}`}>
         #{i + 1}
       </span>
-      {!isNeg && (
-        <select
-          className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
-          value={r.type}
-          onChange={(e) => onUpdate(i, { type: e.target.value as "image" | "text" })}
-        >
-          <option value="image">{t("templateEditor.regionImage")}</option>
-          <option value="text">{t("templateEditor.regionText")} (OCR)</option>
-        </select>
-      )}
-      {isNeg && (
-        <span className="text-xs 2xl:text-sm text-red-400 font-medium px-1">
-          {t("templateEditor.negativeRegion")}
-        </span>
-      )}
-      {!isNeg && r.type === "text" && (
+      <select
+        className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
+        value={r.type}
+        onChange={(e) => onUpdate(i, { type: e.target.value as "image" | "text" })}
+      >
+        <option value="image">{t("templateEditor.regionImage")}</option>
+        <option value="text">{t("templateEditor.regionText")} (OCR)</option>
+      </select>
+      {r.type === "text" && (
         <>
           <input
             type="text"
@@ -631,13 +814,6 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
       )}
       <div className="w-px h-6 bg-border-subtle mx-1"></div>
       <button
-        title={isNeg ? t("templateEditor.setPositive") : t("templateEditor.setNegative")}
-        onClick={() => onUpdate(i, { polarity: isNeg ? "positive" : "negative" })}
-        className={`transition-colors p-1 ${isNeg ? "text-red-400 hover:text-green-400" : "text-text-muted hover:text-red-400"}`}
-      >
-        <ShieldBan className="w-4 h-4 2xl:w-5 2xl:h-5" />
-      </button>
-      <button
         title={t("templateEditor.deleteRegion")}
         onClick={() => onDelete(i)}
         className="text-text-muted hover:text-red-400 transition-colors p-1"
@@ -661,6 +837,8 @@ export function TemplateEditor({
   initialName,
   pokemonName,
   ocrLang = "eng",
+  precision: precisionProp,
+  cooldownSec: cooldownSecProp,
 }: TemplateEditorProps) {
   const { t } = useI18n();
   // Callback ref so React triggers a re-render when the video element mounts,
@@ -669,10 +847,13 @@ export function TemplateEditor({
   const videoRef = useCallback((el: HTMLVideoElement | null) => { setVideoEl(el); }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
 
   const [phase, setPhase] = useState<Phase>("video");
   const [selectedFrameIndex, setSelectedFrameIndex] = useState(0);
   const [templateName, setTemplateName] = useState(initialName ?? "");
+
+  const templateTest = useTemplateTest();
 
   // Browser-based replay buffer capturing from the stream at 60fps
   const replayBuffer = useReplayBuffer(stream ? videoEl : null);
@@ -719,16 +900,16 @@ export function TemplateEditor({
     [stream, phase, videoEl],
   );
 
-  // Render selected replay frame to canvas
+  // Render selected replay frame to canvas (replay and test phases)
   useEffect(() => {
-    if (phase === "replay") {
+    if (phase === "replay" || phase === "test") {
       renderReplayFrame(replayBuffer.getFrame(selectedFrameIndex), canvasRef.current, setSnapshotWidth, setSnapshotHeight);
     }
   }, [phase, selectedFrameIndex, replayBuffer]);
 
-  // Keyboard navigation in replay phase
+  // Keyboard navigation in replay and test phases
   useEffect(() => {
-    if (phase !== "replay") return;
+    if (phase !== "replay" && phase !== "test") return;
 
     const handleKeyDown = (e: KeyboardEvent) =>
       handleReplayKeyDown(e, replayBuffer.frameCount, setSelectedFrameIndex);
@@ -736,6 +917,13 @@ export function TemplateEditor({
     globalThis.addEventListener("keydown", handleKeyDown);
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
   }, [phase, replayBuffer.frameCount]);
+
+  // Auto-focus the name input when entering the confirm phase
+  useEffect(() => {
+    if (phase === "confirm") {
+      setTimeout(() => nameInputRef.current?.focus(), 100);
+    }
+  }, [phase]);
 
   // --- Snapshot and replay handlers ------------------------------------------
 
@@ -817,14 +1005,66 @@ export function TemplateEditor({
     if (recognized) updateRegion(regionIndex, { expected_text: recognized });
   };
 
-  const [showNameDialog, setShowNameDialog] = useState(false);
+  // --- Flow transition handlers (test/confirm) --------------------------------
 
-  const handleSaveClick = () => setShowNameDialog(true);
+  const handleGoToTest = () => {
+    replayBuffer.stop();
+    setPhase("test");
+    if (canvasRef.current && replayBuffer.frameCount > 0) {
+      templateTest.runBatch(canvasRef.current, regions, replayBuffer.getFrame, replayBuffer.frameCount);
+      const frame = replayBuffer.getFrame(selectedFrameIndex);
+      if (frame) {
+        templateTest.scoreFrame(canvasRef.current, regions, frame);
+      }
+    }
+  };
 
-  const confirmSave = (name: string) => {
-    setShowNameDialog(false);
-    setTemplateName(name);
-    saveTemplate({ phase, canvas: canvasRef.current, regions, templateName: name, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg });
+  /** In edit mode without replay frames, skip test and go straight to confirm. */
+  const handleGoToTestOrConfirm = () => {
+    if (replayBuffer.frameCount > 0) {
+      handleGoToTest();
+    } else {
+      setPhase("confirm");
+    }
+  };
+
+  const handlePickFrame = () => {
+    templateTest.cancel();
+    setPhase("replay");
+  };
+
+  const handleAdjustRegions = () => {
+    templateTest.cancel();
+    setPhase("snapshot");
+  };
+
+  const handleLooksGood = () => {
+    setPhase("confirm");
+  };
+
+  const handleBackToTest = () => {
+    setPhase("test");
+    if (canvasRef.current && replayBuffer.frameCount > 0) {
+      templateTest.runBatch(canvasRef.current, regions, replayBuffer.getFrame, replayBuffer.frameCount);
+      // Score the currently selected frame immediately so the panel isn't empty
+      const frame = replayBuffer.getFrame(selectedFrameIndex);
+      if (frame) {
+        renderReplayFrame(frame, canvasRef.current, setSnapshotWidth, setSnapshotHeight);
+        templateTest.scoreFrame(canvasRef.current, regions, frame);
+      }
+    }
+  };
+
+  const handleConfirmSave = () => {
+    saveTemplate({
+      canvas: canvasRef.current,
+      regions,
+      templateName: templateName.trim() || "",
+      onUpdateRegions,
+      onSaveTemplate,
+      setIsSaving,
+      setErrorMsg,
+    });
   };
 
   const hasTextRegion = regions.some((r) => r.type === "text");
@@ -863,7 +1103,7 @@ export function TemplateEditor({
       {/* NOSONAR: non-native interactive element is intentional for freeform region drawing */}
       <div // NOSONAR
         ref={containerRef}
-        className={`relative w-full max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh] aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-3 flex items-center justify-center select-none touch-none ${cursorClass}`}
+        className={`relative w-full ${phase === "confirm" ? "max-w-[40vw] max-h-[30vh]" : "max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh]"} aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-3 flex items-center justify-center select-none touch-none ${cursorClass}`}
         onMouseDown={pointerDown}
         onMouseMove={pointerMove}
         onMouseUp={pointerUp}
@@ -900,11 +1140,11 @@ export function TemplateEditor({
         {/* Snapshot canvas layer */}
         <canvas
           ref={canvasRef}
-          className={`w-full h-full object-contain pointer-events-none ${phase === "snapshot" || phase === "replay" ? "" : "hidden"}`}
+          className={`w-full h-full object-contain pointer-events-none ${phase === "snapshot" || phase === "replay" || phase === "test" || phase === "confirm" ? "" : "hidden"}`}
         />
 
         {/* Overlay wrapper for regions and drawing box */}
-        {(phase === "snapshot" || phase === "replay") && imageBounds && (
+        {(phase === "snapshot" || phase === "replay" || phase === "test" || phase === "confirm") && imageBounds && (
           <div
             className="absolute pointer-events-none"
             style={{
@@ -915,15 +1155,21 @@ export function TemplateEditor({
             }}
           >
             {/* Existing regions */}
-            {snapshotWidth > 0 && regions.map((r, i) => (
-              <RegionOverlayMarker
-                key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
-                region={r}
-                index={i}
-                snapshotWidth={snapshotWidth}
-                snapshotHeight={snapshotHeight}
-              />
-            ))}
+            {snapshotWidth > 0 && regions.map((r, i) => {
+              const regionScore = phase === "test" && templateTest.currentResult
+                ? templateTest.currentResult.regionScores.find((rs) => rs.index === i)?.score
+                : undefined;
+              return (
+                <RegionOverlayMarker
+                  key={`region-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
+                  region={r}
+                  index={i}
+                  snapshotWidth={snapshotWidth}
+                  snapshotHeight={snapshotHeight}
+                  scoreBadge={regionScore}
+                />
+              );
+            })}
 
             {/* Current drawing box */}
             {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
@@ -941,7 +1187,7 @@ export function TemplateEditor({
         )}
       </div>
 
-      {/* Replay Timeline */}
+      {/* Replay Timeline (replay phase) */}
       {phase === "replay" && replayBuffer.frameCount > 0 && (
         <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-4 px-8">
           <div className="flex items-center gap-4">
@@ -974,7 +1220,109 @@ export function TemplateEditor({
         </div>
       )}
 
+      {/* Test Phase UI */}
+      {phase === "test" && (
+        <>
+          {/* Score Sparkline */}
+          <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-2 px-8">
+            <ScoreSparkline
+              batchResults={templateTest.batchResults}
+              frameCount={replayBuffer.frameCount}
+              selectedIndex={selectedFrameIndex}
+              precision={precisionProp}
+              cooldownSec={cooldownSecProp}
+              t={t}
+            />
+          </div>
 
+          {/* Timeline Scrubber */}
+          {replayBuffer.frameCount > 0 && (
+            <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-3 px-8">
+              <div className="flex items-center gap-4">
+                <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
+                  {selectedFrameIndex + 1} / {replayBuffer.frameCount}
+                </span>
+                <input
+                  type="range" min={0} max={replayBuffer.frameCount - 1}
+                  value={selectedFrameIndex}
+                  onChange={(e) => {
+                    const idx = Number(e.target.value);
+                    setSelectedFrameIndex(idx);
+                    const frame = replayBuffer.getFrame(idx);
+                    if (frame && canvasRef.current) {
+                      renderReplayFrame(frame, canvasRef.current, setSnapshotWidth, setSnapshotHeight);
+                      templateTest.scoreFrame(canvasRef.current, regions, frame);
+                    }
+                  }}
+                  className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer
+                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
+                    [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Score Panel */}
+          <div className="w-full max-w-lg 2xl:max-w-xl px-4 mb-3 space-y-2">
+            {templateTest.isRunning && (
+              <div className="flex items-center gap-3 text-sm text-text-muted mb-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>{t("templateEditor.testRunning")}</span>
+                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-accent-blue rounded-full transition-all" style={{ width: `${templateTest.progress * 100}%` }} />
+                </div>
+              </div>
+            )}
+            {templateTest.currentResult && (
+              <>
+                <ScoreBar label={t("templateEditor.testOverall")} score={templateTest.currentResult.overallScore} precision={precisionProp} precisionLabel={t("detector.precision")} />
+                {templateTest.currentResult.regionScores.map((rs) => (
+                  <ScoreBar
+                    key={rs.index}
+                    label={`${t("templateEditor.regionN")} ${rs.index + 1}`}
+                    score={rs.score}
+                    precision={precisionProp}
+                    precisionLabel={t("detector.precision")}
+                  />
+                ))}
+              </>
+            )}
+            {!templateTest.isRunning && templateTest.bestScore < (precisionProp ?? 0.55) && templateTest.batchResults.size > 0 && (
+              <p className="text-xs 2xl:text-sm text-amber-400 text-center mt-2">
+                {t("templateEditor.testLowScoreHint")}
+              </p>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Confirm Phase UI */}
+      {phase === "confirm" && (
+        <div className="w-full max-w-md 2xl:max-w-lg px-4 mb-4 space-y-4">
+          {/* Name input */}
+          <input
+            ref={nameInputRef}
+            type="text"
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleConfirmSave(); }}
+            placeholder={t("templateEditor.templateName")}
+            className="w-full px-4 py-3 text-sm bg-white/10 border border-border-subtle rounded-xl text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors"
+            aria-label={t("templateEditor.templateName")}
+          />
+
+          {/* Summary */}
+          <div className="flex items-center justify-center gap-4 text-sm text-text-muted">
+            <span>{t("templateEditor.regionSummary").replace("{count}", String(regions.length))}</span>
+            {templateTest.bestScore > 0 && (
+              <>
+                <span className="text-border-subtle">&middot;</span>
+                <span>{t("templateEditor.bestScore")}: {(templateTest.bestScore * 100).toFixed(0)}%</span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Region List Editor */}
       {phase === "snapshot" && regions.length > 0 && (
@@ -998,8 +1346,8 @@ export function TemplateEditor({
       {phase === "snapshot" && (
         <div className="w-full max-w-4xl px-4 mb-2 flex flex-col items-center gap-1">
           {regions.length === 0 && (
-            <p className="text-xs 2xl:text-sm text-text-muted text-center">
-              {t("templateEditor.noRegions")}
+            <p className="text-xs 2xl:text-sm text-amber-400 text-center">
+              {t("templateEditor.regionsRequired")}
             </p>
           )}
           {hasTextRegion && (
@@ -1017,7 +1365,7 @@ export function TemplateEditor({
 
       {/* Flow Controls */}
       <div className="flex flex-col items-center gap-3 w-full max-w-md 2xl:max-w-lg shrink-0">
-        {isEditMode ? (
+        {isEditMode && phase === "snapshot" ? (
           <div className="flex w-full gap-3">
             <button
               onClick={onClose}
@@ -1027,23 +1375,30 @@ export function TemplateEditor({
               {t("templateEditor.cancel")}
             </button>
             <button
-              onClick={handleSaveClick}
-              disabled={isSaving}
+              onClick={handleGoToTestOrConfirm}
+              disabled={regions.length === 0}
               className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
             >
-              <Save className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
-              {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
+              <BarChart3 className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
+              {t("templateEditor.next")}
+              <ArrowRight className="w-4 h-4 shrink-0" />
             </button>
           </div>
         ) : (
           <NewTemplateControls
             phase={phase}
             isSaving={isSaving}
+            hasRegions={regions.length > 0}
             onTakeSnapshot={handleTakeSnapshot}
             onResetSnapshot={resetSnapshot}
-            onSave={handleSaveClick}
+            onSave={handleConfirmSave}
             onUseFrame={handleUseFrame}
             onBackToLive={handleBackToLive}
+            onGoToTest={handleGoToTestOrConfirm}
+            onPickFrame={handlePickFrame}
+            onAdjustRegions={handleAdjustRegions}
+            onLooksGood={handleLooksGood}
+            onBackToTest={handleBackToTest}
             t={t}
           />
         )}
@@ -1054,16 +1409,6 @@ export function TemplateEditor({
           </div>
         )}
       </div>
-
-      {/* Save name dialog */}
-      {showNameDialog && (
-        <TemplateNameDialog
-          initialName={templateName}
-          onConfirm={confirmSave}
-          onCancel={() => setShowNameDialog(false)}
-          t={t}
-        />
-      )}
     </div>
   );
 

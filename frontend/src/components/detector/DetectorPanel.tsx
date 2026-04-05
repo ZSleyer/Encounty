@@ -896,25 +896,36 @@ export function DetectorPanel({
                       <div
                         key={`template-${tmpl.image_path}-${index}`}
                         className={`relative group rounded-md overflow-hidden transition-all w-full ${
-                          tmpl.enabled === false
-                            ? "ring-1 ring-border-subtle bg-bg-primary opacity-60"
-                            : "ring-2 ring-accent-blue bg-bg-primary"
+                          tmpl.regions.length === 0
+                            ? "ring-1 ring-amber-500/50 bg-bg-primary opacity-80"
+                            : tmpl.enabled === false
+                              ? "ring-1 ring-border-subtle bg-bg-primary opacity-60"
+                              : "ring-2 ring-accent-blue bg-bg-primary"
                         }`}
                       >
-                        {/* Clickable toggle area — disabled during active hunt */}
+                        {/* Clickable toggle area — disabled during active hunt or when template has no regions */}
                         <button
                           type="button"
-                          className={`w-full text-left bg-transparent border-none p-0 ${isRunning ? "cursor-default" : "cursor-pointer"}`}
-                          onClick={() => { if (!isRunning) handleToggleTemplate(index); }}
-                          disabled={isRunning}
-                          aria-label={`${tmpl.name || "Template " + (index + 1)} — ${t("detector.setActiveTemplate")}`}
+                          className={`w-full text-left bg-transparent border-none p-0 ${
+                            isRunning || tmpl.regions.length === 0 ? "cursor-default" : "cursor-pointer"
+                          }`}
+                          onClick={() => {
+                            if (tmpl.regions.length === 0) { handleEditTemplate(index); return; }
+                            if (!isRunning) handleToggleTemplate(index);
+                          }}
+                          disabled={isRunning && tmpl.regions.length > 0}
+                          aria-label={`${tmpl.name || "Template " + (index + 1)} — ${
+                            tmpl.regions.length === 0 ? t("templateEditor.templateInvalid") : t("detector.setActiveTemplate")
+                          }`}
                         >
-                          {/* Radio indicator for active selection */}
+                          {/* Radio indicator for active selection — disabled for invalid templates */}
                           <div className="absolute top-1 left-1 z-10 pointer-events-none">
                             <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-                              tmpl.enabled === false ? "border-text-muted bg-transparent" : "border-accent-blue bg-accent-blue"
+                              tmpl.regions.length === 0
+                                ? "border-amber-500/50 bg-transparent"
+                                : tmpl.enabled === false ? "border-text-muted bg-transparent" : "border-accent-blue bg-accent-blue"
                             }`}>
-                              {tmpl.enabled !== false && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                              {tmpl.enabled !== false && tmpl.regions.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                             </div>
                           </div>
 
@@ -925,6 +936,15 @@ export function DetectorPanel({
                               alt={tmpl.name || `Template ${index + 1}`}
                               className="absolute inset-0 w-full h-full object-contain"
                             />
+                            {/* Invalid template overlay — shown when template has no regions */}
+                            {tmpl.regions.length === 0 && (
+                              <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center rounded-lg">
+                                <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-full text-xs text-amber-400 font-medium">
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                  {t("templateEditor.templateInvalid")}
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Template name — read-only display */}
@@ -1111,6 +1131,8 @@ export function DetectorPanel({
           stream={stream}
           pokemonName={pokemon.name}
           ocrLang={pokemonOcrLang}
+          precision={cfg.precision}
+          cooldownSec={cfg.cooldown_sec}
           onClose={() => setShowAddTemplate(false)}
           onSaveTemplate={handleSaveNewTemplate}
         />
@@ -1124,6 +1146,8 @@ export function DetectorPanel({
           initialName={editingTemplate.name}
           pokemonName={pokemon.name}
           ocrLang={pokemonOcrLang}
+          precision={cfg.precision}
+          cooldownSec={cfg.cooldown_sec}
           onClose={() => setEditingTemplate(null)}
           onUpdateRegions={handleUpdateRegions}
         />
