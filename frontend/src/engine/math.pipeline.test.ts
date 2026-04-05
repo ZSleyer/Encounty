@@ -13,7 +13,7 @@ import {
   fuseHybridScores,
   scoreRegionHybrid,
   andLogicAcrossRegions,
-  applyNegativePenalty,
+
   adaptiveBlockSizeForRegion,
   blockSSIM,
   pearsonCorrelation,
@@ -254,32 +254,6 @@ describe("andLogicAcrossRegions", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// applyNegativePenalty
-// ---------------------------------------------------------------------------
-
-describe("applyNegativePenalty", () => {
-  it("returns full positive score when negative is 0", () => {
-    expect(applyNegativePenalty(0.9, 0)).toBe(0.9);
-  });
-
-  it("returns 0 when negative score is 1.0 (full suppression)", () => {
-    expect(applyNegativePenalty(0.9, 1)).toBe(0);
-  });
-
-  it("reduces score proportionally to negative match", () => {
-    const result = applyNegativePenalty(0.8, 0.5);
-    expect(result).toBeCloseTo(0.8 * 0.5, 6); // 0.8 * max(0, 1 - 0.5) = 0.4
-  });
-
-  it("clamps negative score > 1 to full suppression", () => {
-    expect(applyNegativePenalty(0.9, 1.5)).toBe(0);
-  });
-
-  it("returns 0 when positive score is 0", () => {
-    expect(applyNegativePenalty(0, 0.5)).toBe(0);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // adaptiveBlockSizeForRegion — unified (matches GPU)

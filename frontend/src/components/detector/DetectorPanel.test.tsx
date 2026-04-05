@@ -4,6 +4,9 @@ import { DetectorPanel } from "./DetectorPanel";
 import { CaptureServiceProvider } from "../../contexts/CaptureServiceContext";
 import { useCounterStore } from "../../hooks/useCounterState";
 
+/** A single valid region to make templates pass the `regions.length === 0` check. */
+const VALID_REGION = { type: "image" as const, expected_text: "", rect: { x: 0, y: 0, w: 100, h: 100 } };
+
 // Mock engine modules that require WebGPU / browser-only APIs
 vi.mock("../../engine/DetectionLoop", () => ({
   getActiveLoop: vi.fn(() => null),
@@ -791,7 +794,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -850,8 +853,8 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
+          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [VALID_REGION] },
         ],
       },
     });
@@ -1444,8 +1447,8 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
+          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [VALID_REGION] },
         ],
       },
     });
@@ -1480,7 +1483,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -2089,7 +2092,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [] },
+          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -3317,7 +3320,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: false, name: "ToggleMe", regions: [] },
+          { image_path: "tmpl1.png", enabled: false, name: "ToggleMe", regions: [VALID_REGION] },
         ],
       },
     });
@@ -3422,7 +3425,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [] },
+          { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [VALID_REGION] },
         ],
       },
     });
@@ -3893,7 +3896,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Modify Me", regions: [], template_db_id: 10 },
+          { image_path: "tmpl1.png", enabled: true, name: "Modify Me", regions: [VALID_REGION], template_db_id: 10 },
         ],
       },
     });
@@ -3958,7 +3961,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Fail Update", regions: [], template_db_id: 20 },
+          { image_path: "tmpl1.png", enabled: true, name: "Fail Update", regions: [VALID_REGION], template_db_id: 20 },
         ],
       },
     });
@@ -4010,7 +4013,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Net Fail", regions: [], template_db_id: 30 },
+          { image_path: "tmpl1.png", enabled: true, name: "Net Fail", regions: [VALID_REGION], template_db_id: 30 },
         ],
       },
     });
@@ -4054,7 +4057,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Close Me", regions: [], template_db_id: 40 },
+          { image_path: "tmpl1.png", enabled: true, name: "Close Me", regions: [VALID_REGION], template_db_id: 40 },
         ],
       },
     });
@@ -4245,7 +4248,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Only Template", regions: [], template_db_id: 99 },
+          { image_path: "tmpl1.png", enabled: true, name: "Only Template", regions: [VALID_REGION], template_db_id: 99 },
         ],
       },
     });
@@ -4507,7 +4510,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Err Test", regions: [], template_db_id: 50 },
+          { image_path: "tmpl1.png", enabled: true, name: "Err Test", regions: [VALID_REGION], template_db_id: 50 },
         ],
       },
     });
@@ -4560,7 +4563,7 @@ describe("DetectorPanel", () => {
         min_poll_ms: 50,
         max_poll_ms: 2000,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "DbId Template", regions: [], template_db_id: 99 },
+          { image_path: "tmpl1.png", enabled: true, name: "DbId Template", regions: [VALID_REGION], template_db_id: 99 },
         ],
       },
     });
