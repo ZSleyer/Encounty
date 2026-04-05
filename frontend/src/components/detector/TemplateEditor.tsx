@@ -286,11 +286,17 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
         {isText && region.expected_text ? (
           <span className="opacity-80 ml-1 truncate max-w-15">"{region.expected_text}"</span>
         ) : null}
-        {scoreBadge !== undefined && (
-          <span className={`ml-1 font-bold ${scoreBadge >= 0.8 ? "text-green-400" : scoreBadge >= 0.5 ? "text-amber-400" : "text-red-400"}`}>
-            {(scoreBadge * 100).toFixed(0)}%
-          </span>
-        )}
+        {scoreBadge !== undefined && (() => {
+          let scoreColor: string;
+          if (scoreBadge >= 0.8) scoreColor = "text-green-400";
+          else if (scoreBadge >= 0.5) scoreColor = "text-amber-400";
+          else scoreColor = "text-red-400";
+          return (
+            <span className={`ml-1 font-bold ${scoreColor}`}>
+              {(scoreBadge * 100).toFixed(0)}%
+            </span>
+          );
+        })()}
       </div>
     </div>
   );
@@ -299,31 +305,31 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
 // --- Score Display Components ------------------------------------------------
 
 /** Score bar with precision threshold marker. */
-function ScoreBar({ label, score, precision, precisionLabel }: {
+function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
   label: string; score: number; precision?: number; precisionLabel?: string;
-}) {
+}>) {
   const threshold = precision ?? 0.55;
   const isMatch = score >= threshold;
   const pct = (score * 100).toFixed(0);
   const thresholdPct = (threshold * 100).toFixed(0);
   return (
-    <div
-      className="flex items-center gap-3 text-sm text-white"
-      role="meter"
-      aria-label={`${label}: ${pct}%`}
-      aria-valuenow={Math.round(score * 100)}
-      aria-valuemin={0}
-      aria-valuemax={100}
-    >
+    <div className="flex items-center gap-3 text-sm text-white">
+      <meter
+        className="sr-only"
+        value={score * 100}
+        min={0}
+        max={100}
+        aria-label={`${label}: ${pct}%`}
+      />
       <span className="w-28 truncate text-text-muted text-xs 2xl:text-sm">{label}</span>
-      <div className="relative flex-1 h-2.5 bg-white/[0.06] rounded-full">
+      <div className="relative flex-1 h-2.5 bg-white/6 rounded-full">
         <div
           className={`h-full rounded-full transition-all ${isMatch ? "bg-green-500" : "bg-white/20"}`}
           style={{ width: `${score * 100}%` }}
         />
         {/* Precision threshold marker */}
         <div
-          className="absolute top-[-4px] bottom-[-4px] w-0.5 bg-green-400/70 rounded-full"
+          className="absolute -top-1 -bottom-1 w-0.5 bg-green-400/70 rounded-full"
           style={{ left: `${threshold * 100}%` }}
           aria-label={`${precisionLabel ?? "Precision"}: ${thresholdPct}%`}
         >
@@ -348,6 +354,55 @@ type FlowState = "searching" | "match" | "hysteresis" | "cooldown";
 /** Zone span in the sparkline. */
 interface FlowZone { startIdx: number; endIdx: number; type: "hysteresis" | "cooldown" }
 
+/** Mutable context passed through the detection state machine. */
+interface FlowContext {
+  phase: "searching" | "hysteresis" | "cooldown";
+  zoneStart: number;
+  cooldownRemaining: number;
+  states: Map<number, FlowState>;
+  zones: FlowZone[];
+  threshold: number;
+  hysteresisExit: number;
+  cooldownFrames: number;
+}
+
+/** Process a single frame during the hysteresis phase. */
+function processHysteresisFrame(ctx: FlowContext, idx: number, score: number): void {
+  if (score < ctx.hysteresisExit) {
+    ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: idx, type: "hysteresis" });
+    ctx.phase = "cooldown";
+    ctx.cooldownRemaining = ctx.cooldownFrames;
+    ctx.zoneStart = idx;
+    ctx.states.set(idx, "cooldown");
+  } else {
+    ctx.states.set(idx, "hysteresis");
+  }
+}
+
+/** Process a single frame during the cooldown phase. */
+function processCooldownFrame(ctx: FlowContext, idx: number, score: number): void {
+  ctx.cooldownRemaining -= 5; // sampled every 5th frame
+  if (ctx.cooldownRemaining > 0) {
+    ctx.states.set(idx, "cooldown");
+    return;
+  }
+  ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: idx, type: "cooldown" });
+  ctx.phase = "searching";
+  ctx.zoneStart = -1;
+  processSearchingFrame(ctx, idx, score);
+}
+
+/** Process a single frame during the searching phase. */
+function processSearchingFrame(ctx: FlowContext, idx: number, score: number): void {
+  if (score >= ctx.threshold) {
+    ctx.states.set(idx, "match");
+    ctx.phase = "hysteresis";
+    ctx.zoneStart = idx;
+  } else {
+    ctx.states.set(idx, "searching");
+  }
+}
+
 /**
  * Simulate the full detection state machine: Searching → Match → Hysteresis → Cooldown → Searching.
  * Cooldown is estimated from cooldownSec and the replay buffer's fps (~60fps, sampled every 5th).
@@ -357,70 +412,41 @@ function simulateDetectionFlow(
   threshold: number,
   cooldownFrames: number,
 ): { states: Map<number, FlowState>; zones: FlowZone[] } {
-  const states = new Map<number, FlowState>();
-  const zones: FlowZone[] = [];
-  const hysteresisExit = threshold * HYSTERESIS_FACTOR;
-
-  let phase: "searching" | "hysteresis" | "cooldown" = "searching";
-  let zoneStart = -1;
-  let cooldownRemaining = 0;
+  const ctx: FlowContext = {
+    phase: "searching",
+    zoneStart: -1,
+    cooldownRemaining: 0,
+    states: new Map(),
+    zones: [],
+    threshold,
+    hysteresisExit: threshold * HYSTERESIS_FACTOR,
+    cooldownFrames,
+  };
 
   for (const [idx, r] of entries) {
-    if (phase === "hysteresis") {
-      if (r.overallScore < hysteresisExit) {
-        // Hysteresis ends — start cooldown
-        zones.push({ startIdx: zoneStart, endIdx: idx, type: "hysteresis" });
-        phase = "cooldown";
-        cooldownRemaining = cooldownFrames;
-        zoneStart = idx;
-        states.set(idx, "cooldown");
-      } else {
-        states.set(idx, "hysteresis");
-      }
-    } else if (phase === "cooldown") {
-      cooldownRemaining -= 5; // sampled every 5th frame
-      if (cooldownRemaining <= 0) {
-        zones.push({ startIdx: zoneStart, endIdx: idx, type: "cooldown" });
-        phase = "searching";
-        zoneStart = -1;
-        // This frame could be a new match
-        if (r.overallScore >= threshold) {
-          states.set(idx, "match");
-          phase = "hysteresis";
-          zoneStart = idx;
-        } else {
-          states.set(idx, "searching");
-        }
-      } else {
-        states.set(idx, "cooldown");
-      }
-    } else if (r.overallScore >= threshold) {
-      states.set(idx, "match");
-      phase = "hysteresis";
-      zoneStart = idx;
-    } else {
-      states.set(idx, "searching");
-    }
+    if (ctx.phase === "hysteresis") processHysteresisFrame(ctx, idx, r.overallScore);
+    else if (ctx.phase === "cooldown") processCooldownFrame(ctx, idx, r.overallScore);
+    else processSearchingFrame(ctx, idx, r.overallScore);
   }
 
   // Close trailing zone
-  if (phase !== "searching" && zoneStart >= 0 && entries.length > 0) {
+  if (ctx.phase !== "searching" && ctx.zoneStart >= 0 && entries.length > 0) {
     const lastIdx = entries[entries.length - 1][0];
-    zones.push({ startIdx: zoneStart, endIdx: lastIdx, type: phase === "hysteresis" ? "hysteresis" : "cooldown" });
+    ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: lastIdx, type: ctx.phase === "hysteresis" ? "hysteresis" : "cooldown" });
   }
 
-  return { states, zones };
+  return { states: ctx.states, zones: ctx.zones };
 }
 
 /** Score timeline visualizing the detection flow: Searching → Match → Hysteresis → Cooldown → Searching. */
-function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, cooldownSec, t }: {
+function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, cooldownSec, t }: Readonly<{
   batchResults: Map<number, { overallScore: number }>;
   frameCount: number;
   selectedIndex: number;
   precision?: number;
   cooldownSec?: number;
   t: (k: string) => string;
-}) {
+}>) {
   if (batchResults.size === 0) return null;
   const threshold = precision ?? 0.55;
   const cooldownFrames = (cooldownSec ?? 5) * 60; // 60 fps
@@ -434,7 +460,7 @@ function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, co
   const hasCooldown = zones.some((z) => z.type === "cooldown");
 
   return (
-    <div className="bg-white/[0.03] rounded-xl px-4 py-3 space-y-2">
+    <div className="bg-white/3 rounded-xl px-4 py-3 space-y-2">
       {/* Legend */}
       <div className="flex items-center justify-between text-[10px] 2xl:text-xs">
         <div className="flex items-center gap-3 text-text-muted">
@@ -463,12 +489,12 @@ function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, co
       {/* Chart */}
       <svg viewBox="0 0 100 40" className="w-full h-12 2xl:h-14" preserveAspectRatio="none" aria-label="Score timeline">
         {/* Flow zones — background bands */}
-        {zones.map((z, i) => {
+        {zones.map((z) => {
           const x1 = (z.startIdx / maxFrame) * 100;
           const x2 = Math.min((z.endIdx / maxFrame) * 100 + barWidth, 100);
           const fill = z.type === "hysteresis" ? "#f59e0b" : "#0ea5e9";
           return (
-            <rect key={`z-${i}`} x={x1} y={0} width={x2 - x1} height={40}
+            <rect key={`z-${z.type}-${z.startIdx}-${z.endIdx}`} x={x1} y={0} width={x2 - x1} height={40}
               fill={fill} opacity={0.08} rx={0.3} />
           );
         })}
@@ -570,7 +596,7 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
               <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-white/20"}`} />
             )}
             <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${containerStyle}`}>
-              <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold leading-none ${badgeStyle}`}>
+              <span className={`w-5 h-5 flex items-center justify-center rounded-full font-bold leading-none ${badgeStyle}`}>
                 {isDone ? "✓" : step}
               </span>
               <span className="hidden sm:inline whitespace-nowrap">{stepLabel}</span>

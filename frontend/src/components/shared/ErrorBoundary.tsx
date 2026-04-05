@@ -22,7 +22,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  private handleRetry = () => {
+  private readonly handleRetry = () => {
     this.setState({ hasError: false, error: null });
   };
 

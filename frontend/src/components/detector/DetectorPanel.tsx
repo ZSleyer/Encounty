@@ -896,11 +896,11 @@ export function DetectorPanel({
                       <div
                         key={`template-${tmpl.image_path}-${index}`}
                         className={`relative group rounded-md overflow-hidden transition-all w-full ${
-                          tmpl.regions.length === 0
-                            ? "ring-1 ring-amber-500/50 bg-bg-primary opacity-80"
-                            : tmpl.enabled === false
-                              ? "ring-1 ring-border-subtle bg-bg-primary opacity-60"
-                              : "ring-2 ring-accent-blue bg-bg-primary"
+                          (() => {
+                            if (tmpl.regions.length === 0) return "ring-1 ring-amber-500/50 bg-bg-primary opacity-80";
+                            if (tmpl.enabled === false) return "ring-1 ring-border-subtle bg-bg-primary opacity-60";
+                            return "ring-2 ring-accent-blue bg-bg-primary";
+                          })()
                         }`}
                       >
                         {/* Clickable toggle area — disabled during active hunt or when template has no regions */}
@@ -921,9 +921,11 @@ export function DetectorPanel({
                           {/* Radio indicator for active selection — disabled for invalid templates */}
                           <div className="absolute top-1 left-1 z-10 pointer-events-none">
                             <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
-                              tmpl.regions.length === 0
-                                ? "border-amber-500/50 bg-transparent"
-                                : tmpl.enabled === false ? "border-text-muted bg-transparent" : "border-accent-blue bg-accent-blue"
+                              (() => {
+                                if (tmpl.regions.length === 0) return "border-amber-500/50 bg-transparent";
+                                if (tmpl.enabled === false) return "border-text-muted bg-transparent";
+                                return "border-accent-blue bg-accent-blue";
+                              })()
                             }`}>
                               {tmpl.enabled !== false && tmpl.regions.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
                             </div>

@@ -18,71 +18,85 @@ type FlowState = "searching" | "match" | "hysteresis" | "cooldown";
 /** Zone span in the sparkline. */
 interface FlowZone { startIdx: number; endIdx: number; type: "hysteresis" | "cooldown" }
 
+/** Mutable context passed through the detection state machine. */
+interface FlowContext {
+  phase: "searching" | "hysteresis" | "cooldown";
+  zoneStart: number;
+  cooldownRemaining: number;
+  states: Map<number, FlowState>;
+  zones: FlowZone[];
+  threshold: number;
+  hysteresisExit: number;
+  cooldownFrames: number;
+}
+
+function processHysteresisFrame(ctx: FlowContext, idx: number, score: number): void {
+  if (score < ctx.hysteresisExit) {
+    ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: idx, type: "hysteresis" });
+    ctx.phase = "cooldown";
+    ctx.cooldownRemaining = ctx.cooldownFrames;
+    ctx.zoneStart = idx;
+    ctx.states.set(idx, "cooldown");
+  } else {
+    ctx.states.set(idx, "hysteresis");
+  }
+}
+
+function processCooldownFrame(ctx: FlowContext, idx: number, score: number): void {
+  ctx.cooldownRemaining -= 5;
+  if (ctx.cooldownRemaining > 0) {
+    ctx.states.set(idx, "cooldown");
+    return;
+  }
+  ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: idx, type: "cooldown" });
+  ctx.phase = "searching";
+  ctx.zoneStart = -1;
+  processSearchingFrame(ctx, idx, score);
+}
+
+function processSearchingFrame(ctx: FlowContext, idx: number, score: number): void {
+  if (score >= ctx.threshold) {
+    ctx.states.set(idx, "match");
+    ctx.phase = "hysteresis";
+    ctx.zoneStart = idx;
+  } else {
+    ctx.states.set(idx, "searching");
+  }
+}
+
 /**
  * Mirror of simulateDetectionFlow from TemplateEditor.tsx.
  * Simulate the full detection state machine:
  * Searching -> Match -> Hysteresis -> Cooldown -> Searching.
- * Cooldown is estimated from cooldownSec and the replay buffer's fps
- * (~60fps, sampled every 5th).
  */
 function simulateDetectionFlow(
   entries: [number, { overallScore: number }][],
   threshold: number,
   cooldownFrames: number,
 ): { states: Map<number, FlowState>; zones: FlowZone[] } {
-  const states = new Map<number, FlowState>();
-  const zones: FlowZone[] = [];
-  const hysteresisExit = threshold * HYSTERESIS_FACTOR;
-
-  let phase: "searching" | "hysteresis" | "cooldown" = "searching";
-  let zoneStart = -1;
-  let cooldownRemaining = 0;
+  const ctx: FlowContext = {
+    phase: "searching",
+    zoneStart: -1,
+    cooldownRemaining: 0,
+    states: new Map(),
+    zones: [],
+    threshold,
+    hysteresisExit: threshold * HYSTERESIS_FACTOR,
+    cooldownFrames,
+  };
 
   for (const [idx, r] of entries) {
-    if (phase === "hysteresis") {
-      if (r.overallScore < hysteresisExit) {
-        // Hysteresis ends — start cooldown
-        zones.push({ startIdx: zoneStart, endIdx: idx, type: "hysteresis" });
-        phase = "cooldown";
-        cooldownRemaining = cooldownFrames;
-        zoneStart = idx;
-        states.set(idx, "cooldown");
-      } else {
-        states.set(idx, "hysteresis");
-      }
-    } else if (phase === "cooldown") {
-      cooldownRemaining -= 5; // sampled every 5th frame
-      if (cooldownRemaining <= 0) {
-        zones.push({ startIdx: zoneStart, endIdx: idx, type: "cooldown" });
-        phase = "searching";
-        zoneStart = -1;
-        // This frame could be a new match
-        if (r.overallScore >= threshold) {
-          states.set(idx, "match");
-          phase = "hysteresis";
-          zoneStart = idx;
-        } else {
-          states.set(idx, "searching");
-        }
-      } else {
-        states.set(idx, "cooldown");
-      }
-    } else if (r.overallScore >= threshold) {
-      states.set(idx, "match");
-      phase = "hysteresis";
-      zoneStart = idx;
-    } else {
-      states.set(idx, "searching");
-    }
+    if (ctx.phase === "hysteresis") processHysteresisFrame(ctx, idx, r.overallScore);
+    else if (ctx.phase === "cooldown") processCooldownFrame(ctx, idx, r.overallScore);
+    else processSearchingFrame(ctx, idx, r.overallScore);
   }
 
-  // Close trailing zone
-  if (phase !== "searching" && zoneStart >= 0 && entries.length > 0) {
+  if (ctx.phase !== "searching" && ctx.zoneStart >= 0 && entries.length > 0) {
     const lastIdx = entries[entries.length - 1][0];
-    zones.push({ startIdx: zoneStart, endIdx: lastIdx, type: phase === "hysteresis" ? "hysteresis" : "cooldown" });
+    ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: lastIdx, type: ctx.phase === "hysteresis" ? "hysteresis" : "cooldown" });
   }
 
-  return { states, zones };
+  return { states: ctx.states, zones: ctx.zones };
 }
 
 // --- Test helpers ---
@@ -90,11 +104,6 @@ function simulateDetectionFlow(
 /** Build entries from [frameIndex, score] tuples. */
 function makeEntries(scores: [number, number][]): [number, { overallScore: number }][] {
   return scores.map(([idx, score]) => [idx, { overallScore: score }]);
-}
-
-/** Extract states as a plain array of [index, state] for easier assertions. */
-function statesArray(states: Map<number, FlowState>): [number, FlowState][] {
-  return [...states.entries()];
 }
 
 // --- Tests ---

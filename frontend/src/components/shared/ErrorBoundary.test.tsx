@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 /** Helper component that throws on demand. */
-function ThrowError({ shouldThrow }: { shouldThrow: boolean }) {
+function ThrowError({ shouldThrow }: Readonly<{ shouldThrow: boolean }>) {
   if (shouldThrow) throw new Error("Test error");
   return <div>OK</div>;
 }
