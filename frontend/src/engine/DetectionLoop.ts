@@ -411,7 +411,7 @@ export class DetectionLoop {
   }
 
   /** Throttled UI callback — fires at most 4 times/second unless the state changes. */
-  private emitScoreCallback(adjusted: number, effectivePrecision: number): void {
+  private emitScoreCallback(_adjusted: number, _effectivePrecision: number): void {
     if (!this.scoreCallback) return;
 
     let state: string;

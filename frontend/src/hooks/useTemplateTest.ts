@@ -158,7 +158,7 @@ export function useTemplateTest(): UseTemplateTestResult {
   const getTemplateGray = useCallback(
     (canvas: HTMLCanvasElement): { gray: Float32Array; width: number; height: number } => {
       const cached = tmplCacheRef.current;
-      if (cached && cached.canvas === canvas) {
+      if (cached?.canvas === canvas) {
         return { gray: cached.gray, width: cached.width, height: cached.height };
       }
       const result = canvasToGray(canvas);
@@ -224,7 +224,7 @@ export function useTemplateTest(): UseTemplateTestResult {
       let runningBest = 0;
 
       /** Process a chunk of frames in one idle callback. */
-      const processChunk = (deadline?: IdleDeadline) => {
+      const processChunk = (_deadline?: IdleDeadline) => {
         if (cancelledRef.current) {
           setIsRunning(false);
           return;
@@ -272,18 +272,18 @@ export function useTemplateTest(): UseTemplateTestResult {
 
         // Schedule the next chunk. Use deadline-aware scheduling when available,
         // otherwise fall back to a short timeout to keep the UI responsive.
-        if (typeof requestIdleCallback !== "undefined") {
-          requestIdleCallback(processChunk);
-        } else {
+        if (typeof requestIdleCallback === "undefined") {
           setTimeout(() => processChunk(), 0);
+        } else {
+          requestIdleCallback(processChunk);
         }
       };
 
       // Kick off the first chunk
-      if (typeof requestIdleCallback !== "undefined") {
-        requestIdleCallback(processChunk);
-      } else {
+      if (typeof requestIdleCallback === "undefined") {
         setTimeout(() => processChunk(), 0);
+      } else {
+        requestIdleCallback(processChunk);
       }
     },
     [getTemplateGray],
