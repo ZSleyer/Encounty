@@ -100,7 +100,6 @@ export interface MatchedRegion {
   type: "image" | "text";
   expected_text: string;
   rect: DetectorRect;
-  polarity?: "positive" | "negative";
 }
 
 /** DetectorTemplate bundles the saved screenshot and its defined regions. */

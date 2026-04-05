@@ -92,7 +92,6 @@ export class WorkerDetector {
     regions?: Array<{
       type: string;
       rect: { x: number; y: number; w: number; h: number };
-      polarity?: "positive" | "negative";
     }>,
   ): TemplateData | null {
     // Convert ImageBitmap to ImageData for structured-clone transfer

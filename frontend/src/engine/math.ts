@@ -483,18 +483,6 @@ export function andLogicAcrossRegions(regionScores: number[]): number {
   return min;
 }
 
-/**
- * Apply negative region penalty to a positive score.
- *
- * A high match on a negative region suppresses the overall detection:
- * result = positiveScore * max(0, 1 - negativeScore).
- */
-export function applyNegativePenalty(
-  positiveScore: number, negativeScore: number,
-): number {
-  return positiveScore * Math.max(0, 1 - negativeScore);
-}
-
 // ---------------------------------------------------------------------------
 // Template operations
 // ---------------------------------------------------------------------------

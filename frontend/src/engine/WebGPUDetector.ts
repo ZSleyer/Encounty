@@ -33,7 +33,6 @@ import reduceMinShader from "./shaders/reduce_min.wgsl?raw";
 import ssimMedianShader from "./shaders/ssim_median.wgsl?raw";
 import {
   adaptiveBlockSizeForRegion,
-  applyNegativePenalty,
   fitDimensions,
 } from "./math";
 
@@ -74,7 +73,6 @@ export interface TemplateData {
   regions: Array<{
     type: string;
     rect: { x: number; y: number; w: number; h: number };
-    polarity?: "positive" | "negative";
   }>;
   /** Pre-cropped region buffers for hybrid matching (WebGPU only). */
   regionCrops?: Array<{
@@ -771,7 +769,6 @@ export class WebGPUDetector {
     regions?: Array<{
       type: string;
       rect: { x: number; y: number; w: number; h: number };
-      polarity?: "positive" | "negative";
     }>,
   ): Promise<TemplateData | null> {
     let pixels: Uint8ClampedArray;
@@ -898,17 +895,11 @@ export class WebGPUDetector {
         tmpl.regionCrops &&
         tmpl.regionCrops.length > 0;
 
-      // Only score positive regions; negative regions apply as penalty
-      const positiveRegionCrops = tmpl.regionCrops?.filter(
-        (_, idx) => tmpl.regions[idx]?.polarity !== "negative",
-      );
-      const negativeRegionCrops = tmpl.regionCrops?.filter(
-        (_, idx) => tmpl.regions[idx]?.polarity === "negative",
-      );
+      if (!hasRegions) continue;
 
       const score = await this.scoreTemplate(
         tmpl, { texture, buf: frameBuf, w: frameW, h: frameH },
-        hasRegions, positiveRegionCrops, negativeRegionCrops,
+        tmpl.regionCrops,
       );
 
       if (score > bestScore) {
@@ -929,36 +920,19 @@ export class WebGPUDetector {
   }
 
   /**
-   * Score a single template against the current frame.
-   *
-   * Chooses the region-based hybrid pipeline when positive regions exist,
-   * otherwise falls back to sliding-window NCC. Applies negative region
-   * penalty when applicable.
+   * Score a single template against the current frame using the
+   * region-based hybrid pipeline.
    */
   private async scoreTemplate(
     tmpl: TemplateData,
     frame: { texture: GPUTexture; buf: GPUBuffer; w: number; h: number },
-    hasRegions: boolean | undefined,
-    positiveRegionCrops: TemplateData["regionCrops"],
-    negativeRegionCrops: TemplateData["regionCrops"],
+    regionCrops: TemplateData["regionCrops"],
   ): Promise<number> {
-    const { texture, buf: frameBuf, w: frameW, h: frameH } = frame;
-    let score: number;
-    if (hasRegions && positiveRegionCrops && positiveRegionCrops.length > 0) {
-      const positiveTmpl = { ...tmpl, regionCrops: positiveRegionCrops };
-      score = await this.regionHybridMatch(texture, positiveTmpl);
-    } else {
-      score = await this.nccMatch(frameBuf, tmpl, frameW, frameH);
+    const { texture } = frame;
+    if (regionCrops && regionCrops.length > 0) {
+      return this.regionHybridMatch(texture, { ...tmpl, regionCrops });
     }
-
-    // Apply negative region penalty: high match on negative region suppresses detection
-    if (negativeRegionCrops && negativeRegionCrops.length > 0 && score > 0) {
-      const negativeTmpl = { ...tmpl, regionCrops: negativeRegionCrops };
-      const negScore = await this.regionHybridMatch(texture, negativeTmpl);
-      score = applyNegativePenalty(score, negScore);
-    }
-
-    return score;
+    return 0;
   }
 
   /** Release all GPU resources held by this detector. */

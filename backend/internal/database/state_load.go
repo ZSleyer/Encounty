@@ -324,9 +324,6 @@ func loadTemplateRegions(db *sql.DB, templateID int64) ([]state.MatchedRegion, e
 		if err := rows.Scan(&r.Type, &r.ExpectedText, &r.Rect.X, &r.Rect.Y, &r.Rect.W, &r.Rect.H, &isNeg); err != nil {
 			return nil, err
 		}
-		if isNeg != 0 {
-			r.Polarity = "negative"
-		}
 		regions = append(regions, r)
 	}
 	if regions == nil {

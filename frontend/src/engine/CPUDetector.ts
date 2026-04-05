@@ -12,7 +12,6 @@ import {
   pixelDelta,
   scoreRegionHybrid,
   andLogicAcrossRegions,
-  applyNegativePenalty,
   cropTemplateGray,
   adaptiveBlockSizeForRegion,
   matchWholeTemplate,
@@ -91,7 +90,6 @@ export class CPUDetector {
     regions?: Array<{
       type: string;
       rect: { x: number; y: number; w: number; h: number };
-      polarity?: "positive" | "negative";
     }>,
   ): TemplateData | null {
     let pixels: Uint8ClampedArray;
@@ -188,18 +186,9 @@ export class CPUDetector {
     for (let i = 0; i < templates.length; i++) {
       const tmpl = templates[i];
       if (!tmpl.gray) continue;
+      if (tmpl.regions.length === 0) continue;
 
-      let score = matchTemplate(this, source, tmpl, frameGray, maxDim, config.crop, this.iiPool);
-
-      // Apply negative region penalty: high match on negative region suppresses detection
-      const negRegions = tmpl.regions.filter(
-        (r) => r.polarity === "negative",
-      );
-      if (negRegions.length > 0 && score > 0) {
-        const negativeTmpl = { ...tmpl, regions: negRegions };
-        const negScore = matchTemplate(this, source, negativeTmpl, frameGray, maxDim, config.crop, this.iiPool);
-        score = applyNegativePenalty(score, negScore);
-      }
+      const score = matchTemplate(this, source, tmpl, frameGray, maxDim, config.crop, this.iiPool);
 
       if (score > bestScore) {
         bestScore = score;
