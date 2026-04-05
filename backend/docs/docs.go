@@ -626,10 +626,6 @@ const docTemplate = `{
                         "description": "used if Type == \"text\"",
                         "type": "string"
                     },
-                    "polarity": {
-                        "description": "\"positive\" (default) | \"negative\"",
-                        "type": "string"
-                    },
                     "rect": {
                         "$ref": "#/components/schemas/state.DetectorRect"
                     },
@@ -1110,6 +1106,20 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "version": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "updater.UpdateInfo": {
+                "properties": {
+                    "available": {
+                        "type": "boolean"
+                    },
+                    "current_version": {
+                        "type": "string"
+                    },
+                    "latest_version": {
                         "type": "string"
                     }
                 },
@@ -3467,6 +3477,36 @@ const docTemplate = `{
                 "summary": "Sync Pokedex from PokeAPI",
                 "tags": [
                     "pokedex"
+                ]
+            }
+        },
+        "/update/check": {
+            "get": {
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/updater.UpdateInfo"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Check for available updates",
+                "tags": [
+                    "system"
                 ]
             }
         },
