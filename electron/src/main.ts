@@ -721,7 +721,8 @@ app.on('ready', async () => {
   // Uses cachedCaptureSources from the SourcePickerModal's thumbnail fetch to
   // avoid a second getSources() call that may produce stale/invalid source IDs
   // in Electron ≥41.1. Falls back to a fresh query if cache is empty.
-  const displayMediaHandler: Parameters<typeof session.defaultSession.setDisplayMediaRequestHandler>[0] = async (_request, callback) => {
+  const displayMediaHandler: Parameters<typeof session.defaultSession.setDisplayMediaRequestHandler>[0] = (_request, callback) => {
+    void (async () => {
     console.log('[Electron] setDisplayMediaRequestHandler invoked, isWayland:', isWayland, 'pendingSourceId:', pendingSourceId, 'cached:', cachedCaptureSources.length);
     try {
       // Prefer cached sources from the SourcePickerModal's thumbnail fetch —
@@ -753,6 +754,7 @@ app.on('ready', async () => {
       // @ts-expect-error -- calling with no args denies the request
       callback();
     }
+    })();
   };
 
   session.defaultSession.setDisplayMediaRequestHandler(displayMediaHandler);
