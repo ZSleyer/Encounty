@@ -27,7 +27,7 @@ const hexToRgb = (hex: string): [number, number, number] => {
       .map(c => c + c)
       .join('');
   }
-  const int = parseInt(hex, 16);
+  const int = Number.parseInt(hex, 16);
   const r = ((int >> 16) & 255) / 255;
   const g = ((int >> 8) & 255) / 255;
   const b = (int & 255) / 255;
@@ -100,7 +100,7 @@ const fragment = /* glsl */ `
   }
 `;
 
-const Particles: React.FC<ParticlesProps> = ({
+const Particles: React.FC<Readonly<ParticlesProps>> = ({
   particleCount = 200,
   particleSpread = 10,
   speed = 0.1,
@@ -231,7 +231,7 @@ const Particles: React.FC<ParticlesProps> = ({
       }
       cancelAnimationFrame(animationFrameId);
       if (container.contains(gl.canvas)) {
-        container.removeChild(gl.canvas);
+        gl.canvas.remove();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

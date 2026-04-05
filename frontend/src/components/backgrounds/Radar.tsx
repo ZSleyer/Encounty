@@ -22,9 +22,9 @@ interface RadarProps {
 function hexToVec3(hex: string): [number, number, number] {
   const h = hex.replace('#', '');
   return [
-    parseInt(h.slice(0, 2), 16) / 255,
-    parseInt(h.slice(2, 4), 16) / 255,
-    parseInt(h.slice(4, 6), 16) / 255
+    Number.parseInt(h.slice(0, 2), 16) / 255,
+    Number.parseInt(h.slice(2, 4), 16) / 255,
+    Number.parseInt(h.slice(4, 6), 16) / 255
   ];
 }
 
@@ -102,22 +102,22 @@ void main() {
 `;
 
 export default function Radar({
-  speed = 1.0,
+  speed = 1,
   scale = 0.5,
-  ringCount = 10.0,
-  spokeCount = 10.0,
+  ringCount = 10,
+  spokeCount = 10,
   ringThickness = 0.05,
   spokeThickness = 0.01,
-  sweepSpeed = 1.0,
-  sweepWidth = 2.0,
-  sweepLobes = 1.0,
+  sweepSpeed = 1,
+  sweepWidth = 2,
+  sweepLobes = 1,
   color = '#9f29ff',
   backgroundColor = '#000000',
-  falloff = 2.0,
-  brightness = 1.0,
+  falloff = 2,
+  brightness = 1,
   enableMouseInteraction = true,
   mouseInfluence = 0.1
-}: RadarProps) {
+}: Readonly<RadarProps>) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,7 +135,7 @@ export default function Radar({
       const rect = gl.canvas.getBoundingClientRect();
       targetMouse = [
         (e.clientX - rect.left) / rect.width,
-        1.0 - (e.clientY - rect.top) / rect.height
+        1 - (e.clientY - rect.top) / rect.height
       ];
     }
 
@@ -213,7 +213,7 @@ export default function Radar({
         gl.canvas.removeEventListener('mousemove', handleMouseMove);
         gl.canvas.removeEventListener('mouseleave', handleMouseLeave);
       }
-      container.removeChild(gl.canvas);
+      gl.canvas.remove();
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
   }, [speed, scale, ringCount, spokeCount, ringThickness, spokeThickness, sweepSpeed, sweepWidth, sweepLobes, color, backgroundColor, falloff, brightness, enableMouseInteraction, mouseInfluence]);
