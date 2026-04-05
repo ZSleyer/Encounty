@@ -695,6 +695,13 @@ function renderReplayFrame(
   if (ctx) ctx.putImageData(frame, 0, 0);
 }
 
+/** Restores the stored match frame onto the canvas so scrubbing previews don't leak into the saved template. */
+function restoreMatchFrame(matchFrame: ImageData | null, canvas: HTMLCanvasElement | null) {
+  if (!matchFrame || !canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (ctx) ctx.putImageData(matchFrame, 0, 0);
+}
+
 /** Sets up a ResizeObserver for image bounds tracking in snapshot/replay phases. */
 function observeImageBounds(
   phase: Phase,
@@ -872,6 +879,8 @@ export function TemplateEditor({
   const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const videoRef = useCallback((el: HTMLVideoElement | null) => { setVideoEl(el); }, []);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** Stores the original match frame ImageData so scrubbing in the test phase cannot overwrite it. */
+  const matchFrameDataRef = useRef<ImageData | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -969,6 +978,7 @@ export function TemplateEditor({
   /** Use the currently selected replay frame as the snapshot to draw regions on. */
   const handleUseFrame = () => {
     const frame = replayBuffer.getFrame(selectedFrameIndex);
+    if (frame) matchFrameDataRef.current = frame;
     drawFrameToCanvas(frame, canvasRef.current, setSnapshotWidth, setSnapshotHeight, setPhase, resetToSnapshot);
   };
 
@@ -979,6 +989,7 @@ export function TemplateEditor({
     setCurrentBox(null);
     setRegions([]);
     setErrorMsg(null);
+    matchFrameDataRef.current = null;
     replayBuffer.restart();
   };
 
@@ -1036,7 +1047,15 @@ export function TemplateEditor({
   const handleGoToTest = () => {
     replayBuffer.stop();
     setPhase("test");
+    // Snapshot the canvas as the match frame if not already stored (covers edit mode and direct capture)
+    if (!matchFrameDataRef.current && canvasRef.current) {
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        matchFrameDataRef.current = ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    }
     if (canvasRef.current && replayBuffer.frameCount > 0) {
+      restoreMatchFrame(matchFrameDataRef.current, canvasRef.current);
       templateTest.runBatch(canvasRef.current, regions, replayBuffer.getFrame, replayBuffer.frameCount);
       const frame = replayBuffer.getFrame(selectedFrameIndex);
       if (frame) {
@@ -1065,12 +1084,16 @@ export function TemplateEditor({
   };
 
   const handleLooksGood = () => {
+    // Restore the original match frame so the confirm/save step uses the correct image
+    restoreMatchFrame(matchFrameDataRef.current, canvasRef.current);
     setPhase("confirm");
   };
 
   const handleBackToTest = () => {
     setPhase("test");
     if (canvasRef.current && replayBuffer.frameCount > 0) {
+      // Restore the original match frame before batch scoring so the template is correct
+      restoreMatchFrame(matchFrameDataRef.current, canvasRef.current);
       templateTest.runBatch(canvasRef.current, regions, replayBuffer.getFrame, replayBuffer.frameCount);
       // Score the currently selected frame immediately so the panel isn't empty
       const frame = replayBuffer.getFrame(selectedFrameIndex);
