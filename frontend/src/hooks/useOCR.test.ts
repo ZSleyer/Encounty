@@ -1,11 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
-const mockRecognize = vi.fn();
-const mockWorker = { recognize: mockRecognize };
+type CreateWorkerArgs = [
+  lang: string,
+  oem?: number,
+  config?: { workerPath?: string; corePath?: string; langPath?: string },
+];
+
+const { mockRecognize, mockCreateWorker } = vi.hoisted(() => {
+  const recognize = vi.fn();
+  const worker = { recognize };
+  return {
+    mockRecognize: recognize,
+    mockCreateWorker: vi.fn(
+      (..._args: [string, number?, Record<string, unknown>?]) =>
+        Promise.resolve(worker),
+    ),
+  };
+});
 
 vi.mock("tesseract.js", () => ({
-  createWorker: vi.fn(() => Promise.resolve(mockWorker)),
+  createWorker: mockCreateWorker,
 }));
 
 /* Import after mock so the module picks up the mocked createWorker. */
@@ -130,5 +145,59 @@ describe("useOCR", () => {
     });
 
     expect(result.current.isRecognizing).toBe(false);
+  });
+
+  it("creates the tesseract worker with locally bundled worker/core paths", async () => {
+    mockRecognize.mockResolvedValue({ data: { text: "x" } });
+
+    // Use a unique language so the module-level worker cache does not hide the
+    // createWorker call from earlier tests.
+    const { result } = renderHook(() => useOCR("kor"));
+    await act(async () => {
+      await result.current.recognize("http://example.com/image.png");
+    });
+
+    const koreanCall = (mockCreateWorker.mock.calls as CreateWorkerArgs[]).find(
+      (c) => c[0] === "kor",
+    );
+    expect(koreanCall).toBeDefined();
+    const opts = koreanCall![2]!;
+    expect(opts.workerPath).toMatch(/tesseract\/worker\.min\.js$/);
+    expect(opts.corePath).toMatch(/\/tesseract$/);
+    // kor is NOT bundled — langPath should be left unset so tesseract.js
+    // falls back to its default per-language CDN.
+    expect(opts.langPath).toBeUndefined();
+  });
+
+  it("sets local langPath only for bundled languages", async () => {
+    mockRecognize.mockResolvedValue({ data: { text: "Hallo" } });
+
+    const { result } = renderHook(() => useOCR("deu"));
+    await act(async () => {
+      await result.current.recognize("http://example.com/image.png");
+    });
+
+    const germanCall = (mockCreateWorker.mock.calls as CreateWorkerArgs[]).find(
+      (c) => c[0] === "deu",
+    );
+    expect(germanCall).toBeDefined();
+    expect(germanCall![2]!.langPath).toMatch(/\/tessdata$/);
+  });
+
+  it("rewrites opaque importScripts errors to a network-related hint", async () => {
+    mockRecognize.mockRejectedValue(
+      new Error(
+        "Failed to execute 'importScripts' on 'WorkerGlobalScope': The script at 'blob:...' failed to load.",
+      ),
+    );
+
+    const { result } = renderHook(() => useOCR("ita"));
+
+    await act(async () => {
+      await result.current.recognize("img");
+    });
+
+    expect(result.current.ocrError).toMatch(/network or firewall/i);
+    expect(result.current.ocrError).toContain("importScripts");
   });
 });

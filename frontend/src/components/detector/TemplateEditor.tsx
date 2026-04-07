@@ -1406,7 +1406,7 @@ export function TemplateEditor({
           )}
           {ocrError && (
             <p className="text-xs 2xl:text-sm text-red-400 text-center">
-              OCR error: {ocrError}
+              {t("templateEditor.ocrError", { error: ocrError })}
             </p>
           )}
         </div>

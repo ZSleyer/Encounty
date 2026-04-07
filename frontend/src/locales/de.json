@@ -579,6 +579,7 @@
   "templateEditor.saveTemplate": "Speichern",
   "templateEditor.noRegions": "Keine Regionen — ganzes Bild wird verglichen",
   "templateEditor.ocrHint": "Text-Regionen werden per OCR mit dem erwarteten Text verglichen.",
+  "templateEditor.ocrError": "OCR-Fehler: {{error}}",
   "templateEditor.deleteRegion": "Region löschen",
   "templateEditor.regionN": "Region",
   "regionPicker.instruction": "Klicke und ziehe um den Spielbereich auszuwählen",

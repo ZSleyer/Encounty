@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { DetectorConfig, HuntTypePreset, Pokemon, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
+import { preloadOcrLang } from "../../hooks/useOCR";
 import { useToast } from "../../contexts/ToastContext";
 import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
 import { useCounterStore } from "../../hooks/useCounterState";
@@ -95,6 +96,15 @@ const LANG_MAP: Record<string, string> = {
   "zh-hans": "chi_sim", "zh-hant": "chi_sim",
 };
 
+/**
+ * Map the user's interface locale to the tesseract language code that should
+ * be preloaded so the first OCR run does not pay worker init latency. We
+ * always also preload `eng` as a universal fallback.
+ */
+const INTERFACE_LOCALE_TO_TESSERACT: Record<string, string> = {
+  de: "deu", en: "eng", es: "spa", fr: "fra", ja: "jpn",
+};
+
 // --- Component ---------------------------------------------------------------
 
 export function DetectorPanel({
@@ -105,7 +115,7 @@ export function DetectorPanel({
   detectorState,
   onStopHunt,
 }: DetectorPanelProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { push: pushToast } = useToast();
   const { appState, setDetectorStatus, clearDetectorStatus, detectorStatus: detStatus } = useCounterStore();
   const cooldownRemaining = detStatus[pokemon.id]?.cooldown_remaining_ms ?? null;
@@ -249,6 +259,16 @@ export function DetectorPanel({
   }, [capture, pokemon.id, onStopHunt]);
 
   const pokemonOcrLang = LANG_MAP[pokemon.language ?? ""] || "eng";
+
+  // Preload the OCR worker for the interface language plus English so the
+  // first user-triggered recognize() call does not pay worker init latency.
+  // Other tesseract languages (e.g. when a pokemon uses kor / ita / chi_sim)
+  // are still initialized lazily on demand.
+  useEffect(() => {
+    const interfaceLang = INTERFACE_LOCALE_TO_TESSERACT[locale] ?? "eng";
+    preloadOcrLang(interfaceLang);
+    if (interfaceLang !== "eng") preloadOcrLang("eng");
+  }, [locale]);
 
   // Propagate capture errors from the shared service
   useEffect(() => {

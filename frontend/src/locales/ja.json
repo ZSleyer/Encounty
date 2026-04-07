@@ -580,6 +580,7 @@
   "templateEditor.saveTemplate": "保存",
   "templateEditor.noRegions": "領域なし — 画像全体が比較されます",
   "templateEditor.ocrHint": "テキスト領域はOCRで期待されるテキストと照合されます。",
+  "templateEditor.ocrError": "OCRエラー: {{error}}",
   "templateEditor.deleteRegion": "領域を削除",
   "templateEditor.regionN": "領域",
   "regionPicker.instruction": "クリックしてドラッグしてゲームエリアを選択してください",

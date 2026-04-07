@@ -13,6 +13,11 @@
   "dependencies": {
     "@react-three/fiber": "^9.5.0",
     "@tanstack/react-query": "^5.96.1",
+    "@tesseract.js-data/deu": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/fra": "^1.0.0",
+    "@tesseract.js-data/jpn": "^1.0.0",
+    "@tesseract.js-data/spa": "^1.0.0",
     "@types/three": "^0.183.1",
     "i18next": "^26.0.3",
     "lucide-react": "^1.7.0",

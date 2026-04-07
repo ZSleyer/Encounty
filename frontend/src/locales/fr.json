@@ -580,6 +580,7 @@
   "templateEditor.saveTemplate": "Enregistrer",
   "templateEditor.noRegions": "Aucune region — l'image entiere sera comparee",
   "templateEditor.ocrHint": "Les regions de texte sont comparees au texte attendu via OCR.",
+  "templateEditor.ocrError": "Erreur OCR : {{error}}",
   "templateEditor.deleteRegion": "Supprimer la region",
   "templateEditor.regionN": "Region",
   "regionPicker.instruction": "Cliquez et faites glisser pour selectionner la zone de jeu",

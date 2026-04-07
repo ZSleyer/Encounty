@@ -445,6 +445,31 @@
   dependencies:
     "@tanstack/query-core" "5.96.1"
 
+"@tesseract.js-data/deu@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@tesseract.js-data/deu/-/deu-1.0.0.tgz#a40d8e00ce3a54781d6ec2c31d833d8b692b1a8f"
+  integrity sha512-3ter1p2gFAiCd5CMC+PodZ9YY2UDomkKj+ytlKeeZqOUmhLx1SDnYPf5zog0g5MBbxYveW+8omI3PUflqHfZ4Q==
+
+"@tesseract.js-data/eng@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@tesseract.js-data/eng/-/eng-1.0.0.tgz#285a3f1fb419e8e67bdee93ce288b02bb9097f0a"
+  integrity sha512-mbTumm6KQPUHyzTPQaF3ObXYnx0SqqfV2nabqFVQBwD6Kl7PhGSLSzOlfFTWy0P3BjghaSKA2W9GB19Jk+ZcTg==
+
+"@tesseract.js-data/fra@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@tesseract.js-data/fra/-/fra-1.0.0.tgz#fbcfa9be69141b4c4fced96ea968ce497d28d882"
+  integrity sha512-pp58gMaoyidoBBLd5y5rnf0WW0Y1994QrGqZrYatITqIU/AReUJMykD+YY3JDgvnmgz7uAx1UmhjjuyEmV8JEA==
+
+"@tesseract.js-data/jpn@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@tesseract.js-data/jpn/-/jpn-1.0.0.tgz#1ca0f67185d138d61ab3316175383b412aaca868"
+  integrity sha512-nUq2xHUjiWE6FRqkvLIIbByLZ39B8qNaBSOnVP4XIKGPKtZ1e0hiRnK7WhPfl8A+Fe7aNE1u/QoXXUym3TbSCA==
+
+"@tesseract.js-data/spa@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@tesseract.js-data/spa/-/spa-1.0.0.tgz#8cd3c04f10519916a6b85101001c4628a1a0a257"
+  integrity sha512-9Ln+QKq/TNu4Hy4aOp5b4nXo9U0C6IqJMzNDpAJZe/fNtz6jXG9G/hQgR/Irxj+RGf0M7Xy1MNx1yl4wQUIfeg==
+
 "@testing-library/dom@^10.4.1":
   version "10.4.1"
   resolved "https://registry.npmjs.org/@testing-library/dom/-/dom-10.4.1.tgz"

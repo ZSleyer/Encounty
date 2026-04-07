@@ -35,15 +35,69 @@ export interface UseOCRResult {
 const workerCache: Partial<Record<string, TesseractWorker>> = {};
 const initPromise: Partial<Record<string, Promise<TesseractWorker>>> = {};
 
+/**
+ * Local paths to bundled tesseract.js worker, core, and language assets.
+ *
+ * These are emitted by the `bundleTesseractAssets` Vite plugin so OCR does
+ * not need network access at runtime. Without local assets, tesseract.js
+ * fetches worker.min.js / tesseract-core*.wasm / *.traineddata.gz from
+ * public CDNs, which fails behind firewalls and produces an opaque
+ * "Failed to execute 'importScripts' on WorkerGlobalScope" error.
+ */
+const TESSERACT_ASSET_PATH = `${import.meta.env.BASE_URL}tesseract`;
+const TESSDATA_PATH = `${import.meta.env.BASE_URL}tessdata`;
+
+/**
+ * Tesseract languages whose traineddata files are bundled into the app.
+ * Other languages still work — they fall back to the tesseract.js default
+ * langPath (jsdelivr CDN). Keep in sync with `BUNDLED_TRAINEDDATA` in
+ * vite.config.ts.
+ */
+export const BUNDLED_OCR_LANGS = new Set(["eng", "deu", "spa", "fra", "jpn"]);
+
 /** Get or lazily create a cached Tesseract worker for the given language. */
 async function getWorker(lang: string): Promise<TesseractWorker> {
   if (workerCache[lang]) return workerCache[lang];
-  initPromise[lang] ??= createWorker(lang).then((w) => {
+  // Only set langPath for languages we actually bundle. For unbundled
+  // languages (e.g. ita, kor, chi_sim) leave langPath unset so tesseract.js
+  // uses its default per-language CDN resolution.
+  const config: Parameters<typeof createWorker>[2] = {
+    workerPath: `${TESSERACT_ASSET_PATH}/worker.min.js`,
+    corePath: TESSERACT_ASSET_PATH,
+  };
+  if (BUNDLED_OCR_LANGS.has(lang)) {
+    config.langPath = TESSDATA_PATH;
+  }
+  initPromise[lang] ??= createWorker(lang, undefined, config).then((w) => {
     workerCache[lang] = w;
     delete initPromise[lang];
     return w;
   });
   return initPromise[lang];
+}
+
+/**
+ * Eagerly initialize a Tesseract worker for the given language so the first
+ * recognize() call does not pay the load latency. Safe to call repeatedly —
+ * subsequent calls reuse the cached worker.
+ */
+export function preloadOcrLang(lang: string): void {
+  void getWorker(lang).catch(() => {
+    // Swallow preload errors — they will resurface (with the proper UI
+    // feedback) on the next user-triggered recognize() call.
+  });
+}
+
+/**
+ * Detect the opaque tesseract.js worker init failure that happens when the
+ * worker or core assets cannot be loaded, and replace it with an actionable
+ * message. Other errors are returned unchanged.
+ */
+function describeOcrError(raw: string): string {
+  if (/importScripts|Failed to fetch|NetworkError|Loading .*failed/i.test(raw)) {
+    return `OCR assets could not be loaded — check your network or firewall (${raw})`;
+  }
+  return raw;
 }
 
 // --- Hook --------------------------------------------------------------------
@@ -89,8 +143,8 @@ export function useOCR(
         const { data } = await worker.recognize(source);
         return data.text.trim();
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e) || "OCR failed";
-        if (mounted()) setOcrError(msg);
+        const raw = e instanceof Error ? e.message : String(e) || "OCR failed";
+        if (mounted()) setOcrError(describeOcrError(raw));
         return "";
       } finally {
         if (mounted()) setIsRecognizing(false);

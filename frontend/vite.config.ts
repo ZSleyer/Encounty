@@ -1,8 +1,8 @@
 import { defineConfig, type Plugin } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { resolve } from "node:path";
-import { createReadStream, existsSync } from "node:fs";
+import { resolve, basename } from "node:path";
+import { createReadStream, existsSync, mkdirSync, copyFileSync, readdirSync } from "node:fs";
 
 /** Backend port — must match backend/internal/server/port.go DefaultPort. */
 const BACKEND_PORT = 8192;
@@ -30,9 +30,107 @@ function serveTestFixtures(): Plugin {
   };
 }
 
+/**
+ * Tesseract.js languages whose traineddata files are bundled into the app.
+ *
+ * Keep this in sync with `BUNDLED_OCR_LANGS` in `src/hooks/useOCR.ts`.
+ * Other tesseract languages still work — they fall back to the default CDN
+ * (configured per-worker in useOCR).
+ */
+const BUNDLED_TRAINEDDATA = ["eng", "deu", "spa", "fra", "jpn"] as const;
+
+/** Resolve the on-disk path of a bundled traineddata.gz inside node_modules. */
+function traineddataPath(lang: string): string {
+  return resolve(
+    __dirname,
+    `node_modules/@tesseract.js-data/${lang}/4.0.0_best_int/${lang}.traineddata.gz`,
+  );
+}
+
+/** Resolve a /tessdata/<lang>.traineddata.gz request to an absolute path. */
+function resolveTraineddata(name: string): string | null {
+  const match = /^([a-z_]+)\.traineddata\.gz$/i.exec(name);
+  if (!match) return null;
+  const lang = match[1];
+  if (!(BUNDLED_TRAINEDDATA as readonly string[]).includes(lang)) return null;
+  const candidate = traineddataPath(lang);
+  return existsSync(candidate) ? candidate : null;
+}
+
+/**
+ * Bundles tesseract.js worker, core, and selected language data into the app
+ * so OCR works without network access. Without this, tesseract.js fetches
+ * worker.min.js, tesseract-core*.wasm, and *.traineddata.gz from public CDNs
+ * at runtime, which fails for users behind firewalls/DNS filters and produces
+ * a confusing "Failed to execute 'importScripts' on WorkerGlobalScope" error.
+ *
+ * In dev: serves /tesseract/* and /tessdata/* from node_modules via middleware.
+ * In build: copies the same files into dist/tesseract/ and dist/tessdata/.
+ */
+function bundleTesseractAssets(): Plugin {
+  const workerSrc = resolve(__dirname, "node_modules/tesseract.js/dist/worker.min.js");
+  const coreDir = resolve(__dirname, "node_modules/tesseract.js-core");
+
+  /** Resolve a /tesseract/<file> request to an absolute path on disk. */
+  function resolveCoreAsset(name: string): string | null {
+    if (name === "worker.min.js") return existsSync(workerSrc) ? workerSrc : null;
+    // Only allow plain file names (no traversal) and only files that exist in core dir.
+    if (name.includes("/") || name.includes("..")) return null;
+    const candidate = resolve(coreDir, name);
+    return existsSync(candidate) ? candidate : null;
+  }
+
+  return {
+    name: "bundle-tesseract-assets",
+    configureServer(server) {
+      server.middlewares.use("/tesseract", (req, res, next) => {
+        const name = basename((req.url ?? "").split("?")[0].replace(/^\//, ""));
+        const filePath = resolveCoreAsset(name);
+        if (!filePath) return next();
+        if (filePath.endsWith(".wasm")) res.setHeader("Content-Type", "application/wasm");
+        else if (filePath.endsWith(".js")) res.setHeader("Content-Type", "application/javascript");
+        createReadStream(filePath).pipe(res);
+      });
+      server.middlewares.use("/tessdata", (req, res) => {
+        const name = basename((req.url ?? "").split("?")[0].replace(/^\//, ""));
+        const filePath = resolveTraineddata(name);
+        if (!filePath) {
+          // Return a real 404 for unbundled languages so tesseract.js sees a
+          // proper failure rather than the SPA index.html that Vite would
+          // otherwise serve from its catch-all middleware.
+          res.statusCode = 404;
+          res.end();
+          return;
+        }
+        res.setHeader("Content-Type", "application/gzip");
+        res.setHeader("Content-Encoding", "identity"); // Prevent dev server from re-gzipping
+        createReadStream(filePath).pipe(res);
+      });
+    },
+    closeBundle() {
+      const coreOut = resolve(__dirname, "dist/tesseract");
+      mkdirSync(coreOut, { recursive: true });
+      if (existsSync(workerSrc)) copyFileSync(workerSrc, resolve(coreOut, "worker.min.js"));
+      if (existsSync(coreDir)) {
+        for (const entry of readdirSync(coreDir)) {
+          if (entry.startsWith("tesseract-core") && (entry.endsWith(".js") || entry.endsWith(".wasm"))) {
+            copyFileSync(resolve(coreDir, entry), resolve(coreOut, entry));
+          }
+        }
+      }
+      const langOut = resolve(__dirname, "dist/tessdata");
+      mkdirSync(langOut, { recursive: true });
+      for (const lang of BUNDLED_TRAINEDDATA) {
+        const src = traineddataPath(lang);
+        if (existsSync(src)) copyFileSync(src, resolve(langOut, `${lang}.traineddata.gz`));
+      }
+    },
+  };
+}
+
 export default defineConfig({
   base: "./",
-  plugins: [react(), tailwindcss(), serveTestFixtures()],
+  plugins: [react(), tailwindcss(), serveTestFixtures(), bundleTesseractAssets()],
   optimizeDeps: {
     include: ["tesseract.js"],
   },
