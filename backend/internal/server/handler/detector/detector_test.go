@@ -43,12 +43,12 @@ const (
 	zipMetadataJSON = "metadata.json"
 	zipTemplate0PNG = "template_0.png"
 
-	metadataFile             = "metadata.json"
-	wantBroadcast            = "expected BroadcastState to be called"
-	wantZeroTemplatesFmt     = "templates count = %d, want 0"
-	wantOneImportFmt         = "imported = %d, want 1"
-	templatesZipFile         = "templates.zip"
-	wantStatus204Fmt         = "status = %d, want 204"
+	metadataFile              = "metadata.json"
+	wantBroadcast             = "expected BroadcastState to be called"
+	wantZeroTemplatesFmt      = "templates count = %d, want 0"
+	wantOneImportFmt          = "imported = %d, want 1"
+	templatesZipFile          = "templates.zip"
+	wantStatus204Fmt          = "status = %d, want 204"
 	testDetectorTemplatesPath = "/api/detector/p1/templates"
 )
 
@@ -56,9 +56,9 @@ const (
 
 // mockDetectorDB implements DetectorStore with in-memory storage.
 type mockDetectorDB struct {
-	images  map[int64][]byte
-	nextID  int64
-	failOn  string // "load", "save", "delete" to simulate errors
+	images map[int64][]byte
+	nextID int64
+	failOn string // "load", "save", "delete" to simulate errors
 }
 
 func newMockDetectorDB() *mockDetectorDB {
@@ -122,13 +122,13 @@ func (m *mockEncounterLogger) LogEncounter(pokemonID, pokemonName string, delta,
 
 // testDeps implements the Deps interface for isolated handler testing.
 type testDeps struct {
-	stateMgr          *state.Manager
-	detectorMgr       *detector.Manager
-	detectorDB        *mockDetectorDB
-	encounterLogger   *mockEncounterLogger
-	configDir         string
-	broadcasts        []broadcastCall
-	stateBroadcN      int
+	stateMgr        *state.Manager
+	detectorMgr     *detector.Manager
+	detectorDB      *mockDetectorDB
+	encounterLogger *mockEncounterLogger
+	configDir       string
+	broadcasts      []broadcastCall
+	stateBroadcN    int
 }
 
 // broadcastCall records a Broadcast invocation.
@@ -137,12 +137,12 @@ type broadcastCall struct {
 	Payload any
 }
 
-func (d *testDeps) StateManager() *state.Manager                { return d.stateMgr }
-func (d *testDeps) DetectorMgr() *detector.Manager              { return d.detectorMgr }
-func (d *testDeps) DetectorDB() DetectorStore                   { return d.detectorDB }
-func (d *testDeps) DetectorEncounterLogger() EncounterLogger    { return d.encounterLogger }
-func (d *testDeps) ConfigDir() string                           { return d.configDir }
-func (d *testDeps) BroadcastState()                             { d.stateBroadcN++ }
+func (d *testDeps) StateManager() *state.Manager             { return d.stateMgr }
+func (d *testDeps) DetectorMgr() *detector.Manager           { return d.detectorMgr }
+func (d *testDeps) DetectorDB() DetectorStore                { return d.detectorDB }
+func (d *testDeps) DetectorEncounterLogger() EncounterLogger { return d.encounterLogger }
+func (d *testDeps) ConfigDir() string                        { return d.configDir }
+func (d *testDeps) BroadcastState()                          { d.stateBroadcN++ }
 func (d *testDeps) Broadcast(msgType string, payload any) {
 	d.broadcasts = append(d.broadcasts, broadcastCall{MsgType: msgType, Payload: payload})
 }
@@ -220,7 +220,6 @@ func decodeJSON(t *testing.T, body io.Reader, v any) {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 }
-
 
 // --- Dispatch 404 paths ------------------------------------------------------
 

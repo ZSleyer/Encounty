@@ -24,14 +24,15 @@ import (
 
 // EVIOCGBIT(0, 1) — reads 1 byte of the event-type bitmap.
 // Calculated as: _IOC(_IOC_READ=2, 'E'=0x45, 0x20+ev=0x20, len=1)
-//   = (2 << 30) | (0x45 << 8) | 0x20 | (1 << 16)
-//   = 0x80014520
+//
+//	= (2 << 30) | (0x45 << 8) | 0x20 | (1 << 16)
+//	= 0x80014520
 const eviocgbitTypes = uintptr(0x80014520)
 
 // evtype and value constants from input-event-codes.h
 const (
-	evTypKey   = 1    // EV_KEY
-	evValPress = 1    // key pressed
+	evTypKey   = 1 // EV_KEY
+	evValPress = 1 // key pressed
 )
 
 type linuxManager struct {

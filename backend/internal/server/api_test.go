@@ -28,13 +28,13 @@ func newMockHotkeyMgr() *mockHotkeyMgr {
 	return &mockHotkeyMgr{actions: make(chan hotkeys.Action)}
 }
 
-func (m *mockHotkeyMgr) Start() error                               { return nil }
+func (m *mockHotkeyMgr) Start() error { return nil }
 func (m *mockHotkeyMgr) Stop() { // no-op for test
 }
-func (m *mockHotkeyMgr) SetPaused(paused bool)                      { m.paused = paused }
+func (m *mockHotkeyMgr) SetPaused(paused bool)                       { m.paused = paused }
 func (m *mockHotkeyMgr) UpdateBinding(action, keyCombo string) error { return nil }
 func (m *mockHotkeyMgr) UpdateAllBindings(hm state.HotkeyMap) error  { return nil }
-func (m *mockHotkeyMgr) IsAvailable() bool                          { return true }
+func (m *mockHotkeyMgr) IsAvailable() bool                           { return true }
 func (m *mockHotkeyMgr) Actions() <-chan hotkeys.Action              { return m.actions }
 
 // newTestMux creates an http.ServeMux with all routes registered for srv.

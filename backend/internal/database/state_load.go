@@ -393,13 +393,13 @@ func loadSessions(db *sql.DB) ([]state.Session, error) {
 // elemRow holds the raw column values for a single overlay_elements row,
 // used as an intermediate representation before dispatching to typed fields.
 type elemRow struct {
-	id                                    int64
-	elemType                              string
-	base                                  state.OverlayElementBase
-	showGlow, showLabel, glowBlur         sql.NullInt64
+	id                                       int64
+	elemType                                 string
+	base                                     state.OverlayElementBase
+	showGlow, showLabel, glowBlur            sql.NullInt64
 	glowColor, idleAnim, triggerEnter        sql.NullString
 	triggerExit, triggerDecrement, labelText sql.NullString
-	glowOpacity                           sql.NullFloat64
+	glowOpacity                              sql.NullFloat64
 }
 
 // loadOverlay reconstructs an OverlaySettings from the overlay_settings,

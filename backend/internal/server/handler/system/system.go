@@ -10,8 +10,8 @@ import (
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/licenses"
-	"github.com/zsleyer/encounty/backend/internal/state"
 	"github.com/zsleyer/encounty/backend/internal/reexec"
+	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
 // Deps declares the capabilities that system handlers require from the

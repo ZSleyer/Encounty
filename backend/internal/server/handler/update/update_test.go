@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	fmtStatusWant    = "status = %d, want %d"
-	testVersion      = "v0.8.0"
-	updateCheckPath  = "/api/update/check"
+	fmtStatusWant   = "status = %d, want %d"
+	testVersion     = "v0.8.0"
+	updateCheckPath = "/api/update/check"
 )
 
 type testDeps struct {

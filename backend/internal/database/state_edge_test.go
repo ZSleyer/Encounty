@@ -17,18 +17,18 @@ import (
 )
 
 const (
-	edgeFmtSaveErr      = "SaveFullState: %v"
-	edgeFmtLoadErr      = "LoadFullState: %v"
-	edgeLoadNil         = "LoadFullState returned nil"
-	colorRed            = "#ff0000"
-	colorGreen          = "#00ff00"
-	colorBlue           = "#0000ff"
-	colorDarkGray1      = "#111111"
-	colorDarkGray2      = "#222222"
-	errDetectorNil      = "DetectorConfig should not be nil"
-	textJigglypuff      = "A wild Jigglypuff appeared!"
-	titlePokemonWindow  = "Pokemon Game Window"
-	titleSpookyHunt     = "Spooky Hunt"
+	edgeFmtSaveErr     = "SaveFullState: %v"
+	edgeFmtLoadErr     = "LoadFullState: %v"
+	edgeLoadNil        = "LoadFullState returned nil"
+	colorRed           = "#ff0000"
+	colorGreen         = "#00ff00"
+	colorBlue          = "#0000ff"
+	colorDarkGray1     = "#111111"
+	colorDarkGray2     = "#222222"
+	errDetectorNil     = "DetectorConfig should not be nil"
+	textJigglypuff     = "A wild Jigglypuff appeared!"
+	titlePokemonWindow = "Pokemon Game Window"
+	titleSpookyHunt    = "Spooky Hunt"
 )
 
 // TestLoadFullStateEmptyDB verifies that LoadFullState returns nil (without error)
@@ -317,9 +317,9 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 				CreatedAt:   now,
 				OverlayMode: "default",
 				DetectorConfig: &state.DetectorConfig{
-					Enabled:      true,
-					SourceType:   "browser_camera",
-					Precision:    0.9,
+					Enabled:    true,
+					SourceType: "browser_camera",
+					Precision:  0.9,
 					Templates: []state.DetectorTemplate{
 						{
 							ImageData: []byte{0x89, 0x50, 0x4e, 0x47},

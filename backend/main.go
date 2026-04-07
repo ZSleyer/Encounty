@@ -310,4 +310,3 @@ func getConfigDir() string {
 		return filepath.Join(home, ".config", "encounty")
 	}
 }
-

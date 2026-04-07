@@ -18,12 +18,12 @@ import (
 const (
 	testDBName = "encounty.db"
 
-	pathSettings       = "/api/settings"
-	pathConfigPath     = "/api/settings/config-path"
-	pathHotkeysIncr    = "/api/hotkeys/increment"
-	pathHotkeysPause   = "/api/hotkeys/pause"
-	pathHotkeysResume  = "/api/hotkeys/resume"
-	pathHotkeysStatus  = "/api/hotkeys/status"
+	pathSettings      = "/api/settings"
+	pathConfigPath    = "/api/settings/config-path"
+	pathHotkeysIncr   = "/api/hotkeys/increment"
+	pathHotkeysPause  = "/api/hotkeys/pause"
+	pathHotkeysResume = "/api/hotkeys/resume"
+	pathHotkeysStatus = "/api/hotkeys/status"
 
 	wantStatus200     = "status = %d, want 200"
 	wantStatus200Body = "status = %d, want 200; body = %s"
@@ -65,10 +65,10 @@ type testDeps struct {
 	fileWriterSetCalls int
 }
 
-func (d *testDeps) StateManager() *state.Manager          { return d.stateMgr }
-func (d *testDeps) DB() *database.DB                      { return d.db }
-func (d *testDeps) SetDB(db *database.DB)                 { d.db = db; d.stateMgr.SetDB(db) }
-func (d *testDeps) BroadcastState()                       { d.broadcastCalled = true }
+func (d *testDeps) StateManager() *state.Manager { return d.stateMgr }
+func (d *testDeps) DB() *database.DB             { return d.db }
+func (d *testDeps) SetDB(db *database.DB)        { d.db = db; d.stateMgr.SetDB(db) }
+func (d *testDeps) BroadcastState()              { d.broadcastCalled = true }
 func (d *testDeps) FileWriterSetConfig(dir string, on bool) {
 	d.fileWriterDir = dir
 	d.fileWriterEnabled = on

@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	fileEncounters     = "encounters.txt"
-	fmtReadEncounters  = "reading encounters.txt: %v"
-	fmtEncountersWant  = "encounters.txt = %q, want %q"
+	fileEncounters    = "encounters.txt"
+	fmtReadEncounters = "reading encounters.txt: %v"
+	fmtEncountersWant = "encounters.txt = %q, want %q"
 )
 
 func TestWriteWithActivePokemon(t *testing.T) {

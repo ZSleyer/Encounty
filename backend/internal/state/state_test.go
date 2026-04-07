@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	testConfigDir  = "/tmp/test-config"
+	testConfigDir   = "/tmp/test-config"
 	fmtActiveIDWant = "ActiveID = %q, want %q"
 )
 

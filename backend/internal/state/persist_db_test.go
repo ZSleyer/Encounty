@@ -166,8 +166,8 @@ func TestLoadFallsBackToLegacyBlob(t *testing.T) {
 		Sessions: []state.Session{},
 		Hotkeys:  state.HotkeyMap{Increment: "F5", Decrement: "F6", Reset: "F7", NextPokemon: "F8"},
 		Settings: state.Settings{
-			Languages:   []string{"de"},
-			Overlay:     state.OverlaySettings{BackgroundAnimation: "none"},
+			Languages: []string{"de"},
+			Overlay:   state.OverlaySettings{BackgroundAnimation: "none"},
 		},
 	}
 	data, err := json.Marshal(legacyState)

@@ -18,12 +18,12 @@ import (
 
 // Shared string literals used in default overlay settings and overlay resolution.
 const (
-	colorBlack         = "#000000"
-	colorWhite         = "#ffffff"
-	colorTypeSolid     = "solid"
-	outlineTypeSolid   = "solid"
-	animationNone      = "none"
-	fontPokemon        = "pokemon"
+	colorBlack          = "#000000"
+	colorWhite          = "#ffffff"
+	colorTypeSolid      = "solid"
+	outlineTypeSolid    = "solid"
+	animationNone       = "none"
+	fontPokemon         = "pokemon"
 	overlayLinkedPrefix = "linked:"
 )
 
@@ -31,28 +31,28 @@ const (
 // It stores display metadata (name, sprite), the running encounter count,
 // and an optional per-Pokémon overlay configuration.
 type Pokemon struct {
-	ID            string           `json:"id"`
-	Name          string           `json:"name"`                   // Display name (localized)
-	Title         string           `json:"title,omitempty"`        // User-defined custom title
-	CanonicalName string           `json:"canonical_name"`         // English PokéAPI slug
-	SpriteURL     string           `json:"sprite_url"`
-	SpriteType    string           `json:"sprite_type"`            // "normal" | "shiny"
-	SpriteStyle   string           `json:"sprite_style,omitempty"` // "classic" | "animated" | "3d" | "artwork"
-	Encounters    int              `json:"encounters"`
-	Step          int              `json:"step,omitempty"`         // Increment/decrement step size (default 1)
-	IsActive      bool             `json:"is_active"`
-	CreatedAt     time.Time        `json:"created_at"`
-	Language      string           `json:"language"`               // "de" | "en"
-	Game          string           `json:"game"`                   // key from games.json
-	CompletedAt   *time.Time       `json:"completed_at,omitempty"`
-	Overlay       *OverlaySettings `json:"overlay,omitempty"`      // Pokemon-specific overlay settings
-	OverlayMode    string          `json:"overlay_mode"`           // "default" | "custom" | "linked:<pokemon-id>"
-	HuntType       string          `json:"hunt_type,omitempty"`
-	ShinyCharm     bool            `json:"shiny_charm"`
-	DetectorConfig *DetectorConfig `json:"detector_config,omitempty"`
-	TimerStartedAt  *time.Time     `json:"timer_started_at,omitempty"`
-	TimerAccumulatedMs int64       `json:"timer_accumulated_ms"`
-	HuntMode           string      `json:"hunt_mode"`              // "both" | "timer" | "detector" (default "both")
+	ID                 string           `json:"id"`
+	Name               string           `json:"name"`            // Display name (localized)
+	Title              string           `json:"title,omitempty"` // User-defined custom title
+	CanonicalName      string           `json:"canonical_name"`  // English PokéAPI slug
+	SpriteURL          string           `json:"sprite_url"`
+	SpriteType         string           `json:"sprite_type"`            // "normal" | "shiny"
+	SpriteStyle        string           `json:"sprite_style,omitempty"` // "classic" | "animated" | "3d" | "artwork"
+	Encounters         int              `json:"encounters"`
+	Step               int              `json:"step,omitempty"` // Increment/decrement step size (default 1)
+	IsActive           bool             `json:"is_active"`
+	CreatedAt          time.Time        `json:"created_at"`
+	Language           string           `json:"language"` // "de" | "en"
+	Game               string           `json:"game"`     // key from games.json
+	CompletedAt        *time.Time       `json:"completed_at,omitempty"`
+	Overlay            *OverlaySettings `json:"overlay,omitempty"` // Pokemon-specific overlay settings
+	OverlayMode        string           `json:"overlay_mode"`      // "default" | "custom" | "linked:<pokemon-id>"
+	HuntType           string           `json:"hunt_type,omitempty"`
+	ShinyCharm         bool             `json:"shiny_charm"`
+	DetectorConfig     *DetectorConfig  `json:"detector_config,omitempty"`
+	TimerStartedAt     *time.Time       `json:"timer_started_at,omitempty"`
+	TimerAccumulatedMs int64            `json:"timer_accumulated_ms"`
+	HuntMode           string           `json:"hunt_mode"` // "both" | "timer" | "detector" (default "both")
 }
 
 // Session records one time-boxed encounter run for a single Pokémon.
@@ -76,8 +76,8 @@ type HotkeyMap struct {
 
 // MatchedRegion defines a bounding box within a template and its match criteria.
 type MatchedRegion struct {
-	Type         string       `json:"type"`                   // "image" | "text"
-	ExpectedText string       `json:"expected_text"`          // used if Type == "text"
+	Type         string       `json:"type"`          // "image" | "text"
+	ExpectedText string       `json:"expected_text"` // used if Type == "text"
 	Rect         DetectorRect `json:"rect"`
 }
 
@@ -90,7 +90,7 @@ type DetectorTemplate struct {
 	ImagePath    string          `json:"image_path,omitempty"`     // legacy filesystem path
 	ImageData    []byte          `json:"-"`                        // PNG bytes, loaded on demand
 	Regions      []MatchedRegion `json:"regions"`
-	Enabled      *bool           `json:"enabled,omitempty"`        // nil = true (backward compat)
+	Enabled      *bool           `json:"enabled,omitempty"` // nil = true (backward compat)
 }
 
 // DetectorRect defines a rectangular screen region in absolute pixel coordinates.
@@ -104,23 +104,23 @@ type DetectorRect struct {
 // DetectorConfig holds all auto-detection settings for a single Pokémon hunt.
 // A nil DetectorConfig means auto-detection is disabled for that hunt.
 type DetectorConfig struct {
-	Enabled         bool               `json:"enabled"`
-	SourceType      string             `json:"source_type"`            // "screen_region" | "window" | "camera"
-	Region          DetectorRect       `json:"region"`
-	WindowTitle     string             `json:"window_title"`
-	Templates       []DetectorTemplate `json:"templates"`              // replaces TemplatePaths
+	Enabled     bool               `json:"enabled"`
+	SourceType  string             `json:"source_type"` // "screen_region" | "window" | "camera"
+	Region      DetectorRect       `json:"region"`
+	WindowTitle string             `json:"window_title"`
+	Templates   []DetectorTemplate `json:"templates"` // replaces TemplatePaths
 
-	Precision       float64            `json:"precision"`              // 0.0–1.0, default 0.85
-	ConsecutiveHits int                `json:"consecutive_hits"`       // consecutive matching frames required before counting
-	CooldownSec     int                `json:"cooldown_sec"`           // minimum seconds between counts
-	ChangeThreshold float64            `json:"change_threshold"`       // pixel-delta fraction required to leave MATCH state
-	PollIntervalMs  int                `json:"poll_interval_ms"`       // base milliseconds between capture polls (adaptive centre point)
-	MinPollMs       int                `json:"min_poll_ms"`            // fastest adaptive poll interval (high activity), default 30
-	MaxPollMs       int                `json:"max_poll_ms"`            // slowest adaptive poll interval (static screen), default 500
-	AdaptiveCooldown    bool           `json:"adaptive_cooldown"`
-	AdaptiveCooldownMin int            `json:"adaptive_cooldown_min"`  // Minimum seconds, default 3
-	HysteresisFactor    float64        `json:"hysteresis_factor"`      // 0.0–1.0, multiplier for hysteresis exit threshold (default 0.7)
-	DetectionLog    []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
+	Precision           float64             `json:"precision"`        // 0.0–1.0, default 0.85
+	ConsecutiveHits     int                 `json:"consecutive_hits"` // consecutive matching frames required before counting
+	CooldownSec         int                 `json:"cooldown_sec"`     // minimum seconds between counts
+	ChangeThreshold     float64             `json:"change_threshold"` // pixel-delta fraction required to leave MATCH state
+	PollIntervalMs      int                 `json:"poll_interval_ms"` // base milliseconds between capture polls (adaptive centre point)
+	MinPollMs           int                 `json:"min_poll_ms"`      // fastest adaptive poll interval (high activity), default 30
+	MaxPollMs           int                 `json:"max_poll_ms"`      // slowest adaptive poll interval (static screen), default 500
+	AdaptiveCooldown    bool                `json:"adaptive_cooldown"`
+	AdaptiveCooldownMin int                 `json:"adaptive_cooldown_min"`   // Minimum seconds, default 3
+	HysteresisFactor    float64             `json:"hysteresis_factor"`       // 0.0–1.0, multiplier for hysteresis exit threshold (default 0.7)
+	DetectionLog        []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 
 // DefaultDetectorConfig returns a DetectorConfig with sensible defaults
@@ -150,7 +150,6 @@ type DetectionLogEntry struct {
 // maxDetectionLog is the maximum number of log entries retained per hunt.
 const maxDetectionLog = 20
 
-
 // GradientStop defines one colour stop in a CSS-style linear gradient.
 type GradientStop struct {
 	Color    string  `json:"color"`
@@ -162,27 +161,27 @@ type GradientStop struct {
 // Outlines support "none" and "solid" modes.
 // Text shadows support "solid" or "gradient" colour with dedicated stops and angle.
 type TextStyle struct {
-	FontFamily      string         `json:"font_family"`
-	FontSize        int            `json:"font_size"`
-	FontWeight      int            `json:"font_weight"`
-	TextAlign       string         `json:"text_align"`
-	ColorType       string         `json:"color_type"` // "solid" | "gradient"
-	Color           string         `json:"color"`
-	GradientStops   []GradientStop `json:"gradient_stops"`
-	GradientAngle   int            `json:"gradient_angle"`
-	OutlineType     string         `json:"outline_type"` // "none" | "solid"
-	OutlineWidth    int            `json:"outline_width"`
-	OutlineColor    string         `json:"outline_color"`
-	OutlineGradientStops []GradientStop `json:"outline_gradient_stops"`
-	OutlineGradientAngle int            `json:"outline_gradient_angle"`
-	TextShadow           bool           `json:"text_shadow"`
-	TextShadowColor      string         `json:"text_shadow_color"`
-	TextShadowColorType  string         `json:"text_shadow_color_type"` // "solid" | "gradient"
+	FontFamily              string         `json:"font_family"`
+	FontSize                int            `json:"font_size"`
+	FontWeight              int            `json:"font_weight"`
+	TextAlign               string         `json:"text_align"`
+	ColorType               string         `json:"color_type"` // "solid" | "gradient"
+	Color                   string         `json:"color"`
+	GradientStops           []GradientStop `json:"gradient_stops"`
+	GradientAngle           int            `json:"gradient_angle"`
+	OutlineType             string         `json:"outline_type"` // "none" | "solid"
+	OutlineWidth            int            `json:"outline_width"`
+	OutlineColor            string         `json:"outline_color"`
+	OutlineGradientStops    []GradientStop `json:"outline_gradient_stops"`
+	OutlineGradientAngle    int            `json:"outline_gradient_angle"`
+	TextShadow              bool           `json:"text_shadow"`
+	TextShadowColor         string         `json:"text_shadow_color"`
+	TextShadowColorType     string         `json:"text_shadow_color_type"` // "solid" | "gradient"
 	TextShadowGradientStops []GradientStop `json:"text_shadow_gradient_stops"`
 	TextShadowGradientAngle int            `json:"text_shadow_gradient_angle"`
-	TextShadowBlur       int            `json:"text_shadow_blur"`
-	TextShadowX          int            `json:"text_shadow_x"`
-	TextShadowY          int            `json:"text_shadow_y"`
+	TextShadowBlur          int            `json:"text_shadow_blur"`
+	TextShadowX             int            `json:"text_shadow_x"`
+	TextShadowY             int            `json:"text_shadow_y"`
 }
 
 // OverlayElementBase holds position and size fields shared by every overlay
@@ -200,12 +199,12 @@ type OverlayElementBase struct {
 // including optional glow effect and entry/idle animations.
 type SpriteElement struct {
 	OverlayElementBase
-	ShowGlow      bool    `json:"show_glow"`
-	GlowColor     string  `json:"glow_color"`
-	GlowOpacity   float64 `json:"glow_opacity"`
-	GlowBlur      int     `json:"glow_blur"`
-	IdleAnimation string  `json:"idle_animation"`
-	TriggerEnter  string  `json:"trigger_enter"`
+	ShowGlow         bool    `json:"show_glow"`
+	GlowColor        string  `json:"glow_color"`
+	GlowOpacity      float64 `json:"glow_opacity"`
+	GlowBlur         int     `json:"glow_blur"`
+	IdleAnimation    string  `json:"idle_animation"`
+	TriggerEnter     string  `json:"trigger_enter"`
 	TriggerExit      string  `json:"trigger_exit"`
 	TriggerDecrement string  `json:"trigger_decrement"`
 }
@@ -246,31 +245,31 @@ type CounterElement struct {
 // overlay. It uses an absolute-positioning canvas model: each element has its
 // own x/y/width/height within a fixed canvas.
 type OverlaySettings struct {
-	CanvasWidth       int            `json:"canvas_width"`
-	CanvasHeight      int            `json:"canvas_height"`
-	Hidden            bool           `json:"hidden"`
-	BackgroundColor   string         `json:"background_color"`
-	BackgroundOpacity float64        `json:"background_opacity"`
-	BackgroundAnimation       string  `json:"background_animation"`
-	BackgroundAnimationSpeed  float64 `json:"background_animation_speed"`
+	CanvasWidth               int             `json:"canvas_width"`
+	CanvasHeight              int             `json:"canvas_height"`
+	Hidden                    bool            `json:"hidden"`
+	BackgroundColor           string          `json:"background_color"`
+	BackgroundOpacity         float64         `json:"background_opacity"`
+	BackgroundAnimation       string          `json:"background_animation"`
+	BackgroundAnimationSpeed  float64         `json:"background_animation_speed"`
 	BackgroundAnimationConfig json.RawMessage `json:"background_animation_config,omitempty"`
-	BackgroundImage          string  `json:"background_image"`
-	BackgroundImageFit       string  `json:"background_image_fit"`
-	Blur              int            `json:"blur"`
-	ShowBorder        bool           `json:"show_border"`
-	BorderColor       string         `json:"border_color"`
-	BorderWidth       int            `json:"border_width"`
-	BorderRadius      int            `json:"border_radius"`
-	Sprite            SpriteElement  `json:"sprite"`
-	Name              NameElement    `json:"name"`
-	Title             TitleElement   `json:"title"`
-	Counter           CounterElement `json:"counter"`
+	BackgroundImage           string          `json:"background_image"`
+	BackgroundImageFit        string          `json:"background_image_fit"`
+	Blur                      int             `json:"blur"`
+	ShowBorder                bool            `json:"show_border"`
+	BorderColor               string          `json:"border_color"`
+	BorderWidth               int             `json:"border_width"`
+	BorderRadius              int             `json:"border_radius"`
+	Sprite                    SpriteElement   `json:"sprite"`
+	Name                      NameElement     `json:"name"`
+	Title                     TitleElement    `json:"title"`
+	Counter                   CounterElement  `json:"counter"`
 }
 
 // TutorialFlags tracks which tutorials the user has already completed.
 type TutorialFlags struct {
-	OverlayEditor  bool `json:"overlay_editor"`
-	AutoDetection  bool `json:"auto_detection"`
+	OverlayEditor bool `json:"overlay_editor"`
+	AutoDetection bool `json:"auto_detection"`
 }
 
 // Settings holds user-configurable application preferences that are persisted
@@ -279,12 +278,12 @@ type Settings struct {
 	OutputEnabled bool            `json:"output_enabled"`
 	OutputDir     string          `json:"output_dir"`
 	AutoSave      bool            `json:"auto_save"`
-	Languages    []string        `json:"languages"`                // active game-name languages; default ["de","en"]
-	CrispSprites bool            `json:"crisp_sprites"`
-	UIAnimations bool            `json:"ui_animations"`
-	Overlay      OverlaySettings `json:"overlay"`
-	TutorialSeen TutorialFlags   `json:"tutorial_seen"`
-	ConfigPath   string          `json:"config_path,omitempty"`    // custom data directory override
+	Languages     []string        `json:"languages"` // active game-name languages; default ["de","en"]
+	CrispSprites  bool            `json:"crisp_sprites"`
+	UIAnimations  bool            `json:"ui_animations"`
+	Overlay       OverlaySettings `json:"overlay"`
+	TutorialSeen  TutorialFlags   `json:"tutorial_seen"`
+	ConfigPath    string          `json:"config_path,omitempty"` // custom data directory override
 }
 
 // AppState is the complete serialisable snapshot of the application. It is
@@ -346,19 +345,19 @@ func NewManager(configDir string) *Manager {
 				OutputEnabled: false,
 				OutputDir:     filepath.Join(configDir, "output"),
 				AutoSave:      true,
-				Languages:    []string{"de", "en"},
-				CrispSprites: true,
-				UIAnimations: true,
+				Languages:     []string{"de", "en"},
+				CrispSprites:  true,
+				UIAnimations:  true,
 				Overlay: OverlaySettings{
-					CanvasWidth:       800,
-					CanvasHeight:      200,
-					BackgroundColor:   colorBlack,
-					BackgroundOpacity: 0.6,
+					CanvasWidth:         800,
+					CanvasHeight:        200,
+					BackgroundColor:     colorBlack,
+					BackgroundOpacity:   0.6,
 					BackgroundAnimation: animationNone,
-					Blur:              8,
-					ShowBorder:        true,
-					BorderColor:       "rgba(255,255,255,0.1)",
-					BorderRadius:      40,
+					Blur:                8,
+					ShowBorder:          true,
+					BorderColor:         "rgba(255,255,255,0.1)",
+					BorderRadius:        40,
 					Sprite: SpriteElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 10, Y: 10, Width: 180, Height: 180, ZIndex: 1},
 						ShowGlow:           true,

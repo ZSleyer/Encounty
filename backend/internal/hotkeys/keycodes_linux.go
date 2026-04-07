@@ -112,16 +112,16 @@ var keyNameToEvKey = map[string]evKey{
 	"`":  41, // KEY_GRAVE
 
 	// Navigation / editing
-	"backspace": 14,  // KEY_BACKSPACE
-	"tab":       15,  // KEY_TAB
-	"enter":     28,  // KEY_ENTER
-	"escape":    1,   // KEY_ESC
-	"delete":    111, // KEY_DELETE
-	"insert":    110, // KEY_INSERT
-	"home":      102, // KEY_HOME
-	"end":       107, // KEY_END
-	"pageup":    104, // KEY_PAGEUP
-	"pagedown":  109, // KEY_PAGEDOWN
+	"backspace":  14,  // KEY_BACKSPACE
+	"tab":        15,  // KEY_TAB
+	"enter":      28,  // KEY_ENTER
+	"escape":     1,   // KEY_ESC
+	"delete":     111, // KEY_DELETE
+	"insert":     110, // KEY_INSERT
+	"home":       102, // KEY_HOME
+	"end":        107, // KEY_END
+	"pageup":     104, // KEY_PAGEUP
+	"pagedown":   109, // KEY_PAGEDOWN
 	"arrowleft":  105, // KEY_LEFT
 	"arrowup":    103, // KEY_UP
 	"arrowright": 106, // KEY_RIGHT

@@ -45,15 +45,15 @@ type testDeps struct {
 }
 
 func (d *testDeps) StateManager() *state.Manager          { return d.stateMgr }
-func (d *testDeps) VersionInfo() (string, string, string)  { return d.version, d.commit, d.buildDate }
-func (d *testDeps) IsReady() bool                          { return d.ready }
-func (d *testDeps) IsDevMode() bool                        { return d.devMode }
-func (d *testDeps) IsSetupPending() bool                   { return d.setupPending }
-func (d *testDeps) RunSetupOnline()                        { d.setupOnlineCalled = true }
-func (d *testDeps) RunSetupOffline() error                 { return d.setupOfflineErr }
-func (d *testDeps) BroadcastState()                        { d.broadcastCalled = true }
-func (d *testDeps) StopHotkeys()                           { d.stopHotkeysCalled = true }
-func (d *testDeps) SaveState() error                       { d.saveStateCalled = true; return d.saveStateErr }
+func (d *testDeps) VersionInfo() (string, string, string) { return d.version, d.commit, d.buildDate }
+func (d *testDeps) IsReady() bool                         { return d.ready }
+func (d *testDeps) IsDevMode() bool                       { return d.devMode }
+func (d *testDeps) IsSetupPending() bool                  { return d.setupPending }
+func (d *testDeps) RunSetupOnline()                       { d.setupOnlineCalled = true }
+func (d *testDeps) RunSetupOffline() error                { return d.setupOfflineErr }
+func (d *testDeps) BroadcastState()                       { d.broadcastCalled = true }
+func (d *testDeps) StopHotkeys()                          { d.stopHotkeysCalled = true }
+func (d *testDeps) SaveState() error                      { d.saveStateCalled = true; return d.saveStateErr }
 
 // newTestMux creates a test HTTP mux with the system routes registered.
 func newTestMux(t *testing.T) (*http.ServeMux, *testDeps) {

@@ -108,16 +108,16 @@ var keyNameToVK = map[string]vkCode{
 	"`":  0xC0, // VK_OEM_3
 
 	// Navigation / editing
-	"backspace": 0x08, // VK_BACK
-	"tab":       0x09, // VK_TAB
-	"enter":     0x0D, // VK_RETURN
-	"escape":    0x1B, // VK_ESCAPE
-	"delete":    0x2E, // VK_DELETE
-	"insert":    0x2D, // VK_INSERT
-	"home":      0x24, // VK_HOME
-	"end":       0x23, // VK_END
-	"pageup":    0x21, // VK_PRIOR
-	"pagedown":  0x22, // VK_NEXT
+	"backspace":  0x08, // VK_BACK
+	"tab":        0x09, // VK_TAB
+	"enter":      0x0D, // VK_RETURN
+	"escape":     0x1B, // VK_ESCAPE
+	"delete":     0x2E, // VK_DELETE
+	"insert":     0x2D, // VK_INSERT
+	"home":       0x24, // VK_HOME
+	"end":        0x23, // VK_END
+	"pageup":     0x21, // VK_PRIOR
+	"pagedown":   0x22, // VK_NEXT
 	"arrowleft":  0x25, // VK_LEFT
 	"arrowup":    0x26, // VK_UP
 	"arrowright": 0x27, // VK_RIGHT

@@ -84,7 +84,7 @@ type mockDeps struct {
 	cfgDir  string
 }
 
-func (d *mockDeps) GamesDB() gamesync.GamesStore   { return d.games }
+func (d *mockDeps) GamesDB() gamesync.GamesStore    { return d.games }
 func (d *mockDeps) PokedexDB() pokedex.PokedexStore { return d.pokedex }
 func (d *mockDeps) ConfigDir() string               { return d.cfgDir }
 

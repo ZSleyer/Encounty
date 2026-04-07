@@ -41,11 +41,11 @@ var (
 	user32   = syscall.NewLazyDLL("user32.dll")
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procRegisterHotKey      = user32.NewProc("RegisterHotKey")
-	procUnregisterHotKey    = user32.NewProc("UnregisterHotKey")
-	procGetMessageW         = user32.NewProc("GetMessageW")
-	procPostThreadMessageW  = user32.NewProc("PostThreadMessageW")
-	procGetCurrentThreadId  = kernel32.NewProc("GetCurrentThreadId")
+	procRegisterHotKey     = user32.NewProc("RegisterHotKey")
+	procUnregisterHotKey   = user32.NewProc("UnregisterHotKey")
+	procGetMessageW        = user32.NewProc("GetMessageW")
+	procPostThreadMessageW = user32.NewProc("PostThreadMessageW")
+	procGetCurrentThreadId = kernel32.NewProc("GetCurrentThreadId")
 )
 
 type windowsManager struct {

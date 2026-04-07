@@ -68,7 +68,7 @@ type handler struct {
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	h := &handler{deps: d}
 	mux.HandleFunc("/api/detector/screenshot", h.handleDetectorScreenshot)
-mux.HandleFunc("/api/detector/", h.handleDetectorDispatch)
+	mux.HandleFunc("/api/detector/", h.handleDetectorDispatch)
 }
 
 // --- Response / request types ------------------------------------------------

@@ -390,14 +390,14 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 
 	// Insert sprite element.
 	spriteID, err := insertElement(tx, elementInsertParams{
-		overlayID:    overlayID,
-		elemType:     "sprite",
-		base:         &ov.Sprite.OverlayElementBase,
-		showGlow:     boolToInt(ov.Sprite.ShowGlow),
-		glowColor:    ov.Sprite.GlowColor,
-		glowOpacity:  ov.Sprite.GlowOpacity,
-		glowBlur:     ov.Sprite.GlowBlur,
-		idleAnim:     ov.Sprite.IdleAnimation,
+		overlayID:        overlayID,
+		elemType:         "sprite",
+		base:             &ov.Sprite.OverlayElementBase,
+		showGlow:         boolToInt(ov.Sprite.ShowGlow),
+		glowColor:        ov.Sprite.GlowColor,
+		glowOpacity:      ov.Sprite.GlowOpacity,
+		glowBlur:         ov.Sprite.GlowBlur,
+		idleAnim:         ov.Sprite.IdleAnimation,
 		triggerEnter:     ov.Sprite.TriggerEnter,
 		triggerExit:      ov.Sprite.TriggerExit,
 		triggerDecrement: ov.Sprite.TriggerDecrement,
@@ -410,11 +410,11 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 
 	// Insert name element with main text style.
 	nameID, err := insertElement(tx, elementInsertParams{
-		overlayID:    overlayID,
-		elemType:     "name",
-		base:         &ov.Name.OverlayElementBase,
-		idleAnim:        ov.Name.IdleAnimation,
-		triggerEnter:    ov.Name.TriggerEnter,
+		overlayID:        overlayID,
+		elemType:         "name",
+		base:             &ov.Name.OverlayElementBase,
+		idleAnim:         ov.Name.IdleAnimation,
+		triggerEnter:     ov.Name.TriggerEnter,
 		triggerDecrement: ov.Name.TriggerDecrement,
 	})
 	if err != nil {
@@ -426,11 +426,11 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 
 	// Insert title element with main text style.
 	titleID, err := insertElement(tx, elementInsertParams{
-		overlayID:    overlayID,
-		elemType:     "title",
-		base:         &ov.Title.OverlayElementBase,
-		idleAnim:        ov.Title.IdleAnimation,
-		triggerEnter:    ov.Title.TriggerEnter,
+		overlayID:        overlayID,
+		elemType:         "title",
+		base:             &ov.Title.OverlayElementBase,
+		idleAnim:         ov.Title.IdleAnimation,
+		triggerEnter:     ov.Title.TriggerEnter,
 		triggerDecrement: ov.Title.TriggerDecrement,
 	})
 	if err != nil {
@@ -442,14 +442,14 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 
 	// Insert counter element with main + label text styles.
 	counterID, err := insertElement(tx, elementInsertParams{
-		overlayID:    overlayID,
-		elemType:     "counter",
-		base:         &ov.Counter.OverlayElementBase,
-		idleAnim:        ov.Counter.IdleAnimation,
-		triggerEnter:    ov.Counter.TriggerEnter,
+		overlayID:        overlayID,
+		elemType:         "counter",
+		base:             &ov.Counter.OverlayElementBase,
+		idleAnim:         ov.Counter.IdleAnimation,
+		triggerEnter:     ov.Counter.TriggerEnter,
 		triggerDecrement: ov.Counter.TriggerDecrement,
-		showLabel:       ov.Counter.ShowLabel,
-		labelText:    ov.Counter.LabelText,
+		showLabel:        ov.Counter.ShowLabel,
+		labelText:        ov.Counter.LabelText,
 	})
 	if err != nil {
 		return fmt.Errorf("insert counter element: %w", err)
@@ -467,15 +467,15 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 // elementInsertParams groups all columns for an overlay_elements row,
 // keeping the call sites readable and avoiding a 13-parameter function.
 type elementInsertParams struct {
-	overlayID    int64
-	elemType     string
-	base         *state.OverlayElementBase
-	showGlow     int
-	glowColor    string
-	glowOpacity  float64
-	glowBlur     int
-	idleAnim     string
-	triggerEnter string
+	overlayID        int64
+	elemType         string
+	base             *state.OverlayElementBase
+	showGlow         int
+	glowColor        string
+	glowOpacity      float64
+	glowBlur         int
+	idleAnim         string
+	triggerEnter     string
 	triggerExit      string
 	triggerDecrement string
 	showLabel        bool

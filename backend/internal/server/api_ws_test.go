@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	fmtEncWant1  = "encounters = %d, want 1"
-	fmtEncWant0  = "encounters = %d, want 0"
-	fmtStatus    = "status = %d, want %d"
+	fmtEncWant1 = "encounters = %d, want 1"
+	fmtEncWant0 = "encounters = %d, want 0"
+	fmtStatus   = "status = %d, want %d"
 )
 
 // makeWSMessage creates a WSMessage with the given type and JSON payload.

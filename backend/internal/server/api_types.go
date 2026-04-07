@@ -75,4 +75,3 @@ type UpdateHotkeyRequest struct {
 type BackgroundUploadRequest struct {
 	ImageBase64 string `json:"image_base64"`
 }
-

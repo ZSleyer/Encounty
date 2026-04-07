@@ -1139,9 +1139,9 @@ func TestSaveTextStyleShadowGradientError(t *testing.T) {
 	_, _ = tx.Exec(`INSERT INTO overlay_elements (id, overlay_id, element_type) VALUES (1, 1, 'name')`)
 
 	style := &state.TextStyle{
-		FontFamily:    "test",
-		GradientStops:             []state.GradientStop{},
-		OutlineGradientStops:      []state.GradientStop{},
+		FontFamily:           "test",
+		GradientStops:        []state.GradientStop{},
+		OutlineGradientStops: []state.GradientStop{},
 		TextShadowGradientStops: []state.GradientStop{
 			{Color: "#000", Position: 0},
 		},
@@ -1176,8 +1176,8 @@ func TestLoadTextStyleGradientError(t *testing.T) {
 				Name: state.NameElement{
 					OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10},
 					Style: state.TextStyle{
-						FontFamily:    "test",
-						GradientStops: []state.GradientStop{{Color: "#fff", Position: 0}},
+						FontFamily:              "test",
+						GradientStops:           []state.GradientStop{{Color: "#fff", Position: 0}},
 						OutlineGradientStops:    []state.GradientStop{},
 						TextShadowGradientStops: []state.GradientStop{},
 					},

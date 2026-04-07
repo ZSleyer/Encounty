@@ -207,11 +207,11 @@ func decodeJSON(t *testing.T, rec *httptest.ResponseRecorder, v any) {
 }
 
 const (
-	fmtWantStatus    = "status = %d, want %d"
-	fmtWantName      = "name = %q, want %q"
-	fmtWantSaveCall  = "expected StateScheduleSave to be called"
-	pathPokemon      = "/api/pokemon"
-	pathPokemonByP1  = "/api/pokemon/p1"
+	fmtWantStatus   = "status = %d, want %d"
+	fmtWantName     = "name = %q, want %q"
+	fmtWantSaveCall = "expected StateScheduleSave to be called"
+	pathPokemon     = "/api/pokemon"
+	pathPokemonByP1 = "/api/pokemon/p1"
 )
 
 // --- GET /api/pokemon --------------------------------------------------------

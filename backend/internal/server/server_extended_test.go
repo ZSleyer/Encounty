@@ -23,13 +23,13 @@ func TestNewServer(t *testing.T) {
 	hkMgr := newMockHotkeyMgr()
 
 	srv := New(Config{
-		Port:       0,
-		State:      stateMgr,
-		HotkeyMgr:  hkMgr,
-		Version:    "1.0.0",
-		Commit:     "abc1234",
-		BuildDate:  testBuildDate,
-		ConfigDir:  t.TempDir(),
+		Port:      0,
+		State:     stateMgr,
+		HotkeyMgr: hkMgr,
+		Version:   "1.0.0",
+		Commit:    "abc1234",
+		BuildDate: testBuildDate,
+		ConfigDir: t.TempDir(),
 	})
 
 	if srv == nil {
@@ -62,12 +62,12 @@ func TestShutdown(t *testing.T) {
 	hkMgr := newMockHotkeyMgr()
 
 	srv := New(Config{
-		Port:       0,
-		State:      stateMgr,
-		HotkeyMgr:  hkMgr,
-		Version:    "dev",
-		Commit:     "test",
-		ConfigDir:  t.TempDir(),
+		Port:      0,
+		State:     stateMgr,
+		HotkeyMgr: hkMgr,
+		Version:   "dev",
+		Commit:    "test",
+		ConfigDir: t.TempDir(),
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

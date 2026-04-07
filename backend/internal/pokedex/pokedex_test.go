@@ -13,8 +13,8 @@ import (
 
 // Duplicated test literals extracted for SonarQube S1192 compliance.
 const (
-	testFormName        = "pikachu-alola"
-	wantOneEntryFmt     = "expected 1 entry, got %d"
+	testFormName         = "pikachu-alola"
+	wantOneEntryFmt      = "expected 1 entry, got %d"
 	wantOneSpeciesRowFmt = "expected 1 species row, got %d"
 )
 
