@@ -86,6 +86,7 @@ interface PokemonForm {
   canonical: string;
   names?: Record<string, string>;
   sprite_id: number;
+  generations?: number[];
 }
 
 interface PokemonData {
@@ -112,6 +113,24 @@ function getPkmnName(
   return p.names?.[lang] || p.names?.["en"] || p.canonical;
 }
 
+/**
+ * Test whether a Pokémon form is available for the currently selected game.
+ * Returns true (no filtering) when no game is selected, when the game is
+ * unknown, or when the form has no generation metadata. Otherwise the form
+ * is shown only if its generations list contains the game's generation.
+ */
+function isFormAvailableForGame(
+  form: PokemonForm,
+  selectedGame: string,
+  games: GameEntry[],
+): boolean {
+  if (!selectedGame) return true;
+  if (!form.generations?.length) return true;
+  const game = games.find((g) => g.key === selectedGame);
+  if (!game?.generation) return true;
+  return form.generations.includes(game.generation);
+}
+
 /** Build browse-mode suggestions (dex-ordered base forms, capped at 30). */
 function buildBrowseList(allPokemon: PokemonData[]): SearchResult[] {
   return allPokemon
@@ -126,7 +145,12 @@ function buildBrowseList(allPokemon: PokemonData[]): SearchResult[] {
 }
 
 /** Filter pokemon data by query string, grouping forms under their base. */
-function filterByQuery(query: string, allPokemon: PokemonData[]): SearchResult[] {
+function filterByQuery(
+  query: string,
+  allPokemon: PokemonData[],
+  selectedGame: string,
+  games: GameEntry[],
+): SearchResult[] {
   const q = query.trim().toLowerCase();
   const matchesQuery = (entry: { canonical: string; names?: Record<string, string>; spriteId: number }) => {
     if (entry.canonical.includes(q)) return true;
@@ -143,7 +167,8 @@ function filterByQuery(query: string, allPokemon: PokemonData[]): SearchResult[]
   for (const p of allPokemon) {
     const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id };
     const baseMatches = matchesQuery(baseEntry);
-    const formEntries: SearchResult[] = (p.forms || []).map((f) => ({
+    const availableForms = (p.forms || []).filter((f) => isFormAvailableForGame(f, selectedGame, games));
+    const formEntries: SearchResult[] = availableForms.map((f) => ({
       id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
     }));
     const matchingForms = formEntries.filter(matchesQuery);
@@ -200,12 +225,17 @@ function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], l
 }
 
 /** Build a flat search list of all pokemon including forms. */
-function buildSearchList(data: PokemonData[]): SearchResult[] {
+function buildSearchList(
+  data: PokemonData[],
+  selectedGame: string,
+  games: GameEntry[],
+): SearchResult[] {
   const results: SearchResult[] = [];
   for (const p of data) {
     results.push({ id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id });
     if (p.forms) {
       for (const f of p.forms) {
+        if (!isFormAvailableForGame(f, selectedGame, games)) continue;
         results.push({ id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id });
       }
     }
@@ -279,6 +309,8 @@ function computeSuggestions(
   query: string,
   inputFocused: boolean,
   allPokemon: PokemonData[],
+  selectedGame: string,
+  games: GameEntry[],
 ): SearchResult[] {
   if (isEdit && !showSearch) return [];
   const q = query.trim();
@@ -287,7 +319,7 @@ function computeSuggestions(
       ? buildBrowseList(allPokemon)
       : [];
   }
-  return filterByQuery(query, allPokemon);
+  return filterByQuery(query, allPokemon, selectedGame, games);
 }
 
 /** Switch sprite style to best available when the current style is unavailable for a generation. */
@@ -417,9 +449,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   useEffect(() => {
     setSuggestions(
-      computeSuggestions(isEdit, showSearch, query, inputFocused, allPokemon),
+      computeSuggestions(isEdit, showSearch, query, inputFocused, allPokemon, selectedGame, games),
     );
-  }, [query, allPokemon, showSearch, inputFocused]);
+  }, [query, allPokemon, showSearch, inputFocused, selectedGame, games]);
 
   // --- Select a pokemon from search results ---
   const selectPokemon = (p: SearchResult) => {
@@ -453,7 +485,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
     if (!selected) return;
-    const fullP = buildSearchList(allPokemon).find(
+    // For language relabeling we want to find the entry regardless of game
+    // filtering, so we pass an empty selectedGame to bypass the form filter.
+    const fullP = buildSearchList(allPokemon, "", games).find(
       (p) => p.spriteId === selected.spriteId && p.canonical === selected.canonical,
     );
     if (!fullP) return;

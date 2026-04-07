@@ -35,12 +35,6 @@ var pokeAPILangMap = map[string]string{
 	"en":       "en",
 }
 
-// ignoredFormSubstrings lists substrings and suffixes used to filter out
-// undesirable Pokémon forms (Gigantamax, Totem, Cap, etc.).
-var ignoredFormSubstrings = []string{
-	"-gmax", "-totem", "-cap", "-starter", "cosplay", "battle-bond",
-}
-
 // ProgressFn reports sync progress. step describes the current phase
 // (e.g. "species", "forms", "names", "form_names") and detail provides
 // optional extra information.
@@ -153,29 +147,41 @@ func extractPokeAPIID(url string) int {
 	return id
 }
 
-// isIgnoredForm reports whether the given form name matches one of the
-// filtered-out form patterns (Gigantamax, Totem, Cap, etc.).
-func isIgnoredForm(name string) bool {
-	for _, sub := range ignoredFormSubstrings {
-		if strings.Contains(name, sub) {
-			return true
-		}
-	}
-	return strings.HasSuffix(name, "-star")
+// formGenRow is one entry from pokemonformgenerations: a generation ID
+// that the parent pokemonform is available in.
+type formGenRow struct {
+	GenerationID int `json:"generation_id"`
+}
+
+// formVGRow holds the versiongroup of a pokemonform, used as a fallback
+// for forms that have no pokemonformgenerations entries.
+type formVGRow struct {
+	GenerationID int `json:"generation_id"`
+}
+
+// pokemonFormRow is a single pokemonform record returned by the GraphQL
+// query in fetchAndMergeForms. Each variant pokemon may have one or more
+// such forms.
+type pokemonFormRow struct {
+	VersionGroup           formVGRow    `json:"versiongroup"`
+	PokemonFormGenerations []formGenRow `json:"pokemonformgenerations"`
 }
 
 // fetchAndMergeForms fetches alternate Pokémon forms (ID > 10000) from the
 // PokéAPI GraphQL endpoint and appends new forms to the matching species in
-// current. It returns the canonical names of newly added forms.
+// current. Existing forms have their generations list refreshed so older
+// installations pick up the newly added field. Returns canonical names of
+// newly added forms.
 func fetchAndMergeForms(current *[]Entry) ([]string, error) {
-	q := `{"query":"query{pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id}}"}`
+	q := `{"query":"query{pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id pokemonforms{versiongroup{generation_id} pokemonformgenerations{generation_id}}}}"}`
 
 	var glForms struct {
 		Data struct {
 			Pokemon []struct {
-				ID        int    `json:"id"`
-				Name      string `json:"name"`
-				SpeciesID int    `json:"pokemon_species_id"`
+				ID           int              `json:"id"`
+				Name         string           `json:"name"`
+				SpeciesID    int              `json:"pokemon_species_id"`
+				PokemonForms []pokemonFormRow `json:"pokemonforms"`
 			} `json:"pokemon"`
 		} `json:"data"`
 	}
@@ -190,29 +196,68 @@ func fetchAndMergeForms(current *[]Entry) ([]string, error) {
 
 	var added []string
 	for _, f := range glForms.Data.Pokemon {
-		if isIgnoredForm(f.Name) {
-			continue
-		}
 		i, ok := specIndex[f.SpeciesID]
 		if !ok {
 			continue
 		}
-		hasForm := false
-		for _, existingForm := range (*current)[i].Forms {
+		gens := collectFormGenerations(f.PokemonForms)
+		existingIdx := -1
+		for j, existingForm := range (*current)[i].Forms {
 			if existingForm.Canonical == f.Name {
-				hasForm = true
+				existingIdx = j
 				break
 			}
 		}
-		if !hasForm {
-			(*current)[i].Forms = append((*current)[i].Forms, Form{
-				Canonical: f.Name,
-				SpriteID:  f.ID,
-			})
-			added = append(added, f.Name)
+		if existingIdx >= 0 {
+			(*current)[i].Forms[existingIdx].Generations = gens
+			(*current)[i].Forms[existingIdx].SpriteID = f.ID
+			continue
 		}
+		(*current)[i].Forms = append((*current)[i].Forms, Form{
+			Canonical:   f.Name,
+			SpriteID:    f.ID,
+			Generations: gens,
+		})
+		added = append(added, f.Name)
 	}
 	return added, nil
+}
+
+// collectFormGenerations extracts the unique sorted list of generation IDs
+// in which a form is available. It prefers the per-form generation table
+// (pokemonformgenerations); when that is empty it falls back to the version
+// group's introduction generation, ensuring every form carries at least one
+// generation hint.
+func collectFormGenerations(forms []pokemonFormRow) []int {
+	seen := make(map[int]bool)
+	for _, pf := range forms {
+		for _, g := range pf.PokemonFormGenerations {
+			if g.GenerationID > 0 {
+				seen[g.GenerationID] = true
+			}
+		}
+	}
+	if len(seen) == 0 {
+		for _, pf := range forms {
+			if pf.VersionGroup.GenerationID > 0 {
+				seen[pf.VersionGroup.GenerationID] = true
+			}
+		}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	out := make([]int, 0, len(seen))
+	for g := range seen {
+		out = append(out, g)
+	}
+	// Insertion sort — list is tiny (≤10).
+	for i := 1; i < len(out); i++ {
+		for j := i; j > 0 && out[j-1] > out[j]; j-- {
+			out[j-1], out[j] = out[j], out[j-1]
+		}
+	}
+	return out
 }
 
 // fetchAndApplySpeciesNames fetches localized species names from the PokéAPI

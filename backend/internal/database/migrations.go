@@ -74,6 +74,16 @@ var migrations = []migration{
 		description: "remove negative regions and full-frame fallback regions",
 		fn:          migrateRemoveNegativeAndFullFrameRegions,
 	},
+	{
+		version:     12,
+		description: "add generations column to pokedex_forms",
+		fn:          migrateAddFormGenerations,
+	},
+	{
+		version:     13,
+		description: "force pokedex re-sync to populate form generations",
+		fn:          migrateForcePokedexResync,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -303,5 +313,29 @@ func migrateRemoveNegativeAndFullFrameRegions(tx *sql.Tx) error {
 		return fmt.Errorf("delete full-frame fallback regions: %w", err)
 	}
 
+	return nil
+}
+
+// migrateAddFormGenerations adds the generations column to pokedex_forms.
+// The column stores a JSON array of generation IDs (e.g. "[7,8]") indicating
+// which Pokémon generations a given form is available in. An empty array
+// means the form is shown unconditionally. Errors are ignored for idempotency
+// because SQLite does not support IF NOT EXISTS for ADD COLUMN.
+func migrateAddFormGenerations(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_forms ADD COLUMN generations TEXT NOT NULL DEFAULT '[]'`)
+	return nil
+}
+
+// migrateForcePokedexResync clears the cached pokedex tables so the next
+// application start performs a full PokeAPI sync. This is required because
+// migration 12 introduced the generations column, which can only be populated
+// from the upstream API — there is no local source for the data.
+func migrateForcePokedexResync(tx *sql.Tx) error {
+	if _, err := tx.Exec(`DELETE FROM pokedex_forms`); err != nil {
+		return fmt.Errorf("clear pokedex_forms: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM pokedex_species`); err != nil {
+		return fmt.Errorf("clear pokedex_species: %w", err)
+	}
 	return nil
 }

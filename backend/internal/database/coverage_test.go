@@ -191,8 +191,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 11 {
-		t.Errorf("MigrationVersion = %d, want 11", v)
+	if v != 13 {
+		t.Errorf("MigrationVersion = %d, want 13", v)
 	}
 }
 

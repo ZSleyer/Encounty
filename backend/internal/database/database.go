@@ -414,10 +414,11 @@ type PokedexSpeciesRow struct {
 
 // PokedexFormRow represents one alternate form in the pokedex_forms table.
 type PokedexFormRow struct {
-	SpeciesID int
-	Canonical string
-	SpriteID  int
-	NamesJSON []byte
+	SpeciesID       int
+	Canonical       string
+	SpriteID        int
+	NamesJSON       []byte
+	GenerationsJSON []byte
 }
 
 // SavePokedex replaces all rows in the pokedex tables within a transaction.
@@ -447,13 +448,17 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		}
 	}
 
-	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, names_json) VALUES (?, ?, ?, ?)`)
+	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, names_json, generations) VALUES (?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = formStmt.Close() }()
 	for _, f := range forms {
-		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, string(f.NamesJSON)); err != nil {
+		gens := f.GenerationsJSON
+		if len(gens) == 0 {
+			gens = []byte("[]")
+		}
+		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, string(f.NamesJSON), string(gens)); err != nil {
 			return err
 		}
 	}
@@ -482,7 +487,7 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 		return nil, nil, err
 	}
 
-	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, names_json FROM pokedex_forms ORDER BY species_id, id`)
+	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, names_json, generations FROM pokedex_forms ORDER BY species_id, id`)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -490,11 +495,12 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 	var forms []PokedexFormRow
 	for formRows.Next() {
 		var f PokedexFormRow
-		var names string
-		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &names); err != nil {
+		var names, gens string
+		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &names, &gens); err != nil {
 			return nil, nil, err
 		}
 		f.NamesJSON = []byte(names)
+		f.GenerationsJSON = []byte(gens)
 		forms = append(forms, f)
 	}
 	if err := formRows.Err(); err != nil {

@@ -34,10 +34,14 @@ type Entry struct {
 
 // Form represents an alternate form of a Pokémon species.
 // SpriteID is the numeric PokéAPI ID used to construct the sprite URL.
+// Generations lists the generation IDs in which this form is available;
+// an empty slice means "unknown/unconstrained" and the form is shown for
+// any selected game.
 type Form struct {
-	Canonical string            `json:"canonical"`
-	Names     map[string]string `json:"names,omitempty"`
-	SpriteID  int               `json:"sprite_id"`
+	Canonical   string            `json:"canonical"`
+	Names       map[string]string `json:"names,omitempty"`
+	SpriteID    int               `json:"sprite_id"`
+	Generations []int             `json:"generations,omitempty"`
 }
 
 // SyncResult carries aggregated statistics from a PokéAPI sync run.
@@ -147,10 +151,17 @@ func RowsToEntries(species []database.PokedexSpeciesRow, forms []database.Pokede
 				slog.Debug("Pokédex: bad form names JSON", "canonical", f.Canonical, "error", err)
 			}
 		}
+		var gens []int
+		if len(f.GenerationsJSON) > 0 {
+			if err := json.Unmarshal(f.GenerationsJSON, &gens); err != nil {
+				slog.Debug("Pokédex: bad form generations JSON", "canonical", f.Canonical, "error", err)
+			}
+		}
 		entries[idx].Forms = append(entries[idx].Forms, Form{
-			Canonical: f.Canonical,
-			SpriteID:  f.SpriteID,
-			Names:     names,
+			Canonical:   f.Canonical,
+			SpriteID:    f.SpriteID,
+			Names:       names,
+			Generations: gens,
 		})
 	}
 
@@ -178,11 +189,20 @@ func EntriesToRows(entries []Entry) ([]database.PokedexSpeciesRow, []database.Po
 			if fErr != nil {
 				fNamesJSON = []byte("{}")
 			}
+			gensSrc := f.Generations
+			if gensSrc == nil {
+				gensSrc = []int{}
+			}
+			fGensJSON, gErr := json.Marshal(gensSrc)
+			if gErr != nil {
+				fGensJSON = []byte("[]")
+			}
 			forms = append(forms, database.PokedexFormRow{
-				SpeciesID: e.ID,
-				Canonical: f.Canonical,
-				SpriteID:  f.SpriteID,
-				NamesJSON: fNamesJSON,
+				SpeciesID:       e.ID,
+				Canonical:       f.Canonical,
+				SpriteID:        f.SpriteID,
+				NamesJSON:       fNamesJSON,
+				GenerationsJSON: fGensJSON,
 			})
 		}
 	}

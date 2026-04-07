@@ -245,11 +245,12 @@ var schemaV2 = []string{
 
 	// ── Pokedex forms (alternate forms per species) ──────────────────────
 	`CREATE TABLE IF NOT EXISTS pokedex_forms (
-		id         INTEGER PRIMARY KEY AUTOINCREMENT,
-		species_id INTEGER NOT NULL,
-		canonical  TEXT    NOT NULL UNIQUE,
-		sprite_id  INTEGER NOT NULL DEFAULT 0,
-		names_json TEXT    NOT NULL DEFAULT '{}',
+		id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		species_id  INTEGER NOT NULL,
+		canonical   TEXT    NOT NULL UNIQUE,
+		sprite_id   INTEGER NOT NULL DEFAULT 0,
+		names_json  TEXT    NOT NULL DEFAULT '{}',
+		generations TEXT    NOT NULL DEFAULT '[]',
 		FOREIGN KEY (species_id) REFERENCES pokedex_species(id) ON DELETE CASCADE
 	)`,
 

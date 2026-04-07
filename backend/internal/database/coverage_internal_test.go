@@ -1391,8 +1391,10 @@ func TestMigration11RemovesNegativeAndFullFrameRegions(t *testing.T) {
 		t.Fatalf("set is_negative: %v", err)
 	}
 
-	// Roll back migration 11 so it runs again against the dirty data
-	if _, err := d.db.Exec(`DELETE FROM migrations WHERE version = 11`); err != nil {
+	// Roll back migration 11 (and any later migrations) so v11 runs again
+	// against the dirty data. We must clear later versions too because the
+	// migration runner skips any migration whose version is <= max(applied).
+	if _, err := d.db.Exec(`DELETE FROM migrations WHERE version >= 11`); err != nil {
 		t.Fatalf("rollback migration record: %v", err)
 	}
 

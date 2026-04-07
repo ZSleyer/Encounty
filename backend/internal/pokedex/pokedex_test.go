@@ -280,6 +280,48 @@ func TestEntriesToRows(t *testing.T) {
 	}
 }
 
+// TestEntriesToRowsGenerationsRoundTrip ensures the new Generations slice
+// survives a full marshal/unmarshal cycle through the database row layer.
+func TestEntriesToRowsGenerationsRoundTrip(t *testing.T) {
+	entries := []Entry{
+		{
+			ID:        25,
+			Canonical: "pikachu",
+			Forms: []Form{
+				{Canonical: "pikachu-original-cap", SpriteID: 10196, Generations: []int{7, 8}},
+				{Canonical: "pikachu-gmax", SpriteID: 10368, Generations: []int{8}},
+				{Canonical: "pikachu-base", SpriteID: 25}, // no generations
+			},
+		},
+	}
+	species, forms := EntriesToRows(entries)
+	if len(forms) != 3 {
+		t.Fatalf("expected 3 form rows, got %d", len(forms))
+	}
+	for _, f := range forms {
+		if len(f.GenerationsJSON) == 0 {
+			t.Errorf("form %q has empty GenerationsJSON", f.Canonical)
+		}
+	}
+	rt := RowsToEntries(species, forms)
+	if len(rt) != 1 || len(rt[0].Forms) != 3 {
+		t.Fatalf("roundtrip: bad shape: %+v", rt)
+	}
+	gotByName := map[string][]int{}
+	for _, f := range rt[0].Forms {
+		gotByName[f.Canonical] = f.Generations
+	}
+	if g := gotByName["pikachu-original-cap"]; len(g) != 2 || g[0] != 7 || g[1] != 8 {
+		t.Errorf("original-cap generations = %v, want [7 8]", g)
+	}
+	if g := gotByName["pikachu-gmax"]; len(g) != 1 || g[0] != 8 {
+		t.Errorf("gmax generations = %v, want [8]", g)
+	}
+	if g := gotByName["pikachu-base"]; len(g) != 0 {
+		t.Errorf("base generations = %v, want empty", g)
+	}
+}
+
 func TestEntriesToRowsNilNames(t *testing.T) {
 	entries := []Entry{
 		{ID: 1, Canonical: "bulbasaur", Names: nil},
@@ -569,5 +611,53 @@ func TestWriteJSONCreatesDirectory(t *testing.T) {
 	// Verify the file exists.
 	if _, err := os.Stat(filepath.Join(nestedDir, Filename)); err != nil {
 		t.Errorf("expected file to exist at nested path: %v", err)
+	}
+}
+
+// TestCollectFormGenerationsPrefersExplicit ensures that when
+// pokemonformgenerations is populated, it is the source of truth and the
+// versiongroup fallback is not used.
+func TestCollectFormGenerationsPrefersExplicit(t *testing.T) {
+	got := collectFormGenerations([]pokemonFormRow{{
+		VersionGroup:           formVGRow{GenerationID: 3},
+		PokemonFormGenerations: []formGenRow{{GenerationID: 7}, {GenerationID: 8}, {GenerationID: 7}},
+	}})
+	want := []int{7, 8}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+// TestCollectFormGenerationsFallsBackToVG verifies that when
+// pokemonformgenerations is empty, the version group's introduction
+// generation is used so every form carries at least one hint.
+func TestCollectFormGenerationsFallsBackToVG(t *testing.T) {
+	got := collectFormGenerations([]pokemonFormRow{{
+		VersionGroup:           formVGRow{GenerationID: 8},
+		PokemonFormGenerations: nil,
+	}})
+	if len(got) != 1 || got[0] != 8 {
+		t.Errorf("got %v, want [8]", got)
+	}
+}
+
+// TestCollectFormGenerationsEmpty returns nil when no generation info is
+// available at all, signalling "unconstrained" to the frontend filter.
+func TestCollectFormGenerationsEmpty(t *testing.T) {
+	got := collectFormGenerations(nil)
+	if got != nil {
+		t.Errorf("got %v, want nil", got)
+	}
+}
+
+// TestCollectFormGenerationsSorted verifies the result is sorted ascending,
+// regardless of input order.
+func TestCollectFormGenerationsSorted(t *testing.T) {
+	got := collectFormGenerations([]pokemonFormRow{{
+		PokemonFormGenerations: []formGenRow{{GenerationID: 9}, {GenerationID: 6}, {GenerationID: 8}},
+	}})
+	want := []int{6, 8, 9}
+	if len(got) != 3 || got[0] != want[0] || got[1] != want[1] || got[2] != want[2] {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
