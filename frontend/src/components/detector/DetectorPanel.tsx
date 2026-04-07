@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } fro
 import {
   X, Plus, Pencil, HelpCircle, RotateCcw,
   MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, Trash2,
-  FlaskConical,
+  FlaskConical, Activity,
 } from "lucide-react";
 import { DetectorConfig, HuntTypePreset, Pokemon, MatchedRegion, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
@@ -28,6 +28,10 @@ import { ConfirmModal } from "../shared/ConfirmModal";
 // Dev-only: lazy-loaded GPU equivalence test modal
 const GpuEquivalenceTest = import.meta.env.DEV
   ? lazy(() => import("./GpuEquivalenceTest"))
+  : null;
+// Dev-only: lazy-loaded detector performance modal
+const DetectorPerfModal = import.meta.env.DEV
+  ? lazy(() => import("./DetectorPerfModal"))
   : null;
 import { apiUrl } from "../../utils/api";
 import { getActiveLoop } from "../../engine/DetectionLoop";
@@ -155,6 +159,7 @@ export function DetectorPanel({
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showGpuTest, setShowGpuTest] = useState(false);
+  const [showPerfModal, setShowPerfModal] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ index: number; name: string } | null>(null);
   const [rightTab, setRightTab] = useState<"log" | "settings">("log");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -758,6 +763,16 @@ export function DetectorPanel({
                 <FlaskConical className="w-3.5 h-3.5" />
               </button>
             )}
+            {import.meta.env.DEV && (
+              <button
+                onClick={() => setShowPerfModal(true)}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-blue hover:border-accent-blue/30 transition-colors"
+                aria-label={t("perfModal.title")}
+                title={t("perfModal.title")}
+              >
+                <Activity className="w-3.5 h-3.5" />
+              </button>
+            )}
             {isCapturing ? (
               <>
                 {captureSourceLabel && (
@@ -1223,6 +1238,12 @@ export function DetectorPanel({
       {import.meta.env.DEV && showGpuTest && GpuEquivalenceTest && (
         <Suspense fallback={null}>
           <GpuEquivalenceTest onClose={() => setShowGpuTest(false)} />
+        </Suspense>
+      )}
+
+      {import.meta.env.DEV && showPerfModal && DetectorPerfModal && (
+        <Suspense fallback={null}>
+          <DetectorPerfModal pokemonId={pokemon.id} onClose={() => setShowPerfModal(false)} />
         </Suspense>
       )}
     </>

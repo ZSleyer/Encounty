@@ -126,6 +126,22 @@ export class DetectionLoop {
   private lastScoreCallbackTime = 0;
   private lastCallbackState = "";
 
+  // --- Performance metrics (consumed by the dev perf modal) ---------------
+  /** Wall-clock duration of the most recent detect() call in milliseconds. */
+  private lastDetectMs = 0;
+  /** EMA-smoothed detect() duration in milliseconds (alpha = 0.2). */
+  private detectMsEMA = 0;
+  /** Approximate p95 of recent detect() durations in milliseconds. */
+  private detectMsP95 = 0;
+  /** Ring buffer of recent detect() durations used to compute p95. */
+  private readonly detectMsHistory: number[] = [];
+  /** Wall-clock timestamp of the previous processFrame entry, used for effective FPS. */
+  private lastFrameWallclock = 0;
+  /** EMA-smoothed effective FPS observed in processFrame (alpha = 0.2). */
+  private effectiveFpsEMA = 0;
+  /** Total number of processFrame iterations since the loop started. */
+  private framesProcessed = 0;
+
   constructor(pokemonId: string, detector: Detector) {
     this.pokemonId = pokemonId;
     this.detector = detector;
@@ -280,6 +296,17 @@ export class DetectionLoop {
 
   /** Run detection on a single video frame and update scores/match state. */
   private async processFrame(video: HTMLVideoElement): Promise<void> {
+    const frameWallclock = performance.now();
+    if (this.lastFrameWallclock > 0) {
+      const dt = frameWallclock - this.lastFrameWallclock;
+      if (dt > 0) {
+        const fps = 1000 / dt;
+        this.effectiveFpsEMA = this.effectiveFpsEMA === 0 ? fps : 0.2 * fps + 0.8 * this.effectiveFpsEMA;
+      }
+    }
+    this.lastFrameWallclock = frameWallclock;
+
+    const detectStart = performance.now();
     const result: DetectorResult = await this.detector.detect(
       video,
       this.templates,
@@ -290,6 +317,8 @@ export class DetectionLoop {
         previousFrame: this.previousFrameBuffer,
       },
     );
+    this.recordDetectDuration(performance.now() - detectStart);
+    this.framesProcessed += 1;
 
     this.recycleFrameBuffer(result.frameBuffer);
 
@@ -469,6 +498,58 @@ export class DetectionLoop {
     const interval = max - t * (max - min);
 
     return Math.round(Math.max(min, Math.min(max, interval)));
+  }
+
+  /**
+   * Record a single detect() wall-clock duration sample and update
+   * the smoothed average + approximate p95 used by the dev perf modal.
+   */
+  private recordDetectDuration(ms: number): void {
+    this.lastDetectMs = ms;
+    this.detectMsEMA = this.detectMsEMA === 0 ? ms : 0.2 * ms + 0.8 * this.detectMsEMA;
+    this.detectMsHistory.push(ms);
+    if (this.detectMsHistory.length > 120) {
+      this.detectMsHistory.shift();
+    }
+    if (this.detectMsHistory.length > 0) {
+      const sorted = [...this.detectMsHistory].sort((a, b) => a - b);
+      const idx = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+      this.detectMsP95 = sorted[idx];
+    }
+  }
+
+  /**
+   * Read-only snapshot of detector loop performance metrics for diagnostics.
+   * Consumed by the dev-only DetectorPerfModal; safe to call at any time.
+   */
+  getPerfSnapshot(): {
+    running: boolean;
+    framesProcessed: number;
+    lastDetectMs: number;
+    detectMsEMA: number;
+    detectMsP95: number;
+    effectiveFps: number;
+    pollIntervalMs: number;
+    minPollMs: number;
+    maxPollMs: number;
+    smoothedScore: number;
+    inHysteresis: boolean;
+    inCooldown: boolean;
+  } {
+    return {
+      running: this.running,
+      framesProcessed: this.framesProcessed,
+      lastDetectMs: this.lastDetectMs,
+      detectMsEMA: this.detectMsEMA,
+      detectMsP95: this.detectMsP95,
+      effectiveFps: this.effectiveFpsEMA,
+      pollIntervalMs: this.pollIntervalMs,
+      minPollMs: this.minPollMs,
+      maxPollMs: this.maxPollMs,
+      smoothedScore: this.smoothedScore,
+      inHysteresis: this.inHysteresis,
+      inCooldown: this.inCooldown,
+    };
   }
 
   /**

@@ -8,6 +8,38 @@ interface CaptureSource {
   appIcon: string | null;
 }
 
+interface ProcessSample {
+  pid: number;
+  cpuPct: number;
+  memMB: number;
+  wakeups?: number;
+}
+
+interface ProcessStats {
+  renderer: ProcessSample | null;
+  gpu: ProcessSample | null;
+  browser: ProcessSample | null;
+  utility: Array<ProcessSample & { name?: string }>;
+  totalCpuPct: number;
+  cpuCores: number;
+  totalMemMB: number;
+}
+
+interface GpuInfoBasic {
+  auxAttributes?: Record<string, unknown>;
+  gpuDevice?: Array<{
+    active?: boolean;
+    vendorId?: number;
+    deviceId?: number;
+    driverVendor?: string;
+    driverVersion?: string;
+    deviceString?: string;
+  }>;
+  machineModelName?: string;
+  machineModelVersion?: string;
+  [key: string]: unknown;
+}
+
 interface ElectronAPI {
   isElectron: true;
   apiBaseUrl: string;
@@ -34,6 +66,8 @@ interface ElectronAPI {
   checkForUpdate(): Promise<void>;
   downloadUpdate(): Promise<void>;
   installUpdate(): void;
+  getProcessStats(): Promise<ProcessStats>;
+  getGpuInfo(): Promise<GpuInfoBasic | null>;
 }
 
 interface Window {

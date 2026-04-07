@@ -148,4 +148,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('update:install');
   },
 
+  // --- Detector performance metrics (dev modal) ---
+  getProcessStats(): Promise<unknown> {
+    return ipcRenderer.invoke('metrics:get-process-stats');
+  },
+
+  getGpuInfo(): Promise<unknown> {
+    return ipcRenderer.invoke('metrics:get-gpu-info');
+  },
+
 });
