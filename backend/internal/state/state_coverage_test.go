@@ -545,21 +545,6 @@ func TestLoadFromJSONNonexistent(t *testing.T) {
 // applyBasicFields edge cases (HuntType update via UpdatePokemon)
 // ---------------------------------------------------------------------------
 
-func TestUpdatePokemonHuntType(t *testing.T) {
-	m := NewManager(t.TempDir())
-	p := makePokemon("p1", "Pikachu")
-	p.HuntType = "encounter"
-	m.AddPokemon(p)
-
-	// HuntType is not updated by applyBasicFields (only specific fields are).
-	// Verify the original value is preserved when updating other fields.
-	m.UpdatePokemon("p1", Pokemon{Name: "Raichu"})
-	st := m.GetState()
-	if st.Pokemon[0].HuntType != "encounter" {
-		t.Errorf("HuntType = %q, want %q (should be preserved)", st.Pokemon[0].HuntType, "encounter")
-	}
-}
-
 const errUpdatePokemonFalse = "UpdatePokemon returned false"
 
 func TestUpdatePokemonHuntMode(t *testing.T) {
@@ -582,6 +567,29 @@ func TestUpdatePokemonHuntMode(t *testing.T) {
 	st = m.GetState()
 	if st.Pokemon[0].HuntMode != "" {
 		t.Errorf("HuntMode = %q, want empty (cleared)", st.Pokemon[0].HuntMode)
+	}
+}
+
+func TestUpdatePokemonHuntType(t *testing.T) {
+	m := NewManager(t.TempDir())
+	p := makePokemon("p1", "Pikachu")
+	p.HuntType = "encounter"
+	m.AddPokemon(p)
+
+	ok := m.UpdatePokemon("p1", Pokemon{HuntType: "soft_reset"})
+	if !ok {
+		t.Fatal(errUpdatePokemonFalse)
+	}
+	st := m.GetState()
+	if st.Pokemon[0].HuntType != "soft_reset" {
+		t.Errorf("HuntType = %q, want %q", st.Pokemon[0].HuntType, "soft_reset")
+	}
+
+	// Empty HuntType in update should preserve the existing value
+	m.UpdatePokemon("p1", Pokemon{Name: "Raichu"})
+	st = m.GetState()
+	if st.Pokemon[0].HuntType != "soft_reset" {
+		t.Errorf("HuntType = %q, want preserved %q", st.Pokemon[0].HuntType, "soft_reset")
 	}
 }
 

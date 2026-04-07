@@ -600,6 +600,9 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	if update.Game != "" {
 		dst.Game = update.Game
 	}
+	if update.HuntType != "" {
+		dst.HuntType = update.HuntType
+	}
 	// Always update HuntMode (allow clearing to "" which means "both")
 	dst.HuntMode = update.HuntMode
 	// Always update ShinyCharm (bool zero-value = false is a valid state)
