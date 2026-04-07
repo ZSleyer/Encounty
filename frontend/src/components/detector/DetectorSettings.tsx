@@ -10,6 +10,38 @@ import { ChevronDown, Settings, Save } from "lucide-react";
 import { DetectorConfig, HuntTypePreset } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Result of validating the three adaptive-polling intervals against each other. */
+export type PollIntervalErrors = Readonly<{
+  base?: string;
+  min?: string;
+  max?: string;
+}>;
+
+/**
+ * Validates that `min ≤ base ≤ max` and returns per-field error message keys.
+ * The keys are i18n keys; the caller is responsible for translating them.
+ * Returns an empty object when all three values are consistent.
+ */
+export function validatePollIntervals(
+  base: number,
+  min: number,
+  max: number,
+): PollIntervalErrors {
+  const errors: { base?: string; min?: string; max?: string } = {};
+  if (min > max) {
+    errors.min = "detector.errPollMinGtMax";
+    errors.max = "detector.errPollMaxLtMin";
+  }
+  if (base < min) {
+    errors.base = "detector.errPollBaseLtMin";
+  } else if (base > max) {
+    errors.base = "detector.errPollBaseGtMax";
+  }
+  return errors;
+}
+
 // ── Props ────────────────────────────────────────────────────────────────────
 
 export type DetectorSettingsProps = Readonly<{
@@ -39,6 +71,9 @@ export function DetectorSettings({
 }: DetectorSettingsProps) {
   const { t } = useI18n();
   const [showSettings, setShowSettings] = useState(false);
+
+  const pollErrors = validatePollIntervals(cfg.poll_interval_ms, cfg.min_poll_ms, cfg.max_poll_ms);
+  const hasPollErrors = Boolean(pollErrors.base || pollErrors.min || pollErrors.max);
 
   /** The shared settings content rendered in both embedded and collapsible modes. */
   const settingsContent = (
@@ -102,35 +137,69 @@ export function DetectorSettings({
           <div className="border-t border-border-subtle pt-3">
             <p className="text-xs 2xl:text-sm text-text-muted font-semibold mb-1">{t("detector.adaptivePolling")}</p>
             <p className="text-[11px] leading-relaxed text-text-muted mb-3">{t("detector.adaptivePollingDesc")}</p>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label htmlFor="det-base-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.basePoll")}</label>
-                <input
-                  id="det-base-poll" type="number" min={10} max={2000} step={10} value={cfg.poll_interval_ms}
-                  onChange={(e) => onUpdate({ poll_interval_ms: Number.parseInt(e.target.value, 10) || 50 })}
-                  className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
-                />
-                <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.basePollDesc")}</p>
-              </div>
-              <div>
-                <label htmlFor="det-min-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.minPoll")}</label>
-                <input
-                  id="det-min-poll" type="number" min={10} max={1000} step={5} value={cfg.min_poll_ms}
-                  onChange={(e) => onUpdate({ min_poll_ms: Number.parseInt(e.target.value, 10) || 30 })}
-                  className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
-                />
-                <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.minPollDesc")}</p>
-              </div>
-              <div>
-                <label htmlFor="det-max-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.maxPoll")}</label>
-                <input
-                  id="det-max-poll" type="number" min={100} max={5000} step={50} value={cfg.max_poll_ms}
-                  onChange={(e) => onUpdate({ max_poll_ms: Number.parseInt(e.target.value, 10) || 500 })}
-                  className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
-                />
-                <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.maxPollDesc")}</p>
-              </div>
-            </div>
+            {(() => {
+              const errs = pollErrors;
+              const inputBase = "w-full bg-bg-primary border rounded-lg px-2 py-1 text-sm text-text-primary outline-none";
+              const okBorder = "border-border-subtle focus:border-accent-blue/50";
+              const errBorder = "border-red-500/60 focus:border-red-500";
+              return (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label htmlFor="det-base-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.basePoll")}</label>
+                      <input
+                        id="det-base-poll" type="number" min={10} max={2000} step={10} value={cfg.poll_interval_ms}
+                        aria-invalid={errs.base ? true : undefined}
+                        aria-describedby={errs.base ? "det-base-poll-err" : undefined}
+                        onChange={(e) => onUpdate({ poll_interval_ms: Number.parseInt(e.target.value, 10) || 50 })}
+                        className={`${inputBase} ${errs.base ? errBorder : okBorder}`}
+                      />
+                      {errs.base ? (
+                        <p id="det-base-poll-err" className="text-[11px] leading-relaxed text-red-400 mt-0.5">{t(errs.base, { min: cfg.min_poll_ms, max: cfg.max_poll_ms })}</p>
+                      ) : (
+                        <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.basePollDesc")}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor="det-min-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.minPoll")}</label>
+                      <input
+                        id="det-min-poll" type="number" min={10} max={1000} step={5} value={cfg.min_poll_ms}
+                        aria-invalid={errs.min ? true : undefined}
+                        aria-describedby={errs.min ? "det-min-poll-err" : undefined}
+                        onChange={(e) => onUpdate({ min_poll_ms: Number.parseInt(e.target.value, 10) || 30 })}
+                        className={`${inputBase} ${errs.min ? errBorder : okBorder}`}
+                      />
+                      {errs.min ? (
+                        <p id="det-min-poll-err" className="text-[11px] leading-relaxed text-red-400 mt-0.5">{t(errs.min, { max: cfg.max_poll_ms })}</p>
+                      ) : (
+                        <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.minPollDesc")}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor="det-max-poll" className="block text-xs 2xl:text-sm text-text-muted mb-1">{t("detector.maxPoll")}</label>
+                      <input
+                        id="det-max-poll" type="number" min={100} max={5000} step={50} value={cfg.max_poll_ms}
+                        aria-invalid={errs.max ? true : undefined}
+                        aria-describedby={errs.max ? "det-max-poll-err" : undefined}
+                        onChange={(e) => onUpdate({ max_poll_ms: Number.parseInt(e.target.value, 10) || 500 })}
+                        className={`${inputBase} ${errs.max ? errBorder : okBorder}`}
+                      />
+                      {errs.max ? (
+                        <p id="det-max-poll-err" className="text-[11px] leading-relaxed text-red-400 mt-0.5">{t(errs.max, { min: cfg.min_poll_ms })}</p>
+                      ) : (
+                        <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.maxPollDesc")}</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-text-muted mt-2">
+                    {t("detector.pollFpsHint", {
+                      minFps: (1000 / Math.max(1, cfg.max_poll_ms)).toFixed(1),
+                      maxFps: (1000 / Math.max(1, cfg.min_poll_ms)).toFixed(1),
+                    })}
+                  </p>
+                </>
+              );
+            })()}
           </div>
 
           {/* Hunt-type preset */}
@@ -162,9 +231,10 @@ export function DetectorSettings({
             </button>
             <button
               onClick={onSave}
-              disabled={!settingsDirty}
+              disabled={!settingsDirty || hasPollErrors}
+              title={hasPollErrors ? t("detector.errPollInvalid") : undefined}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                settingsDirty
+                settingsDirty && !hasPollErrors
                   ? "bg-accent-blue text-white hover:bg-accent-blue/90"
                   : "bg-bg-hover border border-border-subtle text-text-muted cursor-default opacity-60"
               }`}

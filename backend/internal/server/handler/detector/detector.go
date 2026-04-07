@@ -3,6 +3,7 @@
 package detector
 
 import (
+	"fmt"
 	"image"
 	"image/jpeg"
 	"log/slog"
@@ -15,6 +16,24 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 	"golang.org/x/image/draw"
 )
+
+// validatePollIntervals enforces the adaptive-polling invariants:
+// min ≤ max and min ≤ base ≤ max. Zero values are skipped so that
+// partial updates from older clients still work (the state manager
+// keeps the existing values).
+func validatePollIntervals(cfg *state.DetectorConfig) error {
+	minMs, maxMs, baseMs := cfg.MinPollMs, cfg.MaxPollMs, cfg.PollIntervalMs
+	if minMs > 0 && maxMs > 0 && minMs > maxMs {
+		return fmt.Errorf("min_poll_ms (%d) must be ≤ max_poll_ms (%d)", minMs, maxMs)
+	}
+	if baseMs > 0 && minMs > 0 && baseMs < minMs {
+		return fmt.Errorf("poll_interval_ms (%d) must be ≥ min_poll_ms (%d)", baseMs, minMs)
+	}
+	if baseMs > 0 && maxMs > 0 && baseMs > maxMs {
+		return fmt.Errorf("poll_interval_ms (%d) must be ≤ max_poll_ms (%d)", baseMs, maxMs)
+	}
+	return nil
+}
 
 // DetectorStore defines the database operations needed by detector handlers.
 type DetectorStore interface {
@@ -178,6 +197,10 @@ func (h *handler) handleDetectorConfig(w http.ResponseWriter, r *http.Request, i
 	case http.MethodPost:
 		var cfg state.DetectorConfig
 		if err := httputil.ReadJSON(r, &cfg); err != nil {
+			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+			return
+		}
+		if err := validatePollIntervals(&cfg); err != nil {
 			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 			return
 		}

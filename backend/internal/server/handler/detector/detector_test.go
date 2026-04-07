@@ -15,6 +15,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -365,6 +366,35 @@ func TestConfigPostNotFound(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Errorf(msgWant404, w.Code)
+	}
+}
+
+func TestConfigPostInvalidPollIntervals(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  state.DetectorConfig
+	}{
+		{"min greater than max", state.DetectorConfig{MinPollMs: 500, MaxPollMs: 200, PollIntervalMs: 300}},
+		{"base below min", state.DetectorConfig{MinPollMs: 300, MaxPollMs: 1000, PollIntervalMs: 100}},
+		{"base above max", state.DetectorConfig{MinPollMs: 50, MaxPollMs: 200, PollIntervalMs: 500}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mux, deps := newTestMux(t)
+			addTestPokemon(t, deps, "p1", "Pikachu")
+
+			req := httptest.NewRequest(http.MethodPost, pathConfig, jsonBody(t, tc.cfg))
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("want 400, got %d body=%s", w.Code, w.Body.String())
+			}
+			if !strings.Contains(w.Body.String(), "poll") {
+				t.Errorf("error body should mention 'poll', got %s", w.Body.String())
+			}
+		})
 	}
 }
 
