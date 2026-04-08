@@ -751,7 +751,7 @@ app.on('ready', async () => {
               "img-src 'self' encounty: data: blob: http://localhost:* https:",
               "connect-src 'self' encounty: http://localhost:* ws://localhost:* https://pokeapi.co https://*.pokemon.com https://fonts.googleapis.com",
               "media-src 'self' blob: mediastream:",
-              "worker-src 'self' blob:",
+              "worker-src 'self' blob: encounty:",
               "font-src 'self' encounty: data: https://fonts.gstatic.com",
             ].join('; '),
           ],
