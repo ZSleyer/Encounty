@@ -98,10 +98,10 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     glow_color: "#ffffff",
     glow_opacity: 0.2,
     glow_blur: 42,
-    idle_animation: "float",
-    trigger_enter: "pop",
+    idle_animation: "none",
+    trigger_enter: "bounce",
     trigger_exit: "none",
-    trigger_decrement: "none",
+    trigger_decrement: "shake",
   },
   name: {
     visible: true,

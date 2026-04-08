@@ -348,25 +348,31 @@ func NewManager(configDir string) *Manager {
 				Languages:     []string{"de", "en"},
 				CrispSprites:  true,
 				AccentColor:   "blue",
+				// Default overlay — kept in sync with the frontend
+				// `DEFAULT_OVERLAY_SETTINGS` constant in
+				// frontend/src/components/overlay-editor/OverlayEditor.tsx so the
+				// initial overlay (created here) is identical to the layout the
+				// "reset overlay" button produces.
 				Overlay: OverlaySettings{
 					CanvasWidth:         800,
 					CanvasHeight:        200,
-					BackgroundColor:     colorBlack,
+					BackgroundColor:     "#ce5a41",
 					BackgroundOpacity:   0.6,
-					BackgroundAnimation: animationNone,
+					BackgroundAnimation: "waves",
 					Blur:                8,
 					ShowBorder:          true,
 					BorderColor:         "rgba(255,255,255,0.1)",
+					BorderWidth:         2,
 					BorderRadius:        40,
 					Sprite: SpriteElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 10, Y: 10, Width: 180, Height: 180, ZIndex: 1},
 						ShowGlow:           true,
 						GlowColor:          colorWhite,
 						GlowOpacity:        0.2,
-						GlowBlur:           20,
-						IdleAnimation:      "float",
-						TriggerEnter:       "pop",
-						TriggerDecrement:   animationNone,
+						GlowBlur:           42,
+						IdleAnimation:      animationNone,
+						TriggerEnter:       "bounce",
+						TriggerDecrement:   "shake",
 					},
 					Name: NameElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
@@ -381,11 +387,11 @@ func NewManager(configDir string) *Manager {
 							OutlineColor: colorBlack,
 						},
 						IdleAnimation:    animationNone,
-						TriggerEnter:     "fade-in",
+						TriggerEnter:     animationNone,
 						TriggerDecrement: animationNone,
 					},
 					Title: TitleElement{
-						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
+						OverlayElementBase: OverlayElementBase{Visible: false, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
 						Style: TextStyle{
 							FontFamily:   fontPokemon,
 							FontSize:     20,
@@ -397,7 +403,7 @@ func NewManager(configDir string) *Manager {
 							OutlineColor: colorBlack,
 						},
 						IdleAnimation:    animationNone,
-						TriggerEnter:     "fade-in",
+						TriggerEnter:     animationNone,
 						TriggerDecrement: animationNone,
 					},
 					Counter: CounterElement{
@@ -422,8 +428,8 @@ func NewManager(configDir string) *Manager {
 							Color:      "#94a3b8",
 						},
 						IdleAnimation:    animationNone,
-						TriggerEnter:     "pop",
-						TriggerDecrement: "shake",
+						TriggerEnter:     "slot",
+						TriggerDecrement: "slot",
 					},
 				},
 			},

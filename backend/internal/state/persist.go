@@ -213,7 +213,7 @@ func migrateOverlayTriggerDecrement(o *OverlaySettings) {
 func migrateTitleElement(o *OverlaySettings) {
 	if o.Title.Width == 0 && o.Title.Height == 0 {
 		o.Title = TitleElement{
-			OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
+			OverlayElementBase: OverlayElementBase{Visible: false, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
 			Style: TextStyle{
 				FontFamily:   "pokemon",
 				FontSize:     20,
@@ -225,7 +225,7 @@ func migrateTitleElement(o *OverlaySettings) {
 				OutlineColor: "#000000",
 			},
 			IdleAnimation:    "none",
-			TriggerEnter:     "fade-in",
+			TriggerEnter:     "none",
 			TriggerDecrement: "none",
 		}
 	}
