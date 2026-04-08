@@ -150,7 +150,7 @@ export function OverlayEditorPage() {
             onClick={saveOverlay}
             disabled={!overlayDirty || overlaySaving}
             aria-label={t("aria.saveOverlay")}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {overlaySaving ? (
               <RefreshCw className="w-4 h-4 animate-spin" />

@@ -63,7 +63,7 @@ function PermissionRow({
         {!granted && (
           <button
             onClick={() => onGrant(permissionKey)}
-            className="px-3 py-1.5 rounded-lg bg-accent-blue hover:bg-blue-500 text-white text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
+            className="px-3 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
           >
             {t("permissions.grant")}
           </button>

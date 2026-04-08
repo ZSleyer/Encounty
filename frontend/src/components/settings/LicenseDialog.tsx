@@ -133,7 +133,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
             disabled={!hasScrolledToBottom}
             className={`w-full py-3 rounded-xl text-sm font-semibold transition-all ${
               hasScrolledToBottom
-                ? "bg-accent-blue hover:bg-blue-500 text-white shadow-lg shadow-accent-blue/20"
+                ? "bg-accent-blue hover:bg-accent-blue/80 text-white shadow-lg shadow-accent-blue/20"
                 : "bg-bg-hover text-text-faint cursor-not-allowed"
             }`}
           >

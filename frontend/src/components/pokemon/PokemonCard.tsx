@@ -159,7 +159,7 @@ export function PokemonCard({
           </button>
           <button
             onClick={() => onIncrement(pokemon.id)}
-            className="flex flex-col items-center justify-center rounded-lg bg-accent-blue hover:bg-blue-500 text-white font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+            className="flex flex-col items-center justify-center rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
             title={t("dash.tooltipIncrement")}
             aria-label={t("dash.tooltipIncrement")}
           >

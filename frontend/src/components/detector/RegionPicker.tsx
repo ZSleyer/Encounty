@@ -281,7 +281,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
           <button
             onClick={handleConfirm}
             disabled={!hasSelection}
-            className="flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold bg-accent-blue hover:bg-blue-500 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 2xl:px-4 2xl:py-2 rounded-lg text-xs 2xl:text-sm font-semibold bg-accent-blue hover:bg-accent-blue/80 text-white transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Check className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
             {t("regionPicker.confirm")}
@@ -304,7 +304,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
             </p>
             <button
               onClick={fetchScreenshot}
-              className="px-4 py-2 2xl:px-5 2xl:py-2.5 rounded-lg text-sm 2xl:text-base bg-accent-blue hover:bg-blue-500 text-white font-medium transition-colors"
+              className="px-4 py-2 2xl:px-5 2xl:py-2.5 rounded-lg text-sm 2xl:text-base bg-accent-blue hover:bg-accent-blue/80 text-white font-medium transition-colors"
             >
               {t("regionPicker.reload")}
             </button>
