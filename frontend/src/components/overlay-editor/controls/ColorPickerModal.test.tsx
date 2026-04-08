@@ -262,14 +262,15 @@ describe("ColorPickerModal", () => {
 
   // --- Backdrop click ---
 
-  it("calls onClose when clicking the dialog backdrop", () => {
+  it("calls onClose when pressing outside the dialog", () => {
     const onClose = vi.fn();
-    const { container } = render(
-      <ColorPickerModal {...defaultProps} onClose={onClose} />,
+    render(<ColorPickerModal {...defaultProps} onClose={onClose} />);
+    // The modal listens for mousedown on the document and closes when the
+    // press originates outside the dialog's bounding rect. In jsdom the rect
+    // defaults to {0,0,0,0}, so any positive coordinate is "outside".
+    document.dispatchEvent(
+      new MouseEvent("mousedown", { bubbles: true, clientX: 100, clientY: 100 }),
     );
-    const dialog = container.querySelector("dialog")!;
-    // Dispatch a native click where e.target === dialog (backdrop click)
-    dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

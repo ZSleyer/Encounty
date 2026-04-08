@@ -238,15 +238,28 @@ export function ColorPickerModal({
     onClose();
   };
 
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>).
+  // We listen for `mousedown` (not `click`) on the document and only close if the
+  // press *originates* outside the dialog rectangle. This prevents drags that
+  // start inside the sat/hue/opacity sliders and end over the backdrop from
+  // being misinterpreted as a backdrop click — the click event in that case has
+  // `target === dialog`, which would otherwise fire a false-positive close.
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
+
+    const handleDocMouseDown = (e: MouseEvent) => {
+      const rect = dialog.getBoundingClientRect();
+      const inside =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (!inside) handleCancel();
     };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
+
+    document.addEventListener("mousedown", handleDocMouseDown);
+    return () => document.removeEventListener("mousedown", handleDocMouseDown);
   }, [handleCancel]);
 
   const handleConfirm = () => {
