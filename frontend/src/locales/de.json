@@ -470,6 +470,7 @@
   "detector.stateIdle": "Suche",
   "detector.stateMatch": "Treffer",
   "detector.stateCooldown": "Pause",
+  "detector.stateHysteresis": "Anhaltend",
   "detector.sourceClassic": "Screen Region (Classic)",
   "detector.sourceCamera": "Kamera / OBS Virtual Camera",
   "detector.sourceBrowser": "Screen Capture (Browser)",

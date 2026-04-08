@@ -146,7 +146,7 @@ describe("PokemonCard", () => {
       detectorStatus: { "poke-1": { state: "match", confidence: 0.95, poll_ms: 50 } },
     });
     const { container } = render(<PokemonCard {...defaultProps} />);
-    const dot = container.querySelector(".bg-green-400");
+    const dot = container.querySelector(".bg-green-500");
     expect(dot).toBeInTheDocument();
   });
 
@@ -155,7 +155,7 @@ describe("PokemonCard", () => {
       detectorStatus: { "poke-1": { state: "cooldown", confidence: 0.9, poll_ms: 50 } },
     });
     const { container } = render(<PokemonCard {...defaultProps} />);
-    const dot = container.querySelector(".bg-amber-400");
+    const dot = container.querySelector(".bg-purple-500");
     expect(dot).toBeInTheDocument();
   });
 
@@ -164,18 +164,18 @@ describe("PokemonCard", () => {
       detectorStatus: { "poke-1": { state: "running", confidence: 0, poll_ms: 50 } },
     });
     const { container } = render(<PokemonCard {...defaultProps} />);
-    const dot = container.querySelector(".bg-accent-blue.animate-pulse");
+    const dot = container.querySelector(".bg-blue-400.animate-pulse");
     expect(dot).toBeInTheDocument();
   });
 
   it("does not show detector indicator when no status entry exists", () => {
     useCounterStore.setState({ detectorStatus: {} });
     const { container } = render(<PokemonCard {...defaultProps} />);
-    const greenDot = container.querySelector(".bg-green-400");
-    const amberDot = container.querySelector(".bg-amber-400");
-    const blueDot = container.querySelector(".bg-accent-blue.animate-pulse");
+    const greenDot = container.querySelector(".bg-green-500");
+    const purpleDot = container.querySelector(".bg-purple-500");
+    const blueDot = container.querySelector(".bg-blue-400.animate-pulse");
     expect(greenDot).not.toBeInTheDocument();
-    expect(amberDot).not.toBeInTheDocument();
+    expect(purpleDot).not.toBeInTheDocument();
     expect(blueDot).not.toBeInTheDocument();
   });
 });

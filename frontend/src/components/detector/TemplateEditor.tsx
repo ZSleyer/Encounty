@@ -461,22 +461,27 @@ function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, co
 
   return (
     <div className="bg-white/3 rounded-xl px-4 py-3 space-y-2">
-      {/* Legend */}
+      {/* Legend — uses the same palette as DetectorPanel runtime dots so the
+          sparkline and the live detector stay visually in sync. */}
       <div className="flex items-center justify-between text-[10px] 2xl:text-xs">
         <div className="flex items-center gap-3 text-text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" />
+            {t("detector.stateIdle")}
+          </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />
             {t("detector.stateMatch")}
           </span>
           {hasHysteresis && (
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-amber-500/25 inline-block ring-1 ring-amber-500/40" />
-              {t("detector.hysteresis")}
+              <span className="w-2.5 h-2.5 rounded-sm bg-lime-400 inline-block" />
+              {t("detector.stateHysteresis")}
             </span>
           )}
           {hasCooldown && (
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-sky-500/20 inline-block ring-1 ring-sky-500/40" />
+              <span className="w-2.5 h-2.5 rounded-sm bg-purple-500 inline-block" />
               {t("detector.stateCooldown")}
             </span>
           )}
@@ -488,14 +493,17 @@ function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, co
 
       {/* Chart */}
       <svg viewBox="0 0 100 40" className="w-full h-12 2xl:h-14" preserveAspectRatio="none" aria-label="Score timeline">
-        {/* Flow zones — background bands */}
+        {/* Flow zones — background bands. The "sustained match" zone is drawn
+            noticeably more visible than cooldown so the after-match decay
+            window stands out as part of the match itself. */}
         {zones.map((z) => {
           const x1 = (z.startIdx / maxFrame) * 100;
           const x2 = Math.min((z.endIdx / maxFrame) * 100 + barWidth, 100);
-          const fill = z.type === "hysteresis" ? "#f59e0b" : "#0ea5e9";
+          const isHysteresis = z.type === "hysteresis";
+          const fill = isHysteresis ? "#a3e635" : "#a855f7";
           return (
             <rect key={`z-${z.type}-${z.startIdx}-${z.endIdx}`} x={x1} y={0} width={x2 - x1} height={40}
-              fill={fill} opacity={0.08} rx={0.3} />
+              fill={fill} opacity={isHysteresis ? 0.22 : 0.12} rx={0.3} />
           );
         })}
 
@@ -506,12 +514,12 @@ function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, co
           const state = states.get(idx) ?? "searching";
           let fill: string;
           if (state === "match") fill = "#22c55e";
-          else if (state === "hysteresis") fill = "#f59e0b";
-          else if (state === "cooldown") fill = "#0ea5e9";
-          else fill = "rgba(255,255,255,0.12)";
+          else if (state === "hysteresis") fill = "#a3e635";
+          else if (state === "cooldown") fill = "#a855f7";
+          else fill = "#60a5fa";
           return (
             <rect key={idx} x={x} y={40 - h} width={Math.max(barWidth * 0.8, 0.5)} height={h}
-              fill={fill} opacity={state === "searching" ? 1 : 0.7} rx={0.3} />
+              fill={fill} opacity={state === "searching" ? 0.55 : 0.85} rx={0.3} />
           );
         })}
 

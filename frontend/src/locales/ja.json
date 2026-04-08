@@ -470,6 +470,7 @@
   "detector.stateIdle": "検索中",
   "detector.stateMatch": "一致",
   "detector.stateCooldown": "Cooldown",
+  "detector.stateHysteresis": "継続中",
   "detector.sourceClassic": "画面領域 (Classic)",
   "detector.sourceCamera": "Camera / OBS Virtual Camera",
   "detector.sourceBrowser": "画面キャプチャ (Browser)",

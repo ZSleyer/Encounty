@@ -16,15 +16,17 @@ type Props = Readonly<{
 }>;
 
 
-/** Returns Tailwind dot colour + pulse flag based on detector status. */
+/** Returns Tailwind dot colour + pulse flag based on detector status.
+ *  Palette is kept in sync with DetectorPanel.stateDotClass and the
+ *  TemplateEditor sparkline so the same state has the same colour everywhere. */
 function detectorDotClass(entry: DetectorStatusEntry, t: (key: string) => string): { cls: string; pulse: boolean; title: string } {
   switch (entry.state) {
     case "match":
-      return { cls: "bg-green-400", pulse: false, title: t("dash.tooltipDetectorMatch") };
+      return { cls: "bg-green-500", pulse: false, title: t("dash.tooltipDetectorMatch") };
     case "cooldown":
-      return { cls: "bg-amber-400", pulse: false, title: t("dash.tooltipDetectorCooldown") };
+      return { cls: "bg-purple-500", pulse: false, title: t("dash.tooltipDetectorCooldown") };
     default:
-      return { cls: "bg-accent-blue", pulse: true, title: t("dash.tooltipDetectorRunning") };
+      return { cls: "bg-blue-400", pulse: true, title: t("dash.tooltipDetectorRunning") };
   }
 }
 

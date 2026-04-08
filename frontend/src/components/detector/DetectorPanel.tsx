@@ -78,10 +78,12 @@ function getErrorMessage(err: unknown, networkMsg: string, fallbackMsg: string):
 
 function stateDotClass(state: string, running: boolean): { dot: string; pulse: boolean } {
   if (!running) return { dot: "bg-text-muted", pulse: false };
+  // Palette mirrors the TemplateEditor sparkline so users see the same colors
+  // for the same detection states across the live detector and the preview.
   switch (state) {
-    case "match": return { dot: "bg-green-400", pulse: false };
-    case "cooldown": return { dot: "bg-amber-400", pulse: false };
-    default: return { dot: "bg-accent-blue", pulse: true };
+    case "match": return { dot: "bg-green-500", pulse: false };
+    case "cooldown": return { dot: "bg-purple-500", pulse: false };
+    default: return { dot: "bg-blue-400", pulse: true };
   }
 }
 

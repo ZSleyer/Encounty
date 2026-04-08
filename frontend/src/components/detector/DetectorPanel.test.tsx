@@ -2401,7 +2401,7 @@ describe("DetectorPanel", () => {
   it("shows pulsing blue dot when running in idle state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "idle", confidence: 0 });
     await waitFor(() => {
-      const pulsingDot = container.querySelector(".animate-pulse.bg-accent-blue");
+      const pulsingDot = container.querySelector(".animate-pulse.bg-blue-400");
       expect(pulsingDot).toBeInTheDocument();
     });
   });
@@ -2411,18 +2411,18 @@ describe("DetectorPanel", () => {
   it("shows green dot when in match state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "match", confidence: 0.9 });
     await waitFor(() => {
-      const greenDot = container.querySelector(".bg-green-400:not(.animate-pulse)");
+      const greenDot = container.querySelector(".bg-green-500:not(.animate-pulse)");
       expect(greenDot).toBeInTheDocument();
     });
   });
 
-  // --- stateDotClass helper: cooldown state uses amber dot ---
+  // --- stateDotClass helper: cooldown state uses purple dot ---
 
-  it("shows amber dot when in cooldown state", async () => {
+  it("shows purple dot when in cooldown state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "cooldown", confidence: 0.5 });
     await waitFor(() => {
-      const amberDot = container.querySelector(".bg-amber-400:not(.animate-pulse)");
-      expect(amberDot).toBeInTheDocument();
+      const purpleDot = container.querySelector(".bg-purple-500:not(.animate-pulse)");
+      expect(purpleDot).toBeInTheDocument();
     });
   });
 
