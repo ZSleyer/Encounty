@@ -84,6 +84,11 @@ var migrations = []migration{
 		description: "force pokedex re-sync to populate form generations",
 		fn:          migrateForcePokedexResync,
 	},
+	{
+		version:     14,
+		description: "replace ui_animations toggle with accent_color preset",
+		fn:          migrateAddAccentColor,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -189,6 +194,7 @@ func migrateBaseline(tx *sql.Tx) error {
 		`ALTER TABLE detector_templates ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3`,
+		// Legacy ui_animations column kept for migration #14 to drop later.
 		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
 		`ALTER TABLE template_regions ADD COLUMN is_negative INTEGER NOT NULL DEFAULT 0`,
@@ -208,6 +214,7 @@ func migrateAddMissingColumns(tx *sql.Tx) error {
 		`ALTER TABLE detector_templates ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE detector_configs ADD COLUMN adaptive_cooldown_min INTEGER NOT NULL DEFAULT 3`,
+		// Legacy ui_animations column kept for migration #14 to drop later.
 		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
 		`ALTER TABLE template_regions ADD COLUMN is_negative INTEGER NOT NULL DEFAULT 0`,
@@ -261,6 +268,17 @@ func migrateAddHysteresisFactor(tx *sql.Tx) error {
 // overlay_settings for storing per-animation configuration as JSON.
 func migrateAddBgAnimConfig(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE overlay_settings ADD COLUMN background_animation_config TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddAccentColor introduces the accent_color preset column on settings
+// and removes the legacy ui_animations toggle. UI animations are no longer
+// configurable in the main app — overlay animations are controlled separately
+// via OverlaySettings.background_animation. The replacement is a preset accent
+// color that themes the main UI.
+func migrateAddAccentColor(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE settings ADD COLUMN accent_color TEXT NOT NULL DEFAULT 'blue'`)
+	_, _ = tx.Exec(`ALTER TABLE settings DROP COLUMN ui_animations`)
 	return nil
 }
 

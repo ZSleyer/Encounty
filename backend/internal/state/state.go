@@ -280,7 +280,7 @@ type Settings struct {
 	AutoSave      bool            `json:"auto_save"`
 	Languages     []string        `json:"languages"` // active game-name languages; default ["de","en"]
 	CrispSprites  bool            `json:"crisp_sprites"`
-	UIAnimations  bool            `json:"ui_animations"`
+	AccentColor   string          `json:"accent_color"` // preset key: blue|purple|green|cyan|pink|orange
 	Overlay       OverlaySettings `json:"overlay"`
 	TutorialSeen  TutorialFlags   `json:"tutorial_seen"`
 	ConfigPath    string          `json:"config_path,omitempty"` // custom data directory override
@@ -347,7 +347,7 @@ func NewManager(configDir string) *Manager {
 				AutoSave:      true,
 				Languages:     []string{"de", "en"},
 				CrispSprites:  true,
-				UIAnimations:  true,
+				AccentColor:   "blue",
 				Overlay: OverlaySettings{
 					CanvasWidth:         800,
 					CanvasHeight:        200,

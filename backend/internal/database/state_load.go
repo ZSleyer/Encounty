@@ -148,12 +148,12 @@ func loadHotkeys(db *sql.DB) (state.HotkeyMap, error) {
 // loadSettings reads the singleton settings row including inline tutorial flags.
 func loadSettings(db *sql.DB) (state.Settings, error) {
 	var s state.Settings
-	var outputEnabled, autoSave, crispSprites, uiAnimations, tutOverlay, tutDetection int
+	var outputEnabled, autoSave, crispSprites, tutOverlay, tutDetection int
 	err := db.QueryRow(`SELECT output_enabled, output_dir, auto_save,
-		crisp_sprites, ui_animations, config_path, tutorial_overlay_editor, tutorial_auto_detection
+		crisp_sprites, accent_color, config_path, tutorial_overlay_editor, tutorial_auto_detection
 		FROM settings WHERE id = 1`).
 		Scan(&outputEnabled, &s.OutputDir, &autoSave,
-			&crispSprites, &uiAnimations, &s.ConfigPath, &tutOverlay, &tutDetection)
+			&crispSprites, &s.AccentColor, &s.ConfigPath, &tutOverlay, &tutDetection)
 	if err == sql.ErrNoRows {
 		return s, nil
 	}
@@ -163,7 +163,9 @@ func loadSettings(db *sql.DB) (state.Settings, error) {
 	s.OutputEnabled = outputEnabled != 0
 	s.AutoSave = autoSave != 0
 	s.CrispSprites = crispSprites != 0
-	s.UIAnimations = uiAnimations != 0
+	if s.AccentColor == "" {
+		s.AccentColor = "blue"
+	}
 	s.TutorialSeen.OverlayEditor = tutOverlay != 0
 	s.TutorialSeen.AutoDetection = tutDetection != 0
 	return s, nil

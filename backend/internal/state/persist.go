@@ -160,9 +160,11 @@ func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
 // loading from legacy JSON (state.json or app_state blob), never from the
 // v2 database. Must be called with m.mu held.
 func (m *Manager) applyLegacyDefaults() {
-	// UIAnimations was added after v0.6.4; the JSON zero-value (false)
-	// should become true. Once saved to v2 DB, the explicit value is used.
-	m.state.Settings.UIAnimations = true
+	// AccentColor replaced the legacy UIAnimations toggle in v0.7.x.
+	// Default to "blue" so legacy JSON loads stay visually consistent.
+	if m.state.Settings.AccentColor == "" {
+		m.state.Settings.AccentColor = "blue"
+	}
 
 	// Migrate detector configs from v0.6.4 frontend defaults to v0.7.0
 	// backend defaults where values still match the old defaults.

@@ -113,20 +113,20 @@ func saveHotkeyRow(tx *sql.Tx, h *state.HotkeyMap) error {
 func saveSettingsRow(tx *sql.Tx, s *state.Settings) error {
 	if _, err := tx.Exec(`
 		INSERT INTO settings (id, output_enabled, output_dir, auto_save,
-			crisp_sprites, ui_animations, config_path, tutorial_overlay_editor, tutorial_auto_detection)
+			crisp_sprites, accent_color, config_path, tutorial_overlay_editor, tutorial_auto_detection)
 		VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			output_enabled          = excluded.output_enabled,
 			output_dir              = excluded.output_dir,
 			auto_save               = excluded.auto_save,
 			crisp_sprites           = excluded.crisp_sprites,
-			ui_animations           = excluded.ui_animations,
+			accent_color            = excluded.accent_color,
 			config_path             = excluded.config_path,
 			tutorial_overlay_editor = excluded.tutorial_overlay_editor,
 			tutorial_auto_detection = excluded.tutorial_auto_detection`,
 		boolToInt(s.OutputEnabled), s.OutputDir,
 		boolToInt(s.AutoSave),
-		boolToInt(s.CrispSprites), boolToInt(s.UIAnimations), s.ConfigPath,
+		boolToInt(s.CrispSprites), s.AccentColor, s.ConfigPath,
 		boolToInt(s.TutorialSeen.OverlayEditor),
 		boolToInt(s.TutorialSeen.AutoDetection),
 	); err != nil {

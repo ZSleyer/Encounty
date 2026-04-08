@@ -33,7 +33,7 @@ var schemaV2 = []string{
 		output_dir              TEXT    NOT NULL DEFAULT '',
 		auto_save               INTEGER NOT NULL DEFAULT 1,
 		crisp_sprites           INTEGER NOT NULL DEFAULT 1,
-		ui_animations           INTEGER NOT NULL DEFAULT 1,
+		accent_color            TEXT    NOT NULL DEFAULT 'blue',
 		config_path             TEXT    NOT NULL DEFAULT '',
 		tutorial_overlay_editor INTEGER NOT NULL DEFAULT 0,
 		tutorial_auto_detection INTEGER NOT NULL DEFAULT 0

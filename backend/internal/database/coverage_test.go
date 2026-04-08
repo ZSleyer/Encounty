@@ -191,8 +191,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 13 {
-		t.Errorf("MigrationVersion = %d, want 13", v)
+	if v != 14 {
+		t.Errorf("MigrationVersion = %d, want 14", v)
 	}
 }
 
@@ -615,11 +615,11 @@ func TestMultipleSessionsMixed(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Settings UIAnimations field
+// Settings AccentColor field
 // ---------------------------------------------------------------------------
 
-// TestSettingsUIAnimations verifies that UIAnimations flag round-trips.
-func TestSettingsUIAnimations(t *testing.T) {
+// TestSettingsAccentColor verifies that the AccentColor preset round-trips.
+func TestSettingsAccentColor(t *testing.T) {
 	db := openTestDB(t)
 	now := time.Now().UTC().Truncate(time.Second)
 
@@ -630,7 +630,7 @@ func TestSettingsUIAnimations(t *testing.T) {
 		},
 		Sessions: []state.Session{},
 		Settings: state.Settings{
-			UIAnimations: false,
+			AccentColor:  "purple",
 			CrispSprites: false,
 			AutoSave:     false,
 			Languages:    []string{"en"},
@@ -647,8 +647,8 @@ func TestSettingsUIAnimations(t *testing.T) {
 		t.Fatalf(fmtLoadState, err)
 	}
 
-	if got.Settings.UIAnimations {
-		t.Error("UIAnimations should be false")
+	if got.Settings.AccentColor != "purple" {
+		t.Errorf("AccentColor = %q, want %q", got.Settings.AccentColor, "purple")
 	}
 	if got.Settings.CrispSprites {
 		t.Error("CrispSprites should be false")
