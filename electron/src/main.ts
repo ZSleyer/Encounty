@@ -761,7 +761,11 @@ app.on('ready', async () => {
           'Content-Security-Policy': [
             [
               "default-src 'self' encounty:",
-              "script-src 'self' encounty:",
+              // 'wasm-unsafe-eval' is required by Tesseract.js to compile and
+              // instantiate its WebAssembly OCR core. It allows ONLY
+              // WebAssembly.compile/instantiate, not arbitrary JS eval(), so
+              // it is significantly safer than 'unsafe-eval'.
+              "script-src 'self' encounty: 'wasm-unsafe-eval'",
               "style-src 'self' 'unsafe-inline' encounty: https://fonts.googleapis.com",
               "img-src 'self' encounty: data: blob: http://localhost:* https:",
               "connect-src 'self' encounty: http://localhost:* ws://localhost:* https://pokeapi.co https://*.pokemon.com https://fonts.googleapis.com",
