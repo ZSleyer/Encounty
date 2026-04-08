@@ -189,14 +189,12 @@ option {
   outline: none;
 }
 
-/* ── Wave background keyframe (used by .canvas-waves in the overlay) ─── */
-
-@keyframes wave-flow {
-  0% { background-position: 0% 0; }
-  100% { background-position: 100% 0; }
-}
-
-/* ── Canvas-specific waves: used as an overlay background animation ── */
+/*
+ * Canvas-specific waves: used as an overlay background animation.
+ * The wave shape is defined by an inline SVG used as a CSS mask, so the
+ * fill color is configurable via the `--waves-color` CSS variable supplied
+ * by the React renderer (see `buildHomebrewBgStyle`).
+ */
 .canvas-waves {
   position: absolute;
   top: -50%;
@@ -204,22 +202,40 @@ option {
   width: 200%;
   height: 200%;
   transform: rotate(-8deg);
-  /* Layered waves: white layer for dark bg + dark layer for light bg, both visible */
-  background-image:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.18' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.12' /%3E%3Cpath d='M0,1000 L0,500 C166,600 333,400 500,500 C666,600 833,400 1000,500 L1000,1000 Z' fill='%23000000' fill-opacity='0.06' /%3E%3C/svg%3E");
-  background-size: 200% 100%;
-  background-repeat: repeat-x;
-  will-change: background-position;
+  background-color: var(--waves-color, #ffffff);
+  opacity: var(--waves-opacity, 0.18);
+  -webkit-mask-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23ffffff' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.7' /%3E%3C/svg%3E");
+  mask-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23ffffff' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.7' /%3E%3C/svg%3E");
+  -webkit-mask-size: 200% 100%;
+  mask-size: 200% 100%;
+  -webkit-mask-repeat: repeat-x;
+  mask-repeat: repeat-x;
+  will-change: mask-position;
   animation: wave-flow 30s linear infinite;
   pointer-events: none;
 }
 
-/* ── Background animation: gradient-shift (hue-cycling) ────────────────── */
+/* Animate the mask position so the configurable color stays put. */
+@keyframes wave-flow {
+  0% { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
+  100% { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+}
+
+/* ── Background animation: gradient-shift (configurable color stops) ───── */
 .canvas-gradient-shift {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3, #ff6b6b);
+  background: linear-gradient(
+    135deg,
+    var(--gradient-c1, #ff6b6b),
+    var(--gradient-c2, #feca57),
+    var(--gradient-c3, #48dbfb),
+    var(--gradient-c4, #ff9ff3),
+    var(--gradient-c1, #ff6b6b)
+  );
   background-size: 400% 400%;
   animation: bg-gradient-shift 8s ease infinite;
 }
@@ -230,21 +246,12 @@ option {
   100% { background-position: 0% 50%; }
 }
 
-/* ── Background animation: pulse (opacity breathing) ───────────────────── */
-.canvas-pulse-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: inherit;
-  animation: bg-pulse 3s ease-in-out infinite;
-}
-
-@keyframes bg-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
-
-/* ── Background animation: shimmer (diagonal sweep) ────────────────────── */
+/*
+ * Background animation: shimmer (diagonal sweep).
+ * Color and intensity are config-driven via CSS variables. The shimmer
+ * color is composed with `color-mix` to honour the intensity multiplier
+ * without requiring a pre-computed RGBA value from React.
+ */
 .canvas-shimmer-bg {
   position: absolute;
   inset: 0;
@@ -252,7 +259,7 @@ option {
   background: linear-gradient(
     -45deg,
     transparent 30%,
-    rgba(255, 255, 255, 0.12) 50%,
+    color-mix(in srgb, var(--shimmer-color, #ffffff) calc(var(--shimmer-intensity, 0.12) * 100%), transparent) 50%,
     transparent 70%
   );
   background-size: 300% 300%;
@@ -262,49 +269,6 @@ option {
 @keyframes bg-shimmer {
   0% { background-position: 200% 200%; }
   100% { background-position: -100% -100%; }
-}
-
-/* ── Background animation: particles (CSS-only floating dots) ──────────── */
-.canvas-particles {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.canvas-particles::before,
-.canvas-particles::after {
-  content: "";
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  box-shadow:
-    20px 30px 0 rgba(255, 255, 255, 0.2),
-    60px 80px 0 rgba(255, 255, 255, 0.25),
-    100px 20px 0 rgba(255, 255, 255, 0.15),
-    140px 60px 0 rgba(255, 255, 255, 0.3),
-    180px 40px 0 rgba(255, 255, 255, 0.2),
-    220px 70px 0 rgba(255, 255, 255, 0.18),
-    260px 10px 0 rgba(255, 255, 255, 0.22),
-    300px 50px 0 rgba(255, 255, 255, 0.28),
-    340px 90px 0 rgba(255, 255, 255, 0.16),
-    380px 35px 0 rgba(255, 255, 255, 0.24);
-  animation: particle-float 12s linear infinite;
-}
-
-.canvas-particles::after {
-  width: 3px;
-  height: 3px;
-  animation-delay: -6s;
-  animation-duration: 16s;
-  opacity: 0.7;
-}
-
-@keyframes particle-float {
-  0% { transform: translateY(100%) translateX(0); }
-  100% { transform: translateY(-100%) translateX(30px); }
 }
 
 /* ── Hotkeys-paused badge — WCAG AA contrast in both themes ─────────────── */

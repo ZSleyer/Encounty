@@ -7,12 +7,8 @@ import { SPRITE_FALLBACK } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
 
 const Aurora = lazy(() => import("../components/backgrounds/Aurora"));
-const Particles = lazy(() => import("../components/backgrounds/Particles"));
 const Galaxy = lazy(() => import("../components/backgrounds/Galaxy"));
 const Silk = lazy(() => import("../components/backgrounds/Silk"));
-const SoftAurora = lazy(() => import("../components/backgrounds/SoftAurora"));
-const Radar = lazy(() => import("../components/backgrounds/Radar"));
-const FloatingLines = lazy(() => import("../components/backgrounds/FloatingLines"));
 const PixelBlast = lazy(() => import("../components/backgrounds/PixelBlast"));
 
 interface Props {
@@ -314,20 +310,45 @@ const TEXT_IDLE: Record<string, string> = {
 const BG_ANIM_CLASS: Record<string, string> = {
   waves: "canvas-waves",
   "gradient-shift": "canvas-gradient-shift",
-  "pulse-bg": "canvas-pulse-bg",
   "shimmer-bg": "canvas-shimmer-bg",
-  particles: "canvas-particles",
 };
 
-const RB_ANIMS = new Set(["rb-aurora", "rb-particles", "rb-galaxy", "rb-silk", "rb-softaurora", "rb-radar", "rb-floatinglines", "rb-pixelblast"]);
+const RB_ANIMS = new Set(["rb-aurora", "rb-galaxy", "rb-silk", "rb-pixelblast"]);
 
 const BG_ANIM_DEFAULT_DURATION: Record<string, number> = {
   waves: 30,
   "gradient-shift": 8,
-  "pulse-bg": 3,
   "shimmer-bg": 3,
-  particles: 12,
 };
+
+/**
+ * Builds the inline style for a homebrew CSS-based background animation,
+ * combining the optional speed override with config-driven CSS variables
+ * (color, opacity, gradient stops, etc.) consumed by the matching CSS rule.
+ */
+function buildHomebrewBgStyle(
+  bgAnimKey: string,
+  speed: number | undefined,
+  cfg: Record<string, unknown>,
+): React.CSSProperties {
+  const style: React.CSSProperties & Record<string, string> = {};
+  if (speed && speed !== 1) {
+    style.animationDuration = `${(BG_ANIM_DEFAULT_DURATION[bgAnimKey] ?? 8) / speed}s`;
+  }
+  if (bgAnimKey === "waves") {
+    style["--waves-color"] = (cfg.wavesColor as string) ?? "#ffffff";
+    style["--waves-opacity"] = String((cfg.wavesOpacity as number) ?? 0.18);
+  } else if (bgAnimKey === "gradient-shift") {
+    style["--gradient-c1"] = (cfg.gradientColor1 as string) ?? "#ff6b6b";
+    style["--gradient-c2"] = (cfg.gradientColor2 as string) ?? "#feca57";
+    style["--gradient-c3"] = (cfg.gradientColor3 as string) ?? "#48dbfb";
+    style["--gradient-c4"] = (cfg.gradientColor4 as string) ?? "#ff9ff3";
+  } else if (bgAnimKey === "shimmer-bg") {
+    style["--shimmer-color"] = (cfg.shimmerColor as string) ?? "#ffffff";
+    style["--shimmer-intensity"] = String((cfg.shimmerIntensity as number) ?? 0.12);
+  }
+  return style;
+}
 
 /**
  * Resolves the active Pokemon to display in the overlay, checking
@@ -669,11 +690,11 @@ export function Overlay({
         {hasBgAnim && !RB_ANIMS.has(bgAnimKey) && (
           <div
             className={BG_ANIM_CLASS[bgAnimKey]}
-            style={
-              settings.background_animation_speed && settings.background_animation_speed !== 1
-                ? { animationDuration: `${(BG_ANIM_DEFAULT_DURATION[bgAnimKey] ?? 8) / settings.background_animation_speed}s` }
-                : undefined
-            }
+            style={buildHomebrewBgStyle(
+              bgAnimKey,
+              settings.background_animation_speed,
+              settings.background_animation_config ?? {},
+            )}
           />
         )}
         {RB_ANIMS.has(bgAnimKey) && (
@@ -696,16 +717,6 @@ export function Overlay({
                         speed={speed}
                       />
                     );
-                  case "rb-particles":
-                    return (
-                      <Particles
-                        particleColors={[(cfg.particleColor as string) ?? "#ffffff"]}
-                        particleCount={(cfg.particleCount as number) ?? 200}
-                        particleBaseSize={(cfg.particleSize as number) ?? 1}
-                        particleSpread={(cfg.particleSpread as number) ?? 10}
-                        speed={speed}
-                      />
-                    );
                   case "rb-galaxy":
                     return (
                       <Galaxy
@@ -722,32 +733,6 @@ export function Overlay({
                         scale={(cfg.silkScale as number) ?? 1}
                         noiseIntensity={(cfg.silkNoise as number) ?? 1.5}
                         speed={speed}
-                      />
-                    );
-                  case "rb-softaurora":
-                    return (
-                      <SoftAurora
-                        color1={(cfg.softAuroraColor1 as string) ?? "#0ea5e9"}
-                        color2={(cfg.softAuroraColor2 as string) ?? "#6366f1"}
-                        brightness={(cfg.softAuroraBrightness as number) ?? 0.5}
-                        speed={speed}
-                      />
-                    );
-                  case "rb-radar":
-                    return (
-                      <Radar
-                        color={(cfg.radarColor as string) ?? "#22c55e"}
-                        ringCount={(cfg.radarRings as number) ?? 5}
-                        brightness={(cfg.radarBrightness as number) ?? 1}
-                        speed={speed}
-                      />
-                    );
-                  case "rb-floatinglines":
-                    return (
-                      <FloatingLines
-                        linesGradient={[(cfg.linesColor as string) ?? "#ffffff"]}
-                        lineCount={(cfg.linesCount as number) ?? 40}
-                        animationSpeed={speed}
                       />
                     );
                   case "rb-pixelblast":

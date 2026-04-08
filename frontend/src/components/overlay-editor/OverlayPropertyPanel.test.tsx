@@ -633,9 +633,9 @@ describe("OverlayPropertyPanel", () => {
     const selects = screen.getAllByRole("combobox");
     // The bg animation select is the first combobox in canvas view
     const bgAnimSelect = selects[0];
-    fireEvent.change(bgAnimSelect, { target: { value: "particles" } });
+    fireEvent.change(bgAnimSelect, { target: { value: "waves" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ background_animation: "particles" }),
+      expect.objectContaining({ background_animation: "waves" }),
     );
   });
 
@@ -1280,13 +1280,6 @@ describe("OverlayPropertyPanel", () => {
     expect(colorInputs.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("shows particle controls when rb-particles animation is selected", () => {
-    const settings = makeOverlaySettings({ background_animation: "rb-particles" });
-    const props = makeProps({ selectedEl: "canvas", settings });
-    render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Partikelanzahl/)).toBeInTheDocument();
-  });
-
   it("shows galaxy controls when rb-galaxy animation is selected", () => {
     const settings = makeOverlaySettings({ background_animation: "rb-galaxy" });
     const props = makeProps({ selectedEl: "canvas", settings });
@@ -1301,25 +1294,26 @@ describe("OverlayPropertyPanel", () => {
     expect(screen.getByText(/Skalierung/)).toBeInTheDocument();
   });
 
-  it("shows soft aurora controls when rb-softaurora animation is selected", () => {
-    const settings = makeOverlaySettings({ background_animation: "rb-softaurora" });
+  it("shows waves controls when waves animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "waves" });
     const props = makeProps({ selectedEl: "canvas", settings });
     render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Helligkeit/)).toBeInTheDocument();
+    // Two "Deckkraft" labels expected: canvas background opacity + waves opacity
+    expect(screen.getAllByText(/Deckkraft/).length).toBeGreaterThanOrEqual(2);
   });
 
-  it("shows radar controls when rb-radar animation is selected", () => {
-    const settings = makeOverlaySettings({ background_animation: "rb-radar" });
+  it("shows gradient controls when gradient-shift animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "gradient-shift" });
     const props = makeProps({ selectedEl: "canvas", settings });
     render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Ringanzahl/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Farbe/).length).toBeGreaterThanOrEqual(4);
   });
 
-  it("shows floating lines controls when rb-floatinglines animation is selected", () => {
-    const settings = makeOverlaySettings({ background_animation: "rb-floatinglines" });
+  it("shows shimmer controls when shimmer-bg animation is selected", () => {
+    const settings = makeOverlaySettings({ background_animation: "shimmer-bg" });
     const props = makeProps({ selectedEl: "canvas", settings });
     render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Linienanzahl/)).toBeInTheDocument();
+    expect(screen.getByText(/Intensität/)).toBeInTheDocument();
   });
 
   it("shows pixel blast controls when rb-pixelblast animation is selected", () => {

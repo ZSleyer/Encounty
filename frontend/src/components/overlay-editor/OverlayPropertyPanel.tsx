@@ -350,16 +350,10 @@ export function OverlayPropertyPanel({
               <option value="none">{t("overlay.animNone")}</option>
               <option value="waves">{t("overlay.animWaves")}</option>
               <option value="gradient-shift">{t("overlay.animGradient")}</option>
-              <option value="pulse-bg">{t("overlay.animPulse")}</option>
               <option value="shimmer-bg">{t("overlay.animShimmer")}</option>
-              <option value="particles">{t("overlay.animParticles")}</option>
               <option value="rb-aurora">{t("overlay.animAurora")}</option>
-              <option value="rb-particles">{t("overlay.animRbParticles")}</option>
               <option value="rb-galaxy">{t("overlay.animGalaxy")}</option>
               <option value="rb-silk">{t("overlay.animSilk")}</option>
-              <option value="rb-softaurora">{t("overlay.animSoftAurora")}</option>
-              <option value="rb-radar">{t("overlay.animRadar")}</option>
-              <option value="rb-floatinglines">{t("overlay.animFloatingLines")}</option>
               <option value="rb-pixelblast">{t("overlay.animPixelBlast")}</option>
             </select>
           </label>
@@ -376,12 +370,72 @@ export function OverlayPropertyPanel({
             />
           )}
 
-          {/* Reactbits animation-specific settings */}
-          {(localSettings.background_animation ?? "none").startsWith("rb-") && (
+          {/* Animation-specific settings */}
+          {(localSettings.background_animation ?? "none") !== "none" && (
             <div className="space-y-2 pt-1 border-t border-border-subtle">
               <span className="text-[10px] font-medium text-text-faint uppercase tracking-wider">
                 {t("overlay.animSettings")}
               </span>
+
+              {/* Waves: color, opacity */}
+              {localSettings.background_animation === "waves" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                    <input type="color" value={(bgConfig.wavesColor as string) ?? "#ffffff"}
+                      onChange={(e) => setBgConfig("wavesColor", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animOpacity")} value={(bgConfig.wavesOpacity as number) ?? 0.18}
+                    min={0} max={1} step={0.05}
+                    onChange={(v) => setBgConfig("wavesOpacity", v)} />
+                </>
+              )}
+
+              {/* Gradient shift: 4 color stops */}
+              {localSettings.background_animation === "gradient-shift" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
+                    <input type="color" value={(bgConfig.gradientColor1 as string) ?? "#ff6b6b"}
+                      onChange={(e) => setBgConfig("gradientColor1", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
+                    <input type="color" value={(bgConfig.gradientColor2 as string) ?? "#feca57"}
+                      onChange={(e) => setBgConfig("gradientColor2", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 3</span>
+                    <input type="color" value={(bgConfig.gradientColor3 as string) ?? "#48dbfb"}
+                      onChange={(e) => setBgConfig("gradientColor3", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 4</span>
+                    <input type="color" value={(bgConfig.gradientColor4 as string) ?? "#ff9ff3"}
+                      onChange={(e) => setBgConfig("gradientColor4", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                </>
+              )}
+
+              {/* Shimmer: color and intensity */}
+              {localSettings.background_animation === "shimmer-bg" && (
+                <>
+                  <label className="block">
+                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                    <input type="color" value={(bgConfig.shimmerColor as string) ?? "#ffffff"}
+                      onChange={(e) => setBgConfig("shimmerColor", e.target.value)}
+                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                  </label>
+                  <NumSlider label={t("overlay.animIntensity")} value={(bgConfig.shimmerIntensity as number) ?? 0.12}
+                    min={0} max={1} step={0.05}
+                    onChange={(v) => setBgConfig("shimmerIntensity", v)} />
+                </>
+              )}
 
               {/* Aurora: color stops */}
               {localSettings.background_animation === "rb-aurora" && (
@@ -410,27 +464,6 @@ export function OverlayPropertyPanel({
                   <NumSlider label={t("overlay.animBlend")} value={(bgConfig.auroraBlend as number) ?? 0.5}
                     min={0} max={1} step={0.05}
                     onChange={(v) => setBgConfig("auroraBlend", v)} />
-                </>
-              )}
-
-              {/* Particles (3D): count, colors, size */}
-              {localSettings.background_animation === "rb-particles" && (
-                <>
-                  <NumSlider label={t("overlay.animParticleCount")} value={(bgConfig.particleCount as number) ?? 200}
-                    min={50} max={1000} step={50}
-                    onChange={(v) => setBgConfig("particleCount", v)} />
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                    <input type="color" value={(bgConfig.particleColor as string) ?? "#ffffff"}
-                      onChange={(e) => setBgConfig("particleColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animParticleSize")} value={(bgConfig.particleSize as number) ?? 1}
-                    min={0.1} max={5} step={0.1}
-                    onChange={(v) => setBgConfig("particleSize", v)} />
-                  <NumSlider label={t("overlay.animParticleSpread")} value={(bgConfig.particleSpread as number) ?? 10}
-                    min={1} max={50} step={1}
-                    onChange={(v) => setBgConfig("particleSpread", v)} />
                 </>
               )}
 
@@ -464,60 +497,6 @@ export function OverlayPropertyPanel({
                   <NumSlider label={t("overlay.animNoise")} value={(bgConfig.silkNoise as number) ?? 1.5}
                     min={0} max={5} step={0.1}
                     onChange={(v) => setBgConfig("silkNoise", v)} />
-                </>
-              )}
-
-              {/* Soft Aurora: colors, brightness, band height */}
-              {localSettings.background_animation === "rb-softaurora" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
-                    <input type="color" value={(bgConfig.softAuroraColor1 as string) ?? "#0ea5e9"}
-                      onChange={(e) => setBgConfig("softAuroraColor1", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
-                    <input type="color" value={(bgConfig.softAuroraColor2 as string) ?? "#6366f1"}
-                      onChange={(e) => setBgConfig("softAuroraColor2", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animBrightness")} value={(bgConfig.softAuroraBrightness as number) ?? 0.5}
-                    min={0.1} max={2} step={0.1}
-                    onChange={(v) => setBgConfig("softAuroraBrightness", v)} />
-                </>
-              )}
-
-              {/* Radar: color, ring count, sweep speed */}
-              {localSettings.background_animation === "rb-radar" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                    <input type="color" value={(bgConfig.radarColor as string) ?? "#22c55e"}
-                      onChange={(e) => setBgConfig("radarColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animRingCount")} value={(bgConfig.radarRings as number) ?? 5}
-                    min={1} max={12} step={1}
-                    onChange={(v) => setBgConfig("radarRings", v)} />
-                  <NumSlider label={t("overlay.animBrightness")} value={(bgConfig.radarBrightness as number) ?? 1}
-                    min={0.1} max={3} step={0.1}
-                    onChange={(v) => setBgConfig("radarBrightness", v)} />
-                </>
-              )}
-
-              {/* Floating Lines: color, line count */}
-              {localSettings.background_animation === "rb-floatinglines" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                    <input type="color" value={(bgConfig.linesColor as string) ?? "#ffffff"}
-                      onChange={(e) => setBgConfig("linesColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animLineCount")} value={(bgConfig.linesCount as number) ?? 40}
-                    min={10} max={100} step={5}
-                    onChange={(v) => setBgConfig("linesCount", v)} />
                 </>
               )}
 

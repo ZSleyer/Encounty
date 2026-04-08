@@ -4,12 +4,8 @@ import { Overlay } from "./Overlay";
 import { useCounterStore } from "../hooks/useCounterState";
 
 vi.mock("../components/backgrounds/Aurora", () => ({ default: () => <div data-testid="bg-aurora" /> }));
-vi.mock("../components/backgrounds/Particles", () => ({ default: () => <div data-testid="bg-particles" /> }));
 vi.mock("../components/backgrounds/Galaxy", () => ({ default: () => <div data-testid="bg-galaxy" /> }));
 vi.mock("../components/backgrounds/Silk", () => ({ default: () => <div data-testid="bg-silk" /> }));
-vi.mock("../components/backgrounds/SoftAurora", () => ({ default: () => <div data-testid="bg-softaurora" /> }));
-vi.mock("../components/backgrounds/Radar", () => ({ default: () => <div data-testid="bg-radar" /> }));
-vi.mock("../components/backgrounds/FloatingLines", () => ({ default: () => <div data-testid="bg-floatinglines" /> }));
 vi.mock("../components/backgrounds/PixelBlast", () => ({ default: () => <div data-testid="bg-pixelblast" /> }));
 
 describe("Overlay", () => {
@@ -376,9 +372,7 @@ describe("Overlay", () => {
     const pokemon = makePokemon();
     const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
     expect(container.querySelector(".canvas-waves")).not.toBeInTheDocument();
-    expect(container.querySelector(".canvas-particles")).not.toBeInTheDocument();
     expect(container.querySelector(".canvas-gradient-shift")).not.toBeInTheDocument();
-    expect(container.querySelector(".canvas-pulse-bg")).not.toBeInTheDocument();
     expect(container.querySelector(".canvas-shimmer-bg")).not.toBeInTheDocument();
   });
 
