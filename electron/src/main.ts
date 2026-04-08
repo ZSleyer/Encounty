@@ -253,6 +253,21 @@ async function loadContent(win: BrowserWindow): Promise<void> {
   if (isDev) {
     win.webContents.openDevTools();
   }
+
+  // Allow toggling DevTools in production builds via F12 / Ctrl+Shift+I
+  // (or Cmd+Opt+I on macOS). The default application menu — which would
+  // normally provide these shortcuts — is removed for a cleaner UI, so we
+  // bind them explicitly here. Without this, diagnosing prod-only renderer
+  // issues (e.g. CSP violations, asset 404s) requires a custom dev build.
+  win.webContents.on('before-input-event', (_event, input) => {
+    if (input.type !== 'keyDown') return;
+    const isF12 = input.key === 'F12';
+    const isInspectShortcut =
+      (input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i';
+    if (isF12 || isInspectShortcut) {
+      win.webContents.toggleDevTools();
+    }
+  });
 }
 
 async function createWindow(): Promise<void> {
