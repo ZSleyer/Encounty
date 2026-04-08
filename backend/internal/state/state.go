@@ -1033,8 +1033,38 @@ func (m *Manager) SetConfigDir(newDir string) error {
 		return fmt.Errorf("failed to save in new location: %w", err)
 	}
 
+	// Leave a pointer at the old directory so that on the next restart
+	// the backend can follow it to the relocated database.
+	if oldDir != newDir {
+		if err := writeLocationPointer(oldDir, newDir); err != nil {
+			slog.Warn("could not write location pointer", "old", oldDir, "err", err)
+		}
+	}
+
 	m.markDirty()
 	return nil
+}
+
+// writeLocationPointer writes a minimal state.json at pointerDir whose only
+// populated field is Settings.ConfigPath = targetDir. The Encounty backend
+// reads this on startup to discover a relocated database.
+func writeLocationPointer(pointerDir, targetDir string) error {
+	pointer := AppState{
+		Settings: Settings{ConfigPath: targetDir},
+	}
+	data, err := json.MarshalIndent(pointer, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(pointerDir, 0755); err != nil {
+		return err
+	}
+	path := filepath.Join(pointerDir, "state.json")
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 // copyDir recursively copies a directory tree.

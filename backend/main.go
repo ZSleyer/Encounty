@@ -121,8 +121,12 @@ func initStateAndDB(configDir string) (*state.Manager, *database.DB) {
 		slog.Warn("Could not load state from JSON", "error", err)
 	}
 	if customPath := stateMgr.GetState().Settings.ConfigPath; customPath != "" && customPath != configDir {
-		slog.Info("Redirecting to custom config path", "path", customPath)
-		stateMgr = state.NewManager(customPath)
+		if info, err := os.Stat(customPath); err != nil || !info.IsDir() {
+			slog.Warn("Custom config path missing or invalid, falling back to default", "path", customPath, "err", err)
+		} else {
+			slog.Info("Redirecting to custom config path", "path", customPath)
+			stateMgr = state.NewManager(customPath)
+		}
 	}
 
 	effectiveDir := stateMgr.GetConfigDir()

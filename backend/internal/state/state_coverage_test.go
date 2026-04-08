@@ -5,6 +5,7 @@
 package state
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -420,6 +421,55 @@ func TestSetConfigDir(t *testing.T) {
 	}
 	if string(data) != "hello" {
 		t.Errorf("copied file content = %q, want %q", string(data), "hello")
+	}
+
+	// Verify a pointer state.json was left at the old directory and that
+	// loading it reports the relocated ConfigPath.
+	if _, err := os.Stat(filepath.Join(oldDir, "state.json")); err != nil {
+		t.Fatalf("pointer state.json not found at old dir: %v", err)
+	}
+	pointerMgr := NewManager(oldDir)
+	if err := pointerMgr.LoadFromJSON(); err != nil {
+		t.Fatalf("loading pointer state.json failed: %v", err)
+	}
+	if got := pointerMgr.GetState().Settings.ConfigPath; got != newDir {
+		t.Errorf("pointer Settings.ConfigPath = %q, want %q", got, newDir)
+	}
+}
+
+func TestSetConfigDirWritesPointer(t *testing.T) {
+	oldDir := t.TempDir()
+	newDir := t.TempDir()
+
+	m := NewManager(oldDir)
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+	m.UpdateSettings(Settings{Languages: []string{"en"}})
+
+	if err := m.SetConfigDir(newDir); err != nil {
+		t.Fatalf("SetConfigDir failed: %v", err)
+	}
+
+	pointerPath := filepath.Join(oldDir, "state.json")
+	raw, err := os.ReadFile(pointerPath)
+	if err != nil {
+		t.Fatalf("pointer state.json not found: %v", err)
+	}
+
+	var parsed AppState
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		t.Fatalf("pointer state.json is not valid JSON: %v", err)
+	}
+	if parsed.Settings.ConfigPath != newDir {
+		t.Errorf("pointer Settings.ConfigPath = %q, want %q", parsed.Settings.ConfigPath, newDir)
+	}
+
+	// A fresh manager rooted at the old dir should pick up the redirect.
+	fresh := NewManager(oldDir)
+	if err := fresh.LoadFromJSON(); err != nil {
+		t.Fatalf("fresh LoadFromJSON failed: %v", err)
+	}
+	if got := fresh.GetState().Settings.ConfigPath; got != newDir {
+		t.Errorf("fresh Settings.ConfigPath = %q, want %q", got, newDir)
 	}
 }
 
