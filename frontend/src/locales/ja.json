@@ -32,7 +32,6 @@
   "app.syncErrorFallback": "オフラインデータを使用",
   "app.syncRetry": "再試行",
   "app.machineTranslationDisclaimer": "この言語の翻訳は自動生成されたもので、誤りが含まれている可能性があります。翻訳の改善にご協力ください！",
-
   "update.available": "アップデートがあります",
   "update.installing": "インストール中...",
   "update.restarting": "再起動中...",
@@ -45,7 +44,6 @@
   "update.openDownload": "ダウンロード",
   "update.later": "後で",
   "update.changelog": "変更内容を見る",
-
   "nav.dashboard": "ダッシュボード",
   "nav.hotkeys": "Hotkeys",
   "nav.overlayEditor": "Overlay",
@@ -53,7 +51,6 @@
   "nav.connected": "接続済み",
   "nav.connecting": "接続中...",
   "nav.disconnected": "切断",
-
   "dash.total": "合計",
   "dash.encounters": "Encounters",
   "dash.pokemonSelected": "ポケモン選択中",
@@ -104,14 +101,12 @@
   "dash.tooltipAddPokemon": "新しいポケモンを追加",
   "dash.tooltipOverlayGlobal": "グローバルOverlayレイアウト",
   "dash.tooltipOverlayCustom": "カスタムOverlayレイアウト",
-
   "confirm.resetTitle": "カウンターをリセット",
   "confirm.resetMsg": "このポケモンのEncountersを0にリセットしますか？",
   "confirm.deleteTitle": "ポケモンを削除",
   "confirm.deleteMsg": "このポケモンを本当に削除しますか？すべてのデータが失われます！",
   "confirm.cancel": "キャンセル",
   "confirm.confirm": "確認",
-
   "modal.addTitle": "ポケモンを追加",
   "modal.editTitle": "ポケモンを編集",
   "modal.searchPlaceholderDe": "例：Bisasam、Glumanda...",
@@ -149,7 +144,6 @@
   "modal.tooltipShadowEdit": "影を編集",
   "modal.tooltipRemoveStop": "カラーストップを削除",
   "modal.tooltipOCR": "テキスト認識を有効にする",
-
   "timer.start": "開始",
   "timer.stop": "停止",
   "timer.reset": "Timerをリセット",
@@ -157,7 +151,6 @@
   "timer.stopAll": "すべてのTimerを停止",
   "timer.selected": "選択中",
   "timer.clearSelection": "選択を解除",
-
   "overlay.displayMode": "表示モード",
   "overlay.displayModeName": "名前",
   "overlay.displayModeTitle": "タイトル",
@@ -327,11 +320,13 @@
   "overlay.animFadeIn": "フェードイン",
   "overlay.animSlideIn": "スライドイン",
   "overlay.selectPokemon": "ポケモンをターゲットとして選択すると、Overlay URLが表示されます。",
-
   "settings.dataLocation": "データの保存場所",
-  "settings.dataLocationHint": "Encountyがすべてのデータを保存するフォルダーへのパスです。",
   "settings.dataLocationChange": "変更",
-  "settings.dataLocationRestart": "変更後の再起動を推奨します。",
+  "settings.dbPathTitle": "データベースの保存場所",
+  "settings.dbPathDesc": "EncountyがSQLiteデータベースと状態ファイルを保存する場所です。",
+  "settings.dbPathRestartHint": "次回の起動時、Encountyは自動的にこのフォルダーからデータベースを開きます。",
+  "settings.dbPathChanged": "データベースの保存場所を更新しました",
+  "settings.dbPathError": "データベースの保存場所を変更できませんでした",
   "settings.title": "設定",
   "settings.tabGeneral": "一般",
   "settings.tabData": "データと同期",
@@ -345,18 +340,16 @@
   "settings.outputEnabled": "ファイル出力を有効にする",
   "settings.outputEnabledDesc": "テキストファイルを更新します（OBS用など）",
   "settings.outputDir": "出力ディレクトリ",
-  "settings.outputDesc": "生成されるテキストファイル：",
-  "settings.syncPokemon": "ポケモンデータ",
-  "settings.syncPokemonDesc": "PokéAPIからポケデックスを更新します（新しい世代、新しいフォーム）。",
-  "settings.syncPokemonBtn": "ポケモンデータを更新",
-  "settings.syncGames": "ゲームデータ",
-  "settings.syncGamesDesc": "PokéAPIから新しいゲームと不足している翻訳を取得します。既存のエントリは保持されます。",
-  "settings.syncGamesBtn": "ゲームデータを更新",
+  "settings.obsFileOutputTitle": "OBSファイル出力",
+  "settings.obsFileOutputDesc": "encounters.txt、pokemon_name.txt などのテキストファイルを書き出します。",
+  "settings.obsPathCopied": "パスをクリップボードにコピーしました",
+  "settings.obsCopyPath": "出力フォルダーのパスをコピー",
+  "settings.syncAllData": "すべてのデータ",
+  "settings.syncAllDataDesc": "PokéAPIからポケデックスとゲームデータを再ダウンロードします。",
+  "settings.syncAllDataBtn": "データを同期",
   "settings.syncing": "同期中...",
   "settings.syncSuccess": "同期完了：",
   "settings.syncError": "エラー：",
-  "settings.syncFailed": "同期に失敗しました – PokéAPIに接続できません",
-  "settings.syncNoChanges": "すべて最新です – 変更はありません。",
   "settings.hotkeysTitle": "グローバルHotkeys",
   "settings.hotkeysPaused": "Hotkeys一時停止中",
   "settings.saved": "保存しました",
@@ -366,7 +359,6 @@
   "settings.autoTranslated": "自動翻訳",
   "settings.backupTitle": "バックアップと復元",
   "settings.backupDesc": "すべてのポケモン、カウンター、設定をZIPファイルとして保存します。",
-  "settings.dataPath": "データの現在の保存先：",
   "settings.backupBtn": "バックアップを作成",
   "settings.restoreDesc": "バックアップZIPをアップロードしてデータを復元します。",
   "settings.restoreBtn": "バックアップを復元",
@@ -392,13 +384,12 @@
   "settings.sectionBackup": "バックアップと復元",
   "settings.sectionAbout": "Encountyについて",
   "settings.sectionPermissions": "権限",
-  "settings.tooltipSyncPokemon": "PokéAPIからポケデックスを更新",
-  "settings.tooltipSyncGames": "PokéAPIからゲームデータを更新",
   "settings.tooltipBackup": "すべてのデータをZIPファイルとして保存",
   "settings.tooltipRestore": "バックアップからデータを復元",
   "settings.tooltipBrowseFolder": "フォルダーを参照",
+  "settings.chooseFolder": "フォルダーを選択…",
+  "settings.electronOnly": "デスクトップアプリでのみ利用可能",
   "settings.tooltipLanguageToggle": "言語を切り替え",
-
   "stats.total": "合計",
   "stats.today": "今日",
   "stats.ratePerHour": "1時間あたり",
@@ -414,7 +405,6 @@
   "stats.colChange": "変更",
   "stats.colCount": "カウント",
   "stats.colSource": "ソース",
-
   "huntType.label": "Huntの方法",
   "huntType.encounter": "野生のEncounter",
   "huntType.soft_reset": "Soft Reset",
@@ -479,7 +469,6 @@
   "huntType.shinyCharm": "ひかるおまもり",
   "huntType.shinyCharmActive": "ひかるおまもり使用中",
   "huntType.odds": "Odds",
-
   "detector.title": "自動検出",
   "detector.start": "検出を開始",
   "detector.stop": "停止",
@@ -629,7 +618,6 @@
   "detector.previewTimer": "プレビュー：{{0}}秒",
   "detector.resumePreview": "プレビューを再開",
   "detector.permanentPreview": "常に表示",
-
   "sidebar.timerOnly": "Timerのみ",
   "sidebar.detectorOnly": "検出のみ",
   "sidebar.both": "両方",
@@ -647,7 +635,6 @@
   "sidebar.sortGame": "ゲーム",
   "sidebar.collapse": "サイドバーを閉じる",
   "sidebar.expand": "サイドバーを開く",
-
   "perfModal.title": "検出器パフォーマンス",
   "perfModal.close": "閉じる",
   "perfModal.loopHeading": "検出ループ",
@@ -683,7 +670,6 @@
   "perfModal.hwUserAgent": "ユーザーエージェント",
   "perfModal.hwUnknown": "不明",
   "perfModal.refreshHint": "{{seconds}} 秒ごとに更新されます。",
-
   "sourcePicker.title": "ソースを選択",
   "sourcePicker.screens": "画面",
   "sourcePicker.windows": "ウィンドウ",
@@ -702,7 +688,6 @@
   "sourcePicker.change": "変更",
   "sourcePicker.portalHint": "「確認」をクリックしてシステムのソース選択画面を開きます。",
   "sourcePicker.portalConfirm": "確認",
-
   "templateEditor.title": "Templateエディター",
   "templateEditor.editTitle": "Templateを編集",
   "templateEditor.step1Title": "ステップ1：キャプチャ",
@@ -755,13 +740,11 @@
   "templateEditor.testNoBuffer": "テスト用の録画フレームがありません。",
   "templateEditor.regionsRequired": "少なくとも1つの領域が必要です。",
   "templateEditor.templateInvalid": "領域なし — 編集が必要",
-
   "regionPicker.instruction": "クリックしてドラッグしてゲームエリアを選択してください",
   "regionPicker.cancel": "キャンセル",
   "regionPicker.confirm": "確認",
   "regionPicker.reload": "再読み込み",
   "regionPicker.loadError": "スクリーンショットを読み込めませんでした",
-
   "licenses.title": "オープンソースライセンス",
   "licenses.desc": "Encountyは以下のオープンソースライブラリを使用しています：",
   "licenses.project": "Encountyは以下のライセンスの下で提供されています：",
@@ -769,7 +752,6 @@
   "licenses.dataSourcesDesc": "Encountyはポケモンのスプライトとデータに以下の外部データソースを使用しています：",
   "licenses.trademarkTitle": "商標に関する通知",
   "licenses.trademark": "Encountyは非公式のファンメイドアプリケーションであり、Nintendo、Creatures Inc.、GAME FREAK inc.、The Pokémon Companyとは一切関係がなく、これらの企業による承認・提携もありません。Pokémonおよび関連するすべての商標と著作権は、それぞれの権利者に帰属します。",
-
   "tooltip.common.save": "保存",
   "tooltip.common.cancel": "キャンセル",
   "tooltip.common.close": "閉じる",
@@ -807,7 +789,6 @@
   "tooltip.editor.alignCenter": "中央揃え",
   "tooltip.editor.alignRight": "右揃え",
   "tooltip.editor.showTutorial": "チュートリアルを表示",
-
   "aria.close": "閉じる",
   "aria.skipToContent": "コンテンツへスキップ",
   "aria.copyObsUrl": "OBS URLをコピー",
@@ -823,7 +804,6 @@
   "aria.timerReset": "Timerをリセット",
   "aria.odds": "確率",
   "aria.permissionStatus": "権限のステータス",
-
   "hotkeys.increment": "+1 Encounter",
   "hotkeys.decrement": "-1 Encounter",
   "hotkeys.reset": "リセット",
@@ -839,7 +819,6 @@
   "hotkeys.tooltipRecord": "Hotkeyを記録",
   "hotkeys.tooltipDelete": "Hotkeyを削除",
   "hotkeys.tooltipConflict": "別のキーの組み合わせと競合しています",
-
   "detectorTutorial.step1Title": "ソースを選択",
   "detectorTutorial.step1Text": "検出ソースを選択してください：画面キャプチャ (Browser) またはカメラ。「接続」をクリックしてストリームを開始します。",
   "detectorTutorial.step2Title": "ライブプレビュー",
@@ -853,7 +832,6 @@
   "detectorTutorial.skip": "スキップ",
   "detectorTutorial.next": "次へ",
   "detectorTutorial.finish": "完了",
-
   "editorTutorial.step1Title": "プレビュー",
   "editorTutorial.step1Text": "これはOverlayのプレビューです。OBSでの表示をプレビューできます。",
   "editorTutorial.step2Title": "レイヤー",
@@ -867,16 +845,13 @@
   "editorTutorial.skip": "スキップ",
   "editorTutorial.next": "次へ",
   "editorTutorial.finish": "完了",
-
   "license.subtitle": "オープンソースライセンス契約",
   "license.summary": "Encountyはフリーソフトウェアであり、GNU Affero General Public License Version 3 (AGPLv3)の下でライセンスされています。",
   "license.accept": "AGPLv3ライセンスに同意します",
   "license.hint": "続行するには、ライセンステキストの最後までスクロールしてください。",
   "license.showDialog": "ライセンスを表示",
-
   "footer.hunts": "Hunts",
   "footer.encounters": "Enc.",
-
   "permissions.accessibility": "アクセシビリティ",
   "permissions.accessibilityDesc": "グローバルホットキーに必要",
   "permissions.screenRecording": "画面収録",

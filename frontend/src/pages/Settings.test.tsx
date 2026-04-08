@@ -1,9 +1,60 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, userEvent, waitFor } from "../test-utils";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, render, screen, makeAppState, userEvent, waitFor } from "../test-utils";
 import { Settings } from "./Settings";
+import { ToastContainer } from "../components/shared/ToastContainer";
 import { useCounterStore } from "../hooks/useCounterState";
 
+/** Wrapper rendering Settings together with the global toast container. */
+function SettingsWithToasts() {
+  return (
+    <>
+      <Settings />
+      <ToastContainer />
+    </>
+  );
+}
+
 const mockFetch = vi.fn();
+
+/** Minimal WebSocket stub used to drive the unified sync flow. */
+class MockWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+
+  readyState = MockWebSocket.CONNECTING;
+  url: string;
+
+  onopen: ((ev: Event) => void) | null = null;
+  onmessage: ((ev: MessageEvent) => void) | null = null;
+  onerror: ((ev: Event) => void) | null = null;
+  onclose: ((ev: CloseEvent) => void) | null = null;
+
+  send = vi.fn();
+  close = vi.fn(() => {
+    this.readyState = MockWebSocket.CLOSED;
+  });
+
+  constructor(url: string) {
+    this.url = url;
+    MockWebSocket.instances.push(this);
+  }
+
+  simulateMessage(payload: unknown) {
+    this.onmessage?.(new MessageEvent("message", { data: JSON.stringify(payload) }));
+  }
+
+  static readonly instances: MockWebSocket[] = [];
+  static clear() {
+    MockWebSocket.instances.length = 0;
+  }
+  static latest(): MockWebSocket {
+    return MockWebSocket.instances[MockWebSocket.instances.length - 1];
+  }
+}
+
+const clipboardWriteText = vi.fn().mockResolvedValue(undefined);
 
 beforeEach(() => {
   mockFetch.mockReset();
@@ -12,6 +63,24 @@ beforeEach(() => {
     json: () => Promise.resolve({}),
   });
   vi.stubGlobal("fetch", mockFetch);
+  clipboardWriteText.mockClear();
+  try {
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      value: { writeText: clipboardWriteText },
+      configurable: true,
+      writable: true,
+    });
+  } catch {
+    // If jsdom refuses, fall back to direct assignment.
+    (globalThis.navigator as unknown as { clipboard: unknown }).clipboard = {
+      writeText: clipboardWriteText,
+    };
+  }
+  MockWebSocket.clear();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("Settings", () => {
@@ -129,8 +198,9 @@ describe("Settings", () => {
     const user = userEvent.setup();
     render(<Settings />);
 
-    // Find the output directory input by its id
-    const dirInput = document.getElementById("output-dir") as HTMLInputElement;
+    // The output directory text input lives inside the FolderPathInput
+    // component and is labelled with the "Ausgabe-Ordner" aria-label.
+    const dirInput = screen.getByRole("textbox", { name: /Ausgabe-Ordner/i }) as HTMLInputElement;
     expect(dirInput).toBeTruthy();
 
     // Output is disabled by default, so a parent has the grayscale class
@@ -147,8 +217,40 @@ describe("Settings", () => {
 
     await user.click(outputToggle!);
 
-    // After enabling output, the wrapper should no longer have the grayscale class
+    // After enabling output, the toggle should report checked.
     expect(outputToggle!.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("renders the OBS file output card and copies the path on click", async () => {
+    useCounterStore.setState({
+      appState: makeAppState({
+        settings: {
+          ...makeAppState().settings,
+          output_enabled: true,
+          output_dir: "/obs/output",
+        },
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Settings />);
+
+    // The OBS info card uses the German "OBS Dateiausgabe" title.
+    expect(screen.getByText("OBS Dateiausgabe")).toBeInTheDocument();
+
+    const copyBtn = screen
+      .getAllByRole("button")
+      .find((b) => b.getAttribute("aria-label") === "Pfad des Ausgabe-Ordners kopieren")!;
+    expect(copyBtn).toBeTruthy();
+
+    // Use native click to avoid user-event's internal clipboard wrapper.
+    copyBtn.click();
+
+    await waitFor(() => {
+      expect(clipboardWriteText).toHaveBeenCalledWith("/obs/output");
+    });
   });
 
   it("updates output directory path on input change", async () => {
@@ -293,14 +395,6 @@ describe("Settings", () => {
     expect(screen.getByText("Deutsch")).toBeInTheDocument();
   });
 
-  it("renders output file names in the file output section", () => {
-    render(<Settings />);
-
-    expect(screen.getByText("encounters.txt")).toBeInTheDocument();
-    expect(screen.getByText("pokemon_name.txt")).toBeInTheDocument();
-    expect(screen.getByText("phase.txt")).toBeInTheDocument();
-  });
-
   it("renders sync pokemon button and triggers sync", async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -373,8 +467,13 @@ describe("Settings", () => {
   it("renders the data path with a change button", () => {
     render(<Settings />);
 
-    // The data path from makeAppState is /tmp/encounty
-    expect(screen.getByText("/tmp/encounty")).toBeInTheDocument();
+    // The data path from makeAppState is /tmp/encounty and is rendered in
+    // both the OBS card (output_dir) and the Data section (data_path), so
+    // there should be at least one occurrence.
+    expect(screen.getAllByText("/tmp/encounty").length).toBeGreaterThanOrEqual(1);
+
+    // The change button is labelled with the German "Ändern" string.
+    expect(screen.getByRole("button", { name: "Ändern" })).toBeInTheDocument();
   });
 
   it("renders crisp sprites toggle", () => {
@@ -413,116 +512,109 @@ describe("Settings", () => {
     expect(buttons.length).toBeGreaterThan(5);
   });
 
-  it("syncs pokemon data and shows success result", async () => {
+  it("runs unified sync via /api/setup/online and shows progress", async () => {
     const user = userEvent.setup();
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ added: 5, total: 1025 }),
+    vi.stubGlobal("WebSocket", MockWebSocket);
+    mockFetch.mockImplementation((_url: unknown) => {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     });
 
     render(<Settings />);
 
-    const syncBtn = screen.getByText("Pokémon-Daten aktualisieren");
+    const syncBtn = screen.getByRole("button", { name: /Daten synchronisieren/i });
+    expect(syncBtn).not.toBeDisabled();
+
     await user.click(syncBtn);
+
+    // Button should now be disabled and show the syncing label.
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Synchronisiere/i })).toBeDisabled();
+    });
+
+    // setup/online endpoint should have been POSTed.
+    await waitFor(() => {
+      const setupCall = mockFetch.mock.calls.find(
+        (call: unknown[]) => String(call[0]).includes("/api/setup/online"),
+      );
+      expect(setupCall).toBeTruthy();
+    });
+
+    const ws = MockWebSocket.latest();
+    expect(ws).toBeTruthy();
+
+    // Progress update.
+    act(() => {
+      ws.simulateMessage({
+        type: "sync_progress",
+        payload: { phase: "pokedex", step: "species" },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/pokedex.*species/)).toBeInTheDocument();
+    });
+
+    // Completion event.
+    act(() => {
+      ws.simulateMessage({ type: "system_ready", payload: {} });
+    });
 
     await waitFor(() => {
       expect(screen.getByText(/Sync abgeschlossen/)).toBeInTheDocument();
     });
+
+    // Button should be enabled again.
+    expect(
+      screen.getByRole("button", { name: /Daten synchronisieren/i }),
+    ).not.toBeDisabled();
   });
 
-  it("syncs pokemon data and shows error on failure", async () => {
+  it("shows error when /api/setup/online fetch rejects", async () => {
     const user = userEvent.setup();
-    mockFetch.mockResolvedValue({
-      ok: false,
-      json: () => Promise.resolve({ error: "API unavailable" }),
+    vi.stubGlobal("WebSocket", MockWebSocket);
+    mockFetch.mockImplementation((_url: unknown) => {
+      const url = String(_url);
+      if (url.includes("/api/setup/online")) {
+        return Promise.reject(new Error("Network error"));
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     });
 
     render(<Settings />);
 
-    const syncBtn = screen.getByText("Pokémon-Daten aktualisieren");
+    const syncBtn = screen.getByRole("button", { name: /Daten synchronisieren/i });
     await user.click(syncBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Fehler:.*API unavailable/)).toBeInTheDocument();
+      expect(screen.getByText(/request failed/)).toBeInTheDocument();
     });
   });
 
-  it("syncs pokemon data and shows failed on network error", async () => {
+  it("shows error when WebSocket emits a sync_progress error step", async () => {
     const user = userEvent.setup();
-    mockFetch.mockRejectedValue(new Error("Network error"));
-
-    render(<Settings />);
-
-    const syncBtn = screen.getByText("Pokémon-Daten aktualisieren");
-    await user.click(syncBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText(/fehlgeschlagen/)).toBeInTheDocument();
-    });
-  });
-
-  it("syncs games data and shows success with changes", async () => {
-    const user = userEvent.setup();
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ added: 2, updated: 3 }),
+    vi.stubGlobal("WebSocket", MockWebSocket);
+    mockFetch.mockImplementation((_url: unknown) => {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     });
 
     render(<Settings />);
 
-    const syncBtn = screen.getByText("Spieldaten aktualisieren");
+    const syncBtn = screen.getByRole("button", { name: /Daten synchronisieren/i });
     await user.click(syncBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Sync abgeschlossen/)).toBeInTheDocument();
-    });
-  });
-
-  it("syncs games data and shows no-changes message", async () => {
-    const user = userEvent.setup();
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ added: 0, updated: 0 }),
+      expect(MockWebSocket.latest()).toBeTruthy();
     });
 
-    render(<Settings />);
-
-    const syncBtn = screen.getByText("Spieldaten aktualisieren");
-    await user.click(syncBtn);
+    act(() => {
+      MockWebSocket.latest().simulateMessage({
+        type: "sync_progress",
+        payload: { phase: "games", step: "error", error: "boom" },
+      });
+    });
 
     await waitFor(() => {
-      expect(screen.getByText(/Alles aktuell/)).toBeInTheDocument();
-    });
-  });
-
-  it("syncs games data and shows error on failure", async () => {
-    const user = userEvent.setup();
-    mockFetch.mockResolvedValue({
-      ok: false,
-      json: () => Promise.resolve({ error: "DB error" }),
-    });
-
-    render(<Settings />);
-
-    const syncBtn = screen.getByText("Spieldaten aktualisieren");
-    await user.click(syncBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Fehler:.*DB error/)).toBeInTheDocument();
-    });
-  });
-
-  it("syncs games data and shows failed on network error", async () => {
-    const user = userEvent.setup();
-    mockFetch.mockRejectedValue(new Error("Network error"));
-
-    render(<Settings />);
-
-    const syncBtn = screen.getByText("Spieldaten aktualisieren");
-    await user.click(syncBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText(/fehlgeschlagen/)).toBeInTheDocument();
+      expect(screen.getByText(/boom/)).toBeInTheDocument();
     });
   });
 
@@ -735,15 +827,17 @@ describe("Settings", () => {
 
     render(<Settings />);
 
-    // Find the config path input and clear + type new value
-    const configInput = document.getElementById("config-path-input") as HTMLInputElement;
+    // FolderPathInput exposes the DB path input via its aria-label.
+    const configInput = screen.getByRole("textbox", {
+      name: "Datenbank-Speicherort",
+    }) as HTMLInputElement;
     expect(configInput).toBeTruthy();
 
     await user.clear(configInput);
     await user.type(configInput, "/new/config/path");
 
-    // Find the change button next to the input
-    const changeBtn = screen.getByText(/Ändern|Change/i);
+    const changeBtn = screen.getByRole("button", { name: "Ändern" });
+    expect(changeBtn).not.toBeDisabled();
     await user.click(changeBtn);
 
     await waitFor(() => {
@@ -751,12 +845,13 @@ describe("Settings", () => {
         (call: unknown[]) => String(call[0]).includes("/api/settings/config-path"),
       );
       expect(pathCall).toBeTruthy();
+      const body = JSON.parse((pathCall![1] as RequestInit).body as string);
+      expect(body).toEqual({ path: "/new/config/path" });
     });
   });
 
-  it("shows alert when config path change fails with error", async () => {
+  it("shows error toast when config path change fails with error", async () => {
     const user = userEvent.setup();
-    const alertSpy = vi.spyOn(globalThis, "alert").mockImplementation(() => {});
     mockFetch.mockImplementation((_url: unknown) => {
       const url = String(_url);
       if (url.includes("/api/settings/config-path")) {
@@ -768,25 +863,27 @@ describe("Settings", () => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     });
 
-    render(<Settings />);
+    render(<SettingsWithToasts />);
 
-    const configInput = document.getElementById("config-path-input") as HTMLInputElement;
+    const configInput = screen.getByRole("textbox", {
+      name: "Datenbank-Speicherort",
+    }) as HTMLInputElement;
     await user.clear(configInput);
     await user.type(configInput, "/invalid/path");
 
-    const changeBtn = screen.getByText(/Ändern|Change/i);
+    const changeBtn = screen.getByRole("button", { name: "Ändern" });
     await user.click(changeBtn);
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith("Permission denied");
+      // German translation of settings.dbPathError.
+      expect(
+        screen.getByText("Datenbank-Speicherort konnte nicht geändert werden"),
+      ).toBeInTheDocument();
     });
-
-    alertSpy.mockRestore();
   });
 
-  it("shows alert when config path change throws network error", async () => {
+  it("shows error toast when config path change throws network error", async () => {
     const user = userEvent.setup();
-    const alertSpy = vi.spyOn(globalThis, "alert").mockImplementation(() => {});
     mockFetch.mockImplementation((_url: unknown) => {
       const url = String(_url);
       if (url.includes("/api/settings/config-path")) {
@@ -795,43 +892,31 @@ describe("Settings", () => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     });
 
-    render(<Settings />);
+    render(<SettingsWithToasts />);
 
-    const configInput = document.getElementById("config-path-input") as HTMLInputElement;
+    const configInput = screen.getByRole("textbox", {
+      name: "Datenbank-Speicherort",
+    }) as HTMLInputElement;
     await user.clear(configInput);
     await user.type(configInput, "/unreachable/path");
 
-    const changeBtn = screen.getByText(/Ändern|Change/i);
+    const changeBtn = screen.getByRole("button", { name: "Ändern" });
     await user.click(changeBtn);
 
     await waitFor(() => {
-      expect(alertSpy).toHaveBeenCalledWith("Failed to change path");
+      expect(
+        screen.getByText("Datenbank-Speicherort konnte nicht geändert werden"),
+      ).toBeInTheDocument();
     });
-
-    alertSpy.mockRestore();
   });
 
-  it("does not send config path change when path is same as current", async () => {
-    const user = userEvent.setup();
+  it("disables the change button when draft equals the current data path", () => {
     render(<Settings />);
 
-    // Don't change the value, just click the change button
-    const changeBtn = screen.getByText(/Ändern|Change/i);
-    await user.click(changeBtn);
-
-    // Should NOT have called the config-path endpoint
-    const pathCalls = mockFetch.mock.calls.filter(
-      (call: unknown[]) => String(call[0]).includes("/api/settings/config-path"),
-    );
-    expect(pathCalls.length).toBe(0);
-  });
-
-  it("renders all output file names including session_duration and encounters_today", () => {
-    render(<Settings />);
-
-    expect(screen.getByText("session_duration.txt")).toBeInTheDocument();
-    expect(screen.getByText("encounters_today.txt")).toBeInTheDocument();
-    expect(screen.getByText("encounters_label.txt")).toBeInTheDocument();
+    // The draft input is initialised with appState.data_path, so the button
+    // must start out disabled.
+    const changeBtn = screen.getByRole("button", { name: "Ändern" });
+    expect(changeBtn).toBeDisabled();
   });
 
   it("renders no-results message when search matches nothing via different query", async () => {

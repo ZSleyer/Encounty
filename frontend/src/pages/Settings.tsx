@@ -17,6 +17,9 @@ import {
   Bot,
   Shield,
   AlertTriangle,
+  Monitor,
+  Check,
+  CheckCircle,
 } from "lucide-react";
 
 import { useCounterStore } from "../hooks/useCounterState";
@@ -44,7 +47,8 @@ import { LicenseDialog } from "../components/settings/LicenseDialog";
 import { MacPermissions } from "../components/settings/MacPermissions";
 import { LOCALES } from "../utils/i18n";
 import type { Locale } from "../locales";
-import { apiUrl } from "../utils/api";
+import { apiUrl, wsUrl } from "../utils/api";
+import { FolderPathInput } from "../components/settings/FolderPathInput";
 
 // --- Licenses types ----------------------------------------------------------
 
@@ -171,57 +175,68 @@ function applyAccentColor(
   document.documentElement.dataset.accent = v;
 }
 
-async function performPokemonSync(
-  t: (key: string) => string,
-  setSyncing: (v: boolean) => void,
-  setSyncResult: (v: string | null) => void,
-): Promise<void> {
-  setSyncing(true);
-  setSyncResult(null);
-  try {
-    const res = await fetch(apiUrl("/api/sync/pokemon"), { method: "POST" });
-    const data = await res.json();
-    if (res.ok) {
-      setSyncResult(
-        `${t("settings.syncSuccess")} ${data.added} neue Pokémon (${data.total} gesamt)`,
-      );
-    } else {
-      setSyncResult(`${t("settings.syncError")} ${data.error}`);
-    }
-  } catch {
-    setSyncResult(t("settings.syncFailed"));
-  } finally {
-    setSyncing(false);
-  }
+/** Aggregate sync state surfaced by `runUnifiedSync`. */
+interface SyncState {
+  running: boolean;
+  phase: string;
+  step: string;
+  error: string | null;
+  done: boolean;
 }
 
-async function performGamesSync(
-  t: (key: string) => string,
-  setGamesSyncing: (v: boolean) => void,
-  setGamesSyncResult: (v: string | null) => void,
-): Promise<void> {
-  setGamesSyncing(true);
-  setGamesSyncResult(null);
+const SYNC_IDLE: SyncState = { running: false, phase: "", step: "", error: null, done: false };
+
+/**
+ * Run the unified Pokémon + Games sync flow.
+ *
+ * Reuses the first-start `POST /api/setup/online` endpoint, which already
+ * chains both syncs and broadcasts `sync_progress` / `system_ready` events
+ * over the WebSocket. A short-lived dedicated socket is opened for the
+ * duration of the run so that the Settings UI does not need to share
+ * messages with the global app store.
+ */
+function runUnifiedSync(
+  setState: (updater: (s: SyncState) => SyncState) => void,
+): void {
+  setState(() => ({ ...SYNC_IDLE, running: true }));
+
+  let ws: WebSocket | null = null;
+  let closed = false;
+  const finish = (errorMsg: string | null) => {
+    if (closed) return;
+    closed = true;
+    if (ws) ws.close();
+    setState((s) => ({ ...s, running: false, error: errorMsg, done: errorMsg === null }));
+  };
+
   try {
-    const res = await fetch(apiUrl("/api/games/sync"), { method: "POST" });
-    const data = await res.json();
-    if (res.ok) {
-      const { added, updated } = data;
-      if (added === 0 && updated === 0) {
-        setGamesSyncResult(t("settings.syncNoChanges"));
-      } else {
-        setGamesSyncResult(
-          `${t("settings.syncSuccess")} ${added} neue Spiele, ${updated} Sprachen ergänzt.`,
-        );
+    ws = new WebSocket(wsUrl());
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data as string) as { type: string; payload: unknown };
+        if (msg.type === "sync_progress") {
+          const p = msg.payload as { phase: string; step: string; error?: string };
+          if (p.step === "error" && p.error) {
+            finish(p.error);
+            return;
+          }
+          setState((s) => ({ ...s, phase: p.phase, step: p.step }));
+        } else if (msg.type === "system_ready") {
+          finish(null);
+        }
+      } catch {
+        // Ignore unparseable frames
       }
-    } else {
-      setGamesSyncResult(`${t("settings.syncError")} ${data.error}`);
-    }
+    };
+    ws.onerror = () => finish("websocket error");
   } catch {
-    setGamesSyncResult(t("settings.syncFailed"));
-  } finally {
-    setGamesSyncing(false);
+    finish("websocket failed");
+    return;
   }
+
+  fetch(apiUrl("/api/setup/online"), { method: "POST" }).catch(() => {
+    finish("request failed");
+  });
 }
 
 async function performRestore(
@@ -547,11 +562,14 @@ export function Settings() {
   const { push: pushToast } = useToast();
   const { appState } = useCounterStore();
   const [settings, setSettings] = useState<SettingsType | null>(appState?.settings ?? null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<string | null>(null);
-  const [gamesSyncing, setGamesSyncing] = useState(false);
-  const [gamesSyncResult, setGamesSyncResult] = useState<string | null>(null);
+  const [syncState, setSyncState] = useState<SyncState>(SYNC_IDLE);
   const [restoring, setRestoring] = useState(false);
+  // Local-only display value for the database location text input.
+  // The actual move is triggered explicitly via the "change" button so
+  // that typing a partial path does not relocate the DB on every keystroke.
+  const [dbPathDraft, setDbPathDraft] = useState<string>(appState?.data_path ?? "");
+  const [dbPathSaving, setDbPathSaving] = useState(false);
+  const [obsPathCopied, setObsPathCopied] = useState(false);
   const restoreInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
   const [licensesOpen, setLicensesOpen] = useState(false);
@@ -571,6 +589,19 @@ export function Settings() {
   useSearchFocusShortcut(searchRef);
   useAutoSave(settings, t, pushToast);
 
+  // Auto-clear the "done" badge a few seconds after a successful sync.
+  useEffect(() => {
+    if (!syncState.done) return;
+    const timer = setTimeout(() => setSyncState(SYNC_IDLE), 3000);
+    return () => clearTimeout(timer);
+  }, [syncState.done]);
+
+  // Keep the local DB path draft in sync with the backend-reported path
+  // whenever the upstream value changes (e.g. after a successful relocate).
+  useEffect(() => {
+    if (appState?.data_path) setDbPathDraft(appState.data_path);
+  }, [appState?.data_path]);
+
   const visibleSections = useVisibleSections(search, t);
 
   if (!settings) {
@@ -586,9 +617,38 @@ export function Settings() {
 
   const toggleLanguage = (code: string) => toggleLang(code, settings, setSettings);
 
-  const syncPokemonData = () => performPokemonSync(t, setSyncing, setSyncResult);
+  const startUnifiedSync = () => runUnifiedSync(setSyncState);
 
-  const syncGamesData = () => performGamesSync(t, setGamesSyncing, setGamesSyncResult);
+  const commitDbPath = async () => {
+    const newPath = dbPathDraft.trim();
+    if (!newPath || newPath === appState?.data_path) return;
+    setDbPathSaving(true);
+    try {
+      const res = await fetch(apiUrl("/api/settings/config-path"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: newPath }),
+      });
+      if (res.ok) {
+        pushToast({ type: "success", title: t("settings.dbPathChanged") });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        pushToast({ type: "error", title: t("settings.dbPathError"), message: data.error });
+      }
+    } catch {
+      pushToast({ type: "error", title: t("settings.dbPathError") });
+    } finally {
+      setDbPathSaving(false);
+    }
+  };
+
+  const copyObsPath = () => {
+    if (!settings.output_dir) return;
+    navigator.clipboard.writeText(settings.output_dir).then(() => {
+      setObsPathCopied(true);
+      setTimeout(() => setObsPathCopied(false), 2000);
+    }).catch(() => {});
+  };
 
   const downloadBackup = () => {
     const a = document.createElement("a");
@@ -674,42 +734,43 @@ export function Settings() {
               <div
                 className={`space-y-4 transition-all duration-300 ${settings.output_enabled ? "" : "opacity-30 pointer-events-none grayscale"}`}
               >
+                {/* OBS file output info card — mimics ObsUrlCardButton on the dashboard. */}
+                <button
+                  type="button"
+                  onClick={copyObsPath}
+                  title={settings.output_dir}
+                  aria-label={t("settings.obsCopyPath")}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+                >
+                  {obsPathCopied ? (
+                    <Check className="w-5 h-5 text-accent-green shrink-0" />
+                  ) : (
+                    <Monitor className="w-5 h-5 text-accent-blue shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-text-primary">
+                      {obsPathCopied ? t("settings.obsPathCopied") : t("settings.obsFileOutputTitle")}
+                    </p>
+                    <p className="text-xs font-mono text-text-muted truncate">
+                      {settings.output_dir || "—"}
+                    </p>
+                    <p className="text-[10px] text-text-faint mt-0.5">
+                      {t("settings.obsFileOutputDesc")}
+                    </p>
+                  </div>
+                </button>
+
                 <div>
                   <label htmlFor="output-dir" className="block text-xs text-text-muted mb-1.5">
                     {t("settings.outputDir")}
                   </label>
-                  <input
-                    id="output-dir"
-                    type="text"
+                  <FolderPathInput
                     value={settings.output_dir}
-                    onChange={(e) => setSettings({ ...settings, output_dir: e.target.value })}
+                    onChange={(p) => setSettings({ ...settings, output_dir: p })}
                     placeholder="z.B. C:\OBS\counter oder ~/obs/counter"
-                    className="w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
+                    dialogTitle={t("settings.outputDir")}
+                    ariaLabel={t("settings.outputDir")}
                   />
-                </div>
-                <div>
-                  <label className="block text-xs text-text-muted mb-2">
-                    {t("settings.outputDesc")}
-                  </label>
-                  <div className="bg-bg-secondary/30 border border-border-subtle rounded-xl p-3">
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        "encounters.txt",
-                        "pokemon_name.txt",
-                        "encounters_label.txt",
-                        "session_duration.txt",
-                        "encounters_today.txt",
-                        "phase.txt",
-                      ].map((f) => (
-                        <span
-                          key={f}
-                          className="text-xs font-mono bg-bg-secondary border border-border-subtle px-2 py-1 rounded-md text-text-muted"
-                        >
-                          {f}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               </div>
             </section>
@@ -723,62 +784,74 @@ export function Settings() {
                 {t("settings.sectionData")}
               </h2>
 
-              {/* Sync Pokemon */}
+              {/* Unified sync — replays the first-start /api/setup/online flow. */}
               <div>
-                <p className="text-sm text-text-primary">{t("settings.syncPokemon")}</p>
+                <p className="text-sm text-text-primary">{t("settings.syncAllData")}</p>
                 <p className="text-xs text-text-muted mt-0.5 mb-3">
-                  {t("settings.syncPokemonDesc")}
+                  {t("settings.syncAllDataDesc")}
                 </p>
                 <button
-                  onClick={syncPokemonData}
-                  disabled={syncing}
-                  title={t("settings.tooltipSyncPokemon")}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={startUnifiedSync}
+                  disabled={syncState.running}
+                  title={t("settings.syncAllData")}
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
                 >
-                  <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-                  {syncing ? t("settings.syncing") : t("settings.syncPokemonBtn")}
+                  <RefreshCw className={`w-4 h-4 ${syncState.running ? "animate-spin" : ""}`} />
+                  {syncState.running ? t("settings.syncing") : t("settings.syncAllDataBtn")}
                 </button>
-                {syncResult && (
-                  <p
-                    className={`mt-3 text-xs ${
-                      syncResult.startsWith("Fehler") || syncResult.startsWith("Error")
-                        ? "text-accent-red"
-                        : "text-accent-green"
-                    }`}
-                  >
-                    {syncResult}
+                {syncState.running && (syncState.phase || syncState.step) && (
+                  <p className="mt-3 text-xs text-text-muted" aria-live="polite">
+                    {syncState.phase}
+                    {syncState.step ? ` — ${syncState.step}` : ""}
+                  </p>
+                )}
+                {syncState.done && (
+                  <p className="mt-3 text-xs text-accent-green flex items-center gap-1.5" aria-live="polite">
+                    <CheckCircle className="w-3.5 h-3.5" />
+                    {t("settings.syncSuccess")}
+                  </p>
+                )}
+                {syncState.error && (
+                  <p className="mt-3 text-xs text-accent-red" aria-live="polite">
+                    {t("settings.syncError")} {syncState.error}
                   </p>
                 )}
               </div>
 
               <div className="border-t border-border-subtle/50" />
 
-              {/* Sync Games */}
+              {/* Database location — relocates the SQLite DB in place. */}
               <div>
-                <p className="text-sm text-text-primary">{t("settings.syncGames")}</p>
+                <p className="text-sm text-text-primary">{t("settings.dbPathTitle")}</p>
                 <p className="text-xs text-text-muted mt-0.5 mb-3">
-                  {t("settings.syncGamesDesc")}
+                  {t("settings.dbPathDesc")}
                 </p>
-                <button
-                  onClick={syncGamesData}
-                  disabled={gamesSyncing}
-                  title={t("settings.tooltipSyncGames")}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <RefreshCw className={`w-4 h-4 ${gamesSyncing ? "animate-spin" : ""}`} />
-                  {gamesSyncing ? t("settings.syncing") : t("settings.syncGamesBtn")}
-                </button>
-                {gamesSyncResult && (
-                  <p
-                    className={`mt-3 text-xs ${
-                      gamesSyncResult.startsWith("Fehler") || gamesSyncResult.startsWith("Error")
-                        ? "text-accent-red"
-                        : "text-accent-green"
-                    }`}
-                  >
-                    {gamesSyncResult}
+                {appState?.data_path && (
+                  <p className="text-[10px] text-text-faint font-mono break-all mb-2">
+                    {appState.data_path}
                   </p>
                 )}
+                <FolderPathInput
+                  value={dbPathDraft}
+                  onChange={setDbPathDraft}
+                  placeholder={appState?.data_path ?? ""}
+                  dialogTitle={t("settings.dbPathTitle")}
+                  ariaLabel={t("settings.dbPathTitle")}
+                />
+                <div className="flex items-center gap-3 mt-3">
+                  <button
+                    onClick={commitDbPath}
+                    disabled={
+                      dbPathSaving ||
+                      !dbPathDraft.trim() ||
+                      dbPathDraft.trim() === appState?.data_path
+                    }
+                    className="px-4 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+                  >
+                    {dbPathSaving ? t("settings.syncing") : t("settings.dataLocationChange")}
+                  </button>
+                  <p className="text-[10px] text-text-faint">{t("settings.dbPathRestartHint")}</p>
+                </div>
               </div>
             </section>
           )}
@@ -790,49 +863,6 @@ export function Settings() {
                 <ArchiveRestore className="w-4 h-4 text-accent-purple" />
                 {t("settings.sectionBackup")}
               </h2>
-
-              {appState?.data_path && (
-                <div className="p-3 rounded-xl bg-bg-secondary/50 border border-border-subtle">
-                  <p className="text-xs text-text-muted mb-1.5">{t("settings.dataPath")}</p>
-                  <p className="text-xs text-text-primary break-all select-all font-mono opacity-80 mb-3">
-                    {appState.data_path}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      defaultValue={appState.data_path}
-                      id="config-path-input"
-                      placeholder={appState.data_path}
-                      aria-label={t("settings.dataPath")}
-                      className="flex-1 bg-bg-primary border border-border-subtle rounded-lg px-3 py-1.5 text-xs text-text-primary outline-none focus:border-accent-blue/50 transition-colors"
-                    />
-                    <button
-                      onClick={async () => {
-                        const input = document.getElementById("config-path-input") as HTMLInputElement;
-                        const newPath = input?.value?.trim();
-                        if (!newPath || newPath === appState.data_path) return;
-                        try {
-                          const res = await fetch(apiUrl("/api/settings/config-path"), {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ path: newPath }),
-                          });
-                          if (!res.ok) {
-                            const err = await res.json();
-                            alert(err.error || "Failed");
-                          }
-                        } catch {
-                          alert("Failed to change path");
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors"
-                    >
-                      {t("settings.dataLocationChange")}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-text-faint mt-1.5">{t("settings.dataLocationRestart")}</p>
-                </div>
-              )}
 
               {/* Backup */}
               <div>

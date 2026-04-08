@@ -32,7 +32,6 @@
   "app.syncErrorFallback": "Use offline data",
   "app.syncRetry": "Try again",
   "app.machineTranslationDisclaimer": "Translations in this language were machine-generated and may contain errors. Help improve them — corrections are always welcome!",
-
   "update.available": "Update available",
   "update.installing": "Installing…",
   "update.restarting": "Restarting…",
@@ -45,7 +44,6 @@
   "update.openDownload": "Download",
   "update.later": "Later",
   "update.changelog": "View changes",
-
   "nav.dashboard": "Dashboard",
   "nav.hotkeys": "Hotkeys",
   "nav.overlayEditor": "Overlay",
@@ -53,7 +51,6 @@
   "nav.connected": "Connected",
   "nav.connecting": "Connecting…",
   "nav.disconnected": "Disconnected",
-
   "dash.total": "total",
   "dash.encounters": "Encounters",
   "dash.pokemonSelected": "Pokémon selected",
@@ -104,14 +101,12 @@
   "dash.tooltipAddPokemon": "Add new Pokémon",
   "dash.tooltipOverlayGlobal": "Global overlay layout",
   "dash.tooltipOverlayCustom": "Custom overlay layout",
-
   "confirm.resetTitle": "Reset counter",
   "confirm.resetMsg": "Are you sure you want to reset the encounters for this Pokémon to 0?",
   "confirm.deleteTitle": "Delete Pokémon",
   "confirm.deleteMsg": "Do you really want to delete this Pokémon? All data will be lost!",
   "confirm.cancel": "Cancel",
   "confirm.confirm": "Confirm",
-
   "modal.addTitle": "Add Pokémon",
   "modal.editTitle": "Edit Pokémon",
   "modal.searchPlaceholderDe": "e.g. Bisasam, Glumanda…",
@@ -149,7 +144,6 @@
   "modal.tooltipShadowEdit": "Edit shadow",
   "modal.tooltipRemoveStop": "Remove color stop",
   "modal.tooltipOCR": "Enable text recognition",
-
   "timer.start": "Start",
   "timer.stop": "Stop",
   "timer.reset": "Reset Timer",
@@ -157,7 +151,6 @@
   "timer.stopAll": "Stop All Timers",
   "timer.selected": "selected",
   "timer.clearSelection": "Clear selection",
-
   "overlay.displayMode": "Display Mode",
   "overlay.displayModeName": "Name",
   "overlay.displayModeTitle": "Title",
@@ -327,11 +320,13 @@
   "overlay.animFadeIn": "Fade In",
   "overlay.animSlideIn": "Slide In",
   "overlay.selectPokemon": "Select a Pokémon as target to see its overlay URL.",
-
   "settings.dataLocation": "Data Location",
-  "settings.dataLocationHint": "Path to the folder where Encounty stores all data.",
   "settings.dataLocationChange": "Change",
-  "settings.dataLocationRestart": "Restart recommended after change.",
+  "settings.dbPathTitle": "Database location",
+  "settings.dbPathDesc": "Where Encounty stores its SQLite database and state files.",
+  "settings.dbPathRestartHint": "On the next start, Encounty automatically opens the database from this folder.",
+  "settings.dbPathChanged": "Database location updated",
+  "settings.dbPathError": "Could not change database location",
   "settings.title": "Settings",
   "settings.tabGeneral": "General",
   "settings.tabData": "Data & Sync",
@@ -345,18 +340,16 @@
   "settings.outputEnabled": "Enable file output",
   "settings.outputEnabledDesc": "Updates text files (e.g. for OBS)",
   "settings.outputDir": "Output directory",
-  "settings.outputDesc": "Generated text files:",
-  "settings.syncPokemon": "Pokémon Data",
-  "settings.syncPokemonDesc": "Update Pokédex from PokéAPI (new generations, new forms).",
-  "settings.syncPokemonBtn": "Update Pokémon Data",
-  "settings.syncGames": "Game Data",
-  "settings.syncGamesDesc": "Fetch new games and missing translations from PokéAPI. Existing entries are kept.",
-  "settings.syncGamesBtn": "Update Game Data",
+  "settings.obsFileOutputTitle": "OBS file output",
+  "settings.obsFileOutputDesc": "Writes encounters.txt, pokemon_name.txt and other text files.",
+  "settings.obsPathCopied": "Path copied to clipboard",
+  "settings.obsCopyPath": "Copy output folder path",
+  "settings.syncAllData": "All data",
+  "settings.syncAllDataDesc": "Re-download Pokédex and game data from PokéAPI.",
+  "settings.syncAllDataBtn": "Sync data",
   "settings.syncing": "Syncing…",
   "settings.syncSuccess": "Sync complete:",
   "settings.syncError": "Error:",
-  "settings.syncFailed": "Sync failed – no connection to PokéAPI",
-  "settings.syncNoChanges": "Everything up to date – no changes.",
   "settings.hotkeysTitle": "Global Hotkeys",
   "settings.hotkeysPaused": "Hotkeys paused",
   "settings.saved": "Saved",
@@ -366,7 +359,6 @@
   "settings.autoTranslated": "Auto-translated",
   "settings.backupTitle": "Backup & Restore",
   "settings.backupDesc": "Save all Pokémon, counters and settings as a ZIP file.",
-  "settings.dataPath": "Data currently stored at:",
   "settings.backupBtn": "Create backup",
   "settings.restoreDesc": "Upload a backup ZIP to restore your data.",
   "settings.restoreBtn": "Restore backup",
@@ -392,13 +384,12 @@
   "settings.sectionBackup": "Backup & Restore",
   "settings.sectionAbout": "About Encounty",
   "settings.sectionPermissions": "Permissions",
-  "settings.tooltipSyncPokemon": "Update Pokédex from PokéAPI",
-  "settings.tooltipSyncGames": "Update game data from PokéAPI",
   "settings.tooltipBackup": "Save all data as ZIP file",
   "settings.tooltipRestore": "Restore data from backup",
   "settings.tooltipBrowseFolder": "Browse folder",
+  "settings.chooseFolder": "Choose folder…",
+  "settings.electronOnly": "Only available in the desktop app",
   "settings.tooltipLanguageToggle": "Switch language",
-
   "stats.total": "Total",
   "stats.today": "Today",
   "stats.ratePerHour": "Per Hour",
@@ -414,7 +405,6 @@
   "stats.colChange": "Change",
   "stats.colCount": "Count",
   "stats.colSource": "Source",
-
   "huntType.label": "Hunt Method",
   "huntType.encounter": "Wild Encounter",
   "huntType.soft_reset": "Soft Reset",
@@ -479,7 +469,6 @@
   "huntType.shinyCharm": "Shiny Charm",
   "huntType.shinyCharmActive": "Shiny Charm active",
   "huntType.odds": "Odds",
-
   "detector.title": "Auto-Detection",
   "detector.start": "Start Detection",
   "detector.stop": "Stop",
@@ -629,7 +618,6 @@
   "detector.previewTimer": "Preview: {{0}}s",
   "detector.resumePreview": "Resume preview",
   "detector.permanentPreview": "Always show",
-
   "sidebar.timerOnly": "Timer only",
   "sidebar.detectorOnly": "Detection only",
   "sidebar.both": "Both",
@@ -647,7 +635,6 @@
   "sidebar.sortGame": "Game",
   "sidebar.collapse": "Collapse sidebar",
   "sidebar.expand": "Expand sidebar",
-
   "perfModal.title": "Detector Performance",
   "perfModal.close": "Close",
   "perfModal.loopHeading": "Detection loop",
@@ -683,7 +670,6 @@
   "perfModal.hwUserAgent": "User agent",
   "perfModal.hwUnknown": "unknown",
   "perfModal.refreshHint": "Refreshed every {{seconds}} s.",
-
   "sourcePicker.title": "Select Source",
   "sourcePicker.screens": "Screens",
   "sourcePicker.windows": "Windows",
@@ -702,7 +688,6 @@
   "sourcePicker.change": "Change",
   "sourcePicker.portalHint": "Click 'Confirm' to open the system source picker.",
   "sourcePicker.portalConfirm": "Confirm",
-
   "templateEditor.title": "Template Editor",
   "templateEditor.editTitle": "Edit Template",
   "templateEditor.step1Title": "Step 1: Capture",
@@ -755,13 +740,11 @@
   "templateEditor.testNoBuffer": "No replay frames available for testing.",
   "templateEditor.regionsRequired": "At least one region is required.",
   "templateEditor.templateInvalid": "No regions — edit to fix",
-
   "regionPicker.instruction": "Click and drag to select the game area",
   "regionPicker.cancel": "Cancel",
   "regionPicker.confirm": "Confirm",
   "regionPicker.reload": "Reload",
   "regionPicker.loadError": "Could not load screenshot",
-
   "licenses.title": "Open Source Licenses",
   "licenses.desc": "Encounty uses the following open-source libraries:",
   "licenses.project": "Encounty is licensed under the",
@@ -769,7 +752,6 @@
   "licenses.dataSourcesDesc": "Encounty uses the following external data sources for Pokémon sprites and data:",
   "licenses.trademarkTitle": "Trademark Notice",
   "licenses.trademark": "Encounty is an unofficial, fan-made application and is not affiliated with, endorsed by, or connected to Nintendo, Creatures Inc., GAME FREAK inc., or The Pokémon Company. Pokémon and all related trademarks and copyrights are the property of their respective owners.",
-
   "tooltip.common.save": "Save",
   "tooltip.common.cancel": "Cancel",
   "tooltip.common.close": "Close",
@@ -807,7 +789,6 @@
   "tooltip.editor.alignCenter": "Align center",
   "tooltip.editor.alignRight": "Align right",
   "tooltip.editor.showTutorial": "Show tutorial",
-
   "aria.close": "Close",
   "aria.skipToContent": "Skip to content",
   "aria.copyObsUrl": "Copy OBS URL",
@@ -823,7 +804,6 @@
   "aria.timerReset": "Reset timer",
   "aria.odds": "Probability",
   "aria.permissionStatus": "Permission status",
-
   "hotkeys.increment": "+1 Encounter",
   "hotkeys.decrement": "-1 Encounter",
   "hotkeys.reset": "Reset",
@@ -839,7 +819,6 @@
   "hotkeys.tooltipRecord": "Record hotkey",
   "hotkeys.tooltipDelete": "Delete hotkey",
   "hotkeys.tooltipConflict": "Conflicts with another key combination",
-
   "detectorTutorial.step1Title": "Select Source",
   "detectorTutorial.step1Text": "Choose a detection source: Screen Capture (Browser) or Camera. Click 'Connect' to start the stream.",
   "detectorTutorial.step2Title": "Live Preview",
@@ -853,7 +832,6 @@
   "detectorTutorial.skip": "Skip",
   "detectorTutorial.next": "Next",
   "detectorTutorial.finish": "Finish",
-
   "editorTutorial.step1Title": "Preview",
   "editorTutorial.step1Text": "This is your overlay preview. It shows how your overlay will look in OBS.",
   "editorTutorial.step2Title": "Layers",
@@ -867,16 +845,13 @@
   "editorTutorial.skip": "Skip",
   "editorTutorial.next": "Next",
   "editorTutorial.finish": "Finish",
-
   "license.subtitle": "Open-Source License Agreement",
   "license.summary": "Encounty is free software, licensed under the GNU Affero General Public License Version 3 (AGPLv3).",
   "license.accept": "I accept the AGPLv3 license",
   "license.hint": "Please scroll to the end of the license text to continue.",
   "license.showDialog": "View License",
-
   "footer.hunts": "Hunts",
   "footer.encounters": "Enc.",
-
   "permissions.accessibility": "Accessibility",
   "permissions.accessibilityDesc": "Required for global hotkeys",
   "permissions.screenRecording": "Screen Recording",

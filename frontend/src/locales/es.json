@@ -32,7 +32,6 @@
   "app.syncErrorFallback": "Usar datos sin conexion",
   "app.syncRetry": "Reintentar",
   "app.machineTranslationDisclaimer": "Las traducciones en este idioma fueron generadas automáticamente y pueden contener errores. ¡Ayuda a mejorarlas — las correcciones siempre son bienvenidas!",
-
   "update.available": "Actualizacion disponible",
   "update.installing": "Instalando...",
   "update.restarting": "Reiniciando...",
@@ -45,7 +44,6 @@
   "update.openDownload": "Descargar",
   "update.later": "Mas tarde",
   "update.changelog": "Ver cambios",
-
   "nav.dashboard": "Panel principal",
   "nav.hotkeys": "Hotkeys",
   "nav.overlayEditor": "Overlay",
@@ -53,7 +51,6 @@
   "nav.connected": "Conectado",
   "nav.connecting": "Conectando...",
   "nav.disconnected": "Desconectado",
-
   "dash.total": "total",
   "dash.encounters": "Encounters",
   "dash.pokemonSelected": "Pokémon seleccionados",
@@ -104,14 +101,12 @@
   "dash.tooltipAddPokemon": "Agregar nuevo Pokemon",
   "dash.tooltipOverlayGlobal": "Disposicion de overlay global",
   "dash.tooltipOverlayCustom": "Disposicion de overlay personalizada",
-
   "confirm.resetTitle": "Reiniciar contador",
   "confirm.resetMsg": "Estas seguro de que quieres reiniciar los encounters de este Pokemon a 0?",
   "confirm.deleteTitle": "Eliminar Pokemon",
   "confirm.deleteMsg": "Realmente quieres eliminar este Pokemon? Todos los datos se perderan!",
   "confirm.cancel": "Cancelar",
   "confirm.confirm": "Confirmar",
-
   "modal.addTitle": "Agregar Pokemon",
   "modal.editTitle": "Editar Pokemon",
   "modal.searchPlaceholderDe": "ej. Bisasam, Glumanda...",
@@ -149,7 +144,6 @@
   "modal.tooltipShadowEdit": "Editar sombra",
   "modal.tooltipRemoveStop": "Eliminar punto de color",
   "modal.tooltipOCR": "Activar reconocimiento de texto",
-
   "timer.start": "Iniciar",
   "timer.stop": "Detener",
   "timer.reset": "Reiniciar Timer",
@@ -157,7 +151,6 @@
   "timer.stopAll": "Detener todos los Timers",
   "timer.selected": "seleccionado(s)",
   "timer.clearSelection": "Limpiar seleccion",
-
   "overlay.displayMode": "Modo de visualizacion",
   "overlay.displayModeName": "Nombre",
   "overlay.displayModeTitle": "Titulo",
@@ -327,11 +320,13 @@
   "overlay.animFadeIn": "Fundido",
   "overlay.animSlideIn": "Deslizamiento",
   "overlay.selectPokemon": "Selecciona un Pokemon como objetivo para ver su URL de overlay.",
-
   "settings.dataLocation": "Ubicacion de datos",
-  "settings.dataLocationHint": "Ruta a la carpeta donde Encounty almacena todos los datos.",
   "settings.dataLocationChange": "Cambiar",
-  "settings.dataLocationRestart": "Se recomienda reiniciar despues del cambio.",
+  "settings.dbPathTitle": "Ubicacion de la base de datos",
+  "settings.dbPathDesc": "Donde Encounty almacena su base de datos SQLite y archivos de estado.",
+  "settings.dbPathRestartHint": "En el proximo inicio, Encounty abrira automaticamente la base de datos desde esta carpeta.",
+  "settings.dbPathChanged": "Ubicacion de la base de datos actualizada",
+  "settings.dbPathError": "No se pudo cambiar la ubicacion de la base de datos",
   "settings.title": "Ajustes",
   "settings.tabGeneral": "General",
   "settings.tabData": "Datos y Sync",
@@ -345,18 +340,16 @@
   "settings.outputEnabled": "Activar salida de archivo",
   "settings.outputEnabledDesc": "Actualiza archivos de texto (ej. para OBS)",
   "settings.outputDir": "Directorio de salida",
-  "settings.outputDesc": "Archivos de texto generados:",
-  "settings.syncPokemon": "Datos de Pokemon",
-  "settings.syncPokemonDesc": "Actualizar Pokedex desde PokeAPI (nuevas generaciones, nuevas formas).",
-  "settings.syncPokemonBtn": "Actualizar datos de Pokemon",
-  "settings.syncGames": "Datos de juegos",
-  "settings.syncGamesDesc": "Obtener nuevos juegos y traducciones faltantes desde PokeAPI. Las entradas existentes se conservan.",
-  "settings.syncGamesBtn": "Actualizar datos de juegos",
+  "settings.obsFileOutputTitle": "Salida de archivo OBS",
+  "settings.obsFileOutputDesc": "Escribe encounters.txt, pokemon_name.txt y otros archivos de texto.",
+  "settings.obsPathCopied": "Ruta copiada al portapapeles",
+  "settings.obsCopyPath": "Copiar ruta de la carpeta de salida",
+  "settings.syncAllData": "Todos los datos",
+  "settings.syncAllDataDesc": "Volver a descargar Pokedex y datos de juegos desde PokeAPI.",
+  "settings.syncAllDataBtn": "Sincronizar datos",
   "settings.syncing": "Sincronizando...",
   "settings.syncSuccess": "Sincronizacion completada:",
   "settings.syncError": "Error:",
-  "settings.syncFailed": "Sincronizacion fallida – sin conexion a PokeAPI",
-  "settings.syncNoChanges": "Todo actualizado – sin cambios.",
   "settings.hotkeysTitle": "Hotkeys globales",
   "settings.hotkeysPaused": "Hotkeys en pausa",
   "settings.saved": "Guardado",
@@ -366,7 +359,6 @@
   "settings.autoTranslated": "Traducción automática",
   "settings.backupTitle": "Copia de seguridad y restauracion",
   "settings.backupDesc": "Guardar todos los Pokemon, contadores y ajustes como archivo ZIP.",
-  "settings.dataPath": "Datos almacenados actualmente en:",
   "settings.backupBtn": "Crear copia de seguridad",
   "settings.restoreDesc": "Subir un archivo ZIP de respaldo para restaurar tus datos.",
   "settings.restoreBtn": "Restaurar copia de seguridad",
@@ -392,13 +384,12 @@
   "settings.sectionBackup": "Copia de seguridad y restauracion",
   "settings.sectionAbout": "Acerca de Encounty",
   "settings.sectionPermissions": "Permisos",
-  "settings.tooltipSyncPokemon": "Actualizar Pokedex desde PokeAPI",
-  "settings.tooltipSyncGames": "Actualizar datos de juegos desde PokeAPI",
   "settings.tooltipBackup": "Guardar todos los datos como archivo ZIP",
   "settings.tooltipRestore": "Restaurar datos desde copia de seguridad",
   "settings.tooltipBrowseFolder": "Explorar carpeta",
+  "settings.chooseFolder": "Elegir carpeta...",
+  "settings.electronOnly": "Solo disponible en la aplicacion de escritorio",
   "settings.tooltipLanguageToggle": "Cambiar idioma",
-
   "stats.total": "Total",
   "stats.today": "Hoy",
   "stats.ratePerHour": "Por hora",
@@ -414,7 +405,6 @@
   "stats.colChange": "Cambio",
   "stats.colCount": "Conteo",
   "stats.colSource": "Fuente",
-
   "huntType.label": "Metodo de Hunt",
   "huntType.encounter": "Encounter salvaje",
   "huntType.soft_reset": "Soft Reset",
@@ -479,7 +469,6 @@
   "huntType.shinyCharm": "Amuleto Iris",
   "huntType.shinyCharmActive": "Amuleto Iris activo",
   "huntType.odds": "Odds",
-
   "detector.title": "Auto-Deteccion",
   "detector.start": "Iniciar deteccion",
   "detector.stop": "Detener",
@@ -629,7 +618,6 @@
   "detector.previewTimer": "Vista previa: {{0}}s",
   "detector.resumePreview": "Reanudar vista previa",
   "detector.permanentPreview": "Mostrar siempre",
-
   "sidebar.timerOnly": "Solo Timer",
   "sidebar.detectorOnly": "Solo deteccion",
   "sidebar.both": "Ambos",
@@ -647,7 +635,6 @@
   "sidebar.sortGame": "Juego",
   "sidebar.collapse": "Contraer barra lateral",
   "sidebar.expand": "Expandir barra lateral",
-
   "perfModal.title": "Rendimiento del detector",
   "perfModal.close": "Cerrar",
   "perfModal.loopHeading": "Bucle de deteccion",
@@ -683,7 +670,6 @@
   "perfModal.hwUserAgent": "User agent",
   "perfModal.hwUnknown": "desconocido",
   "perfModal.refreshHint": "Actualizado cada {{seconds}} s.",
-
   "sourcePicker.title": "Seleccionar fuente",
   "sourcePicker.screens": "Pantallas",
   "sourcePicker.windows": "Ventanas",
@@ -702,7 +688,6 @@
   "sourcePicker.change": "Cambiar",
   "sourcePicker.portalHint": "Haz clic en 'Confirmar' para abrir el selector de fuente del sistema.",
   "sourcePicker.portalConfirm": "Confirmar",
-
   "templateEditor.title": "Editor de Template",
   "templateEditor.editTitle": "Editar Template",
   "templateEditor.step1Title": "Paso 1: Captura",
@@ -755,13 +740,11 @@
   "templateEditor.testNoBuffer": "No hay fotogramas grabados para la prueba.",
   "templateEditor.regionsRequired": "Se requiere al menos una región.",
   "templateEditor.templateInvalid": "Sin regiones — editar",
-
   "regionPicker.instruction": "Haz clic y arrastra para seleccionar el area del juego",
   "regionPicker.cancel": "Cancelar",
   "regionPicker.confirm": "Confirmar",
   "regionPicker.reload": "Recargar",
   "regionPicker.loadError": "No se pudo cargar la captura de pantalla",
-
   "licenses.title": "Licencias Open Source",
   "licenses.desc": "Encounty utiliza las siguientes bibliotecas open-source:",
   "licenses.project": "Encounty esta licenciado bajo la",
@@ -769,7 +752,6 @@
   "licenses.dataSourcesDesc": "Encounty utiliza las siguientes fuentes de datos externas para sprites y datos de Pokemon:",
   "licenses.trademarkTitle": "Aviso de marcas registradas",
   "licenses.trademark": "Encounty es una aplicación no oficial hecha por fans y no está afiliada, respaldada ni conectada con Nintendo, Creatures Inc., GAME FREAK inc. ni The Pokémon Company. Pokémon y todas las marcas y derechos de autor relacionados son propiedad de sus respectivos titulares.",
-
   "tooltip.common.save": "Guardar",
   "tooltip.common.cancel": "Cancelar",
   "tooltip.common.close": "Cerrar",
@@ -807,7 +789,6 @@
   "tooltip.editor.alignCenter": "Centrar",
   "tooltip.editor.alignRight": "Alinear a la derecha",
   "tooltip.editor.showTutorial": "Mostrar tutorial",
-
   "aria.close": "Cerrar",
   "aria.skipToContent": "Ir al contenido",
   "aria.copyObsUrl": "Copiar URL OBS",
@@ -823,7 +804,6 @@
   "aria.timerReset": "Reiniciar timer",
   "aria.odds": "Probabilidad",
   "aria.permissionStatus": "Estado del permiso",
-
   "hotkeys.increment": "+1 Encounter",
   "hotkeys.decrement": "-1 Encounter",
   "hotkeys.reset": "Reiniciar",
@@ -839,7 +819,6 @@
   "hotkeys.tooltipRecord": "Grabar hotkey",
   "hotkeys.tooltipDelete": "Eliminar hotkey",
   "hotkeys.tooltipConflict": "Conflicto con otra combinacion de teclas",
-
   "detectorTutorial.step1Title": "Seleccionar fuente",
   "detectorTutorial.step1Text": "Elige una fuente de deteccion: Captura de pantalla (Browser) o Camera. Haz clic en 'Conectar' para iniciar el flujo.",
   "detectorTutorial.step2Title": "Vista previa en vivo",
@@ -853,7 +832,6 @@
   "detectorTutorial.skip": "Saltar",
   "detectorTutorial.next": "Siguiente",
   "detectorTutorial.finish": "Finalizar",
-
   "editorTutorial.step1Title": "Vista previa",
   "editorTutorial.step1Text": "Esta es la vista previa de tu overlay. Muestra como se vera tu overlay en OBS.",
   "editorTutorial.step2Title": "Capas",
@@ -867,16 +845,13 @@
   "editorTutorial.skip": "Saltar",
   "editorTutorial.next": "Siguiente",
   "editorTutorial.finish": "Finalizar",
-
   "license.subtitle": "Acuerdo de licencia Open-Source",
   "license.summary": "Encounty es software libre, licenciado bajo la GNU Affero General Public License Version 3 (AGPLv3).",
   "license.accept": "Acepto la licencia AGPLv3",
   "license.hint": "Por favor desplazate hasta el final del texto de la licencia para continuar.",
   "license.showDialog": "Ver licencia",
-
   "footer.hunts": "Hunts",
   "footer.encounters": "Enc.",
-
   "permissions.accessibility": "Accesibilidad",
   "permissions.accessibilityDesc": "Requerido para atajos de teclado globales",
   "permissions.screenRecording": "Grabacion de pantalla",
