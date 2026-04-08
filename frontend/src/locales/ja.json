@@ -101,6 +101,7 @@
   "modal.sprite3d": "3D Home",
   "modal.spriteArtwork": "Artwork",
   "modal.spriteClassic": "クラシック",
+  "modal.spriteUnavailable": "このポケモンにはスプライトがありません",
   "modal.variant": "カラーバリエーション",
   "modal.customSprite": "カスタムSprite URL（任意）",
   "modal.game": "ゲーム",

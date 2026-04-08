@@ -101,6 +101,7 @@
   "modal.sprite3d": "3D Home",
   "modal.spriteArtwork": "Artwork",
   "modal.spriteClassic": "Classique",
+  "modal.spriteUnavailable": "Aucun sprite disponible pour ce Pokémon",
   "modal.variant": "Variante de couleur",
   "modal.customSprite": "URL de Sprite personnalisee (optionnel)",
   "modal.game": "Jeu",

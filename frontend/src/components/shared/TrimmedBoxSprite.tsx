@@ -9,6 +9,11 @@ interface TrimmedBoxSpriteProps {
   readonly className?: string;
   /** When true, renders nothing instead of the fallback sprite on failure. */
   readonly hideOnFail?: boolean;
+  /**
+   * When the box sprite fails to load, render this image URL instead of the
+   * generic SPRITE_FALLBACK silhouette. Takes precedence over hideOnFail.
+   */
+  readonly fallbackSrc?: string;
 }
 
 interface ContentBounds {
@@ -87,7 +92,7 @@ function detectBounds(img: HTMLImageElement): ContentBounds | null {
  * consistently sized and centered regardless of their position within the 68x56
  * sprite sheet cell.
  */
-export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, className = "", hideOnFail = false }: TrimmedBoxSpriteProps) {
+export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, className = "", hideOnFail = false, fallbackSrc }: TrimmedBoxSpriteProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -114,6 +119,9 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
   }, [canonicalName, spriteType]);
 
   if (failed) {
+    if (fallbackSrc) {
+      return <img src={fallbackSrc} alt={alt} className={`pokemon-sprite ${className}`} />;
+    }
     if (hideOnFail) return null;
     return <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite ${className}`} />;
   }

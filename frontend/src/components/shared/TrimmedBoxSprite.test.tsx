@@ -159,6 +159,47 @@ describe("TrimmedBoxSprite", () => {
     });
   });
 
+  it("renders fallbackSrc when image load fails and fallbackSrc is provided", async () => {
+    render(
+      <TrimmedBoxSprite
+        canonicalName="nonexistent"
+        alt="Unknown"
+        fallbackSrc="https://example.com/fallback.png"
+      />,
+    );
+
+    const img = imageInstances[0];
+    await act(async () => {
+      img.onerror?.();
+    });
+
+    await waitFor(() => {
+      const imgEl = screen.getByAltText("Unknown");
+      expect(imgEl).toHaveAttribute("src", "https://example.com/fallback.png");
+    });
+  });
+
+  it("fallbackSrc takes precedence over hideOnFail", async () => {
+    render(
+      <TrimmedBoxSprite
+        canonicalName="nonexistent"
+        alt="Unknown"
+        hideOnFail
+        fallbackSrc="https://example.com/fallback.png"
+      />,
+    );
+
+    const img = imageInstances[0];
+    await act(async () => {
+      img.onerror?.();
+    });
+
+    await waitFor(() => {
+      const imgEl = screen.getByAltText("Unknown");
+      expect(imgEl).toHaveAttribute("src", "https://example.com/fallback.png");
+    });
+  });
+
   it("returns null when hideOnFail is true and image fails", async () => {
     const { container } = render(
       <TrimmedBoxSprite canonicalName="nonexistent" alt="Unknown" hideOnFail />,

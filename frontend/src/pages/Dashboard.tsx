@@ -2196,7 +2196,7 @@ export function Dashboard() {
                   spriteType={viewedPokemon.sprite_type}
                   alt={viewedPokemon.name}
                   className="h-10 w-auto"
-                  hideOnFail
+                  fallbackSrc={viewedPokemon.sprite_url}
                 />
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm font-bold text-text-primary leading-tight">{viewedPokemon.name}</span>

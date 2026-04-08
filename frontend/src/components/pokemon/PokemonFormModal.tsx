@@ -322,6 +322,22 @@ function computeSuggestions(
   return filterByQuery(query, allPokemon, selectedGame, games);
 }
 
+/**
+ * Pick the first sprite style that is both generation-available and not marked
+ * as unavailable for the currently selected Pokemon. Returns null if every
+ * style has been ruled out.
+ */
+function pickAvailableStyle(
+  unavailable: Set<SpriteStyle>,
+  gen: number | null,
+): SpriteStyle | null {
+  const order: SpriteStyle[] = ["animated", "3d", "artwork", "classic", "box"];
+  for (const s of order) {
+    if (!unavailable.has(s) && isSpriteStyleAvailable(s, gen)) return s;
+  }
+  return null;
+}
+
 /** Switch sprite style to best available when the current style is unavailable for a generation. */
 function autoSwitchSpriteStyle(
   gen: number | null,
@@ -375,6 +391,10 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [customSprite, setCustomSprite] = useState(defaults.customSprite);
   const [spriteType, setSpriteType] = useState<SpriteType>(defaults.spriteType);
   const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>(defaults.spriteStyle);
+  // Sprite styles whose URL failed to load for the currently selected Pokemon.
+  // Populated from <img onError> in the previews so we can disable buttons that
+  // would otherwise silently fall back to the SPRITE_FALLBACK silhouette.
+  const [unavailableStyles, setUnavailableStyles] = useState<Set<SpriteStyle>>(new Set());
 
   const [title, setTitle] = useState(defaults.title);
   const [step, setStep] = useState(defaults.step);
@@ -480,6 +500,29 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
     setCustomSprite(newSprite);
   }, [selectedGame, spriteType, spriteStyle, selected?.spriteId]);
+
+  // --- Reset per-pokemon unavailable-style cache when the relevant inputs change ---
+  useEffect(() => {
+    setUnavailableStyles(new Set());
+  }, [selected?.spriteId, selectedGame, spriteType]);
+
+  /**
+   * Mark a sprite style as unavailable for the current Pokemon. If the active
+   * style is the one that just failed, auto-switch to the next available one
+   * so the user is never stranded on a silhouette.
+   */
+  const markStyleUnavailable = (style: SpriteStyle) => {
+    setUnavailableStyles((prev) => {
+      if (prev.has(style)) return prev;
+      const next = new Set(prev);
+      next.add(style);
+      if (style === spriteStyle) {
+        const replacement = pickAvailableStyle(next, selectedGameGen ?? pokemonGen);
+        if (replacement) setSpriteStyle(replacement);
+      }
+      return next;
+    });
+  };
 
   // --- Language change handler (updates selected name to match new language) ---
   const handleLanguageChange = (lang: string) => {
@@ -603,6 +646,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     if (!img.src.endsWith("/0.png")) {
                       img.src = SPRITE_FALLBACK;
                     }
+                    markStyleUnavailable(spriteStyle);
                   }}
                 />
               </>
@@ -649,16 +693,30 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 const isLastOdd =
                   index === filtered.length - 1 &&
                   filtered.length % 2 === 1;
+                const isUnavailable = unavailableStyles.has(s.key);
+                const isSelected = spriteStyle === s.key;
+                let buttonStateClass: string;
+                if (isUnavailable) {
+                  buttonStateClass =
+                    "bg-bg-primary text-text-faint border-border-subtle opacity-40 cursor-not-allowed";
+                } else if (isSelected) {
+                  buttonStateClass =
+                    "bg-accent-blue/10 text-accent-blue border-accent-blue/30 ring-1 ring-accent-blue/30";
+                } else {
+                  buttonStateClass =
+                    "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary";
+                }
                 return (
                   <button
                     key={s.key}
-                    onClick={() => setSpriteStyle(s.key)}
-                    title={s.desc}
-                    className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${
-                      spriteStyle === s.key
-                        ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30 ring-1 ring-accent-blue/30"
-                        : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
-                    }`}
+                    type="button"
+                    disabled={isUnavailable}
+                    aria-disabled={isUnavailable}
+                    onClick={() => {
+                      if (!isUnavailable) setSpriteStyle(s.key);
+                    }}
+                    title={isUnavailable ? t("modal.spriteUnavailable") : s.desc}
+                    className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
                   >
                     {previewUrl ? (
                       <img
@@ -675,6 +733,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                           if (!img.src.endsWith("/0.png")) {
                             img.src = SPRITE_FALLBACK;
                           }
+                          markStyleUnavailable(s.key);
                         }}
                       />
                     ) : (
@@ -779,6 +838,13 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 spriteType={spriteType}
                 alt={activeName}
                 className="h-8 w-auto shrink-0"
+                fallbackSrc={getSpriteUrl(
+                  selected.spriteId.toString(),
+                  selectedGame,
+                  spriteType,
+                  "3d",
+                  selected.canonical,
+                )}
               />
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-text-primary text-sm">
@@ -850,7 +916,23 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         className="h-7 w-7 object-contain shrink-0"
                         style={{ imageRendering: "pixelated" }}
                         onError={(e) => {
-                          e.currentTarget.style.display = "none";
+                          // PokeAPI default sprite missing (typical for newer
+                          // forms). Swap to the 3D Home render so users still
+                          // get a recognizable image instead of an empty slot.
+                          const img = e.currentTarget;
+                          const fallback = getSpriteUrl(
+                            s.spriteId.toString(),
+                            "",
+                            "shiny",
+                            "3d",
+                            s.canonical,
+                          );
+                          if (img.src !== fallback) {
+                            img.style.imageRendering = "auto";
+                            img.src = fallback;
+                          } else {
+                            img.style.display = "none";
+                          }
                         }}
                       />
                       {!s.isForm && (
