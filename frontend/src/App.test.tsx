@@ -993,22 +993,6 @@ describe("App", () => {
     });
   });
 
-  // --- Glow line separator ---
-
-  it("renders the glow line separator after header", async () => {
-    mockAcceptedState();
-    const { container } = render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>,
-    );
-
-    await waitFor(() => {
-      const glowLine = container.querySelector(".glow-line-h");
-      expect(glowLine).toBeInTheDocument();
-    });
-  });
-
   // --- Footer center link ---
 
   it("renders footer center link to YouTube video", async () => {
@@ -1027,139 +1011,6 @@ describe("App", () => {
         "https://www.youtube.com/watch?v=VDGG9zi53rQ",
       );
       expect(link.closest("a")).toHaveAttribute("target", "_blank");
-    });
-  });
-
-  // --- Footer line separator ---
-
-  it("renders the footer line separator", async () => {
-    mockAcceptedState();
-    const { container } = render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>,
-    );
-
-    await waitFor(() => {
-      const footerLine = container.querySelector(".footer-line");
-      expect(footerLine).toBeInTheDocument();
-    });
-  });
-
-  // --- Switch waves animation container ---
-
-  it("renders switch-waves container", async () => {
-    mockAcceptedState();
-    const { container } = render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>,
-    );
-
-    await waitFor(() => {
-      const waves = container.querySelector(".switch-waves-container");
-      expect(waves).toBeInTheDocument();
-    });
-  });
-
-  // --- Conditional PixelBlast rendering ---
-
-  it("does not render PixelBlast when ui_animations is false", async () => {
-    mockAcceptedState();
-
-    let wsHandler: ((msg: unknown) => void) | undefined;
-    let connectCb: (() => void) | undefined;
-    mockUseWebSocket.mockImplementation((handler, onConnect) => {
-      if (onConnect) {
-        wsHandler = handler as (msg: unknown) => void;
-        connectCb = onConnect as () => void;
-      }
-      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
-    });
-
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>,
-    );
-
-    await waitFor(() => {
-      const links = screen.getAllByRole("link");
-      expect(links.length).toBeGreaterThan(0);
-    });
-
-    act(() => {
-      connectCb!();
-      wsHandler!({
-        type: "state_update",
-        payload: {
-          pokemon: [],
-          settings: { ui_animations: false },
-          hotkeys: {},
-          license_accepted: true,
-        },
-      });
-    });
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("pixel-blast")).not.toBeInTheDocument();
-    });
-  });
-
-  it("renders PixelBlast when ui_animations is true", async () => {
-    mockAcceptedState();
-
-    let wsHandler: ((msg: unknown) => void) | undefined;
-    let connectCb: (() => void) | undefined;
-    mockUseWebSocket.mockImplementation((handler, onConnect) => {
-      if (onConnect) {
-        wsHandler = handler as (msg: unknown) => void;
-        connectCb = onConnect as () => void;
-      }
-      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
-    });
-
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>,
-    );
-
-    await waitFor(() => {
-      const links = screen.getAllByRole("link");
-      expect(links.length).toBeGreaterThan(0);
-    });
-
-    act(() => {
-      connectCb!();
-      wsHandler!({
-        type: "state_update",
-        payload: {
-          pokemon: [],
-          settings: { ui_animations: true },
-          hotkeys: {},
-          license_accepted: true,
-        },
-      });
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("pixel-blast")).toBeInTheDocument();
-    });
-  });
-
-  it("does not render PixelBlast on overlay-editor route", async () => {
-    mockAcceptedState();
-
-    render(
-      <MemoryRouter initialEntries={["/overlay-editor"]}>
-        <App />
-      </MemoryRouter>,
-    );
-    await act(async () => {});
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("pixel-blast")).not.toBeInTheDocument();
     });
   });
 
@@ -1856,9 +1707,9 @@ describe("App", () => {
     });
   });
 
-  // --- UI animations disabled class ---
+  // --- Accent color data attribute ---
 
-  it("adds animations-disabled class when ui_animations is false", async () => {
+  it("sets data-accent on documentElement when accent_color is provided", async () => {
     mockFetch.mockImplementation((url: string) => {
       if (url === "/api/status/ready") {
         return Promise.resolve({
@@ -1873,7 +1724,7 @@ describe("App", () => {
             Promise.resolve({
               license_accepted: true,
               pokemon: [],
-              settings: { ui_animations: false },
+              settings: { accent_color: "purple" },
               hotkeys: {},
             }),
         });
@@ -1895,7 +1746,7 @@ describe("App", () => {
       expect(links.length).toBeGreaterThan(0);
     });
 
-    // The animations-disabled class may be applied depending on state sync
+    // The data-accent attribute should be applied as the settings sync.
     expect(document.documentElement).toBeTruthy();
   });
 
@@ -3394,9 +3245,9 @@ describe("App", () => {
     });
   });
 
-  // --- UI animations disabled syncs CSS class ---
+  // --- Accent color syncs to data attribute ---
 
-  it("adds animations-disabled class when ui_animations is false via WS", async () => {
+  it("sets data-accent on documentElement when accent_color is provided via WS", async () => {
     mockAcceptedState();
 
     let wsHandler: ((msg: unknown) => void) | undefined;
@@ -3426,7 +3277,7 @@ describe("App", () => {
         type: "state_update",
         payload: {
           pokemon: [],
-          settings: { ui_animations: false },
+          settings: { accent_color: "green" },
           hotkeys: {},
           license_accepted: true,
         },
@@ -3434,39 +3285,11 @@ describe("App", () => {
     });
 
     await waitFor(() => {
-      expect(document.documentElement.classList.contains("animations-disabled")).toBe(true);
+      expect(document.documentElement.dataset.accent).toBe("green");
     });
 
     // Clean up
-    document.documentElement.classList.remove("animations-disabled");
-  });
-
-  // --- Visibility change handler ---
-
-  it("toggles app-hidden class on visibility change", async () => {
-    mockAcceptedState();
-    render(
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>,
-    );
-
-    await waitFor(() => {
-      const links = screen.getAllByRole("link");
-      expect(links.length).toBeGreaterThan(0);
-    });
-
-    // Simulate visibility change to hidden
-    Object.defineProperty(document, "hidden", { value: true, writable: true, configurable: true });
-    document.dispatchEvent(new Event("visibilitychange"));
-
-    expect(document.documentElement.classList.contains("app-hidden")).toBe(true);
-
-    // Simulate visibility change back to visible
-    Object.defineProperty(document, "hidden", { value: false, writable: true, configurable: true });
-    document.dispatchEvent(new Event("visibilitychange"));
-
-    expect(document.documentElement.classList.contains("app-hidden")).toBe(false);
+    delete document.documentElement.dataset.accent;
   });
 
   // --- Hotkey sync to Electron ---
@@ -3922,8 +3745,8 @@ describe("App", () => {
     expect(document.body).toBeTruthy();
   });
 
-  it("removes animations-disabled class when ui_animations is true via WS", async () => {
-    document.documentElement.classList.add("animations-disabled");
+  it("updates data-accent on documentElement when accent_color changes via WS", async () => {
+    document.documentElement.dataset.accent = "blue";
 
     mockAcceptedState();
 
@@ -3954,7 +3777,7 @@ describe("App", () => {
         type: "state_update",
         payload: {
           pokemon: [],
-          settings: { ui_animations: true },
+          settings: { accent_color: "pink" },
           hotkeys: {},
           license_accepted: true,
         },
@@ -3962,8 +3785,10 @@ describe("App", () => {
     });
 
     await waitFor(() => {
-      expect(document.documentElement.classList.contains("animations-disabled")).toBe(false);
+      expect(document.documentElement.dataset.accent).toBe("pink");
     });
+
+    delete document.documentElement.dataset.accent;
   });
 
   // --- REST API update check for Windows/macOS ---

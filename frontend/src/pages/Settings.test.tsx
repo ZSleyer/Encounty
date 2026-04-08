@@ -380,10 +380,11 @@ describe("Settings", () => {
   it("renders crisp sprites toggle", () => {
     render(<Settings />);
 
-    // Crisp sprites toggle should be in the display section
+    // Crisp sprites toggle should be in the display section.
+    // After removing ui_animations, the visible switches are at least
+    // output_enabled and crisp_sprites.
     const switches = screen.getAllByRole("switch");
-    // At least: output_enabled, crisp_sprites, ui_animations = 3 toggles
-    expect(switches.length).toBeGreaterThanOrEqual(3);
+    expect(switches.length).toBeGreaterThanOrEqual(2);
   });
 
   it("toggles crisp sprites setting", async () => {
@@ -599,27 +600,19 @@ describe("Settings", () => {
     );
   });
 
-  it("toggles UI animations setting", async () => {
+  it("selects an accent color preset", async () => {
     const user = userEvent.setup();
     render(<Settings />);
 
-    // ui_animations defaults to true (via ?? true), so find checked switches
-    // The UI animations toggle is the last checked one.
-    const switches = screen.getAllByRole("switch");
-    // There are 3 switches: output(false), crisp(false), animations(true)
-    // The last checked switch should be ui_animations
-    const checkedSwitches = switches.filter(
-      (s) => s.getAttribute("aria-checked") === "true",
-    );
-    expect(checkedSwitches.length).toBeGreaterThanOrEqual(1);
+    // The accent picker exposes one radio per preset; pick "purple".
+    const purple = await screen.findByRole("radio", { name: /purple|lila/i });
+    await user.click(purple);
 
-    // Click the last checked switch (ui_animations)
-    const animationsToggle = checkedSwitches[checkedSwitches.length - 1];
-    await user.click(animationsToggle);
+    expect(purple.getAttribute("aria-checked")).toBe("true");
+    expect(document.documentElement.dataset.accent).toBe("purple");
 
-    expect(animationsToggle.getAttribute("aria-checked")).toBe("false");
-    // Should add animations-disabled class to documentElement
-    expect(document.documentElement.classList.contains("animations-disabled")).toBe(true);
+    // Cleanup
+    delete document.documentElement.dataset.accent;
   });
 
   it("handles restore file upload with successful response", async () => {

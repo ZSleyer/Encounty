@@ -2141,7 +2141,7 @@ export function Dashboard() {
           )}
         </div>
       )}
-      <div className="glow-line-v shrink-0" />
+      <div className="w-px shrink-0 bg-border-subtle" />
 
       <main id="main-content" className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
 

@@ -8,13 +8,15 @@
   --bg-secondary: #1a1a24;
   --bg-card: #1e1e2e;
   --bg-hover: #252535;
-  --accent-blue: #4a9eff;        /* ~5.2:1 on #0f0f13 — text on dark bg */
-  --accent-green: #34d67a;       /* ~5.0:1 on #0f0f13 — text on dark bg */
-  --accent-yellow: #ffd700;
-  --accent-red: #f05050;
-  --accent-purple: #b970ff;
+  /* --accent-blue is the primary user-themable accent. Its value is driven
+     by [data-accent="..."] selectors below; "blue" is the default. */
+  --accent-blue: #4a9eff;        /* default — ~5.2:1 on #0f0f13 */
+  --accent-green: #34d67a;       /* semantic success — fixed */
+  --accent-yellow: #ffd700;      /* semantic warning — fixed */
+  --accent-red: #f05050;         /* semantic error — fixed */
+  --accent-purple: #b970ff;      /* used in static gradients — fixed */
   --border-subtle: #333345;
-  --border-active: #4a9eff;
+  --border-active: var(--accent-blue);
   /* WCAG AA compliant text colors on dark backgrounds */
   --text-primary: #f1f5f9;       /* near-white, crisp */
   --text-secondary: #b8c9da;     /* ~6.5:1 on #0f0f13 — replaces #94a3b8 (~4.6) */
@@ -31,13 +33,13 @@
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-hover: #e8edf3;
-  --accent-blue: #1d53cc;        /* darkened from #2563eb for better contrast on white */
-  --accent-green: #15803d;       /* darkened for better contrast */
-  --accent-yellow: #b45309;      /* darkened for better contrast */
-  --accent-red: #b91c1c;         /* darkened for better contrast */
-  --accent-purple: #6d28d9;
+  --accent-blue: #1d53cc;        /* default light primary — themed via [data-accent] */
+  --accent-green: #15803d;       /* semantic — fixed */
+  --accent-yellow: #b45309;      /* semantic — fixed */
+  --accent-red: #b91c1c;         /* semantic — fixed */
+  --accent-purple: #6d28d9;      /* fixed for static gradients */
   --border-subtle: #c8d3de;      /* stronger than #e2e8f0 — more visible dividers */
-  --border-active: #1d53cc;
+  --border-active: var(--accent-blue);
   /* WCAG AA compliant text colors on light backgrounds */
   --text-primary: #0a1628;       /* ~16:1 on white */
   --text-secondary: #2d4059;     /* ~7.8:1 on white — replaces #475569 (~4.3) */
@@ -47,6 +49,110 @@
   --scrollbar-thumb: #c8d3de;
   --scrollbar-thumb-hover: #a0adb8;
   color-scheme: light;
+}
+
+/* ── Accent Color Presets ────────────────────────────────────
+   The user picks one of these presets in Settings; JS sets
+   `data-accent` on <html> and the matching block below overrides
+   --accent-blue plus the four background tones so the entire UI
+   picks up a subtle tint of the chosen accent (not just buttons).
+   Each preset defines a dark-mode and a light-mode value chosen for
+   WCAG AA contrast against the respective bg.
+
+   The dark backgrounds are very low-saturation shades around the
+   accent's hue; the light backgrounds use even subtler tints so the
+   card/secondary surfaces stay close to white for legibility. */
+[data-accent="blue"] {
+  --accent-blue: #4a9eff;
+  --bg-primary: #0f0f13;
+  --bg-secondary: #1a1a24;
+  --bg-card: #1e1e2e;
+  --bg-hover: #252535;
+}
+[data-accent="purple"] {
+  --accent-blue: #b970ff;
+  --bg-primary: #110f17;
+  --bg-secondary: #1c1830;
+  --bg-card: #211c3a;
+  --bg-hover: #2a2245;
+}
+[data-accent="green"] {
+  --accent-blue: #34d67a;
+  --bg-primary: #0d1310;
+  --bg-secondary: #161f1a;
+  --bg-card: #1c2820;
+  --bg-hover: #232f28;
+}
+[data-accent="cyan"] {
+  --accent-blue: #22d3ee;
+  --bg-primary: #0c1316;
+  --bg-secondary: #151f25;
+  --bg-card: #1b262d;
+  --bg-hover: #222e35;
+}
+[data-accent="pink"] {
+  --accent-blue: #ec4899;
+  --bg-primary: #150f13;
+  --bg-secondary: #211623;
+  --bg-card: #2a1c2c;
+  --bg-hover: #322335;
+}
+[data-accent="orange"] {
+  --accent-blue: #fb923c;
+  /* Warm hues at low lightness inevitably read as brown — that's literally
+     what brown is. So orange's dark surfaces stay nearly neutral grey with
+     only a barely-perceptible warm hint, and the vivid #fb923c accent on
+     buttons / borders / active states carries the orange identity. */
+  --bg-primary: #121110;
+  --bg-secondary: #1c1b19;
+  --bg-card: #21201d;
+  --bg-hover: #292724;
+}
+
+/* Light-mode accent presets. Large background surfaces stay almost
+   neutral (≥97 % lightness, ~3 % saturation) so the accent only really
+   shows up in buttons, borders, active tabs and hover states. */
+[data-theme="light"][data-accent="blue"] {
+  --accent-blue: #1d53cc;
+  --bg-primary: #f6f8fb;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #e8edf3;
+}
+[data-theme="light"][data-accent="purple"] {
+  --accent-blue: #6d28d9;
+  --bg-primary: #f8f6fc;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #ece4f5;
+}
+[data-theme="light"][data-accent="green"] {
+  --accent-blue: #15803d;
+  --bg-primary: #f6faf7;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #e3f0e8;
+}
+[data-theme="light"][data-accent="cyan"] {
+  --accent-blue: #0e7490;
+  --bg-primary: #f6fafb;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #e0eef3;
+}
+[data-theme="light"][data-accent="pink"] {
+  --accent-blue: #be185d;
+  --bg-primary: #fbf7f9;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f3e0eb;
+}
+[data-theme="light"][data-accent="orange"] {
+  --accent-blue: #c2410c;
+  --bg-primary: #fbf8f4;
+  --bg-secondary: #ffffff;
+  --bg-card: #ffffff;
+  --bg-hover: #f3e8d8;
 }
 
 /* ── Background Patterns ───────────────────────────────────── */
@@ -83,47 +189,14 @@ option {
   outline: none;
 }
 
-/* ── Switch Homebrew Style Fluid Waves Background ───────── */
-
-.switch-waves-container {
-  position: fixed; /* Fixed prevents clipping on scrolling pages */
-  inset: 0;
-  z-index: -10; /* Keep it securely behind all content surfaces */
-  overflow: hidden;
-  pointer-events: none;
-  background-color: var(--bg-primary); /* Fallback base color */
-}
-
-.switch-waves {
-  position: absolute;
-  /* Make the exact container larger to allow tilting without exposing corners */
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  /* Tilt the container slightly for that diagonal flowing ribbon feel */
-  transform: rotate(-8deg);
-
-  /* Dark mode SVG with 3 overlapping subtle sine waves */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.025' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.015' /%3E%3Cpath d='M0,1000 L0,500 C166,600 333,400 500,500 C666,600 833,400 1000,500 L1000,1000 Z' fill='%23ffffff' fill-opacity='0.01' /%3E%3C/svg%3E");
-  background-size: 200% 100%;
-  background-repeat: repeat-x;
-  /* Animate smooth horizontal scroll — background-position loops seamlessly with repeat-x */
-  will-change: background-position;
-  animation: wave-flow 30s linear infinite;
-}
-
-[data-theme="light"] .switch-waves {
-  /* Light mode SVG with darker waves */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 1000' preserveAspectRatio='none'%3E%3Cpath d='M0,1000 L0,400 C166,600 333,200 500,400 C666,600 833,200 1000,400 L1000,1000 Z' fill='%23000000' fill-opacity='0.035' /%3E%3Cpath d='M0,1000 L0,550 C166,350 333,750 500,550 C666,350 833,750 1000,550 L1000,1000 Z' fill='%23000000' fill-opacity='0.02' /%3E%3Cpath d='M0,1000 L0,500 C166,600 333,400 500,500 C666,600 833,400 1000,500 L1000,1000 Z' fill='%23000000' fill-opacity='0.015' /%3E%3C/svg%3E");
-}
+/* ── Wave background keyframe (used by .canvas-waves in the overlay) ─── */
 
 @keyframes wave-flow {
   0% { background-position: 0% 0; }
   100% { background-position: 100% 0; }
 }
 
-/* ── Canvas-specific waves: same animation, higher contrast for small areas ── */
+/* ── Canvas-specific waves: used as an overlay background animation ── */
 .canvas-waves {
   position: absolute;
   top: -50%;
@@ -248,70 +321,8 @@ option {
   border-color: rgba(180, 83, 9, 0.60);       /* amber-700/60 */
 }
 
-/* ── Pause animations when the app is not visible (CPU savings) ──── */
-.app-hidden .switch-waves,
-.app-hidden .footer-line,
-.app-hidden .glow-line-h,
-.app-hidden .glow-line-v,
-.app-hidden .pulse-border {
-  animation-play-state: paused !important;
-}
-
-/* Static background when animations are disabled — matches PixelBlast visual tone */
-.static-bg-overlay {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse 120% 80% at 50% 50%,
-    #1a1a2e 0%,
-    #141420 40%,
-    #0f0f13 100%
-  );
-  opacity: 0.6;
-}
-
-[data-theme="light"] .static-bg-overlay {
-  background: radial-gradient(
-    ellipse 120% 80% at 50% 50%,
-    #e4e8ee 0%,
-    #eaf0f6 40%,
-    #f0f4f8 100%
-  );
-  opacity: 0.5;
-}
-
-/* Disable UI animations when user toggles them off (performance) */
-.animations-disabled .switch-waves,
-.animations-disabled .footer-line,
-.animations-disabled .glow-line-h,
-.animations-disabled .glow-line-v,
-.animations-disabled .pulse-border {
-  animation: none !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .switch-waves, .footer-line, .glow-line-h, .glow-line-v, .pulse-border {
-    animation: none !important;
-  }
-}
-
-/* Footer gradient line */
-.footer-line {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    var(--accent-blue) 20%,
-    var(--accent-purple) 50%,
-    var(--accent-red) 80%,
-    transparent 100%
-  );
-  background-size: 200% 100%;
-  height: 1px;
-  opacity: 0.4;
-  animation: gradient-shift 8s linear infinite;
-}
-
-/* Horizontal animated glow line (reusable) */
+/* Static gradient line used as a separator in the main layout (footer / dividers). */
+.footer-line,
 .glow-line-h {
   background: linear-gradient(
     90deg,
@@ -321,13 +332,11 @@ option {
     var(--accent-red) 80%,
     transparent 100%
   );
-  background-size: 200% 100%;
   height: 1px;
   opacity: 0.4;
-  animation: gradient-shift 8s linear infinite;
 }
 
-/* Vertical animated glow line */
+/* Vertical static gradient line */
 .glow-line-v {
   background: linear-gradient(
     180deg,
@@ -336,48 +345,13 @@ option {
     var(--accent-purple) 75%,
     transparent 100%
   );
-  background-size: 100% 200%;
   width: 1px;
   opacity: 0.3;
-  animation: gradient-shift-v 10s linear infinite;
-}
-
-@keyframes gradient-shift {
-  0% {
-    background-position: 100% 0;
-  }
-  100% {
-    background-position: -100% 0;
-  }
-}
-
-@keyframes gradient-shift-v {
-  0% {
-    background-position: 0 100%;
-  }
-  100% {
-    background-position: 0 -100%;
-  }
 }
 
 /* Hover glow for list items */
 .hover-glow:hover {
   box-shadow: 0 0 12px rgba(74, 158, 255, 0.15);
-}
-
-/* Pulsing active border */
-.pulse-border {
-  animation: border-pulse 2s ease-in-out infinite;
-}
-
-@keyframes border-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(74, 158, 255, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 0 3px rgba(74, 158, 255, 0);
-  }
 }
 
 /* Subtle Settings background (no animated orbs) */
@@ -407,29 +381,24 @@ option {
   );
 }
 
-/* Checkered canvas background (for Overlay Editor) */
+/* Checkered canvas background (for Overlay Editor).
+   Uses theme tokens so the editor backdrop picks up the chosen accent
+   tint. The dark squares come from --bg-hover, the base from
+   --bg-secondary; both are overridden per `[data-accent]` in the
+   accent-presets block above. */
 .canvas-checkered {
   background-image:
-    linear-gradient(45deg, #2a2a3a 25%, transparent 25%),
-    linear-gradient(-45deg, #2a2a3a 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #2a2a3a 75%),
-    linear-gradient(-45deg, transparent 75%, #2a2a3a 75%);
+    linear-gradient(45deg, var(--bg-hover) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--bg-hover) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--bg-hover) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--bg-hover) 75%);
   background-size: 16px 16px;
   background-position:
     0 0,
     0 8px,
     8px -8px,
     -8px 0;
-  background-color: #1a1a2a;
-}
-
-[data-theme="light"] .canvas-checkered {
-  background-image:
-    linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
-    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
-    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
-  background-color: #edf1f6;
+  background-color: var(--bg-secondary);
 }
 
 /* Light-mode overrides */

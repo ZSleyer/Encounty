@@ -6,7 +6,7 @@
  * the global WebSocket connection. The /overlay route renders the bare Overlay
  * page without any chrome so it can be used as an OBS Browser Source.
  */
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Routes, Route, Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutGrid,
@@ -37,8 +37,6 @@ import { LicenseDialog } from "./components/settings/LicenseDialog";
 import { apiUrl, wsUrl } from "./utils/api";
 import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
-
-const PixelBlast = lazy(() => import("./components/backgrounds/PixelBlast"));
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
 function UpdateOverlay({
@@ -114,7 +112,7 @@ function UpdateNotification({
           </button>
           <button
             onClick={onUpdate}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
+            className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
           >
             {manualDownload ? t("update.openDownload") : t("update.updateNow")}
           </button>
@@ -274,23 +272,14 @@ function AppShell() {
     }
   }, [appState?.settings.crisp_sprites]);
 
-  // Sync ui-animations setting with CSS class
+  // Apply the user's accent color preset by setting `data-accent` on <html>.
+  // CSS in index.css matches `[data-accent="..."]` selectors and overrides
+  // --accent-blue accordingly. The overlay routes use the same accent so the
+  // streaming view stays consistent with the rest of the app.
   useEffect(() => {
-    if (appState?.settings.ui_animations === false) {
-      document.documentElement.classList.add('animations-disabled');
-    } else {
-      document.documentElement.classList.remove('animations-disabled');
-    }
-  }, [appState?.settings.ui_animations]);
-
-  // Pause CSS animations when the app tab/window is not visible (CPU savings)
-  useEffect(() => {
-    const handler = () => {
-      document.documentElement.classList.toggle('app-hidden', document.hidden);
-    };
-    document.addEventListener('visibilitychange', handler);
-    return () => document.removeEventListener('visibilitychange', handler);
-  }, []);
+    const accent = appState?.settings.accent_color ?? "blue";
+    document.documentElement.dataset.accent = accent;
+  }, [appState?.settings.accent_color]);
 
   const quitApp = useCallback(async () => {
     if (!confirm(t("app.confirmQuit"))) return;
@@ -402,7 +391,7 @@ function AppShell() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-transparent text-text-primary overflow-hidden relative">
+    <div className={`flex flex-col h-screen text-text-primary overflow-hidden relative ${isOverlay ? "bg-transparent" : "bg-bg-primary"}`}>
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:px-4 focus:py-2 focus:bg-accent-blue focus:text-white focus:rounded-lg focus:text-sm">
         {t("aria.skipToContent")}
       </a>
@@ -420,7 +409,7 @@ function AppShell() {
             <div className="flex gap-3 w-full">
               <button
                 onClick={() => setShowCloseWarning(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
               >
                 {t("app.closeWarningStay")}
               </button>
@@ -454,26 +443,6 @@ function AppShell() {
             sessionStorage.setItem("update_dismissed", "1");
           }}
         />
-      )}
-      {!isOverlay && location.pathname !== "/overlay-editor" && (
-        <div className="switch-waves-container">
-          {appState?.settings.ui_animations === false ? (
-            <div className="static-bg-overlay" />
-          ) : (
-            <ErrorBoundary fallbackMessage="">
-              <Suspense fallback={null}>
-                <PixelBlast
-                  color="#1a1a2e"
-                  speed={0.3}
-                  pixelSize={15}
-                  variant="circle"
-                  autoPauseOffscreen
-                  className="w-full h-full"
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-        </div>
       )}
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
       <header
@@ -536,7 +505,7 @@ function AppShell() {
           )}
         </div>
       </header>
-      <div className="glow-line-h shrink-0" />
+      <div className="h-px shrink-0 bg-border-subtle" />
 
       {/* ── Main content ─────────────────────────────────────── */}
       {/* Dashboard stays mounted when navigating to overlay editor */}
@@ -560,7 +529,7 @@ function AppShell() {
 
       {/* ── Footer ───────────────────────────────────────────── */}
       <div className="shrink-0">
-        <div className="footer-line" />
+        <div className="h-px bg-border-subtle" />
         <footer className="h-8 2xl:h-10 px-5 grid grid-cols-3 items-center text-xs text-text-muted select-none bg-bg-secondary">
           {/* Left: Build Info + Build Date + Update Badge */}
           <div className="flex items-center justify-start gap-2">
@@ -855,7 +824,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
               </button>
               <button
                 onClick={handleOfflineFallback}
-                className="px-4 py-2 rounded-xl bg-accent-blue hover:bg-blue-500 text-white text-sm font-semibold transition-colors"
+                className="px-4 py-2 rounded-xl bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
               >
                 {t("app.syncErrorFallback")}
               </button>

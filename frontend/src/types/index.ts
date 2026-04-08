@@ -267,13 +267,31 @@ export interface TutorialFlags {
 }
 
 /** Settings holds all user-configurable application preferences. */
+/**
+ * Accent color preset keys. The actual hex values live in index.css under
+ * `:root[data-accent="..."]` selectors. Keep this list in sync with both the
+ * CSS palette and the picker UI in pages/Settings.tsx.
+ */
+export type AccentColor = "blue" | "purple" | "green" | "cyan" | "pink" | "orange";
+
+/** All accent presets in display order, used by the Settings picker. */
+export const ACCENT_COLORS: readonly AccentColor[] = [
+  "blue",
+  "purple",
+  "green",
+  "cyan",
+  "pink",
+  "orange",
+] as const;
+
 export interface Settings {
   output_enabled: boolean;
   output_dir: string;
   auto_save: boolean;
   languages: string[]; // active language codes for game names
   crisp_sprites?: boolean;
-  ui_animations?: boolean;
+  /** Preset key for the primary accent color. One of AccentColor. */
+  accent_color?: AccentColor;
   overlay: OverlaySettings;
   tutorial_seen?: TutorialFlags;
   config_path?: string; // Custom data directory override

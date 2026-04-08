@@ -20,7 +20,21 @@ import {
 } from "lucide-react";
 
 import { useCounterStore } from "../hooks/useCounterState";
-import { AppState, Settings as SettingsType } from "../types";
+import { AppState, Settings as SettingsType, AccentColor, ACCENT_COLORS } from "../types";
+
+/**
+ * Visual swatch hex per accent preset. The actual --accent-blue values applied
+ * by the app live in index.css; this map only powers the picker buttons. Use
+ * the dark-mode value so the swatch reads well against the card background.
+ */
+const ACCENT_SWATCH: Record<AccentColor, string> = {
+  blue: "#4a9eff",
+  purple: "#b970ff",
+  green: "#34d67a",
+  cyan: "#22d3ee",
+  pink: "#ec4899",
+  orange: "#fb923c",
+};
 import { ALL_LANGUAGES } from "../utils/games";
 import { useI18n } from "../contexts/I18nContext";
 import { useTheme } from "../contexts/ThemeContext";
@@ -86,7 +100,7 @@ const BASE_SECTIONS: SectionDef[] = [
     id: "display",
     titleKey: "settings.sectionDisplay",
     icon: <Image className="w-4 h-4 text-accent-blue" />,
-    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache", "theme", "dark", "light", "dunkel", "hell", "locale", "deutsch", "english", "animation", "animationen"],
+    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache", "theme", "dark", "light", "dunkel", "hell", "locale", "deutsch", "english", "accent", "akzent", "farbe", "color"],
   },
   {
     id: "output",
@@ -148,17 +162,13 @@ function applyCrispSprites(
   }
 }
 
-/** Apply UI animations class toggle and update settings state. */
-function applyUIAnimations(
-  v: boolean,
+/** Apply the chosen accent color preset and update settings state. */
+function applyAccentColor(
+  v: AccentColor,
   setSettings: (updater: (s: SettingsType | null) => SettingsType | null) => void,
 ): void {
-  setSettings((s) => (s ? { ...s, ui_animations: v } : s));
-  if (v) {
-    document.documentElement.classList.remove('animations-disabled');
-  } else {
-    document.documentElement.classList.add('animations-disabled');
-  }
+  setSettings((s) => (s ? { ...s, accent_color: v } : s));
+  document.documentElement.dataset.accent = v;
 }
 
 async function performPokemonSync(
@@ -294,7 +304,7 @@ function useAutoSave(
     settings?.output_enabled,
     settings?.output_dir,
     settings?.crisp_sprites,
-    settings?.ui_animations,
+    settings?.accent_color,
     JSON.stringify(settings?.languages),
   ]);
 }
@@ -342,17 +352,18 @@ function toggleLang(
 
 // --- Display section ---------------------------------------------------------
 
-function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCrispSprites, setUIAnimations, toggleLanguage, t }: Readonly<{
+function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCrispSprites, setAccentColor, toggleLanguage, t }: Readonly<{
   settings: SettingsType;
   theme: string;
   toggleTheme: () => void;
   locale: string;
   setLocale: (code: Locale) => void;
   setCrispSprites: (v: boolean) => void;
-  setUIAnimations: (v: boolean) => void;
+  setAccentColor: (v: AccentColor) => void;
   toggleLanguage: (code: string) => void;
   t: (key: string) => string;
 }>) {
+  const activeAccent = settings.accent_color ?? "blue";
   return (
     <section className="glass-card rounded-2xl p-6 space-y-5">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
@@ -449,22 +460,47 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
 
       <div className="border-t border-border-subtle/50" />
 
-      {/* UI Animations */}
-      <div className="flex items-center justify-between gap-4">
+      {/* Accent color picker */}
+      <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-text-primary">
-            {t("settings.uiAnimations")}
+            {t("settings.accentColor")}
           </p>
           <p className="text-xs text-text-muted mt-0.5 max-w-sm">
-            {t("settings.uiAnimationsDesc")}
+            {t("settings.accentColorDesc")}
           </p>
         </div>
-        <Toggle
-          enabled={settings.ui_animations ?? true}
-          onChange={() => setUIAnimations(!(settings.ui_animations ?? true))}
-          label={t("settings.uiAnimations")}
-          color="bg-accent-blue/80"
-        />
+        <div
+          role="radiogroup"
+          aria-label={t("settings.accentColor")}
+          className="flex items-center gap-2"
+        >
+          {ACCENT_COLORS.map((c) => {
+            const selected = activeAccent === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                aria-label={t(`settings.accentColor.${c}`)}
+                title={t(`settings.accentColor.${c}`)}
+                onClick={() => setAccentColor(c)}
+                data-accent={c}
+                className={`relative h-8 w-8 rounded-full border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-card focus-visible:ring-(--accent-blue) ${
+                  selected
+                    ? "border-text-primary scale-110"
+                    : "border-border-subtle hover:scale-105"
+                }`}
+                style={{ backgroundColor: ACCENT_SWATCH[c] }}
+              >
+                {selected && (
+                  <span className="sr-only">{t("settings.accentColorActive")}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="border-t border-border-subtle/50" />
@@ -528,7 +564,7 @@ export function Settings() {
 
   const setCrispSprites = (v: boolean) => applyCrispSprites(v, setSettings);
 
-  const setUIAnimations = (v: boolean) => applyUIAnimations(v, setSettings);
+  const setAccentColor = (v: AccentColor) => applyAccentColor(v, setSettings);
 
   useInitFromAppState(appState, setSettings);
   useLazyLicenses(licensesOpen, licenses.length, setLicenses);
@@ -611,7 +647,7 @@ export function Settings() {
               locale={locale}
               setLocale={setLocale}
               setCrispSprites={setCrispSprites}
-              setUIAnimations={setUIAnimations}
+              setAccentColor={setAccentColor}
               toggleLanguage={toggleLanguage}
               t={t}
             />
