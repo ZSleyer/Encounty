@@ -1035,7 +1035,13 @@ export function Settings() {
                       { name: "PokéAPI", url: "https://pokeapi.co", desc: "Pokémon data & sprites" },
                       { name: "PokéSprite", url: "https://github.com/msikma/pokesprite", desc: "Box sprites" },
                       { name: "Pokémon Showdown", url: "https://pokemonshowdown.com", desc: "Animated sprites" },
-                    ].map((src) => (
+                      {
+                        name: "r/pokemon (Reddit)",
+                        url: "https://www.reddit.com/r/pokemon/comments/10wzzt9/these_are_all_the_hunting_methods_of_every_game/",
+                        desc: "Shiny odds & hunting methods",
+                        display: "reddit.com/r/pokemon",
+                      },
+                    ].map((src: { name: string; url: string; desc: string; display?: string }) => (
                       <div
                         key={src.name}
                         className="bg-bg-secondary/30 border border-border-subtle rounded-lg px-3 py-2 flex items-center gap-3"
@@ -1049,7 +1055,7 @@ export function Settings() {
                           rel="noopener noreferrer"
                           className="text-[10px] text-accent-blue hover:underline shrink-0"
                         >
-                          {src.url.replace("https://", "")}
+                          {src.display ?? src.url.replace("https://", "")}
                         </a>
                       </div>
                     ))}
