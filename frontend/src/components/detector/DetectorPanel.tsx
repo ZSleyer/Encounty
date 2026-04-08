@@ -170,8 +170,8 @@ export function DetectorPanel({
   const [templatesHeight, setTemplatesHeight] = useState(() => {
     try {
       const stored = localStorage.getItem("encounty_detector_split");
-      return stored ? Number(stored) : 300;
-    } catch { return 300; }
+      return stored ? Number(stored) : 500;
+    } catch { return 500; }
   });
   const detectorDividerRef = useRef<{ startY: number; startHeight: number } | null>(null);
 
@@ -1032,14 +1032,14 @@ export function DetectorPanel({
                 <button
                   type="button"
                   onMouseDown={startDetectorDividerDrag}
-                  className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none block py-3 -my-3 bg-clip-content"
+                  className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
                   aria-label={t("detector.resizeDivider")}
                 />
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setTemplatesHeight(300);
+                    setTemplatesHeight(500);
                     try { localStorage.removeItem("encounty_detector_split"); } catch {}
                   }}
                   onMouseDown={(e) => e.stopPropagation()}
