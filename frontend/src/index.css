@@ -68,6 +68,10 @@
   --bg-secondary: #1a1a24;
   --bg-card: #1e1e2e;
   --bg-hover: #252535;
+  --border-subtle: #333345;
+  --scrollbar-track: #0f0f13;
+  --scrollbar-thumb: #2e2e42;
+  --scrollbar-thumb-hover: #44446a;
 }
 [data-accent="purple"] {
   --accent-blue: #b970ff;
@@ -75,6 +79,10 @@
   --bg-secondary: #1c1830;
   --bg-card: #211c3a;
   --bg-hover: #2a2245;
+  --border-subtle: #3a2f5a;
+  --scrollbar-track: #110f17;
+  --scrollbar-thumb: #322852;
+  --scrollbar-thumb-hover: #4a3c75;
 }
 [data-accent="green"] {
   --accent-blue: #34d67a;
@@ -82,6 +90,10 @@
   --bg-secondary: #161f1a;
   --bg-card: #1c2820;
   --bg-hover: #232f28;
+  --border-subtle: #2c4035;
+  --scrollbar-track: #0d1310;
+  --scrollbar-thumb: #243528;
+  --scrollbar-thumb-hover: #3a5240;
 }
 [data-accent="cyan"] {
   --accent-blue: #22d3ee;
@@ -89,6 +101,10 @@
   --bg-secondary: #151f25;
   --bg-card: #1b262d;
   --bg-hover: #222e35;
+  --border-subtle: #2c4048;
+  --scrollbar-track: #0c1316;
+  --scrollbar-thumb: #243440;
+  --scrollbar-thumb-hover: #3a5260;
 }
 [data-accent="pink"] {
   --accent-blue: #ec4899;
@@ -96,6 +112,10 @@
   --bg-secondary: #211623;
   --bg-card: #2a1c2c;
   --bg-hover: #322335;
+  --border-subtle: #432e48;
+  --scrollbar-track: #150f13;
+  --scrollbar-thumb: #382540;
+  --scrollbar-thumb-hover: #553860;
 }
 [data-accent="orange"] {
   --accent-blue: #fb923c;
@@ -107,6 +127,10 @@
   --bg-secondary: #1c1b19;
   --bg-card: #21201d;
   --bg-hover: #292724;
+  --border-subtle: #3d3830;
+  --scrollbar-track: #121110;
+  --scrollbar-thumb: #2e2a23;
+  --scrollbar-thumb-hover: #4a4338;
 }
 
 /* Light-mode accent presets. Large background surfaces stay almost
@@ -118,6 +142,10 @@
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-hover: #e8edf3;
+  --border-subtle: #c8d3de;
+  --scrollbar-track: #f6f8fb;
+  --scrollbar-thumb: #c5d0dd;
+  --scrollbar-thumb-hover: #95a3b5;
 }
 [data-theme="light"][data-accent="purple"] {
   --accent-blue: #6d28d9;
@@ -125,6 +153,10 @@
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-hover: #ece4f5;
+  --border-subtle: #d6c8e8;
+  --scrollbar-track: #f8f6fc;
+  --scrollbar-thumb: #d2c2e8;
+  --scrollbar-thumb-hover: #a48ac4;
 }
 [data-theme="light"][data-accent="green"] {
   --accent-blue: #15803d;
@@ -132,6 +164,10 @@
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-hover: #e3f0e8;
+  --border-subtle: #c5dcce;
+  --scrollbar-track: #f6faf7;
+  --scrollbar-thumb: #c2dccd;
+  --scrollbar-thumb-hover: #8aae98;
 }
 [data-theme="light"][data-accent="cyan"] {
   --accent-blue: #0e7490;
@@ -139,6 +175,10 @@
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-hover: #e0eef3;
+  --border-subtle: #c2d8df;
+  --scrollbar-track: #f6fafb;
+  --scrollbar-thumb: #c0d8df;
+  --scrollbar-thumb-hover: #88a8b3;
 }
 [data-theme="light"][data-accent="pink"] {
   --accent-blue: #be185d;
@@ -146,6 +186,10 @@
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-hover: #f3e0eb;
+  --border-subtle: #e5c5d6;
+  --scrollbar-track: #fbf7f9;
+  --scrollbar-thumb: #e5c2d4;
+  --scrollbar-thumb-hover: #b88aa0;
 }
 [data-theme="light"][data-accent="orange"] {
   --accent-blue: #c2410c;
@@ -153,6 +197,10 @@
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-hover: #f3e8d8;
+  --border-subtle: #e3d2b5;
+  --scrollbar-track: #fbf8f4;
+  --scrollbar-thumb: #e3d0b3;
+  --scrollbar-thumb-hover: #b8a07a;
 }
 
 /* ── Background Patterns ───────────────────────────────────── */
@@ -313,9 +361,9 @@ option {
   opacity: 0.3;
 }
 
-/* Hover glow for list items */
+/* Hover glow for list items — follows the chosen accent. */
 .hover-glow:hover {
-  box-shadow: 0 0 12px rgba(74, 158, 255, 0.15);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-blue) 18%, transparent);
 }
 
 /* Subtle Settings background (no animated orbs) */
@@ -330,7 +378,7 @@ option {
   inset: 0;
   background: radial-gradient(
     ellipse 80% 60% at 50% 20%,
-    rgba(74, 158, 255, 0.03) 0%,
+    color-mix(in srgb, var(--accent-blue) 4%, transparent) 0%,
     transparent 60%
   );
   pointer-events: none;
@@ -340,7 +388,7 @@ option {
 [data-theme="light"] .settings-bg::before {
   background: radial-gradient(
     ellipse 80% 60% at 50% 20%,
-    rgba(37, 99, 235, 0.02) 0%,
+    color-mix(in srgb, var(--accent-blue) 3%, transparent) 0%,
     transparent 60%
   );
 }
@@ -374,7 +422,13 @@ option {
   opacity: 0.15;
 }
 
-/* Dark mode glass-card */
+/* Container cards used on Settings and Hotkeys pages. The base rule keeps a
+   subtle border so the card stands out from the page background; theme rules
+   only override fills. */
+.glass-card {
+  border: 1px solid var(--border-subtle);
+}
+
 [data-theme="dark"] .glass-card {
   background-color: var(--bg-secondary);
 }

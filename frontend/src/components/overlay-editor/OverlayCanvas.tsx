@@ -402,7 +402,7 @@ export function OverlayCanvas({
                     y1={0}
                     x2={(i + 1) * gridSize}
                     y2={localSettings.canvas_height}
-                    stroke="#4a9eff"
+                    stroke="var(--accent-blue)"
                     strokeWidth={0.5}
                   />
                 ),
@@ -418,7 +418,7 @@ export function OverlayCanvas({
                     y1={(i + 1) * gridSize}
                     x2={localSettings.canvas_width}
                     y2={(i + 1) * gridSize}
-                    stroke="#4a9eff"
+                    stroke="var(--accent-blue)"
                     strokeWidth={0.5}
                   />
                 ),
