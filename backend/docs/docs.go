@@ -268,6 +268,13 @@ const docTemplate = `{
                     "canonical": {
                         "type": "string"
                     },
+                    "generations": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "names": {
                         "additionalProperties": {
                             "type": "string"
@@ -841,6 +848,10 @@ const docTemplate = `{
             },
             "state.Settings": {
                 "properties": {
+                    "accent_color": {
+                        "description": "preset key: blue|purple|green|cyan|pink|orange",
+                        "type": "string"
+                    },
                     "auto_save": {
                         "type": "boolean"
                     },
@@ -870,9 +881,6 @@ const docTemplate = `{
                     },
                     "tutorial_seen": {
                         "$ref": "#/components/schemas/state.TutorialFlags"
-                    },
-                    "ui_animations": {
-                        "type": "boolean"
                     }
                 },
                 "type": "object"
