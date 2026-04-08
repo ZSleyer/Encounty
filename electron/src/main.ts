@@ -495,6 +495,15 @@ ipcMain.handle('metrics:get-gpu-info', async () => {
   }
 });
 
+ipcMain.handle('dialog:open-folder', async (_event, title?: string) => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory'],
+    title: title ?? 'Select folder',
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
 ipcMain.handle('update:check', async () => {
   try {
     await autoUpdater.checkForUpdates();

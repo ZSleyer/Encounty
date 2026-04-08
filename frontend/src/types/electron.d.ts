@@ -68,6 +68,7 @@ interface ElectronAPI {
   installUpdate(): void;
   getProcessStats(): Promise<ProcessStats>;
   getGpuInfo(): Promise<GpuInfoBasic | null>;
+  openFolderDialog?: (title?: string) => Promise<string | null>;
 }
 
 interface Window {

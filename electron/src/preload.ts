@@ -157,4 +157,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('metrics:get-gpu-info');
   },
 
+  openFolderDialog(title?: string): Promise<string | null> {
+    return ipcRenderer.invoke('dialog:open-folder', title);
+  },
+
 });
