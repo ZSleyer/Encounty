@@ -188,6 +188,16 @@ function isTimerStartBlocked(pokemon: Pokemon, isCapturing: (id: string) => bool
   return mode === "both" && hasDetectorReady(pokemon) && !isCapturing(pokemon.id);
 }
 
+/** Returns true if a non-running Pokemon can be individually started given its hunt_mode and capture source state. */
+function canPokemonStart(
+  pokemon: Pokemon,
+  isCapturing: (id: string) => boolean,
+): boolean {
+  const mode = pokemon.hunt_mode || "both";
+  if (mode === "timer") return true;
+  return hasDetectorReady(pokemon) && isCapturing(pokemon.id);
+}
+
 /** SidebarHuntStatus shows compact hunt status, timer, and play/pause per sidebar card. */
 function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, timerStartBlocked = false, capture, detectorStatus, setDetectorStatus, clearDetectorStatus }: Readonly<{
   pokemon: Pokemon;
@@ -232,17 +242,17 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
 
   return (
     <div className="flex items-center gap-1 shrink-0">
-      {/* Status dot */}
-      {anyRunning && (
-        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-          timerRunning && detectorRunning ? "bg-accent-green" :
-          timerRunning ? "bg-accent-green" :
-          "bg-accent-blue animate-pulse"
-        }`} />
-      )}
+      {/* Detector status icon */}
+      {hasDetectorReady(pokemon) && (() => {
+        const st = detectorStatus[pokemon.id] as { state?: string } | undefined;
+        if (st?.state === "match") return <span className="shrink-0 flex items-center" title={t("detector.stateMatch")}><Sparkles className="w-3 h-3 text-accent-green" aria-label={t("detector.stateMatch")} /></span>;
+        if (st) return <span className="shrink-0 flex items-center" title={t("detector.stateIdle")}><Eye className="w-3 h-3 text-accent-blue animate-pulse" aria-label={t("detector.stateIdle")} /></span>;
+        if (!capture.isCapturing(pokemon.id)) return <span className="shrink-0 flex items-center" title={t("detector.errNoSource")}><VideoOff className="w-3 h-3 text-accent-red/70" aria-label={t("detector.errNoSource")} /></span>;
+        return null;
+      })()}
       {/* Timer text */}
       {(timerRunning || totalMs > 0) && (
-        <span className={`text-[10px] font-mono tabular-nums leading-none ${timerRunning ? "text-accent-green" : "text-text-muted"}`}>
+        <span className={`text-[10px] font-mono tabular-nums leading-3 translate-y-px ${timerRunning ? "text-accent-green" : "text-text-muted"}`}>
           {formatTimer(totalMs)}
         </span>
       )}
@@ -983,8 +993,7 @@ function SidebarQuickActions({
   const isRunning = (p: Pokemon) => !!p.timer_started_at || !!detectorStatus[p.id] || isLoopRunning(p.id);
   const allRunning = hasSelection && selected.every(isRunning);
   const someRunning = hasSelection && selected.some(isRunning);
-  const allBlocked = hasSelection && selected.every(p => isTimerStartBlocked(p, capture.isCapturing) && !canStartDetector(p, detectorStatus, capture));
-  const canStart = hasSelection && !allBlocked;
+  const canStart = hasSelection && selected.filter(p => !isRunning(p)).every(p => canPokemonStart(p, capture.isCapturing));
 
   const currentMode = resolveHuntMode(selected);
 
@@ -1174,7 +1183,7 @@ function HeaderHuntButton({
   const detReady = hasDetectorReady(pokemon);
   const huntMode = pokemon.hunt_mode || "both";
   const anyRunning = timerRunning || detRunning;
-  const huntBlocked = !anyRunning && isTimerStartBlocked(pokemon, capture.isCapturing) && !canStartDetector(pokemon, detectorStatus, capture);
+  const huntBlocked = !anyRunning && !canPokemonStart(pokemon, capture.isCapturing);
 
   const buttonLabel = resolveHuntLabel(anyRunning, huntMode, t);
   const modeIcon = resolveHuntIcon(anyRunning, huntMode);
@@ -2155,15 +2164,6 @@ export function Dashboard() {
                           <Trophy className="w-2 h-2 text-text-primary" />
                         </div>
                       )}
-                      {hasDetectorReady(p) && (() => {
-                        const { dotClass, title: dotTitle } = resolveDetectorDot(detectorStatus, p.id, t, capture.isCapturing(p.id));
-                        return (
-                        <div
-                          className={`absolute -top-0.5 -left-0.5 w-2 h-2 rounded-full border border-bg-secondary ${dotClass}`}
-                          title={dotTitle}
-                        />
-                        );
-                      })()}
                     </div>
                     {/* 3-row info */}
                     <div className="flex-1 min-w-0">
