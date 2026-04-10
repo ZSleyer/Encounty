@@ -15,7 +15,7 @@ interface OpenShadowEditorParams extends ShadowConfirmParams {
   readonly onConfirm: (params: ShadowConfirmParams) => void;
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "canvas";
 
 const POPULAR_FONTS = [
   "sans", "serif", "monospace", "pokemon",
@@ -296,6 +296,7 @@ export function OverlayPropertyPanel({
     name: "Name",
     title: t("overlay.elementTitle"),
     counter: t("overlay.elementCounter"),
+    timer: t("overlay.elementTimer"),
     canvas: "Canvas",
   };
   const update = (s: OverlaySettings) => {
@@ -1351,6 +1352,101 @@ export function OverlayPropertyPanel({
               <option value="jello">Jello</option>
               <option value="tada">Tada</option>
               <option value="zoom-in">Zoom In</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {selectedEl === "timer" && localSettings.timer && (
+        <div className="space-y-3">
+          <TextStyleEditor
+            style={localSettings.timer.style || DEFAULT_TEXT_STYLE}
+            label={t("overlay.timerStyle")}
+            onChange={(s) =>
+              update({
+                ...localSettings,
+                timer: { ...localSettings.timer, style: s },
+              })
+            }
+            onOpenTextColorEditor={openTextColorEditor}
+            onOpenOutlineEditor={openOutlineEditor}
+            onOpenShadowEditor={openShadowEditor}
+          />
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={localSettings.timer.show_label}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  timer: {
+                    ...localSettings.timer,
+                    show_label: e.target.checked,
+                  },
+                })
+              }
+              className="accent-accent-blue"
+            />
+            <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
+          </label>
+          {localSettings.timer.show_label && (
+            <>
+              <input
+                type="text"
+                value={localSettings.timer.label_text}
+                onChange={(e) =>
+                  update({
+                    ...localSettings,
+                    timer: {
+                      ...localSettings.timer,
+                      label_text: e.target.value,
+                    },
+                  })
+                }
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+                placeholder="Label-Text"
+                aria-label={t("aria.labelText")}
+              />
+              <TextStyleEditor
+                style={
+                  localSettings.timer.label_style || DEFAULT_TEXT_STYLE
+                }
+                label={t("overlay.labelStyle")}
+                onChange={(s) =>
+                  update({
+                    ...localSettings,
+                    timer: { ...localSettings.timer, label_style: s },
+                  })
+                }
+                onOpenTextColorEditor={openTextColorEditor}
+                onOpenOutlineEditor={openOutlineEditor}
+                onOpenShadowEditor={openShadowEditor}
+              />
+            </>
+          )}
+          <div>
+            <label htmlFor="timer-idle-animation" className="text-xs text-text-muted">
+              {t("overlay.idleAnimation")}
+            </label>
+            <select
+              id="timer-idle-animation"
+              value={localSettings.timer.idle_animation}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  timer: {
+                    ...localSettings.timer,
+                    idle_animation: e.target.value,
+                  },
+                })
+              }
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+            >
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="breathe">{t("overlay.animBreathe")}</option>
+              <option value="glow">{t("overlay.animGlow")}</option>
+              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
+              <option value="float">{t("overlay.animFloat")}</option>
             </select>
           </div>
         </div>

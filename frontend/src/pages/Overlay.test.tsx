@@ -112,6 +112,61 @@ describe("Overlay", () => {
     expect(screen.queryByText("My Hunt")).not.toBeInTheDocument();
   });
 
+  // --- Timer element visibility ---
+
+  it("hides timer when timer.visible is false", () => {
+    const settings = makeOverlaySettings({
+      timer: {
+        ...makeOverlaySettings().timer,
+        visible: false,
+      },
+    });
+    const pokemon = makePokemon({ timer_accumulated_ms: 90000000 });
+    render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    expect(screen.queryByText("25:00:00")).not.toBeInTheDocument();
+  });
+
+  it("shows timer when timer.visible is true", () => {
+    const settings = makeOverlaySettings({
+      timer: {
+        ...makeOverlaySettings().timer,
+        visible: true,
+      },
+    });
+    const pokemon = makePokemon({ timer_accumulated_ms: 90000000 });
+    render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    expect(screen.getByText("25:00:00")).toBeInTheDocument();
+  });
+
+  it("shows timer label when timer.show_label is true", () => {
+    const settings = makeOverlaySettings({
+      timer: {
+        ...makeOverlaySettings().timer,
+        visible: true,
+        show_label: true,
+        label_text: "Hunt Time:",
+      },
+    });
+    const pokemon = makePokemon({ timer_accumulated_ms: 3600000 });
+    render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    expect(screen.getByText("Hunt Time:")).toBeInTheDocument();
+    expect(screen.getByText("01:00:00")).toBeInTheDocument();
+  });
+
+  it("hides timer label when timer.show_label is false", () => {
+    const settings = makeOverlaySettings({
+      timer: {
+        ...makeOverlaySettings().timer,
+        visible: true,
+        show_label: false,
+        label_text: "Hunt Time:",
+      },
+    });
+    const pokemon = makePokemon({ timer_accumulated_ms: 3600000 });
+    render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    expect(screen.queryByText("Hunt Time:")).not.toBeInTheDocument();
+  });
+
   // --- Counter label ---
 
   it("shows counter label text when show_label is true", () => {

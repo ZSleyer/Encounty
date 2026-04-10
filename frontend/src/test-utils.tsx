@@ -104,6 +104,19 @@ export function makeOverlaySettings(
       trigger_enter: "none",
       trigger_decrement: "none",
     },
+    timer: {
+      visible: false,
+      x: 100,
+      y: 90,
+      width: 200,
+      height: 30,
+      z_index: 5,
+      style: makeTextStyle(),
+      show_label: false,
+      label_text: "Timer",
+      label_style: makeTextStyle(),
+      idle_animation: "none",
+    },
     ...overrides,
   };
 }

@@ -39,7 +39,7 @@ interface Props {
   compact?: boolean;
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter" | "canvas";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "canvas";
 
 
 const DEFAULT_TEXT_STYLE: TextStyle = {
@@ -175,6 +175,34 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     trigger_enter: "slot",
     trigger_decrement: "slot",
   },
+  timer: {
+    visible: false,
+    x: 530,
+    y: 20,
+    width: 250,
+    height: 40,
+    z_index: 5,
+    style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "pokemon",
+      font_size: 24,
+      font_weight: 700,
+      color: "#ffffff",
+      outline_type: "solid",
+      outline_width: 3,
+      outline_color: "#000000",
+    },
+    show_label: false,
+    label_text: "Timer",
+    label_style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "sans",
+      font_size: 14,
+      font_weight: 400,
+      color: "#94a3b8",
+    },
+    idle_animation: "none",
+  },
 };
 
 export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
@@ -235,6 +263,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     name: "Name",
     title: t("overlay.elementTitle"),
     counter: t("overlay.elementCounter"),
+    timer: t("overlay.elementTimer"),
     canvas: "Canvas",
   };
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
@@ -405,9 +434,13 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   useEffect(() => {
     // Migrate: fill in default title element for settings saved before it existed
-    const migrated = (!settings.title || (settings.title.width === 0 && settings.title.height === 0))
+    let migrated = (!settings.title || (settings.title.width === 0 && settings.title.height === 0))
       ? { ...settings, title: DEFAULT_OVERLAY_SETTINGS.title }
       : settings;
+    // Migrate: fill in default timer element for settings saved before it existed
+    if (!migrated.timer || (migrated.timer.width === 0 && migrated.timer.height === 0)) {
+      migrated = { ...migrated, timer: DEFAULT_OVERLAY_SETTINGS.timer };
+    }
     setLocalSettings(migrated);
   }, [settings]);
 
@@ -507,7 +540,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   const effectiveScale = canvasScale * zoom;
 
-  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter", "canvas"];
+  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter", "timer", "canvas"];
 
   const moveLayer = (key: ElementKey, dir: "up" | "down") => {
     if (key === "canvas") return;

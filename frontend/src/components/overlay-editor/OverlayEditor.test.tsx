@@ -2358,10 +2358,11 @@ describe("OverlayEditor", () => {
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
 
-    // Tab: sprite -> name -> title -> counter -> canvas
+    // Tab: sprite -> name -> title -> counter -> timer -> canvas
     await user.keyboard("{Tab}"); // name
     await user.keyboard("{Tab}"); // title
     await user.keyboard("{Tab}"); // counter
+    await user.keyboard("{Tab}"); // timer
     await user.keyboard("{Tab}"); // canvas
 
     // Canvas should now be selected

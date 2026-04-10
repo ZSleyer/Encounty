@@ -1,10 +1,11 @@
-import { useRef, useEffect, useMemo, useState, lazy, Suspense } from "react";
+import { useRef, useEffect, useMemo, useState, useReducer, lazy, Suspense } from "react";
 import { useParams } from "react-router";
 import { Pokemon, OverlaySettings, TextStyle } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
+import { formatTimer, computeTimerMs } from "../utils/timer";
 
 const Aurora = lazy(() => import("../components/backgrounds/Aurora"));
 const Galaxy = lazy(() => import("../components/backgrounds/Galaxy"));
@@ -649,6 +650,17 @@ export function Overlay({
   useGoogleFont(settings?.name.style.font_family || "sans");
   useGoogleFont(settings?.counter.style.font_family || "sans");
   useGoogleFont(settings?.title?.style.font_family || "sans");
+  useGoogleFont(settings?.timer?.style.font_family ?? "sans");
+  useGoogleFont(settings?.timer?.label_style?.font_family ?? "sans");
+
+  // Timer tick — force re-render every second while the timer is running
+  const [, forceTimerUpdate] = useReducer((x: number) => x + 1, 0);
+  const isTimerRunning = !!activePokemon?.timer_started_at;
+  useEffect(() => {
+    if (!isTimerRunning) return;
+    const id = setInterval(() => forceTimerUpdate(), 1000);
+    return () => clearInterval(id);
+  }, [isTimerRunning]);
 
   // Trigger animations on counter change
   useEffect(() => {
@@ -961,6 +973,46 @@ export function Overlay({
             })()}
             {settings.counter.show_label && (
               <span style={labelStyle}>{settings.counter.label_text}</span>
+            )}
+          </div>
+          );
+      })()}
+
+      {/* Timer — live HH:MM:SS display with optional label */}
+      {settings.timer?.visible && (() => {
+          const timerAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
+          const timerAlignItems = timerAlignMap[settings.timer.style.text_align] ?? "flex-start";
+          const timerStyle = buildTextStyle(settings.timer.style);
+          const timerLabelStyle = settings.timer.label_style ? buildTextStyle(settings.timer.label_style) : {};
+          const timerMs = activePokemon ? computeTimerMs(activePokemon) : 0;
+
+          return (
+          <div
+            style={{
+              position: "absolute",
+              left: settings.timer.x,
+              top: settings.timer.y,
+              width: settings.timer.width,
+              height: settings.timer.height,
+              zIndex: settings.timer.z_index,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: timerAlignItems,
+              justifyContent: "center",
+            }}
+            className={TEXT_IDLE[settings.timer.idle_animation] ?? ""}
+          >
+            <span
+              className="font-black tabular-nums leading-none"
+              style={{
+                ...timerStyle,
+                display: "inline-block",
+              }}
+            >
+              {formatTimer(timerMs)}
+            </span>
+            {settings.timer.show_label && (
+              <span style={timerLabelStyle}>{settings.timer.label_text}</span>
             )}
           </div>
           );

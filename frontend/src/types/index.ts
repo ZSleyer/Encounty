@@ -7,6 +7,8 @@
 export interface Pokemon {
   id: string;
   name: string; // Display name (localized)
+  base_name?: string;
+  form_name?: string;
   title?: string; // User-defined custom title
   canonical_name: string; // English PokéAPI slug
   sprite_url: string;
@@ -227,6 +229,14 @@ export interface CounterElement extends OverlayElementBase {
   trigger_decrement: string;
 }
 
+export interface TimerElement extends OverlayElementBase {
+  style: TextStyle;
+  show_label: boolean;
+  label_text: string;
+  label_style: TextStyle;
+  idle_animation: string;
+}
+
 /**
  * OverlaySettings is the complete configuration for the OBS Browser Source
  * overlay, using an absolute-positioning canvas model.
@@ -254,6 +264,7 @@ export interface OverlaySettings {
   name: NameElement;
   title: TitleElement;
   counter: CounterElement;
+  timer: TimerElement;
 
   // Editor Tools
   snap_enabled?: boolean;
