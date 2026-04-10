@@ -418,6 +418,7 @@ type PokedexFormRow struct {
 	Canonical       string
 	SpriteID        int
 	NamesJSON       []byte
+	FormNamesJSON   []byte
 	GenerationsJSON []byte
 }
 
@@ -448,7 +449,7 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		}
 	}
 
-	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, names_json, generations) VALUES (?, ?, ?, ?, ?)`)
+	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, names_json, form_names_json, generations) VALUES (?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -458,7 +459,11 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		if len(gens) == 0 {
 			gens = []byte("[]")
 		}
-		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, string(f.NamesJSON), string(gens)); err != nil {
+		formNamesStr := string(f.FormNamesJSON)
+		if formNamesStr == "" {
+			formNamesStr = "{}"
+		}
+		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, string(f.NamesJSON), formNamesStr, string(gens)); err != nil {
 			return err
 		}
 	}
@@ -487,7 +492,7 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 		return nil, nil, err
 	}
 
-	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, names_json, generations FROM pokedex_forms ORDER BY species_id, id`)
+	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, names_json, form_names_json, generations FROM pokedex_forms ORDER BY species_id, id`)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -495,11 +500,12 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 	var forms []PokedexFormRow
 	for formRows.Next() {
 		var f PokedexFormRow
-		var names, gens string
-		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &names, &gens); err != nil {
+		var names, formNames, gens string
+		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &names, &formNames, &gens); err != nil {
 			return nil, nil, err
 		}
 		f.NamesJSON = []byte(names)
+		f.FormNamesJSON = []byte(formNames)
 		f.GenerationsJSON = []byte(gens)
 		forms = append(forms, f)
 	}
@@ -530,4 +536,35 @@ func mustAtoi(s string) int {
 		n = n*10 + int(c-'0')
 	}
 	return n
+}
+
+// BackfillPokemonFormNames populates base_name and form_name on existing
+// pokemon rows that have a canonical_name matching a pokedex form. It uses
+// json_extract to pull the localized species name (base_name) and the form
+// descriptor (form_name) from the pokedex tables. Only rows where both
+// fields are still empty are updated, so user-edited values are preserved.
+func (d *DB) BackfillPokemonFormNames() (int64, error) {
+	res, err := d.db.Exec(`
+		UPDATE pokemon
+		SET
+			base_name = COALESCE(
+				json_extract(ps.names_json, '$.' || pokemon.language),
+				json_extract(ps.names_json, '$.en'),
+				''
+			),
+			form_name = COALESCE(
+				json_extract(pf.form_names_json, '$.' || pokemon.language),
+				json_extract(pf.form_names_json, '$.en'),
+				''
+			)
+		FROM pokedex_forms pf
+		JOIN pokedex_species ps ON pf.species_id = ps.id
+		WHERE pokemon.canonical_name = pf.canonical
+		  AND pokemon.base_name = ''
+		  AND pokemon.form_name = ''
+	`)
+	if err != nil {
+		return 0, fmt.Errorf("backfill pokemon form names: %w", err)
+	}
+	return res.RowsAffected()
 }

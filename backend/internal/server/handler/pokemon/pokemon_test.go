@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -135,6 +136,9 @@ func (d *testDeps) StateStopTimer(id string) bool { return d.stateMgr.StopTimer(
 
 // StateResetTimer delegates to the real state manager.
 func (d *testDeps) StateResetTimer(id string) bool { return d.stateMgr.ResetTimer(id) }
+
+// StateSetTimer delegates to the real state manager.
+func (d *testDeps) StateSetTimer(id string, ms int64) bool { return d.stateMgr.SetTimer(id, ms) }
 
 // StateGetState delegates to the real state manager.
 func (d *testDeps) StateGetState() state.AppState { return d.stateMgr.GetState() }
@@ -903,6 +907,45 @@ func TestTimerResetNotFound(t *testing.T) {
 	mux, _ := newTestMux(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/nonexistent/timer/reset", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
+	}
+}
+
+// --- POST /api/pokemon/{id}/timer/set ----------------------------------------
+
+// TestTimerSetSuccess verifies that setting a timer to an exact value succeeds.
+func TestTimerSetSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Pikachu")
+
+	body := strings.NewReader(`{"ms":90000000}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/timer/set", body)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNoContent)
+	}
+
+	st := deps.stateMgr.GetState()
+	if st.Pokemon[0].TimerAccumulatedMs != 90000000 {
+		t.Errorf("TimerAccumulatedMs = %d, want 90000000", st.Pokemon[0].TimerAccumulatedMs)
+	}
+}
+
+// TestTimerSetNotFound verifies that setting a timer for a non-existent
+// Pokemon returns 404.
+func TestTimerSetNotFound(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	body := strings.NewReader(`{"ms":5000}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/nonexistent/timer/set", body)
+	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
 	mux.ServeHTTP(w, req)
 

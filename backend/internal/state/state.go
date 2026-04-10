@@ -33,6 +33,8 @@ const (
 type Pokemon struct {
 	ID                 string           `json:"id"`
 	Name               string           `json:"name"`            // Display name (localized)
+	BaseName           string           `json:"base_name,omitempty"`
+	FormName           string           `json:"form_name,omitempty"`
 	Title              string           `json:"title,omitempty"` // User-defined custom title
 	CanonicalName      string           `json:"canonical_name"`  // English PokéAPI slug
 	SpriteURL          string           `json:"sprite_url"`
@@ -241,6 +243,17 @@ type CounterElement struct {
 	TriggerDecrement string    `json:"trigger_decrement"`
 }
 
+// TimerElement configures the hunt timer text layer of the overlay,
+// including an optional descriptive label rendered above or below the time.
+type TimerElement struct {
+	OverlayElementBase
+	Style         TextStyle `json:"style"`
+	ShowLabel     bool      `json:"show_label"`
+	LabelText     string    `json:"label_text"`
+	LabelStyle    TextStyle `json:"label_style"`
+	IdleAnimation string    `json:"idle_animation"`
+}
+
 // OverlaySettings is the complete configuration for the OBS Browser Source
 // overlay. It uses an absolute-positioning canvas model: each element has its
 // own x/y/width/height within a fixed canvas.
@@ -264,6 +277,7 @@ type OverlaySettings struct {
 	Name                      NameElement     `json:"name"`
 	Title                     TitleElement    `json:"title"`
 	Counter                   CounterElement  `json:"counter"`
+	Timer                     TimerElement    `json:"timer"`
 }
 
 // TutorialFlags tracks which tutorials the user has already completed.
@@ -430,6 +444,29 @@ func NewManager(configDir string) *Manager {
 						IdleAnimation:    animationNone,
 						TriggerEnter:     "slot",
 						TriggerDecrement: "slot",
+					},
+					Timer: TimerElement{
+						OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 20, Width: 250, Height: 40, ZIndex: 5},
+						Style: TextStyle{
+							FontFamily:   fontPokemon,
+							FontSize:     24,
+							FontWeight:   700,
+							ColorType:    colorTypeSolid,
+							Color:        colorWhite,
+							OutlineType:  outlineTypeSolid,
+							OutlineWidth: 3,
+							OutlineColor: colorBlack,
+						},
+						ShowLabel: false,
+						LabelText: "Timer",
+						LabelStyle: TextStyle{
+							FontFamily: "sans",
+							FontSize:   14,
+							FontWeight: 400,
+							ColorType:  colorTypeSolid,
+							Color:      "#94a3b8",
+						},
+						IdleAnimation: animationNone,
 					},
 				},
 			},
@@ -815,6 +852,26 @@ func (m *Manager) ResetTimer(id string) bool {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].TimerStartedAt = nil
 			m.state.Pokemon[i].TimerAccumulatedMs = 0
+			m.markDirty()
+			return true
+		}
+	}
+	return false
+}
+
+// SetTimer sets TimerAccumulatedMs to the given value. If the timer is
+// currently running, the running segment is discarded (not folded) because
+// the caller is explicitly overriding the total. Returns false if not found.
+func (m *Manager) SetTimer(id string, ms int64) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			m.state.Pokemon[i].TimerStartedAt = nil
+			if ms < 0 {
+				ms = 0
+			}
+			m.state.Pokemon[i].TimerAccumulatedMs = ms
 			m.markDirty()
 			return true
 		}

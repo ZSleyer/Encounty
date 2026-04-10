@@ -164,6 +164,65 @@ func TestResetTimerNotFound(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// SetTimer
+// ---------------------------------------------------------------------------
+
+func TestSetTimer(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	ok := m.SetTimer("p1", 90000000) // 25 hours
+	if !ok {
+		t.Fatal("SetTimer returned false")
+	}
+	st := m.GetState()
+	if st.Pokemon[0].TimerAccumulatedMs != 90000000 {
+		t.Errorf("TimerAccumulatedMs = %d, want 90000000", st.Pokemon[0].TimerAccumulatedMs)
+	}
+}
+
+func TestSetTimerWhenRunning(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+	m.StartTimer("p1")
+	time.Sleep(10 * time.Millisecond)
+
+	ok := m.SetTimer("p1", 5000)
+	if !ok {
+		t.Fatal("SetTimer returned false")
+	}
+	st := m.GetState()
+	if st.Pokemon[0].TimerStartedAt != nil {
+		t.Error("TimerStartedAt should be nil after SetTimer (timer stopped)")
+	}
+	if st.Pokemon[0].TimerAccumulatedMs != 5000 {
+		t.Errorf("TimerAccumulatedMs = %d, want 5000 (running segment discarded)", st.Pokemon[0].TimerAccumulatedMs)
+	}
+}
+
+func TestSetTimerNegativeFloor(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	ok := m.SetTimer("p1", -1000)
+	if !ok {
+		t.Fatal("SetTimer returned false")
+	}
+	st := m.GetState()
+	if st.Pokemon[0].TimerAccumulatedMs != 0 {
+		t.Errorf("TimerAccumulatedMs = %d, want 0 (negative floored)", st.Pokemon[0].TimerAccumulatedMs)
+	}
+}
+
+func TestSetTimerNotFound(t *testing.T) {
+	m := NewManager(t.TempDir())
+	ok := m.SetTimer("nonexistent", 5000)
+	if ok {
+		t.Error("SetTimer returned true for nonexistent id")
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Step-based increment/decrement
 // ---------------------------------------------------------------------------
 

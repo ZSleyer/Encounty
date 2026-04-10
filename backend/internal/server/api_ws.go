@@ -39,6 +39,8 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 		s.wsHandleTimerStop(msg.Payload)
 	case "timer_reset":
 		s.wsHandleTimerReset(msg.Payload)
+	case "timer_set":
+		s.wsHandleTimerSet(msg.Payload)
 	case "update_hotkeys":
 		s.wsHandleUpdateHotkeys(msg.Payload)
 	}
@@ -191,6 +193,22 @@ func (s *Server) wsHandleTimerReset(payload json.RawMessage) {
 		return
 	}
 	if s.state.ResetTimer(p.PokemonID) {
+		s.state.ScheduleSave()
+		s.broadcastState()
+	}
+}
+
+// wsHandleTimerSet sets the per-Pokemon timer to an exact millisecond value
+// for the Pokémon identified in the payload.
+func (s *Server) wsHandleTimerSet(payload json.RawMessage) {
+	var p struct {
+		PokemonID string `json:"pokemon_id"`
+		Ms        int64  `json:"ms"`
+	}
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	if s.state.SetTimer(p.PokemonID, p.Ms) {
 		s.state.ScheduleSave()
 		s.broadcastState()
 	}

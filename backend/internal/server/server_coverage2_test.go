@@ -358,6 +358,18 @@ func TestStateResetTimer(t *testing.T) {
 	}
 }
 
+func TestStateSetTimer(t *testing.T) {
+	srv := newTestServer(t)
+	addTestPokemon(t, srv, "p1", "Pikachu")
+	if !srv.StateSetTimer("p1", 90000000) {
+		t.Error("StateSetTimer should return true")
+	}
+	st := srv.state.GetState()
+	if st.Pokemon[0].TimerAccumulatedMs != 90000000 {
+		t.Errorf("TimerAccumulatedMs = %d, want 90000000", st.Pokemon[0].TimerAccumulatedMs)
+	}
+}
+
 // --- FileWriterSetConfig ---
 
 func TestFileWriterSetConfigNil(t *testing.T) {

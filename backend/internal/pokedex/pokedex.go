@@ -40,6 +40,7 @@ type Entry struct {
 type Form struct {
 	Canonical   string            `json:"canonical"`
 	Names       map[string]string `json:"names,omitempty"`
+	FormNames   map[string]string `json:"form_names,omitempty"`
 	SpriteID    int               `json:"sprite_id"`
 	Generations []int             `json:"generations,omitempty"`
 }
@@ -151,6 +152,12 @@ func RowsToEntries(species []database.PokedexSpeciesRow, forms []database.Pokede
 				slog.Debug("Pokédex: bad form names JSON", "canonical", f.Canonical, "error", err)
 			}
 		}
+		var formNames map[string]string
+		if len(f.FormNamesJSON) > 0 {
+			if err := json.Unmarshal(f.FormNamesJSON, &formNames); err != nil {
+				slog.Debug("Pokédex: bad form form_names JSON", "canonical", f.Canonical, "error", err)
+			}
+		}
 		var gens []int
 		if len(f.GenerationsJSON) > 0 {
 			if err := json.Unmarshal(f.GenerationsJSON, &gens); err != nil {
@@ -161,6 +168,7 @@ func RowsToEntries(species []database.PokedexSpeciesRow, forms []database.Pokede
 			Canonical:   f.Canonical,
 			SpriteID:    f.SpriteID,
 			Names:       names,
+			FormNames:   formNames,
 			Generations: gens,
 		})
 	}
@@ -186,8 +194,12 @@ func EntriesToRows(entries []Entry) ([]database.PokedexSpeciesRow, []database.Po
 		})
 		for _, f := range e.Forms {
 			fNamesJSON, fErr := json.Marshal(f.Names)
-			if fErr != nil {
+			if fErr != nil || f.Names == nil {
 				fNamesJSON = []byte("{}")
+			}
+			fFormNamesJSON, fnErr := json.Marshal(f.FormNames)
+			if fnErr != nil || f.FormNames == nil {
+				fFormNamesJSON = []byte("{}")
 			}
 			gensSrc := f.Generations
 			if gensSrc == nil {
@@ -202,6 +214,7 @@ func EntriesToRows(entries []Entry) ([]database.PokedexSpeciesRow, []database.Po
 				Canonical:       f.Canonical,
 				SpriteID:        f.SpriteID,
 				NamesJSON:       fNamesJSON,
+				FormNamesJSON:   fFormNamesJSON,
 				GenerationsJSON: fGensJSON,
 			})
 		}

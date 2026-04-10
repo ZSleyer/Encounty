@@ -194,7 +194,7 @@ func loadLanguages(db *sql.DB) ([]string, error) {
 
 // loadPokemon reads all pokemon rows ordered by sort_order.
 func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
-	rows, err := db.Query(`SELECT id, name, title, canonical_name, sprite_url, sprite_type,
+	rows, err := db.Query(`SELECT id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
 		sprite_style, encounters, step, is_active, created_at, language, game,
 		completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
 		hunt_mode
@@ -212,7 +212,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		var createdAtStr string
 		var completedAt, timerStartedAt sql.NullString
 
-		if err := rows.Scan(&p.ID, &p.Name, &p.Title, &p.CanonicalName, &p.SpriteURL,
+		if err := rows.Scan(&p.ID, &p.Name, &p.BaseName, &p.FormName, &p.Title, &p.CanonicalName, &p.SpriteURL,
 			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
 			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
 			&p.HuntType, &shinyCharm, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode); err != nil {

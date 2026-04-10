@@ -352,6 +352,9 @@ func (s *Server) StateStopTimer(id string) bool { return s.state.StopTimer(id) }
 // StateResetTimer clears the per-Pokemon timer.
 func (s *Server) StateResetTimer(id string) bool { return s.state.ResetTimer(id) }
 
+// StateSetTimer delegates to the state manager's SetTimer.
+func (s *Server) StateSetTimer(id string, ms int64) bool { return s.state.SetTimer(id, ms) }
+
 // StateGetState returns a snapshot of the current application state.
 func (s *Server) StateGetState() state.AppState { return s.state.GetState() }
 
@@ -522,15 +525,16 @@ func (s *Server) InitAsync() {
 			return
 		}
 
-		s.runInitialSync()
+		s.runInitialSync(false)
 	}()
 }
 
 // runInitialSync performs the games and Pokédex synchronisation. It
 // broadcasts progress via WebSocket and marks the server as ready on
 // completion. When the API is unreachable it sends a sync_error event
-// so the frontend can offer the offline fallback.
-func (s *Server) runInitialSync() {
+// so the frontend can offer the offline fallback. When force is true the
+// Pokédex sync runs unconditionally, bypassing the NeedsSync check.
+func (s *Server) runInitialSync(force bool) {
 	// Phase 1: Games
 	slog.Info("InitAsync: starting games sync")
 	s.hub.BroadcastRaw("sync_progress", syncProgress{
@@ -541,12 +545,13 @@ func (s *Server) runInitialSync() {
 
 	// Phase 2: Pokédex
 	store := s.PokedexDB()
-	if pokedex.NeedsSync(store) {
+	var syncResult *pokedex.SyncResult
+	if force || pokedex.NeedsSync(store) {
 		slog.Info("InitAsync: starting Pokédex sync")
 		s.hub.BroadcastRaw("sync_progress", syncProgress{
 			Phase: "pokedex", Step: "syncing", Message: "Syncing Pokédex...",
 		})
-		s.syncPokedex(store)
+		syncResult = s.syncPokedex(store)
 	} else {
 		slog.Info("InitAsync: Pokédex already up to date")
 		_ = pokedex.LoadPokedex(store)
@@ -554,15 +559,20 @@ func (s *Server) runInitialSync() {
 
 	s.setupPending.Store(false)
 	s.ready.Store(true)
-	s.hub.BroadcastRaw("system_ready", map[string]bool{"ready": true})
+	readyPayload := map[string]any{"ready": true}
+	if syncResult != nil {
+		readyPayload["sync_result"] = syncResult
+	}
+	s.hub.BroadcastRaw("system_ready", readyPayload)
 	slog.Info("Server initialization complete")
 }
 
-// RunSetupOnline triggers an online sync from the setup endpoint.
+// RunSetupOnline triggers a forced online sync from the settings endpoint.
+// It always re-syncs the Pokédex regardless of the NeedsSync check.
 func (s *Server) RunSetupOnline() {
 	s.setupPending.Store(false)
 	s.ready.Store(false)
-	go s.runInitialSync()
+	go s.runInitialSync(true)
 }
 
 // RunSetupOffline seeds games and Pokédex from embedded fallback data.
@@ -583,8 +593,9 @@ func (s *Server) RunSetupOffline() error {
 
 // syncPokedex performs a full Pokédex sync from PokéAPI and persists the
 // result to the database. Progress updates are broadcast via the WebSocket
-// hub so the frontend can display a loading indicator.
-func (s *Server) syncPokedex(store pokedex.PokedexStore) {
+// hub so the frontend can display a loading indicator. Returns the sync
+// result on success, or nil on failure.
+func (s *Server) syncPokedex(store pokedex.PokedexStore) *pokedex.SyncResult {
 	var current []pokedex.Entry
 
 	progress := func(step, detail string) {
@@ -604,16 +615,26 @@ func (s *Server) syncPokedex(store pokedex.PokedexStore) {
 			Step:  "error",
 			Error: err.Error(),
 		})
-		return
+		return nil
 	}
 
 	species, forms := pokedex.EntriesToRows(updated)
 	if err := store.SavePokedex(species, forms); err != nil {
 		slog.Error("Failed to save Pokédex", "error", err)
-		return
+		return nil
 	}
 	pokedex.InvalidateCache()
+
+	// Backfill base_name/form_name on existing pokemon from the freshly
+	// synced pokedex data so the sidebar can display them immediately.
+	if n, err := s.db.BackfillPokemonFormNames(); err != nil {
+		slog.Warn("Failed to backfill pokemon form names", "error", err)
+	} else if n > 0 {
+		slog.Info("Backfilled pokemon form names", "updated", n)
+	}
+
 	slog.Info("Pokédex sync complete", "total", result.Total, "added", result.Added, "names_updated", result.NamesUpdated)
+	return &result
 }
 
 // corsMiddleware adds permissive CORS headers so the Vite dev server (port

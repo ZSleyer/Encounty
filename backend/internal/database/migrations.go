@@ -89,6 +89,16 @@ var migrations = []migration{
 		description: "replace ui_animations toggle with accent_color preset",
 		fn:          migrateAddAccentColor,
 	},
+	{
+		version:     15,
+		description: "add form name fields to pokemon and pokedex_forms",
+		fn:          migrateAddFormNameFields,
+	},
+	{
+		version:     16,
+		description: "force pokedex re-sync to populate form names",
+		fn:          migrateForcePokedexResync,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -198,6 +208,9 @@ func migrateBaseline(tx *sql.Tx) error {
 		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
 		`ALTER TABLE template_regions ADD COLUMN is_negative INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE pokedex_forms ADD COLUMN form_names_json TEXT NOT NULL DEFAULT '{}'`,
+		`ALTER TABLE pokemon ADD COLUMN base_name TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE pokemon ADD COLUMN form_name TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, s := range alterStmts {
 		_, _ = tx.Exec(s)
@@ -218,6 +231,9 @@ func migrateAddMissingColumns(tx *sql.Tx) error {
 		`ALTER TABLE settings ADD COLUMN ui_animations INTEGER NOT NULL DEFAULT 1`,
 		`ALTER TABLE pokemon ADD COLUMN hunt_mode TEXT NOT NULL DEFAULT 'both'`,
 		`ALTER TABLE template_regions ADD COLUMN is_negative INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE pokedex_forms ADD COLUMN form_names_json TEXT NOT NULL DEFAULT '{}'`,
+		`ALTER TABLE pokemon ADD COLUMN base_name TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE pokemon ADD COLUMN form_name TEXT NOT NULL DEFAULT ''`,
 	}
 	for _, s := range stmts {
 		_, _ = tx.Exec(s)
@@ -279,6 +295,16 @@ func migrateAddBgAnimConfig(tx *sql.Tx) error {
 func migrateAddAccentColor(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE settings ADD COLUMN accent_color TEXT NOT NULL DEFAULT 'blue'`)
 	_, _ = tx.Exec(`ALTER TABLE settings DROP COLUMN ui_animations`)
+	return nil
+}
+
+// migrateAddFormNameFields adds form name columns to the pokemon and
+// pokedex_forms tables so base name and form descriptor can be stored
+// separately from the combined display name.
+func migrateAddFormNameFields(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_forms ADD COLUMN form_names_json TEXT NOT NULL DEFAULT '{}'`)
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN base_name TEXT NOT NULL DEFAULT ''`)
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN form_name TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

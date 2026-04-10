@@ -348,21 +348,23 @@ func fetchAndApplyFormNames(current *[]Entry) (int, error) {
 		return 0, fmt.Errorf("fetch form names: %w", err)
 	}
 
-	formNamesMap := buildFormTranslationMap(glResp.Data.Names)
-	return applyFormTranslations(current, formNamesMap), nil
+	formNamesMap, formDescMap := buildFormTranslationMap(glResp.Data.Names)
+	return applyFormTranslations(current, formNamesMap, formDescMap), nil
 }
 
 // applyFormTranslations merges the fetched form name translations into the
 // current entries, returning the number of individual name values that changed.
-func applyFormTranslations(current *[]Entry, formNamesMap map[string]map[string]string) int {
+func applyFormTranslations(current *[]Entry, formNamesMap, formDescMap map[string]map[string]string) int {
 	var namesUpdated int
 	for i := range *current {
 		for j := range (*current)[i].Forms {
-			names, ok := formNamesMap[(*current)[i].Forms[j].Canonical]
-			if !ok {
-				continue
+			canonical := (*current)[i].Forms[j].Canonical
+			if names, ok := formNamesMap[canonical]; ok {
+				namesUpdated += mergeFormNames(&(*current)[i].Forms[j], names)
 			}
-			namesUpdated += mergeFormNames(&(*current)[i].Forms[j], names)
+			if descs, ok := formDescMap[canonical]; ok {
+				namesUpdated += mergeFormDescriptors(&(*current)[i].Forms[j], descs)
+			}
 		}
 	}
 	return namesUpdated
@@ -384,6 +386,22 @@ func mergeFormNames(form *Form, names map[string]string) int {
 	return changed
 }
 
+// mergeFormDescriptors copies all entries from descs into the form's FormNames map,
+// initializing it if nil. Returns the number of values that actually changed.
+func mergeFormDescriptors(form *Form, descs map[string]string) int {
+	var changed int
+	if form.FormNames == nil {
+		form.FormNames = make(map[string]string)
+	}
+	for lang, val := range descs {
+		if form.FormNames[lang] != val {
+			changed++
+		}
+		form.FormNames[lang] = val
+	}
+	return changed
+}
+
 // formNameRow is a single row from the PokéAPI form-name GraphQL query.
 type formNameRow struct {
 	Form struct {
@@ -396,11 +414,13 @@ type formNameRow struct {
 	Name        string `json:"name"`
 }
 
-// buildFormTranslationMap converts raw form-name rows into a
-// map[formCanonical]map[langKey]localizedName, applying language code
-// normalization and the Kanji-over-Katakana preference for Japanese.
-func buildFormTranslationMap(rows []formNameRow) map[string]map[string]string {
+// buildFormTranslationMap converts raw form-name rows into two maps:
+// one for full qualified names (map[formCanonical]map[langKey]fullName) and
+// one for form descriptors (map[formCanonical]map[langKey]formDescriptor).
+// Both maps apply language code normalization and Kanji-over-Katakana preference.
+func buildFormTranslationMap(rows []formNameRow) (map[string]map[string]string, map[string]map[string]string) {
 	formNamesMap := make(map[string]map[string]string)
+	formDescMap := make(map[string]map[string]string)
 	for _, n := range rows {
 		l, ok := pokeAPILangMap[n.Language.Name]
 		formNameKey := n.Form.Name
@@ -408,9 +428,7 @@ func buildFormTranslationMap(rows []formNameRow) map[string]map[string]string {
 			continue
 		}
 
-		// Either pokemon_name or name contains the fully qualified localized
-		// string for the form in most cases (e.g. pokemon_name: "Alolan Sandshrew").
-		// Fall back on just name ("Alolan Form") if pokemon_name is empty.
+		// Full qualified name (existing behavior).
 		val := n.PokemonName
 		if val == "" {
 			val = n.Name
@@ -418,7 +436,6 @@ func buildFormTranslationMap(rows []formNameRow) map[string]map[string]string {
 		if val == "" {
 			continue
 		}
-
 		if formNamesMap[formNameKey] == nil {
 			formNamesMap[formNameKey] = make(map[string]string)
 		}
@@ -426,6 +443,14 @@ func buildFormTranslationMap(rows []formNameRow) map[string]map[string]string {
 			continue
 		}
 		formNamesMap[formNameKey][l] = val
+
+		// Form descriptor (new).
+		if n.Name != "" {
+			if formDescMap[formNameKey] == nil {
+				formDescMap[formNameKey] = make(map[string]string)
+			}
+			formDescMap[formNameKey][l] = n.Name
+		}
 	}
-	return formNamesMap
+	return formNamesMap, formDescMap
 }

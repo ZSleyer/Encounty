@@ -146,11 +146,13 @@ func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
 	// Migrate overlay settings to include title element when loaded from
 	// state saved before TitleElement was added.
 	migrateTitleElement(global)
+	migrateTimerElement(global)
 
 	for i := range pokemon {
 		if pokemon[i].Overlay != nil {
 			migrateOverlayTriggerDecrement(pokemon[i].Overlay)
 			migrateTitleElement(pokemon[i].Overlay)
+			migrateTimerElement(pokemon[i].Overlay)
 		}
 	}
 }
@@ -227,6 +229,36 @@ func migrateTitleElement(o *OverlaySettings) {
 			IdleAnimation:    "none",
 			TriggerEnter:     "none",
 			TriggerDecrement: "none",
+		}
+	}
+}
+
+// migrateTimerElement fills in default values for a TimerElement that was
+// zero-valued after loading state saved before the field existed.
+func migrateTimerElement(o *OverlaySettings) {
+	if o.Timer.Width == 0 && o.Timer.Height == 0 {
+		o.Timer = TimerElement{
+			OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 20, Width: 250, Height: 40, ZIndex: 5},
+			Style: TextStyle{
+				FontFamily:   "pokemon",
+				FontSize:     24,
+				FontWeight:   700,
+				ColorType:    "solid",
+				Color:        "#ffffff",
+				OutlineType:  "solid",
+				OutlineWidth: 3,
+				OutlineColor: "#000000",
+			},
+			ShowLabel: false,
+			LabelText: "Timer",
+			LabelStyle: TextStyle{
+				FontFamily: "sans",
+				FontSize:   14,
+				FontWeight: 400,
+				ColorType:  "solid",
+				Color:      "#94a3b8",
+			},
+			IdleAnimation: "none",
 		}
 	}
 }

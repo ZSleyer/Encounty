@@ -30,6 +30,11 @@ type setEncountersRequest struct {
 	Count int `json:"count"`
 }
 
+// setTimerRequest is the JSON body for POST /api/pokemon/{id}/timer/set.
+type setTimerRequest struct {
+	Ms int64 `json:"ms"`
+}
+
 // --- Deps interface ----------------------------------------------------------
 
 // DetectorStopper can stop a running detector for a given Pokemon ID.
@@ -67,6 +72,7 @@ type Deps interface {
 	StateStartTimer(id string) bool
 	StateStopTimer(id string) bool
 	StateResetTimer(id string) bool
+	StateSetTimer(id string, ms int64) bool
 	StateGetState() state.AppState
 	StateScheduleSave()
 
@@ -128,6 +134,8 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 		h.handleTimerStop(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/timer/stop"))
 	case strings.HasSuffix(path, "/timer/reset"):
 		h.handleTimerReset(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/timer/reset"))
+	case strings.HasSuffix(path, "/timer/set"):
+		h.handleTimerSet(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/timer/set"))
 	case strings.HasSuffix(path, "/increment"):
 		h.handleIncrement(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/increment"))
 	case strings.HasSuffix(path, "/decrement"):
@@ -388,6 +396,33 @@ func (h *handler) handleTimerStop(w http.ResponseWriter, _ *http.Request, id str
 // @Router       /pokemon/{id}/timer/reset [post]
 func (h *handler) handleTimerReset(w http.ResponseWriter, _ *http.Request, id string) {
 	h.pokemonMutate(w, id, "", h.deps.StateResetTimer)
+}
+
+// handleTimerSet sets the per-Pokemon timer to an exact value.
+// POST /api/pokemon/{id}/timer/set
+//
+// @Summary      Set Pokemon timer
+// @Description  Sets the per-Pokemon timer accumulated value to an exact millisecond value
+// @Tags         pokemon
+// @Accept       json
+// @Param        id path string true "Pokemon ID"
+// @Param        body body setTimerRequest true "Timer value"
+// @Success      204
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /pokemon/{id}/timer/set [post]
+func (h *handler) handleTimerSet(w http.ResponseWriter, r *http.Request, id string) {
+	var body setTimerRequest
+	if err := httputil.ReadJSON(r, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if !h.deps.StateSetTimer(id, body.Ms) {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+	h.deps.StateScheduleSave()
+	h.deps.BroadcastState()
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleActivate sets the given Pokemon as the active one for hotkey actions.
