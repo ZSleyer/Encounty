@@ -175,6 +175,13 @@ function applyAccentColor(
   document.documentElement.dataset.accent = v;
 }
 
+/** Pokédex sync result delivered in the system_ready event. */
+interface SyncResultPayload {
+  total: number;
+  added: number;
+  namesUpdated: number;
+}
+
 /** Aggregate sync state surfaced by `runUnifiedSync`. */
 interface SyncState {
   running: boolean;
@@ -182,9 +189,10 @@ interface SyncState {
   step: string;
   error: string | null;
   done: boolean;
+  result: SyncResultPayload | null;
 }
 
-const SYNC_IDLE: SyncState = { running: false, phase: "", step: "", error: null, done: false };
+const SYNC_IDLE: SyncState = { running: false, phase: "", step: "", error: null, done: false, result: null };
 
 /**
  * Run the unified Pokémon + Games sync flow.
@@ -222,7 +230,12 @@ function runUnifiedSync(
           }
           setState((s) => ({ ...s, phase: p.phase, step: p.step }));
         } else if (msg.type === "system_ready") {
-          finish(null);
+          const p = msg.payload as { sync_result?: { total: number; added: number; namesUpdated: number } };
+          const result = p.sync_result
+            ? { total: p.sync_result.total, added: p.sync_result.added, namesUpdated: p.sync_result.namesUpdated }
+            : null;
+          setState((s) => ({ ...s, running: false, error: null, done: true, result }));
+          if (ws) ws.close();
         }
       } catch {
         // Ignore unparseable frames
@@ -808,7 +821,9 @@ export function Settings() {
                 {syncState.done && (
                   <p className="mt-3 text-xs text-accent-green flex items-center gap-1.5" aria-live="polite">
                     <CheckCircle className="w-3.5 h-3.5" />
-                    {t("settings.syncSuccess")}
+                    {syncState.result
+                      ? `${t("settings.syncSuccess")} ${syncState.result.total} ${t("settings.syncSpecies")}, ${syncState.result.namesUpdated} ${t("settings.syncNamesUpdated")}`
+                      : t("settings.syncSuccessShort")}
                   </p>
                 )}
                 {syncState.error && (
