@@ -362,7 +362,7 @@ describe("PokemonFormModal", () => {
         />,
       );
       await waitFor(() => {
-        const stepInput = screen.getByRole("spinbutton");
+        const stepInput = screen.getByLabelText(/Counting Step Size|Zähl-Schrittgröße/i);
         expect(stepInput).toBeInTheDocument();
       });
     });
@@ -411,7 +411,7 @@ describe("PokemonFormModal", () => {
 
       await waitFor(() => {
         // Step input should be pre-filled with 3
-        const stepInput = screen.getByRole("spinbutton");
+        const stepInput = screen.getByLabelText(/Counting Step Size|Zähl-Schrittgröße/i);
         expect(stepInput).toHaveValue(3);
       });
     });

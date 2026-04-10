@@ -17,6 +17,8 @@ type Props = Readonly<{
     hunt_type?: string;
     shiny_charm?: boolean;
     step?: number;
+    encounters?: number;
+    timer_accumulated_ms?: number;
   };
   onSave: (id: string, data: NewPokemonData) => void;
   onClose: () => void;

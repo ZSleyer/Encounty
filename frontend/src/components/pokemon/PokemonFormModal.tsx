@@ -38,6 +38,8 @@ import { apiUrl } from "../../utils/api";
 
 export interface NewPokemonData {
   name: string;
+  base_name?: string;
+  form_name?: string;
   title?: string;
   canonical_name: string;
   sprite_url: string;
@@ -48,6 +50,8 @@ export interface NewPokemonData {
   hunt_type: string;
   shiny_charm: boolean;
   step?: number;
+  encounters?: number;
+  timer_accumulated_ms?: number;
 }
 
 export interface ExistingPokemonData {
@@ -63,6 +67,8 @@ export interface ExistingPokemonData {
   hunt_type?: string;
   shiny_charm: boolean;
   step?: number;
+  encounters?: number;
+  timer_accumulated_ms?: number;
 }
 
 export type PokemonFormModalProps =
@@ -85,6 +91,7 @@ export type PokemonFormModalProps =
 interface PokemonForm {
   canonical: string;
   names?: Record<string, string>;
+  form_names?: Record<string, string>;
   sprite_id: number;
   generations?: number[];
 }
@@ -102,6 +109,8 @@ interface SearchResult {
   names?: Record<string, string>;
   isForm: boolean;
   spriteId: number;
+  formName?: string;
+  baseName?: string;
 }
 
 // --- Helpers ---
@@ -150,6 +159,7 @@ function filterByQuery(
   allPokemon: PokemonData[],
   selectedGame: string,
   games: GameEntry[],
+  language: string,
 ): SearchResult[] {
   const q = query.trim().toLowerCase();
   const matchesQuery = (entry: { canonical: string; names?: Record<string, string>; spriteId: number }) => {
@@ -170,6 +180,8 @@ function filterByQuery(
     const availableForms = (p.forms || []).filter((f) => isFormAvailableForGame(f, selectedGame, games));
     const formEntries: SearchResult[] = availableForms.map((f) => ({
       id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+      formName: (f as any).form_names?.[language] || (f as any).form_names?.["en"] || undefined,
+      baseName: p.names?.[language] || p.names?.["en"] || undefined,
     }));
     const matchingForms = formEntries.filter(matchesQuery);
 
@@ -193,6 +205,10 @@ interface FormDefaults {
   game: string;
   huntType: string;
   shinyCharm: boolean;
+  encounters: number;
+  timerH: number;
+  timerM: number;
+  timerS: number;
 }
 
 /** Map UI locale to candidate Pokemon language codes (UI "es" → Pokemon "es-es"/"es-419"). */
@@ -205,12 +221,13 @@ function localeToPokemonLangs(locale: string): string[] {
 function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
   const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false };
+  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, encounters: 0, timerH: 0, timerM: 0, timerS: 0 };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
 function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
+  const ms = pokemon.timer_accumulated_ms || 0;
   return {
     language: pokemon.language || (candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en"),
     customSprite: pokemon.sprite_url,
@@ -221,6 +238,10 @@ function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], l
     game: pokemon.game || "",
     huntType: pokemon.hunt_type || "encounter",
     shinyCharm: pokemon.shiny_charm ?? false,
+    encounters: pokemon.encounters ?? 0,
+    timerH: Math.floor(ms / 3600000),
+    timerM: Math.floor((ms % 3600000) / 60000),
+    timerS: Math.floor((ms % 60000) / 1000),
   };
 }
 
@@ -229,6 +250,7 @@ function buildSearchList(
   data: PokemonData[],
   selectedGame: string,
   games: GameEntry[],
+  language: string = "en",
 ): SearchResult[] {
   const results: SearchResult[] = [];
   for (const p of data) {
@@ -236,7 +258,11 @@ function buildSearchList(
     if (p.forms) {
       for (const f of p.forms) {
         if (!isFormAvailableForGame(f, selectedGame, games)) continue;
-        results.push({ id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id });
+        results.push({
+          id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+          formName: (f as any).form_names?.[language] || (f as any).form_names?.["en"] || undefined,
+          baseName: p.names?.[language] || p.names?.["en"] || undefined,
+        });
       }
     }
   }
@@ -249,6 +275,8 @@ interface SelectedState {
   name: string;
   sprite: string;
   spriteId: number;
+  formName?: string;
+  baseName?: string;
 }
 
 /** Match an existing pokemon's canonical name against loaded pokedex data (edit mode). */
@@ -272,7 +300,11 @@ function applyEditModeMatch(
     const form = p.forms?.find((f) => f.canonical === pokemon.canonical_name);
     if (form) {
       const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical);
-      setSelected({ id: p.id, canonical: form.canonical, name: getPkmnName(form, pokemon.language), sprite, spriteId: form.sprite_id });
+      setSelected({
+        id: p.id, canonical: form.canonical, name: getPkmnName(form, pokemon.language), sprite, spriteId: form.sprite_id,
+        formName: (form as any).form_names?.[pokemon.language] || (form as any).form_names?.["en"] || undefined,
+        baseName: p.names?.[pokemon.language] || p.names?.["en"] || undefined,
+      });
       setQuery(getPkmnName(form, pokemon.language));
       return;
     }
@@ -311,6 +343,7 @@ function computeSuggestions(
   allPokemon: PokemonData[],
   selectedGame: string,
   games: GameEntry[],
+  language: string,
 ): SearchResult[] {
   if (isEdit && !showSearch) return [];
   const q = query.trim();
@@ -319,7 +352,7 @@ function computeSuggestions(
       ? buildBrowseList(allPokemon)
       : [];
   }
-  return filterByQuery(query, allPokemon, selectedGame, games);
+  return filterByQuery(query, allPokemon, selectedGame, games, language);
 }
 
 /**
@@ -398,6 +431,10 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   const [title, setTitle] = useState(defaults.title);
   const [step, setStep] = useState(defaults.step);
+  const [encounters, setEncounters] = useState(defaults.encounters);
+  const [timerH, setTimerH] = useState(defaults.timerH);
+  const [timerM, setTimerM] = useState(defaults.timerM);
+  const [timerS, setTimerS] = useState(defaults.timerS);
 
   const [games, setGames] = useState<GameEntry[]>([]);
   const [selectedGame, setSelectedGame] = useState(defaults.game);
@@ -469,9 +506,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   useEffect(() => {
     setSuggestions(
-      computeSuggestions(isEdit, showSearch, query, inputFocused, allPokemon, selectedGame, games),
+      computeSuggestions(isEdit, showSearch, query, inputFocused, allPokemon, selectedGame, games, language),
     );
-  }, [query, allPokemon, showSearch, inputFocused, selectedGame, games]);
+  }, [query, allPokemon, showSearch, inputFocused, selectedGame, games, language]);
 
   // --- Select a pokemon from search results ---
   const selectPokemon = (p: SearchResult) => {
@@ -486,6 +523,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     setSelected({
       id: p.id, canonical: p.canonical,
       name: getPkmnName(p, language), sprite, spriteId: p.spriteId,
+      formName: p.formName,
+      baseName: p.baseName,
     });
     setCustomSprite(sprite);
     if (isEdit) setShowSearch(false);
@@ -530,12 +569,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     if (!selected) return;
     // For language relabeling we want to find the entry regardless of game
     // filtering, so we pass an empty selectedGame to bypass the form filter.
-    const fullP = buildSearchList(allPokemon, "", games).find(
+    const fullP = buildSearchList(allPokemon, "", games, lang).find(
       (p) => p.spriteId === selected.spriteId && p.canonical === selected.canonical,
     );
     if (!fullP) return;
     setQuery(getPkmnName(fullP, lang));
-    setSelected({ ...selected, name: getPkmnName(fullP, lang) });
+    setSelected({ ...selected, name: getPkmnName(fullP, lang), formName: fullP.formName, baseName: fullP.baseName });
   };
 
   // --- Submit handler ---
@@ -543,6 +582,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     if (!selected) return;
     const data: NewPokemonData = {
       name: selected.name,
+      base_name: selected.baseName || undefined,
+      form_name: selected.formName || undefined,
       title: title || undefined,
       canonical_name: selected.canonical,
       sprite_url: customSprite || selected.sprite,
@@ -553,6 +594,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       hunt_type: huntType,
       shiny_charm: shinyCharm,
       step: isEdit && step > 1 ? step : undefined,
+      encounters,
+      timer_accumulated_ms: timerH * 3600000 + timerM * 60000 + timerS * 1000,
     };
     submitByMode(props, data);
   };
@@ -1073,6 +1116,71 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               </select>
             </div>
           )}
+
+          {/* Encounters */}
+          <div>
+            <label htmlFor="encounters-form" className="block text-xs text-text-muted mb-1">
+              {t("modal.encountersLabel")}
+            </label>
+            <input
+              id="encounters-form"
+              type="number"
+              min={0}
+              value={encounters}
+              onChange={(e) => setEncounters(Math.max(0, Number.parseInt(e.target.value, 10) || 0))}
+              className={inputClass}
+            />
+          </div>
+
+          {/* Timer */}
+          <div>
+            <label className="block text-xs text-text-muted mb-1">
+              {t("modal.timerLabel")}
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label htmlFor="timer-h-form" className="block text-[10px] text-text-muted mb-0.5">
+                  {t("timer.hours")}
+                </label>
+                <input
+                  id="timer-h-form"
+                  type="number"
+                  min={0}
+                  value={timerH}
+                  onChange={(e) => setTimerH(Math.max(0, Number.parseInt(e.target.value, 10) || 0))}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="timer-m-form" className="block text-[10px] text-text-muted mb-0.5">
+                  {t("timer.minutes")}
+                </label>
+                <input
+                  id="timer-m-form"
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={timerM}
+                  onChange={(e) => setTimerM(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="timer-s-form" className="block text-[10px] text-text-muted mb-0.5">
+                  {t("timer.seconds")}
+                </label>
+                <input
+                  id="timer-s-form"
+                  type="number"
+                  min={0}
+                  max={59}
+                  value={timerS}
+                  onChange={(e) => setTimerS(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+          </div>
 
           {/* Shiny Charm toggle — only shown for games that support it */}
           {gameSupportsCharm(selectedGame) && (

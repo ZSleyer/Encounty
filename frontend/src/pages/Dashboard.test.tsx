@@ -507,8 +507,8 @@ describe("Dashboard", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // All action buttons should have aria-labels
-    expect(screen.getByLabelText(/Bearbeiten|Edit/i)).toBeInTheDocument();
+    // All action buttons should have aria-labels (exact match to avoid timer edit button)
+    expect(screen.getByLabelText(/^Bearbeiten$|^Edit$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Löschen|Delete/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Gefangen|Caught/i)).toBeInTheDocument();
   });
@@ -1613,6 +1613,7 @@ describe("Dashboard overlay tab", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -1804,6 +1805,12 @@ describe("Dashboard timer controls", () => {
     const resetBtn = screen.getByLabelText(/Timer zurücksetzen|Timer reset/i);
     await user.click(resetBtn);
 
+    // Confirm modal should appear — click the confirm button inside the dialog
+    const confirmBtns = screen.getAllByText(/Bestätigen|Confirm/i);
+    const dialogConfirm = confirmBtns.find(el => el.closest("dialog") !== null);
+    expect(dialogConfirm).toBeTruthy();
+    await user.click(dialogConfirm!);
+
     expect(mockSend).toHaveBeenCalledWith("timer_reset", { pokemon_id: "t1" });
   });
 
@@ -1946,12 +1953,9 @@ describe("Dashboard multi-select", () => {
 
     // Ctrl-click the first pokemon in sidebar
     const items = document.querySelectorAll("[data-sidebar-idx]");
-    const firstItemBtn = items[0].querySelector("button");
-    if (firstItemBtn) {
-      await user.keyboard("{Control>}");
-      await user.click(firstItemBtn);
-      await user.keyboard("{/Control}");
-    }
+    await user.keyboard("{Control>}");
+    await user.click(items[0]);
+    await user.keyboard("{/Control}");
 
     // Selection count badge should appear
     const selectionBadge = document.querySelector(".text-accent-blue.font-semibold");
@@ -2506,6 +2510,7 @@ describe("Dashboard unsaved overlay changes", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -2907,20 +2912,14 @@ describe("Dashboard shift-select", () => {
 
     // Ctrl-click the first item to start selection
     const items = document.querySelectorAll("[data-sidebar-idx]");
-    const firstBtn = items[0].querySelector("button");
-    if (firstBtn) {
-      await user.keyboard("{Control>}");
-      await user.click(firstBtn);
-      await user.keyboard("{/Control}");
-    }
+    await user.keyboard("{Control>}");
+    await user.click(items[0]);
+    await user.keyboard("{/Control}");
 
     // Shift-click the third item to extend selection
-    const thirdBtn = items[2].querySelector("button");
-    if (thirdBtn) {
-      await user.keyboard("{Shift>}");
-      await user.click(thirdBtn);
-      await user.keyboard("{/Shift}");
-    }
+    await user.keyboard("{Shift>}");
+    await user.click(items[2]);
+    await user.keyboard("{/Shift}");
 
     // Selection badge should show 3 (or at least more than 1)
     const badges = document.querySelectorAll(".text-accent-blue.font-semibold");
@@ -3210,12 +3209,9 @@ describe("Dashboard sidebar quick actions", () => {
 
     // Ctrl-click first pokemon
     const items = document.querySelectorAll("[data-sidebar-idx]");
-    const firstBtn = items[0].querySelector("button");
-    if (firstBtn) {
-      await user.keyboard("{Control>}");
-      await user.click(firstBtn);
-      await user.keyboard("{/Control}");
-    }
+    await user.keyboard("{Control>}");
+    await user.click(items[0]);
+    await user.keyboard("{/Control}");
 
     // Bulk action buttons should appear (delete + complete)
     const deleteBtn = screen.getAllByLabelText(/Löschen|Delete/i);
@@ -3240,12 +3236,9 @@ describe("Dashboard sidebar quick actions", () => {
 
     // Ctrl-click first pokemon
     const items = document.querySelectorAll("[data-sidebar-idx]");
-    const firstBtn = items[0].querySelector("button");
-    if (firstBtn) {
-      await user.keyboard("{Control>}");
-      await user.click(firstBtn);
-      await user.keyboard("{/Control}");
-    }
+    await user.keyboard("{Control>}");
+    await user.click(items[0]);
+    await user.keyboard("{/Control}");
 
     // Selection count should be visible
     const selBadge = document.querySelector(".text-accent-blue.font-semibold.tabular-nums");
@@ -3373,6 +3366,7 @@ describe("Dashboard unsaved overlay discard flow", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -3412,6 +3406,7 @@ describe("Dashboard unsaved overlay discard flow", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -3973,6 +3968,7 @@ describe("Dashboard overlay import dropdown", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -4066,6 +4062,7 @@ describe("Dashboard unsaved overlay stay and discard", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -4104,6 +4101,7 @@ describe("Dashboard unsaved overlay stay and discard", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -4213,8 +4211,8 @@ describe("Dashboard confirm modal close", () => {
     const deleteBtns = screen.getAllByRole("button", { name: /Löschen|Delete/i });
     await user.click(deleteBtns[0]);
 
-    // After clicking delete, the confirm dialog text should appear
-    expect(screen.getByText(/wirklich löschen|really delete|löschen/i)).toBeInTheDocument();
+    // After clicking delete, the confirm dialog title should appear
+    expect(screen.getByText(/Pokémon löschen|Delete Pokémon/i)).toBeInTheDocument();
   });
 });
 
@@ -4408,6 +4406,7 @@ describe("Dashboard overlay custom to default switch", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -4461,6 +4460,7 @@ describe("Dashboard overlay custom to default switch", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -4509,8 +4509,13 @@ describe("Dashboard sidebar hunt start from quick actions", () => {
 
     render(<Dashboard />);
 
+    // Select the pokemon first (Ctrl+click sidebar card)
+    const items = document.querySelectorAll("[data-sidebar-idx]");
+    await user.keyboard("{Control>}");
+    await user.click(items[0]);
+    await user.keyboard("{/Control}");
+
     // Find the sidebar quick actions hunt button (not the header one)
-    // The sidebar quick actions area has a hunt start button
     const allButtons = screen.getAllByRole("button");
     const sidebarHuntBtn = allButtons.find(btn => {
       const parent = btn.closest(".border-b.border-border-subtle");
@@ -4539,6 +4544,12 @@ describe("Dashboard sidebar hunt start from quick actions", () => {
     });
 
     render(<Dashboard />);
+
+    // Select the pokemon first (Ctrl+click sidebar card)
+    const items = document.querySelectorAll("[data-sidebar-idx]");
+    await user.keyboard("{Control>}");
+    await user.click(items[0]);
+    await user.keyboard("{/Control}");
 
     // Find the sidebar quick actions stop button
     const allButtons = screen.getAllByRole("button");
@@ -4770,13 +4781,13 @@ describe("Dashboard sidebar item Enter/Space keydown on button", () => {
 
     render(<Dashboard />);
 
-    // Find the second sidebar item button and focus it
+    // Find the second sidebar item and focus it
     const items = document.querySelectorAll("[data-sidebar-idx]");
-    const secondBtn = items[1]?.querySelector("button") as HTMLElement;
-    expect(secondBtn).toBeTruthy();
+    const secondItem = items[1] as HTMLElement;
+    expect(secondItem).toBeTruthy();
 
     // Focus and press Enter
-    secondBtn.focus();
+    secondItem.focus();
     await user.keyboard("{Enter}");
 
     // Mon2 should now be the viewed pokemon in the header
@@ -4798,13 +4809,13 @@ describe("Dashboard sidebar item Enter/Space keydown on button", () => {
 
     render(<Dashboard />);
 
-    // Find the second sidebar item button and focus it
+    // Find the second sidebar item and focus it
     const items = document.querySelectorAll("[data-sidebar-idx]");
-    const secondBtn = items[1]?.querySelector("button") as HTMLElement;
-    expect(secondBtn).toBeTruthy();
+    const secondItem = items[1] as HTMLElement;
+    expect(secondItem).toBeTruthy();
 
     // Focus and press Space
-    secondBtn.focus();
+    secondItem.focus();
     await user.keyboard(" ");
 
     // Mon2 should now be the viewed pokemon in the header
@@ -5082,6 +5093,7 @@ describe("Dashboard overlay save flow", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -5131,6 +5143,7 @@ describe("Dashboard overlay import with other pokemon", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
     const p2 = makePokemon({
@@ -5150,6 +5163,7 @@ describe("Dashboard overlay import with other pokemon", () => {
         name: { visible: true, x: 100, y: 10, width: 200, height: 30, z_index: 2, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
+        timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
       },
     });
 
@@ -5233,16 +5247,16 @@ describe("Dashboard sidebar item keydown event", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // Find the second sidebar item's main button
+    // Find the second sidebar item and focus it
     const items = document.querySelectorAll("[data-sidebar-idx]");
-    const secondItemBtn = items[1]?.querySelector("button") as HTMLButtonElement;
-    expect(secondItemBtn).toBeTruthy();
+    const secondItem = items[1] as HTMLElement;
+    expect(secondItem).toBeTruthy();
 
     // Simulate keydown with Enter
     await act(async () => {
-      secondItemBtn.focus();
+      secondItem.focus();
       const enterEvent = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
-      secondItemBtn.dispatchEvent(enterEvent);
+      secondItem.dispatchEvent(enterEvent);
     });
 
     // Mon2 should be the viewed pokemon
