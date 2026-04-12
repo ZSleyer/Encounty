@@ -33,11 +33,15 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 - **Shiny Charm toggle** with accurate per-method odds for every supported game
 - **Unlimited simultaneous hunts** with independent capture streams
 - **GPU-accelerated auto-detection** via WebGPU compute shaders with automatic CPU fallback
-- **Template management** with import/export and region-based positive/negative matching
+- **Template management** with import/export and region-based positive matching
 - **Manual tracking** via configurable global hotkeys
 - **OBS integration** with drag-and-drop overlay editor, live preview, and text file output
 - **Pokédex** with sprite support and PokeAPI sync
 - **Multi-language** support for English, German, Spanish, French, and Japanese
+
+### Troubleshooting
+
+- [macOS](docs/macOS.md)
 
 ## Contributing
 
