@@ -140,11 +140,13 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       {hotkeyAvailable === false ? (
         <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
           <p className="text-xs text-amber-400">{t("hotkeys.unavailable")}</p>
-          <p className="text-xs text-text-muted mt-1">
-            {t("hotkeys.linuxHint").split("{cmd}")[0]}
-            <code className="text-text-secondary">sudo usermod -aG input $USER</code>
-            {t("hotkeys.linuxHint").split("{cmd}")[1]}
-          </p>
+          {globalThis.electronAPI?.platform === "linux" && (
+            <p className="text-xs text-text-muted mt-1">
+              {t("hotkeys.linuxHint").split("{cmd}")[0]}
+              <code className="text-text-secondary">sudo usermod -aG input $USER</code>
+              {t("hotkeys.linuxHint").split("{cmd}")[1]}
+            </p>
+          )}
         </div>
       ) : null}
 
