@@ -164,7 +164,7 @@ func makeTestState() state.AppState {
 		LicenseAccepted: true,
 		DataPath:        "/test/data",
 		Hotkeys: state.HotkeyMap{
-			Increment: "F1", Decrement: "F2", Reset: "F3", NextPokemon: "F4",
+			Increment: "F1", Decrement: "F2", Reset: "F3", NextPokemon: "F4", HuntToggle: "F5",
 		},
 		Settings: state.Settings{
 			OutputEnabled: true,

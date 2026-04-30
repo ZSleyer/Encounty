@@ -409,6 +409,34 @@ func TestUpdateSingleHotkeyValid(t *testing.T) {
 	}
 }
 
+// TestUpdateSingleHotkeyHuntToggle verifies that updating the hunt_toggle
+// action succeeds and the state reflects the new binding.
+func TestUpdateSingleHotkeyHuntToggle(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/hotkeys/hunt_toggle", jsonBody(`{"key":"F10"}`))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+
+	var got hotkeyUpdateResponse
+	decodeJSON(t, w, &got)
+	if got.Action != "hunt_toggle" {
+		t.Errorf("action = %q, want hunt_toggle", got.Action)
+	}
+	if got.Key != "F10" {
+		t.Errorf("key = %q, want F10", got.Key)
+	}
+
+	st := deps.stateMgr.GetState()
+	if st.Hotkeys.HuntToggle != "F10" {
+		t.Errorf("state hotkeys.HuntToggle = %q, want F10", st.Hotkeys.HuntToggle)
+	}
+}
+
 // TestUpdateSingleHotkeyUnknownAction verifies that an unknown action
 // returns 404.
 func TestUpdateSingleHotkeyUnknownAction(t *testing.T) {

@@ -9,6 +9,12 @@
 import { useState, useEffect, useRef, useCallback, type RefObject } from "react";
 import { X, Monitor, AppWindow, Camera, RefreshCw } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useToast } from "../../contexts/ToastContext";
+import {
+  getLastSource,
+  getGlobalLastSource,
+  type RememberedCaptureSource,
+} from "../../utils/captureSourceMemory";
 
 // --- Types -------------------------------------------------------------------
 
@@ -24,6 +30,12 @@ type SourcePickerModalProps = Readonly<{
   sourceType: "browser_display" | "browser_camera";
   onSelect: (source: SelectedSource) => void;
   onClose: () => void;
+  /**
+   * Target pokemon for per-pokemon source restore. When omitted, only the
+   * global fallback is considered. Always pass when calling from a hunt
+   * context so the user's last choice per pokemon sticks.
+   */
+  pokemonId?: string;
 }>;
 
 interface CameraDevice {
@@ -47,6 +59,61 @@ const CAPTURE_CARD_KEYWORDS = [
 function isCaptureCard(label: string): boolean {
   const lower = label.toLowerCase();
   return CAPTURE_CARD_KEYWORDS.some((kw) => lower.includes(kw));
+}
+
+// --- Restore helpers ---------------------------------------------------------
+
+/**
+ * Merge per-pokemon and global memory, preferring the per-pokemon entry but
+ * only when its type matches the currently requested sourceType. Users may
+ * switch a pokemon from display to camera capture between sessions, so a
+ * stale per-pokemon entry of the wrong type must fall back to the global one.
+ */
+function pickRememberedSource(
+  pokemonId: string | undefined,
+  sourceType: "browser_display" | "browser_camera",
+): RememberedCaptureSource | null {
+  const perPokemon = pokemonId ? getLastSource(pokemonId) : null;
+  if (perPokemon && perPokemon.type === sourceType) return perPokemon;
+  const globalEntry = getGlobalLastSource();
+  if (globalEntry && globalEntry.type === sourceType) return globalEntry;
+  return null;
+}
+
+/** Find the first capture source whose ID matches exactly. */
+function findCaptureSourceById(
+  sources: CaptureSource[],
+  sourceId: string,
+): CaptureSource | null {
+  return sources.find((s) => s.id === sourceId) ?? null;
+}
+
+/** Find the first capture source whose label matches case-insensitively. */
+function findCaptureSourceByLabel(
+  sources: CaptureSource[],
+  label: string,
+): CaptureSource | null {
+  if (!label) return null;
+  const needle = label.toLowerCase();
+  return sources.find((s) => s.name.toLowerCase().includes(needle)) ?? null;
+}
+
+/** Find the first camera device whose deviceId matches exactly. */
+function findCameraById(
+  cameras: CameraDevice[],
+  deviceId: string,
+): CameraDevice | null {
+  return cameras.find((c) => c.deviceId === deviceId) ?? null;
+}
+
+/** Find the first camera device whose label matches case-insensitively. */
+function findCameraByLabel(
+  cameras: CameraDevice[],
+  label: string,
+): CameraDevice | null {
+  if (!label) return null;
+  const needle = label.toLowerCase();
+  return cameras.find((c) => c.label.toLowerCase().includes(needle)) ?? null;
 }
 
 // --- Selection helpers --------------------------------------------------------
@@ -240,11 +307,26 @@ function SourceGrid({
 // --- Component ---------------------------------------------------------------
 
 /** Modal for selecting a browser capture source (screen, window, or camera). */
-export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePickerModalProps) {
+export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: SourcePickerModalProps) {
   const { t } = useI18n();
+  const { push: pushToast } = useToast();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const isElectron = !!globalThis.electronAPI;
   const isWayland = globalThis.electronAPI?.isWayland ?? false;
+
+  // Wayland + display capture always goes through the PipeWire portal dialog
+  // which shows its own chooser — there is no stable source ID we could
+  // restore, so we skip remembering and restoring for that combination.
+  const canAutoRestore = !(isWayland && sourceType === "browser_display");
+
+  // Read the remembered source once per open. A ref avoids re-running the
+  // restore attempt after the enumeration effect runs again (e.g. the 3s
+  // thumbnail refresh) which would otherwise auto-close the modal on every
+  // refresh tick.
+  const rememberedRef = useRef<RememberedCaptureSource | null>(
+    canAutoRestore ? pickRememberedSource(pokemonId, sourceType) : null,
+  );
+  const restoreAttemptedRef = useRef(false);
 
   // On Wayland + display capture, skip the thumbnail picker entirely and let
   // the caller fall through to the native PipeWire/xdg-desktop-portal picker.
@@ -354,6 +436,62 @@ export function SourcePickerModal({ sourceType, onSelect, onClose }: SourcePicke
     const interval = setInterval(fetchSources, 3000);
     return () => clearInterval(interval);
   }, [sourceType, isElectron, fetchSources, isWayland]);
+
+  // Auto-restore the remembered source once enumeration finishes. We attempt
+  // this only once per modal open (guarded by restoreAttemptedRef) so the
+  // periodic thumbnail refresh does not re-close the modal on every tick
+  // after the user explicitly cancelled a restored preview.
+  useEffect(() => {
+    if (!canAutoRestore || restoreAttemptedRef.current) return;
+    const remembered = rememberedRef.current;
+    if (!remembered) return;
+    if (loading) return;
+
+    // Capture / screen flow
+    if (sourceType === "browser_display" && remembered.type === "browser_display") {
+      if (captureSources.length === 0) return;
+      restoreAttemptedRef.current = true;
+
+      const exact = findCaptureSourceById(captureSources, remembered.sourceId);
+      if (exact) {
+        const type = exact.id.startsWith("screen:") ? "screen" : "window";
+        pushToast({ type: "info", title: t("capture.sourceRestored", { label: exact.name }) });
+        onSelect({ type, sourceId: exact.id, label: exact.name });
+        return;
+      }
+      const fuzzy = findCaptureSourceByLabel(captureSources, remembered.sourceLabel);
+      if (fuzzy) {
+        const type = fuzzy.id.startsWith("screen:") ? "screen" : "window";
+        pushToast({ type: "info", title: t("capture.sourceRestored", { label: fuzzy.name }) });
+        onSelect({ type, sourceId: fuzzy.id, label: fuzzy.name });
+        return;
+      }
+      // No match — keep the modal open, pre-select nothing (user must pick)
+      // but inform them why they are seeing the picker again.
+      pushToast({ type: "info", title: t("capture.sourceNotFound") });
+      return;
+    }
+
+    // Camera flow
+    if (sourceType === "browser_camera" && remembered.type === "browser_camera") {
+      if (cameras.length === 0) return;
+      restoreAttemptedRef.current = true;
+
+      const exactCam = findCameraById(cameras, remembered.sourceId);
+      if (exactCam) {
+        pushToast({ type: "info", title: t("capture.sourceRestored", { label: exactCam.label }) });
+        selectCamera(cameras, exactCam.deviceId, onSelect, selectedStreamRef);
+        return;
+      }
+      const fuzzyCam = findCameraByLabel(cameras, remembered.sourceLabel);
+      if (fuzzyCam) {
+        pushToast({ type: "info", title: t("capture.sourceRestored", { label: fuzzyCam.label }) });
+        selectCamera(cameras, fuzzyCam.deviceId, onSelect, selectedStreamRef);
+        return;
+      }
+      pushToast({ type: "info", title: t("capture.sourceNotFound") });
+    }
+  }, [loading, captureSources, cameras, canAutoRestore, sourceType, onSelect, pushToast, t]);
 
   // Filter sources by active tab
   const filteredSources = captureSources.filter((s) => {

@@ -99,6 +99,16 @@ var migrations = []migration{
 		description: "force pokedex re-sync to populate form names",
 		fn:          migrateForcePokedexResync,
 	},
+	{
+		version:     17,
+		description: "add hunt_toggle column to hotkeys",
+		fn:          migrateAddHuntToggleHotkey,
+	},
+	{
+		version:     18,
+		description: "add pokemon groups and tags",
+		fn:          migrateAddPokemonGroupsAndTags,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -367,6 +377,49 @@ func migrateRemoveNegativeAndFullFrameRegions(tx *sql.Tx) error {
 // because SQLite does not support IF NOT EXISTS for ADD COLUMN.
 func migrateAddFormGenerations(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokedex_forms ADD COLUMN generations TEXT NOT NULL DEFAULT '[]'`)
+	return nil
+}
+
+// migrateAddHuntToggleHotkey adds the hunt_toggle column to the hotkeys table
+// so users can bind a global shortcut that starts or stops the current hunt
+// (timer + detector) for the active Pokémon. Errors are ignored for
+// idempotency because SQLite does not support IF NOT EXISTS on ADD COLUMN.
+func migrateAddHuntToggleHotkey(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE hotkeys ADD COLUMN hunt_toggle TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddPokemonGroupsAndTags introduces organizational grouping for
+// Pokémon. It creates the pokemon_groups and pokemon_tags tables, adds an
+// index on pokemon_tags.tag for filter lookups, and appends a group_id column
+// to the existing pokemon table. CREATE TABLE and CREATE INDEX use IF NOT
+// EXISTS for idempotency; the ADD COLUMN call tolerates the duplicate-column
+// error that SQLite returns on re-runs since ALTER TABLE has no IF NOT EXISTS.
+func migrateAddPokemonGroupsAndTags(tx *sql.Tx) error {
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS pokemon_groups (
+		id         TEXT PRIMARY KEY,
+		name       TEXT NOT NULL,
+		color      TEXT NOT NULL DEFAULT '',
+		sort_order INTEGER NOT NULL DEFAULT 0,
+		collapsed  INTEGER NOT NULL DEFAULT 0
+	)`); err != nil {
+		return fmt.Errorf("create pokemon_groups: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS pokemon_tags (
+		pokemon_id TEXT NOT NULL,
+		tag        TEXT NOT NULL,
+		PRIMARY KEY (pokemon_id, tag),
+		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
+	)`); err != nil {
+		return fmt.Errorf("create pokemon_tags: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_pokemon_tags_tag ON pokemon_tags(tag)`); err != nil {
+		return fmt.Errorf("create idx_pokemon_tags_tag: %w", err)
+	}
+	// ALTER TABLE ADD COLUMN has no IF NOT EXISTS in SQLite; ignore the
+	// duplicate-column error that occurs when the migration is re-run on a
+	// database whose baseline already contained the column.
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN group_id TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

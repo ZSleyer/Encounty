@@ -23,7 +23,8 @@ var schemaV2 = []string{
 		increment    TEXT NOT NULL DEFAULT '',
 		decrement    TEXT NOT NULL DEFAULT '',
 		reset        TEXT NOT NULL DEFAULT '',
-		next_pokemon TEXT NOT NULL DEFAULT ''
+		next_pokemon TEXT NOT NULL DEFAULT '',
+		hunt_toggle  TEXT NOT NULL DEFAULT ''
 	)`,
 
 	// ── Settings (singleton) ─────────────────────────────────────────────
@@ -69,7 +70,26 @@ var schemaV2 = []string{
 		timer_started_at     TEXT,
 		timer_accumulated_ms INTEGER NOT NULL DEFAULT 0,
 		hunt_mode            TEXT    NOT NULL DEFAULT 'both',
+		group_id             TEXT    NOT NULL DEFAULT '',
 		sort_order           INTEGER NOT NULL DEFAULT 0
+	)`,
+
+	// ── Pokemon groups ───────────────────────────────────────────────────
+	// Organizational Sidebar sections; membership is stored on pokemon.group_id.
+	`CREATE TABLE IF NOT EXISTS pokemon_groups (
+		id         TEXT PRIMARY KEY,
+		name       TEXT NOT NULL,
+		color      TEXT NOT NULL DEFAULT '',
+		sort_order INTEGER NOT NULL DEFAULT 0,
+		collapsed  INTEGER NOT NULL DEFAULT 0
+	)`,
+
+	// ── Pokemon tags (many-to-many) ──────────────────────────────────────
+	`CREATE TABLE IF NOT EXISTS pokemon_tags (
+		pokemon_id TEXT NOT NULL,
+		tag        TEXT NOT NULL,
+		PRIMARY KEY (pokemon_id, tag),
+		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
 	)`,
 
 	// ── Sessions ─────────────────────────────────────────────────────────
@@ -267,4 +287,5 @@ var schemaV2 = []string{
 	`CREATE INDEX IF NOT EXISTS idx_detection_log_pokemon ON detection_log(pokemon_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_game_names_key ON game_names(game_key)`,
 	`CREATE INDEX IF NOT EXISTS idx_pokedex_forms_species ON pokedex_forms(species_id)`,
+	`CREATE INDEX IF NOT EXISTS idx_pokemon_tags_tag ON pokemon_tags(tag)`,
 }

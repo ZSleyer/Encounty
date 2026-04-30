@@ -51,12 +51,15 @@ func newTestServer(t *testing.T) *Server {
 	stateMgr := state.NewManager(t.TempDir())
 	hkMgr := newMockHotkeyMgr()
 	srv := &Server{
-		state:     stateMgr,
-		hub:       NewHub(),
-		hotkeyMgr: hkMgr,
-		version:   "1.0.0",
-		commit:    "abc1234",
-		buildDate: "032026",
+		state:        stateMgr,
+		hub:          NewHub(),
+		hotkeyMgr:    hkMgr,
+		version:      "1.0.0",
+		commit:       "abc1234",
+		buildDate:    "032026",
+		hotkeyLastAt: make(map[string]time.Time),
+		capturing:    make(map[string]bool),
+		detecting:    make(map[string]bool),
 	}
 	return srv
 }

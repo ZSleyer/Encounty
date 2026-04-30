@@ -85,7 +85,63 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 		return err
 	}
 
+	// ── 8. groups + pokemon_tags ────────────────────────────────────────
+	if err := saveGroups(tx, st.Groups); err != nil {
+		return fmt.Errorf("save groups: %w", err)
+	}
+	if err := savePokemonTags(tx, st.Pokemon); err != nil {
+		return fmt.Errorf("save pokemon_tags: %w", err)
+	}
+
 	return tx.Commit()
+}
+
+// saveGroups replaces the pokemon_groups rows with the given slice. A full
+// delete+insert is used because groups are a small set and this avoids having
+// to track renames or reordering as diff operations.
+func saveGroups(tx *sql.Tx, groups []state.Group) error {
+	if _, err := tx.Exec(`DELETE FROM pokemon_groups`); err != nil {
+		return fmt.Errorf("delete pokemon_groups: %w", err)
+	}
+	if len(groups) == 0 {
+		return nil
+	}
+	stmt, err := tx.Prepare(`INSERT INTO pokemon_groups (id, name, color, sort_order, collapsed) VALUES (?, ?, ?, ?, ?)`)
+	if err != nil {
+		return fmt.Errorf("prepare pokemon_groups insert: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+	for _, g := range groups {
+		if _, err := stmt.Exec(g.ID, g.Name, g.Color, g.SortOrder, boolToInt(g.Collapsed)); err != nil {
+			return fmt.Errorf("insert group %q: %w", g.ID, err)
+		}
+	}
+	return nil
+}
+
+// savePokemonTags replaces pokemon_tags rows per Pokémon. The full-replace
+// strategy keeps the save path simple and avoids tracking individual tag
+// edits; tag lists are short so the cost is negligible.
+func savePokemonTags(tx *sql.Tx, pokemon []state.Pokemon) error {
+	stmt, err := tx.Prepare(`INSERT INTO pokemon_tags (pokemon_id, tag) VALUES (?, ?)`)
+	if err != nil {
+		return fmt.Errorf("prepare pokemon_tags insert: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+	for _, p := range pokemon {
+		if _, err := tx.Exec(`DELETE FROM pokemon_tags WHERE pokemon_id = ?`, p.ID); err != nil {
+			return fmt.Errorf("delete pokemon_tags for %q: %w", p.ID, err)
+		}
+		for _, tag := range p.Tags {
+			if tag == "" {
+				continue
+			}
+			if _, err := stmt.Exec(p.ID, tag); err != nil {
+				return fmt.Errorf("insert tag %q on %q: %w", tag, p.ID, err)
+			}
+		}
+	}
+	return nil
 }
 
 // ---------------------------------------------------------------------------
@@ -95,14 +151,15 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 // saveHotkeyRow upserts the singleton hotkeys row.
 func saveHotkeyRow(tx *sql.Tx, h *state.HotkeyMap) error {
 	if _, err := tx.Exec(`
-		INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon)
-		VALUES (1, ?, ?, ?, ?)
+		INSERT INTO hotkeys (id, increment, decrement, reset, next_pokemon, hunt_toggle)
+		VALUES (1, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			increment    = excluded.increment,
 			decrement    = excluded.decrement,
 			reset        = excluded.reset,
-			next_pokemon = excluded.next_pokemon`,
-		h.Increment, h.Decrement, h.Reset, h.NextPokemon,
+			next_pokemon = excluded.next_pokemon,
+			hunt_toggle  = excluded.hunt_toggle`,
+		h.Increment, h.Decrement, h.Reset, h.NextPokemon, h.HuntToggle,
 	); err != nil {
 		return fmt.Errorf("upsert hotkeys: %w", err)
 	}
@@ -163,8 +220,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 		INSERT INTO pokemon (id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
 			completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
-			hunt_mode, sort_order)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			hunt_mode, group_id, sort_order)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name                 = excluded.name,
 			base_name            = excluded.base_name,
@@ -187,6 +244,7 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			timer_started_at     = excluded.timer_started_at,
 			timer_accumulated_ms = excluded.timer_accumulated_ms,
 			hunt_mode            = excluded.hunt_mode,
+			group_id             = excluded.group_id,
 			sort_order           = excluded.sort_order`)
 	if err != nil {
 		return fmt.Errorf("prepare pokemon upsert: %w", err)
@@ -199,7 +257,7 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			p.SpriteStyle, p.Encounters, p.Step, boolToInt(p.IsActive),
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
 			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm),
-			nullTimeStr(p.TimerStartedAt), p.TimerAccumulatedMs, p.HuntMode, i,
+			nullTimeStr(p.TimerStartedAt), p.TimerAccumulatedMs, p.HuntMode, p.GroupID, i,
 		); err != nil {
 			return fmt.Errorf("upsert pokemon %q: %w", p.ID, err)
 		}

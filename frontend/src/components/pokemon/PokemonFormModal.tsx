@@ -28,6 +28,7 @@ import {
   getPokemonGeneration,
 } from "../../utils/sprites";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
+import { TagChip } from "../shared/TagChip";
 import { getGameName, ALL_LANGUAGES } from "../../utils/games";
 import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import { gameSupportsCharm } from "../../utils/gameGroups";
@@ -52,6 +53,10 @@ export interface NewPokemonData {
   step?: number;
   encounters?: number;
   timer_accumulated_ms?: number;
+  /** Group ID — empty string means "no group". */
+  group_id?: string;
+  /** Free-form tags attached to this Pokémon. */
+  tags?: string[];
 }
 
 export interface ExistingPokemonData {
@@ -69,6 +74,15 @@ export interface ExistingPokemonData {
   step?: number;
   encounters?: number;
   timer_accumulated_ms?: number;
+  group_id?: string;
+  tags?: string[];
+}
+
+/** One group entry as exposed to the Pokémon form (subset of the full Group type). */
+export interface GroupOption {
+  id: string;
+  name: string;
+  color: string;
 }
 
 export type PokemonFormModalProps =
@@ -77,6 +91,9 @@ export type PokemonFormModalProps =
       onSubmit: (data: NewPokemonData) => void;
       onClose: () => void;
       activeLanguages?: string[];
+      groups?: GroupOption[];
+      availableTags?: string[];
+      onManageGroups?: () => void;
     }
   | {
       mode: "edit";
@@ -84,6 +101,9 @@ export type PokemonFormModalProps =
       onSubmit: (id: string, data: NewPokemonData) => void;
       onClose: () => void;
       activeLanguages?: string[];
+      groups?: GroupOption[];
+      availableTags?: string[];
+      onManageGroups?: () => void;
     };
 
 // --- Internal types ---
@@ -209,6 +229,8 @@ interface FormDefaults {
   timerH: number;
   timerM: number;
   timerS: number;
+  groupId: string;
+  tags: string[];
 }
 
 /** Map UI locale to candidate Pokemon language codes (UI "es" → Pokemon "es-es"/"es-419"). */
@@ -221,7 +243,7 @@ function localeToPokemonLangs(locale: string): string[] {
 function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
   const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, encounters: 0, timerH: 0, timerM: 0, timerS: 0 };
+  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [] };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
@@ -242,6 +264,8 @@ function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], l
     timerH: Math.floor(ms / 3600000),
     timerM: Math.floor((ms % 3600000) / 60000),
     timerS: Math.floor((ms % 60000) / 1000),
+    groupId: pokemon.group_id || "",
+    tags: Array.isArray(pokemon.tags) ? [...pokemon.tags] : [],
   };
 }
 
@@ -355,6 +379,144 @@ function computeSuggestions(
   return filterByQuery(query, allPokemon, selectedGame, games, language);
 }
 
+interface GroupAndTagsSectionProps {
+  readonly groups: readonly GroupOption[];
+  readonly availableTags: readonly string[];
+  readonly onManageGroups?: () => void;
+  readonly groupId: string;
+  readonly onGroupChange: (id: string) => void;
+  readonly tags: string[];
+  readonly onTagsChange: (tags: string[]) => void;
+  readonly tagDraft: string;
+  readonly onTagDraftChange: (v: string) => void;
+  readonly selectClass: string;
+  readonly inputClass: string;
+}
+
+/**
+ * Group dropdown + tag input section for the Pokémon form.
+ *
+ * Kept as a standalone component so it stays out of the large main modal
+ * function and can be snapshot-tested independently if needed.
+ */
+function GroupAndTagsSection({
+  groups,
+  availableTags,
+  onManageGroups,
+  groupId,
+  onGroupChange,
+  tags,
+  onTagsChange,
+  tagDraft,
+  onTagDraftChange,
+  selectClass,
+  inputClass,
+}: GroupAndTagsSectionProps) {
+  const { t } = useI18n();
+
+  // Autocomplete suggestions: show tags from the pool that match the current
+  // draft (case-insensitive prefix) and are not already attached.
+  const draft = tagDraft.trim().toLowerCase();
+  const suggestions = draft
+    ? availableTags.filter(
+        (a) => a.toLowerCase().startsWith(draft) && !tags.includes(a),
+      ).slice(0, 5)
+    : [];
+
+  const addTag = (raw: string) => {
+    const v = raw.trim().toLowerCase();
+    if (!v || tags.includes(v)) return;
+    onTagsChange([...tags, v]);
+    onTagDraftChange("");
+  };
+
+  const removeTag = (tag: string) => {
+    onTagsChange(tags.filter((t) => t !== tag));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(tagDraft);
+    } else if (e.key === "Backspace" && !tagDraft && tags.length > 0) {
+      // Convenience: Backspace on empty input removes the last tag.
+      removeTag(tags[tags.length - 1]);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <label htmlFor="group-select-form" className="flex items-center justify-between text-xs text-text-muted mb-1">
+          <span>{t("group.title")}</span>
+          {onManageGroups && (
+            <button
+              type="button"
+              onClick={onManageGroups}
+              className="text-[11px] text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded px-1"
+            >
+              {t("group.manage")}
+            </button>
+          )}
+        </label>
+        <select
+          id="group-select-form"
+          value={groupId}
+          onChange={(e) => onGroupChange(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">{t("sidebar.noGroup")}</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <div className="block text-xs text-text-muted mb-1">{t("tag.filter")}</div>
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {tags.map((tag) => (
+            <TagChip
+              key={tag}
+              tag={tag}
+              active
+              removable
+              onRemove={() => removeTag(tag)}
+            />
+          ))}
+        </div>
+        <div className="relative">
+          <input
+            type="text"
+            value={tagDraft}
+            onChange={(e) => onTagDraftChange(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={t("tag.placeholder")}
+            aria-label={t("tag.add")}
+            className={inputClass}
+          />
+          {suggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg max-h-40 overflow-y-auto">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => addTag(s)}
+                  className="flex items-center w-full px-3 py-1.5 text-left text-xs text-text-secondary hover:bg-bg-primary transition-colors"
+                >
+                  <TagChip tag={s} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Pick the first sprite style that is both generation-available and not marked
  * as unavailable for the currently selected Pokemon. Returns null if every
@@ -440,6 +602,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [selectedGame, setSelectedGame] = useState(defaults.game);
   const [huntType, setHuntType] = useState(defaults.huntType);
   const [shinyCharm, setShinyCharm] = useState(defaults.shinyCharm);
+  const [groupId, setGroupId] = useState(defaults.groupId);
+  const [tags, setTags] = useState<string[]>(defaults.tags);
+  const [tagDraft, setTagDraft] = useState("");
 
   // Get the generation for the currently selected game
   const selectedGameGen: number | null =
@@ -596,6 +761,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       step: isEdit && step > 1 ? step : undefined,
       encounters,
       timer_accumulated_ms: timerH * 3600000 + timerM * 60000 + timerS * 1000,
+      group_id: groupId,
+      tags,
     };
     submitByMode(props, data);
   };
@@ -1201,6 +1368,24 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               </span>
             </label>
           )}
+
+          {/* Divider */}
+          <div className="border-b border-border-subtle" />
+
+          {/* Section: Group + Tags */}
+          <GroupAndTagsSection
+            groups={props.groups ?? []}
+            availableTags={props.availableTags ?? []}
+            onManageGroups={props.onManageGroups}
+            groupId={groupId}
+            onGroupChange={setGroupId}
+            tags={tags}
+            onTagsChange={setTags}
+            tagDraft={tagDraft}
+            onTagDraftChange={setTagDraft}
+            selectClass={selectClass}
+            inputClass={inputClass}
+          />
 
           {/* Divider */}
           <div className="border-b border-border-subtle" />

@@ -9,6 +9,7 @@ describe("HotkeySettings", () => {
     decrement: "",
     reset: "",
     next_pokemon: "",
+    hunt_toggle: "",
   };
 
   beforeEach(() => {
@@ -49,7 +50,7 @@ describe("HotkeySettings", () => {
     await waitFor(() => {
       // decrement, reset, next_pokemon are unbound — shown as em dash
       const dashes = screen.getAllByText("\u2014");
-      expect(dashes.length).toBe(3);
+      expect(dashes.length).toBe(4);
     });
   });
 
@@ -277,5 +278,43 @@ describe("HotkeySettings", () => {
 
     const matches = screen.getAllByText("Shift+\u2026");
     expect(matches.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders the hunt toggle row and records a binding for it", async () => {
+    const onUpdate = vi.fn();
+    vi.mocked(fetch).mockImplementation((url: any) => {
+      if (typeof url === "string" && url.includes("/hotkeys/status")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ available: true }),
+        } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    });
+
+    render(<HotkeySettings hotkeys={hotkeys} onUpdate={onUpdate} />);
+
+    // Label is rendered from i18n (de: "Hunt Start/Pause")
+    await waitFor(() => {
+      expect(screen.getByText("Hunt Start/Pause")).toBeInTheDocument();
+    });
+
+    // hunt_toggle is the fifth row after increment, decrement, reset, next_pokemon.
+    const recordButtons = screen.getAllByText("Aufzeichnen");
+    expect(recordButtons.length).toBe(5);
+
+    await act(async () => {
+      recordButtons[4].click();
+    });
+
+    await act(async () => {
+      fireEvent.keyDown(globalThis as unknown as Window, { key: "h", ctrlKey: true });
+    });
+
+    await waitFor(() => {
+      expect(onUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ hunt_toggle: "Ctrl+H" }),
+      );
+    });
   });
 });

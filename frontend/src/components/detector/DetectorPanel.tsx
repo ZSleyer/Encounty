@@ -1201,6 +1201,7 @@ export function DetectorPanel({
       {showSourcePicker && (
         <SourcePickerModal
           sourceType={cfg.source_type as "browser_display" | "browser_camera"}
+          pokemonId={pokemon.id}
           onSelect={handleSourceSelected}
           onClose={() => setShowSourcePicker(false)}
         />

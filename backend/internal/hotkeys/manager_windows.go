@@ -132,10 +132,11 @@ func (m *windowsManager) UpdateAllBindings(hm state.HotkeyMap) error {
 
 func (m *windowsManager) loadBindings(hm state.HotkeyMap) {
 	raw := map[string]string{
-		"increment": hm.Increment,
-		"decrement": hm.Decrement,
-		"reset":     hm.Reset,
-		"next":      hm.NextPokemon,
+		"increment":   hm.Increment,
+		"decrement":   hm.Decrement,
+		"reset":       hm.Reset,
+		"next":        hm.NextPokemon,
+		"hunt_toggle": hm.HuntToggle,
 	}
 	next := make(map[string]KeyCombo, len(raw))
 	for action, combo := range raw {

@@ -135,6 +135,78 @@ func TestStopAllTimersNoneRunning(t *testing.T) {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// ToggleHunt
+// ---------------------------------------------------------------------------
+
+// TestToggleHuntStartsStoppedTimer verifies that calling ToggleHunt on a
+// Pokémon whose timer is not running starts the timer and reports running=true.
+func TestToggleHuntStartsStoppedTimer(t *testing.T) {
+	m := NewManager(t.TempDir())
+	p := makePokemon("p1", "Pikachu")
+	p.HuntMode = "detector"
+	m.AddPokemon(p)
+
+	running, huntMode, ok := m.ToggleHunt("p1")
+	if !ok {
+		t.Fatal("ToggleHunt returned ok=false for known id")
+	}
+	if !running {
+		t.Error("running = false, want true (timer should be started)")
+	}
+	if huntMode != "detector" {
+		t.Errorf("huntMode = %q, want %q", huntMode, "detector")
+	}
+	st := m.GetState()
+	if st.Pokemon[0].TimerStartedAt == nil {
+		t.Error("TimerStartedAt should be set after ToggleHunt starts the timer")
+	}
+}
+
+// TestToggleHuntStopsRunningTimer verifies that calling ToggleHunt on a
+// Pokémon whose timer is running folds the elapsed segment into the
+// accumulator and reports running=false.
+func TestToggleHuntStopsRunningTimer(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	if !m.StartTimer("p1") {
+		t.Fatal("StartTimer returned false")
+	}
+	time.Sleep(10 * time.Millisecond)
+
+	running, _, ok := m.ToggleHunt("p1")
+	if !ok {
+		t.Fatal("ToggleHunt returned ok=false for known id")
+	}
+	if running {
+		t.Error("running = true, want false (timer should be stopped)")
+	}
+	st := m.GetState()
+	if st.Pokemon[0].TimerStartedAt != nil {
+		t.Error("TimerStartedAt should be nil after ToggleHunt stops the timer")
+	}
+	if st.Pokemon[0].TimerAccumulatedMs <= 0 {
+		t.Errorf("TimerAccumulatedMs = %d, want > 0 (elapsed segment should be folded in)", st.Pokemon[0].TimerAccumulatedMs)
+	}
+}
+
+// TestToggleHuntNotFound verifies that ToggleHunt reports ok=false for an
+// unknown Pokémon id and leaves state untouched.
+func TestToggleHuntNotFound(t *testing.T) {
+	m := NewManager(t.TempDir())
+	running, huntMode, ok := m.ToggleHunt("nonexistent")
+	if ok {
+		t.Error("ToggleHunt returned ok=true for nonexistent id")
+	}
+	if running {
+		t.Error("running should be false for unknown id")
+	}
+	if huntMode != "" {
+		t.Errorf("huntMode = %q, want empty for unknown id", huntMode)
+	}
+}
+
 func TestResetTimer(t *testing.T) {
 	m := NewManager(t.TempDir())
 	m.AddPokemon(makePokemon("p1", "Pikachu"))

@@ -36,9 +36,51 @@ vi.mock("./hooks/useWebSocket", () => ({
   useWebSocket: vi.fn(() => ({ send: vi.fn() })),
 }));
 
+vi.mock("./engine/startDetection", () => ({
+  stopDetectionForPokemon: vi.fn(),
+  startDetectionForPokemon: vi.fn(),
+  ensureDetector: vi.fn(),
+  getDetectorBackend: vi.fn(() => null),
+  setForceCPU: vi.fn(),
+  isForceCPU: vi.fn(() => false),
+  reloadDetectionTemplates: vi.fn(),
+}));
+
+// Mock the capture service so tests can plant fake "active stream" state for
+// a given pokemon without needing real getDisplayMedia access (jsdom lacks it).
+// The provider stays a plain passthrough.
+const capturingPokemonIds = new Set<string>();
+const fakeVideoEl = { tagName: "VIDEO" } as unknown as HTMLVideoElement;
+vi.mock("./contexts/CaptureServiceContext", async () => {
+  const React = await import("react");
+  const captureService = {
+    startCapture: vi.fn(),
+    stopCapture: vi.fn(),
+    getStream: vi.fn(),
+    getVideoElement: (id: string) => (capturingPokemonIds.has(id) ? fakeVideoEl : null),
+    isCapturing: (id: string) => capturingPokemonIds.has(id),
+    getSourceLabel: () => null,
+    captureError: null,
+    getVersion: () => 0,
+    subscribe: () => () => {},
+  };
+  return {
+    CaptureServiceProvider: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+    useCaptureService: () => captureService,
+    useCaptureVersion: () => 0,
+  };
+});
+
 // Import the mocked module statically to get a stable reference
 import { useWebSocket as useWebSocketMock } from "./hooks/useWebSocket";
+import {
+  stopDetectionForPokemon as stopDetectionForPokemonMock,
+  startDetectionForPokemon as startDetectionForPokemonMock,
+} from "./engine/startDetection";
 const mockUseWebSocket = vi.mocked(useWebSocketMock);
+const mockStopDetectionForPokemon = vi.mocked(stopDetectionForPokemonMock);
+const mockStartDetectionForPokemon = vi.mocked(startDetectionForPokemonMock);
 
 /** Configure mockFetch to return a fully accepted state so AppShell renders. */
 function mockAcceptedState() {
@@ -2639,6 +2681,311 @@ describe("App", () => {
     });
 
     expect(document.body).toBeTruthy();
+  });
+
+  // --- pokemon_completed stops the in-browser detection loop ---
+
+  it("stops the detection loop when pokemon_completed arrives", async () => {
+    mockAcceptedState();
+    mockStopDetectionForPokemon.mockClear();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [{ id: "poke-42", name: "Bisasam", sprite_url: "", encounters: 99 }],
+          settings: {},
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(useCounterStore.getState().appState).toBeTruthy();
+    });
+
+    act(() => {
+      wsHandler!({ type: "pokemon_completed", payload: { pokemon_id: "poke-42" } });
+    });
+
+    expect(mockStopDetectionForPokemon).toHaveBeenCalledWith("poke-42");
+  });
+
+  // --- hunt_start_requested / hunt_stop_requested (global hotkey) ---
+
+  it("does not start detection for a timer-only hunt_start_requested", async () => {
+    mockAcceptedState();
+    mockStartDetectionForPokemon.mockClear();
+    capturingPokemonIds.clear();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      // A pokemon with a detector config and an enabled template — but mode
+      // is timer-only, so detection must not start.
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [
+            {
+              id: "poke-timer",
+              name: "Pikachu",
+              encounters: 0,
+              detector_config: {
+                enabled: true,
+                templates: [{ enabled: true, image_path: "", regions: [] }],
+              },
+            },
+          ],
+          settings: {},
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(useCounterStore.getState().appState).toBeTruthy();
+    });
+
+    act(() => {
+      wsHandler!({
+        type: "hunt_start_requested",
+        payload: { pokemon_id: "poke-timer", hunt_mode: "timer" },
+      });
+    });
+
+    expect(mockStartDetectionForPokemon).not.toHaveBeenCalled();
+  });
+
+  it("starts detection on hunt_start_requested when a capture stream is active", async () => {
+    mockAcceptedState();
+    mockStartDetectionForPokemon.mockClear();
+    capturingPokemonIds.clear();
+    // Plant a fake active capture stream so the handler proceeds past the
+    // silent-skip guard.
+    capturingPokemonIds.add("poke-det");
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [
+            {
+              id: "poke-det",
+              name: "Shiny Eevee",
+              encounters: 0,
+              detector_config: {
+                enabled: true,
+                templates: [{ enabled: true, image_path: "", regions: [] }],
+                precision: 0.9,
+                change_threshold: 0.1,
+                consecutive_hits: 1,
+                poll_interval_ms: 100,
+                min_poll_ms: 50,
+                max_poll_ms: 500,
+                cooldown_sec: 1,
+              },
+            },
+          ],
+          settings: {},
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(useCounterStore.getState().appState).toBeTruthy();
+    });
+
+    act(() => {
+      wsHandler!({
+        type: "hunt_start_requested",
+        payload: { pokemon_id: "poke-det", hunt_mode: "both" },
+      });
+    });
+
+    expect(mockStartDetectionForPokemon).toHaveBeenCalledWith(
+      expect.objectContaining({ pokemonId: "poke-det" }),
+    );
+  });
+
+  it("does not start detection when backend rejects hunt_start due to missing source", async () => {
+    mockAcceptedState();
+    mockStartDetectionForPokemon.mockClear();
+    capturingPokemonIds.clear();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [
+            {
+              id: "poke-nostream",
+              name: "Shiny Eevee",
+              encounters: 0,
+              detector_config: {
+                enabled: true,
+                templates: [{ enabled: true, image_path: "", regions: [] }],
+              },
+            },
+          ],
+          settings: {},
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(useCounterStore.getState().appState).toBeTruthy();
+    });
+
+    act(() => {
+      wsHandler!({
+        type: "hunt_start_rejected",
+        payload: { pokemon_id: "poke-nostream", reason: "no_source" },
+      });
+    });
+
+    expect(mockStartDetectionForPokemon).not.toHaveBeenCalled();
+  });
+
+  it("stops detection on hunt_stop_requested", async () => {
+    mockAcceptedState();
+    mockStopDetectionForPokemon.mockClear();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [{ id: "poke-stop", name: "Pikachu", encounters: 0 }],
+          settings: {},
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(useCounterStore.getState().appState).toBeTruthy();
+    });
+
+    act(() => {
+      wsHandler!({ type: "hunt_stop_requested", payload: { pokemon_id: "poke-stop" } });
+    });
+
+    expect(mockStopDetectionForPokemon).toHaveBeenCalledWith("poke-stop");
   });
 
   // --- handleStateUpdate clears detector status for disabled detectors ---

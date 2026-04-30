@@ -54,6 +54,17 @@ func (d *DB) LoadFullState() (*state.AppState, error) {
 		return nil, err
 	}
 
+	// 3a. Load per-Pokémon tags and attach them to the loaded Pokémon.
+	if err := attachPokemonTags(d.db, st.Pokemon); err != nil {
+		return nil, fmt.Errorf("load pokemon tags: %w", err)
+	}
+
+	// 3b. Load organizational groups.
+	st.Groups, err = loadGroups(d.db)
+	if err != nil {
+		return nil, fmt.Errorf("load groups: %w", err)
+	}
+
 	// 4. Load sessions.
 	st.Sessions, err = loadSessions(d.db)
 	if err != nil {
@@ -61,6 +72,55 @@ func (d *DB) LoadFullState() (*state.AppState, error) {
 	}
 
 	return st, nil
+}
+
+// loadGroups reads every pokemon_groups row ordered by sort_order, then id
+// so the frontend receives a stable, user-controlled ordering.
+func loadGroups(db *sql.DB) ([]state.Group, error) {
+	rows, err := db.Query(`SELECT id, name, color, sort_order, collapsed FROM pokemon_groups ORDER BY sort_order, id`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	groups := []state.Group{}
+	for rows.Next() {
+		var g state.Group
+		var collapsed int
+		if err := rows.Scan(&g.ID, &g.Name, &g.Color, &g.SortOrder, &collapsed); err != nil {
+			return nil, err
+		}
+		g.Collapsed = collapsed != 0
+		groups = append(groups, g)
+	}
+	return groups, rows.Err()
+}
+
+// attachPokemonTags fills Pokemon.Tags for every entry in pokemon by reading
+// pokemon_tags in a single query. Pokémon without tag rows end up with a
+// non-nil empty slice so JSON serialisation emits [] rather than null.
+func attachPokemonTags(db *sql.DB, pokemon []state.Pokemon) error {
+	for i := range pokemon {
+		pokemon[i].Tags = []string{}
+	}
+	rows, err := db.Query(`SELECT pokemon_id, tag FROM pokemon_tags ORDER BY pokemon_id, tag`)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	idx := make(map[string]int, len(pokemon))
+	for i, p := range pokemon {
+		idx[p.ID] = i
+	}
+	for rows.Next() {
+		var pokemonID, tag string
+		if err := rows.Scan(&pokemonID, &tag); err != nil {
+			return err
+		}
+		if i, ok := idx[pokemonID]; ok {
+			pokemon[i].Tags = append(pokemon[i].Tags, tag)
+		}
+	}
+	return rows.Err()
 }
 
 // loadSingletonRows populates hotkeys, settings, languages, and the global
@@ -137,8 +197,8 @@ func loadPokemonExtras(db *sql.DB, p *state.Pokemon) error {
 // loadHotkeys reads the singleton hotkeys row.
 func loadHotkeys(db *sql.DB) (state.HotkeyMap, error) {
 	var h state.HotkeyMap
-	err := db.QueryRow(`SELECT increment, decrement, reset, next_pokemon FROM hotkeys WHERE id = 1`).
-		Scan(&h.Increment, &h.Decrement, &h.Reset, &h.NextPokemon)
+	err := db.QueryRow(`SELECT increment, decrement, reset, next_pokemon, hunt_toggle FROM hotkeys WHERE id = 1`).
+		Scan(&h.Increment, &h.Decrement, &h.Reset, &h.NextPokemon, &h.HuntToggle)
 	if err == sql.ErrNoRows {
 		return h, nil
 	}
@@ -197,7 +257,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	rows, err := db.Query(`SELECT id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
 		sprite_style, encounters, step, is_active, created_at, language, game,
 		completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
-		hunt_mode
+		hunt_mode, group_id
 		FROM pokemon ORDER BY sort_order`)
 	if err != nil {
 		return nil, err
@@ -215,7 +275,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		if err := rows.Scan(&p.ID, &p.Name, &p.BaseName, &p.FormName, &p.Title, &p.CanonicalName, &p.SpriteURL,
 			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
 			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
-			&p.HuntType, &shinyCharm, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode); err != nil {
+			&p.HuntType, &shinyCharm, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode, &p.GroupID); err != nil {
 			return nil, err
 		}
 		p.IsActive = isActive != 0
@@ -225,6 +285,9 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		}
 		p.CompletedAt = parseOptionalTime(completedAt)
 		p.TimerStartedAt = parseOptionalTime(timerStartedAt)
+		// Ensure Tags is always a non-nil slice; attachPokemonTags will fill
+		// it from the pokemon_tags table once all rows are loaded.
+		p.Tags = []string{}
 		pokemon = append(pokemon, p)
 	}
 	if pokemon == nil {

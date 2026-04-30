@@ -34,16 +34,27 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** Returns the chevron/dropdown button (identified via aria-haspopup="menu"). */
+function getChevronButton() {
+  return screen.getAllByRole("button").find((b) => b.getAttribute("aria-haspopup") === "menu")!;
+}
+
+/** Returns the primary "Copy URL" button (the non-chevron sibling). */
+function getPrimaryButton() {
+  return screen.getAllByRole("button").find((b) => b.getAttribute("aria-haspopup") !== "menu" && b.getAttribute("role") !== "menuitem")!;
+}
+
 describe("OverlayBrowserSourceButton", () => {
-  it("renders button with expected text", () => {
+  it("renders primary and chevron buttons", () => {
     render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
-    expect(screen.getByRole("button")).toBeInTheDocument();
+    expect(getPrimaryButton()).toBeInTheDocument();
+    expect(getChevronButton()).toBeInTheDocument();
   });
 
-  it("copies URL containing pokemon ID to clipboard on click", async () => {
+  it("copies URL containing pokemon ID to clipboard on primary click", async () => {
     const user = userEvent.setup();
     render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
-    const btn = screen.getByRole("button");
+    const btn = getPrimaryButton();
 
     // The button title contains the full URL
     expect(btn).toHaveAttribute("title", expect.stringContaining("/overlay/poke-1"));
@@ -55,8 +66,6 @@ describe("OverlayBrowserSourceButton", () => {
       await Promise.resolve();
     });
 
-    // Verify the text changed to the "copied" state,
-    // confirming the clipboard.writeText().then() chain executed
     expect(clipboardWrites.length).toBeGreaterThanOrEqual(0);
   });
 
@@ -64,14 +73,15 @@ describe("OverlayBrowserSourceButton", () => {
     const user = userEvent.setup();
     render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
 
-    const initialText = screen.getByRole("button").textContent;
-    await user.click(screen.getByRole("button"));
+    const btn = getPrimaryButton();
+    const initialText = btn.textContent;
+    await user.click(btn);
 
     await act(async () => {
       await Promise.resolve();
     });
 
-    const afterClickText = screen.getByRole("button").textContent;
+    const afterClickText = getPrimaryButton().textContent;
     expect(afterClickText).not.toBe(initialText);
   });
 
@@ -80,9 +90,9 @@ describe("OverlayBrowserSourceButton", () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
 
-    const initialText = screen.getByRole("button").textContent;
+    const initialText = getPrimaryButton().textContent;
 
-    await user.click(screen.getByRole("button"));
+    await user.click(getPrimaryButton());
 
     await act(async () => {
       await Promise.resolve();
@@ -92,7 +102,57 @@ describe("OverlayBrowserSourceButton", () => {
       vi.advanceTimersByTime(2100);
     });
 
-    const revertedText = screen.getByRole("button").textContent;
+    const revertedText = getPrimaryButton().textContent;
     expect(revertedText).toBe(initialText);
+  });
+
+  it("opens menu when chevron is clicked", async () => {
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await user.click(getChevronButton());
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(screen.getAllByRole("menuitem")).toHaveLength(2);
+  });
+
+  it("switches to universal URL when selected from menu", async () => {
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+
+    await user.click(getChevronButton());
+    const items = screen.getAllByRole("menuitem");
+    // Second item is "Universal"
+    await user.click(items[1]);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // After selection, the primary button's title should be the universal URL (no pokemonId)
+    expect(getPrimaryButton().getAttribute("title")).toMatch(/\/overlay$/);
+  });
+
+  it("closes menu on Escape", async () => {
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+
+    await user.click(getChevronButton());
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("chevron has correct ARIA attributes", async () => {
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+
+    const chevron = getChevronButton();
+    expect(chevron).toHaveAttribute("aria-haspopup", "menu");
+    expect(chevron).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(chevron);
+    expect(getChevronButton()).toHaveAttribute("aria-expanded", "true");
   });
 });

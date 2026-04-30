@@ -5,13 +5,16 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/detector"
@@ -23,6 +26,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/server/handler/backup"
 	detectorhandler "github.com/zsleyer/encounty/backend/internal/server/handler/detector"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/games"
+	groupshandler "github.com/zsleyer/encounty/backend/internal/server/handler/groups"
 	permissionshandler "github.com/zsleyer/encounty/backend/internal/server/handler/permissions"
 	pokemonhandler "github.com/zsleyer/encounty/backend/internal/server/handler/pokemon"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/settings"
@@ -52,7 +56,34 @@ type Server struct {
 	devMode      bool
 	frontendDir  string
 	setupPending atomic.Bool
+
+	// Tracks the last time each hotkey action was dispatched. Guards against
+	// double-fire when a dev setup (Go debugger + Electron running in
+	// parallel) ends up with both the native CGEventTap and Electron's
+	// globalShortcut relaying the same key press.
+	hotkeyDedupMu sync.Mutex
+	hotkeyLastAt  map[string]time.Time
+
+	// Tracks Pokémon IDs that currently have a live browser capture stream
+	// attached. Populated by the frontend via POST /api/capture/state so
+	// the hotkey hunt gate can reject a start when no source is connected
+	// without first flipping the timer. The backend itself has no view
+	// into MediaStream objects.
+	capturingMu sync.RWMutex
+	capturing   map[string]bool
+
+	// Tracks Pokémon IDs whose in-browser detection loop is currently
+	// running. Populated by the frontend via POST /api/detector/loop-state
+	// so the hunt-toggle hotkey can stop detector-only hunts where no
+	// backend timer is active.
+	detectingMu sync.RWMutex
+	detecting   map[string]bool
 }
+
+// hotkeyDedupWindow is the minimum interval between two dispatches of the
+// same hotkey action. Anything closer is treated as a duplicate and
+// silently dropped.
+const hotkeyDedupWindow = 150 * time.Millisecond
 
 // Config carries all dependencies needed to construct a Server.
 type Config struct {
@@ -74,17 +105,20 @@ type Config struct {
 // goroutine that converts hotkey actions into state mutations.
 func New(cfg Config) *Server {
 	s := &Server{
-		state:       cfg.State,
-		hub:         NewHub(),
-		hotkeyMgr:   cfg.HotkeyMgr,
-		fileWriter:  cfg.FileWriter,
-		version:     cfg.Version,
-		commit:      cfg.Commit,
-		buildDate:   cfg.BuildDate,
-		detectorMgr: cfg.DetectorMgr,
-		db:          cfg.DB,
-		devMode:     cfg.DevMode,
-		frontendDir: cfg.FrontendDir,
+		state:        cfg.State,
+		hub:          NewHub(),
+		hotkeyMgr:    cfg.HotkeyMgr,
+		fileWriter:   cfg.FileWriter,
+		version:      cfg.Version,
+		commit:       cfg.Commit,
+		buildDate:    cfg.BuildDate,
+		detectorMgr:  cfg.DetectorMgr,
+		db:           cfg.DB,
+		devMode:      cfg.DevMode,
+		frontendDir:  cfg.FrontendDir,
+		hotkeyLastAt: make(map[string]time.Time),
+		capturing:    make(map[string]bool),
+		detecting:    make(map[string]bool),
 	}
 
 	// Wire hotkey actions to state changes
@@ -105,7 +139,10 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		s.hub.ServeWS(s, w, r)
 	})
+	mux.HandleFunc("/api/capture/state", s.handleCaptureState)
+	mux.HandleFunc("/api/detection/state", s.handleDetectionState)
 	pokemonhandler.RegisterRoutes(mux, s)
+	groupshandler.RegisterRoutes(mux, s)
 	backup.RegisterRoutes(mux, s)
 	backgrounds.RegisterRoutes(mux, s)
 	settings.RegisterRoutes(mux, s)
@@ -361,6 +398,28 @@ func (s *Server) StateGetState() state.AppState { return s.state.GetState() }
 // StateScheduleSave enqueues a deferred state save.
 func (s *Server) StateScheduleSave() { s.state.ScheduleSave() }
 
+// StateListGroups returns a copy of all organisational groups.
+func (s *Server) StateListGroups() []state.Group { return s.state.ListGroups() }
+
+// StateCreateGroup appends a new group with the given name and color.
+func (s *Server) StateCreateGroup(name, color string) (state.Group, error) {
+	return s.state.CreateGroup(name, color)
+}
+
+// StateUpdateGroup applies a partial update to the given group.
+func (s *Server) StateUpdateGroup(id string, patch state.GroupPatch) (state.Group, error) {
+	return s.state.UpdateGroup(id, patch)
+}
+
+// StateDeleteGroup removes the given group and clears GroupID on members.
+func (s *Server) StateDeleteGroup(id string) bool { return s.state.DeleteGroup(id) }
+
+// StateToggleHunt flips the timer state for a Pokémon and reports the
+// post-toggle running flag plus the Pokémon's configured hunt_mode.
+func (s *Server) StateToggleHunt(id string) (bool, string, bool) {
+	return s.state.ToggleHunt(id)
+}
+
 // DetectorStopper returns nil — native detection has been removed. The
 // interface is retained so the pokemon handler can still check and no-op
 // when deleting a Pokemon.
@@ -459,8 +518,112 @@ func (s *Server) processHotkeyActions(ch <-chan hotkeys.Action) {
 	}
 }
 
+// SetCaptureState records whether the given Pokémon currently has a live
+// browser capture stream. Called by the frontend after each start/stop so
+// the hotkey hunt gate can decide without guessing.
+func (s *Server) SetCaptureState(pokemonID string, capturing bool) {
+	s.capturingMu.Lock()
+	defer s.capturingMu.Unlock()
+	if capturing {
+		s.capturing[pokemonID] = true
+	} else {
+		delete(s.capturing, pokemonID)
+	}
+}
+
+// isCapturing reports whether the given Pokémon currently has a live
+// capture stream according to the last frontend heartbeat.
+func (s *Server) isCapturing(pokemonID string) bool {
+	s.capturingMu.RLock()
+	defer s.capturingMu.RUnlock()
+	return s.capturing[pokemonID]
+}
+
+// SetDetectionState records whether the given Pokémon currently has an
+// active in-browser detection loop. The backend uses this to decide
+// whether a hunt-toggle hotkey should start or stop when the timer is
+// not itself the source of "hunt running" (detector-only mode).
+func (s *Server) SetDetectionState(pokemonID string, detecting bool) {
+	s.detectingMu.Lock()
+	defer s.detectingMu.Unlock()
+	if detecting {
+		s.detecting[pokemonID] = true
+	} else {
+		delete(s.detecting, pokemonID)
+	}
+}
+
+// isDetecting reports whether the given Pokémon has an active detection
+// loop according to the last frontend heartbeat.
+func (s *Server) isDetecting(pokemonID string) bool {
+	s.detectingMu.RLock()
+	defer s.detectingMu.RUnlock()
+	return s.detecting[pokemonID]
+}
+
+// handleCaptureState accepts POST {pokemon_id, capturing} heartbeats from
+// the frontend CaptureServiceProvider. The state is memory-only and scoped
+// to the current backend run — after a restart every stream has to be
+// re-attached on the frontend side, which will re-post here.
+func (s *Server) handleCaptureState(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		PokemonID string `json:"pokemon_id"`
+		Capturing bool   `json:"capturing"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.PokemonID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	s.SetCaptureState(body.PokemonID, body.Capturing)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleDetectionState accepts POST {pokemon_id, detecting} heartbeats
+// from the frontend DetectionLoop registry so the backend knows which
+// Pokémon currently have a live in-browser detection loop attached.
+func (s *Server) handleDetectionState(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		PokemonID string `json:"pokemon_id"`
+		Detecting bool   `json:"detecting"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.PokemonID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	s.SetDetectionState(body.PokemonID, body.Detecting)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// acceptHotkey returns true when the given hotkey action has not fired
+// within the deduplication window. Used to coalesce near-simultaneous
+// duplicate dispatches from layered key-capture sources.
+func (s *Server) acceptHotkey(action string) bool {
+	s.hotkeyDedupMu.Lock()
+	defer s.hotkeyDedupMu.Unlock()
+	now := time.Now()
+	if last, ok := s.hotkeyLastAt[action]; ok && now.Sub(last) < hotkeyDedupWindow {
+		return false
+	}
+	s.hotkeyLastAt[action] = now
+	return true
+}
+
 // dispatchHotkeyAction routes a single hotkey action to the appropriate handler.
 func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
+	// Drop rapid duplicate dispatches so two parallel sources (native
+	// CGEventTap + Electron globalShortcut in some dev configurations)
+	// cannot double-fire a single keystroke.
+	if !s.acceptHotkey(action.Type) {
+		return
+	}
 	id := action.PokemonID
 	if id == "" {
 		if active := s.state.GetActivePokemon(); active != nil {
@@ -482,7 +645,115 @@ func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
 		}
 	case "next":
 		s.handleHotkeyNext()
+	case "hunt_toggle":
+		if id != "" {
+			s.handleHotkeyHuntToggle(id)
+		}
 	}
+}
+
+// handleHotkeyHuntToggle toggles the hunt state (timer + detector) for the
+// given Pokémon. Before starting, the backend gates on detector readiness
+// (templates configured). The source check stays in the frontend because
+// the backend has no visibility into browser capture streams — if the
+// source is missing the frontend will still roll back, but the common
+// no-templates case is blocked here before any timer flips.
+func (s *Server) handleHotkeyHuntToggle(id string) {
+	snapshot := s.state.GetState()
+	var pokemon *state.Pokemon
+	for i := range snapshot.Pokemon {
+		if snapshot.Pokemon[i].ID == id {
+			pokemon = &snapshot.Pokemon[i]
+			break
+		}
+	}
+	if pokemon == nil {
+		return
+	}
+	timerRunning := pokemon.TimerStartedAt != nil
+	detectorRunning := s.isDetecting(id)
+	huntRunning := timerRunning || detectorRunning
+
+	if huntRunning {
+		// Stop path: fold the timer if it is running (no-op otherwise) and
+		// broadcast a stop event so the frontend tears down its detection
+		// loop even when the timer was never the active half of the hunt.
+		if timerRunning {
+			s.state.ToggleHunt(id)
+			s.state.ScheduleSave()
+			s.broadcastState()
+		}
+		s.hub.BroadcastRaw("hunt_stop_requested", map[string]any{
+			"pokemon_id": id,
+		})
+		return
+	}
+
+	// Start path — enforce detector readiness when required.
+	if huntModeNeedsDetector(pokemon.HuntMode, pokemon.DetectorConfig) {
+		if !detectorHasEnabledTemplate(pokemon.DetectorConfig) {
+			s.hub.BroadcastRaw("hunt_start_rejected", map[string]any{
+				"pokemon_id": id,
+				"reason":     "no_templates",
+			})
+			return
+		}
+		if !s.isCapturing(id) {
+			s.hub.BroadcastRaw("hunt_start_rejected", map[string]any{
+				"pokemon_id": id,
+				"reason":     "no_source",
+			})
+			return
+		}
+	}
+
+	running, huntMode, ok := s.state.ToggleHunt(id)
+	if !ok {
+		return
+	}
+	s.state.ScheduleSave()
+	s.broadcastState()
+	if running {
+		s.hub.BroadcastRaw("hunt_start_requested", map[string]any{
+			"pokemon_id": id,
+			"hunt_mode":  huntMode,
+		})
+	} else {
+		// Defensive: state reported "not running" after a toggle, mirror as
+		// a stop so the frontend stays in sync.
+		s.hub.BroadcastRaw("hunt_stop_requested", map[string]any{
+			"pokemon_id": id,
+		})
+	}
+}
+
+// huntModeNeedsDetector reports whether the configured hunt mode requires
+// auto-detection to run. "detector" always does; "both" does when a
+// DetectorConfig exists (opt-in), otherwise it collapses to timer-only.
+func huntModeNeedsDetector(mode string, cfg *state.DetectorConfig) bool {
+	if mode == "detector" {
+		return true
+	}
+	if mode == "both" || mode == "" {
+		return cfg != nil
+	}
+	return false
+}
+
+// detectorHasEnabledTemplate reports whether at least one template on the
+// config is marked enabled. A nil config or empty template list returns
+// false. Template.Enabled == nil is treated as enabled for backward
+// compatibility with older snapshots.
+func detectorHasEnabledTemplate(cfg *state.DetectorConfig) bool {
+	if cfg == nil {
+		return false
+	}
+	for _, tmpl := range cfg.Templates {
+		if tmpl.Enabled == nil || *tmpl.Enabled {
+			return true
+		}
+	}
+	return false
 }
 
 // DispatchHotkeyAction injects a hotkey action from an external source.

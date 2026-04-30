@@ -125,9 +125,11 @@ describe("OverlayEditorPage", () => {
     expect(screen.getByText("Hotkeys pausiert")).toBeInTheDocument();
   });
 
-  it("renders OBS hint text", () => {
+  it("renders OBS browser source button in header", () => {
     render(<OverlayEditorPage />);
-    expect(screen.getByText(/OBS URL findest du/)).toBeInTheDocument();
+    // Button has aria-haspopup="menu" for the dropdown chevron
+    const chevron = screen.getAllByRole("button").find((b) => b.getAttribute("aria-haspopup") === "menu");
+    expect(chevron).toBeInTheDocument();
   });
 
   it("pauses hotkeys on mount", () => {

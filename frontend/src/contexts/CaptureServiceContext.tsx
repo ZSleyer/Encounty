@@ -19,6 +19,30 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { useCounterStore } from "../hooks/useCounterState";
+import { saveLastSource } from "../utils/captureSourceMemory";
+import { apiUrl } from "../utils/api";
+
+/**
+ * Notify the backend that a Pokémon currently has (or no longer has) an
+ * attached browser capture stream. The backend uses this to gate the
+ * hunt-toggle hotkey: without a registered source the timer is refused
+ * instead of flipping briefly and being rolled back — which would cause
+ * a visible UI flicker.
+ *
+ * Errors are swallowed so capture logic keeps working even when the
+ * backend is unreachable.
+ */
+function postCaptureState(pokemonId: string, capturing: boolean): void {
+  try {
+    void fetch(apiUrl("/api/capture/state"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pokemon_id: pokemonId, capturing }),
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
 
 
 // --- Types -------------------------------------------------------------------
@@ -119,6 +143,7 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     entry.videoEl.srcObject = null;
     entry.videoEl.remove();
     entriesRef.current.delete(pokemonId);
+    postCaptureState(pokemonId, false);
     notify();
   }, [notify]);
 
@@ -285,11 +310,24 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
       };
 
       entriesRef.current.set(pokemonId, entry);
+      postCaptureState(pokemonId, true);
 
       // Handle user clicking "Stop sharing" in browser chrome
       stream.getVideoTracks()[0].onended = () => {
         cleanupEntry(pokemonId);
       };
+
+      // Persist the source so it can be auto-restored next time. dev_video is
+      // a local file URL that is never reusable across sessions — skip it.
+      // We also need a real sourceId; display capture without a preselected
+      // source (e.g. Wayland portal path) doesn't give us one to remember.
+      if (sourceId && (sourceType === "browser_display" || sourceType === "browser_camera")) {
+        saveLastSource(pokemonId, {
+          type: sourceType,
+          sourceId,
+          sourceLabel: label,
+        });
+      }
 
       notify();
     } catch (err: unknown) {

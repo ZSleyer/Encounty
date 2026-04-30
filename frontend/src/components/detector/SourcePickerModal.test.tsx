@@ -681,4 +681,88 @@ describe("SourcePickerModal", () => {
 
     delete (globalThis as Record<string, unknown>).electronAPI;
   });
+
+  // --- Auto-restore from localStorage memory ---
+
+  it("auto-restores a display source that matches a remembered sourceId", async () => {
+    localStorage.setItem(
+      "encounty.lastCaptureSource.poke-restore",
+      JSON.stringify({
+        type: "browser_display",
+        sourceId: "screen:0",
+        sourceLabel: "Display 1",
+        persistedAt: "2024-01-01T00:00:00Z",
+      }),
+    );
+
+    const onSelect = vi.fn();
+    const mockSources: CaptureSource[] = [
+      { id: "screen:0", name: "Display 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
+      { id: "screen:1", name: "Display 2", thumbnail: "data:image/png;base64,def", display_id: "1", appIcon: null },
+    ];
+    globalThis.electronAPI = {
+      isWayland: false,
+      getCaptureSources: vi.fn().mockResolvedValue(mockSources),
+    } as unknown as typeof globalThis.electronAPI;
+
+    render(
+      <SourcePickerModal
+        sourceType="browser_display"
+        pokemonId="poke-restore"
+        onSelect={onSelect}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(onSelect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "screen",
+          sourceId: "screen:0",
+          label: "Display 1",
+        }),
+      );
+    });
+
+    localStorage.clear();
+    delete (globalThis as Record<string, unknown>).electronAPI;
+  });
+
+  it("does not auto-restore when the remembered source is missing from the enumeration", async () => {
+    localStorage.setItem(
+      "encounty.lastCaptureSource.poke-missing",
+      JSON.stringify({
+        type: "browser_display",
+        sourceId: "screen:999",
+        sourceLabel: "Nonexistent Display",
+        persistedAt: "2024-01-01T00:00:00Z",
+      }),
+    );
+
+    const onSelect = vi.fn();
+    const mockSources: CaptureSource[] = [
+      { id: "screen:0", name: "Display 1", thumbnail: "data:image/png;base64,abc", display_id: "0", appIcon: null },
+    ];
+    globalThis.electronAPI = {
+      isWayland: false,
+      getCaptureSources: vi.fn().mockResolvedValue(mockSources),
+    } as unknown as typeof globalThis.electronAPI;
+
+    render(
+      <SourcePickerModal
+        sourceType="browser_display"
+        pokemonId="poke-missing"
+        onSelect={onSelect}
+        onClose={vi.fn()}
+      />,
+    );
+
+    // Wait for enumeration to settle, then assert onSelect never fired.
+    await screen.findByText("Display 1");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onSelect).not.toHaveBeenCalled();
+
+    localStorage.clear();
+    delete (globalThis as Record<string, unknown>).electronAPI;
+  });
 });

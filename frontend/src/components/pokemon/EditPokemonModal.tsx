@@ -1,6 +1,6 @@
 import { PokemonFormModal } from "./PokemonFormModal";
 export type { NewPokemonData } from "./PokemonFormModal";
-import type { NewPokemonData, ExistingPokemonData } from "./PokemonFormModal";
+import type { NewPokemonData, ExistingPokemonData, GroupOption } from "./PokemonFormModal";
 import type { SpriteType, SpriteStyle } from "../../utils/sprites";
 
 type Props = Readonly<{
@@ -19,14 +19,19 @@ type Props = Readonly<{
     step?: number;
     encounters?: number;
     timer_accumulated_ms?: number;
+    group_id?: string;
+    tags?: string[];
   };
   onSave: (id: string, data: NewPokemonData) => void;
   onClose: () => void;
   activeLanguages?: string[];
+  groups?: GroupOption[];
+  availableTags?: string[];
+  onManageGroups?: () => void;
 }>;
 
 /** Thin wrapper around PokemonFormModal in "edit" mode. */
-export function EditPokemonModal({ pokemon, onSave, onClose, activeLanguages }: Readonly<Props>) {
+export function EditPokemonModal({ pokemon, onSave, onClose, activeLanguages, groups, availableTags, onManageGroups }: Readonly<Props>) {
   return (
     <PokemonFormModal
       mode="edit"
@@ -34,6 +39,9 @@ export function EditPokemonModal({ pokemon, onSave, onClose, activeLanguages }: 
       onSubmit={onSave}
       onClose={onClose}
       activeLanguages={activeLanguages}
+      groups={groups}
+      availableTags={availableTags}
+      onManageGroups={onManageGroups}
     />
   );
 }

@@ -325,6 +325,54 @@ func TestCompletePokemonNotFound(t *testing.T) {
 	}
 }
 
+func TestCompletePokemonStopsRunningTimer(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	if ok := m.StartTimer("p1"); !ok {
+		t.Fatal("StartTimer returned false")
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	if ok := m.CompletePokemon("p1"); !ok {
+		t.Fatal("CompletePokemon returned false")
+	}
+
+	st := m.GetState()
+	p := st.Pokemon[0]
+	if p.CompletedAt == nil {
+		t.Error("CompletedAt should be set after CompletePokemon")
+	}
+	if p.TimerStartedAt != nil {
+		t.Error("TimerStartedAt should be nil after CompletePokemon")
+	}
+	if p.TimerAccumulatedMs <= 0 {
+		t.Errorf("TimerAccumulatedMs should be > 0, got %d", p.TimerAccumulatedMs)
+	}
+}
+
+func TestCompletePokemonIdempotentWithoutRunningTimer(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	if ok := m.CompletePokemon("p1"); !ok {
+		t.Fatal("CompletePokemon returned false")
+	}
+
+	st := m.GetState()
+	p := st.Pokemon[0]
+	if p.CompletedAt == nil {
+		t.Error("CompletedAt should be set")
+	}
+	if p.TimerStartedAt != nil {
+		t.Error("TimerStartedAt should remain nil")
+	}
+	if p.TimerAccumulatedMs != 0 {
+		t.Errorf("TimerAccumulatedMs should remain 0, got %d", p.TimerAccumulatedMs)
+	}
+}
+
 func TestUncompletePokemon(t *testing.T) {
 	m := NewManager(t.TempDir())
 	m.AddPokemon(makePokemon("p1", "Pikachu"))
@@ -387,7 +435,8 @@ func TestUpdateSingleHotkey(t *testing.T) {
 		{"decrement", "F6", true},
 		{"reset", "F7", true},
 		{"next_pokemon", "F8", true},
-		{"invalid_action", "F9", false},
+		{"hunt_toggle", "F9", true},
+		{"invalid_action", "F10", false},
 	}
 
 	for _, tt := range tests {
@@ -402,6 +451,9 @@ func TestUpdateSingleHotkey(t *testing.T) {
 	st := m.GetState()
 	if st.Hotkeys.Increment != "F5" {
 		t.Errorf("Increment = %q, want %q", st.Hotkeys.Increment, "F5")
+	}
+	if st.Hotkeys.HuntToggle != "F9" {
+		t.Errorf("HuntToggle = %q, want %q", st.Hotkeys.HuntToggle, "F9")
 	}
 }
 

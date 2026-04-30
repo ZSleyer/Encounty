@@ -12,6 +12,23 @@ import { DetectionLoop, registerLoop, stopLoop, getActiveLoop } from "./Detectio
 import { apiUrl } from "../utils/api";
 import type { DetectorConfig, DetectorTemplate } from "../types";
 
+/**
+ * Notify the backend that a detection loop is now running (or stopped)
+ * for a Pokémon. The backend uses this to let the hunt-toggle hotkey
+ * stop detector-only hunts where no timer was ever involved.
+ */
+function postDetectionState(pokemonId: string, detecting: boolean): void {
+  try {
+    void fetch(apiUrl("/api/detection/state"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pokemon_id: pokemonId, detecting }),
+    }).catch(() => {});
+  } catch {
+    /* ignore */
+  }
+}
+
 // --- Detector singleton ------------------------------------------------------
 
 /** Shared detector instance, persists across component remounts. */
@@ -158,6 +175,7 @@ export async function startDetectionForPokemon({
   loop.onScore(onScore);
   loop.start(getVideoElement);
   registerLoop(pokemonId, loop);
+  postDetectionState(pokemonId, true);
 
   return loop;
 }
@@ -209,4 +227,5 @@ export async function reloadDetectionTemplates(
  */
 export function stopDetectionForPokemon(pokemonId: string): void {
   stopLoop(pokemonId);
+  postDetectionState(pokemonId, false);
 }

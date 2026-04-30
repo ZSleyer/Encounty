@@ -14,6 +14,7 @@ const ACTIONS: { key: keyof HotkeyMap; labelKey: string }[] = [
   { key: 'decrement', labelKey: 'hotkeys.decrement' },
   { key: 'reset', labelKey: 'hotkeys.reset' },
   { key: 'next_pokemon', labelKey: 'hotkeys.nextPokemon' },
+  { key: 'hunt_toggle', labelKey: 'hotkeys.huntToggle' },
 ]
 
 export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsProps>) {

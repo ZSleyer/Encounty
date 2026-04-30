@@ -29,6 +29,19 @@ export interface Pokemon {
   timer_started_at?: string; // ISO timestamp when timer was started
   timer_accumulated_ms?: number; // Accumulated timer in milliseconds
   hunt_mode?: "both" | "timer" | "detector";
+  /** Group membership (empty string = no group). Optional for legacy snapshots. */
+  group_id?: string;
+  /** Free-form tag labels. Always an array in fresh backend snapshots. */
+  tags?: string[];
+}
+
+/** Group is a user-defined bucket that groups Pokémon in the sidebar. */
+export interface Group {
+  id: string;
+  name: string;
+  color: string; // hex "#rrggbb"
+  sort_order: number;
+  collapsed: boolean;
 }
 
 /** GameEntry is one Pokémon game as returned by GET /api/games. */
@@ -56,6 +69,9 @@ export interface HotkeyMap {
   decrement: string;
   reset: string;
   next_pokemon: string;
+  // Optional because older persisted snapshots may predate the field; the
+  // backend always emits it on fresh state broadcasts.
+  hunt_toggle?: string;
 }
 
 /** WindowInfo represents a native window available for capture. */
@@ -317,6 +333,8 @@ export interface AppState {
   settings: Settings;
   data_path: string;
   license_accepted: boolean;
+  /** User-defined groups for sidebar organization. Optional for legacy snapshots. */
+  groups?: Group[];
 }
 
 /** EncounterEvent records one encounter count change in the database. */

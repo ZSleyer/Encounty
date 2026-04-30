@@ -1426,3 +1426,157 @@ func TestMigration11RemovesNegativeAndFullFrameRegions(t *testing.T) {
 		t.Errorf("tmpl-two-regions: regions = %d, want 2", len(templates[2].Regions))
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Migration 18: pokemon groups and tags
+// ---------------------------------------------------------------------------
+
+// TestMigration18OnV17DB verifies that running migration 18 against a database
+// stopped at v17 creates the new tables, the tag index, and adds the group_id
+// column to the pokemon table.
+func TestMigration18OnV17DB(t *testing.T) {
+	d := openInternalTestDB(t)
+
+	// Roll the migrations table back so only versions <= 17 remain applied,
+	// simulating a user upgrading from v17 to v18.
+	if _, err := d.db.Exec(`DELETE FROM migrations WHERE version >= 18`); err != nil {
+		t.Fatalf("rollback migrations table: %v", err)
+	}
+	// Also drop the v18 schema pieces so the migration actually has work.
+	if _, err := d.db.Exec(`DROP TABLE IF EXISTS pokemon_groups`); err != nil {
+		t.Fatalf("drop pokemon_groups: %v", err)
+	}
+	if _, err := d.db.Exec(`DROP TABLE IF EXISTS pokemon_tags`); err != nil {
+		t.Fatalf("drop pokemon_tags: %v", err)
+	}
+	// NOTE: We cannot drop group_id via ALTER TABLE DROP COLUMN in every
+	// SQLite build reliably. Re-running the migration must be a no-op for
+	// the duplicate column, which is exactly what we assert below.
+
+	if err := RunMigrations(d.db); err != nil {
+		t.Fatalf(runMigrationsFmt, err)
+	}
+
+	// pokemon_groups table exists.
+	var name string
+	if err := d.db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='pokemon_groups'`).Scan(&name); err != nil {
+		t.Errorf("pokemon_groups table missing: %v", err)
+	}
+	// pokemon_tags table exists.
+	if err := d.db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='pokemon_tags'`).Scan(&name); err != nil {
+		t.Errorf("pokemon_tags table missing: %v", err)
+	}
+	// idx_pokemon_tags_tag index exists.
+	if err := d.db.QueryRow(`SELECT name FROM sqlite_master WHERE type='index' AND name='idx_pokemon_tags_tag'`).Scan(&name); err != nil {
+		t.Errorf("idx_pokemon_tags_tag index missing: %v", err)
+	}
+	// pokemon.group_id column exists.
+	rows, err := d.db.Query(`PRAGMA table_info(pokemon)`)
+	if err != nil {
+		t.Fatalf("PRAGMA table_info: %v", err)
+	}
+	defer func() { _ = rows.Close() }()
+	hasGroupID := false
+	for rows.Next() {
+		var cid int
+		var colName, colType string
+		var notnull, pk int
+		var dfltValue sql.NullString
+		if err := rows.Scan(&cid, &colName, &colType, &notnull, &dfltValue, &pk); err != nil {
+			t.Fatalf("scan table_info: %v", err)
+		}
+		if colName == "group_id" {
+			hasGroupID = true
+		}
+	}
+	if !hasGroupID {
+		t.Error("pokemon.group_id column missing after migration 18")
+	}
+
+	// Migration must be recorded with version 18.
+	var count int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM migrations WHERE version = 18`).Scan(&count); err != nil {
+		t.Fatalf("query migration row: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("migration 18 tracking row count = %d, want 1", count)
+	}
+}
+
+// TestGroupsAndTagsRoundTrip verifies that a full SaveFullState / LoadFullState
+// cycle preserves Group values, Pokemon.GroupID, and Pokemon.Tags.
+func TestGroupsAndTagsRoundTrip(t *testing.T) {
+	d := openInternalTestDB(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	st := &state.AppState{
+		ActiveID: "p1",
+		Pokemon: []state.Pokemon{
+			{
+				ID: "p1", Name: "Pikachu", CanonicalName: "pikachu",
+				SpriteURL: "u", SpriteType: "normal", Language: "en",
+				CreatedAt: now, IsActive: true, OverlayMode: "default",
+				GroupID: "g1",
+				Tags:    []string{"favorite", "legendary"},
+			},
+			{
+				ID: "p2", Name: "Eevee", CanonicalName: "eevee",
+				SpriteURL: "u", SpriteType: "normal", Language: "en",
+				CreatedAt: now, OverlayMode: "default",
+				// No group, no tags.
+				Tags: []string{},
+			},
+		},
+		Groups: []state.Group{
+			{ID: "g1", Name: "Hunts", Color: "#3b82f6", SortOrder: 0, Collapsed: false},
+			{ID: "g2", Name: "Done", Color: "", SortOrder: 1, Collapsed: true},
+		},
+		Sessions: []state.Session{},
+		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
+	}
+
+	if err := d.SaveFullState(st); err != nil {
+		t.Fatalf(fmtSaveFullState, err)
+	}
+
+	loaded, err := d.LoadFullState()
+	if err != nil {
+		t.Fatalf(fmtLoadFullState, err)
+	}
+	if loaded == nil {
+		t.Fatal("LoadFullState returned nil")
+	}
+
+	if len(loaded.Groups) != 2 {
+		t.Fatalf("Groups len = %d, want 2", len(loaded.Groups))
+	}
+	if loaded.Groups[0].ID != "g1" || loaded.Groups[0].Name != "Hunts" {
+		t.Errorf("Groups[0] = %+v, want id=g1 name=Hunts", loaded.Groups[0])
+	}
+	if !loaded.Groups[1].Collapsed {
+		t.Error("Groups[1].Collapsed should be true after round-trip")
+	}
+
+	if loaded.Pokemon[0].GroupID != "g1" {
+		t.Errorf("Pokemon[0].GroupID = %q, want %q", loaded.Pokemon[0].GroupID, "g1")
+	}
+	wantTags := []string{"favorite", "legendary"}
+	if len(loaded.Pokemon[0].Tags) != len(wantTags) {
+		t.Fatalf("Pokemon[0].Tags len = %d, want %d", len(loaded.Pokemon[0].Tags), len(wantTags))
+	}
+	for i, tg := range wantTags {
+		if loaded.Pokemon[0].Tags[i] != tg {
+			t.Errorf("Pokemon[0].Tags[%d] = %q, want %q", i, loaded.Pokemon[0].Tags[i], tg)
+		}
+	}
+	// Pokemon without tags must load with a non-nil empty slice.
+	if loaded.Pokemon[1].Tags == nil {
+		t.Error("Pokemon[1].Tags should be non-nil empty slice after load")
+	}
+	if len(loaded.Pokemon[1].Tags) != 0 {
+		t.Errorf("Pokemon[1].Tags len = %d, want 0", len(loaded.Pokemon[1].Tags))
+	}
+	if loaded.Pokemon[1].GroupID != "" {
+		t.Errorf("Pokemon[1].GroupID = %q, want empty", loaded.Pokemon[1].GroupID)
+	}
+}

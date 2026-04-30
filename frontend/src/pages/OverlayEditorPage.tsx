@@ -12,10 +12,10 @@ import {
   RefreshCw,
   Keyboard,
   Layers,
-  Monitor,
   AlertTriangle,
 } from "lucide-react";
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
+import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 import { useCounterStore } from "../hooks/useCounterState";
 import { OverlaySettings, Pokemon } from "../types";
 import { useI18n } from "../contexts/I18nContext";
@@ -127,11 +127,8 @@ export function OverlayEditorPage() {
         </span>
 
         <div className="ml-auto flex items-center gap-3">
-          {/* OBS hint */}
-          <span className="flex items-center gap-1.5 text-xs text-text-muted">
-            <Monitor className="w-3.5 h-3.5" />
-            {t("overlay.obsHintDashboard")}
-          </span>
+          {/* OBS URL split button (per-Pokemon or universal) */}
+          <OverlayBrowserSourceButton pokemonId={previewPokemon.id} />
 
           {/* Hotkeys paused badge */}
           <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">

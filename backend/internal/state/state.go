@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"log/slog"
+
+	"github.com/google/uuid"
 )
 
 // Shared string literals used in default overlay settings and overlay resolution.
@@ -54,7 +56,29 @@ type Pokemon struct {
 	DetectorConfig     *DetectorConfig  `json:"detector_config,omitempty"`
 	TimerStartedAt     *time.Time       `json:"timer_started_at,omitempty"`
 	TimerAccumulatedMs int64            `json:"timer_accumulated_ms"`
-	HuntMode           string           `json:"hunt_mode"` // "both" | "timer" | "detector" (default "both")
+	HuntMode           string           `json:"hunt_mode"`  // "both" | "timer" | "detector" (default "both")
+	GroupID            string           `json:"group_id"`   // Empty string means "no group" (shown in "Ohne Gruppe" section)
+	Tags               []string         `json:"tags"`       // Arbitrary short labels; always a JSON array, never null
+}
+
+// Group organizes Pokémon into collapsible Sidebar sections.
+// Groups are purely organizational metadata; membership is one-to-many
+// (each Pokémon has at most one group via Pokemon.GroupID).
+type Group struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Color     string `json:"color"` // Hex string like "#3b82f6"; empty means default color
+	SortOrder int    `json:"sort_order"`
+	Collapsed bool   `json:"collapsed"`
+}
+
+// GroupPatch carries optional field updates for UpdateGroup.
+// Only non-nil fields are applied; nil fields are left unchanged.
+type GroupPatch struct {
+	Name      *string `json:"name,omitempty"`
+	Color     *string `json:"color,omitempty"`
+	SortOrder *int    `json:"sort_order,omitempty"`
+	Collapsed *bool   `json:"collapsed,omitempty"`
 }
 
 // Session records one time-boxed encounter run for a single Pokémon.
@@ -74,6 +98,8 @@ type HotkeyMap struct {
 	Decrement   string `json:"decrement"`
 	Reset       string `json:"reset"`
 	NextPokemon string `json:"next_pokemon"`
+	// HuntToggle starts or stops the hunt (timer + detector) for the active Pokémon.
+	HuntToggle string `json:"hunt_toggle"`
 }
 
 // MatchedRegion defines a bounding box within a template and its match criteria.
@@ -305,6 +331,7 @@ type Settings struct {
 type AppState struct {
 	Pokemon         []Pokemon `json:"pokemon"`
 	Sessions        []Session `json:"sessions"`
+	Groups          []Group   `json:"groups"` // Organizational Sidebar sections; always an array, never null
 	ActiveID        string    `json:"active_id"`
 	Hotkeys         HotkeyMap `json:"hotkeys"`
 	Settings        Settings  `json:"settings"`
@@ -355,6 +382,7 @@ func NewManager(configDir string) *Manager {
 			DataPath: configDir,
 			Pokemon:  []Pokemon{},
 			Sessions: []Session{},
+			Groups:   []Group{},
 			Settings: Settings{
 				OutputEnabled: false,
 				OutputDir:     filepath.Join(configDir, "output"),
@@ -594,8 +622,12 @@ func (m *Manager) GetActivePokemon() *Pokemon {
 }
 
 // AddPokemon appends p to the Pokémon list. If the list was empty before,
-// p is automatically set as the active Pokémon.
+// p is automatically set as the active Pokémon. Tags is normalised to an empty
+// slice so JSON serialisation never emits null.
 func (m *Manager) AddPokemon(p Pokemon) {
+	if p.Tags == nil {
+		p.Tags = []string{}
+	}
 	m.mu.Lock()
 	m.state.Pokemon = append(m.state.Pokemon, p)
 	if m.state.ActiveID == "" {
@@ -649,6 +681,34 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	dst.HuntMode = update.HuntMode
 	// Always update ShinyCharm (bool zero-value = false is a valid state)
 	dst.ShinyCharm = update.ShinyCharm
+	// Always update GroupID (empty string means "no group").
+	dst.GroupID = update.GroupID
+	// Always replace Tags when the caller supplied them (non-nil). A nil Tags
+	// slice on update indicates the caller did not touch tags and preserves
+	// existing values. Empty slice explicitly clears all tags.
+	if update.Tags != nil {
+		dst.Tags = normalizeTags(update.Tags)
+	}
+}
+
+// normalizeTags trims whitespace, drops empty entries, and removes duplicates
+// while preserving the first-seen order. Returns a non-nil slice so JSON
+// serialisation produces [] rather than null.
+func normalizeTags(raw []string) []string {
+	seen := make(map[string]struct{}, len(raw))
+	out := make([]string, 0, len(raw))
+	for _, t := range raw {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if _, dup := seen[t]; dup {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	return out
 }
 
 // applyOverlayUpdate handles overlay and overlay-mode changes, clearing the
@@ -829,6 +889,42 @@ func (m *Manager) StopTimer(id string) bool {
 	return false
 }
 
+// ToggleHunt flips the timer state for the Pokémon with the given id.
+// If the timer is running, it is stopped and the elapsed segment is folded
+// into TimerAccumulatedMs; running is false (now stopped).
+// If the timer is not running, it is started; running is true (now running).
+// huntMode carries the Pokémon's current hunt_mode so callers can include it
+// in the broadcast without a second lookup. ok is false only when no Pokémon
+// with the given id exists.
+//
+// The detector loop runs in-browser — this method intentionally only toggles
+// the backend-owned timer. Callers broadcast a typed WebSocket event so the
+// frontend can start or stop its detection loop in lockstep.
+func (m *Manager) ToggleHunt(id string) (running bool, huntMode string, ok bool) {
+	m.mu.Lock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID != id {
+			continue
+		}
+		mode := m.state.Pokemon[i].HuntMode
+		if m.state.Pokemon[i].TimerStartedAt != nil {
+			elapsed := time.Since(*m.state.Pokemon[i].TimerStartedAt)
+			m.state.Pokemon[i].TimerAccumulatedMs += elapsed.Milliseconds()
+			m.state.Pokemon[i].TimerStartedAt = nil
+			m.mu.Unlock()
+			m.markDirty()
+			return false, mode, true
+		}
+		now := time.Now()
+		m.state.Pokemon[i].TimerStartedAt = &now
+		m.mu.Unlock()
+		m.markDirty()
+		return true, mode, true
+	}
+	m.mu.Unlock()
+	return false, "", false
+}
+
 // StopAllTimers folds elapsed time into accumulated for every running timer
 // and clears TimerStartedAt. Used during graceful shutdown.
 func (m *Manager) StopAllTimers() {
@@ -910,6 +1006,13 @@ func (m *Manager) CompletePokemon(id string) bool {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			now := time.Now()
+			// Finalize a running timer so elapsed ms are preserved and the
+			// counter stops advancing after completion.
+			if m.state.Pokemon[i].TimerStartedAt != nil {
+				elapsed := now.Sub(*m.state.Pokemon[i].TimerStartedAt)
+				m.state.Pokemon[i].TimerAccumulatedMs += elapsed.Milliseconds()
+				m.state.Pokemon[i].TimerStartedAt = nil
+			}
 			m.state.Pokemon[i].CompletedAt = &now
 			m.markDirty()
 			return true
@@ -985,6 +1088,8 @@ func (m *Manager) UpdateSingleHotkey(action, key string) bool {
 		m.state.Hotkeys.Reset = key
 	case "next_pokemon":
 		m.state.Hotkeys.NextPokemon = key
+	case "hunt_toggle":
+		m.state.Hotkeys.HuntToggle = key
 	default:
 		m.mu.Unlock()
 		return false
@@ -1248,3 +1353,137 @@ func (m *Manager) ClearAllTemplates(id string) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Groups and tags
+// ---------------------------------------------------------------------------
+
+// ListGroups returns a copy of all groups in their current sort order.
+// The returned slice is safe to mutate without affecting state.
+func (m *Manager) ListGroups() []Group {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := make([]Group, len(m.state.Groups))
+	copy(out, m.state.Groups)
+	return out
+}
+
+// CreateGroup appends a new Group with a generated UUID. Name is trimmed and
+// must be non-empty. The new group is placed at the end of the sort order.
+// Returns the created Group or an error when the name is empty.
+func (m *Manager) CreateGroup(name, color string) (Group, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return Group{}, fmt.Errorf("group name must not be empty")
+	}
+	g := Group{
+		ID:    uuid.NewString(),
+		Name:  name,
+		Color: strings.TrimSpace(color),
+	}
+	m.mu.Lock()
+	g.SortOrder = len(m.state.Groups)
+	m.state.Groups = append(m.state.Groups, g)
+	m.mu.Unlock()
+	m.markDirty()
+	return g, nil
+}
+
+// UpdateGroup applies the non-nil fields of patch to the group with the given
+// id. Returns the updated group, or an error when the group is not found or
+// the patched name would become empty.
+func (m *Manager) UpdateGroup(id string, patch GroupPatch) (Group, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Groups {
+		if m.state.Groups[i].ID != id {
+			continue
+		}
+		if patch.Name != nil {
+			trimmed := strings.TrimSpace(*patch.Name)
+			if trimmed == "" {
+				return Group{}, fmt.Errorf("group name must not be empty")
+			}
+			m.state.Groups[i].Name = trimmed
+		}
+		if patch.Color != nil {
+			m.state.Groups[i].Color = strings.TrimSpace(*patch.Color)
+		}
+		if patch.SortOrder != nil {
+			m.state.Groups[i].SortOrder = *patch.SortOrder
+		}
+		if patch.Collapsed != nil {
+			m.state.Groups[i].Collapsed = *patch.Collapsed
+		}
+		updated := m.state.Groups[i]
+		m.markDirty()
+		return updated, nil
+	}
+	return Group{}, fmt.Errorf("group %q not found", id)
+}
+
+// DeleteGroup removes the group with the given id and clears GroupID on any
+// Pokémon that referenced it. Returns false when the group is not found.
+func (m *Manager) DeleteGroup(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Groups {
+		if m.state.Groups[i].ID == id {
+			m.state.Groups = append(m.state.Groups[:i], m.state.Groups[i+1:]...)
+			for j := range m.state.Pokemon {
+				if m.state.Pokemon[j].GroupID == id {
+					m.state.Pokemon[j].GroupID = ""
+				}
+			}
+			m.markDirty()
+			return true
+		}
+	}
+	return false
+}
+
+// SetPokemonGroup assigns the given group to the Pokémon with pokemonID.
+// Pass an empty groupID to clear the group. Returns false when the Pokémon is
+// not found or when a non-empty groupID does not refer to an existing group.
+func (m *Manager) SetPokemonGroup(pokemonID, groupID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if groupID != "" {
+		found := false
+		for _, g := range m.state.Groups {
+			if g.ID == groupID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == pokemonID {
+			m.state.Pokemon[i].GroupID = groupID
+			m.markDirty()
+			return true
+		}
+	}
+	return false
+}
+
+// SetPokemonTags replaces the tag list on the Pokémon with pokemonID. Tags are
+// trimmed, deduplicated, and empty entries are dropped. Returns false when the
+// Pokémon does not exist.
+func (m *Manager) SetPokemonTags(pokemonID string, tags []string) bool {
+	normalised := normalizeTags(tags)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == pokemonID {
+			m.state.Pokemon[i].Tags = normalised
+			m.markDirty()
+			return true
+		}
+	}
+	return false
+}
+

@@ -35,8 +35,14 @@ import { ToastContainer } from "./components/shared/ToastContainer";
 import { WindowControls } from "./components/settings/WindowControls";
 import { LicenseDialog } from "./components/settings/LicenseDialog";
 import { apiUrl, wsUrl } from "./utils/api";
-import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
+import { CaptureServiceProvider, useCaptureService } from "./contexts/CaptureServiceContext";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
+import { startDetectionForPokemon, stopDetectionForPokemon } from "./engine/startDetection";
+
+// Tracks which pokemon were already marked as completed in the last state_update.
+// Used as a safety net so the detection loop is stopped even if the typed
+// `pokemon_completed` event is missed (e.g. late join, dropped message).
+const completedPokemonIds = new Set<string>();
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
 function UpdateOverlay({
@@ -130,6 +136,7 @@ function AppShell() {
     useCounterStore();
   const { t, isMachineTranslated } = useI18n();
   const { push: pushToast } = useToast();
+  const captureService = useCaptureService();
 
   const [restarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
@@ -304,7 +311,28 @@ function AppShell() {
     } else if (msg.type === "encounter_reset") {
       handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "0", t("app.counterReset") || "Zähler zurückgesetzt");
     } else if (msg.type === "pokemon_completed") {
-      handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "✔", t("app.pokemonCompleted") || "Hunt erfolgreich abgeschlossen!");
+      const completedId = (msg.payload as { pokemon_id: string }).pokemon_id;
+      // Stop the in-browser detection loop so a late match cannot re-increment
+      // the counter after the hunt was marked as caught. Also clear the cached
+      // detector status so the sidebar indicators reset immediately and a later
+      // uncomplete starts from a clean slate.
+      stopDetectionForPokemon(completedId);
+      clearDetectorStatus(completedId);
+      completedPokemonIds.add(completedId);
+      handlePokemonToast(completedId, "✔", t("app.pokemonCompleted") || "Hunt erfolgreich abgeschlossen!");
+    } else if (msg.type === "hunt_start_requested") {
+      handleHuntStartRequested(msg.payload as { pokemon_id: string; hunt_mode?: string });
+    } else if (msg.type === "hunt_start_rejected") {
+      const reason = (msg.payload as { reason?: string }).reason;
+      pushToast({
+        type: "error",
+        title: reason === "no_templates" ? t("detector.errNoTemplates") : t("detector.errNoSource"),
+      });
+    } else if (msg.type === "hunt_stop_requested") {
+      const stopId = (msg.payload as { pokemon_id: string }).pokemon_id;
+      // Mirror the sidebar stop button: always stop the browser-side detector.
+      // Timer-only hunts simply have no active loop and stopLoop() no-ops.
+      stopDetectionForPokemon(stopId);
     } else if (msg.type === "pokemon_deleted") {
       handlePokemonToast((msg.payload as { pokemon_id: string }).pokemon_id, "🗑", t("app.pokemonDeleted") || "Pokémon entfernt");
     } else if (msg.type === "detector_status") {
@@ -318,12 +346,76 @@ function AppShell() {
       navigate("/");
     }
     // detector_match: counter already incremented by backend; encounter_added fires separately
-  }, [appState, t, setAppState, setConnected, flashPokemon, pushToast, clearDetectorStatus, setDetectorStatus, navigate]);
+  }, [appState, t, setAppState, setConnected, flashPokemon, pushToast, clearDetectorStatus, setDetectorStatus, navigate, captureService]);
+
+  /**
+   * Handle the `hunt_start_requested` event triggered by the global hotkey.
+   *
+   * The backend has already started the timer (if the mode includes timer) and
+   * re-broadcast state. This handler only deals with the detector half of the
+   * hunt: if the hunt_mode includes detection AND an active capture stream
+   * already exists for the pokemon, start the browser-side detection loop.
+   *
+   * Design note: we intentionally do NOT auto-acquire a capture source from
+   * the hotkey, even though a persisted source is available via
+   * getLastSource(). Silent source acquisition would trigger surprising
+   * fullscreen permission dialogs or pick a stale display on machines where
+   * the user has reshuffled monitors. The user is expected to have connected
+   * a source via the Dashboard before using the hotkey.
+   */
+  function handleHuntStartRequested(payload: { pokemon_id: string; hunt_mode?: string }) {
+    const pokemonId = payload.pokemon_id;
+    const mode = payload.hunt_mode && payload.hunt_mode.length > 0 ? payload.hunt_mode : "both";
+
+    const pokemon = appState?.pokemon.find((p) => p.id === pokemonId);
+    if (!pokemon) return;
+
+    const templates = pokemon.detector_config?.templates ?? [];
+    // Backend has already gated missing templates / missing source and
+    // emitted hunt_start_rejected before reaching here, so we only need
+    // to decide whether to spin up the browser-side detection loop.
+    const effectiveMode: "timer" | "detector" | "both" =
+      mode === "both" && !pokemon.detector_config ? "timer" : (mode as "timer" | "detector" | "both");
+
+    if (effectiveMode === "timer") return;
+
+    startDetectionForPokemon({
+      pokemonId,
+      templates,
+      config: pokemon.detector_config!,
+      getVideoElement: () => captureService.getVideoElement(pokemonId),
+      onScore: (score, state, cooldownMs) =>
+        setDetectorStatus(pokemonId, {
+          state,
+          confidence: score,
+          poll_ms: 100,
+          cooldown_remaining_ms: cooldownMs,
+        } as DetectorStatusEntry),
+    });
+  }
 
   function handleStateUpdate(newState: AppState) {
     const prev = appState;
     setAppState(newState);
     setConnected(true);
+    // Safety net: if a pokemon transitioned to completed but the typed
+    // pokemon_completed event was missed, still stop its detection loop.
+    // Uncomplete transitions remove the id so a future complete fires again.
+    const nowCompleted = new Set<string>();
+    for (const p of newState.pokemon ?? []) {
+      if (p.completed_at) {
+        nowCompleted.add(p.id);
+        if (!completedPokemonIds.has(p.id)) {
+          stopDetectionForPokemon(p.id);
+          clearDetectorStatus(p.id);
+        }
+      }
+    }
+    for (const id of completedPokemonIds) {
+      if (!nowCompleted.has(id)) completedPokemonIds.delete(id);
+    }
+    for (const id of nowCompleted) completedPokemonIds.add(id);
+
     // Only clear detector status when a pokemon's detector was explicitly
     // disabled (enabled toggled off), not on every state_update broadcast.
     // Clearing on every broadcast caused a brief "idle" flash during active
@@ -872,8 +964,14 @@ function LicenseGate() {
 
   // Overlay routes skip the entire gate flow (license, setup, sync) — they
   // only need the WebSocket state stream which AppShell already provides.
+  // AppShell still requires CaptureServiceProvider because it calls
+  // useCaptureService() for the hunt_start_requested hotkey handler.
   if (isOverlay) {
-    return <AppShell />;
+    return (
+      <CaptureServiceProvider>
+        <AppShell />
+      </CaptureServiceProvider>
+    );
   }
 
   // Server readiness unknown yet — show loading spinner

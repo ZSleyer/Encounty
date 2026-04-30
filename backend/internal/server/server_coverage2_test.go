@@ -685,6 +685,294 @@ func TestHandleHotkeyDecrementNotFound(t *testing.T) {
 	srv.handleHotkeyDecrement("nonexistent")
 }
 
+// TestHandleHotkeyHuntToggleStarts verifies that dispatching hunt_toggle on a
+// stopped Pokémon starts its timer and broadcasts hunt_start_requested with
+// the Pokémon's hunt_mode.
+func TestHandleHotkeyHuntToggleStarts(t *testing.T) {
+	srv := newTestServer(t)
+	addTestPokemon(t, srv, "p1", "Pikachu")
+	srv.state.SetActive("p1")
+	// Give the Pokémon a non-default hunt_mode AND a usable detector config
+	// so the backend template-readiness gate does not veto the start.
+	enabled := true
+	st := srv.state.GetState()
+	p := st.Pokemon[0]
+	p.HuntMode = "detector"
+	srv.state.UpdatePokemon("p1", p)
+	srv.state.SetDetectorConfig("p1", &state.DetectorConfig{
+		Enabled:   true,
+		Templates: []state.DetectorTemplate{{Name: "tpl", Enabled: &enabled}},
+	})
+	srv.SetCaptureState("p1", true)
+
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
+	srv.hub.mu.Lock()
+	srv.hub.clients[c] = true
+	srv.hub.mu.Unlock()
+
+	srv.DispatchHotkeyAction("hunt_toggle", "")
+
+	if srv.state.GetState().Pokemon[0].TimerStartedAt == nil {
+		t.Error("TimerStartedAt should be set after hunt_toggle starts the hunt")
+	}
+
+	found := false
+	deadline := time.After(time.Second)
+	for !found {
+		select {
+		case payload := <-c.send:
+			var msg WSMessage
+			if err := json.Unmarshal(payload.data, &msg); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if msg.Type == "hunt_start_requested" {
+				found = true
+				var body struct {
+					PokemonID string `json:"pokemon_id"`
+					HuntMode  string `json:"hunt_mode"`
+				}
+				if err := json.Unmarshal(msg.Payload, &body); err != nil {
+					t.Fatalf("payload unmarshal: %v", err)
+				}
+				if body.PokemonID != "p1" {
+					t.Errorf("pokemon_id = %q, want p1", body.PokemonID)
+				}
+				if body.HuntMode != "detector" {
+					t.Errorf("hunt_mode = %q, want detector", body.HuntMode)
+				}
+			}
+		case <-deadline:
+			t.Fatal("hunt_start_requested broadcast not observed")
+		}
+	}
+}
+
+// TestHandleHotkeyHuntToggleStops verifies that dispatching hunt_toggle on a
+// running Pokémon stops its timer, folds elapsed time, and broadcasts
+// hunt_stop_requested.
+func TestHandleHotkeyHuntToggleStops(t *testing.T) {
+	srv := newTestServer(t)
+	addTestPokemon(t, srv, "p1", "Pikachu")
+	srv.state.SetActive("p1")
+	srv.state.StartTimer("p1")
+	time.Sleep(5 * time.Millisecond)
+
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
+	srv.hub.mu.Lock()
+	srv.hub.clients[c] = true
+	srv.hub.mu.Unlock()
+
+	srv.DispatchHotkeyAction("hunt_toggle", "")
+
+	st := srv.state.GetState()
+	if st.Pokemon[0].TimerStartedAt != nil {
+		t.Error("TimerStartedAt should be nil after hunt_toggle stops the hunt")
+	}
+	if st.Pokemon[0].TimerAccumulatedMs <= 0 {
+		t.Errorf("TimerAccumulatedMs = %d, want > 0", st.Pokemon[0].TimerAccumulatedMs)
+	}
+
+	found := false
+	deadline := time.After(time.Second)
+	for !found {
+		select {
+		case payload := <-c.send:
+			var msg WSMessage
+			if err := json.Unmarshal(payload.data, &msg); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if msg.Type == "hunt_stop_requested" {
+				found = true
+				var body struct {
+					PokemonID string `json:"pokemon_id"`
+				}
+				if err := json.Unmarshal(msg.Payload, &body); err != nil {
+					t.Fatalf("payload unmarshal: %v", err)
+				}
+				if body.PokemonID != "p1" {
+					t.Errorf("pokemon_id = %q, want p1", body.PokemonID)
+				}
+			}
+		case <-deadline:
+			t.Fatal("hunt_stop_requested broadcast not observed")
+		}
+	}
+}
+
+// TestHandleHotkeyHuntToggleStopsDetectorOnly verifies that a detector-
+// only hunt (timer never flipped, detection loop running) is stopped by
+// the hotkey, broadcasting hunt_stop_requested so the frontend tears the
+// loop down.
+func TestHandleHotkeyHuntToggleStopsDetectorOnly(t *testing.T) {
+	srv := newTestServer(t)
+	addTestPokemon(t, srv, "p1", "Pikachu")
+	srv.state.SetActive("p1")
+	st := srv.state.GetState()
+	p := st.Pokemon[0]
+	p.HuntMode = "detector"
+	srv.state.UpdatePokemon("p1", p)
+	srv.SetDetectionState("p1", true)
+
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
+	srv.hub.mu.Lock()
+	srv.hub.clients[c] = true
+	srv.hub.mu.Unlock()
+
+	srv.DispatchHotkeyAction("hunt_toggle", "")
+
+	if srv.state.GetState().Pokemon[0].TimerStartedAt != nil {
+		t.Error("timer should not be started by a stop-only toggle")
+	}
+
+	found := false
+	deadline := time.After(time.Second)
+	for !found {
+		select {
+		case payload := <-c.send:
+			var msg WSMessage
+			if err := json.Unmarshal(payload.data, &msg); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if msg.Type == "hunt_start_requested" {
+				t.Fatal("must not broadcast hunt_start_requested when detector is already running")
+			}
+			if msg.Type == "hunt_stop_requested" {
+				found = true
+			}
+		case <-deadline:
+			t.Fatal("hunt_stop_requested broadcast not observed")
+		}
+	}
+}
+
+// TestHandleHotkeyHuntToggleNoActivePokemon verifies that dispatching
+// hunt_toggle with no active Pokémon is a no-op and does not panic.
+func TestHandleHotkeyHuntToggleNoActivePokemon(t *testing.T) {
+	srv := newTestServer(t)
+	// No Pokémon added; GetActivePokemon returns nil.
+	srv.DispatchHotkeyAction("hunt_toggle", "")
+}
+
+// TestHandleHotkeyHuntToggleRejectsMissingSource verifies that the
+// capture-readiness gate blocks a hunt start when detector is required
+// and templates are present but no capture stream is registered. The
+// backend must not flip the timer.
+func TestHandleHotkeyHuntToggleRejectsMissingSource(t *testing.T) {
+	srv := newTestServer(t)
+	addTestPokemon(t, srv, "p1", "Pikachu")
+	srv.state.SetActive("p1")
+	st := srv.state.GetState()
+	p := st.Pokemon[0]
+	p.HuntMode = "detector"
+	srv.state.UpdatePokemon("p1", p)
+	enabled := true
+	srv.state.SetDetectorConfig("p1", &state.DetectorConfig{
+		Enabled:   true,
+		Templates: []state.DetectorTemplate{{Name: "tpl", Enabled: &enabled}},
+	})
+	// Intentionally NOT calling SetCaptureState — no source attached.
+
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
+	srv.hub.mu.Lock()
+	srv.hub.clients[c] = true
+	srv.hub.mu.Unlock()
+
+	srv.DispatchHotkeyAction("hunt_toggle", "")
+
+	if srv.state.GetState().Pokemon[0].TimerStartedAt != nil {
+		t.Error("TimerStartedAt should remain nil when the source gate rejects")
+	}
+
+	found := false
+	deadline := time.After(time.Second)
+	for !found {
+		select {
+		case payload := <-c.send:
+			var msg WSMessage
+			if err := json.Unmarshal(payload.data, &msg); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if msg.Type == "hunt_start_requested" {
+				t.Fatal("must not broadcast hunt_start_requested when source is missing")
+			}
+			if msg.Type == "hunt_start_rejected" {
+				found = true
+				var body struct {
+					Reason string `json:"reason"`
+				}
+				if err := json.Unmarshal(msg.Payload, &body); err != nil {
+					t.Fatalf("payload unmarshal: %v", err)
+				}
+				if body.Reason != "no_source" {
+					t.Errorf("reason = %q, want no_source", body.Reason)
+				}
+			}
+		case <-deadline:
+			t.Fatal("hunt_start_rejected broadcast not observed")
+		}
+	}
+}
+
+// TestHandleHotkeyHuntToggleRejectsMissingTemplates verifies that the
+// template-readiness gate blocks a hunt start when detector is required
+// but no templates are configured, and emits hunt_start_rejected instead
+// of flipping the timer.
+func TestHandleHotkeyHuntToggleRejectsMissingTemplates(t *testing.T) {
+	srv := newTestServer(t)
+	addTestPokemon(t, srv, "p1", "Pikachu")
+	srv.state.SetActive("p1")
+	st := srv.state.GetState()
+	p := st.Pokemon[0]
+	p.HuntMode = "detector"
+	srv.state.UpdatePokemon("p1", p)
+	// Detector config with zero templates — the gate should reject.
+	srv.state.SetDetectorConfig("p1", &state.DetectorConfig{Enabled: true})
+
+	c := &wsClient{send: make(chan wsPayload, sendBufSize)}
+	srv.hub.mu.Lock()
+	srv.hub.clients[c] = true
+	srv.hub.mu.Unlock()
+
+	srv.DispatchHotkeyAction("hunt_toggle", "")
+
+	if srv.state.GetState().Pokemon[0].TimerStartedAt != nil {
+		t.Error("TimerStartedAt should remain nil when the template gate rejects")
+	}
+
+	found := false
+	deadline := time.After(time.Second)
+	for !found {
+		select {
+		case payload := <-c.send:
+			var msg WSMessage
+			if err := json.Unmarshal(payload.data, &msg); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			if msg.Type == "hunt_start_rejected" {
+				found = true
+				var body struct {
+					PokemonID string `json:"pokemon_id"`
+					Reason    string `json:"reason"`
+				}
+				if err := json.Unmarshal(msg.Payload, &body); err != nil {
+					t.Fatalf("payload unmarshal: %v", err)
+				}
+				if body.PokemonID != "p1" {
+					t.Errorf("pokemon_id = %q, want p1", body.PokemonID)
+				}
+				if body.Reason != "no_templates" {
+					t.Errorf("reason = %q, want no_templates", body.Reason)
+				}
+			}
+			if msg.Type == "hunt_start_requested" {
+				t.Fatal("must not broadcast hunt_start_requested when templates are missing")
+			}
+		case <-deadline:
+			t.Fatal("hunt_start_rejected broadcast not observed")
+		}
+	}
+}
+
 // --- HotkeyUpdateAllBindings, HotkeyUpdateBinding, HotkeySetPaused, HotkeyIsAvailable ---
 
 func TestHotkeyUpdateAllBindings(t *testing.T) {
