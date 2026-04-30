@@ -45,6 +45,7 @@ import {
   Monitor,
   Video,
   VideoOff,
+  FolderPlus,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
@@ -59,7 +60,12 @@ import { startDetectionForPokemon, stopDetectionForPokemon } from "../engine/sta
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry, AppState } from "../types";
+import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry, AppState, Group } from "../types";
+import { TagChip } from "../components/shared/TagChip";
+import { TagFilterBar } from "../components/shared/TagFilterBar";
+import { SidebarGroupSection, type GroupAction } from "../components/shared/SidebarGroupSection";
+import { GroupManagementModal } from "../components/shared/GroupManagementModal";
+import { updateGroup, startGroupHunt, stopGroupHunt } from "../utils/groupsApi";
 import { useI18n } from "../contexts/I18nContext";
 import { useCaptureService, useCaptureVersion } from "../contexts/CaptureServiceContext";
 import { useToast } from "../contexts/ToastContext";
@@ -185,7 +191,13 @@ function getBaseAndFormName(p: Pokemon): [string, string | null] {
 /** Returns true when the timer start should be blocked because the hunt requires a detector source that is not connected. */
 function isTimerStartBlocked(pokemon: Pokemon, isCapturing: (id: string) => boolean): boolean {
   const mode = pokemon.hunt_mode || "both";
-  return mode === "both" && hasDetectorReady(pokemon) && !isCapturing(pokemon.id);
+  if (mode === "timer") return false;
+  // "both" falls back to timer-only only when detector is not configured at
+  // all for this Pokémon (e.g. plain hand-counting). Once a DetectorConfig
+  // exists, the user has opted into auto-detection and we must enforce
+  // templates + source before any timer starts.
+  if (mode === "both" && !pokemon.detector_config) return false;
+  return !hasDetectorReady(pokemon) || !isCapturing(pokemon.id);
 }
 
 /** Returns true if a non-running Pokemon can be individually started given its hunt_mode and capture source state. */
@@ -223,9 +235,14 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
 
   const totalMs = computeTimerMs(pokemon);
   const mode = pokemon.hunt_mode || "both";
-  const canStartTimer = mode !== "detector" && !timerStartBlocked;
+  // "both" behaves like timer-only ONLY when no detector is configured at
+  // all. Once a DetectorConfig exists, the user has opted into detection
+  // and must satisfy source + template preconditions.
+  const effectiveMode: HuntMode = mode === "both" && !pokemon.detector_config ? "timer" : mode;
+  const canStartTimer = effectiveMode === "timer" || !timerStartBlocked;
   const canStartDet = canStartDetector(pokemon, detectorStatus as Record<string, { state?: string; confidence?: number }>, capture);
-  const canToggle = anyRunning || (!disabled && (canStartTimer || canStartDet));
+  const canStartSomething = effectiveMode === "timer" ? canStartTimer : canStartDet;
+  const canToggle = anyRunning || (!disabled && canStartSomething);
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -235,7 +252,9 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
       stopDetectionForPokemon(pokemon.id);
       clearDetectorStatus(pokemon.id);
     } else {
-      if (canStartTimer && !pokemon.timer_started_at) send("timer_start", { pokemon_id: pokemon.id });
+      if (effectiveMode !== "detector" && canStartTimer && !pokemon.timer_started_at) {
+        send("timer_start", { pokemon_id: pokemon.id });
+      }
       if (canStartDet) tryStartDetection(pokemon, capture, setDetectorStatus);
     }
   };
@@ -1713,12 +1732,25 @@ export function Dashboard() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("encounty-sidebar-collapsed") === "true");
   const [showHuntMenu, setShowHuntMenu] = useState(false);
   const [showHeaderHuntMenu, setShowHeaderHuntMenu] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
+  const [activeTagFilters, setActiveTagFilters] = useState<string[]>([]);
+  const [ungroupedCollapsed, setUngroupedCollapsed] = useState(false);
   const asideRef = useRef<HTMLElement>(null);
 
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
   const [panelTab, setPanelTab] = useState<PanelTab>("counter");
   const rightPanelTab = panelTab;
   const [pendingTab, setPendingTab] = useState<PanelTab | null>(null);
+
+  // viewedPokemonId is a mirror of backend active_id. The only way to change
+  // the currently-viewed Pokémon is to call POST /api/pokemon/{id}/activate,
+  // which updates active_id and broadcasts state_update. Both sidebar clicks
+  // and the NextPokemon (F4) hotkey go through this single source of truth
+  // so they cannot race each other.
+  useEffect(() => {
+    const activeId = appState?.active_id ?? null;
+    setViewedPokemonId((prev) => (prev === activeId ? prev : activeId));
+  }, [appState?.active_id]);
 
   /** Guarded tab switch — shows confirmation when overlay has unsaved changes. */
   const setRightPanelTab = (tab: PanelTab) => {
@@ -1786,8 +1818,13 @@ export function Dashboard() {
     });
   };
   const handleActivate = (id: string) => {
+    // Optimistically switch the view so the user sees immediate feedback,
+    // then persist the choice to the backend. The state_update effect below
+    // will reconcile if the backend lands on a different active_id
+    // (e.g. two hotkeys racing).
     setViewedPokemonId(id);
     setRightPanelTab("counter");
+    void fetch(apiUrl(`/api/pokemon/${id}/activate`), { method: "POST" }).catch(() => {});
   };
   const handleDelete = (id: string) => {
     setConfirmConfig({
@@ -1859,14 +1896,23 @@ export function Dashboard() {
 
   // --- Derived State (computed before hooks to avoid conditional hook calls) ---
   const allPokemon = appState?.pokemon ?? [];
+  const groups: Group[] = appState?.groups ?? [];
   const activeHunts = allPokemon.filter((p) => !p.completed_at);
   const archivedHunts = allPokemon.filter((p) => !!p.completed_at);
   const q = searchQuery.trim().toLowerCase();
-  const filtered = filterPokemonByQuery(
-    sidebarTab === "active" ? activeHunts : archivedHunts,
-    q,
-  );
+  // Tag filter applies only on the active tab; archived view stays flat.
+  const tagFiltered = sidebarTab === "active" && activeTagFilters.length > 0
+    ? activeHunts.filter((p) => {
+        const pTags = p.tags ?? [];
+        return activeTagFilters.every((t) => pTags.includes(t));
+      })
+    : (sidebarTab === "active" ? activeHunts : archivedHunts);
+  const filtered = filterPokemonByQuery(tagFiltered, q);
   const displayList = sortPokemonList(filtered, sortMode, sortDir);
+  // Pool of every tag currently present on any non-archived Pokémon, deduped and sorted.
+  const availableTags = Array.from(
+    new Set(activeHunts.flatMap((p) => p.tags ?? [])),
+  ).sort((a, b) => a.localeCompare(b));
   const viewedPokemon = findViewedPokemon(allPokemon, viewedPokemonId, appState?.active_id ?? "");
   const totalEncounters = allPokemon.reduce((s, p) => s + p.encounters, 0);
   const oddsDisplay = computeOddsDisplay(viewedPokemon, games);
@@ -1981,6 +2027,201 @@ export function Dashboard() {
   const renderScrollableContent = (pokemon: Pokemon) =>
     renderWorkArea(rightPanelTab, renderTabContent(pokemon));
 
+  /** Toggles one tag in the active-tag-filter set. */
+  const toggleTagFilter = (tag: string) => {
+    setActiveTagFilters((prev) =>
+      prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag],
+    );
+  };
+
+  /** Renders one <li> Pokémon row. `idx` is the absolute position in displayList. */
+  const renderPokemonItem = (p: Pokemon, idx: number): React.ReactNode => {
+    const isViewed = p.id === effectiveViewedId;
+    const isHotkeyTarget = p.id === appState.active_id;
+    const isArchived = !!p.completed_at;
+    const isSelected = selectedIds.has(p.id);
+    const src = resolveSpriteUrl(p.id, p.sprite_url, imgError);
+    const itemBorderClass = sidebarItemBorderClass(isSelected, isViewed);
+    const itemClassName = buildSidebarItemClass(itemBorderClass, focusedIdx === idx, isArchived);
+    const [baseName, formName] = getBaseAndFormName(p);
+    return (
+      <li
+        key={p.id}
+        role="option"
+        aria-selected={isViewed}
+        data-sidebar-idx={idx}
+        tabIndex={0}
+        className={itemClassName}
+        onClick={(e) => handleCardClick(e, p.id, idx)}
+        onKeyDown={(e) => handleActivateKeyDown(e, p.id, handleActivate)}
+      >
+        <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative self-start mt-0.5">
+          <img
+            src={src}
+            alt={p.name}
+            onError={() => setImgError((prev) => ({ ...prev, [p.id]: true }))}
+            className="pokemon-sprite w-full h-full object-contain"
+          />
+          {isArchived && (
+            <div className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-full p-0.5">
+              <Trophy className="w-2 h-2 text-text-primary" />
+            </div>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          {/* Row 1: Name + Actions */}
+          <div className="flex items-center gap-1">
+            <span className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate flex-1 capitalize" title={p.name}>
+              {baseName}
+            </span>
+            <div className="flex gap-0.5 items-center shrink-0">
+              {hasDetectorReady(p) && (
+                capture.isCapturing(p.id)
+                  ? <span className="p-0.5" title={t("sidebar.sourceConnected")}><Video className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-green" aria-label={t("sidebar.sourceConnected")} /></span>
+                  : <span className="p-0.5" title={t("sidebar.sourceDisconnected")}><VideoOff className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-red/70" aria-label={t("sidebar.sourceDisconnected")} /></span>
+              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); send("set_active", { pokemon_id: p.id }); }}
+                className={`p-0.5 rounded transition-colors ${
+                  isHotkeyTarget ? "text-accent-blue" : "opacity-0 group-hover:opacity-100 text-text-faint hover:text-accent-blue"
+                }`}
+                title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
+              >
+                <Keyboard className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setEditingPokemon(p); }}
+                className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors opacity-0 group-hover:opacity-100"
+                title={t("dash.edit")}
+              >
+                <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
+              </button>
+            </div>
+          </div>
+          {/* Row 2: Form · Game + Timer/Play */}
+          <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
+            <span className="flex-1 min-w-0 truncate">
+              {formName && <span className="capitalize">{formName}</span>}
+              {formName && p.game && <span className="text-text-faint"> · </span>}
+              {p.game && <span>{formatGame(p.game)}</span>}
+            </span>
+            <SidebarHuntStatus
+              pokemon={p}
+              send={send}
+              detectorRunning={!!detectorStatus[p.id] || isLoopRunning(p.id)}
+              disabled={!!p.completed_at}
+              timerStartBlocked={isTimerStartBlocked(p, capture.isCapturing)}
+              capture={capture}
+              detectorStatus={detectorStatus}
+              setDetectorStatus={setDetectorStatus}
+              clearDetectorStatus={clearDetectorStatus}
+            />
+          </div>
+          {/* Row 3: Encounters + tags */}
+          <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
+            <span className="tabular-nums" title={p.encounters.toLocaleString()}>{p.encounters.toLocaleString()}</span>
+            {(p.tags ?? []).length > 0 && (
+              <span className="flex flex-wrap gap-1 min-w-0">
+                {(p.tags ?? []).slice(0, 3).map((tag) => (
+                  <TagChip
+                    key={tag}
+                    tag={tag}
+                    size="sm"
+                    active={activeTagFilters.includes(tag)}
+                    onClick={() => toggleTagFilter(tag)}
+                  />
+                ))}
+              </span>
+            )}
+          </div>
+        </div>
+      </li>
+    );
+  };
+
+  /** Builds index lookup so renderPokemonItem receives stable absolute positions. */
+  const indexOfPokemon = (pokemonId: string) =>
+    displayList.findIndex((x) => x.id === pokemonId);
+
+  /** Renders the active-tab list grouped by group_id (sorted by sort_order, with "ungrouped" last). */
+  const renderGroupedList = (): React.ReactNode => {
+    const sortedGroups = [...groups].sort((a, b) => a.sort_order - b.sort_order);
+    const byGroup = new Map<string, Pokemon[]>();
+    for (const p of displayList) byGroup.set(p.group_id || "", [
+      ...(byGroup.get(p.group_id || "") ?? []),
+      p,
+    ]);
+
+    const sections: React.ReactNode[] = [];
+    for (const g of sortedGroups) {
+      const members = byGroup.get(g.id) ?? [];
+      if (members.length === 0) continue; // hide empty sections
+      sections.push(
+        <SidebarGroupSection
+          key={g.id}
+          group={g}
+          label={g.name}
+          count={members.length}
+          collapsed={!!g.collapsed}
+          onToggleCollapse={() => handleGroupToggleCollapse(g)}
+          onAction={(action) => handleGroupAction(g, action)}
+        >
+          {members.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
+        </SidebarGroupSection>,
+      );
+    }
+    // Ungrouped bucket always rendered last
+    const ungrouped = byGroup.get("") ?? [];
+    if (ungrouped.length > 0) {
+      sections.push(
+        <SidebarGroupSection
+          key="__ungrouped__"
+          group={null}
+          label={t("sidebar.noGroup")}
+          count={ungrouped.length}
+          collapsed={ungroupedCollapsed}
+          onToggleCollapse={() => setUngroupedCollapsed((v) => !v)}
+        >
+          {ungrouped.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
+        </SidebarGroupSection>,
+      );
+    }
+    return sections;
+  };
+
+  /** Persist group collapse state via REST; the WS broadcast refreshes the store. */
+  const handleGroupToggleCollapse = (g: Group) => {
+    void updateGroup(g.id, { collapsed: !g.collapsed }).catch(() => {});
+  };
+
+  /** Routes group overflow-menu actions. */
+  const handleGroupAction = (g: Group, action: GroupAction) => {
+    if (action === "rename" || action === "color") {
+      setShowGroupModal(true);
+      return;
+    }
+    if (action === "delete") {
+      setConfirmConfig({
+        isOpen: true,
+        title: t("group.delete"),
+        message: t("group.deleteConfirm", { name: g.name }),
+        isDestructive: true,
+        onConfirm: () => {
+          void fetch(apiUrl(`/api/groups/${g.id}`), { method: "DELETE" }).catch(() => {});
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+        },
+      });
+      return;
+    }
+    if (action === "start") {
+      void startGroupHunt(g.id).catch(() => {});
+      return;
+    }
+    if (action === "stop") {
+      void stopGroupHunt(g.id).catch(() => {});
+    }
+  };
+
   return (
     <div className="flex h-full">
       {/* LEFT: Pokemon sidebar */}
@@ -2042,6 +2283,15 @@ export function Dashboard() {
                 </>
               )}
             </div>
+            {/* Manage groups */}
+            <button
+              onClick={() => setShowGroupModal(true)}
+              className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+              title={t("group.manage")}
+              aria-label={t("group.manage")}
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+            </button>
             {/* Collapse sidebar */}
             <button
               onClick={() => setSidebarCollapsed(true)}
@@ -2120,6 +2370,16 @@ export function Dashboard() {
           viewedPokemonId={viewedPokemonId}
         />
 
+        {/* Tag filter bar */}
+        {sidebarTab === "active" && (
+          <TagFilterBar
+            activeTags={activeTagFilters}
+            availableTags={availableTags}
+            onToggle={toggleTagFilter}
+            onClear={() => setActiveTagFilters([])}
+          />
+        )}
+
         {/* Pokémon list */}
         <div className="flex-1 overflow-y-auto">
           {displayList.length === 0 ? (
@@ -2128,116 +2388,9 @@ export function Dashboard() {
             </div>
           ) : (
             <ul className="py-1 select-none" role="listbox" aria-label={t("dash.pokemonList")}>
-              {displayList.map((p, idx) => {
-                const isViewed = p.id === effectiveViewedId;
-                const isHotkeyTarget = p.id === appState.active_id;
-                const isArchived = !!p.completed_at;
-                const isSelected = selectedIds.has(p.id);
-                const src = resolveSpriteUrl(p.id, p.sprite_url, imgError);
-                const itemBorderClass = sidebarItemBorderClass(isSelected, isViewed);
-                const itemClassName = buildSidebarItemClass(
-                  itemBorderClass, focusedIdx === idx, isArchived,
-                );
-                return (
-                  <li
-                    key={p.id}
-                    role="option"
-                    aria-selected={isViewed}
-                    data-sidebar-idx={idx}
-                    tabIndex={0}
-                    className={itemClassName}
-                    onClick={(e) => handleCardClick(e, p.id, idx)}
-                    onKeyDown={(e) => handleActivateKeyDown(e, p.id, handleActivate)}
-                  >
-                    {/* Sprite */}
-                    <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative self-start mt-0.5">
-                      <img
-                        src={src}
-                        alt={p.name}
-                        onError={() =>
-                          setImgError((prev) => ({ ...prev, [p.id]: true }))
-                        }
-                        className="pokemon-sprite w-full h-full object-contain"
-                      />
-                      {isArchived && (
-                        <div className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-full p-0.5">
-                          <Trophy className="w-2 h-2 text-text-primary" />
-                        </div>
-                      )}
-                    </div>
-                    {/* 3-row info */}
-                    <div className="flex-1 min-w-0">
-                    {(() => {
-                      const [baseName, formName] = getBaseAndFormName(p);
-                      return (
-                        <>
-                          {/* Row 1: Name + Actions */}
-                          <div className="flex items-center gap-1">
-                            <span className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate flex-1 capitalize" title={p.name}>
-                              {baseName}
-                            </span>
-                            <div className="flex gap-0.5 items-center shrink-0">
-                              {hasDetectorReady(p) && (
-                                capture.isCapturing(p.id)
-                                  ? <span className="p-0.5" title={t("sidebar.sourceConnected")}><Video className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-green" aria-label={t("sidebar.sourceConnected")} /></span>
-                                  : <span className="p-0.5" title={t("sidebar.sourceDisconnected")}><VideoOff className="w-3 h-3 2xl:w-3.5 2xl:h-3.5 text-accent-red/70" aria-label={t("sidebar.sourceDisconnected")} /></span>
-                              )}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  send("set_active", { pokemon_id: p.id });
-                                }}
-                                className={`p-0.5 rounded transition-colors ${
-                                  isHotkeyTarget
-                                    ? "text-accent-blue"
-                                    : "opacity-0 group-hover:opacity-100 text-text-faint hover:text-accent-blue"
-                                }`}
-                                title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
-                              >
-                                <Keyboard className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingPokemon(p);
-                                }}
-                                className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors opacity-0 group-hover:opacity-100"
-                                title={t("dash.edit")}
-                              >
-                                <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                          {/* Row 2: Form · Game + Timer/Play */}
-                          <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
-                            <span className="flex-1 min-w-0 truncate">
-                              {formName && <span className="capitalize">{formName}</span>}
-                              {formName && p.game && <span className="text-text-faint"> · </span>}
-                              {p.game && <span>{formatGame(p.game)}</span>}
-                            </span>
-                            <SidebarHuntStatus
-                              pokemon={p}
-                              send={send}
-                              detectorRunning={!!detectorStatus[p.id] || isLoopRunning(p.id)}
-                              disabled={!!p.completed_at}
-                              timerStartBlocked={isTimerStartBlocked(p, capture.isCapturing)}
-                              capture={capture}
-                              detectorStatus={detectorStatus}
-                              setDetectorStatus={setDetectorStatus}
-                              clearDetectorStatus={clearDetectorStatus}
-                            />
-                          </div>
-                          {/* Row 3: Encounters */}
-                          <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
-                            <span className="tabular-nums" title={p.encounters.toLocaleString()}>{p.encounters.toLocaleString()}</span>
-                          </div>
-                        </>
-                      );
-                    })()}
-                    </div>
-                  </li>
-                );
-              })}
+              {sidebarTab === "active"
+                ? renderGroupedList()
+                : displayList.map((p, idx) => renderPokemonItem(p, idx))}
             </ul>
           )}
         </div>
@@ -2438,6 +2591,9 @@ export function Dashboard() {
           onAdd={handleAddPokemon}
           onClose={() => setShowAddModal(false)}
           activeLanguages={activeLanguages}
+          groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
+          availableTags={availableTags}
+          onManageGroups={() => setShowGroupModal(true)}
         />
       )}
       {editingPokemon && (
@@ -2446,6 +2602,15 @@ export function Dashboard() {
           onSave={handleSavePokemon}
           onClose={() => setEditingPokemon(null)}
           activeLanguages={activeLanguages}
+          groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
+          availableTags={availableTags}
+          onManageGroups={() => setShowGroupModal(true)}
+        />
+      )}
+      {showGroupModal && (
+        <GroupManagementModal
+          groups={groups}
+          onClose={() => setShowGroupModal(false)}
         />
       )}
       {confirmConfig.isOpen && (
