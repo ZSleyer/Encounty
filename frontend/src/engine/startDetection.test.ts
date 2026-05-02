@@ -300,8 +300,13 @@ describe("startDetection", () => {
         onScore: vi.fn(),
       });
 
-      // Fetch should only be called for the enabled template
-      expect(fetch).toHaveBeenCalledTimes(1);
+      // Fetch should only be called for the enabled template (index 0)
+      // plus 1 postDetectionState call = 2 total
+      const templateFetches = vi.mocked(fetch).mock.calls.filter(
+        (call) => String(call[0]).includes("/api/detector/"),
+      );
+      expect(templateFetches).toHaveLength(1);
+      expect(String(templateFetches[0][0])).toContain("/template/0");
     });
 
     it("returns null when no detector is available", async () => {
