@@ -155,4 +155,96 @@ describe("OverlayBrowserSourceButton", () => {
     await user.click(chevron);
     expect(getChevronButton()).toHaveAttribute("aria-expanded", "true");
   });
+
+  it("closes menu on outside mousedown", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    await user.click(getChevronButton());
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    fireEvent.mouseDown(document.body);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("clicking the chevron when the menu is open closes it", async () => {
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    await user.click(getChevronButton());
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    await user.click(getChevronButton());
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("chevron Enter key opens menu", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    fireEvent.keyDown(getChevronButton(), { key: "Enter" });
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("chevron ArrowDown opens menu", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    fireEvent.keyDown(getChevronButton(), { key: "ArrowDown" });
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("chevron ArrowUp opens menu", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    fireEvent.keyDown(getChevronButton(), { key: "ArrowUp" });
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+  });
+
+  it("ArrowDown within the menu moves focus to next item", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    await user.click(getChevronButton());
+    const items = screen.getAllByRole("menuitem");
+    // By default first item has focus after openMenu timeout; force state.
+    items[0].focus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowDown" });
+    expect(document.activeElement).toBe(items[1]);
+  });
+
+  it("ArrowUp within the menu wraps to the last item", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    await user.click(getChevronButton());
+    const items = screen.getAllByRole("menuitem");
+    items[0].focus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "ArrowUp" });
+    expect(document.activeElement).toBe(items[items.length - 1]);
+  });
+
+  it("Home/End jump to first/last item", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    await user.click(getChevronButton());
+    const items = screen.getAllByRole("menuitem");
+    items[1].focus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Home" });
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "End" });
+    expect(document.activeElement).toBe(items[items.length - 1]);
+  });
+
+  it("Tab within the menu traps focus", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
+    await user.click(getChevronButton());
+    const items = screen.getAllByRole("menuitem");
+    items[0].focus();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Tab" });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(items[0]);
+  });
 });

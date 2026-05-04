@@ -101,4 +101,84 @@ describe("SidebarGroupSection", () => {
     );
     expect(screen.queryByRole("button", { name: /gruppen verwalten/i })).toBeNull();
   });
+
+  it("stop, rename, color and delete actions are dispatched correctly", async () => {
+    const onAction = vi.fn();
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    const open = async () => {
+      await user.click(screen.getByRole("button", { name: /gruppen verwalten/i }));
+    };
+
+    render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="L"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+        onAction={onAction}
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+
+    await open();
+    await user.click(screen.getByRole("menuitem", { name: /stoppen/i }));
+    expect(onAction).toHaveBeenLastCalledWith("stop");
+
+    await open();
+    await user.click(screen.getByRole("menuitem", { name: /umbenennen/i }));
+    expect(onAction).toHaveBeenLastCalledWith("rename");
+
+    await open();
+    await user.click(screen.getByRole("menuitem", { name: /farbe/i }));
+    expect(onAction).toHaveBeenLastCalledWith("color");
+
+    await open();
+    await user.click(screen.getByRole("menuitem", { name: /löschen/i }));
+    expect(onAction).toHaveBeenLastCalledWith("delete");
+  });
+
+  it("Escape closes the overflow menu", async () => {
+    const { userEvent, fireEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="L"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+        onAction={vi.fn()}
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+    await user.click(screen.getByRole("button", { name: /gruppen verwalten/i }));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("backdrop click closes the overflow menu", async () => {
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="L"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+        onAction={vi.fn()}
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+    await user.click(screen.getByRole("button", { name: /gruppen verwalten/i }));
+    const backdrop = screen.getByRole("button", { name: /schließen/i });
+    await user.click(backdrop);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
 });

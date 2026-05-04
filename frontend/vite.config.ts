@@ -180,6 +180,12 @@ export default defineConfig({
         "src/engine/detection.worker.ts",
         "src/engine/shaders/**",
         "src/engine/index.ts",
+        // Engine runtime requires WebGPU + real MediaStreams; not exercisable
+        // in JSDOM. Covered by `src/engine/__tests__` which run in a real
+        // browser (excluded from the default vitest run).
+        "src/engine/DetectionLoop.ts",
+        "src/engine/math.ts",
+        "src/engine/TestDetection.ts",
         "src/components/settings/MacPermissions.tsx",
         "src/components/detector/GpuEquivalenceTest.tsx",
         "src/utils/i18n.ts",

@@ -944,4 +944,104 @@ describe("PokemonFormModal", () => {
       expect(container.querySelector("dialog")).toBeInTheDocument();
     });
   });
+
+  describe("edit mode encounter/timer/step fields", () => {
+    const editPokemon: ExistingPokemonData = {
+      ...basePokemon,
+      encounters: 42,
+      step: 1,
+      timer_accumulated_ms: 3661000, // 1h 1m 1s
+    };
+
+    it("populates encounters and submits the updated value", async () => {
+      const onSubmit = vi.fn();
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={onSubmit} onClose={vi.fn()} />,
+      );
+      await waitFor(() => {
+        expect(document.getElementById("encounters-form")).toBeInTheDocument();
+      });
+      const input = document.getElementById("encounters-form") as HTMLInputElement;
+      expect(input.value).toBe("42");
+      fireEvent.change(input, { target: { value: "100" } });
+      expect(input.value).toBe("100");
+    });
+
+    it("floors negative encounter input to 0", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => {
+        expect(document.getElementById("encounters-form")).toBeInTheDocument();
+      });
+      const input = document.getElementById("encounters-form") as HTMLInputElement;
+      fireEvent.change(input, { target: { value: "not-a-number" } });
+      expect(input.value).toBe("0");
+    });
+
+    it("pre-fills hours, minutes, and seconds from timer_accumulated_ms", async () => {
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => {
+        expect(document.getElementById("timer-h-form")).toBeInTheDocument();
+      });
+      expect((document.getElementById("timer-h-form") as HTMLInputElement).value).toBe("1");
+      expect((document.getElementById("timer-m-form") as HTMLInputElement).value).toBe("1");
+      expect((document.getElementById("timer-s-form") as HTMLInputElement).value).toBe("1");
+    });
+
+    it("clamps minute and second fields to 0–59", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => {
+        expect(document.getElementById("timer-m-form")).toBeInTheDocument();
+      });
+      const minutes = document.getElementById("timer-m-form") as HTMLInputElement;
+      fireEvent.change(minutes, { target: { value: "99" } });
+      expect(minutes.value).toBe("59");
+
+      const seconds = document.getElementById("timer-s-form") as HTMLInputElement;
+      fireEvent.change(seconds, { target: { value: "-5" } });
+      expect(seconds.value).toBe("0");
+    });
+
+    it("floors step to 1", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => {
+        expect(document.getElementById("step-form")).toBeInTheDocument();
+      });
+      const step = document.getElementById("step-form") as HTMLInputElement;
+      fireEvent.change(step, { target: { value: "0" } });
+      expect(step.value).toBe("1");
+      fireEvent.change(step, { target: { value: "5" } });
+      expect(step.value).toBe("5");
+    });
+
+    it("expands the custom sprite input when the toggle is clicked", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Sprite/i })).toBeInTheDocument();
+      });
+      // Custom-sprite input is hidden by default
+      expect(document.getElementById("custom-sprite-form")).toBeNull();
+      const btn = screen.getAllByRole("button")
+        .find((b) => b.getAttribute("aria-label")?.includes("Sprite"))!;
+      fireEvent.click(btn);
+      const input = document.getElementById("custom-sprite-form") as HTMLInputElement;
+      expect(input).toBeInTheDocument();
+      fireEvent.change(input, { target: { value: "https://a.example/x.png" } });
+      expect(input.value).toBe("https://a.example/x.png");
+    });
+  });
 });

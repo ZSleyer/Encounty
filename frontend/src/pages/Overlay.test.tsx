@@ -441,4 +441,109 @@ describe("Overlay", () => {
     const auroraEl = await screen.findByTestId("bg-aurora");
     expect(auroraEl).toBeInTheDocument();
   });
+
+  // --- Odds element rendering ---
+
+  describe("Odds element", () => {
+    it("hides odds when odds.visible is false", () => {
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        odds: { ...base.odds, visible: false },
+      });
+      const pokemon = makePokemon({ game: "pokemon-scarlet" });
+      const { container } = render(
+        <Overlay previewSettings={settings} previewPokemon={pokemon} />,
+      );
+      expect(container.textContent).not.toContain("1/4096");
+    });
+
+    it("renders fractional odds when visible with format=fractional", () => {
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        odds: { ...base.odds, visible: true, format: "fractional" },
+      });
+      const pokemon = makePokemon({ game: "pokemon-scarlet", encounters: 100 });
+      render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+      expect(screen.getByText("1/4096")).toBeInTheDocument();
+    });
+
+    it("renders cumulative percent when format=percent", () => {
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        odds: { ...base.odds, visible: true, format: "percent" },
+      });
+      // 4096 encounters ≈ 63.2% cumulative at 1/4096
+      const pokemon = makePokemon({ game: "pokemon-scarlet", encounters: 4096 });
+      render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+      expect(screen.getByText("63.2%")).toBeInTheDocument();
+    });
+
+    it("renders odds label when show_label is true", () => {
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        odds: {
+          ...base.odds,
+          visible: true,
+          show_label: true,
+          label_text: "Chance:",
+          format: "fractional",
+        },
+      });
+      const pokemon = makePokemon({ game: "pokemon-scarlet" });
+      render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+      expect(screen.getByText("Chance:")).toBeInTheDocument();
+    });
+
+    it("does not render odds label when show_label is false", () => {
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        odds: {
+          ...base.odds,
+          visible: true,
+          show_label: false,
+          label_text: "Chance:",
+          format: "fractional",
+        },
+      });
+      const pokemon = makePokemon({ game: "pokemon-scarlet" });
+      render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+      expect(screen.queryByText("Chance:")).not.toBeInTheDocument();
+    });
+  });
+
+  // --- Timer element rendering ---
+
+  describe("Timer element", () => {
+    it("hides timer when timer.visible is false", () => {
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        timer: { ...base.timer, visible: false },
+      });
+      const pokemon = makePokemon({ timer_accumulated_ms: 61000 });
+      const { container } = render(
+        <Overlay previewSettings={settings} previewPokemon={pokemon} />,
+      );
+      expect(container.textContent).not.toContain("00:01:01");
+    });
+
+    it("renders the accumulated timer value when visible", () => {
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        timer: { ...base.timer, visible: true },
+      });
+      const pokemon = makePokemon({ timer_accumulated_ms: 3661000 });
+      render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+      expect(screen.getByText("01:01:01")).toBeInTheDocument();
+    });
+
+    it("renders the timer label when show_label is true", () => {
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        timer: { ...base.timer, visible: true, show_label: true, label_text: "Elapsed:" },
+      });
+      const pokemon = makePokemon({ timer_accumulated_ms: 0 });
+      render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+      expect(screen.getByText("Elapsed:")).toBeInTheDocument();
+    });
+  });
 });

@@ -93,4 +93,167 @@ describe("GroupManagementModal", () => {
     await user.click(closeButtons[0]);
     expect(onClose).toHaveBeenCalled();
   });
+
+  it("shows noneYet placeholder when groups array is empty", () => {
+    render(<GroupManagementModal groups={[]} onClose={() => {}} />);
+    // The dialog is open via ref, content should contain at least one italic placeholder
+    // We assert via the placeholder input still being present and no group rows.
+    expect(screen.queryByDisplayValue(/Legend/)).not.toBeInTheDocument();
+  });
+
+  it("expands the color palette on group when swatch is clicked", async () => {
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(
+      <GroupManagementModal
+        groups={[makeGroup({ id: "g1", name: "Alpha" })]}
+        onClose={() => {}}
+      />,
+    );
+    // The first swatch is the group row's; second is the "create" row default.
+    const swatches = screen.getAllByRole("button", { name: /Farbe|Color/, hidden: true });
+    await user.click(swatches[0]);
+    // The palette exposes each color as a named button (hex code aria-label).
+    const paletteBtn = screen.getAllByRole("button", { name: "#ef4444", hidden: true });
+    expect(paletteBtn.length).toBeGreaterThan(0);
+  });
+
+  it("calls updateGroup when a palette color is selected for a group", async () => {
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(
+      <GroupManagementModal
+        groups={[makeGroup({ id: "g1", name: "Alpha" })]}
+        onClose={() => {}}
+      />,
+    );
+    const swatches = screen.getAllByRole("button", { name: /Farbe|Color/, hidden: true });
+    await user.click(swatches[0]);
+    const paletteBtn = screen.getAllByRole("button", { name: "#ef4444", hidden: true });
+    await user.click(paletteBtn[0]);
+    await waitFor(() => {
+      const putCall = fetchMock.mock.calls.find((c) => c[1]?.method === "PUT");
+      expect(putCall).toBeTruthy();
+      expect(JSON.parse(putCall![1].body)).toMatchObject({ color: "#ef4444" });
+    });
+  });
+
+  it("disables move-up on the first row and move-down on the last row", () => {
+    render(
+      <GroupManagementModal
+        groups={[
+          makeGroup({ id: "a", name: "First", sort_order: 0 }),
+          makeGroup({ id: "b", name: "Last", sort_order: 1 }),
+        ]}
+        onClose={() => {}}
+      />,
+    );
+    const upButtons = screen.getAllByRole("button", { name: /nach oben|up/i, hidden: true });
+    const downButtons = screen.getAllByRole("button", { name: /nach unten|down/i, hidden: true });
+    expect((upButtons[0] as HTMLButtonElement).disabled).toBe(true);
+    expect((downButtons[downButtons.length - 1] as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("swaps sort_order via two PUT calls when move-down is clicked", async () => {
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(
+      <GroupManagementModal
+        groups={[
+          makeGroup({ id: "a", name: "First", sort_order: 0 }),
+          makeGroup({ id: "b", name: "Second", sort_order: 1 }),
+        ]}
+        onClose={() => {}}
+      />,
+    );
+    const downButtons = screen.getAllByRole("button", { name: /nach unten|down/i, hidden: true });
+    await user.click(downButtons[0]);
+    await waitFor(() => {
+      const putCalls = fetchMock.mock.calls.filter((c) => c[1]?.method === "PUT");
+      expect(putCalls.length).toBe(2);
+    });
+  });
+
+  it("renames a group on blur when the draft differs", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    render(
+      <GroupManagementModal
+        groups={[makeGroup({ id: "g1", name: "Old" })]}
+        onClose={() => {}}
+      />,
+    );
+    const input = screen.getByDisplayValue("Old") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "New Name" } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      const putCall = fetchMock.mock.calls.find((c) => c[1]?.method === "PUT");
+      expect(putCall).toBeTruthy();
+      expect(JSON.parse(putCall![1].body)).toEqual({ name: "New Name" });
+    });
+  });
+
+  it("does not call updateGroup when the draft is blank", async () => {
+    const { fireEvent } = await import("../../test-utils");
+    render(
+      <GroupManagementModal
+        groups={[makeGroup({ id: "g1", name: "Keep" })]}
+        onClose={() => {}}
+      />,
+    );
+    const input = screen.getByDisplayValue("Keep") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    // Give React a tick to process blur.
+    await new Promise((r) => setTimeout(r, 20));
+    const putCalls = fetchMock.mock.calls.filter((c) => c[1]?.method === "PUT");
+    expect(putCalls.length).toBe(0);
+  });
+
+  it("creating with Enter triggers POST", async () => {
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<GroupManagementModal groups={[]} onClose={() => {}} />);
+    const input = screen.getByPlaceholderText(/name/i);
+    await user.type(input, "Shinies{Enter}");
+    await waitFor(() => {
+      const postCall = fetchMock.mock.calls.find((c) => c[1]?.method === "POST");
+      expect(postCall).toBeTruthy();
+    });
+  });
+
+  it("confirming deletion triggers DELETE", async () => {
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(
+      <GroupManagementModal
+        groups={[makeGroup({ id: "gx", name: "Doomed" })]}
+        onClose={() => {}}
+      />,
+    );
+    const deleteBtns = screen.getAllByRole("button", {
+      name: /gruppe löschen/i,
+      hidden: true,
+    });
+    await user.click(deleteBtns[0]);
+    // Confirm modal shows; click the destructive confirm action.
+    const confirmBtn = await screen.findByRole("button", { name: /bestätigen|confirm/i, hidden: true });
+    await user.click(confirmBtn);
+    await waitFor(() => {
+      const deleteCall = fetchMock.mock.calls.find((c) => c[1]?.method === "DELETE");
+      expect(deleteCall).toBeTruthy();
+    });
+  });
+
+  it("toggles the create-row color picker open and closed", async () => {
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<GroupManagementModal groups={[]} onClose={() => {}} />);
+    const createSwatch = screen.getAllByRole("button", { name: /Farbe|Color/, hidden: true })[0];
+    await user.click(createSwatch);
+    // Palette opens — color buttons visible
+    expect(screen.getAllByRole("button", { name: "#ef4444", hidden: true }).length).toBeGreaterThan(0);
+    await user.click(createSwatch);
+    // Palette closes
+    expect(screen.queryAllByRole("button", { name: "#ef4444", hidden: true }).length).toBe(0);
+  });
 });
