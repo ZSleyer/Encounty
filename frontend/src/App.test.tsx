@@ -3141,6 +3141,13 @@ describe("App", () => {
         });
       });
 
+      // handleStateUpdate is wrapped in useCallback with appState in its deps,
+      // so the closure needs to see the Step-1 state before Step 3 can detect
+      // the enabled→disabled transition. Wait for the store to reflect that.
+      await waitFor(() => {
+        expect(useCounterStore.getState().appState?.pokemon[0]?.detector_config?.enabled).toBe(true);
+      });
+
       // 2. Set detector status (simulating active detection)
       act(() => {
         useCounterStore.getState().setDetectorStatus("poke-1", { state: "cooldown", confidence: 0.1, poll_ms: 100, cooldown_remaining_ms: 3000 });
@@ -3160,8 +3167,10 @@ describe("App", () => {
       });
 
       // Detector status should be cleared because enabled changed from true → false
-      const status = useCounterStore.getState().detectorStatus["poke-1"];
-      expect(status).toBeUndefined();
+      await waitFor(() => {
+        const status = useCounterStore.getState().detectorStatus["poke-1"];
+        expect(status).toBeUndefined();
+      });
     }
   });
 
