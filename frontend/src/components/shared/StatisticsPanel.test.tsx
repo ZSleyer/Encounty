@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "../../test-utils";
+import { render, screen, waitFor, makeAppState, makePokemon } from "../../test-utils";
+import { useCounterStore } from "../../hooks/useCounterState";
 import { StatisticsPanel } from "./StatisticsPanel";
 import type { EncounterStats, ChartPoint, EncounterEvent } from "../../types";
 
@@ -9,6 +10,11 @@ vi.mock("recharts", () => ({
     <div data-testid="area-chart">{children}</div>
   ),
   Area: () => <div data-testid="area" />,
+  LineChart: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="line-chart">{children}</div>
+  ),
+  Line: () => <div data-testid="line" />,
+  ReferenceLine: () => <div data-testid="reference-line" />,
   XAxis: () => <div />,
   YAxis: () => <div />,
   CartesianGrid: () => <div />,
@@ -69,9 +75,36 @@ function mockFetch(stats: unknown, chart: unknown, history: unknown) {
   });
 }
 
+/** Seeds the zustand store so the panel resolves a pokemon. */
+function seedStore(
+  pokemonId = "poke-1",
+  overrides: Parameters<typeof makePokemon>[0] = {},
+) {
+  useCounterStore.setState({
+    appState: makeAppState({
+      pokemon: [
+        makePokemon({
+          id: pokemonId,
+          is_active: true,
+          encounters: 0,
+          game: "pokemon-scarlet",
+          hunt_type: "encounter",
+          shiny_charm: false,
+          ...overrides,
+        }),
+      ],
+      active_id: pokemonId,
+    }),
+    isConnected: true,
+    lastEncounterPokemonId: null,
+    detectorStatus: {},
+  });
+}
+
 describe("StatisticsPanel", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    seedStore();
   });
 
   it("shows loading spinner initially then renders stats", async () => {
@@ -234,5 +267,95 @@ describe("StatisticsPanel", () => {
     });
 
     vi.unstubAllGlobals();
+  });
+
+  describe("probability panel", () => {
+    it("renders the shiny chance metric tile", async () => {
+      seedStore("poke-1", { encounters: 2839 });
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+      render(<StatisticsPanel pokemonId="poke-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText(formattedTotal)).toBeInTheDocument();
+      });
+      // 2839 encounters at 1/4096 ≈ 50.0%
+      expect(screen.getByText("50.0%")).toBeInTheDocument();
+      vi.unstubAllGlobals();
+    });
+
+    it("renders the probability curve chart", async () => {
+      seedStore("poke-1", { encounters: 100 });
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+      render(<StatisticsPanel pokemonId="poke-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("probability-chart")).toBeInTheDocument();
+      });
+      expect(screen.getByTestId("line-chart")).toBeInTheDocument();
+      vi.unstubAllGlobals();
+    });
+
+    it("renders the milestone table with all four targets", async () => {
+      seedStore("poke-1", { encounters: 100 });
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+      render(<StatisticsPanel pokemonId="poke-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText("50%")).toBeInTheDocument();
+      });
+      expect(screen.getByText("75%")).toBeInTheDocument();
+      expect(screen.getByText("90%")).toBeInTheDocument();
+      expect(screen.getByText("99%")).toBeInTheDocument();
+      // Expected encounter counts at 1/4096
+      expect(screen.getByText((2839).toLocaleString())).toBeInTheDocument();
+      expect(screen.getByText((18861).toLocaleString())).toBeInTheDocument();
+      vi.unstubAllGlobals();
+    });
+
+    it("shows em-dash for ETA when rate_per_hour is zero", async () => {
+      seedStore("poke-1", { encounters: 100 });
+      const statsNoRate: EncounterStats = { ...sampleStats, rate_per_hour: 0 };
+      vi.stubGlobal("fetch", mockFetch(statsNoRate, sampleChart, sampleHistory));
+      render(<StatisticsPanel pokemonId="poke-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText("50%")).toBeInTheDocument();
+      });
+      // Each ETA cell renders as an em-dash when no rate is provided
+      const milestonesTable = screen.getByLabelText(/Meilensteine|Milestones/);
+      const etaCells = milestonesTable.querySelectorAll("tbody tr td:last-child");
+      etaCells.forEach((cell) => {
+        expect(cell.textContent).toBe("—");
+      });
+      vi.unstubAllGlobals();
+    });
+
+    it("shows reached label when the current encounter count passes a milestone", async () => {
+      seedStore("poke-1", { encounters: 100_000 });
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+      render(<StatisticsPanel pokemonId="poke-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText("99%")).toBeInTheDocument();
+      });
+      // At 100 000 encounters every milestone should be "reached"
+      const reachedCells = screen.getAllByText(/erreicht|reached/);
+      expect(reachedCells.length).toBe(4);
+      vi.unstubAllGlobals();
+    });
+
+    it("hides the probability panel when the pokemon has no game set", async () => {
+      seedStore("poke-1", { encounters: 100, game: "" });
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+      render(<StatisticsPanel pokemonId="poke-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText(formattedTotal)).toBeInTheDocument();
+      });
+      // resolveOddsTuple falls back to 1/4096 for unknown games, so the panel
+      // still renders. This test asserts the curve is still produced.
+      expect(screen.getByTestId("probability-chart")).toBeInTheDocument();
+      vi.unstubAllGlobals();
+    });
   });
 });

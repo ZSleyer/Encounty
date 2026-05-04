@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Pokemon } from "../types";
-import { computeOddsDisplay, getOddsFractional, getOddsPercent } from "./odds";
+import {
+  buildProbabilityCurve,
+  computeOddsDisplay,
+  encountersForProbability,
+  getOddsFractional,
+  getOddsMilestones,
+  getOddsPercent,
+} from "./odds";
 
 function pokemon(overrides: Partial<Pokemon> = {}): Pokemon {
   return {
@@ -70,6 +77,99 @@ describe("odds", () => {
 
     it("dispatches to percent formatting", () => {
       expect(computeOddsDisplay(pokemon({ encounters: 4096 }), "percent")).toBe("63.2%");
+    });
+  });
+
+  describe("encountersForProbability", () => {
+    it("returns ≈2839 for 50% at 1/4096", () => {
+      expect(encountersForProbability(pokemon(), 0.5)).toBe(2839);
+    });
+
+    it("returns ≈18861 for 99% at 1/4096", () => {
+      expect(encountersForProbability(pokemon(), 0.99)).toBe(18861);
+    });
+
+    it("returns null for a missing pokemon", () => {
+      expect(encountersForProbability(null, 0.5)).toBeNull();
+    });
+
+    it("returns null for target ≤ 0 or ≥ 1", () => {
+      expect(encountersForProbability(pokemon(), 0)).toBeNull();
+      expect(encountersForProbability(pokemon(), 1)).toBeNull();
+      expect(encountersForProbability(pokemon(), -0.5)).toBeNull();
+    });
+
+    it("respects the shiny-charm multiplier (fewer encounters required)", () => {
+      const base = encountersForProbability(pokemon({ shiny_charm: false }), 0.5);
+      const charm = encountersForProbability(pokemon({ shiny_charm: true }), 0.5);
+      expect(base).not.toBeNull();
+      expect(charm).not.toBeNull();
+      expect(charm!).toBeLessThan(base!);
+    });
+  });
+
+  describe("getOddsMilestones", () => {
+    it("returns the default four targets", () => {
+      const ms = getOddsMilestones(pokemon());
+      expect(ms.map((m) => m.target)).toEqual([0.5, 0.75, 0.9, 0.99]);
+    });
+
+    it("accepts custom targets", () => {
+      const ms = getOddsMilestones(pokemon(), [0.25, 0.5]);
+      expect(ms).toHaveLength(2);
+      expect(ms[0].target).toBe(0.25);
+    });
+
+    it("returns null etaMs when no rate is supplied", () => {
+      const ms = getOddsMilestones(pokemon({ encounters: 100 }));
+      ms.forEach((m) => expect(m.etaMs).toBeNull());
+    });
+
+    it("computes a positive etaMs when rate > 0 and target is ahead", () => {
+      const ms = getOddsMilestones(pokemon({ encounters: 100 }), [0.5], 60);
+      expect(ms[0].etaMs).not.toBeNull();
+      expect(ms[0].etaMs!).toBeGreaterThan(0);
+    });
+
+    it("returns etaMs = 0 when the pokemon already passed the milestone", () => {
+      const ms = getOddsMilestones(pokemon({ encounters: 100_000 }), [0.5], 60);
+      expect(ms[0].etaMs).toBe(0);
+    });
+
+    it("returns null etaMs when encounters is unreachable (p ≥ 1 impossible here, but test target ≥ 1)", () => {
+      const ms = getOddsMilestones(pokemon({ encounters: 100 }), [1, -1], 60);
+      expect(ms[0].encounters).toBeNull();
+      expect(ms[0].etaMs).toBeNull();
+    });
+  });
+
+  describe("buildProbabilityCurve", () => {
+    it("returns an empty array for a null pokemon", () => {
+      expect(buildProbabilityCurve(null, 1000)).toEqual([]);
+    });
+
+    it("starts at n=0, p=0", () => {
+      const curve = buildProbabilityCurve(pokemon(), 4096);
+      expect(curve[0]).toEqual({ n: 0, p: 0 });
+    });
+
+    it("monotonically increases", () => {
+      const curve = buildProbabilityCurve(pokemon(), 8000);
+      for (let i = 1; i < curve.length; i++) {
+        expect(curve[i].p).toBeGreaterThanOrEqual(curve[i - 1].p);
+      }
+    });
+
+    it("final probability approaches but never exceeds 1", () => {
+      const curve = buildProbabilityCurve(pokemon(), 20_000);
+      const last = curve[curve.length - 1];
+      expect(last.p).toBeLessThanOrEqual(1);
+      expect(last.p).toBeGreaterThan(0.9);
+    });
+
+    it("respects the points argument", () => {
+      expect(buildProbabilityCurve(pokemon(), 1000, 10)).toHaveLength(10);
+      expect(buildProbabilityCurve(pokemon(), 1000, 100)).toHaveLength(100);
     });
   });
 });
