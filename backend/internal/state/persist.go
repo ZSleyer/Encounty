@@ -147,12 +147,14 @@ func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
 	// state saved before TitleElement was added.
 	migrateTitleElement(global)
 	migrateTimerElement(global)
+	migrateOddsElement(global)
 
 	for i := range pokemon {
 		if pokemon[i].Overlay != nil {
 			migrateOverlayTriggerDecrement(pokemon[i].Overlay)
 			migrateTitleElement(pokemon[i].Overlay)
 			migrateTimerElement(pokemon[i].Overlay)
+			migrateOddsElement(pokemon[i].Overlay)
 		}
 	}
 }
@@ -260,6 +262,44 @@ func migrateTimerElement(o *OverlaySettings) {
 			},
 			IdleAnimation: "none",
 		}
+	}
+}
+
+// migrateOddsElement fills in default values for an OddsElement that was
+// zero-valued after loading state saved before the field existed, and
+// ensures Format defaults to "fractional" on partially-initialised rows.
+func migrateOddsElement(o *OverlaySettings) {
+	if o.Odds.Width == 0 && o.Odds.Height == 0 {
+		o.Odds = OddsElement{
+			OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 70, Width: 250, Height: 50, ZIndex: 6},
+			Style: TextStyle{
+				FontFamily:   "pokemon",
+				FontSize:     28,
+				FontWeight:   700,
+				ColorType:    "solid",
+				Color:        "#ffffff",
+				OutlineType:  "solid",
+				OutlineWidth: 3,
+				OutlineColor: "#000000",
+			},
+			ShowLabel: false,
+			LabelText: "Odds",
+			LabelStyle: TextStyle{
+				FontFamily: "sans",
+				FontSize:   14,
+				FontWeight: 400,
+				ColorType:  "solid",
+				Color:      "#94a3b8",
+			},
+			Format:           "fractional",
+			IdleAnimation:    "none",
+			TriggerEnter:     "none",
+			TriggerDecrement: "none",
+		}
+		return
+	}
+	if o.Odds.Format == "" {
+		o.Odds.Format = "fractional"
 	}
 }
 

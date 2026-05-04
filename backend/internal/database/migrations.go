@@ -109,6 +109,11 @@ var migrations = []migration{
 		description: "add pokemon groups and tags",
 		fn:          migrateAddPokemonGroupsAndTags,
 	},
+	{
+		version:     19,
+		description: "add format column to overlay_elements",
+		fn:          migrateAddOverlayElementFormat,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -420,6 +425,15 @@ func migrateAddPokemonGroupsAndTags(tx *sql.Tx) error {
 	// duplicate-column error that occurs when the migration is re-run on a
 	// database whose baseline already contained the column.
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN group_id TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddOverlayElementFormat adds the format column to overlay_elements
+// so odds-element rows can persist their display format ("fractional" or
+// "percent"). Errors are ignored for idempotency because SQLite does not
+// support IF NOT EXISTS on ADD COLUMN.
+func migrateAddOverlayElementFormat(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN format TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

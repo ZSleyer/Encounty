@@ -126,7 +126,7 @@ var schemaV2 = []string{
 		UNIQUE(owner_type, owner_id)
 	)`,
 
-	// ── Overlay elements (sprite, name, title, counter) ──────────────────
+	// ── Overlay elements (sprite, name, title, counter, timer, odds) ─────
 	`CREATE TABLE IF NOT EXISTS overlay_elements (
 		id             INTEGER PRIMARY KEY AUTOINCREMENT,
 		overlay_id     INTEGER NOT NULL,
@@ -147,6 +147,7 @@ var schemaV2 = []string{
 		trigger_decrement TEXT    NOT NULL DEFAULT 'none',
 		show_label     INTEGER,
 		label_text     TEXT,
+		format         TEXT    NOT NULL DEFAULT '',
 		UNIQUE(overlay_id, element_type),
 		FOREIGN KEY (overlay_id) REFERENCES overlay_settings(id) ON DELETE CASCADE
 	)`,

@@ -253,6 +253,17 @@ export interface TimerElement extends OverlayElementBase {
   idle_animation: string;
 }
 
+export interface OddsElement extends OverlayElementBase {
+  style: TextStyle;
+  show_label: boolean;
+  label_text: string;
+  label_style: TextStyle;
+  format: "fractional" | "percent";
+  idle_animation: string;
+  trigger_enter: string;
+  trigger_decrement: string;
+}
+
 /**
  * OverlaySettings is the complete configuration for the OBS Browser Source
  * overlay, using an absolute-positioning canvas model.
@@ -281,6 +292,7 @@ export interface OverlaySettings {
   title: TitleElement;
   counter: CounterElement;
   timer: TimerElement;
+  odds: OddsElement;
 
   // Editor Tools
   snap_enabled?: boolean;

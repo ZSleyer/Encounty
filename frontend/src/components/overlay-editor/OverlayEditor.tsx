@@ -39,7 +39,7 @@ interface Props {
   compact?: boolean;
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "canvas";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds" | "canvas";
 
 
 const DEFAULT_TEXT_STYLE: TextStyle = {
@@ -203,6 +203,37 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     },
     idle_animation: "none",
   },
+  odds: {
+    visible: false,
+    x: 530,
+    y: 70,
+    width: 250,
+    height: 50,
+    z_index: 6,
+    style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "pokemon",
+      font_size: 28,
+      font_weight: 700,
+      color: "#ffffff",
+      outline_type: "solid",
+      outline_width: 3,
+      outline_color: "#000000",
+    },
+    show_label: false,
+    label_text: "Odds",
+    label_style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "sans",
+      font_size: 14,
+      font_weight: 400,
+      color: "#94a3b8",
+    },
+    format: "fractional",
+    idle_animation: "none",
+    trigger_enter: "none",
+    trigger_decrement: "none",
+  },
 };
 
 export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
@@ -264,6 +295,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     title: t("overlay.elementTitle"),
     counter: t("overlay.elementCounter"),
     timer: t("overlay.elementTimer"),
+    odds: t("overlay.elementOdds"),
     canvas: "Canvas",
   };
   const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
@@ -344,6 +376,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     fireTest("sprite");
     fireTest("name");
     fireTest("title");
+    fireTest("odds");
   };
   const testDecrement = () => {
     if (currentCount > 0) {
@@ -352,6 +385,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       fireTest("sprite", true);
       fireTest("name", true);
       fireTest("title", true);
+      fireTest("odds", true);
     }
   };
   const testReset = () => {
@@ -540,7 +574,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   const effectiveScale = canvasScale * zoom;
 
-  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter", "timer", "canvas"];
+  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter", "timer", "odds", "canvas"];
 
   const moveLayer = (key: ElementKey, dir: "up" | "down") => {
     if (key === "canvas") return;

@@ -280,6 +280,22 @@ type TimerElement struct {
 	IdleAnimation string    `json:"idle_animation"`
 }
 
+// OddsElement configures the shiny-odds text layer of the overlay.
+// Format toggles between a static fractional display (e.g. "1/4096")
+// and a cumulative probability after the current encounter count
+// (e.g. "63.2%"). An optional descriptive label mirrors CounterElement.
+type OddsElement struct {
+	OverlayElementBase
+	Style            TextStyle `json:"style"`
+	ShowLabel        bool      `json:"show_label"`
+	LabelText        string    `json:"label_text"`
+	LabelStyle       TextStyle `json:"label_style"`
+	Format           string    `json:"format"` // "fractional" | "percent"
+	IdleAnimation    string    `json:"idle_animation"`
+	TriggerEnter     string    `json:"trigger_enter"`
+	TriggerDecrement string    `json:"trigger_decrement"`
+}
+
 // OverlaySettings is the complete configuration for the OBS Browser Source
 // overlay. It uses an absolute-positioning canvas model: each element has its
 // own x/y/width/height within a fixed canvas.
@@ -304,6 +320,7 @@ type OverlaySettings struct {
 	Title                     TitleElement    `json:"title"`
 	Counter                   CounterElement  `json:"counter"`
 	Timer                     TimerElement    `json:"timer"`
+	Odds                      OddsElement     `json:"odds"`
 }
 
 // TutorialFlags tracks which tutorials the user has already completed.
@@ -495,6 +512,32 @@ func NewManager(configDir string) *Manager {
 							Color:      "#94a3b8",
 						},
 						IdleAnimation: animationNone,
+					},
+					Odds: OddsElement{
+						OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 70, Width: 250, Height: 50, ZIndex: 6},
+						Style: TextStyle{
+							FontFamily:   fontPokemon,
+							FontSize:     28,
+							FontWeight:   700,
+							ColorType:    colorTypeSolid,
+							Color:        colorWhite,
+							OutlineType:  outlineTypeSolid,
+							OutlineWidth: 3,
+							OutlineColor: colorBlack,
+						},
+						ShowLabel: false,
+						LabelText: "Odds",
+						LabelStyle: TextStyle{
+							FontFamily: "sans",
+							FontSize:   14,
+							FontWeight: 400,
+							ColorType:  colorTypeSolid,
+							Color:      "#94a3b8",
+						},
+						Format:           "fractional",
+						IdleAnimation:    animationNone,
+						TriggerEnter:     animationNone,
+						TriggerDecrement: animationNone,
 					},
 				},
 			},

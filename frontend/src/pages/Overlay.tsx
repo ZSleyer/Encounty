@@ -6,6 +6,7 @@ import { resolveOverlay } from "../utils/overlay";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
 import { formatTimer, computeTimerMs } from "../utils/timer";
+import { computeOddsDisplay } from "../utils/odds";
 
 const Aurora = lazy(() => import("../components/backgrounds/Aurora"));
 const Galaxy = lazy(() => import("../components/backgrounds/Galaxy"));
@@ -39,6 +40,7 @@ interface AnimChannels {
   sprite: AnimChannel;
   name: AnimChannel;
   title: AnimChannel;
+  odds: AnimChannel;
 }
 
 /** All animation channel setters. */
@@ -47,6 +49,7 @@ interface AnimChannelSettersMap {
   sprite: AnimChannelSetters;
   name: AnimChannelSetters;
   title: AnimChannelSetters;
+  odds: AnimChannelSetters;
 }
 
 /**
@@ -94,18 +97,24 @@ function useAnimationTriggers(): {
   const [titleAnimReverse, setTitleAnimReverse] = useState(false);
   const [titleTriggerId, setTitleTriggerId] = useState(0);
 
+  const [oddsAnimClass, setOddsAnimClass] = useState("");
+  const [oddsAnimReverse, setOddsAnimReverse] = useState(false);
+  const [oddsTriggerId, setOddsTriggerId] = useState(0);
+
   return {
     channels: {
       counter: { animClass, reverse: animReverse, triggerId },
       sprite: { animClass: spriteAnimClass, reverse: spriteAnimReverse, triggerId: spriteTriggerId },
       name: { animClass: nameAnimClass, reverse: nameAnimReverse, triggerId: nameTriggerId },
       title: { animClass: titleAnimClass, reverse: titleAnimReverse, triggerId: titleTriggerId },
+      odds: { animClass: oddsAnimClass, reverse: oddsAnimReverse, triggerId: oddsTriggerId },
     },
     setters: {
       counter: { setAnimClass, setReverse: setAnimReverse, setTriggerId, setRenderMode: setCounterRenderMode },
       sprite: { setAnimClass: setSpriteAnimClass, setReverse: setSpriteAnimReverse, setTriggerId: setSpriteTriggerId },
       name: { setAnimClass: setNameAnimClass, setReverse: setNameAnimReverse, setTriggerId: setNameTriggerId },
       title: { setAnimClass: setTitleAnimClass, setReverse: setTitleAnimReverse, setTriggerId: setTitleTriggerId },
+      odds: { setAnimClass: setOddsAnimClass, setReverse: setOddsAnimReverse, setTriggerId: setOddsTriggerId },
     },
     counterRenderMode,
     setCounterRenderMode,
@@ -489,6 +498,12 @@ function dispatchCounterAnimations(
       ? settings.title.trigger_decrement : settings.title.trigger_enter;
     dispatchElementAnim(titleKey, NAME_ANIMS, isDecrement, allSetters.title);
   }
+
+  if (settings.odds) {
+    const oddsKey = isDecrement && settings.odds.trigger_decrement && settings.odds.trigger_decrement !== "none"
+      ? settings.odds.trigger_decrement : settings.odds.trigger_enter;
+    dispatchElementAnim(oddsKey, NAME_ANIMS, isDecrement, allSetters.odds);
+  }
 }
 
 /** Resolves the effective overlay settings for the current Pokemon. */
@@ -544,6 +559,9 @@ function dispatchTestTrigger(
   } else if (testTrigger.element === "title" && settings.title) {
     const key = resolveTriggerKey(settings.title.trigger_enter, settings.title.trigger_decrement, rev);
     triggerAnimation(key, NAME_ANIMS, rev, allSetters.title);
+  } else if (testTrigger.element === "odds" && settings.odds) {
+    const key = resolveTriggerKey(settings.odds.trigger_enter, settings.odds.trigger_decrement, rev);
+    triggerAnimation(key, NAME_ANIMS, rev, allSetters.odds);
   }
 }
 
@@ -652,6 +670,8 @@ export function Overlay({
   useGoogleFont(settings?.title?.style.font_family || "sans");
   useGoogleFont(settings?.timer?.style.font_family ?? "sans");
   useGoogleFont(settings?.timer?.label_style?.font_family ?? "sans");
+  useGoogleFont(settings?.odds?.style.font_family ?? "sans");
+  useGoogleFont(settings?.odds?.label_style?.font_family ?? "sans");
 
   // Timer tick — force re-render every second while the timer is running
   const [, forceTimerUpdate] = useReducer((x: number) => x + 1, 0);
@@ -1013,6 +1033,49 @@ export function Overlay({
             </span>
             {settings.timer.show_label && (
               <span style={timerLabelStyle}>{settings.timer.label_text}</span>
+            )}
+          </div>
+          );
+      })()}
+
+      {/* Odds — shiny-probability display (fractional or cumulative percent) */}
+      {settings.odds?.visible && (() => {
+          const oddsAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
+          const oddsAlignItems = oddsAlignMap[settings.odds.style.text_align] ?? "flex-start";
+          const oddsStyle = buildTextStyle(settings.odds.style);
+          const oddsLabelStyle = settings.odds.label_style ? buildTextStyle(settings.odds.label_style) : {};
+          const oddsText = computeOddsDisplay(activePokemon, settings.odds.format);
+
+          return (
+          <div
+            style={{
+              position: "absolute",
+              left: settings.odds.x,
+              top: settings.odds.y,
+              width: settings.odds.width,
+              height: settings.odds.height,
+              zIndex: settings.odds.z_index,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: oddsAlignItems,
+              justifyContent: "center",
+            }}
+            className={TEXT_IDLE[settings.odds.idle_animation] ?? ""}
+          >
+            <span
+              key={`odds-${channels.odds.triggerId}`}
+              className={`font-black tabular-nums leading-none ${channels.odds.animClass}`}
+              style={{
+                ...oddsStyle,
+                display: "inline-block",
+                transformOrigin: "center",
+                animationDirection: channels.odds.reverse ? "reverse" : undefined,
+              }}
+            >
+              {oddsText}
+            </span>
+            {settings.odds.show_label && (
+              <span style={oddsLabelStyle}>{settings.odds.label_text}</span>
             )}
           </div>
           );

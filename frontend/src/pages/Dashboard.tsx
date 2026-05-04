@@ -70,7 +70,7 @@ import { useI18n } from "../contexts/I18nContext";
 import { useCaptureService, useCaptureVersion } from "../contexts/CaptureServiceContext";
 import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
-import { getMethodOdds, formatOdds } from "../utils/gameGroups";
+import { getOddsFractional } from "../utils/odds";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 
@@ -337,26 +337,6 @@ function resolveCopySource(
   if (sourceId === "global") return globalOverlay;
   const p = pokemon.find((x) => x.id === sourceId);
   return p ? resolveOverlay(p, pokemon, globalOverlay) : null;
-}
-
-/** Computes the shiny odds display string for the given Pokemon and game list. */
-function computeOddsDisplay(pokemon: Pokemon | null, games: GameEntry[]): string {
-  if (!pokemon) return "1/4096";
-
-  const gameKey = pokemon.game || "";
-  const hasCharm = pokemon.shiny_charm ?? false;
-  const ht = pokemon.hunt_type || "encounter";
-
-  // Use game-group-specific odds when available
-  if (gameKey) {
-    const odds = getMethodOdds(gameKey, ht, hasCharm);
-    return formatOdds(odds);
-  }
-
-  // Fallback for pokemon without a game set
-  const gameGen = games.find((g) => g.key === gameKey)?.generation ?? null;
-  const isOldGen = gameGen !== null && gameGen >= 2 && gameGen <= 5;
-  return isOldGen ? "1/8192" : "1/4096";
 }
 
 /** Formats a game key into a short display string. */
@@ -1915,7 +1895,7 @@ export function Dashboard() {
   ).sort((a, b) => a.localeCompare(b));
   const viewedPokemon = findViewedPokemon(allPokemon, viewedPokemonId, appState?.active_id ?? "");
   const totalEncounters = allPokemon.reduce((s, p) => s + p.encounters, 0);
-  const oddsDisplay = computeOddsDisplay(viewedPokemon, games);
+  const oddsDisplay = getOddsFractional(viewedPokemon);
 
   // Persist sort + sidebar preferences
   useEffect(() => {

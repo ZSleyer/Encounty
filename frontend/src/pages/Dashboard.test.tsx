@@ -1614,6 +1614,7 @@ describe("Dashboard overlay tab", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -2511,6 +2512,7 @@ describe("Dashboard unsaved overlay changes", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -3367,6 +3369,7 @@ describe("Dashboard unsaved overlay discard flow", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -3407,6 +3410,7 @@ describe("Dashboard unsaved overlay discard flow", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -3969,6 +3973,7 @@ describe("Dashboard overlay import dropdown", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -4063,6 +4068,7 @@ describe("Dashboard unsaved overlay stay and discard", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -4102,6 +4108,7 @@ describe("Dashboard unsaved overlay stay and discard", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -4407,6 +4414,7 @@ describe("Dashboard overlay custom to default switch", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -4461,6 +4469,7 @@ describe("Dashboard overlay custom to default switch", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -5094,6 +5103,7 @@ describe("Dashboard overlay save flow", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 
@@ -5144,6 +5154,7 @@ describe("Dashboard overlay import with other pokemon", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
     const p2 = makePokemon({
@@ -5164,6 +5175,7 @@ describe("Dashboard overlay import with other pokemon", () => {
         title: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 4, style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         counter: { visible: true, x: 100, y: 50, width: 200, height: 30, z_index: 3, style: {} as never, show_label: true, label_text: "Enc:", label_style: {} as never, idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
         timer: { visible: false, x: 100, y: 90, width: 200, height: 30, z_index: 5, style: {} as never, show_label: false, label_text: "Timer", label_style: {} as never, idle_animation: "none" },
+        odds: { visible: false, x: 100, y: 130, width: 200, height: 30, z_index: 6, style: {} as never, show_label: false, label_text: "Odds", label_style: {} as never, format: "fractional", idle_animation: "none", trigger_enter: "none", trigger_decrement: "none" },
       },
     });
 

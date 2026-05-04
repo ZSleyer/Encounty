@@ -521,11 +521,53 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		return fmt.Errorf("save counter label text style: %w", err)
 	}
 
+	// Insert timer element with main + label text styles.
+	timerID, err := insertElement(tx, elementInsertParams{
+		overlayID:    overlayID,
+		elemType:     "timer",
+		base:         &ov.Timer.OverlayElementBase,
+		idleAnim:     ov.Timer.IdleAnimation,
+		triggerEnter: "none",
+		showLabel:    ov.Timer.ShowLabel,
+		labelText:    ov.Timer.LabelText,
+	})
+	if err != nil {
+		return fmt.Errorf("insert timer element: %w", err)
+	}
+	if err := saveTextStyle(tx, timerID, "main", &ov.Timer.Style); err != nil {
+		return fmt.Errorf("save timer main text style: %w", err)
+	}
+	if err := saveTextStyle(tx, timerID, "label", &ov.Timer.LabelStyle); err != nil {
+		return fmt.Errorf("save timer label text style: %w", err)
+	}
+
+	// Insert odds element with main + label text styles.
+	oddsID, err := insertElement(tx, elementInsertParams{
+		overlayID:        overlayID,
+		elemType:         "odds",
+		base:             &ov.Odds.OverlayElementBase,
+		idleAnim:         ov.Odds.IdleAnimation,
+		triggerEnter:     ov.Odds.TriggerEnter,
+		triggerDecrement: ov.Odds.TriggerDecrement,
+		showLabel:        ov.Odds.ShowLabel,
+		labelText:        ov.Odds.LabelText,
+		format:           ov.Odds.Format,
+	})
+	if err != nil {
+		return fmt.Errorf("insert odds element: %w", err)
+	}
+	if err := saveTextStyle(tx, oddsID, "main", &ov.Odds.Style); err != nil {
+		return fmt.Errorf("save odds main text style: %w", err)
+	}
+	if err := saveTextStyle(tx, oddsID, "label", &ov.Odds.LabelStyle); err != nil {
+		return fmt.Errorf("save odds label text style: %w", err)
+	}
+
 	return nil
 }
 
 // elementInsertParams groups all columns for an overlay_elements row,
-// keeping the call sites readable and avoiding a 13-parameter function.
+// keeping the call sites readable and avoiding a 14-parameter function.
 type elementInsertParams struct {
 	overlayID        int64
 	elemType         string
@@ -540,12 +582,13 @@ type elementInsertParams struct {
 	triggerDecrement string
 	showLabel        bool
 	labelText        string
+	format           string // populated only for "odds" elements
 }
 
 // insertElement inserts one overlay_elements row and returns its auto-increment ID.
 // showGlow/glowColor/glowOpacity/glowBlur are nullable and only meaningful for sprite.
 func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
-	// Use sql.NullInt64/NullString for sprite-only and counter-only fields.
+	// Use sql.NullInt64/NullString for sprite-only and label-bearing fields.
 	var glowShowVal, glowBlurVal sql.NullInt64
 	var glowColorVal sql.NullString
 	var glowOpacityVal sql.NullFloat64
@@ -558,7 +601,7 @@ func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 		glowOpacityVal = sql.NullFloat64{Float64: p.glowOpacity, Valid: true}
 		glowBlurVal = sql.NullInt64{Int64: int64(p.glowBlur), Valid: true}
 	}
-	if p.elemType == "counter" {
+	if p.elemType == "counter" || p.elemType == "timer" || p.elemType == "odds" {
 		showLabelVal = sql.NullInt64{Int64: int64(boolToInt(p.showLabel)), Valid: true}
 		labelTextVal = sql.NullString{String: p.labelText, Valid: true}
 	}
@@ -566,11 +609,11 @@ func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 	res, err := tx.Exec(`
 		INSERT INTO overlay_elements (overlay_id, element_type, visible, x, y, width, height,
 			z_index, show_glow, glow_color, glow_opacity, glow_blur,
-			idle_animation, trigger_enter, trigger_exit, trigger_decrement, show_label, label_text)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			idle_animation, trigger_enter, trigger_exit, trigger_decrement, show_label, label_text, format)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.overlayID, p.elemType, boolToInt(p.base.Visible), p.base.X, p.base.Y, p.base.Width, p.base.Height,
 		p.base.ZIndex, glowShowVal, glowColorVal, glowOpacityVal, glowBlurVal,
-		p.idleAnim, p.triggerEnter, p.triggerExit, p.triggerDecrement, showLabelVal, labelTextVal,
+		p.idleAnim, p.triggerEnter, p.triggerExit, p.triggerDecrement, showLabelVal, labelTextVal, p.format,
 	)
 	if err != nil {
 		return 0, err

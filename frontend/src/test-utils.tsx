@@ -117,6 +117,22 @@ export function makeOverlaySettings(
       label_style: makeTextStyle(),
       idle_animation: "none",
     },
+    odds: {
+      visible: false,
+      x: 100,
+      y: 130,
+      width: 200,
+      height: 30,
+      z_index: 6,
+      style: makeTextStyle(),
+      show_label: false,
+      label_text: "Odds",
+      label_style: makeTextStyle(),
+      format: "fractional",
+      idle_animation: "none",
+      trigger_enter: "none",
+      trigger_decrement: "none",
+    },
     ...overrides,
   };
 }

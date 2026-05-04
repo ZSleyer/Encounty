@@ -4,9 +4,9 @@ import { Overlay } from "../../pages/Overlay";
 import type { Pokemon } from "../../types";
 import { Guide, useSnapping } from "../../hooks/useSnapping";
 
-type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "canvas";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds" | "canvas";
 /** Element keys that correspond to draggable overlay elements in OverlaySettings. */
-type DraggableElementKey = "sprite" | "name" | "title" | "counter" | "timer";
+type DraggableElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds";
 type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 interface OverlayCanvasProps {
@@ -311,7 +311,7 @@ export function OverlayCanvas({
   onUpdate,
   snapEnabled,
 }: OverlayCanvasProps) {
-  const LAYERS: DraggableElementKey[] = ["sprite", "name", "title", "counter", "timer"];
+  const LAYERS: DraggableElementKey[] = ["sprite", "name", "title", "counter", "timer", "odds"];
 
   const dragOpts = { settings: localSettings, onUpdate, canvasScale: effectiveScale, onDragStateChange, onGuidesChange, snapEnabled, gridSize };
   const spriteHandlers = useElementDrag({ elementKey: "sprite", ...dragOpts });
@@ -319,6 +319,7 @@ export function OverlayCanvas({
   const titleHandlers = useElementDrag({ elementKey: "title", ...dragOpts });
   const counterHandlers = useElementDrag({ elementKey: "counter", ...dragOpts });
   const timerHandlers = useElementDrag({ elementKey: "timer", ...dragOpts });
+  const oddsHandlers = useElementDrag({ elementKey: "odds", ...dragOpts });
 
   const handlers: Record<DraggableElementKey, ReturnType<typeof useElementDrag>> = {
     sprite: spriteHandlers,
@@ -326,6 +327,7 @@ export function OverlayCanvas({
     title: titleHandlers,
     counter: counterHandlers,
     timer: timerHandlers,
+    odds: oddsHandlers,
   };
 
   const fakePreviewPokemon: Pokemon | undefined = activePokemon

@@ -15,7 +15,7 @@ interface OpenShadowEditorParams extends ShadowConfirmParams {
   readonly onConfirm: (params: ShadowConfirmParams) => void;
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "canvas";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds" | "canvas";
 
 const POPULAR_FONTS = [
   "sans", "serif", "monospace", "pokemon",
@@ -297,6 +297,7 @@ export function OverlayPropertyPanel({
     title: t("overlay.elementTitle"),
     counter: t("overlay.elementCounter"),
     timer: t("overlay.elementTimer"),
+    odds: t("overlay.elementOdds"),
     canvas: "Canvas",
   };
   const update = (s: OverlaySettings) => {
@@ -1447,6 +1448,196 @@ export function OverlayPropertyPanel({
               <option value="glow">{t("overlay.animGlow")}</option>
               <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
               <option value="float">{t("overlay.animFloat")}</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {selectedEl === "odds" && localSettings.odds && (
+        <div className="space-y-3">
+          <TextStyleEditor
+            style={localSettings.odds.style || DEFAULT_TEXT_STYLE}
+            label={t("overlay.oddsStyle")}
+            onChange={(s) =>
+              update({
+                ...localSettings,
+                odds: { ...localSettings.odds, style: s },
+              })
+            }
+            onOpenTextColorEditor={openTextColorEditor}
+            onOpenOutlineEditor={openOutlineEditor}
+            onOpenShadowEditor={openShadowEditor}
+          />
+          <div>
+            <label htmlFor="odds-format" className="text-xs text-text-muted">
+              {t("overlay.odds.formatLabel")}
+            </label>
+            <select
+              id="odds-format"
+              value={localSettings.odds.format}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  odds: {
+                    ...localSettings.odds,
+                    format: e.target.value as "fractional" | "percent",
+                  },
+                })
+              }
+              aria-label={t("aria.oddsFormat")}
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary mt-1"
+            >
+              <option value="fractional">{t("overlay.odds.formatFractional")}</option>
+              <option value="percent">{t("overlay.odds.formatPercent")}</option>
+            </select>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={localSettings.odds.show_label}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  odds: {
+                    ...localSettings.odds,
+                    show_label: e.target.checked,
+                  },
+                })
+              }
+              className="accent-accent-blue"
+            />
+            <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
+          </label>
+          {localSettings.odds.show_label && (
+            <>
+              <input
+                type="text"
+                value={localSettings.odds.label_text}
+                onChange={(e) =>
+                  update({
+                    ...localSettings,
+                    odds: {
+                      ...localSettings.odds,
+                      label_text: e.target.value,
+                    },
+                  })
+                }
+                className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+                placeholder="Label"
+                aria-label={t("aria.labelText")}
+              />
+              <TextStyleEditor
+                style={
+                  localSettings.odds.label_style || DEFAULT_TEXT_STYLE
+                }
+                label={t("overlay.labelStyle")}
+                onChange={(s) =>
+                  update({
+                    ...localSettings,
+                    odds: { ...localSettings.odds, label_style: s },
+                  })
+                }
+                onOpenTextColorEditor={openTextColorEditor}
+                onOpenOutlineEditor={openOutlineEditor}
+                onOpenShadowEditor={openShadowEditor}
+              />
+            </>
+          )}
+          <div>
+            <label htmlFor="odds-idle-animation" className="text-xs text-text-muted">
+              {t("overlay.idleAnimation")}
+            </label>
+            <select
+              id="odds-idle-animation"
+              value={localSettings.odds.idle_animation}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  odds: {
+                    ...localSettings.odds,
+                    idle_animation: e.target.value,
+                  },
+                })
+              }
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+            >
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="breathe">{t("overlay.animBreathe")}</option>
+              <option value="glow">{t("overlay.animGlow")}</option>
+              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
+              <option value="float">{t("overlay.animFloat")}</option>
+            </select>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <label htmlFor="odds-trigger-animation" className="text-xs text-text-muted">
+                {t("overlay.triggerAnimation")}
+              </label>
+              <button
+                onClick={() => fireTest("odds")}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+              >
+                <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
+              </button>
+            </div>
+            <select
+              id="odds-trigger-animation"
+              value={localSettings.odds.trigger_enter}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  odds: {
+                    ...localSettings.odds,
+                    trigger_enter: e.target.value,
+                  },
+                })
+              }
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+            >
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="fade-in">{t("overlay.animFadeIn")}</option>
+              <option value="pop">Pop</option>
+              <option value="flash">Flash</option>
+              <option value="bounce">Bounce</option>
+              <option value="shake">Shake</option>
+              <option value="tada">Tada</option>
+              <option value="zoom-in">Zoom In</option>
+            </select>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-0.5">
+              <label htmlFor="odds-trigger-decrement-animation" className="text-xs text-text-muted">
+                {t("overlay.triggerAnimationDecrement")}
+              </label>
+              <button
+                onClick={() => fireTest("odds", true)}
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+              >
+                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
+              </button>
+            </div>
+            <select
+              id="odds-trigger-decrement-animation"
+              value={localSettings.odds.trigger_decrement || "none"}
+              onChange={(e) =>
+                update({
+                  ...localSettings,
+                  odds: {
+                    ...localSettings.odds,
+                    trigger_decrement: e.target.value,
+                  },
+                })
+              }
+              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+            >
+              <option value="none">{t("overlay.animNone")}</option>
+              <option value="fade-in">{t("overlay.animFadeIn")}</option>
+              <option value="pop">Pop</option>
+              <option value="flash">Flash</option>
+              <option value="bounce">Bounce</option>
+              <option value="shake">Shake</option>
+              <option value="tada">Tada</option>
+              <option value="zoom-in">Zoom In</option>
             </select>
           </div>
         </div>

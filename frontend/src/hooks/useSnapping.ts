@@ -6,7 +6,7 @@
  */
 import { OverlaySettings } from "../types";
 
-type ElementKey = "sprite" | "name" | "title" | "counter" | "timer";
+type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds";
 
 export interface Guide {
   type: "h" | "v";
@@ -53,7 +53,7 @@ function getElementEdgeGuides(
   exclude: ElementKey,
 ): Guide[] {
   const guides: Guide[] = [];
-  const keys: ElementKey[] = ["sprite", "name", "title", "counter", "timer"];
+  const keys: ElementKey[] = ["sprite", "name", "title", "counter", "timer", "odds"];
 
   for (const key of keys) {
     if (key === exclude) continue;

@@ -464,6 +464,7 @@ type elemRow struct {
 	showGlow, showLabel, glowBlur            sql.NullInt64
 	glowColor, idleAnim, triggerEnter        sql.NullString
 	triggerExit, triggerDecrement, labelText sql.NullString
+	format                                   sql.NullString
 	glowOpacity                              sql.NullFloat64
 }
 
@@ -524,7 +525,7 @@ func loadOverlayBase(db *sql.DB, ownerType, ownerID string) (*state.OverlaySetti
 func scanOverlayElements(db *sql.DB, overlayID int64) ([]elemRow, error) {
 	rows, err := db.Query(`SELECT id, element_type, visible, x, y, width, height, z_index,
 		show_glow, glow_color, glow_opacity, glow_blur, idle_animation, trigger_enter, trigger_exit,
-		trigger_decrement, show_label, label_text
+		trigger_decrement, show_label, label_text, format
 		FROM overlay_elements WHERE overlay_id = ?`, overlayID)
 	if err != nil {
 		return nil, fmt.Errorf("query overlay_elements: %w", err)
@@ -536,7 +537,7 @@ func scanOverlayElements(db *sql.DB, overlayID int64) ([]elemRow, error) {
 		var visible int
 		if err := rows.Scan(&e.id, &e.elemType, &visible, &e.base.X, &e.base.Y, &e.base.Width,
 			&e.base.Height, &e.base.ZIndex, &e.showGlow, &e.glowColor, &e.glowOpacity, &e.glowBlur,
-			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.triggerDecrement, &e.showLabel, &e.labelText); err != nil {
+			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.triggerDecrement, &e.showLabel, &e.labelText, &e.format); err != nil {
 			_ = rows.Close()
 			return nil, fmt.Errorf("scan overlay_element: %w", err)
 		}
@@ -614,6 +615,49 @@ func applyOverlayElement(db *sql.DB, ov *state.OverlaySettings, e elemRow) error
 			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
 			LabelText:          nullStr(e.labelText),
 			LabelStyle:         labelStyle,
+			IdleAnimation:      idleAnimStr,
+			TriggerEnter:       triggerEnterStr,
+			TriggerDecrement:   triggerDecrementStr,
+		}
+
+	case "timer":
+		style, err := loadTextStyle(db, e.id, "main")
+		if err != nil {
+			return fmt.Errorf("load timer text style: %w", err)
+		}
+		labelStyle, err := loadTextStyle(db, e.id, "label")
+		if err != nil {
+			return fmt.Errorf("load timer label style: %w", err)
+		}
+		ov.Timer = state.TimerElement{
+			OverlayElementBase: e.base,
+			Style:              style,
+			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
+			LabelText:          nullStr(e.labelText),
+			LabelStyle:         labelStyle,
+			IdleAnimation:      idleAnimStr,
+		}
+
+	case "odds":
+		style, err := loadTextStyle(db, e.id, "main")
+		if err != nil {
+			return fmt.Errorf("load odds text style: %w", err)
+		}
+		labelStyle, err := loadTextStyle(db, e.id, "label")
+		if err != nil {
+			return fmt.Errorf("load odds label style: %w", err)
+		}
+		format := nullStr(e.format)
+		if format == "" {
+			format = "fractional"
+		}
+		ov.Odds = state.OddsElement{
+			OverlayElementBase: e.base,
+			Style:              style,
+			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
+			LabelText:          nullStr(e.labelText),
+			LabelStyle:         labelStyle,
+			Format:             format,
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,
 			TriggerDecrement:   triggerDecrementStr,
