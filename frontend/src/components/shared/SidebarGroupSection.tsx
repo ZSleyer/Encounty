@@ -6,8 +6,14 @@
  * toggle collapse) and carries an optional kebab menu for rename/color/
  * start/stop/delete actions. The body is rendered as children so the caller
  * keeps full control over the Pokémon card layout.
+ *
+ * The kebab dropdown is portalled to `document.body` and positioned with
+ * `fixed` coordinates derived from the trigger button. This escapes the
+ * sticky-header stacking context that would otherwise occlude the menu
+ * behind sibling sections (Issue #17).
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, ChevronRight, MoreVertical, Play, Square, Pencil, Palette, Trash2 } from "lucide-react";
 import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
@@ -48,6 +54,7 @@ export function SidebarGroupSection({
 }: SidebarGroupSectionProps) {
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const menuBtnRef = useRef<HTMLButtonElement>(null);
 
   // Close menu on Escape for accessibility.
@@ -62,6 +69,33 @@ export function SidebarGroupSection({
     };
     globalThis.addEventListener("keydown", handler);
     return () => globalThis.removeEventListener("keydown", handler);
+  }, [menuOpen]);
+
+  // Anchor the portalled menu to the trigger button. The dropdown escapes the
+  // sticky header's stacking context via createPortal + fixed positioning so it
+  // can sit above sibling sections and scrolled content (see Issue #17).
+  useLayoutEffect(() => {
+    if (!menuOpen) {
+      setMenuPos(null);
+      return;
+    }
+    const update = () => {
+      const r = menuBtnRef.current?.getBoundingClientRect();
+      if (!r) return;
+      // mt-1 in the previous absolute markup ≈ 4 px.
+      setMenuPos({ top: r.bottom + 4, right: globalThis.innerWidth - r.right });
+    };
+    update();
+    // Capture-phase scroll listener catches the sidebar's overflow-y-auto
+    // container; closing on scroll is more predictable than continuous
+    // repositioning and matches native dropdown behavior.
+    const onScroll = () => setMenuOpen(false);
+    globalThis.addEventListener("scroll", onScroll, true);
+    globalThis.addEventListener("resize", update);
+    return () => {
+      globalThis.removeEventListener("scroll", onScroll, true);
+      globalThis.removeEventListener("resize", update);
+    };
   }, [menuOpen]);
 
   const color = group?.color || "#6b7280";
@@ -113,7 +147,7 @@ export function SidebarGroupSection({
             >
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
-            {menuOpen && (
+            {menuOpen && menuPos && createPortal(
               <>
                 <button
                   className="fixed inset-0 z-40 cursor-default"
@@ -123,7 +157,8 @@ export function SidebarGroupSection({
                 <div
                   role="menu"
                   aria-label={label}
-                  className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-44"
+                  className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-44"
+                  style={{ top: menuPos.top, right: menuPos.right }}
                 >
                   <button
                     role="menuitem"
@@ -172,7 +207,8 @@ export function SidebarGroupSection({
                     {t("group.delete")}
                   </button>
                 </div>
-              </>
+              </>,
+              document.body,
             )}
           </div>
         )}

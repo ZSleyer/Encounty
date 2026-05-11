@@ -161,6 +161,29 @@ describe("SidebarGroupSection", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
+  it("portals the open menu to document.body so it escapes the sticky header", async () => {
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    const { container } = render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="L"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+        onAction={vi.fn()}
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+    await user.click(screen.getByRole("button", { name: /gruppen verwalten/i }));
+    const menu = screen.getByRole("menu");
+    expect(document.body.contains(menu)).toBe(true);
+    // The menu must NOT be a descendant of the rendered component subtree —
+    // that guarantees it cannot inherit the sticky header's stacking context.
+    expect(container.contains(menu)).toBe(false);
+  });
+
   it("backdrop click closes the overflow menu", async () => {
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();

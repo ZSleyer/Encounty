@@ -1,6 +1,26 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
+/* ── Z-Index Layers ──────────────────────────────────────────
+ *
+ * Use these Tailwind utilities consistently to avoid stacking
+ * collisions:
+ *
+ *   z-10    Page-internal sticky headers, hero backgrounds
+ *           (must not exceed local content)
+ *   z-40    Dropdown / popover backdrops (transparent click-catchers)
+ *   z-50    Dropdowns, popovers, primary-content overlays
+ *   z-90    Confirmation / secondary modals
+ *   z-100   Primary modals + skip-link focus
+ *   z-200   Full-screen blocking dialogs (license, fatal error)
+ *   10000+  Tutorial overlays (must beat everything)
+ *
+ * Rule of thumb: a z-50 dropdown nested under a position:sticky/
+ * fixed/transformed ancestor must escape via a portal — Tailwind's
+ * z-50 only beats siblings inside the same stacking context. See
+ * SidebarGroupSection.tsx for the canonical portal pattern.
+ */
+
 /* ── Theme Variables ─────────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
