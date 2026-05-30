@@ -909,6 +909,8 @@
   "group.hunt.noStream": "No capture source connected",
   "group.hunt.started": "Started {{count}} hunts",
   "group.hunt.stopped": "Stopped {{count}} hunts",
+  "group.hotkeyTarget": "Set as hotkey target",
+  "group.hotkeyTargetActive": "Hotkey target (click to clear)",
   "sidebar.addGroup": "+ Group",
   "sidebar.noGroup": "Ungrouped",
   "sidebar.noMatches": "No matches",

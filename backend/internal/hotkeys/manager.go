@@ -6,6 +6,7 @@ import "github.com/zsleyer/encounty/backend/internal/state"
 type Action struct {
 	Type      string // "increment" | "decrement" | "reset" | "next"
 	PokemonID string
+	GroupID   string
 }
 
 // Manager is the platform-independent hotkey manager interface.

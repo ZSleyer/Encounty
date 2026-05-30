@@ -186,13 +186,21 @@ func (m *windowsManager) messageLoop() {
 			action, ok := m.registered[id]
 			m.mu.RUnlock()
 			if ok && !m.paused.Load() {
-				var pid string
-				if active := m.stateMgr.GetActivePokemon(); active != nil {
-					pid = active.ID
-				}
-				select {
-				case m.actions <- Action{Type: action, PokemonID: pid}:
-				default:
+				gid := m.stateMgr.GetActiveGroupID()
+				if gid != "" {
+					select {
+					case m.actions <- Action{Type: action, GroupID: gid}:
+					default:
+					}
+				} else {
+					var pid string
+					if active := m.stateMgr.GetActivePokemon(); active != nil {
+						pid = active.ID
+					}
+					select {
+					case m.actions <- Action{Type: action, PokemonID: pid}:
+					default:
+					}
 				}
 			}
 		case wmReregister:

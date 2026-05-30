@@ -2145,6 +2145,10 @@ export function Dashboard() {
           collapsed={!!g.collapsed}
           onToggleCollapse={() => handleGroupToggleCollapse(g)}
           onAction={(action) => handleGroupAction(g, action)}
+          isHotkeyTarget={appState.active_group_id === g.id}
+          onSetHotkeyTarget={() => {
+            send("set_active_group", { group_id: appState.active_group_id === g.id ? "" : g.id });
+          }}
         >
           {members.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
         </SidebarGroupSection>,

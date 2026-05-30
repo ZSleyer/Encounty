@@ -14,7 +14,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronRight, MoreVertical, Play, Square, Pencil, Palette, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Keyboard, MoreVertical, Play, Square, Pencil, Palette, Trash2 } from "lucide-react";
 import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 
@@ -34,6 +34,10 @@ interface SidebarGroupSectionProps {
   readonly onToggleCollapse: () => void;
   /** Optional menu handler; when omitted the menu button is hidden. */
   readonly onAction?: (action: GroupAction) => void;
+  /** Whether this group is the current hotkey target. */
+  readonly isHotkeyTarget?: boolean;
+  /** Called when the user clicks the keyboard icon to set/clear hotkey target. */
+  readonly onSetHotkeyTarget?: () => void;
   /** Body content (usually the <li> Pokémon items) rendered inside the section. */
   readonly children: React.ReactNode;
 }
@@ -50,6 +54,8 @@ export function SidebarGroupSection({
   collapsed,
   onToggleCollapse,
   onAction,
+  isHotkeyTarget,
+  onSetHotkeyTarget,
   children,
 }: SidebarGroupSectionProps) {
   const { t } = useI18n();
@@ -113,8 +119,9 @@ export function SidebarGroupSection({
   return (
     <section aria-label={label} data-testid="sidebar-group-section">
       {/* Header — uses two sibling buttons (toggle + menu) inside a div
-          to avoid invalid nested <button> markup. */}
-      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-bg-primary/30 border-b border-border-subtle/50 sticky top-0 backdrop-blur-sm z-10">
+          to avoid invalid nested <button> markup. The `group` class enables
+          group-hover: visibility transitions on the action buttons. */}
+      <div className="group flex items-center gap-1.5 px-3 py-1.5 bg-bg-primary/30 border-b border-border-subtle/50 sticky top-0 backdrop-blur-sm z-10">
         <button
           type="button"
           onClick={onToggleCollapse}
@@ -134,6 +141,22 @@ export function SidebarGroupSection({
             ({count})
           </span>
         </button>
+        {onSetHotkeyTarget && group !== null && (
+          <button
+            type="button"
+            onClick={onSetHotkeyTarget}
+            className={`p-1 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${
+              isHotkeyTarget
+                ? "text-accent-blue"
+                : "opacity-0 group-hover:opacity-100 text-text-faint hover:text-accent-blue"
+            }`}
+            title={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}
+            aria-label={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}
+            aria-pressed={isHotkeyTarget}
+          >
+            <Keyboard className="w-3.5 h-3.5" />
+          </button>
+        )}
         {onAction && (
           <div className="relative">
             <button

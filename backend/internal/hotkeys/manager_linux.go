@@ -205,13 +205,21 @@ func (m *linuxManager) matchAndDispatch(code uint16, mods modifierState) {
 		if combo.Ctrl != mods.ctrl || combo.Shift != mods.shift || combo.Alt != mods.alt {
 			continue
 		}
-		var pid string
-		if active := m.stateMgr.GetActivePokemon(); active != nil {
-			pid = active.ID
-		}
-		select {
-		case m.actions <- Action{Type: action, PokemonID: pid}:
-		default:
+		gid := m.stateMgr.GetActiveGroupID()
+		if gid != "" {
+			select {
+			case m.actions <- Action{Type: action, GroupID: gid}:
+			default:
+			}
+		} else {
+			var pid string
+			if active := m.stateMgr.GetActivePokemon(); active != nil {
+				pid = active.ID
+			}
+			select {
+			case m.actions <- Action{Type: action, PokemonID: pid}:
+			default:
+			}
 		}
 	}
 }

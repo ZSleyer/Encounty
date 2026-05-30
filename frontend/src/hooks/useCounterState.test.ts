@@ -45,6 +45,7 @@ function makeAppState(activeId: string): AppState {
     ],
     sessions: [],
     active_id: activeId,
+    active_group_id: "",
     hotkeys: { increment: "", decrement: "", reset: "", next_pokemon: "" },
     settings: {} as AppState["settings"],
     data_path: "/tmp/encounty",

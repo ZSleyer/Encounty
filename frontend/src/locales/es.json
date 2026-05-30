@@ -909,6 +909,8 @@
   "group.hunt.noStream": "Sin fuente conectada",
   "group.hunt.started": "{{count}} cazas iniciadas",
   "group.hunt.stopped": "{{count}} cazas detenidas",
+  "group.hotkeyTarget": "Establecer como objetivo de tecla rápida",
+  "group.hotkeyTargetActive": "Objetivo de tecla rápida (clic para quitar)",
   "sidebar.addGroup": "+ Grupo",
   "sidebar.noGroup": "Sin grupo",
   "sidebar.noMatches": "Sin coincidencias",

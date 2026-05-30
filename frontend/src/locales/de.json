@@ -909,6 +909,8 @@
   "group.hunt.noStream": "Keine Quelle verbunden",
   "group.hunt.started": "{{count}} Hunts gestartet",
   "group.hunt.stopped": "{{count}} Hunts gestoppt",
+  "group.hotkeyTarget": "Als Hotkey-Ziel setzen",
+  "group.hotkeyTargetActive": "Hotkey-Ziel (klicken zum Entfernen)",
   "sidebar.addGroup": "+ Gruppe",
   "sidebar.noGroup": "Ohne Gruppe",
   "sidebar.noMatches": "Keine Treffer",

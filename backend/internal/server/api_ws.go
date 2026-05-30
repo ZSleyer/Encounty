@@ -27,6 +27,8 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 		s.wsHandleReset(msg.Payload)
 	case "set_active":
 		s.wsHandleSetActive(msg.Payload)
+	case "set_active_group":
+		s.wsHandleSetActiveGroup(msg.Payload)
 	case "set_encounters":
 		s.wsHandleSetEncounters(msg.Payload)
 	case "complete":
@@ -109,6 +111,20 @@ func (s *Server) wsHandleSetActive(payload json.RawMessage) {
 		return
 	}
 	s.state.SetActive(p.PokemonID)
+	s.state.ScheduleSave()
+	s.broadcastState()
+}
+
+// wsHandleSetActiveGroup sets the given group as the active hotkey target and broadcasts state.
+// An empty group_id clears the active group without setting a new one.
+func (s *Server) wsHandleSetActiveGroup(payload json.RawMessage) {
+	var p struct {
+		GroupID string `json:"group_id"`
+	}
+	if json.Unmarshal(payload, &p) != nil {
+		return
+	}
+	s.state.SetActiveGroup(p.GroupID)
 	s.state.ScheduleSave()
 	s.broadcastState()
 }

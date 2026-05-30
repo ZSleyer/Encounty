@@ -909,6 +909,8 @@
   "group.hunt.noStream": "ソース未接続",
   "group.hunt.started": "{{count}} 件のハントを開始しました",
   "group.hunt.stopped": "{{count}} 件のハントを停止しました",
+  "group.hotkeyTarget": "ホットキーターゲットに設定",
+  "group.hotkeyTargetActive": "ホットキーターゲット（クリックで解除）",
   "sidebar.addGroup": "+ グループ",
   "sidebar.noGroup": "グループなし",
   "sidebar.noMatches": "一致なし",

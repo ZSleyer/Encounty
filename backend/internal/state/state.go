@@ -350,6 +350,7 @@ type AppState struct {
 	Sessions        []Session `json:"sessions"`
 	Groups          []Group   `json:"groups"` // Organizational Sidebar sections; always an array, never null
 	ActiveID        string    `json:"active_id"`
+	ActiveGroupID   string    `json:"active_group_id"`
 	Hotkeys         HotkeyMap `json:"hotkeys"`
 	Settings        Settings  `json:"settings"`
 	DataPath        string    `json:"data_path"`
@@ -877,6 +878,57 @@ func (m *Manager) Reset(id string) bool {
 	return false
 }
 
+// IncrementGroup increments all Pokémon in the given group by their step value.
+func (m *Manager) IncrementGroup(groupID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].GroupID != groupID {
+			continue
+		}
+		step := m.state.Pokemon[i].Step
+		if step <= 0 {
+			step = 1
+		}
+		m.state.Pokemon[i].Encounters += step
+	}
+	m.markDirty()
+}
+
+// DecrementGroup decrements all Pokémon in the given group by their step value,
+// flooring at zero.
+func (m *Manager) DecrementGroup(groupID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].GroupID != groupID {
+			continue
+		}
+		step := m.state.Pokemon[i].Step
+		if step <= 0 {
+			step = 1
+		}
+		if m.state.Pokemon[i].Encounters >= step {
+			m.state.Pokemon[i].Encounters -= step
+		} else {
+			m.state.Pokemon[i].Encounters = 0
+		}
+	}
+	m.markDirty()
+}
+
+// ResetGroup resets the encounter count of all Pokémon in the given group to 0.
+func (m *Manager) ResetGroup(groupID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].GroupID == groupID {
+			m.state.Pokemon[i].Encounters = 0
+		}
+	}
+	m.markDirty()
+}
+
 // SetEncounters sets the encounter counter for the given Pokémon to an exact
 // value (floored at 0). Returns the new count and true, or (0, false) if not found.
 func (m *Manager) SetEncounters(id string, count int) (int, bool) {
@@ -1034,11 +1086,46 @@ func (m *Manager) SetActive(id string) bool {
 		return false
 	}
 	m.state.ActiveID = id
+	m.state.ActiveGroupID = ""
 	for i := range m.state.Pokemon {
 		m.state.Pokemon[i].IsActive = m.state.Pokemon[i].ID == id
 	}
 	m.markDirty()
 	return true
+}
+
+// SetActiveGroup marks the group with the given ID as the active hotkey target.
+// It clears ActiveID so individual-pokemon hotkeys do not fire simultaneously.
+// Returns false if groupID is not found.
+func (m *Manager) SetActiveGroup(groupID string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if groupID != "" {
+		found := false
+		for _, g := range m.state.Groups {
+			if g.ID == groupID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	m.state.ActiveGroupID = groupID
+	m.state.ActiveID = ""
+	for i := range m.state.Pokemon {
+		m.state.Pokemon[i].IsActive = false
+	}
+	m.markDirty()
+	return true
+}
+
+// GetActiveGroupID returns the ID of the currently active group, or "" if none.
+func (m *Manager) GetActiveGroupID() string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.state.ActiveGroupID
 }
 
 // CompletePokemon stamps the Pokémon's CompletedAt field with the current

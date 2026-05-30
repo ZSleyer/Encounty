@@ -252,13 +252,21 @@ func (m *darwinManager) matchAndDispatch(code uint16) {
 		if combo.Ctrl != m.mods.ctrl || combo.Shift != m.mods.shift || combo.Alt != m.mods.alt {
 			continue
 		}
-		var pid string
-		if active := m.stateMgr.GetActivePokemon(); active != nil {
-			pid = active.ID
-		}
-		select {
-		case m.actions <- Action{Type: action, PokemonID: pid}:
-		default:
+		gid := m.stateMgr.GetActiveGroupID()
+		if gid != "" {
+			select {
+			case m.actions <- Action{Type: action, GroupID: gid}:
+			default:
+			}
+		} else {
+			var pid string
+			if active := m.stateMgr.GetActivePokemon(); active != nil {
+				pid = active.ID
+			}
+			select {
+			case m.actions <- Action{Type: action, PokemonID: pid}:
+			default:
+			}
 		}
 	}
 }

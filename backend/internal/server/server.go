@@ -508,6 +508,20 @@ func (s *Server) handleHotkeyDecrement(id string) {
 	s.broadcastState()
 }
 
+// handleHotkeyGroupIncrement increments all Pokémon in the group and broadcasts.
+func (s *Server) handleHotkeyGroupIncrement(groupID string) {
+	s.state.IncrementGroup(groupID)
+	s.state.ScheduleSave()
+	s.broadcastState()
+}
+
+// handleHotkeyGroupDecrement decrements all Pokémon in the group and broadcasts.
+func (s *Server) handleHotkeyGroupDecrement(groupID string) {
+	s.state.DecrementGroup(groupID)
+	s.state.ScheduleSave()
+	s.broadcastState()
+}
+
 // processHotkeyActions consumes the hotkey action channel and translates each
 // action into the appropriate state mutation + broadcast. For "reset" the
 // frontend is asked to confirm instead of acting immediately, to avoid
@@ -624,6 +638,20 @@ func (s *Server) dispatchHotkeyAction(action hotkeys.Action) {
 	if !s.acceptHotkey(action.Type) {
 		return
 	}
+
+	// Group hotkey: apply to all members of the active group.
+	if action.GroupID != "" {
+		switch action.Type {
+		case "increment":
+			s.handleHotkeyGroupIncrement(action.GroupID)
+		case "decrement":
+			s.handleHotkeyGroupDecrement(action.GroupID)
+		case "reset":
+			s.hub.BroadcastRaw("request_group_reset_confirm", map[string]any{"group_id": action.GroupID})
+		}
+		return
+	}
+
 	id := action.PokemonID
 	if id == "" {
 		if active := s.state.GetActivePokemon(); active != nil {

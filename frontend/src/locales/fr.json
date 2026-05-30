@@ -909,6 +909,8 @@
   "group.hunt.noStream": "Aucune source connectée",
   "group.hunt.started": "{{count}} chasses démarrées",
   "group.hunt.stopped": "{{count}} chasses arrêtées",
+  "group.hotkeyTarget": "Définir comme cible de raccourci",
+  "group.hotkeyTargetActive": "Cible de raccourci (cliquer pour retirer)",
   "sidebar.addGroup": "+ Groupe",
   "sidebar.noGroup": "Sans groupe",
   "sidebar.noMatches": "Aucun résultat",

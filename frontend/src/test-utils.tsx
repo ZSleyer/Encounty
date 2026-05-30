@@ -198,6 +198,7 @@ export function makeAppState(overrides?: Partial<AppState>): AppState {
     pokemon,
     sessions: [],
     active_id: pokemon.find((p) => p.is_active)?.id ?? "poke-1",
+    active_group_id: "",
     hotkeys: { increment: "", decrement: "", reset: "", next_pokemon: "" },
     settings: {
       output_enabled: false,

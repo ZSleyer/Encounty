@@ -341,6 +341,8 @@ export interface AppState {
   pokemon: Pokemon[];
   sessions: Session[];
   active_id: string;
+  /** ID of the group currently set as the hotkey target. Empty string means no active group. Mutually exclusive with active_id. */
+  active_group_id: string;
   hotkeys: HotkeyMap;
   settings: Settings;
   data_path: string;
