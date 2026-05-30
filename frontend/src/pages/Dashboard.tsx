@@ -352,18 +352,31 @@ function buildResetConfirmConfig(
   pokemon: Pokemon[],
   t: (key: string) => string,
   onConfirm: (pokemonId: string) => void,
+  onConfirmGroup: (groupId: string) => void,
 ): { isOpen: boolean; title: string; message: string; isDestructive: boolean; onConfirm: () => void } | null {
-  if (msg.type !== "request_reset_confirm") return null;
-  const payload = msg.payload as { pokemon_id: string };
-  const match = pokemon.find((p) => p.id === payload.pokemon_id);
-  const nameSuffix = match ? ` (${match.name})` : "";
-  return {
-    isOpen: true,
-    title: t("confirm.resetTitle"),
-    message: `${t("confirm.resetMsg")}${nameSuffix}`,
-    isDestructive: true,
-    onConfirm: () => onConfirm(payload.pokemon_id),
-  };
+  if (msg.type === "request_reset_confirm") {
+    const payload = msg.payload as { pokemon_id: string };
+    const match = pokemon.find((p) => p.id === payload.pokemon_id);
+    const nameSuffix = match ? ` (${match.name})` : "";
+    return {
+      isOpen: true,
+      title: t("confirm.resetTitle"),
+      message: `${t("confirm.resetMsg")}${nameSuffix}`,
+      isDestructive: true,
+      onConfirm: () => onConfirm(payload.pokemon_id),
+    };
+  }
+  if (msg.type === "request_group_reset_confirm") {
+    const payload = msg.payload as { group_id: string };
+    return {
+      isOpen: true,
+      title: t("confirm.resetTitle"),
+      message: t("confirm.resetGroupMsg"),
+      isDestructive: true,
+      onConfirm: () => onConfirmGroup(payload.group_id),
+    };
+  }
+  return null;
 }
 
 /** Fetches the games list on mount for generation-aware odds display. */
@@ -908,6 +921,7 @@ function handleResetConfirmMessage(
   const config = buildResetConfirmConfig(
     msg, pokemon ?? [], t,
     (pokemonId) => send("reset", { pokemon_id: pokemonId }),
+    (groupId) => send("reset_group", { group_id: groupId }),
   );
   if (config) {
     globalThis.electronAPI?.focusWindow();

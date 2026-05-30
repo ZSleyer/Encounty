@@ -104,6 +104,7 @@
   "dash.tooltipOverlayCustom": "カスタムOverlayレイアウト",
   "confirm.resetTitle": "カウンターをリセット",
   "confirm.resetMsg": "このポケモンのEncountersを0にリセットしますか？",
+  "confirm.resetGroupMsg": "このグループの全ポケモンのEncountersを0にリセットしますか？",
   "confirm.timerResetTitle": "タイマーをリセット",
   "confirm.timerResetMsg": "タイマーをリセットしますか？",
   "confirm.deleteTitle": "ポケモンを削除",

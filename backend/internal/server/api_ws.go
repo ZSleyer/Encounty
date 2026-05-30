@@ -29,6 +29,8 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 		s.wsHandleSetActive(msg.Payload)
 	case "set_active_group":
 		s.wsHandleSetActiveGroup(msg.Payload)
+	case "reset_group":
+		s.wsHandleResetGroup(msg.Payload)
 	case "set_encounters":
 		s.wsHandleSetEncounters(msg.Payload)
 	case "complete":
@@ -125,6 +127,20 @@ func (s *Server) wsHandleSetActiveGroup(payload json.RawMessage) {
 		return
 	}
 	s.state.SetActiveGroup(p.GroupID)
+	s.state.ScheduleSave()
+	s.broadcastState()
+}
+
+// wsHandleResetGroup zeroes the encounter counter of every Pokémon in the group
+// identified by group_id and broadcasts the updated state.
+func (s *Server) wsHandleResetGroup(payload json.RawMessage) {
+	var p struct {
+		GroupID string `json:"group_id"`
+	}
+	if json.Unmarshal(payload, &p) != nil || p.GroupID == "" {
+		return
+	}
+	s.state.ResetGroup(p.GroupID)
 	s.state.ScheduleSave()
 	s.broadcastState()
 }

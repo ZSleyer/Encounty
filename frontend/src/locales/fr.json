@@ -104,6 +104,7 @@
   "dash.tooltipOverlayCustom": "Disposition d'overlay personnalisee",
   "confirm.resetTitle": "Reinitialiser le compteur",
   "confirm.resetMsg": "Etes-vous sur de vouloir reinitialiser les encounters de ce Pokemon a 0 ?",
+  "confirm.resetGroupMsg": "Etes-vous sur de vouloir reinitialiser les encounters de tous les Pokemon de ce groupe a 0 ?",
   "confirm.timerResetTitle": "Reinitialiser le minuteur",
   "confirm.timerResetMsg": "Etes-vous sur de vouloir reinitialiser le minuteur ?",
   "confirm.deleteTitle": "Supprimer le Pokemon",

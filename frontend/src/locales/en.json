@@ -104,6 +104,7 @@
   "dash.tooltipOverlayCustom": "Custom overlay layout",
   "confirm.resetTitle": "Reset counter",
   "confirm.resetMsg": "Are you sure you want to reset the encounters for this Pokémon to 0?",
+  "confirm.resetGroupMsg": "Are you sure you want to reset the encounters for all Pokémon in this group to 0?",
   "confirm.timerResetTitle": "Reset timer",
   "confirm.timerResetMsg": "Are you sure you want to reset the timer?",
   "confirm.deleteTitle": "Delete Pokémon",

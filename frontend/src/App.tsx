@@ -338,7 +338,7 @@ function AppShell() {
     } else if (msg.type === "detector_status") {
       const p = msg.payload as { pokemon_id: string; state: string; confidence: number; poll_ms: number };
       setDetectorStatus(p.pokemon_id, { state: p.state, confidence: p.confidence, poll_ms: p.poll_ms } as DetectorStatusEntry);
-    } else if (msg.type === "request_reset_confirm") {
+    } else if (msg.type === "request_reset_confirm" || msg.type === "request_group_reset_confirm") {
       // Navigate to dashboard so the reset confirmation modal can be shown.
       // Without this, the modal is invisible on non-dashboard pages and the
       // app appears frozen because the modal blocks interaction.
