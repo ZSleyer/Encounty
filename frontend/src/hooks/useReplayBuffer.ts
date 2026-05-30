@@ -51,7 +51,7 @@ export function useReplayBuffer(
   const [isBuffering, setIsBuffering] = useState(false);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null);
   // Ring buffer implemented as a fixed-size array with a write pointer
   const bufferRef = useRef<ImageData[]>([]);
   const writeIndexRef = useRef(0);

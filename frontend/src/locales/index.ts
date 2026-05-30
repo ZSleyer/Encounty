@@ -25,7 +25,7 @@ export const LOCALES: { code: Locale; label: string; flag: string; machineTransl
   { code: "ja", label: "日本語", flag: "🇯🇵", machineTranslated: true },
 ];
 
-const saved = localStorage.getItem("encounty-locale");
+const saved = typeof localStorage !== "undefined" ? localStorage.getItem("encounty-locale") : null;
 const validLocales = LOCALES.map((l) => l.code);
 const fallbackLng = "de";
 
