@@ -651,12 +651,12 @@ function AppShell() {
           {/* Center */}
           <p className="text-center">
             <a
-              href="https://www.youtube.com/watch?v=VDGG9zi53rQ"
+              href="https://www.youtube.com/watch?v=iKLqlb_oX60"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-text-faint italic tracking-wide hover:text-text-muted transition-colors"
+              className="text-text-faint tracking-wide hover:text-text-muted transition-colors"
             >
-              let magic stitch you back together
+              「Ender Ember」
             </a>
           </p>
 

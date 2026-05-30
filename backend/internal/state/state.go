@@ -674,7 +674,7 @@ func (m *Manager) AddPokemon(p Pokemon) {
 	}
 	m.mu.Lock()
 	m.state.Pokemon = append(m.state.Pokemon, p)
-	if m.state.ActiveID == "" {
+	if m.state.ActiveID == "" && m.state.ActiveGroupID == "" {
 		m.state.ActiveID = p.ID
 		for i := range m.state.Pokemon {
 			m.state.Pokemon[i].IsActive = m.state.Pokemon[i].ID == p.ID
