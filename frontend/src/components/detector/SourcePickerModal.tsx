@@ -472,21 +472,21 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
       return;
     }
 
-    // Camera flow
+    // Camera flow: pre-select the remembered camera but keep the modal open so
+    // the user can confirm or switch. Camera deviceIds are stable across restarts,
+    // so silently calling onSelect() would skip the picker every time.
     if (sourceType === "browser_camera" && remembered.type === "browser_camera") {
       if (cameras.length === 0) return;
       restoreAttemptedRef.current = true;
 
       const exactCam = findCameraById(cameras, remembered.sourceId);
       if (exactCam) {
-        pushToast({ type: "info", title: t("capture.sourceRestored", { label: exactCam.label }) });
-        selectCamera(cameras, exactCam.deviceId, onSelect, selectedStreamRef);
+        setSelectedId(exactCam.deviceId);
         return;
       }
       const fuzzyCam = findCameraByLabel(cameras, remembered.sourceLabel);
       if (fuzzyCam) {
-        pushToast({ type: "info", title: t("capture.sourceRestored", { label: fuzzyCam.label }) });
-        selectCamera(cameras, fuzzyCam.deviceId, onSelect, selectedStreamRef);
+        setSelectedId(fuzzyCam.deviceId);
         return;
       }
       pushToast({ type: "info", title: t("capture.sourceNotFound") });

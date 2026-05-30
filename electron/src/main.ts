@@ -625,6 +625,11 @@ if (gotTheLock) {
 // so the screen capture detection loop keeps running at full speed.
 app.commandLine.appendSwitch('disable-background-timer-throttling');
 
+// Prevent Chromium from registering as a media session handler. Without this,
+// Chromium intercepts system-wide media keys (volume, play/pause) on Windows,
+// causing the OS volume OSD to appear and potentially degrading shell responsiveness.
+app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
+
 // WebGPU: override GPU blocklist so NVIDIA works on Linux
 app.commandLine.appendSwitch('disable-gpu-blocklist');
 app.commandLine.appendSwitch('enable-unsafe-webgpu');
