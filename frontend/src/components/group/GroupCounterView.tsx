@@ -9,7 +9,7 @@
  * Bulk reset confirmation is the parent's responsibility: this component only
  * forwards the onBulkReset callback.
  */
-import { Plus, Minus, RotateCcw } from "lucide-react";
+import { Plus, Minus, RotateCcw, Zap } from "lucide-react";
 import type { Group, Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { PokemonCard } from "../pokemon/PokemonCard";
@@ -83,10 +83,11 @@ export function GroupCounterView({
               {t("group.count", { count: members.length })}
             </span>
             <span
-              className="text-xs font-medium px-2.5 py-1 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums"
+              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums"
               title={t("group.totalEncounters", { count: totalEncounters })}
             >
-              Σ {totalEncounters.toLocaleString()}
+              <Zap className="w-3 h-3 text-accent-yellow" aria-hidden="true" />
+              {totalEncounters.toLocaleString()}
             </span>
           </div>
 

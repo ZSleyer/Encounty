@@ -145,7 +145,7 @@ export function PokemonCard({
             {pokemon.encounters}
           </span>
           <p className="text-[10px] 2xl:text-xs text-text-muted uppercase tracking-widest font-bold mt-0.5">
-            Encounters
+            {t("dash.encounters")}
           </p>
         </div>
 
