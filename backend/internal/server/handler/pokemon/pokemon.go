@@ -35,6 +35,12 @@ type setTimerRequest struct {
 	Ms int64 `json:"ms"`
 }
 
+// reorderRequest is the JSON body for PUT /api/pokemon/reorder. Order lists the
+// Pokemon IDs in their new display order (index becomes the SortOrder).
+type reorderRequest struct {
+	Order []string `json:"order"`
+}
+
 // --- Deps interface ----------------------------------------------------------
 
 // DetectorStopper can stop a running detector for a given Pokemon ID.
@@ -65,6 +71,7 @@ type Deps interface {
 	StateDecrement(id string) (int, bool)
 	StateReset(id string) bool
 	StateSetEncounters(id string, count int) (int, bool)
+	StateReorderPokemon(orderedIDs []string) error
 	StateSetActive(id string) bool
 	StateCompletePokemon(id string) bool
 	StateUncompletePokemon(id string) bool
@@ -120,6 +127,12 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 	path := r.URL.Path
 
 	switch {
+	case path == pokemonAPIPrefix+"reorder":
+		if r.Method == http.MethodPut {
+			h.handleReorderPokemon(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	case strings.HasSuffix(path, "/overlay/unlink"):
 		if r.Method == http.MethodPost {
 			h.handleUnlinkOverlay(w, r)
@@ -354,6 +367,35 @@ func (h *handler) handleSetEncounters(w http.ResponseWriter, r *http.Request, id
 	h.deps.Broadcaster().BroadcastRaw("encounter_set", map[string]any{"pokemon_id": id, "count": count})
 	h.deps.BroadcastState()
 	httputil.WriteJSON(w, http.StatusOK, countResponse{Count: count})
+}
+
+// handleReorderPokemon assigns each Pokemon in the request body a zero-based
+// SortOrder matching its position, then broadcasts the updated state.
+// PUT /api/pokemon/reorder
+//
+// @Summary      Reorder Pokemon
+// @Description  Assigns each Pokemon a zero-based SortOrder matching its position in the request order
+// @Tags         pokemon
+// @Accept       json
+// @Param        body body reorderRequest true "Ordered Pokemon IDs"
+// @Success      200 {object} state.AppState
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /pokemon/reorder [put]
+func (h *handler) handleReorderPokemon(w http.ResponseWriter, r *http.Request) {
+	var body reorderRequest
+	if err := httputil.ReadJSON(r, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if err := h.deps.StateReorderPokemon(body.Order); err != nil {
+		// An unknown id means the client sent a stale or invalid ordering.
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	h.deps.StateScheduleSave()
+	h.deps.BroadcastState()
+	httputil.WriteJSON(w, http.StatusOK, h.deps.StateGetState())
 }
 
 // handleTimerStart begins the per-Pokemon timer.

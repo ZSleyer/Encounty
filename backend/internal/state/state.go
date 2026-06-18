@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +35,7 @@ const (
 // and an optional per-Pokémon overlay configuration.
 type Pokemon struct {
 	ID                 string           `json:"id"`
-	Name               string           `json:"name"`            // Display name (localized)
+	Name               string           `json:"name"` // Display name (localized)
 	BaseName           string           `json:"base_name,omitempty"`
 	FormName           string           `json:"form_name,omitempty"`
 	Title              string           `json:"title,omitempty"` // User-defined custom title
@@ -59,6 +60,7 @@ type Pokemon struct {
 	HuntMode           string           `json:"hunt_mode"`  // "both" | "timer" | "detector" (default "both")
 	GroupID            string           `json:"group_id"`   // Empty string means "no group" (shown in "Ohne Gruppe" section)
 	Tags               []string         `json:"tags"`       // Arbitrary short labels; always a JSON array, never null
+	SortOrder          int              `json:"sort_order"` // Manual ordering position (ascending); assigned via ReorderPokemon
 }
 
 // Group organizes Pokémon into collapsible Sidebar sections.
@@ -642,12 +644,23 @@ func (m *Manager) StopNotifier() {
 	slog.Debug("State notifier stopped")
 }
 
-// GetState returns a value copy of the current application state.
-// Safe to call concurrently; acquires a read lock.
+// GetState returns a value copy of the current application state with the
+// Pokémon slice sorted ascending by SortOrder (stable). Sorting operates on a
+// copy so the underlying storage order is never mutated. Safe to call
+// concurrently; acquires a read lock.
 func (m *Manager) GetState() AppState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return m.state
+	st := m.state
+	if len(m.state.Pokemon) > 1 {
+		pokemon := make([]Pokemon, len(m.state.Pokemon))
+		copy(pokemon, m.state.Pokemon)
+		sort.SliceStable(pokemon, func(i, j int) bool {
+			return pokemon[i].SortOrder < pokemon[j].SortOrder
+		})
+		st.Pokemon = pokemon
+	}
+	return st
 }
 
 // GetActivePokemon returns a pointer to a copy of the currently active
@@ -692,6 +705,8 @@ func applyPokemonUpdate(dst *Pokemon, update Pokemon) {
 	applyOverlayUpdate(dst, update)
 	// Always update Step (0 means default of 1)
 	dst.Step = update.Step
+	// Always update SortOrder (0 is a valid first position)
+	dst.SortOrder = update.SortOrder
 }
 
 // applyBasicFields copies non-zero basic fields from update to dst.
@@ -782,6 +797,28 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 		}
 	}
 	return false
+}
+
+// ReorderPokemon assigns each Pokémon in orderedIDs a zero-based SortOrder
+// matching its position. It returns an error if any id is unknown.
+func (m *Manager) ReorderPokemon(orderedIDs []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// Index existing Pokémon by id so we can validate before mutating.
+	indexByID := make(map[string]int, len(m.state.Pokemon))
+	for i := range m.state.Pokemon {
+		indexByID[m.state.Pokemon[i].ID] = i
+	}
+	for _, id := range orderedIDs {
+		if _, ok := indexByID[id]; !ok {
+			return fmt.Errorf("unknown pokemon id: %s", id)
+		}
+	}
+	for order, id := range orderedIDs {
+		m.state.Pokemon[indexByID[id]].SortOrder = order
+	}
+	m.markDirty()
+	return nil
 }
 
 // resetLinkedOverlays resets any Pokemon whose overlay is linked to the given id back to "default".
@@ -1616,4 +1653,3 @@ func (m *Manager) SetPokemonTags(pokemonID string, tags []string) bool {
 	}
 	return false
 }
-

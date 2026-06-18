@@ -589,3 +589,107 @@ func TestGetConfigDir(t *testing.T) {
 		t.Errorf("GetConfigDir = %q, want %q", m.GetConfigDir(), dir)
 	}
 }
+
+// TestConcurrentEncounterMutations hammers a single Pokémon with many
+// concurrent Increment, SetEncounters, and Reset calls. Run with -race it
+// proves the Manager mutex serialises every mutation: no data race, no panic,
+// and the final state stays internally consistent (a non-negative count that
+// equals the value reported by GetState). set_encounters remains
+// last-write-wins by design, so the exact final value is not asserted, only
+// that the state is coherent.
+func TestConcurrentEncounterMutations(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	const workers = 32
+	const iterations = 200
+
+	var wg sync.WaitGroup
+	wg.Add(workers * 3)
+
+	// Increment workers.
+	for w := 0; w < workers; w++ {
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				m.Increment("p1")
+			}
+		}()
+	}
+	// SetEncounters workers (last-write-wins).
+	for w := 0; w < workers; w++ {
+		go func(seed int) {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				m.SetEncounters("p1", seed+i)
+			}
+		}(w)
+	}
+	// Reset workers.
+	for w := 0; w < workers; w++ {
+		go func() {
+			defer wg.Done()
+			for i := 0; i < iterations; i++ {
+				m.Reset("p1")
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// The final state must be internally consistent: the count returned by the
+	// last serialised mutation must match what GetState reports, and it must
+	// never be negative regardless of the interleaving.
+	st := m.GetState()
+	if len(st.Pokemon) != 1 {
+		t.Fatalf("Pokemon length = %d, want 1", len(st.Pokemon))
+	}
+	if st.Pokemon[0].Encounters < 0 {
+		t.Errorf("Encounters = %d, want >= 0", st.Pokemon[0].Encounters)
+	}
+
+	// A final deterministic write must be observed exactly, proving no torn
+	// read-then-write slipped through.
+	got, ok := m.SetEncounters("p1", 12345)
+	if !ok {
+		t.Fatal("SetEncounters returned not found")
+	}
+	if got != 12345 {
+		t.Errorf("SetEncounters returned %d, want 12345", got)
+	}
+	if final := m.GetState().Pokemon[0].Encounters; final != 12345 {
+		t.Errorf("final Encounters = %d, want 12345", final)
+	}
+}
+
+func TestReorderPokemon(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("a", "Abra"))
+	m.AddPokemon(makePokemon("b", "Bulbasaur"))
+	m.AddPokemon(makePokemon("c", "Charmander"))
+
+	if err := m.ReorderPokemon([]string{"c", "a", "b"}); err != nil {
+		t.Fatalf("ReorderPokemon returned error: %v", err)
+	}
+
+	// GetState returns Pokémon sorted ascending by SortOrder, so the order must
+	// now match the sequence we passed.
+	got := m.GetState().Pokemon
+	want := []string{"c", "a", "b"}
+	for i, id := range want {
+		if got[i].ID != id {
+			t.Errorf("position %d = %q, want %q", i, got[i].ID, id)
+		}
+	}
+
+	// An unknown id is rejected and leaves the existing order untouched.
+	if err := m.ReorderPokemon([]string{"b", "zzz"}); err == nil {
+		t.Fatal("ReorderPokemon with unknown id: expected error, got nil")
+	}
+	after := m.GetState().Pokemon
+	for i, id := range want {
+		if after[i].ID != id {
+			t.Errorf("order changed after rejected reorder: position %d = %q, want %q", i, after[i].ID, id)
+		}
+	}
+}

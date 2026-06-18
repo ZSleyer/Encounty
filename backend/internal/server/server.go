@@ -366,6 +366,12 @@ func (s *Server) StateSetEncounters(id string, count int) (int, bool) {
 	return s.state.SetEncounters(id, count)
 }
 
+// StateReorderPokemon assigns each Pokemon in orderedIDs a zero-based SortOrder
+// matching its position. Returns an error if any id is unknown.
+func (s *Server) StateReorderPokemon(orderedIDs []string) error {
+	return s.state.ReorderPokemon(orderedIDs)
+}
+
 // StateSetActive marks the given Pokemon as active.
 func (s *Server) StateSetActive(id string) bool { return s.state.SetActive(id) }
 

@@ -112,6 +112,11 @@ func (d *testDeps) StateSetEncounters(id string, count int) (int, bool) {
 	return d.stateMgr.SetEncounters(id, count)
 }
 
+// StateReorderPokemon delegates to the real state manager.
+func (d *testDeps) StateReorderPokemon(orderedIDs []string) error {
+	return d.stateMgr.ReorderPokemon(orderedIDs)
+}
+
 // StateSetActive delegates to the real state manager.
 func (d *testDeps) StateSetActive(id string) bool { return d.stateMgr.SetActive(id) }
 
