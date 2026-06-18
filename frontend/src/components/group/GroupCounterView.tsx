@@ -1,0 +1,135 @@
+/**
+ * GroupCounterView.tsx — Main-panel view for the currently active group.
+ *
+ * Shown in the Dashboard main panel when no single Pokémon is the active or
+ * viewed target but a group IS active. It renders the group's members in a
+ * responsive grid (reusing PokemonCard) so the panel is never empty, plus a
+ * header with the group identity and bulk increment/decrement/reset actions.
+ *
+ * Bulk reset confirmation is the parent's responsibility: this component only
+ * forwards the onBulkReset callback.
+ */
+import { Plus, Minus, RotateCcw } from "lucide-react";
+import type { Group, Pokemon } from "../../types";
+import { useI18n } from "../../contexts/I18nContext";
+import { PokemonCard } from "../pokemon/PokemonCard";
+
+/** Fallback dot colour used when a group has no colour configured. */
+const DEFAULT_GROUP_COLOR = "#6b7280";
+
+type Props = Readonly<{
+  group: Group;
+  /** Members already filtered to this group; passed through as given. */
+  members: Pokemon[];
+  onIncrement: (id: string) => void;
+  onDecrement: (id: string) => void;
+  onReset: (id: string) => void;
+  onActivate: (id: string) => void;
+  onDelete: (id: string) => void;
+  onEdit: (pokemon: Pokemon) => void;
+  /** Increment every member of the group. */
+  onBulkIncrement: () => void;
+  /** Decrement every member of the group. */
+  onBulkDecrement: () => void;
+  /** Reset every member of the group. Confirmation is handled by the parent. */
+  onBulkReset: () => void;
+}>;
+
+/**
+ * Renders the active group's header (colour dot, name, member count, bulk
+ * actions) followed by a responsive grid of PokemonCard items, or an empty
+ * state message when the group has no members.
+ */
+export function GroupCounterView({
+  group,
+  members,
+  onIncrement,
+  onDecrement,
+  onReset,
+  onActivate,
+  onDelete,
+  onEdit,
+  onBulkIncrement,
+  onBulkDecrement,
+  onBulkReset,
+}: Props) {
+  const { t } = useI18n();
+  const dotColor = group.color || DEFAULT_GROUP_COLOR;
+
+  // Shared button styling: visible focus ring + accessible hit area.
+  const bulkButtonClass =
+    "flex items-center justify-center w-9 h-9 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
+
+  return (
+    <section aria-label={group.name} className="flex flex-col gap-4">
+      {/* --- Header --- */}
+      <header className="flex items-center gap-3 flex-wrap">
+        <span
+          aria-hidden="true"
+          className="w-3 h-3 rounded-full shrink-0 border border-black/20"
+          style={{ backgroundColor: dotColor }}
+        />
+        <h2 className="text-xl font-bold text-text-primary truncate min-w-0">
+          {group.name}
+        </h2>
+        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums">
+          {t("group.count", { count: members.length })}
+        </span>
+
+        {/* Bulk actions */}
+        <div className="flex items-center gap-2 ml-auto">
+          <button
+            type="button"
+            onClick={onBulkIncrement}
+            className={bulkButtonClass}
+            title={t("group.bulkIncrement")}
+            aria-label={t("group.bulkIncrement")}
+          >
+            <Plus className="w-4 h-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onBulkDecrement}
+            className={bulkButtonClass}
+            title={t("group.bulkDecrement")}
+            aria-label={t("group.bulkDecrement")}
+          >
+            <Minus className="w-4 h-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onBulkReset}
+            className={`${bulkButtonClass} hover:text-red-400`}
+            title={t("group.bulkReset")}
+            aria-label={t("group.bulkReset")}
+          >
+            <RotateCcw className="w-4 h-4" aria-hidden="true" />
+          </button>
+        </div>
+      </header>
+
+      {/* --- Members --- */}
+      {members.length === 0 ? (
+        <p className="text-sm text-text-muted py-8 text-center">
+          {t("group.empty")}
+        </p>
+      ) : (
+        <ul className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 list-none p-0 m-0">
+          {members.map((pokemon) => (
+            <li key={pokemon.id}>
+              <PokemonCard
+                pokemon={pokemon}
+                onIncrement={onIncrement}
+                onDecrement={onDecrement}
+                onReset={onReset}
+                onActivate={onActivate}
+                onDelete={onDelete}
+                onEdit={onEdit}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

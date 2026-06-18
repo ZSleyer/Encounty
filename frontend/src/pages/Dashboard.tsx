@@ -6,7 +6,7 @@
  * the active Pokémon (increment, decrement, reset, complete/delete).
  * Counter actions are sent over WebSocket for immediate multi-tab sync.
  */
-import { useState, useEffect, useRef, useReducer } from "react";
+import { useState, useEffect, useRef, useReducer, Fragment } from "react";
 import {
   Plus,
   Minus,
@@ -65,6 +65,7 @@ import { TagChip } from "../components/shared/TagChip";
 import { TagFilterBar } from "../components/shared/TagFilterBar";
 import { SidebarGroupSection, type GroupAction } from "../components/shared/SidebarGroupSection";
 import { GroupManagementModal } from "../components/shared/GroupManagementModal";
+import { GroupCounterView } from "../components/group/GroupCounterView";
 import { updateGroup, startGroupHunt, stopGroupHunt } from "../utils/groupsApi";
 import { useI18n } from "../contexts/I18nContext";
 import { useCaptureService, useCaptureVersion } from "../contexts/CaptureServiceContext";
@@ -74,7 +75,7 @@ import { getOddsFractional } from "../utils/odds";
 import { SPRITE_FALLBACK } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 
-import { apiUrl } from "../utils/api";
+import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
 import { formatTimer, computeTimerMs } from "../utils/timer";
 import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 
@@ -598,7 +599,7 @@ function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
 }
 
 type SidebarTab = "active" | "archived";
-type SortMode = "recent" | "name" | "encounters" | "game";
+type SortMode = "recent" | "name" | "encounters" | "game" | "manual";
 type SortDir = "asc" | "desc";
 type HuntMode = "both" | "timer" | "detector";
 
@@ -615,6 +616,13 @@ function loadSortDir(): SortDir {
 /** Sorts a Pokemon list by the given mode and direction. */
 function sortPokemonList(list: Pokemon[], mode: SortMode, dir: SortDir): Pokemon[] {
   if (mode === "recent") return dir === "asc" ? list : [...list].reverse();
+  // Manual order is absolute (set via drag-and-drop); direction does not apply.
+  // Legacy items without sort_order sort to the end.
+  if (mode === "manual") {
+    return [...list].sort(
+      (a, b) => (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER),
+    );
+  }
   const sorted = [...list].sort((a, b) => {
     if (mode === "name") return a.name.localeCompare(b.name);
     if (mode === "encounters") return a.encounters - b.encounters;
@@ -880,9 +888,9 @@ function scrollFocusedIntoView(focusedIdx: number | null, asideRef: React.RefObj
 }
 
 /** Finds the currently viewed Pokemon from the list by viewedId or fallback activeId. */
-function findViewedPokemon(allPokemon: Pokemon[], viewedId: string | null, activeId: string): Pokemon | null {
-  const targetId = viewedId || activeId;
-  return allPokemon.find((p) => p.id === targetId) ?? null;
+function findViewedPokemon(allPokemon: Pokemon[], viewedId: string | null): Pokemon | null {
+  if (!viewedId) return null;
+  return allPokemon.find((p) => p.id === viewedId) ?? null;
 }
 
 /** Saves a detector configuration for a Pokemon via the API. */
@@ -1722,6 +1730,12 @@ export function Dashboard() {
   const [focusedIdx, setFocusedIdx] = useState<number | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>(loadSortMode);
   const [sortDir, setSortDir] = useState<SortDir>(loadSortDir);
+  // Id of the item currently being dragged / hovered for drag-and-drop reorder.
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+  // Whether the drop slot is below (after) the hovered item rather than above.
+  // Lets the user drop into the last position by hovering an item's lower half.
+  const [dropAfter, setDropAfter] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem("encounty-sidebar-collapsed") === "true");
   const [showHuntMenu, setShowHuntMenu] = useState(false);
@@ -1732,19 +1746,24 @@ export function Dashboard() {
   const asideRef = useRef<HTMLElement>(null);
 
   const [viewedPokemonId, setViewedPokemonId] = useState<string | null>(null);
+  // Which group is shown in the main panel (mutually exclusive with
+  // viewedPokemonId). The view is purely local and independent of the hotkey
+  // target (active_id / active_group_id): setting a hotkey target never changes
+  // what is shown, and showing something never changes the hotkey target.
+  const [viewedGroupId, setViewedGroupId] = useState<string | null>(null);
   const [panelTab, setPanelTab] = useState<PanelTab>("counter");
   const rightPanelTab = panelTab;
   const [pendingTab, setPendingTab] = useState<PanelTab | null>(null);
 
-  // viewedPokemonId is a mirror of backend active_id. The only way to change
-  // the currently-viewed Pokémon is to call POST /api/pokemon/{id}/activate,
-  // which updates active_id and broadcasts state_update. Both sidebar clicks
-  // and the NextPokemon (F4) hotkey go through this single source of truth
-  // so they cannot race each other.
+  // Seed the viewed Pokémon once from the backend's active_id so the panel is
+  // not empty on first load. After this the view is driven only by local
+  // selection (sidebar click / "show group"), decoupled from the hotkey target.
+  const didInitView = useRef(false);
   useEffect(() => {
-    const activeId = appState?.active_id ?? null;
-    setViewedPokemonId((prev) => (prev === activeId ? prev : activeId));
-  }, [appState?.active_id]);
+    if (didInitView.current || !appState) return;
+    didInitView.current = true;
+    if (appState.active_id) setViewedPokemonId(appState.active_id);
+  }, [appState]);
 
   /** Guarded tab switch — shows confirmation when overlay has unsaved changes. */
   const setRightPanelTab = (tab: PanelTab) => {
@@ -1812,13 +1831,12 @@ export function Dashboard() {
     });
   };
   const handleActivate = (id: string) => {
-    // Optimistically switch the view so the user sees immediate feedback,
-    // then persist the choice to the backend. The state_update effect below
-    // will reconcile if the backend lands on a different active_id
-    // (e.g. two hotkeys racing).
+    // View-only: show the Pokémon in the main panel. This does NOT change the
+    // hotkey target (active_id) - that is controlled solely by the keyboard
+    // icon. Showing a Pokémon clears any group view.
+    setViewedGroupId(null);
     setViewedPokemonId(id);
     setRightPanelTab("counter");
-    void fetch(apiUrl(`/api/pokemon/${id}/activate`), { method: "POST" }).catch(() => {});
   };
   const handleDelete = (id: string) => {
     setConfirmConfig({
@@ -1903,11 +1921,90 @@ export function Dashboard() {
     : (sidebarTab === "active" ? activeHunts : archivedHunts);
   const filtered = filterPokemonByQuery(tagFiltered, q);
   const displayList = sortPokemonList(filtered, sortMode, sortDir);
+
+  // Flattened order exactly as the sidebar renders it (groups by their
+  // sort_order, ungrouped last, items in displayList order within each group).
+  // Reorder math must use this, not the flat displayList, or "first"/"last"
+  // drops land at the wrong index because rendering re-groups the flat list.
+  const visualList = (() => {
+    const groupRank = new Map<string, number>();
+    [...groups].sort((a, b) => a.sort_order - b.sort_order).forEach((g, i) => groupRank.set(g.id, i));
+    const rankOf = (p: Pokemon) =>
+      p.group_id && groupRank.has(p.group_id) ? (groupRank.get(p.group_id) as number) : Number.MAX_SAFE_INTEGER;
+    return [...displayList].sort((a, b) => rankOf(a) - rankOf(b)); // stable: keeps within-group order
+  })();
+
+  // --- Drag-and-drop / keyboard reorder ---
+  // Persists the given id sequence, optimistically switching to manual sort so
+  // the new order is visible immediately. The backend broadcast reconciles.
+  // ponytail: sends the order of the currently displayed list; Pokémon hidden
+  // by a filter keep their existing sort_order and may interleave. Reorder is
+  // meant to be used with no active filter.
+  const persistReorder = (orderedIds: string[]) => {
+    setSortMode("manual");
+    void reorderPokemon(orderedIds).catch(() => {});
+  };
+
+  // Moves dragged item to the slot before (or after, for the last position) the
+  // last-hovered target. Runs on dragEnd, which always fires on the source row,
+  // rather than on drop: the dashed placeholder pushes the hovered row out from
+  // under the cursor, so for the first/last slot the native drop lands on a
+  // non-droppable area (sticky header or empty space) and onDrop never fires.
+  // ponytail: releasing far outside the list still reorders to the last-hovered
+  // slot; reorders are cheap to redo, so no extra dragleave bookkeeping.
+  const handleDropReorder = () => {
+    const targetId = dragOverId;
+    const after = dropAfter;
+    const sourceId = dragId;
+    setDragOverId(null);
+    setDropAfter(false);
+    setDragId(null);
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const source = visualList.find((p) => p.id === sourceId);
+    const target = visualList.find((p) => p.id === targetId);
+    if (!source || !target) return;
+    // Dropping onto a row in another group (or the ungrouped bucket) moves the
+    // Pokémon into that group. Group reassignment and reorder touch disjoint
+    // fields (group_id vs sort_order), so order of arrival does not matter.
+    if ((source.group_id || "") !== (target.group_id || "")) {
+      void setPokemonGroup(sourceId, target.group_id || "").catch(() => {});
+    }
+    const ids = visualList.map((p) => p.id);
+    const from = ids.indexOf(sourceId);
+    if (from === -1) return;
+    ids.splice(from, 1); // remove source, then re-find target in the shrunk list
+    const targetIdx = ids.indexOf(targetId);
+    if (targetIdx === -1) return;
+    ids.splice(after ? targetIdx + 1 : targetIdx, 0, sourceId);
+    persistReorder(ids);
+  };
+
+  // Keyboard alternative: move a focused item up/down one slot (Alt+Arrow).
+  const handleManualMove = (id: string, dir: -1 | 1) => {
+    const ids = visualList.map((p) => p.id);
+    const from = ids.indexOf(id);
+    const to = from + dir;
+    if (from === -1 || to < 0 || to >= ids.length) return;
+    [ids[from], ids[to]] = [ids[to], ids[from]];
+    persistReorder(ids);
+  };
+
+  // Sidebar item keydown: Alt+ArrowUp/Down reorders (keyboard alternative to
+  // drag-and-drop, WCAG 2.2); otherwise the default activate handler applies.
+  const handleSidebarKeyDown = (e: React.KeyboardEvent, id: string) => {
+    if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+      e.preventDefault();
+      handleManualMove(id, e.key === "ArrowUp" ? -1 : 1);
+      return;
+    }
+    handleActivateKeyDown(e, id, handleActivate);
+  };
+
   // Pool of every tag currently present on any non-archived Pokémon, deduped and sorted.
   const availableTags = Array.from(
     new Set(activeHunts.flatMap((p) => p.tags ?? [])),
   ).sort((a, b) => a.localeCompare(b));
-  const viewedPokemon = findViewedPokemon(allPokemon, viewedPokemonId, appState?.active_id ?? "");
+  const viewedPokemon = findViewedPokemon(allPokemon, viewedPokemonId);
   const totalEncounters = allPokemon.reduce((s, p) => s + p.encounters, 0);
   const oddsDisplay = getOddsFractional(viewedPokemon);
 
@@ -1941,7 +2038,8 @@ export function Dashboard() {
 
   if (!appState) return <DashboardLoader label={t("nav.connecting")} />;
 
-  const effectiveViewedId = viewedPokemonId || appState.active_id;
+  // Highlight the viewed Pokémon in the sidebar (local view, not the hotkey target).
+  const effectiveViewedId = viewedPokemonId;
   const activeLanguages = appState.settings.languages ?? ["de", "en"];
 
   const cardSelectionCtx: CardSelectionContext = {
@@ -1971,6 +2069,42 @@ export function Dashboard() {
       </p>
     </div>
   );
+
+  /**
+   * Renders the main panel when no single Pokémon is selected: the active
+   * group's counter grid if a group is active, otherwise the empty placeholder.
+   */
+  const renderNoPokemonOrGroupPanel = () => {
+    const activeGroup = groups.find((g) => g.id === viewedGroupId);
+    if (!activeGroup) return renderNoPokemonPanel();
+    const members = allPokemon.filter((p) => p.group_id === activeGroup.id);
+    // ponytail: bulk increment/decrement fan out to per-member messages; there
+    // is no dedicated group-increment endpoint. reset reuses the reset_group
+    // message so a single confirmation clears the whole group.
+    return (
+      <div className="h-full w-full overflow-y-auto p-4 md:p-6 relative z-10 max-w-6xl mx-auto">
+        <GroupCounterView
+          group={activeGroup}
+          members={members}
+          onIncrement={handleIncrement}
+          onDecrement={handleDecrement}
+          onReset={handleReset}
+          onActivate={handleActivate}
+          onDelete={handleDelete}
+          onEdit={(p) => setEditingPokemon(p)}
+          onBulkIncrement={() => members.forEach((p) => handleIncrement(p.id))}
+          onBulkDecrement={() => members.forEach((p) => send("decrement", { pokemon_id: p.id }))}
+          onBulkReset={() => setConfirmConfig({
+            isOpen: true,
+            title: t("confirm.resetTitle"),
+            message: t("confirm.resetMsg"),
+            isDestructive: true,
+            onConfirm: () => send("reset_group", { group_id: activeGroup.id }),
+          })}
+        />
+      </div>
+    );
+  };
 
   /** Renders a single import-dropdown item for copying overlays from other Pokemon. */
   const renderOverlayTab = (pokemon: Pokemon) => (
@@ -2038,17 +2172,40 @@ export function Dashboard() {
     const itemBorderClass = sidebarItemBorderClass(isSelected, isViewed);
     const itemClassName = buildSidebarItemClass(itemBorderClass, focusedIdx === idx, isArchived);
     const [baseName, formName] = getBaseAndFormName(p);
-    return (
+    // While dragging, show an empty dashed slot at the drop position so the
+    // other items visibly make room (the dragged row itself is dimmed). The
+    // slot sits above the hovered item, or below it when the cursor is over the
+    // lower half (which also lets the user drop into the very last position).
+    const isDropTarget = !!dragId && dragId !== p.id && dragOverId === p.id;
+    const dropSlot = (
       <li
-        key={p.id}
-        role="option"
-        aria-selected={isViewed}
-        data-sidebar-idx={idx}
-        tabIndex={0}
-        className={itemClassName}
-        onClick={(e) => handleCardClick(e, p.id, idx)}
-        onKeyDown={(e) => handleActivateKeyDown(e, p.id, handleActivate)}
-      >
+        aria-hidden="true"
+        className="h-11 mx-1 my-1 rounded-lg border-2 border-dashed border-accent-blue bg-accent-blue/10 pointer-events-none"
+      />
+    );
+    return (
+      <Fragment key={p.id}>
+        {isDropTarget && !dropAfter && dropSlot}
+        <li
+          role="option"
+          aria-selected={isViewed}
+          data-sidebar-idx={idx}
+          tabIndex={0}
+          draggable
+          aria-grabbed={dragId === p.id}
+          className={`${itemClassName}${dragId === p.id ? " opacity-40" : ""}`}
+          onClick={(e) => handleCardClick(e, p.id, idx)}
+          onKeyDown={(e) => handleSidebarKeyDown(e, p.id)}
+          onDragStart={() => setDragId(p.id)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            const r = e.currentTarget.getBoundingClientRect();
+            const after = e.clientY > r.top + r.height / 2;
+            if (dragOverId !== p.id || dropAfter !== after) { setDragOverId(p.id); setDropAfter(after); }
+          }}
+          onDrop={(e) => e.preventDefault()}
+          onDragEnd={() => handleDropReorder()}
+        >
         <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative self-start mt-0.5">
           <img
             src={src}
@@ -2076,10 +2233,12 @@ export function Dashboard() {
               )}
               <button
                 onClick={(e) => { e.stopPropagation(); send("set_active", { pokemon_id: p.id }); }}
-                className={`p-0.5 rounded transition-colors ${
-                  isHotkeyTarget ? "text-accent-blue" : "opacity-0 group-hover:opacity-100 text-text-faint hover:text-accent-blue"
+                className={`p-0.5 rounded transition-colors hover:text-accent-blue ${
+                  isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
                 }`}
                 title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
+                aria-label={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
+                aria-pressed={isHotkeyTarget}
               >
                 <Keyboard className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
               </button>
@@ -2129,7 +2288,9 @@ export function Dashboard() {
             )}
           </div>
         </div>
-      </li>
+        </li>
+        {isDropTarget && dropAfter && dropSlot}
+      </Fragment>
     );
   };
 
@@ -2163,6 +2324,7 @@ export function Dashboard() {
           onSetHotkeyTarget={() => {
             send("set_active_group", { group_id: appState.active_group_id === g.id ? "" : g.id });
           }}
+          onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId(g.id); }}
         >
           {members.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
         </SidebarGroupSection>,
@@ -2265,6 +2427,7 @@ export function Dashboard() {
                       { mode: "name" as const, label: t("sidebar.sortName") },
                       { mode: "encounters" as const, label: t("sidebar.sortEncounters") },
                       { mode: "game" as const, label: t("sidebar.sortGame") },
+                      { mode: "manual" as const, label: t("sidebar.sortManual") },
                     ] as const).map(({ mode, label }) => (
                       <button
                         key={mode}
@@ -2579,7 +2742,7 @@ export function Dashboard() {
             {renderScrollableContent(viewedPokemon)}
         </div>
         ) : (
-          renderNoPokemonPanel()
+          renderNoPokemonOrGroupPanel()
         )}
       </main>
 

@@ -14,7 +14,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, ChevronRight, Keyboard, MoreVertical, Play, Square, Pencil, Palette, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Keyboard, MoreVertical, Play, Square, Pencil, Palette, Trash2, LayoutGrid } from "lucide-react";
 import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 
@@ -38,6 +38,8 @@ interface SidebarGroupSectionProps {
   readonly isHotkeyTarget?: boolean;
   /** Called when the user clicks the keyboard icon to set/clear hotkey target. */
   readonly onSetHotkeyTarget?: () => void;
+  /** Called when the user clicks the grid icon to show this group in the main panel. */
+  readonly onShowGroupView?: () => void;
   /** Body content (usually the <li> Pokémon items) rendered inside the section. */
   readonly children: React.ReactNode;
 }
@@ -56,6 +58,7 @@ export function SidebarGroupSection({
   onAction,
   isHotkeyTarget,
   onSetHotkeyTarget,
+  onShowGroupView,
   children,
 }: SidebarGroupSectionProps) {
   const { t } = useI18n();
@@ -141,14 +144,23 @@ export function SidebarGroupSection({
             ({count})
           </span>
         </button>
+        {onShowGroupView && group !== null && (
+          <button
+            type="button"
+            onClick={onShowGroupView}
+            className="p-1 rounded text-text-faint hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+            title={t("group.viewGroup")}
+            aria-label={t("group.viewGroup")}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+          </button>
+        )}
         {onSetHotkeyTarget && group !== null && (
           <button
             type="button"
             onClick={onSetHotkeyTarget}
-            className={`p-1 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${
-              isHotkeyTarget
-                ? "text-accent-blue"
-                : "opacity-0 group-hover:opacity-100 text-text-faint hover:text-accent-blue"
+            className={`p-1 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
+              isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
             }`}
             title={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}
             aria-label={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}

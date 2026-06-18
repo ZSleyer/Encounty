@@ -33,6 +33,8 @@ export interface Pokemon {
   group_id?: string;
   /** Free-form tag labels. Always an array in fresh backend snapshots. */
   tags?: string[];
+  /** Manual sidebar sort position (ascending). Absent on legacy snapshots. */
+  sort_order?: number;
 }
 
 /** Group is a user-defined bucket that groups Pokémon in the sidebar. */
