@@ -136,7 +136,7 @@ export function GroupCounterView({
             {t("group.empty")}
           </p>
         ) : (
-          <ul className="grid gap-4 grid-cols-[repeat(auto-fit,minmax(240px,1fr))] list-none p-0 m-0">
+          <ul className="grid gap-4 justify-center grid-cols-[repeat(auto-fill,minmax(240px,300px))] list-none p-0 m-0">
             {members.map((pokemon) => (
               <li key={pokemon.id}>
                 <PokemonCard

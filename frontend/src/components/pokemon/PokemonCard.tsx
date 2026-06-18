@@ -108,12 +108,11 @@ export function PokemonCard({
         {/* Identity row: sprite next to name + game keeps the card short and
             lets the counter stay the hero. pr-14 clears the absolute action cluster. */}
         <div className="flex items-center gap-3 pr-14">
-          <div className="w-12 h-12 2xl:w-14 2xl:h-14 shrink-0 relative group">
-            <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-lg scale-90 group-hover:scale-110 transition-transform duration-500" />
+          <div className="w-14 h-14 2xl:w-16 2xl:h-16 shrink-0 grid place-items-center rounded-xl bg-bg-secondary/40 border border-border-subtle/50 group">
             <img
               src={spriteUrl}
               alt={pokemon.name}
-              className="w-full h-full object-contain pixelated relative z-10 drop-shadow"
+              className="w-10 h-10 2xl:w-12 2xl:h-12 object-contain pixelated drop-shadow group-hover:scale-110 transition-transform duration-300"
               style={
                 (pokemon.sprite_style && pokemon.sprite_style !== "classic" && pokemon.sprite_style !== "box")
                   ? undefined
