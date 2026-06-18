@@ -104,44 +104,43 @@ export function PokemonCard({
         </button>
       </div>
 
-      <div className="p-5 2xl:p-6 flex-1 flex flex-col items-center">
-        {/* Sprite */}
-        <div className="w-24 h-24 2xl:w-32 2xl:h-32 mb-3 relative group">
-          <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-xl scale-75 group-hover:scale-110 transition-transform duration-500" />
-          <img
-            src={spriteUrl}
-            alt={pokemon.name}
-            className="w-full h-full object-contain pixelated relative z-10 drop-shadow-lg"
-            style={
-              (pokemon.sprite_style && pokemon.sprite_style !== "classic" && pokemon.sprite_style !== "box")
-                ? undefined
-                : { imageRendering: "pixelated" as const }
-            }
-            onError={() => setImgError(true)}
-          />
-        </div>
-
-        {/* Text */}
-        <div className="text-center w-full mb-4">
-          <h3 className="font-bold text-text-primary text-lg 2xl:text-xl truncate capitalize leading-tight mb-1">
-            {pokemon.name}
-          </h3>
-
-          {/* Game Badges */}
-          <div
-            className="flex items-center gap-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary"
-            title={t("dash.tooltipGameInfo")}
-          >
-            <Gamepad2 className="w-3 h-3" />
-            {formatGame(pokemon.game)}
+      <div className="p-4 2xl:p-5 flex-1 flex flex-col gap-3">
+        {/* Identity row: sprite next to name + game keeps the card short and
+            lets the counter stay the hero. pr-14 clears the absolute action cluster. */}
+        <div className="flex items-center gap-3 pr-14">
+          <div className="w-12 h-12 2xl:w-14 2xl:h-14 shrink-0 relative group">
+            <div className="absolute inset-0 bg-blue-500/10 rounded-full blur-lg scale-90 group-hover:scale-110 transition-transform duration-500" />
+            <img
+              src={spriteUrl}
+              alt={pokemon.name}
+              className="w-full h-full object-contain pixelated relative z-10 drop-shadow"
+              style={
+                (pokemon.sprite_style && pokemon.sprite_style !== "classic" && pokemon.sprite_style !== "box")
+                  ? undefined
+                  : { imageRendering: "pixelated" as const }
+              }
+              onError={() => setImgError(true)}
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-text-primary text-base 2xl:text-lg truncate capitalize leading-tight">
+              {pokemon.name}
+            </h3>
+            <div
+              className="inline-flex items-center gap-1 mt-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary"
+              title={t("dash.tooltipGameInfo")}
+            >
+              <Gamepad2 className="w-3 h-3" />
+              {formatGame(pokemon.game)}
+            </div>
           </div>
         </div>
 
-        {/* Counter */}
+        {/* Counter — the hero; scales up on roomier cards. */}
         <div
-          className={`mt-auto text-center w-full bg-bg-secondary/30 rounded-xl py-3 border border-border-subtle/50 mb-4 transition-all duration-200 ${isFlashing ? "scale-110 bg-accent-blue/20 border-accent-blue/50" : ""}`}
+          className={`text-center w-full bg-bg-secondary/30 rounded-xl py-4 2xl:py-5 border border-border-subtle/50 transition-all duration-200 ${isFlashing ? "scale-105 bg-accent-blue/20 border-accent-blue/50" : ""}`}
         >
-          <span className="text-4xl 2xl:text-5xl font-black text-text-primary tabular-nums tracking-tight">
+          <span className="text-4xl 2xl:text-6xl font-black text-text-primary tabular-nums tracking-tight">
             {pokemon.encounters}
           </span>
           <p className="text-[10px] 2xl:text-xs text-text-muted uppercase tracking-widest font-bold mt-0.5">
@@ -161,11 +160,11 @@ export function PokemonCard({
           </button>
           <button
             onClick={() => onIncrement(pokemon.id)}
-            className="flex flex-col items-center justify-center rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+            className="flex flex-col items-center justify-center py-2.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
             title={t("dash.tooltipIncrement")}
             aria-label={t("dash.tooltipIncrement")}
           >
-            <Plus className="w-5 h-5 mb-0.5" />
+            <Plus className="w-5 h-5" />
           </button>
           <button
             onClick={() => onReset(pokemon.id)}
@@ -178,7 +177,7 @@ export function PokemonCard({
         </div>
 
         {/* Secondary controls */}
-        <div className="flex gap-2 w-full mt-3 pt-3 border-t border-border-subtle/50">
+        <div className="flex gap-2 w-full mt-auto pt-3 border-t border-border-subtle/50">
           {!pokemon.is_active && (
             <button
               onClick={() => onActivate(pokemon.id)}
