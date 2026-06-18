@@ -41,8 +41,8 @@ export function PokemonCard({
   onEdit,
 }: Readonly<Props>) {
   const { t } = useI18n();
-  const { lastEncounterPokemonId, detectorStatus } = useCounterStore();
-  const isFlashing = lastEncounterPokemonId === pokemon.id;
+  const { flashingIds, detectorStatus } = useCounterStore();
+  const isFlashing = flashingIds?.has(pokemon.id) ?? false;
   const [imgError, setImgError] = useState(false);
   const statusEntry = detectorStatus[pokemon.id];
 

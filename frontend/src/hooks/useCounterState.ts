@@ -3,8 +3,11 @@
  * for UI state. AppState is replaced wholesale on every "state_update"
  * WebSocket message from the backend.
  *
- * flashPokemon sets lastEncounterPokemonId for 400 ms to trigger the card
- * flash animation whenever an encounter is counted.
+ * flashPokemon marks a Pokémon as flashing for 400 ms to trigger the card
+ * flash animation whenever an encounter is counted. Flashing ids are tracked in
+ * a Set so several cards that count up at the same time (e.g. a whole group)
+ * animate together instead of overwriting each other's flash. lastEncounterPokemonId
+ * is kept as the single most-recent id for callers that only need that.
  */
 import { create } from 'zustand'
 import { AppState, Pokemon } from '../types'
@@ -19,6 +22,8 @@ export interface DetectorStatusEntry {
 interface CounterStore {
   appState: AppState | null
   lastEncounterPokemonId: string | null
+  /** Every Pokémon currently flashing; lets a whole group animate at once. */
+  flashingIds: Set<string>
   isConnected: boolean
   detectorStatus: Record<string, DetectorStatusEntry>;
   setAppState: (state: AppState) => void
@@ -32,6 +37,7 @@ interface CounterStore {
 export const useCounterStore = create<CounterStore>((set, get) => ({
   appState: null,
   lastEncounterPokemonId: null,
+  flashingIds: new Set<string>(),
   isConnected: false,
   detectorStatus: {},
 
@@ -40,8 +46,19 @@ export const useCounterStore = create<CounterStore>((set, get) => ({
   setConnected: (v) => set({ isConnected: v }),
 
   flashPokemon: (id) => {
-    set({ lastEncounterPokemonId: id })
-    setTimeout(() => set({ lastEncounterPokemonId: null }), 400)
+    set((s) => {
+      const next = new Set(s.flashingIds)
+      next.add(id)
+      return { flashingIds: next, lastEncounterPokemonId: id }
+    })
+    setTimeout(() => set((s) => {
+      const next = new Set(s.flashingIds)
+      next.delete(id)
+      return {
+        flashingIds: next,
+        lastEncounterPokemonId: s.lastEncounterPokemonId === id ? null : s.lastEncounterPokemonId,
+      }
+    }), 400)
   },
 
   getActivePokemon: () => {
