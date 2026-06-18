@@ -2107,7 +2107,7 @@ export function Dashboard() {
         : () => send("reset_group", { group_id: group.id }),
     });
     return (
-      <div className="h-full w-full overflow-y-auto p-4 md:p-6 relative z-10 max-w-6xl mx-auto">
+      <div className="h-full w-full relative z-10 flex flex-col min-h-0">
         <GroupCounterView
           group={group}
           members={members}

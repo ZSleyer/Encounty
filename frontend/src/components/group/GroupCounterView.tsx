@@ -62,10 +62,10 @@ export function GroupCounterView({
     "flex items-center justify-center w-9 h-9 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
 
   return (
-    <section aria-label={group.name} className="flex flex-col gap-5">
-      {/* --- Header --- sticky so the bulk actions stay reachable while the
-          member grid scrolls. Negative margins let it span the panel padding. */}
-      <header className="sticky top-0 z-10 -mx-4 -mt-4 md:-mx-6 md:-mt-6 px-4 md:px-6 py-3 bg-bg-primary/80 backdrop-blur-md border-b border-border-subtle">
+    <section aria-label={group.name} className="flex flex-col h-full min-h-0">
+      {/* --- Header --- fixed bar; only the member grid below scrolls, so the
+          bulk actions stay reachable and nothing clips through the top. */}
+      <header className="shrink-0 px-4 md:px-6 py-3 bg-bg-card border-b border-border-subtle">
         <div className="flex items-center gap-3 flex-wrap">
           {/* Group identity with a colour accent bar. */}
           <span
@@ -128,28 +128,30 @@ export function GroupCounterView({
         </div>
       </header>
 
-      {/* --- Members --- */}
-      {members.length === 0 ? (
-        <p className="text-sm text-text-muted py-12 text-center">
-          {t("group.empty")}
-        </p>
-      ) : (
-        <ul className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 list-none p-0 m-0">
-          {members.map((pokemon) => (
-            <li key={pokemon.id}>
-              <PokemonCard
-                pokemon={pokemon}
-                onIncrement={onIncrement}
-                onDecrement={onDecrement}
-                onReset={onReset}
-                onActivate={onActivate}
-                onDelete={onDelete}
-                onEdit={onEdit}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* --- Members --- only this region scrolls. */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
+        {members.length === 0 ? (
+          <p className="text-sm text-text-muted py-12 text-center">
+            {t("group.empty")}
+          </p>
+        ) : (
+          <ul className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(220px,1fr))] list-none p-0 m-0">
+            {members.map((pokemon) => (
+              <li key={pokemon.id}>
+                <PokemonCard
+                  pokemon={pokemon}
+                  onIncrement={onIncrement}
+                  onDecrement={onDecrement}
+                  onReset={onReset}
+                  onActivate={onActivate}
+                  onDelete={onDelete}
+                  onEdit={onEdit}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }
