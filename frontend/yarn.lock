@@ -1553,10 +1553,10 @@ react-is@^17.0.1:
     "@types/use-sync-external-store" "^0.0.6"
     use-sync-external-store "^1.4.0"
 
-react-router@^7.13.2:
-  version "7.13.2"
-  resolved "https://registry.npmjs.org/react-router/-/react-router-7.13.2.tgz"
-  integrity sha512-tX1Aee+ArlKQP+NIUd7SE6Li+CiGKwQtbS+FfRxPX6Pe4vHOo6nr9d++u5cwg+Z8K/x8tP+7qLmujDtfrAoUJA==
+react-router@^7.15.0:
+  version "7.15.0"
+  resolved "https://registry.yarnpkg.com/react-router/-/react-router-7.15.0.tgz#cb438ff254ab5a1e356ef5a23d7821d8f6fbe652"
+  integrity sha512-HW9vYwuM8f4yx66Izy8xfrzCM+SBJluoZcCbww9A1TySax11S5Vgw6fi3ZjMONw9J4gQwngL7PzkyIpJJpJ7RQ==
   dependencies:
     cookie "^1.0.1"
     set-cookie-parser "^2.6.0"
