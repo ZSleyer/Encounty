@@ -704,6 +704,58 @@ describe("DetectionLoop", () => {
     expect(hasIdleBetween).toBe(false);
   });
 
+  // --- Match-report retry behavior -------------------------------------------
+
+  /** Invoke the private reportMatch on a loop without an `any` cast. */
+  function reportMatch(loop: DetectionLoop): void {
+    (loop as unknown as { reportMatch(score: number, frameDelta: number): void }).reportMatch(0.95, 0.5);
+  }
+
+  it("does not retry the match POST on a 200 response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ status: 200, ok: true });
+    globalThis.fetch = fetchMock;
+
+    const loop = new DetectionLoop("test-pokemon", createMockDetector([0]));
+    reportMatch(loop);
+
+    // Drain the in-flight POST; no backoff timers should be scheduled.
+    await vi.runAllTimersAsync();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries the match POST after a 500 then succeeds on 200", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ status: 500, ok: false })
+      .mockResolvedValueOnce({ status: 200, ok: true });
+    globalThis.fetch = fetchMock;
+
+    const loop = new DetectionLoop("test-pokemon", createMockDetector([0]));
+    reportMatch(loop);
+
+    // Advance through the first backoff (~150ms) so the retry fires.
+    await vi.runAllTimersAsync();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after 3 attempts on persistent network rejection", async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error("network down"));
+    globalThis.fetch = fetchMock;
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const loop = new DetectionLoop("test-pokemon", createMockDetector([0]));
+    reportMatch(loop);
+
+    // Advance through all backoff windows so every attempt runs.
+    await vi.runAllTimersAsync();
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(warnSpy).toHaveBeenCalledOnce();
+    warnSpy.mockRestore();
+  });
+
   it("loadTemplates defers replacement when loop is running", async () => {
     let detectCallTemplates: unknown[] = [];
     const detector: Detector = {

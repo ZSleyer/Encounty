@@ -77,6 +77,14 @@ const EMA_ALPHA = 0.3;
 /** Scores below this floor are mapped to zero to suppress metric noise. */
 const NOISE_FLOOR = 0.15;
 
+/** Maximum number of attempts to deliver a confirmed match to the backend. */
+const MATCH_RETRY_ATTEMPTS = 3;
+
+/** Resolve after the given number of milliseconds (timer-friendly for tests). */
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // --- DetectionLoop -----------------------------------------------------------
 
 /** Per-pokemon detection loop that runs WebGPU/CPU template matching in the browser. */
@@ -560,14 +568,55 @@ export class DetectionLoop {
    * via its own consecutive-hits + hysteresis logic.
    */
   private reportMatch(score: number, frameDelta: number): void {
-    console.log(`[Detection] Match confirmed for ${this.pokemonId} — reporting to backend`);
-    fetch(apiUrl(`/api/detector/${this.pokemonId}/match`), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ score, frame_delta: frameDelta }),
-    }).catch(() => {
-      // Non-critical — backend may be temporarily unreachable
-    });
+    console.log(`[Detection] Match confirmed for ${this.pokemonId}, reporting to backend`);
+    // Fire-and-forget from the caller's perspective: the loop must not block on
+    // network I/O. The helper retries internally so a transient failure does not
+    // silently drop a confirmed encounter (which is worse when many detectors run).
+    void this.sendMatchWithRetry(score, frameDelta);
+  }
+
+  /**
+   * POST a confirmed match to the backend, retrying on transient failures.
+   *
+   * Retries only on a network error (fetch rejects) or a 5xx response. A 2xx
+   * means the encounter was already counted, and a 4xx will not improve on
+   * retry (e.g. the pokemon was deleted), so both stop immediately. After all
+   * attempts are exhausted a warning is logged so the loss stays visible.
+   */
+  private async sendMatchWithRetry(score: number, frameDelta: number): Promise<void> {
+    const url = apiUrl(`/api/detector/${this.pokemonId}/match`);
+    const backoffsMs = [150, 400, 800];
+
+    for (let attempt = 0; attempt < MATCH_RETRY_ATTEMPTS; attempt += 1) {
+      const transient = await this.attemptMatchPost(url, score, frameDelta);
+      if (!transient) return;
+      const isLastAttempt = attempt === MATCH_RETRY_ATTEMPTS - 1;
+      if (isLastAttempt) break;
+      await delay(backoffsMs[attempt]);
+    }
+
+    console.warn(`[Detection] Failed to report match for ${this.pokemonId} after ${MATCH_RETRY_ATTEMPTS} attempts, encounter not recorded`);
+  }
+
+  /**
+   * Perform a single match POST.
+   *
+   * Returns true when the failure is transient and the caller should retry
+   * (network rejection or 5xx), false when the outcome is final (2xx success or
+   * a 4xx that will not be fixed by retrying).
+   */
+  private async attemptMatchPost(url: string, score: number, frameDelta: number): Promise<boolean> {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ score, frame_delta: frameDelta }),
+      });
+      return response.status >= 500;
+    } catch {
+      // Network-level failure (fetch rejected): worth retrying.
+      return true;
+    }
   }
 }
 

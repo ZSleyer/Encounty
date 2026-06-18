@@ -45,7 +45,7 @@ type wsClient struct {
 	send chan wsPayload
 }
 
-const sendBufSize = 64
+const sendBufSize = 256
 
 // writePump runs in its own goroutine and serialises all writes to conn.
 // It supports both text and binary message types via the wsPayload envelope.
@@ -76,21 +76,34 @@ func NewHub() *Hub {
 }
 
 // Broadcast serialises msg and sends it to every connected client via their
-// write channel. If a client's buffer is full the message is dropped to
-// avoid blocking the broadcaster.
+// write channel. It favours the latest message: when a client's send buffer is
+// full it drains one stale message (non-blocking) and enqueues the new one, so
+// the freshest message is never the one dropped. This is correct because a
+// state_update is an idempotent full snapshot, so keeping the newest is enough.
+// All operations are non-blocking, so a slow client never stalls the broadcaster.
 func (h *Hub) Broadcast(msg WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return
 	}
+	payload := wsPayload{data: data, msgType: websocket.TextMessage}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for c := range h.clients {
 		select {
-		case c.send <- wsPayload{data: data, msgType: websocket.TextMessage}:
+		case c.send <- payload:
 		default:
-			// Client too slow — drop message to avoid blocking.
-			slog.Debug("WebSocket send buffer full, dropping message")
+			// Buffer full: drop the oldest queued message and keep the newest.
+			select {
+			case <-c.send:
+			default:
+			}
+			select {
+			case c.send <- payload:
+			default:
+				// A concurrent writer refilled the buffer; skip rather than block.
+				slog.Debug("WebSocket send buffer full, dropping stale message")
+			}
 		}
 	}
 }
@@ -121,17 +134,18 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 		send: make(chan wsPayload, sendBufSize),
 	}
 
+	// Enqueue the initial state snapshot while holding the hub lock so the send
+	// cannot race with CloseAll closing the channel. The buffer has spare
+	// capacity, so this never blocks.
+	state := srv.state.GetState()
+	p, _ := json.Marshal(state)
 	h.mu.Lock()
 	h.clients[c] = true
+	c.send <- wsPayload{data: mustMarshal(WSMessage{Type: "state_update", Payload: p}), msgType: websocket.TextMessage}
 	h.mu.Unlock()
 
 	// Start the write goroutine.
 	go c.writePump()
-
-	// Send current state on connect.
-	state := srv.state.GetState()
-	p, _ := json.Marshal(state)
-	c.send <- wsPayload{data: mustMarshal(WSMessage{Type: "state_update", Payload: p}), msgType: websocket.TextMessage}
 
 	defer func() {
 		h.mu.Lock()
