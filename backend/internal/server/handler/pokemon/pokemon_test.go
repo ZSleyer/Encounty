@@ -1052,3 +1052,68 @@ func TestSideEffectsOnMutation(t *testing.T) {
 		t.Errorf("broadcastN = %d, want 1", deps.broadcastN)
 	}
 }
+
+// --- PUT /api/pokemon/reorder (ReorderPokemon) -------------------------------
+
+// TestReorderPokemonSuccess verifies that a valid ordering assigns SortOrder by
+// position and triggers a save and broadcast.
+func TestReorderPokemonSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "a", "Alpha")
+	addPokemon(t, deps, "b", "Beta")
+	addPokemon(t, deps, "c", "Gamma")
+
+	body := jsonBody(t, map[string]any{"order": []string{"c", "a", "b"}})
+	req := httptest.NewRequest(http.MethodPut, pathPokemon+"/reorder", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusOK)
+	}
+
+	want := map[string]int{"c": 0, "a": 1, "b": 2}
+	for _, p := range deps.stateMgr.GetState().Pokemon {
+		if p.SortOrder != want[p.ID] {
+			t.Errorf("pokemon %s SortOrder = %d, want %d", p.ID, p.SortOrder, want[p.ID])
+		}
+	}
+	if deps.saveCount == 0 {
+		t.Error(fmtWantSaveCall)
+	}
+	if deps.broadcastN == 0 {
+		t.Error("expected BroadcastState to be called")
+	}
+}
+
+// TestReorderPokemonUnknownID verifies that an ordering referencing an unknown
+// id returns 404 and does not persist.
+func TestReorderPokemonUnknownID(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "a", "Alpha")
+
+	body := jsonBody(t, map[string]any{"order": []string{"a", "ghost"}})
+	req := httptest.NewRequest(http.MethodPut, pathPokemon+"/reorder", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
+	}
+	if deps.saveCount != 0 {
+		t.Errorf("saveCount = %d, want 0 on rejected reorder", deps.saveCount)
+	}
+}
+
+// TestReorderPokemonInvalidBody verifies that a malformed JSON body returns 400.
+func TestReorderPokemonInvalidBody(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPut, pathPokemon+"/reorder", bytes.NewBufferString("{invalid"))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+}

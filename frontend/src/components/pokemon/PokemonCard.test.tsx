@@ -1,7 +1,54 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, makePokemon } from "../../test-utils";
 import { PokemonCard } from "./PokemonCard";
 import { useCounterStore } from "../../hooks/useCounterState";
+import type { DetectorConfig } from "../../types";
+
+// Controllable capture service so preview-related branches can be exercised.
+const captureState = vi.hoisted(() => ({
+  capturing: new Set<string>(),
+  stream: null as MediaStream | null,
+}));
+
+vi.mock("../../contexts/CaptureServiceContext", () => ({
+  CaptureServiceProvider: ({ children }: { children: React.ReactNode }) => children,
+  useCaptureService: () => ({
+    isCapturing: (id: string) => captureState.capturing.has(id),
+    getStream: () => captureState.stream,
+    startCapture: vi.fn(),
+    stopCapture: vi.fn(),
+  }),
+  useCaptureVersion: () => 0,
+}));
+
+/** Minimal DetectorConfig fixture for preview tests. */
+function makeDetectorConfig(overrides?: Partial<DetectorConfig>): DetectorConfig {
+  return {
+    enabled: false,
+    source_type: "browser_display",
+    region: { x: 0, y: 0, w: 1920, h: 1080 },
+    window_title: "",
+    templates: [],
+    precision: 0.55,
+    consecutive_hits: 1,
+    cooldown_sec: 8,
+    change_threshold: 0.15,
+    poll_interval_ms: 50,
+    min_poll_ms: 30,
+    max_poll_ms: 500,
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  captureState.capturing.clear();
+  captureState.stream = null;
+  globalThis.MediaStream ??= class MockMediaStream {
+    getTracks() { return []; }
+    getVideoTracks() { return []; }
+  } as unknown as typeof MediaStream;
+  HTMLVideoElement.prototype.play = vi.fn().mockResolvedValue(undefined);
+});
 
 describe("PokemonCard", () => {
   const defaultProps = {
@@ -10,6 +57,7 @@ describe("PokemonCard", () => {
     onDecrement: vi.fn(),
     onReset: vi.fn(),
     onEdit: vi.fn(),
+    onOpenDetector: vi.fn(),
   };
 
   it("renders pokemon name and encounters", () => {
@@ -142,5 +190,48 @@ describe("PokemonCard", () => {
     expect(greenDot).not.toBeInTheDocument();
     expect(purpleDot).not.toBeInTheDocument();
     expect(blueDot).not.toBeInTheDocument();
+  });
+
+  // --- Live source preview ---
+
+  it("shows a 'no source' note when nothing is streaming", () => {
+    render(<PokemonCard {...defaultProps} />);
+    expect(screen.getByText("Keine Quelle verbunden")).toBeInTheDocument();
+    expect(screen.queryByTitle("Live-Vorschau")).not.toBeInTheDocument();
+  });
+
+  it("offers the live preview toggle when a source is streaming", () => {
+    captureState.capturing.add("poke-1");
+    const pokemon = makePokemon({ id: "poke-1", detector_config: makeDetectorConfig() });
+    render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
+    expect(screen.getByTitle("Live-Vorschau")).toBeInTheDocument();
+    expect(screen.queryByText("Keine Quelle verbunden")).not.toBeInTheDocument();
+  });
+
+  it("expands the preview with the configured threshold", async () => {
+    captureState.capturing.add("poke-1");
+    captureState.stream = new MediaStream();
+    const pokemon = makePokemon({ id: "poke-1", detector_config: makeDetectorConfig({ precision: 0.55 }) });
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    const { container } = render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
+
+    await user.click(screen.getByTitle("Live-Vorschau"));
+    expect(container.textContent).toContain("Genauigkeit: 55%");
+    expect(container.textContent).toContain("Konfidenz:");
+  });
+
+  it("opens auto-detection when the expanded preview is clicked", async () => {
+    captureState.capturing.add("poke-1");
+    captureState.stream = new MediaStream();
+    const onOpenDetector = vi.fn();
+    const pokemon = makePokemon({ id: "poke-1", detector_config: makeDetectorConfig() });
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(<PokemonCard {...defaultProps} pokemon={pokemon} onOpenDetector={onOpenDetector} />);
+
+    await user.click(screen.getByTitle("Live-Vorschau"));
+    await user.click(screen.getByLabelText("Auto-Erkennung öffnen"));
+    expect(onOpenDetector).toHaveBeenCalledWith("poke-1");
   });
 });

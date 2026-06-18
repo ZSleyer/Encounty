@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent, act } from "../test-utils";
+import { render, screen, makeAppState, makePokemon, userEvent, act, fireEvent } from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -6132,5 +6132,91 @@ describe("Dashboard overlay global link", () => {
     // Should show "Layout bearbeiten" / "Edit layout" link
     const editLinks = screen.getAllByText(/Layout bearbeiten|Edit layout/i);
     expect(editLinks.length).toBeGreaterThan(0);
+  });
+});
+
+describe("Dashboard group view and manual ordering", () => {
+  /** AppState with one real group (2 members) and 2 ungrouped Pokemon. */
+  function groupedState() {
+    return makeAppState({
+      active_id: "",
+      groups: [{ id: "g1", name: "Team", color: "#ffffff", sort_order: 0, collapsed: false }],
+      pokemon: [
+        makePokemon({ id: "g-a", name: "Bisasam", group_id: "g1", is_active: false }),
+        makePokemon({ id: "g-b", name: "Glumanda", group_id: "g1", is_active: false }),
+        makePokemon({ id: "u-a", name: "Arbok", group_id: "", is_active: false }),
+        makePokemon({ id: "u-b", name: "Sandan", group_id: "", is_active: false }),
+      ],
+    });
+  }
+
+  beforeEach(() => {
+    mockSend.mockReset();
+    useCounterStore.setState({
+      appState: groupedState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+  });
+
+  it("opens the group counter view and bulk-increments members", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    await act(async () => {});
+
+    // First "Gruppe anzeigen" is the real group, second is the ungrouped bucket.
+    const viewButtons = screen.getAllByLabelText("Gruppe anzeigen");
+    await user.click(viewButtons[0]);
+
+    // Bulk action button only exists in the group counter view.
+    mockSend.mockClear();
+    await user.click(screen.getByLabelText("Alle Encounter erhöhen"));
+    expect(mockSend).toHaveBeenCalledWith("increment", expect.objectContaining({ pokemon_id: expect.any(String) }));
+  });
+
+  it("opens the ungrouped counter view and bulk-decrements members", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const viewButtons = screen.getAllByLabelText("Gruppe anzeigen");
+    await user.click(viewButtons[viewButtons.length - 1]);
+
+    mockSend.mockClear();
+    await user.click(screen.getByLabelText("Alle Encounter verringern"));
+    expect(mockSend).toHaveBeenCalledWith("decrement", expect.objectContaining({ pokemon_id: expect.any(String) }));
+  });
+
+  it("reorders a sidebar item with Alt+Arrow", async () => {
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const options = screen.getAllByRole("option");
+    await act(async () => {
+      fireEvent.keyDown(options[0], { key: "ArrowDown", altKey: true });
+    });
+
+    const reordered = mockFetch.mock.calls.some(
+      (c) => typeof c[0] === "string" && c[0].includes("/api/pokemon/reorder"),
+    );
+    expect(reordered).toBe(true);
+  });
+
+  it("reorders via drag and drop", async () => {
+    render(<Dashboard />);
+    await act(async () => {});
+
+    // Separate act() per event so React commits dragOverId before dragEnd
+    // reads it (in the browser dragover fires across many renders).
+    const options = screen.getAllByRole("option");
+    await act(async () => { fireEvent.dragStart(options[0]); });
+    await act(async () => { fireEvent.dragOver(options[1], { clientY: 5 }); });
+    await act(async () => { fireEvent.dragEnd(options[0]); });
+
+    const reordered = mockFetch.mock.calls.some(
+      (c) => typeof c[0] === "string" && c[0].includes("/api/pokemon/reorder"),
+    );
+    expect(reordered).toBe(true);
   });
 });

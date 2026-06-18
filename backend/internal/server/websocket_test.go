@@ -122,6 +122,17 @@ func TestHubBroadcastDropsSlowClient(t *testing.T) {
 	default:
 		t.Error("fast client did not receive message")
 	}
+
+	// Favour-latest: the slow client's stale "filler" must have been dropped and
+	// replaced by the freshest broadcast rather than the new message being lost.
+	select {
+	case got := <-slow.send:
+		if string(got.data) == "filler" {
+			t.Error("slow client kept the stale message instead of the latest")
+		}
+	default:
+		t.Error("slow client buffer should hold the latest message")
+	}
 }
 
 // TestHubCloseAll verifies that CloseAll empties the client map and closes

@@ -37,6 +37,68 @@ describe("apiUrl", () => {
   });
 });
 
+describe("reorderPokemon", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    delete (globalThis as unknown as Record<string, unknown>).electronAPI;
+  });
+
+  it("PUTs the ordered ids to the reorder endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    const { reorderPokemon } = await import("./api");
+
+    await reorderPokemon(["a", "b", "c"]);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/pokemon/reorder",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ order: ["a", "b", "c"] }),
+      }),
+    );
+  });
+
+  it("throws when the response is not ok", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+    const { reorderPokemon } = await import("./api");
+
+    await expect(reorderPokemon(["a"])).rejects.toThrow("404");
+  });
+});
+
+describe("setPokemonGroup", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    delete (globalThis as unknown as Record<string, unknown>).electronAPI;
+  });
+
+  it("PUTs only the group_id to the pokemon endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    const { setPokemonGroup } = await import("./api");
+
+    await setPokemonGroup("poke-1", "g9");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/pokemon/poke-1",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ group_id: "g9" }),
+      }),
+    );
+  });
+
+  it("throws when the response is not ok", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    const { setPokemonGroup } = await import("./api");
+
+    await expect(setPokemonGroup("poke-1", "")).rejects.toThrow("500");
+  });
+});
+
 describe("wsUrl", () => {
   afterEach(() => {
     vi.restoreAllMocks();
