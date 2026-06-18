@@ -904,6 +904,7 @@
   "group.startAll": "Alle Hunts starten",
   "group.stopAll": "Alle Hunts stoppen",
   "group.count": "{{count}} Pokémon",
+  "group.totalEncounters": "{{count}} Encounter gesamt",
   "group.manage": "Gruppen verwalten",
   "group.noneYet": "Noch keine Gruppen angelegt",
   "group.create": "Anlegen",

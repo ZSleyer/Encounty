@@ -76,6 +76,9 @@ import { SPRITE_FALLBACK } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 
 import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
+
+/** Sentinel viewedGroupId value selecting the synthetic "ungrouped" bucket. */
+const UNGROUPED_VIEW_ID = "__ungrouped__";
 import { formatTimer, computeTimerMs } from "../utils/timer";
 import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
 
@@ -2071,20 +2074,42 @@ export function Dashboard() {
   );
 
   /**
-   * Renders the main panel when no single Pokémon is selected: the active
-   * group's counter grid if a group is active, otherwise the empty placeholder.
+   * Renders the main panel when no single Pokémon is selected: the viewed
+   * group's counter grid (or the synthetic ungrouped bucket) if one is shown,
+   * otherwise the empty placeholder.
    */
   const renderNoPokemonOrGroupPanel = () => {
-    const activeGroup = groups.find((g) => g.id === viewedGroupId);
-    if (!activeGroup) return renderNoPokemonPanel();
-    const members = allPokemon.filter((p) => p.group_id === activeGroup.id);
+    const isUngrouped = viewedGroupId === UNGROUPED_VIEW_ID;
+    const realGroup = groups.find((g) => g.id === viewedGroupId);
+    if (!isUngrouped && !realGroup) return renderNoPokemonPanel();
+    // The ungrouped bucket has no backing Group, so synthesize one for the view.
+    const group: Group = realGroup ?? {
+      id: UNGROUPED_VIEW_ID,
+      name: t("sidebar.noGroup"),
+      color: "#6b7280",
+      sort_order: 0,
+      collapsed: false,
+    };
+    const members = isUngrouped
+      ? allPokemon.filter((p) => !p.group_id)
+      : allPokemon.filter((p) => p.group_id === group.id);
     // ponytail: bulk increment/decrement fan out to per-member messages; there
-    // is no dedicated group-increment endpoint. reset reuses the reset_group
-    // message so a single confirmation clears the whole group.
+    // is no dedicated group-increment endpoint. A real group's reset reuses the
+    // reset_group message; the ungrouped bucket has no group id, so it fans the
+    // reset out per member behind the same single confirmation.
+    const onBulkReset = () => setConfirmConfig({
+      isOpen: true,
+      title: t("confirm.resetTitle"),
+      message: t("confirm.resetMsg"),
+      isDestructive: true,
+      onConfirm: isUngrouped
+        ? () => members.forEach((p) => send("reset", { pokemon_id: p.id }))
+        : () => send("reset_group", { group_id: group.id }),
+    });
     return (
       <div className="h-full w-full overflow-y-auto p-4 md:p-6 relative z-10 max-w-6xl mx-auto">
         <GroupCounterView
-          group={activeGroup}
+          group={group}
           members={members}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
@@ -2094,13 +2119,7 @@ export function Dashboard() {
           onEdit={(p) => setEditingPokemon(p)}
           onBulkIncrement={() => members.forEach((p) => handleIncrement(p.id))}
           onBulkDecrement={() => members.forEach((p) => send("decrement", { pokemon_id: p.id }))}
-          onBulkReset={() => setConfirmConfig({
-            isOpen: true,
-            title: t("confirm.resetTitle"),
-            message: t("confirm.resetMsg"),
-            isDestructive: true,
-            onConfirm: () => send("reset_group", { group_id: activeGroup.id }),
-          })}
+          onBulkReset={onBulkReset}
         />
       </div>
     );
@@ -2335,12 +2354,13 @@ export function Dashboard() {
     if (ungrouped.length > 0) {
       sections.push(
         <SidebarGroupSection
-          key="__ungrouped__"
+          key={UNGROUPED_VIEW_ID}
           group={null}
           label={t("sidebar.noGroup")}
           count={ungrouped.length}
           collapsed={ungroupedCollapsed}
           onToggleCollapse={() => setUngroupedCollapsed((v) => !v)}
+          onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId(UNGROUPED_VIEW_ID); }}
         >
           {ungrouped.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
         </SidebarGroupSection>,

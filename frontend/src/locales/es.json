@@ -904,6 +904,7 @@
   "group.startAll": "Iniciar todas las cazas",
   "group.stopAll": "Detener todas las cazas",
   "group.count": "{{count}} Pokémon",
+  "group.totalEncounters": "{{count}} encuentros en total",
   "group.manage": "Administrar grupos",
   "group.noneYet": "Aún no hay grupos",
   "group.create": "Crear",

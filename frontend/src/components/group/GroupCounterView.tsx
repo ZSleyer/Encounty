@@ -55,66 +55,86 @@ export function GroupCounterView({
 }: Props) {
   const { t } = useI18n();
   const dotColor = group.color || DEFAULT_GROUP_COLOR;
+  const totalEncounters = members.reduce((sum, p) => sum + p.encounters, 0);
 
   // Shared button styling: visible focus ring + accessible hit area.
   const bulkButtonClass =
     "flex items-center justify-center w-9 h-9 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
 
   return (
-    <section aria-label={group.name} className="flex flex-col gap-4">
-      {/* --- Header --- */}
-      <header className="flex items-center gap-3 flex-wrap">
-        <span
-          aria-hidden="true"
-          className="w-3 h-3 rounded-full shrink-0 border border-black/20"
-          style={{ backgroundColor: dotColor }}
-        />
-        <h2 className="text-xl font-bold text-text-primary truncate min-w-0">
-          {group.name}
-        </h2>
-        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums">
-          {t("group.count", { count: members.length })}
-        </span>
+    <section aria-label={group.name} className="flex flex-col gap-5">
+      {/* --- Header --- sticky so the bulk actions stay reachable while the
+          member grid scrolls. Negative margins let it span the panel padding. */}
+      <header className="sticky top-0 z-10 -mx-4 -mt-4 md:-mx-6 md:-mt-6 px-4 md:px-6 py-3 bg-bg-primary/80 backdrop-blur-md border-b border-border-subtle">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Group identity with a colour accent bar. */}
+          <span
+            aria-hidden="true"
+            className="w-1.5 h-7 rounded-full shrink-0"
+            style={{ backgroundColor: dotColor }}
+          />
+          <h2 className="text-2xl font-bold text-text-primary truncate min-w-0">
+            {group.name}
+          </h2>
 
-        {/* Bulk actions */}
-        <div className="flex items-center gap-2 ml-auto">
-          <button
-            type="button"
-            onClick={onBulkIncrement}
-            className={bulkButtonClass}
-            title={t("group.bulkIncrement")}
-            aria-label={t("group.bulkIncrement")}
+          {/* Stat chips: member count + summed encounters. */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums">
+              {t("group.count", { count: members.length })}
+            </span>
+            <span
+              className="text-xs font-medium px-2.5 py-1 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums"
+              title={t("group.totalEncounters", { count: totalEncounters })}
+            >
+              Σ {totalEncounters.toLocaleString()}
+            </span>
+          </div>
+
+          {/* Bulk actions */}
+          <div
+            role="group"
+            aria-label={group.name}
+            className="flex items-center gap-2 ml-auto"
           >
-            <Plus className="w-4 h-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={onBulkDecrement}
-            className={bulkButtonClass}
-            title={t("group.bulkDecrement")}
-            aria-label={t("group.bulkDecrement")}
-          >
-            <Minus className="w-4 h-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={onBulkReset}
-            className={`${bulkButtonClass} hover:text-red-400`}
-            title={t("group.bulkReset")}
-            aria-label={t("group.bulkReset")}
-          >
-            <RotateCcw className="w-4 h-4" aria-hidden="true" />
-          </button>
+            <button
+              type="button"
+              onClick={onBulkIncrement}
+              className={bulkButtonClass}
+              title={t("group.bulkIncrement")}
+              aria-label={t("group.bulkIncrement")}
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={onBulkDecrement}
+              className={bulkButtonClass}
+              title={t("group.bulkDecrement")}
+              aria-label={t("group.bulkDecrement")}
+            >
+              <Minus className="w-4 h-4" aria-hidden="true" />
+            </button>
+            <span aria-hidden="true" className="w-px h-5 bg-border-subtle mx-0.5" />
+            <button
+              type="button"
+              onClick={onBulkReset}
+              className={`${bulkButtonClass} hover:text-red-400`}
+              title={t("group.bulkReset")}
+              aria-label={t("group.bulkReset")}
+            >
+              <RotateCcw className="w-4 h-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </header>
 
       {/* --- Members --- */}
       {members.length === 0 ? (
-        <p className="text-sm text-text-muted py-8 text-center">
+        <p className="text-sm text-text-muted py-12 text-center">
           {t("group.empty")}
         </p>
       ) : (
-        <ul className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 list-none p-0 m-0">
+        <ul className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 list-none p-0 m-0">
           {members.map((pokemon) => (
             <li key={pokemon.id}>
               <PokemonCard

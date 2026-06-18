@@ -904,6 +904,7 @@
   "group.startAll": "すべてのハントを開始",
   "group.stopAll": "すべてのハントを停止",
   "group.count": "{{count}} 匹のポケモン",
+  "group.totalEncounters": "合計 {{count}} エンカウント",
   "group.manage": "グループを管理",
   "group.noneYet": "グループはまだありません",
   "group.create": "作成",

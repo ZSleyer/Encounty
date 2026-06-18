@@ -144,7 +144,7 @@ export function SidebarGroupSection({
             ({count})
           </span>
         </button>
-        {onShowGroupView && group !== null && (
+        {onShowGroupView && (
           <button
             type="button"
             onClick={onShowGroupView}
