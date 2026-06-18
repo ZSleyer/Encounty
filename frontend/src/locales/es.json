@@ -54,6 +54,8 @@
   "dash.total": "total",
   "dash.encounters": "Encounters",
   "dash.preview": "Vista previa en vivo",
+  "dash.openDetector": "Abrir detección automática",
+  "dash.noPreview": "Sin fuente conectada",
   "dash.pokemonSelected": "Pokémon seleccionados",
   "dash.noActive": "No hay Pokemon activo",
   "dash.noActiveHint": "Selecciona un Pokemon de la lista o agrega uno nuevo.",

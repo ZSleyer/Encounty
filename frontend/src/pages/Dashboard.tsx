@@ -2115,6 +2115,7 @@ export function Dashboard() {
           onDecrement={handleDecrement}
           onReset={handleReset}
           onEdit={(p) => setEditingPokemon(p)}
+          onOpenDetector={(id) => { setViewedGroupId(null); setViewedPokemonId(id); setRightPanelTab("detector"); }}
           onBulkIncrement={() => members.forEach((p) => handleIncrement(p.id))}
           onBulkDecrement={() => members.forEach((p) => send("decrement", { pokemon_id: p.id }))}
           onBulkReset={onBulkReset}

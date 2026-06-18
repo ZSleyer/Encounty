@@ -54,6 +54,8 @@
   "dash.total": "合計",
   "dash.encounters": "Encounters",
   "dash.preview": "ライブプレビュー",
+  "dash.openDetector": "自動検出を開く",
+  "dash.noPreview": "ソース未接続",
   "dash.pokemonSelected": "ポケモン選択中",
   "dash.noActive": "アクティブなポケモンがいません",
   "dash.noActiveHint": "リストからポケモンを選択するか、新しいポケモンを追加してください。",

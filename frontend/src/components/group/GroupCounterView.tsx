@@ -25,6 +25,8 @@ type Props = Readonly<{
   onDecrement: (id: string) => void;
   onReset: (id: string) => void;
   onEdit: (pokemon: Pokemon) => void;
+  /** Open a member's auto-detection tab from its live preview. */
+  onOpenDetector: (id: string) => void;
   /** Increment every member of the group. */
   onBulkIncrement: () => void;
   /** Decrement every member of the group. */
@@ -45,6 +47,7 @@ export function GroupCounterView({
   onDecrement,
   onReset,
   onEdit,
+  onOpenDetector,
   onBulkIncrement,
   onBulkDecrement,
   onBulkReset,
@@ -141,6 +144,7 @@ export function GroupCounterView({
                   onDecrement={onDecrement}
                   onReset={onReset}
                   onEdit={onEdit}
+                  onOpenDetector={onOpenDetector}
                 />
               </li>
             ))}
