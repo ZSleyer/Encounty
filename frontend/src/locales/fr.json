@@ -53,6 +53,7 @@
   "nav.disconnected": "Deconnecte",
   "dash.total": "total",
   "dash.encounters": "Encounters",
+  "dash.preview": "Aperçu en direct",
   "dash.pokemonSelected": "Pokémon sélectionnés",
   "dash.noActive": "Aucun Pokemon actif",
   "dash.noActiveHint": "Selectionnez un Pokemon dans la liste ou ajoutez-en un nouveau.",

@@ -24,8 +24,6 @@ type Props = Readonly<{
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
   onReset: (id: string) => void;
-  onActivate: (id: string) => void;
-  onDelete: (id: string) => void;
   onEdit: (pokemon: Pokemon) => void;
   /** Increment every member of the group. */
   onBulkIncrement: () => void;
@@ -46,8 +44,6 @@ export function GroupCounterView({
   onIncrement,
   onDecrement,
   onReset,
-  onActivate,
-  onDelete,
   onEdit,
   onBulkIncrement,
   onBulkDecrement,
@@ -144,8 +140,6 @@ export function GroupCounterView({
                   onIncrement={onIncrement}
                   onDecrement={onDecrement}
                   onReset={onReset}
-                  onActivate={onActivate}
-                  onDelete={onDelete}
                   onEdit={onEdit}
                 />
               </li>

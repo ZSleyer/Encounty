@@ -1,17 +1,22 @@
 import { useState } from "react";
-import { Plus, Minus, RotateCcw, Star, Edit2, Gamepad2, Zap } from "lucide-react";
+import { Plus, Minus, RotateCcw, Star, Edit2, Gamepad2, Video, ChevronDown } from "lucide-react";
 import { Pokemon } from "../../types";
 import { useCounterStore, DetectorStatusEntry } from "../../hooks/useCounterState";
 import { useI18n } from "../../contexts/I18nContext";
+import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
 import { SPRITE_FALLBACK } from "../../utils/sprites";
+import { DetectorPreview } from "../detector/DetectorPreview";
+
+/** True when the Pokémon has at least one enabled detector template. */
+function hasEnabledTemplate(pokemon: Pokemon): boolean {
+  return (pokemon.detector_config?.templates ?? []).some((tpl) => tpl.enabled !== false);
+}
 
 type Props = Readonly<{
   pokemon: Pokemon;
   onIncrement: (id: string) => void;
   onDecrement: (id: string) => void;
   onReset: (id: string) => void;
-  onActivate: (id: string) => void;
-  onDelete: (id: string) => void;
   onEdit: (pokemon: Pokemon) => void;
 }>;
 
@@ -36,15 +41,20 @@ export function PokemonCard({
   onIncrement,
   onDecrement,
   onReset,
-  onActivate,
-  onDelete,
   onEdit,
 }: Readonly<Props>) {
   const { t } = useI18n();
   const { flashingIds, detectorStatus } = useCounterStore();
+  const capture = useCaptureService();
+  useCaptureVersion(); // re-render when capture streams change
   const isFlashing = flashingIds?.has(pokemon.id) ?? false;
   const [imgError, setImgError] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const statusEntry = detectorStatus[pokemon.id];
+  // A live preview is offered only when auto-detection is wired up and a source
+  // is actually streaming for this Pokémon.
+  const previewAvailable = hasEnabledTemplate(pokemon) && capture.isCapturing(pokemon.id);
+  const confidence = statusEntry?.confidence;
 
   const spriteUrl =
     (imgError || !pokemon.sprite_url) ? SPRITE_FALLBACK : pokemon.sprite_url;
@@ -175,28 +185,37 @@ export function PokemonCard({
           </button>
         </div>
 
-        {/* Secondary controls */}
-        <div className="flex gap-2 w-full mt-auto pt-3 border-t border-border-subtle/50">
-          {!pokemon.is_active && (
+        {/* Footer — only the optional live-preview toggle; activate/delete live
+            in the sidebar, not on the counter card. */}
+        {previewAvailable && (
+          <div className="flex items-center mt-auto pt-2 border-t border-border-subtle/50">
             <button
-              onClick={() => onActivate(pokemon.id)}
-              title={t("dash.activate")}
-              aria-label={t("dash.activate")}
-              className="flex-1 py-1.5 rounded-md text-xs font-medium text-text-muted hover:text-accent-blue border border-transparent hover:border-accent-blue/30 hover:bg-accent-blue/10 transition-all flex items-center justify-center gap-1"
+              onClick={() => setShowPreview((v) => !v)}
+              aria-expanded={showPreview}
+              title={t("dash.preview")}
+              className="flex items-center gap-1 py-1 pr-2 pl-1 rounded-md text-[11px] font-medium text-text-muted hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
-              <Zap className="w-3 h-3" />
-              {t("dash.activate")}
+              <Video className="w-3.5 h-3.5" />
+              <span>{t("dash.preview")}</span>
+              {confidence != null && confidence > 0.01 && (
+                <span className="tabular-nums text-text-faint">{(confidence * 100).toFixed(0)}%</span>
+              )}
+              <ChevronDown className={`w-3 h-3 transition-transform ${showPreview ? "rotate-180" : ""}`} />
             </button>
-          )}
-          <button
-            onClick={() => onDelete(pokemon.id)}
-            title={t("dash.tooltipDelete")}
-            aria-label={t("dash.tooltipDelete")}
-            className="flex-1 py-1.5 rounded-md text-xs font-medium text-text-muted hover:text-red-400 border border-transparent hover:border-red-500/30 hover:bg-red-500/10 transition-all"
-          >
-            {t("dash.delete")}
-          </button>
-        </div>
+          </div>
+        )}
+
+        {/* Collapsible live source preview (auto-detection only). */}
+        {previewAvailable && showPreview && pokemon.detector_config && (
+          <div className="aspect-video w-full rounded-lg overflow-hidden border border-border-subtle/50">
+            <DetectorPreview
+              pokemon={pokemon}
+              cfg={pokemon.detector_config}
+              isRunning={!!statusEntry}
+              confidence={confidence}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

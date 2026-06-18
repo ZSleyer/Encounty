@@ -2114,8 +2114,6 @@ export function Dashboard() {
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
           onReset={handleReset}
-          onActivate={handleActivate}
-          onDelete={handleDelete}
           onEdit={(p) => setEditingPokemon(p)}
           onBulkIncrement={() => members.forEach((p) => handleIncrement(p.id))}
           onBulkDecrement={() => members.forEach((p) => send("decrement", { pokemon_id: p.id }))}

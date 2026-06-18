@@ -53,6 +53,7 @@
   "nav.disconnected": "切断",
   "dash.total": "合計",
   "dash.encounters": "Encounters",
+  "dash.preview": "ライブプレビュー",
   "dash.pokemonSelected": "ポケモン選択中",
   "dash.noActive": "アクティブなポケモンがいません",
   "dash.noActiveHint": "リストからポケモンを選択するか、新しいポケモンを追加してください。",

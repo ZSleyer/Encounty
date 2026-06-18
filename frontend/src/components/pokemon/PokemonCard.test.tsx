@@ -9,8 +9,6 @@ describe("PokemonCard", () => {
     onIncrement: vi.fn(),
     onDecrement: vi.fn(),
     onReset: vi.fn(),
-    onActivate: vi.fn(),
-    onDelete: vi.fn(),
     onEdit: vi.fn(),
   };
 
@@ -60,39 +58,6 @@ describe("PokemonCard", () => {
     render(<PokemonCard {...defaultProps} onEdit={onEdit} />);
     await user.click(screen.getByTitle("Pokémon bearbeiten"));
     expect(onEdit).toHaveBeenCalledWith(defaultProps.pokemon);
-  });
-
-  it("calls onActivate when the activate button is clicked", async () => {
-    const onActivate = vi.fn();
-    const inactivePokemon = makePokemon({ is_active: false });
-    const { userEvent } = await import("../../test-utils");
-    const user = userEvent.setup();
-    render(
-      <PokemonCard {...defaultProps} pokemon={inactivePokemon} onActivate={onActivate} />,
-    );
-    await user.click(screen.getByText("Aktivieren"));
-    expect(onActivate).toHaveBeenCalledWith("poke-1");
-  });
-
-  it("does not call onActivate when an active card is clicked", async () => {
-    const onActivate = vi.fn();
-    const activePokemon = makePokemon({ is_active: true });
-    const { userEvent } = await import("../../test-utils");
-    const user = userEvent.setup();
-    render(
-      <PokemonCard {...defaultProps} pokemon={activePokemon} onActivate={onActivate} />,
-    );
-    await user.click(screen.getByText("Bisasam"));
-    expect(onActivate).not.toHaveBeenCalled();
-  });
-
-  it("calls onDelete when the delete button is clicked", async () => {
-    const onDelete = vi.fn();
-    const { userEvent } = await import("../../test-utils");
-    const user = userEvent.setup();
-    render(<PokemonCard {...defaultProps} onDelete={onDelete} />);
-    await user.click(screen.getByText("Löschen"));
-    expect(onDelete).toHaveBeenCalledWith("poke-1");
   });
 
   it("shows active star indicator when pokemon is active", () => {
