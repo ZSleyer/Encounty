@@ -114,6 +114,21 @@ var migrations = []migration{
 		description: "add format column to overlay_elements",
 		fn:          migrateAddOverlayElementFormat,
 	},
+	{
+		version:     20,
+		description: "add pokemon_sprites table for local sprite uploads",
+		fn:          migrateAddPokemonSprites,
+	},
+	{
+		version:     21,
+		description: "add category column to template_regions",
+		fn:          migrateAddRegionCategory,
+	},
+	{
+		version:     22,
+		description: "add category column to detection_log",
+		fn:          migrateAddDetectionLogCategory,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -332,6 +347,39 @@ func migrateForceAutoSave(tx *sql.Tx) error {
 
 // migrateAddShinyCharm adds the shiny_charm column to the pokemon table.
 // Errors are ignored for idempotency.
+// migrateAddPokemonSprites creates the pokemon_sprites table on databases that
+// predate it. New databases get the table from the baseline schema; this
+// migration brings existing ones up to date. The definition mirrors schema.go.
+func migrateAddPokemonSprites(tx *sql.Tx) error {
+	_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS pokemon_sprites (
+		pokemon_id TEXT PRIMARY KEY,
+		data       BLOB NOT NULL,
+		mime       TEXT NOT NULL,
+		updated_at TEXT NOT NULL DEFAULT '',
+		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
+	)`)
+	if err != nil {
+		return fmt.Errorf("create pokemon_sprites table: %w", err)
+	}
+	return nil
+}
+
+// migrateAddRegionCategory adds the category column to template_regions on
+// databases that predate per-category counting. Without it, region categories
+// set in the editor are dropped on save/load and every region collapses to the
+// default category, making the detector cooldown behave globally.
+func migrateAddRegionCategory(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE template_regions ADD COLUMN category TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddDetectionLogCategory adds the category column to detection_log so
+// confirmed matches can record which counting category fired.
+func migrateAddDetectionLogCategory(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE detection_log ADD COLUMN category TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
 func migrateAddShinyCharm(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN shiny_charm INTEGER NOT NULL DEFAULT 0`)
 	return nil

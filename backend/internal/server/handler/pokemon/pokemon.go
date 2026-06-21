@@ -59,6 +59,14 @@ type Broadcaster interface {
 	BroadcastRaw(msgType string, payload any)
 }
 
+// SpriteStore defines the database operations needed to persist and serve
+// user-uploaded local Pokemon sprite images as BLOBs.
+type SpriteStore interface {
+	SaveSprite(pokemonID string, data []byte, mime string) error
+	LoadSprite(pokemonID string) (data []byte, mime string, err error)
+	DeleteSprite(pokemonID string) error
+}
+
 // Deps declares the capabilities that pokemon handlers require from the
 // application layer. Each method maps to a specific subsystem so this package
 // stays decoupled from the concrete Server type.
@@ -89,6 +97,8 @@ type Deps interface {
 	EncounterLogger() EncounterLogger
 	Broadcaster() Broadcaster
 	BroadcastState()
+	// PokemonDB returns the sprite store, or nil when no database is configured.
+	PokemonDB() SpriteStore
 }
 
 // --- Handler -----------------------------------------------------------------
@@ -139,6 +149,8 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
+	case strings.HasSuffix(path, "/sprite"):
+		h.handleSprite(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/sprite"))
 	case strings.HasSuffix(path, "/set_encounters"):
 		h.handleSetEncounters(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/set_encounters"))
 	case strings.HasSuffix(path, "/timer/start"):

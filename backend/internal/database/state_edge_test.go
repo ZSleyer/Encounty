@@ -328,6 +328,7 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 									Type:         "text",
 									ExpectedText: textJigglypuff,
 									Rect:         state.DetectorRect{X: 10, Y: 20, W: 100, H: 30},
+									Category:     "Console A",
 								},
 								{
 									Type:         "image",
@@ -385,6 +386,9 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 	if r0.Rect.X != 10 || r0.Rect.Y != 20 || r0.Rect.W != 100 || r0.Rect.H != 30 {
 		t.Errorf("Regions[0].Rect = %+v, want {X:10 Y:20 W:100 H:30}", r0.Rect)
 	}
+	if r0.Category != "Console A" {
+		t.Errorf("Regions[0].Category = %q, want %q", r0.Category, "Console A")
+	}
 
 	// Check image region with empty ExpectedText.
 	r1 := regions[1]
@@ -393,6 +397,9 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 	}
 	if r1.ExpectedText != "" {
 		t.Errorf("Regions[1].ExpectedText = %q, want empty string", r1.ExpectedText)
+	}
+	if r1.Category != "" {
+		t.Errorf("Regions[1].Category = %q, want empty string", r1.Category)
 	}
 	if r1.Rect.X != 50 || r1.Rect.Y != 60 || r1.Rect.W != 80 || r1.Rect.H != 90 {
 		t.Errorf("Regions[1].Rect = %+v, want {X:50 Y:60 W:80 H:90}", r1.Rect)

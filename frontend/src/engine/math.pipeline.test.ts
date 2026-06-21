@@ -13,6 +13,8 @@ import {
   fuseHybridScores,
   scoreRegionHybrid,
   andLogicAcrossRegions,
+  categoryScoresFromGroups,
+  mergeCategoryScores,
 
   adaptiveBlockSizeForRegion,
   blockSSIM,
@@ -251,6 +253,58 @@ describe("andLogicAcrossRegions", () => {
 
   it("returns 0 when any region scores 0", () => {
     expect(andLogicAcrossRegions([0.9, 0, 0.8])).toBe(0);
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Per-category scoring (multihunting, issue #32)
+// ---------------------------------------------------------------------------
+
+describe("categoryScoresFromGroups", () => {
+  it("scores each category independently (low region in A does not affect B)", () => {
+    // Category A has a low-scoring region; category B is strong.
+    const groups = new Map<string, number[]>([
+      ["A", [0.95, 0.2]],
+      ["B", [0.9, 0.88]],
+    ]);
+    const result = categoryScoresFromGroups(groups);
+    // A is dragged down by its own low region (AND-logic within A only).
+    expect(result.A).toBeCloseTo(0.2, 6);
+    // B is unaffected by A's low region.
+    expect(result.B).toBeCloseTo(0.88, 6);
+  });
+
+  it("default category reproduces the old min-across-all-regions number", () => {
+    const regionScores = [0.9, 0.7, 0.8];
+    const groups = new Map<string, number[]>([["", regionScores]]);
+    const result = categoryScoresFromGroups(groups);
+    expect(Object.keys(result)).toEqual([""]);
+    expect(result[""]).toBeCloseTo(andLogicAcrossRegions(regionScores), 6);
+  });
+});
+
+describe("mergeCategoryScores", () => {
+  it("keeps the max per category across templates and returns the best", () => {
+    const acc: Record<string, number> = {};
+    // Template 1: A strong, B weak.
+    let best = mergeCategoryScores(acc, { A: 0.9, B: 0.3 });
+    expect(best).toBeCloseTo(0.9, 6);
+    // Template 2: A weaker, B strong, new category C.
+    best = mergeCategoryScores(acc, { A: 0.5, B: 0.85, C: 0.7 });
+    expect(best).toBeCloseTo(0.85, 6);
+    expect(acc.A).toBeCloseTo(0.9, 6); // kept template 1's stronger A
+    expect(acc.B).toBeCloseTo(0.85, 6); // kept template 2's stronger B
+    expect(acc.C).toBeCloseTo(0.7, 6);
+  });
+
+  it("single default category preserves the legacy bestScore meaning", () => {
+    const acc: Record<string, number> = {};
+    const best = mergeCategoryScores(acc, { "": 0.77 });
+    // With a single default category, bestScore equals that category's score.
+    expect(best).toBeCloseTo(0.77, 6);
+    expect(acc[""]).toBeCloseTo(0.77, 6);
+    expect(Object.keys(acc)).toEqual([""]);
   });
 });
 

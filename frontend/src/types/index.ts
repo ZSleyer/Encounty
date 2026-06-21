@@ -113,6 +113,7 @@ export interface DetectorRect {
 export interface DetectionLogEntry {
   at: string;          // ISO timestamp
   confidence: number;  // 0.0–1.0
+  category?: string;   // counting category that fired, empty for the default one
 }
 
 /** MatchedRegion defines a bounding box within a template and its match criteria. */
@@ -120,6 +121,13 @@ export interface MatchedRegion {
   type: "image" | "text";
   expected_text: string;
   rect: DetectorRect;
+  /**
+   * Optional counting category (e.g. one console in a multihunt capture).
+   * Regions sharing a category are AND-combined into one score and counted
+   * independently from other categories. Absent or empty means the default
+   * category, which reproduces the legacy single-counter behavior.
+   */
+  category?: string;
 }
 
 /** DetectorTemplate bundles the saved screenshot and its defined regions. */

@@ -1277,8 +1277,8 @@ func TestClearDetectionLog(t *testing.T) {
 	addTestPokemon(t, deps, "p1", "Pikachu")
 
 	// Append some detection log entries
-	deps.stateMgr.AppendDetectionLog("p1", 0.8)
-	deps.stateMgr.AppendDetectionLog("p1", 0.9)
+	deps.stateMgr.AppendDetectionLog("p1", 0.8, "")
+	deps.stateMgr.AppendDetectionLog("p1", 0.9, "")
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/detector/p1/detection_log", nil)
 	w := httptest.NewRecorder()

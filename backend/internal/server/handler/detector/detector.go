@@ -223,6 +223,8 @@ func (h *handler) handleDetectorConfig(w http.ResponseWriter, r *http.Request, i
 type matchSubmitRequest struct {
 	Score      float64 `json:"score"`
 	FrameDelta float64 `json:"frame_delta"`
+	// Category is the counting category that fired, empty for the default one.
+	Category string `json:"category"`
 }
 
 // matchSubmitResponse is returned by handleMatchSubmit.
@@ -267,7 +269,7 @@ func (h *handler) handleMatchSubmit(w http.ResponseWriter, r *http.Request, id s
 		return
 	}
 
-	sm.AppendDetectionLog(id, req.Score)
+	sm.AppendDetectionLog(id, req.Score, req.Category)
 
 	count, ok := sm.Increment(id)
 	if !ok {

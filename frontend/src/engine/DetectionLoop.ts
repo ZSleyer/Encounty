@@ -58,6 +58,37 @@ interface DetectionLoopConfig {
   cooldownSec?: number;
 }
 
+/**
+ * Per-category match state.
+ *
+ * Each counting category (see MatchedRegion.category) advances its own
+ * consecutive-hit, hysteresis and cooldown phases independently, so two
+ * gameplays captured in one video source can each confirm a match without
+ * blocking one another. The default category (empty-string key) reproduces
+ * the legacy single-counter behavior.
+ */
+interface CategoryState {
+  consecutiveCount: number;
+  missCount: number;
+  inHysteresis: boolean;
+  inCooldown: boolean;
+  cooldownStartedAt: number;
+  /** Smoothed score (EMA) used for live confidence display. */
+  smoothedScore: number;
+}
+
+/** Create a fresh, idle category state. */
+function newCategoryState(): CategoryState {
+  return {
+    consecutiveCount: 0,
+    missCount: 0,
+    inHysteresis: false,
+    inCooldown: false,
+    cooldownStartedAt: 0,
+    smoothedScore: 0,
+  };
+}
+
 // --- Adaptive polling constants ----------------------------------------------
 
 /** Fastest polling interval in ms (when score is near threshold). */
@@ -105,11 +136,12 @@ export class DetectionLoop {
   private maxPollMs = MAX_POLL_MS;
   private hysteresisFactor = 0.7;
   private cooldownSec = 0;
-  /** When true, score has dropped but we're waiting for the cooldown timer. */
-  private inCooldown = false;
-  private cooldownStartedAt = 0;
-  private consecutiveCount = 0;
-  private missCount = 0;
+  /**
+   * Independent match state per counting category, keyed by category name.
+   * The empty-string key is the default category used when no region defines
+   * one, which keeps single-category hunts behaving exactly as before.
+   */
+  private readonly categoryStates = new Map<string, CategoryState>();
   private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   /** Last video.currentTime seen — used to skip detection when the frame hasn't changed. */
@@ -120,12 +152,6 @@ export class DetectionLoop {
 
   /** Pending template replacement — picked up at the start of the next loop iteration. */
   private pendingTemplates: TemplateData[] | null = null;
-
-  /** Smoothed score (EMA) used for live confidence display. */
-  private smoothedScore = 0;
-
-  /** When true, a match was just confirmed and we wait for the score to drop before re-triggering. */
-  private inHysteresis = false;
 
   /** Optional callback for live score reporting. */
   private scoreCallback: ((score: number, state: string, cooldownRemainingMs?: number) => void) | null = null;
@@ -186,12 +212,7 @@ export class DetectionLoop {
   start(getVideo: () => HTMLVideoElement | null): void {
     if (this.running) return;
     this.running = true;
-    this.consecutiveCount = 0;
-    this.missCount = 0;
-    this.smoothedScore = 0;
-    this.inHysteresis = false;
-    this.inCooldown = false;
-    this.cooldownStartedAt = 0;
+    this.categoryStates.clear();
     this.pollIntervalMs = this.config.pollIntervalMs ?? DEFAULT_POLL_MS;
     this.lastScoreCallbackTime = 0;
     this.lastCallbackState = "";
@@ -215,6 +236,48 @@ export class DetectionLoop {
       }
       this.previousFrameBuffer = null;
     }
+  }
+
+  // --- Category state helpers ------------------------------------------------
+
+  /** Return the state for a category, creating an idle one on first use. */
+  private getCategoryState(category: string): CategoryState {
+    let state = this.categoryStates.get(category);
+    if (!state) {
+      state = newCategoryState();
+      this.categoryStates.set(category, state);
+    }
+    return state;
+  }
+
+  /** True when at least one category currently holds a confirmed match (hysteresis). */
+  private anyHysteresis(): boolean {
+    for (const s of this.categoryStates.values()) {
+      if (s.inHysteresis) return true;
+    }
+    return false;
+  }
+
+  /**
+   * True when every tracked category is in cooldown (and at least one exists).
+   * Detection can be skipped only then, otherwise a cooling category would
+   * starve a sibling category that still needs real scoring.
+   */
+  private allCooldown(): boolean {
+    if (this.categoryStates.size === 0) return false;
+    for (const s of this.categoryStates.values()) {
+      if (!s.inCooldown) return false;
+    }
+    return true;
+  }
+
+  /** Highest smoothed score across categories, for live confidence display. */
+  private maxSmoothedScore(): number {
+    let max = 0;
+    for (const s of this.categoryStates.values()) {
+      if (s.smoothedScore > max) max = s.smoothedScore;
+    }
+    return max;
   }
 
   // --- Internal loop ---------------------------------------------------------
@@ -241,10 +304,11 @@ export class DetectionLoop {
   private async runLoop(getVideo: () => HTMLVideoElement | null): Promise<void> {
     if (!this.running) return;
 
-    // During cooldown, skip expensive GPU detection — just tick the timer
-    // and update the UI at a fast interval. Hysteresis still needs real
-    // detection so we can tell when the match disappears from the screen.
-    if (this.inCooldown) {
+    // When every category is in cooldown, skip expensive GPU detection — just
+    // tick the timers and update the UI at a fast interval. If any category is
+    // still active, real detection must run so its hysteresis can resolve and
+    // the cooling categories do not starve it.
+    if (this.allCooldown()) {
       this.tickCooldownPhase();
       this.pollIntervalMs = COOLDOWN_TICK_MS;
       this.scheduleNext(getVideo);
@@ -298,7 +362,10 @@ export class DetectionLoop {
    */
   private tickCooldownPhase(): void {
     const effectivePrecision = this.computeEffectivePrecision();
-    this.updateMatchState(0, effectivePrecision);
+    // Advance the cooldown timer of every category that is cooling down.
+    for (const state of this.categoryStates.values()) {
+      this.updateMatchState(state, 0, effectivePrecision);
+    }
     this.emitScoreCallback(0, effectivePrecision);
   }
 
@@ -330,30 +397,42 @@ export class DetectionLoop {
 
     this.recycleFrameBuffer(result.frameBuffer);
 
-    const adjusted = this.applyNoiseFloor(result.bestScore);
-    this.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * this.smoothedScore;
+    // Fall back to a single default category so legacy single-counter hunts
+    // (and detectors that do not report categories) behave exactly as before.
+    const categoryScores = result.categoryScores ?? { "": result.bestScore };
+    const effectivePrecision = this.computeEffectivePrecision();
+
+    // The highest adjusted score across categories drives adaptive polling.
+    let maxAdjusted = 0;
+
+    for (const [category, rawScore] of Object.entries(categoryScores)) {
+      const state = this.getCategoryState(category);
+      const adjusted = this.applyNoiseFloor(rawScore);
+      state.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * state.smoothedScore;
+      if (adjusted > maxAdjusted) maxAdjusted = adjusted;
+
+      const wasInHysteresis = state.inHysteresis;
+      this.updateMatchState(state, adjusted, effectivePrecision);
+
+      // Each category notifies the backend on its own confirmed match, so every
+      // gameplay increments the shared counter once per encounter.
+      if (state.inHysteresis && !wasInHysteresis) {
+        this.reportMatch(adjusted, result.frameDelta, category);
+      }
+    }
 
     // Periodic score logging for debugging (every ~2s)
     if (Math.random() < 0.1) {
-      console.log(`[Detection] raw=${result.bestScore.toFixed(3)} adj=${adjusted.toFixed(3)} smooth=${this.smoothedScore.toFixed(3)} poll=${this.pollIntervalMs}ms`);
+      console.log(`[Detection] best=${result.bestScore.toFixed(3)} maxAdj=${maxAdjusted.toFixed(3)} cats=${this.categoryStates.size} poll=${this.pollIntervalMs}ms`);
     }
 
-    const effectivePrecision = this.computeEffectivePrecision();
-    const wasInHysteresis = this.inHysteresis;
-    this.updateMatchState(adjusted, effectivePrecision);
+    this.emitScoreCallback(maxAdjusted, effectivePrecision);
 
-    // Only notify the backend when a match is confirmed (hysteresis just entered)
-    if (this.inHysteresis && !wasInHysteresis) {
-      this.reportMatch(adjusted, result.frameDelta);
-    }
-
-    this.emitScoreCallback(adjusted, effectivePrecision);
-
-    // When we just entered cooldown, switch to fast ticks immediately instead
-    // of using the adaptive interval (which would be slow for low scores).
-    this.pollIntervalMs = this.inCooldown
+    // When every category just entered cooldown, switch to fast ticks instead
+    // of the adaptive interval (which would be slow for low scores).
+    this.pollIntervalMs = this.allCooldown()
       ? COOLDOWN_TICK_MS
-      : this.computeNextInterval(adjusted, result.frameDelta);
+      : this.computeNextInterval(maxAdjusted, result.frameDelta);
   }
 
   /** Replace the previous frame buffer, destroying the old one if applicable. */
@@ -402,48 +481,48 @@ export class DetectionLoop {
    * encounter animations can produce intermittent low scores between
    * high-score frames at typical polling rates.
    */
-  private updateMatchState(adjusted: number, effectivePrecision: number): void {
+  private updateMatchState(state: CategoryState, adjusted: number, effectivePrecision: number): void {
     // Phase 1: Hysteresis — wait for score to drop after a confirmed match
-    if (this.inHysteresis) {
+    if (state.inHysteresis) {
       const belowThreshold = adjusted < this.config.precision * this.hysteresisFactor;
       if (belowThreshold) {
         // Score dropped — transition to cooldown phase
-        this.inHysteresis = false;
-        this.inCooldown = true;
-        this.cooldownStartedAt = Date.now();
+        state.inHysteresis = false;
+        state.inCooldown = true;
+        state.cooldownStartedAt = Date.now();
       }
-      this.consecutiveCount = 0;
-      this.missCount = 0;
+      state.consecutiveCount = 0;
+      state.missCount = 0;
       return;
     }
 
     // Phase 2: Cooldown — wait for timer to elapse after hysteresis ended
-    if (this.inCooldown) {
-      const cooldownElapsed = Date.now() - this.cooldownStartedAt >= this.cooldownSec * 1000;
+    if (state.inCooldown) {
+      const cooldownElapsed = Date.now() - state.cooldownStartedAt >= this.cooldownSec * 1000;
       if (cooldownElapsed) {
-        this.inCooldown = false;
+        state.inCooldown = false;
       }
-      this.consecutiveCount = 0;
-      this.missCount = 0;
+      state.consecutiveCount = 0;
+      state.missCount = 0;
       return;
     }
 
     // Phase 3: Normal detection — count consecutive matches
     if (adjusted >= effectivePrecision) {
-      this.consecutiveCount += 1;
-      this.missCount = 0;
-    } else if (this.consecutiveCount > 0 && this.missCount < 1) {
+      state.consecutiveCount += 1;
+      state.missCount = 0;
+    } else if (state.consecutiveCount > 0 && state.missCount < 1) {
       // Tolerate a single below-threshold frame between match frames
-      this.missCount += 1;
+      state.missCount += 1;
     } else {
-      this.consecutiveCount = 0;
-      this.missCount = 0;
+      state.consecutiveCount = 0;
+      state.missCount = 0;
     }
 
-    if (this.consecutiveCount >= this.config.consecutiveHits) {
-      this.consecutiveCount = 0;
-      this.missCount = 0;
-      this.inHysteresis = true;
+    if (state.consecutiveCount >= this.config.consecutiveHits) {
+      state.consecutiveCount = 0;
+      state.missCount = 0;
+      state.inHysteresis = true;
     }
   }
 
@@ -451,15 +530,26 @@ export class DetectionLoop {
   private emitScoreCallback(_adjusted: number, _effectivePrecision: number): void {
     if (!this.scoreCallback) return;
 
+    // Aggregate the per-category states into one indicator: a confirmed match
+    // in any category wins, otherwise show cooldown while any category cools,
+    // otherwise idle. Individual above-threshold frames during consecutive-hit
+    // buildup stay "idle" to prevent Bereit->Treffer->Bereit flicker.
+    let anyCooldown = false;
+    let maxCooldownRemainingMs = 0;
+    for (const s of this.categoryStates.values()) {
+      if (s.inCooldown) {
+        anyCooldown = true;
+        const remaining = Math.max(0, this.cooldownSec * 1000 - (Date.now() - s.cooldownStartedAt));
+        if (remaining > maxCooldownRemainingMs) maxCooldownRemainingMs = remaining;
+      }
+    }
+
     let state: string;
-    if (this.inHysteresis) {
+    if (this.anyHysteresis()) {
       state = "match";
-    } else if (this.inCooldown) {
+    } else if (anyCooldown) {
       state = "cooldown";
     } else {
-      // Only show "match" for confirmed detections (inHysteresis).
-      // Individual above-threshold frames during consecutive-hit buildup
-      // stay as "idle" to prevent Bereit→Treffer→Bereit flicker.
       state = "idle";
     }
 
@@ -473,13 +563,9 @@ export class DetectionLoop {
     this.lastScoreCallbackTime = now;
     this.lastCallbackState = state;
 
-    let cooldownRemainingMs: number | undefined;
-    if (this.inCooldown) {
-      const elapsed = Date.now() - this.cooldownStartedAt;
-      cooldownRemainingMs = Math.max(0, this.cooldownSec * 1000 - elapsed);
-    }
+    const cooldownRemainingMs = state === "cooldown" ? maxCooldownRemainingMs : undefined;
 
-    this.scoreCallback(this.smoothedScore, state, cooldownRemainingMs);
+    this.scoreCallback(this.maxSmoothedScore(), state, cooldownRemainingMs);
   }
 
   /**
@@ -554,9 +640,9 @@ export class DetectionLoop {
       pollIntervalMs: this.pollIntervalMs,
       minPollMs: this.minPollMs,
       maxPollMs: this.maxPollMs,
-      smoothedScore: this.smoothedScore,
-      inHysteresis: this.inHysteresis,
-      inCooldown: this.inCooldown,
+      smoothedScore: this.maxSmoothedScore(),
+      inHysteresis: this.anyHysteresis(),
+      inCooldown: this.allCooldown(),
     };
   }
 
@@ -567,12 +653,12 @@ export class DetectionLoop {
    * score endpoint, because the frontend already confirmed the match
    * via its own consecutive-hits + hysteresis logic.
    */
-  private reportMatch(score: number, frameDelta: number): void {
-    console.log(`[Detection] Match confirmed for ${this.pokemonId}, reporting to backend`);
+  private reportMatch(score: number, frameDelta: number, category: string): void {
+    console.log(`[Detection] Match confirmed for ${this.pokemonId} (category="${category}"), reporting to backend`);
     // Fire-and-forget from the caller's perspective: the loop must not block on
     // network I/O. The helper retries internally so a transient failure does not
     // silently drop a confirmed encounter (which is worse when many detectors run).
-    void this.sendMatchWithRetry(score, frameDelta);
+    void this.sendMatchWithRetry(score, frameDelta, category);
   }
 
   /**
@@ -583,12 +669,12 @@ export class DetectionLoop {
    * retry (e.g. the pokemon was deleted), so both stop immediately. After all
    * attempts are exhausted a warning is logged so the loss stays visible.
    */
-  private async sendMatchWithRetry(score: number, frameDelta: number): Promise<void> {
+  private async sendMatchWithRetry(score: number, frameDelta: number, category: string): Promise<void> {
     const url = apiUrl(`/api/detector/${this.pokemonId}/match`);
     const backoffsMs = [150, 400, 800];
 
     for (let attempt = 0; attempt < MATCH_RETRY_ATTEMPTS; attempt += 1) {
-      const transient = await this.attemptMatchPost(url, score, frameDelta);
+      const transient = await this.attemptMatchPost(url, score, frameDelta, category);
       if (!transient) return;
       const isLastAttempt = attempt === MATCH_RETRY_ATTEMPTS - 1;
       if (isLastAttempt) break;
@@ -605,12 +691,12 @@ export class DetectionLoop {
    * (network rejection or 5xx), false when the outcome is final (2xx success or
    * a 4xx that will not be fixed by retrying).
    */
-  private async attemptMatchPost(url: string, score: number, frameDelta: number): Promise<boolean> {
+  private async attemptMatchPost(url: string, score: number, frameDelta: number, category: string): Promise<boolean> {
     try {
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ score, frame_delta: frameDelta }),
+        body: JSON.stringify({ score, frame_delta: frameDelta, category }),
       });
       return response.status >= 500;
     } catch {

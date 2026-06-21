@@ -5,6 +5,10 @@ package pokemon
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +17,10 @@ import (
 
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
+
+// errMockSprite is returned by the mock sprite store on simulated failures and
+// for missing sprites.
+var errMockSprite = errors.New("mock sprite error")
 
 // --- Mock types --------------------------------------------------------------
 
@@ -73,6 +81,55 @@ func (m *mockBroadcaster) BroadcastRaw(msgType string, payload any) {
 	m.messages = append(m.messages, broadcastMsg{MsgType: msgType, Payload: payload})
 }
 
+// storedSprite captures a sprite BLOB and its mime type for mock assertions.
+type storedSprite struct {
+	data []byte
+	mime string
+}
+
+// mockSpriteStore implements SpriteStore with in-memory storage.
+type mockSpriteStore struct {
+	sprites map[string]storedSprite
+	failOn  string // "save", "load", "delete" to simulate errors
+}
+
+// newMockSpriteStore returns an empty in-memory sprite store.
+func newMockSpriteStore() *mockSpriteStore {
+	return &mockSpriteStore{sprites: make(map[string]storedSprite)}
+}
+
+// SaveSprite stores the sprite bytes and mime for the pokemon.
+func (m *mockSpriteStore) SaveSprite(pokemonID string, data []byte, mime string) error {
+	if m.failOn == "save" {
+		return errMockSprite
+	}
+	cp := make([]byte, len(data))
+	copy(cp, data)
+	m.sprites[pokemonID] = storedSprite{data: cp, mime: mime}
+	return nil
+}
+
+// LoadSprite returns the stored sprite bytes and mime, or an error if absent.
+func (m *mockSpriteStore) LoadSprite(pokemonID string) ([]byte, string, error) {
+	if m.failOn == "load" {
+		return nil, "", errMockSprite
+	}
+	s, ok := m.sprites[pokemonID]
+	if !ok {
+		return nil, "", errMockSprite
+	}
+	return s.data, s.mime, nil
+}
+
+// DeleteSprite removes the stored sprite for the pokemon.
+func (m *mockSpriteStore) DeleteSprite(pokemonID string) error {
+	if m.failOn == "delete" {
+		return errMockSprite
+	}
+	delete(m.sprites, pokemonID)
+	return nil
+}
+
 // --- testDeps ----------------------------------------------------------------
 
 // testDeps implements the Deps interface using a real state.Manager and mock
@@ -83,6 +140,7 @@ type testDeps struct {
 	detector    *mockDetectorStopper
 	logger      *mockEncounterLogger
 	broadcaster *mockBroadcaster
+	spriteStore *mockSpriteStore
 	saveCount   int
 	broadcastN  int
 }
@@ -166,6 +224,15 @@ func (d *testDeps) Broadcaster() Broadcaster { return d.broadcaster }
 // BroadcastState increments the broadcast counter for verification.
 func (d *testDeps) BroadcastState() { d.broadcastN++ }
 
+// PokemonDB returns the mock sprite store. Returns nil when none is configured
+// so handlers exercise the no-database branch.
+func (d *testDeps) PokemonDB() SpriteStore {
+	if d.spriteStore == nil {
+		return nil
+	}
+	return d.spriteStore
+}
+
 // --- Helpers -----------------------------------------------------------------
 
 // newTestMux creates a test HTTP mux with all pokemon routes registered,
@@ -181,10 +248,23 @@ func newTestMux(t *testing.T) (*http.ServeMux, *testDeps) {
 		detector:    &mockDetectorStopper{},
 		logger:      &mockEncounterLogger{},
 		broadcaster: &mockBroadcaster{},
+		spriteStore: newMockSpriteStore(),
 	}
 	mux := http.NewServeMux()
 	RegisterRoutes(mux, deps)
 	return mux, deps
+}
+
+// smallPNG returns the bytes of a valid 1x1 PNG image for upload tests.
+func smallPNG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	img.Set(0, 0, color.RGBA{R: 255, A: 255})
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, img); err != nil {
+		t.Fatalf("encode png: %v", err)
+	}
+	return buf.Bytes()
 }
 
 // addPokemon adds a Pokemon directly to the state manager for test setup.

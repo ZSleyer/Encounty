@@ -355,7 +355,7 @@ describe("TemplateEditor", () => {
     await renderEditMode({ initialRegions: regions });
     // Wait for regions to render after Image.onload triggers phase transition
     const selects = await waitFor(() => {
-      const s = screen.getAllByRole("combobox");
+      const s = screen.getAllByRole("combobox", { name: "Typ" });
       expect(s.length).toBe(2);
       return s;
     });
@@ -415,14 +415,14 @@ describe("TemplateEditor", () => {
     ];
     await renderEditMode({ initialRegions: regions });
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "Typ" })).toBeInTheDocument();
     });
 
     // No expected text input initially (image type)
     expect(screen.queryByPlaceholderText("Erwarteter Text")).not.toBeInTheDocument();
 
     // Switch the region to text type
-    const select = screen.getByRole("combobox");
+    const select = screen.getByRole("combobox", { name: "Typ" });
     await user.selectOptions(select, "text");
 
     // Now the expected text input should appear
@@ -436,9 +436,9 @@ describe("TemplateEditor", () => {
     ];
     await renderEditMode({ initialRegions: regions, pokemonName: "Bisasam" });
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "Typ" })).toBeInTheDocument();
     });
-    const select = screen.getByRole("combobox");
+    const select = screen.getByRole("combobox", { name: "Typ" });
     await user.selectOptions(select, "text");
 
     const textInput = screen.getByPlaceholderText("Erwarteter Text");
@@ -462,6 +462,41 @@ describe("TemplateEditor", () => {
         "Test Template",
       );
     });
+  });
+
+  it("assigns a category to a region and includes it in the saved regions", async () => {
+    const user = userEvent.setup();
+    const onUpdateRegions = vi.fn().mockResolvedValue(undefined);
+    const regions = [
+      { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
+    ];
+    await renderEditMode({ initialRegions: regions, initialName: "Test Template", onUpdateRegions });
+
+    const categoryInput = screen.getByLabelText("Kategorie");
+    await user.type(categoryInput, "Console A");
+    await clickNextThenSave(user);
+
+    await waitFor(() => {
+      expect(onUpdateRegions).toHaveBeenCalledWith(
+        [expect.objectContaining({ category: "Console A" })],
+        "Test Template",
+      );
+    });
+  });
+
+  it("opens and closes the category help dialog", async () => {
+    const user = userEvent.setup();
+    const regions = [
+      { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
+    ];
+    await renderEditMode({ initialRegions: regions, initialName: "T", onUpdateRegions: vi.fn() });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Was sind Kategorien?" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("shows error message when save fails", async () => {
@@ -722,7 +757,7 @@ describe("TemplateEditor", () => {
     ).not.toBeInTheDocument();
 
     // Switch to text type
-    const select = screen.getByRole("combobox");
+    const select = screen.getByRole("combobox", { name: "Typ" });
     await user.selectOptions(select, "text");
 
     // OCR hint should now appear
@@ -781,7 +816,7 @@ describe("TemplateEditor", () => {
     await renderEditMode({ initialRegions: regions, pokemonName: "Bisasam" });
 
     // Switch from image to text
-    const select = screen.getByRole("combobox");
+    const select = screen.getByRole("combobox", { name: "Typ" });
     await user.selectOptions(select, "text");
 
     // Should pre-fill with pokemonName since expected_text was empty

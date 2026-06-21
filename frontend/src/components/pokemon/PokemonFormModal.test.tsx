@@ -1043,5 +1043,59 @@ describe("PokemonFormModal", () => {
       fireEvent.change(input, { target: { value: "https://a.example/x.png" } });
       expect(input.value).toBe("https://a.example/x.png");
     });
+
+    /** Expand the custom sprite section and return its hidden file input. */
+    async function openSpriteFileInput(fireEvent: typeof import("../../test-utils").fireEvent) {
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /Sprite/i })).toBeInTheDocument();
+      });
+      const toggle = screen.getAllByRole("button")
+        .find((b) => b.getAttribute("aria-label")?.includes("Sprite"))!;
+      fireEvent.click(toggle);
+      return document.querySelector('input[type="file"]') as HTMLInputElement;
+    }
+
+    const spriteCalls = () =>
+      vi.mocked(fetch).mock.calls.filter((c) => String(c[0]).includes(`/api/pokemon/${editPokemon.id}/sprite`));
+
+    it("uploads a chosen local image to the sprite endpoint", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      const input = await openSpriteFileInput(fireEvent);
+      const file = new File([new Uint8Array([1, 2, 3])], "sprite.png", { type: "image/png" });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      await waitFor(() => expect(spriteCalls().length).toBe(1));
+      expect(spriteCalls()[0][1]).toMatchObject({ method: "POST" });
+    });
+
+    it("rejects an oversized image without uploading", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      const input = await openSpriteFileInput(fireEvent);
+      const file = new File([new Uint8Array([1])], "big.png", { type: "image/png" });
+      Object.defineProperty(file, "size", { value: 5 * 1024 * 1024 });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      await Promise.resolve();
+      expect(spriteCalls().length).toBe(0);
+    });
+
+    it("rejects an unsupported file type without uploading", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      const input = await openSpriteFileInput(fireEvent);
+      const file = new File([new Uint8Array([1])], "art.bmp", { type: "image/bmp" });
+      fireEvent.change(input, { target: { files: [file] } });
+
+      await Promise.resolve();
+      expect(spriteCalls().length).toBe(0);
+    });
   });
 });

@@ -10,7 +10,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon,
-  Type, Loader2, ScanText, Play, ArrowRight, BarChart3, ArrowLeft,
+  Type, Loader2, ScanText, Play, ArrowRight, BarChart3, ArrowLeft, HelpCircle,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { MatchedRegion } from "../../types";
@@ -259,9 +259,11 @@ function boxToRegion(box: { x: number; y: number; w: number; h: number }, canvas
 }
 
 /** Renders a single region overlay marker on the snapshot preview. */
-function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, scoreBadge }: Readonly<{
+function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, scoreBadge, chipColor }: Readonly<{
   region: MatchedRegion; index: number; snapshotWidth: number; snapshotHeight: number;
   scoreBadge?: number;
+  /** Category chip color, or null when the region has no category. */
+  chipColor?: string | null;
 }>) {
   const isText = region.type === "text";
   const borderStyle = isText ? "border-purple-500 bg-purple-500/30" : "border-accent-blue bg-accent-blue/30";
@@ -282,6 +284,13 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
     >
       <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
         <strong className={labelColor}>#{index + 1}</strong>
+        {chipColor && (
+          <span
+            aria-hidden="true"
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: chipColor }}
+          />
+        )}
         {regionIcon}
         {isText && region.expected_text ? (
           <span className="opacity-80 ml-1 truncate max-w-15">"{region.expected_text}"</span>
@@ -807,16 +816,39 @@ function commitDrawnRegion(
   }
 }
 
+/** Fixed palette for category chips. Regions sharing a category get the same hue. */
+const CATEGORY_COLORS = [
+  "#60a5fa", "#a78bfa", "#34d399", "#fbbf24", "#f472b6",
+  "#22d3ee", "#fb923c", "#a3e635", "#f87171", "#c084fc",
+] as const;
+
+/**
+ * Returns a stable chip color for a category name, or null for the default
+ * (empty) category so unset regions render no chip and behave as before.
+ */
+function categoryColor(category: string | undefined, order: string[]): string | null {
+  const name = (category ?? "").trim();
+  if (!name) return null;
+  const idx = order.indexOf(name);
+  const slot = idx >= 0 ? idx : order.length;
+  return CATEGORY_COLORS[slot % CATEGORY_COLORS.length];
+}
+
 /** Single region editor card shown below the snapshot preview. */
-function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isRecognizing, t }: Readonly<{
+function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isRecognizing, categoryNames, t }: Readonly<{
   region: MatchedRegion; index: number;
   onUpdate: (i: number, u: Partial<MatchedRegion>) => void;
   onDelete: (i: number) => void;
   onRunOCR: (i: number) => void;
   isRecognizing: boolean;
+  /** Distinct category names already used in this template, for autocomplete and chip colors. */
+  categoryNames: string[];
   t: (key: string) => string;
 }>) {
   const labelColor = r.type === "text" ? "text-purple-400" : "text-accent-blue";
+  const datalistId = `region-categories-${i}`;
+  const chipColor = categoryColor(r.category, categoryNames);
+  const [showHelp, setShowHelp] = useState(false);
   return (
     <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-2 shadow-lg transition-colors hover:border-accent-blue/50">
       <span className={`font-mono font-bold w-5 shrink-0 ${labelColor}`}>
@@ -824,6 +856,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
       </span>
       <select
         className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
+        aria-label={t("templateEditor.regionType")}
         value={r.type}
         onChange={(e) => onUpdate(i, { type: e.target.value as "image" | "text" })}
       >
@@ -853,6 +886,72 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
           </button>
         </>
       )}
+      <div className="w-px h-6 bg-border-subtle mx-1"></div>
+      <div className="flex items-center gap-1.5">
+        {chipColor && (
+          <span
+            aria-hidden="true"
+            className="w-2.5 h-2.5 rounded-full shrink-0"
+            style={{ backgroundColor: chipColor }}
+          />
+        )}
+        <input
+          type="text"
+          list={datalistId}
+          aria-label={t("templateEditor.category")}
+          placeholder={t("templateEditor.category")}
+          value={r.category ?? ""}
+          onChange={(e) => onUpdate(i, { category: e.target.value })}
+          className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none w-24 2xl:w-28 focus:border-accent-blue"
+        />
+        <datalist id={datalistId}>
+          {categoryNames.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+        <button
+          type="button"
+          onClick={() => setShowHelp(true)}
+          aria-label={t("templateEditor.categoryHelpTitle")}
+          className="text-text-muted hover:text-accent-blue transition-colors shrink-0"
+        >
+          <HelpCircle className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
+        </button>
+        {showHelp && createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+            onClick={() => setShowHelp(false)}
+            onKeyDown={(e) => { if (e.key === "Escape") setShowHelp(false); }}
+            role="presentation"
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={t("templateEditor.categoryHelpTitle")}
+              className="max-w-sm bg-bg-card border border-border-subtle rounded-xl p-4 shadow-xl text-left"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 mb-2 text-text-primary font-semibold text-sm">
+                <HelpCircle className="w-4 h-4 text-accent-blue" />
+                <span>{t("templateEditor.categoryHelpTitle")}</span>
+              </div>
+              <p className="text-xs 2xl:text-sm text-text-secondary leading-relaxed">
+                {t("templateEditor.categoryHelp")}
+              </p>
+              <div className="mt-3 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowHelp(false)}
+                  className="px-3 py-1.5 rounded-lg bg-accent-blue text-white text-xs font-semibold hover:bg-accent-blue/90 transition-colors"
+                >
+                  {t("templateEditor.close")}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      </div>
       <div className="w-px h-6 bg-border-subtle mx-1"></div>
       <button
         title={t("templateEditor.deleteRegion")}
@@ -1125,6 +1224,11 @@ export function TemplateEditor({
   };
 
   const hasTextRegion = regions.some((r) => r.type === "text");
+  // Distinct non-empty category names in first-seen order, for autocomplete and
+  // consistent chip colors across all region cards.
+  const categoryNames = [...new Set(
+    regions.map((r) => (r.category ?? "").trim()).filter((c) => c !== ""),
+  )];
   const isEditMode = !!initialImageUrl || !!onUpdateRegions;
 
   const { heading, hint } = getHeadingAndHint(isEditMode, phase, t);
@@ -1224,6 +1328,7 @@ export function TemplateEditor({
                   snapshotWidth={snapshotWidth}
                   snapshotHeight={snapshotHeight}
                   scoreBadge={regionScore}
+                  chipColor={categoryColor(r.category, categoryNames)}
                 />
               );
             })}
@@ -1393,6 +1498,7 @@ export function TemplateEditor({
               onDelete={deleteRegion}
               onRunOCR={handleRunOCR}
               isRecognizing={isRecognizing}
+              categoryNames={categoryNames}
               t={t}
             />
           ))}

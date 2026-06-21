@@ -34,8 +34,19 @@ import { getAvailableHuntMethods } from "../../utils/huntTypes";
 import { gameSupportsCharm } from "../../utils/gameGroups";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
+import { useToast } from "../../contexts/ToastContext";
 
 // --- Exported types ---
+
+/**
+ * Maximum accepted local sprite upload size in bytes. Kept in sync with the
+ * backend cap (spriteMaxBytes) so the client can reject oversized files before
+ * uploading; the backend remains the authoritative guard.
+ */
+const SPRITE_MAX_BYTES = 4 * 1024 * 1024;
+
+/** Image MIME types accepted for local sprite uploads (matches backend). */
+const SPRITE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
 
 export interface NewPokemonData {
   name: string;
@@ -568,6 +579,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t, locale } = useI18n();
+  const { push } = useToast();
 
   // --- State initialization (differs by mode) ---
   const defaults = isEdit ? editDefaults(props.pokemon, activeLanguages, locale) : addDefaults(activeLanguages, locale);
@@ -584,6 +596,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   const [selected, setSelected] = useState<SelectedState | null>(null);
   const [customSprite, setCustomSprite] = useState(defaults.customSprite);
+  const spriteFileRef = useRef<HTMLInputElement>(null);
+  const [spriteUploading, setSpriteUploading] = useState(false);
   const [spriteType, setSpriteType] = useState<SpriteType>(defaults.spriteType);
   const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>(defaults.spriteStyle);
   // Sprite styles whose URL failed to load for the currently selected Pokemon.
@@ -740,6 +754,54 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     if (!fullP) return;
     setQuery(getPkmnName(fullP, lang));
     setSelected({ ...selected, name: getPkmnName(fullP, lang), formName: fullP.formName, baseName: fullP.baseName });
+  };
+
+  // --- Local sprite upload handler ---
+  /**
+   * Upload a locally chosen image as the Pokemon's sprite.
+   *
+   * Only available in edit mode, where the Pokemon already has an id to upload
+   * against. The bytes are stored server-side (DB binary) and served over HTTP;
+   * we keep only the returned reference URL in the form. The URL is resolved
+   * through apiUrl so it points at the backend (fixed port) from the Electron
+   * renderer and the OBS overlay alike, rather than the renderer origin.
+   */
+  const handleSpriteFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file later
+    if (!file || props.mode !== "edit") return;
+
+    if (!SPRITE_ACCEPT.split(",").includes(file.type)) {
+      push({ type: "error", title: t("modal.spriteUpload.invalidType") });
+      return;
+    }
+    if (file.size > SPRITE_MAX_BYTES) {
+      push({ type: "error", title: t("modal.spriteUpload.tooLarge") });
+      return;
+    }
+
+    setSpriteUploading(true);
+    try {
+      const res = await fetch(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`), {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!res.ok) {
+        const title = res.status === 413
+          ? t("modal.spriteUpload.tooLarge")
+          : t("modal.spriteUpload.failed");
+        push({ type: "error", title });
+        return;
+      }
+      const body: { sprite_url: string } = await res.json();
+      setCustomSprite(apiUrl(body.sprite_url));
+      push({ type: "success", title: t("modal.spriteUpload.success") });
+    } catch {
+      push({ type: "error", title: t("modal.spriteUpload.failed") });
+    } finally {
+      setSpriteUploading(false);
+    }
   };
 
   // --- Submit handler ---
@@ -1404,7 +1466,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               <span>{t("modal.customSprite")}</span>
             </button>
             {showCustomSprite && (
-              <div className="mt-2">
+              <div className="mt-2 space-y-2">
                 <input
                   id="custom-sprite-form"
                   type="url"
@@ -1413,6 +1475,27 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   placeholder="https://..."
                   className={inputClass}
                 />
+                {isEdit ? (
+                  <>
+                    <input
+                      ref={spriteFileRef}
+                      type="file"
+                      accept={SPRITE_ACCEPT}
+                      onChange={handleSpriteFile}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => spriteFileRef.current?.click()}
+                      disabled={spriteUploading}
+                      className="w-full py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {spriteUploading ? t("modal.spriteUpload.uploading") : t("modal.spriteUpload.choose")}
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-xs text-text-muted">{t("modal.spriteUpload.saveFirst")}</p>
+                )}
               </div>
             )}
           </div>

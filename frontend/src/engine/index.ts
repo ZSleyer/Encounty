@@ -17,6 +17,13 @@ export interface DetectorResult {
   bestScore: number;
   frameDelta: number;
   templateIndex: number;
+  /**
+   * Per-category scores, keyed by category name. A category's score is the
+   * best (max) across templates of the AND-combined (min) scores of that
+   * category's regions. The default category uses the empty-string key and,
+   * when it is the only category, equals bestScore (legacy behavior).
+   */
+  categoryScores?: Record<string, number>;
   /** Opaque frame buffer for deduplication — pass back as previousFrame on next cycle. */
   frameBuffer?: unknown;
 }
