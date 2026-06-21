@@ -483,6 +483,42 @@ export function andLogicAcrossRegions(regionScores: number[]): number {
   return min;
 }
 
+/**
+ * Combine per-category region score groups into a per-category score map.
+ *
+ * Each category's score is the AND-combination (minimum) of its region
+ * scores, so every region of a category must match. Categories are scored
+ * independently: a low region in one category never affects another. The
+ * default category uses the empty-string key, preserving legacy behavior
+ * when no categories are assigned.
+ */
+export function categoryScoresFromGroups(
+  scoresByCategory: Map<string, number[]>,
+): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const [category, scores] of scoresByCategory) {
+    result[category] = andLogicAcrossRegions(scores);
+  }
+  return result;
+}
+
+/**
+ * Merge per-category scores from one template into an accumulator by taking
+ * the max per category, mirroring how detectors keep the best template per
+ * category. Returns the best score across the merged categories.
+ */
+export function mergeCategoryScores(
+  accumulator: Record<string, number>,
+  templateScores: Record<string, number>,
+): number {
+  let best = 0;
+  for (const [category, value] of Object.entries(templateScores)) {
+    if (value > (accumulator[category] ?? 0)) accumulator[category] = value;
+    if (value > best) best = value;
+  }
+  return best;
+}
+
 // ---------------------------------------------------------------------------
 // Template operations
 // ---------------------------------------------------------------------------

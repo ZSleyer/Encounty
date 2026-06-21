@@ -238,6 +238,7 @@ var schemaV2 = []string{
 		rect_h        INTEGER NOT NULL DEFAULT 0,
 		sort_order    INTEGER NOT NULL DEFAULT 0,
 		is_negative   INTEGER NOT NULL DEFAULT 0,
+		category      TEXT    NOT NULL DEFAULT '',
 		FOREIGN KEY (template_id) REFERENCES detector_templates(id) ON DELETE CASCADE
 	)`,
 

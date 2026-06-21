@@ -119,6 +119,11 @@ var migrations = []migration{
 		description: "add pokemon_sprites table for local sprite uploads",
 		fn:          migrateAddPokemonSprites,
 	},
+	{
+		version:     21,
+		description: "add category column to template_regions",
+		fn:          migrateAddRegionCategory,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -351,6 +356,15 @@ func migrateAddPokemonSprites(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("create pokemon_sprites table: %w", err)
 	}
+	return nil
+}
+
+// migrateAddRegionCategory adds the category column to template_regions on
+// databases that predate per-category counting. Without it, region categories
+// set in the editor are dropped on save/load and every region collapses to the
+// default category, making the detector cooldown behave globally.
+func migrateAddRegionCategory(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE template_regions ADD COLUMN category TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

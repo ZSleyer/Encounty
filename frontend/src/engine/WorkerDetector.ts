@@ -33,7 +33,15 @@ export class WorkerDetector {
         if (msg.error) {
           this.pendingDetect?.reject(new Error(msg.error));
         } else {
-          this.pendingDetect?.resolve(msg.result);
+          // The worker returns the full DetectResult, including the optional
+          // per-category scores; forward it as the DetectorResult.
+          const result = msg.result as DetectorResult;
+          this.pendingDetect?.resolve({
+            bestScore: result.bestScore,
+            frameDelta: result.frameDelta,
+            templateIndex: result.templateIndex,
+            categoryScores: result.categoryScores,
+          });
         }
         this.pendingDetect = null;
       }
@@ -92,6 +100,7 @@ export class WorkerDetector {
     regions?: Array<{
       type: string;
       rect: { x: number; y: number; w: number; h: number };
+      category?: string;
     }>,
   ): TemplateData | null {
     // Convert ImageBitmap to ImageData for structured-clone transfer

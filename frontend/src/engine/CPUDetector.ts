@@ -11,7 +11,8 @@ import {
   fitDimensions,
   pixelDelta,
   scoreRegionHybrid,
-  andLogicAcrossRegions,
+  categoryScoresFromGroups,
+  mergeCategoryScores,
   cropTemplateGray,
   adaptiveBlockSizeForRegion,
   matchWholeTemplate,
@@ -90,6 +91,7 @@ export class CPUDetector {
     regions?: Array<{
       type: string;
       rect: { x: number; y: number; w: number; h: number };
+      category?: string;
     }>,
   ): TemplateData | null {
     let pixels: Uint8ClampedArray;
@@ -182,22 +184,32 @@ export class CPUDetector {
     // NCC against each template
     let bestScore = 0;
     let bestIndex = 0;
+    const categoryScores: Record<string, number> = {};
 
     for (let i = 0; i < templates.length; i++) {
       const tmpl = templates[i];
       if (!tmpl.gray) continue;
       if (tmpl.regions.length === 0) continue;
 
-      const score = matchTemplate(this, source, tmpl, frameGray, maxDim, config.crop, this.iiPool);
+      const templateScores = matchTemplate(
+        this, source, tmpl, frameGray, maxDim, config.crop, this.iiPool,
+      );
 
-      if (score > bestScore) {
-        bestScore = score;
+      // Merge per-category scores across templates by taking the max.
+      const templateBest = mergeCategoryScores(categoryScores, templateScores);
+      if (templateBest > bestScore) {
+        bestScore = templateBest;
         bestIndex = i;
       }
-      if (bestScore >= config.precision) break;
+
+      // Early exit is only safe with a single default category: with multiple
+      // categories, later templates may carry scores for other categories.
+      const onlyDefaultCategory =
+        Object.keys(categoryScores).length === 1 && "" in categoryScores;
+      if (onlyDefaultCategory && bestScore >= config.precision) break;
     }
 
-    return { bestScore, score: bestScore, frameDelta, templateIndex: bestIndex };
+    return { bestScore, score: bestScore, frameDelta, templateIndex: bestIndex, categoryScores };
   }
 
   /** Release resources. */
@@ -355,9 +367,10 @@ function scoreRegionSlidingWindow(
  * Match a single template against a video frame, respecting region definitions.
  *
  * When regions are defined, each region is matched independently against the
- * corresponding crop of the frame (AND-logic: minimum score across all regions).
- * When no regions are defined, the whole template is matched against the frame.
- * Matches the Go MatchWithRegions logic.
+ * corresponding crop of the frame. Regions are grouped by category and
+ * AND-combined (minimum score) within each category. When no regions are
+ * defined, the whole template is matched against the frame and mapped to the
+ * default category "". Matches the Go MatchWithRegions logic.
  */
 function matchTemplate(
   detector: CPUDetector,
@@ -367,18 +380,18 @@ function matchTemplate(
   maxDim: number,
   _crop?: { x: number; y: number; w: number; h: number },
   pool?: IntegralImagePool,
-): number {
+): Record<string, number> {
   const regions = tmpl.regions ?? [];
 
-  // No regions defined — fall back to whole-template matching
+  // No regions defined — fall back to whole-template matching (default category)
   if (regions.length === 0) {
-    return matchWholeTemplate(frameGray, tmpl, maxDim, pool);
+    return { "": matchWholeTemplate(frameGray, tmpl, maxDim, pool) };
   }
 
   // We need the full-resolution frame pixels for region cropping.
   const srcW = source instanceof ImageBitmap ? source.width : source.videoWidth;
   const srcH = source instanceof ImageBitmap ? source.height : source.videoHeight;
-  if (srcW === 0 || srcH === 0) return 0;
+  if (srcW === 0 || srcH === 0) return {};
 
   // Reuse the cached region canvas when dimensions match (avoids ~33MB alloc per frame at 4K)
   if (detector.regionCanvas?.width !== srcW || detector.regionCanvas?.height !== srcH) {
@@ -386,17 +399,25 @@ function matchTemplate(
     detector.regionCtx = detector.regionCanvas.getContext("2d", { willReadFrequently: true });
   }
   const tmpCtx = detector.regionCtx;
-  if (!tmpCtx) return 0;
+  if (!tmpCtx) return {};
   tmpCtx.drawImage(source, 0, 0, srcW, srcH);
 
   const scaleX = srcW / tmpl.width;
   const scaleY = srcH / tmpl.height;
 
-  // Region-scoped matching (AND-logic across all regions)
-  const regionScores: number[] = [];
+  // Region-scoped matching: group region scores by category, AND-combine
+  // (minimum) within each category. Each category is scored independently so a
+  // low region in one category never drags down another category.
+  const scoresByCategory = new Map<string, number[]>();
+  // Categories that already short-circuited because a region scored too low.
+  const shortCircuited = new Set<string>();
 
   for (const region of regions) {
     if (region.type !== "image") continue;
+
+    const category = region.category ?? "";
+    // Skip remaining regions of a category that already short-circuited.
+    if (shortCircuited.has(category)) continue;
 
     const r = region.rect;
     const frameRx = Math.round(r.x * scaleX);
@@ -415,14 +436,21 @@ function matchTemplate(
       blockSize,
     );
 
-    regionScores.push(bestRegionScore);
-    // Early exit when any region scores too low to recover
-    if (bestRegionScore < 0.3) return andLogicAcrossRegions(regionScores);
+    let group = scoresByCategory.get(category);
+    if (!group) {
+      group = [];
+      scoresByCategory.set(category, group);
+    }
+    group.push(bestRegionScore);
+
+    // Early exit when a region scores too low to recover, but only within its
+    // own category group, never across categories.
+    if (bestRegionScore < 0.3) shortCircuited.add(category);
   }
 
-  if (regionScores.length === 0) {
-    return matchWholeTemplate(frameGray, tmpl, maxDim, pool);
+  if (scoresByCategory.size === 0) {
+    return { "": matchWholeTemplate(frameGray, tmpl, maxDim, pool) };
   }
 
-  return andLogicAcrossRegions(regionScores);
+  return categoryScoresFromGroups(scoresByCategory);
 }

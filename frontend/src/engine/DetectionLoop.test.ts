@@ -41,6 +41,31 @@ function createMockDetector(scores: number[]): Detector {
   };
 }
 
+/**
+ * Create a mock detector that reports the same per-category scores every frame.
+ * bestScore is the max across categories, mirroring the real detectors.
+ */
+function createMultiCategoryDetector(categoryScores: Record<string, number>): Detector {
+  const bestScore = Math.max(...Object.values(categoryScores));
+  return {
+    loadTemplate: () => null,
+    detect: async () => ({
+      bestScore,
+      frameDelta: 0.5,
+      templateIndex: 0,
+      categoryScores,
+    }),
+    destroy: () => {},
+  };
+}
+
+/** Count fetch calls that target the /match endpoint. */
+function countMatchPosts(): number {
+  return (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(
+    (call: unknown[]) => typeof call[0] === "string" && call[0].includes("/match"),
+  ).length;
+}
+
 /** Drain all pending microtasks (resolved promises) and advance fake timers by one tick. */
 async function tickLoop(ms = 200): Promise<void> {
   await vi.advanceTimersByTimeAsync(ms);
@@ -209,6 +234,46 @@ describe("DetectionLoop", () => {
       (call: unknown[]) => typeof call[0] === "string" && call[0].includes("/match"),
     );
     expect(fetchCall).toBeDefined();
+  });
+
+  it("counts each category independently, posting one match per category", async () => {
+    // Two categories both well above precision; each should confirm and report
+    // a match on its own, so the shared counter is incremented once per category.
+    const detector = createMultiCategoryDetector({ c1: 0.95, c2: 0.95 });
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({ consecutiveHits: 3, precision: 0.85 });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+
+    for (let i = 0; i < 6; i++) {
+      await tickLoop(200);
+    }
+    loop.stop();
+
+    // Both categories enter hysteresis on the confirming frame and then stay
+    // there (score remains high), so exactly two match posts are expected.
+    expect(countMatchPosts()).toBe(2);
+  });
+
+  it("keeps single-default-category behavior to one match post", async () => {
+    // A detector that reports no categoryScores must behave like the legacy
+    // single counter: one confirmed match, one post.
+    const detector = createMockDetector([0.95, 0.95, 0.95, 0.95, 0.95]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({ consecutiveHits: 3, precision: 0.85 });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+
+    for (let i = 0; i < 6; i++) {
+      await tickLoop(200);
+    }
+    loop.stop();
+
+    expect(countMatchPosts()).toBe(1);
   });
 
   it("does not start a second loop if already running", async () => {

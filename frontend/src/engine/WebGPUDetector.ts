@@ -33,7 +33,9 @@ import reduceMinShader from "./shaders/reduce_min.wgsl?raw";
 import ssimMedianShader from "./shaders/ssim_median.wgsl?raw";
 import {
   adaptiveBlockSizeForRegion,
+  categoryScoresFromGroups,
   fitDimensions,
+  mergeCategoryScores,
 } from "./math";
 
 // ---------------------------------------------------------------------------
@@ -50,6 +52,13 @@ export interface DetectResult {
   frameDelta: number;
   /** Index of the template that produced the best score. */
   templateIndex: number;
+  /**
+   * Per-category scores, keyed by category name. A category's score is the
+   * best (max) across templates of the AND-combined (min) scores of that
+   * category's regions. The default category uses the empty-string key and,
+   * when it is the only category, equals bestScore (legacy behavior).
+   */
+  categoryScores?: Record<string, number>;
 }
 
 /**
@@ -73,6 +82,8 @@ export interface TemplateData {
   regions: Array<{
     type: string;
     rect: { x: number; y: number; w: number; h: number };
+    /** Optional category grouping; regions sharing a category are AND-combined. */
+    category?: string;
   }>;
   /** Pre-cropped region buffers for hybrid matching (WebGPU only). */
   regionCrops?: Array<{
@@ -81,6 +92,8 @@ export interface TemplateData {
     height: number;
     rect: { x: number; y: number; w: number; h: number };
     blockSize: number;
+    /** Optional category grouping, carried from the source region. */
+    category?: string;
   }>;
 }
 
@@ -567,17 +580,18 @@ export class WebGPUDetector {
    * For each defined region, crops the corresponding area from the live frame,
    * dispatches all 4 metric shaders (Block-SSIM, Pearson, MAD, histogram),
    * copies scores and fuses them on GPU, and collects per-region scores.
-   * The final result is the minimum across all regions (AND-logic:
-   * every region must match).
+   * Regions are grouped by category; within each category the scores are
+   * AND-combined (min) so every region of a category must match. Returns the
+   * per-category scores keyed by category name (default category is "").
    *
-   * Only a single GPU readback occurs at the very end for the final score.
-   * The SSIM median is computed on GPU via histogram binning, avoiding
-   * the previous mid-pipeline CPU sync point.
+   * Only a single GPU readback of the per-region scores array occurs at the
+   * very end. The SSIM median is computed on GPU via histogram binning,
+   * avoiding the previous mid-pipeline CPU sync point.
    */
   private async regionHybridMatch(
     frameTexture: GPUTexture,
     template: TemplateData,
-  ): Promise<number> {
+  ): Promise<Record<string, number>> {
     const regionCrops = template.regionCrops!;
     const regionCount = regionCrops.length;
 
@@ -741,20 +755,29 @@ export class WebGPUDetector {
       this.device.queue.submit([fuseEncoder.finish()]);
     }
 
-    // Min-reduce across all region scores to get the final hybrid score
-    let finalScore: number;
-    if (regionCount === 1) {
-      finalScore = await this.readF32(regionScoresBuf);
-    } else {
-      finalScore = await this.reduceMin(regionScoresBuf, regionCount);
+    // Single readback of the per-region scores array, then group by category
+    // on the CPU and AND-combine (min) within each category.
+    const regionScores = await this.readF32Array(regionScoresBuf, regionCount);
+
+    const scoresByCategory = new Map<string, number[]>();
+    for (let ri = 0; ri < regionCount; ri++) {
+      const category = regionCrops[ri].category ?? "";
+      let group = scoresByCategory.get(category);
+      if (!group) {
+        group = [];
+        scoresByCategory.set(category, group);
+      }
+      group.push(regionScores[ri]);
     }
+
+    const categoryScores = categoryScoresFromGroups(scoresByCategory);
 
     // Release all temporary buffers back to the pool
     for (const buf of buffersToRelease) {
       this.pool.release(buf);
     }
 
-    return finalScore;
+    return categoryScores;
   }
 
   /**
@@ -769,6 +792,7 @@ export class WebGPUDetector {
     regions?: Array<{
       type: string;
       rect: { x: number; y: number; w: number; h: number };
+      category?: string;
     }>,
   ): Promise<TemplateData | null> {
     let pixels: Uint8ClampedArray;
@@ -834,7 +858,7 @@ export class WebGPUDetector {
 
     if (regionList.length > 0) {
       regionCrops = regionList.map((region) =>
-        this.cropRegionToGpu(gray, width, region.rect),
+        this.cropRegionToGpu(gray, width, region.rect, region.category),
       );
     }
 
@@ -887,6 +911,7 @@ export class WebGPUDetector {
     // Match against each template, using region-based hybrid or sliding-window NCC
     let bestScore = 0;
     let bestIndex = 0;
+    const categoryScores: Record<string, number> = {};
 
     for (let i = 0; i < templates.length; i++) {
       const tmpl = templates[i];
@@ -897,17 +922,23 @@ export class WebGPUDetector {
 
       if (!hasRegions) continue;
 
-      const score = await this.scoreTemplate(
+      const templateScores = await this.scoreTemplate(
         tmpl, { texture, buf: frameBuf, w: frameW, h: frameH },
         tmpl.regionCrops,
       );
 
-      if (score > bestScore) {
-        bestScore = score;
+      // Merge per-category scores across templates by taking the max.
+      const templateBest = mergeCategoryScores(categoryScores, templateScores);
+      if (templateBest > bestScore) {
+        bestScore = templateBest;
         bestIndex = i;
       }
-      // Early exit if we already exceed precision
-      if (bestScore >= config.precision) break;
+
+      // Early exit is only safe with a single default category: with multiple
+      // categories, later templates may carry scores for other categories.
+      const onlyDefaultCategory =
+        Object.keys(categoryScores).length === 1 && "" in categoryScores;
+      if (onlyDefaultCategory && bestScore >= config.precision) break;
     }
 
     return {
@@ -916,6 +947,7 @@ export class WebGPUDetector {
       frameDelta,
       templateIndex: bestIndex,
       frameBuffer: frameBuf,
+      categoryScores,
     };
   }
 
@@ -927,12 +959,12 @@ export class WebGPUDetector {
     tmpl: TemplateData,
     frame: { texture: GPUTexture; buf: GPUBuffer; w: number; h: number },
     regionCrops: TemplateData["regionCrops"],
-  ): Promise<number> {
+  ): Promise<Record<string, number>> {
     const { texture } = frame;
     if (regionCrops && regionCrops.length > 0) {
       return this.regionHybridMatch(texture, { ...tmpl, regionCrops });
     }
-    return 0;
+    return {};
   }
 
   /** Release all GPU resources held by this detector. */
@@ -1623,6 +1655,30 @@ export class WebGPUDetector {
     return result;
   }
 
+  /** Copy `count` f32 values from a storage buffer to the CPU as a number array. */
+  private async readF32Array(src: GPUBuffer, count: number): Promise<number[]> {
+    const byteLength = Math.max(count * 4, 4);
+    const staging = this.pool.acquire(
+      byteLength,
+      GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      "staging_f32_array",
+    );
+
+    const encoder = this.device.createCommandEncoder({
+      label: "readback_array_encoder",
+    });
+    encoder.copyBufferToBuffer(src, 0, staging, 0, count * 4);
+    this.device.queue.submit([encoder.finish()]);
+
+    await staging.mapAsync(GPUMapMode.READ);
+    const data = new Float32Array(staging.getMappedRange());
+    const result: number[] = [];
+    for (let i = 0; i < count; i++) result.push(data[i]);
+    staging.unmap();
+    this.pool.release(staging);
+    return result;
+  }
+
   /**
    * Read a single u32 from a storage buffer via a staging buffer.
    *
@@ -1663,6 +1719,7 @@ export class WebGPUDetector {
     gray: Float32Array,
     templateWidth: number,
     rect: { x: number; y: number; w: number; h: number },
+    category?: string,
   ): NonNullable<TemplateData["regionCrops"]>[number] {
     const { x, y, w, h } = rect;
     const cropGray = new Float32Array(w * h);
@@ -1677,7 +1734,7 @@ export class WebGPUDetector {
       `template_region_${x}_${y}`,
     );
     const blockSize = adaptiveBlockSizeForRegion(w, h);
-    return { buffer, width: w, height: h, rect: { x, y, w, h }, blockSize };
+    return { buffer, width: w, height: h, rect: { x, y, w, h }, blockSize, category };
   }
 
   /** Create a GPU buffer initialised with the given typed array data. */

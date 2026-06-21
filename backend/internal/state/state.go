@@ -109,6 +109,10 @@ type MatchedRegion struct {
 	Type         string       `json:"type"`          // "image" | "text"
 	ExpectedText string       `json:"expected_text"` // used if Type == "text"
 	Rect         DetectorRect `json:"rect"`
+	// Category is the optional counting group a region belongs to. Regions
+	// sharing a category are AND-combined and counted independently from other
+	// categories. Empty means the default category (legacy single-counter).
+	Category string `json:"category,omitempty"`
 }
 
 // DetectorTemplate bundles a saved screenshot and its defined regions.
