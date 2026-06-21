@@ -50,3 +50,13 @@ Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for developmen
 ## License
 
 [GNU Affero General Public License v3 (AGPLv3)](LICENSE)
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=ZSleyer%2Fencounty&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ZSleyer/encounty&type=date&theme=dark&legend=bottom-right" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ZSleyer/encounty&type=date&legend=bottom-right" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ZSleyer/encounty&type=date&legend=bottom-right" />
+ </picture>
+</a>
