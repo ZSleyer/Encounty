@@ -72,3 +72,8 @@ electron/release/
 # NCC quality test fixtures (large binary files, not committed)
 frontend/src/engine/__tests__/fixtures/
 frontend/src/engine/__tests__/ncc-*.test.ts
+
+
+# LLM
+.claude/
+graphify-out/
