@@ -400,8 +400,8 @@ func TestClearDetectionLog(t *testing.T) {
 	m := NewManager(t.TempDir())
 	m.AddPokemon(makePokemon("p1", "Pikachu"))
 	m.SetDetectorConfig("p1", &DetectorConfig{Enabled: true})
-	m.AppendDetectionLog("p1", 0.9)
-	m.AppendDetectionLog("p1", 0.85)
+	m.AppendDetectionLog("p1", 0.9, "")
+	m.AppendDetectionLog("p1", 0.85, "")
 
 	m.ClearDetectionLog("p1")
 

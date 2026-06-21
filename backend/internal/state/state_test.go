@@ -500,7 +500,7 @@ func TestAppendDetectionLog(t *testing.T) {
 	m.AddPokemon(makePokemon("p1", "Pikachu"))
 	m.SetDetectorConfig("p1", &DetectorConfig{Enabled: true})
 
-	m.AppendDetectionLog("p1", 0.95)
+	m.AppendDetectionLog("p1", 0.95, "")
 	st := m.GetState()
 	if len(st.Pokemon[0].DetectorConfig.DetectionLog) != 1 {
 		t.Fatalf("DetectionLog length = %d, want 1", len(st.Pokemon[0].DetectorConfig.DetectionLog))
@@ -517,7 +517,7 @@ func TestAppendDetectionLogMaxEntries(t *testing.T) {
 
 	// Add more than maxDetectionLog entries
 	for i := range maxDetectionLog + 5 {
-		m.AppendDetectionLog("p1", float64(i))
+		m.AppendDetectionLog("p1", float64(i), "")
 	}
 
 	st := m.GetState()
@@ -536,7 +536,7 @@ func TestAppendDetectionLogNoConfig(t *testing.T) {
 	m := NewManager(t.TempDir())
 	m.AddPokemon(makePokemon("p1", "Pikachu"))
 	// No detector config set; should be a no-op, not panic
-	m.AppendDetectionLog("p1", 0.95)
+	m.AppendDetectionLog("p1", 0.95, "")
 }
 
 func TestOnChangeNotification(t *testing.T) {

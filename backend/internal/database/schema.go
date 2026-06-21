@@ -259,6 +259,7 @@ var schemaV2 = []string{
 		pokemon_id TEXT    NOT NULL,
 		at         TEXT    NOT NULL,
 		confidence REAL    NOT NULL,
+		category   TEXT    NOT NULL DEFAULT '',
 		FOREIGN KEY (pokemon_id) REFERENCES detector_configs(pokemon_id) ON DELETE CASCADE
 	)`,
 

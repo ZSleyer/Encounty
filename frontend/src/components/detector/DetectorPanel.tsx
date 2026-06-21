@@ -1132,6 +1132,14 @@ export function DetectorPanel({
                               <time className="text-text-faint font-mono shrink-0">
                                 {new Date(entry.at).toLocaleTimeString()}
                               </time>
+                              {entry.category && (
+                                <>
+                                  <span className="text-text-faint">·</span>
+                                  <span className="px-1.5 py-0.5 rounded bg-accent-blue/15 text-accent-blue font-medium truncate max-w-[40%]">
+                                    {entry.category}
+                                  </span>
+                                </>
+                              )}
                               <div className="flex-1" />
                               {isMatch && (
                                 <span className="text-[10px] font-bold text-green-400 uppercase tracking-wider">

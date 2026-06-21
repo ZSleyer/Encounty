@@ -113,6 +113,7 @@ export interface DetectorRect {
 export interface DetectionLogEntry {
   at: string;          // ISO timestamp
   confidence: number;  // 0.0–1.0
+  category?: string;   // counting category that fired, empty for the default one
 }
 
 /** MatchedRegion defines a bounding box within a template and its match criteria. */

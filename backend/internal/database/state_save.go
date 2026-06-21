@@ -876,8 +876,8 @@ func replacePokemonDetectionLog(tx *sql.Tx, p state.Pokemon) error {
 	}
 	for _, e := range entries {
 		if _, err := tx.Exec(
-			`INSERT INTO detection_log (pokemon_id, at, confidence) VALUES (?, ?, ?)`,
-			p.ID, e.At.UTC().Format(time.RFC3339), e.Confidence,
+			`INSERT INTO detection_log (pokemon_id, at, confidence, category) VALUES (?, ?, ?, ?)`,
+			p.ID, e.At.UTC().Format(time.RFC3339), e.Confidence, e.Category,
 		); err != nil {
 			return fmt.Errorf("insert detection_log for %q: %w", p.ID, err)
 		}

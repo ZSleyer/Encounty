@@ -124,6 +124,11 @@ var migrations = []migration{
 		description: "add category column to template_regions",
 		fn:          migrateAddRegionCategory,
 	},
+	{
+		version:     22,
+		description: "add category column to detection_log",
+		fn:          migrateAddDetectionLogCategory,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -365,6 +370,13 @@ func migrateAddPokemonSprites(tx *sql.Tx) error {
 // default category, making the detector cooldown behave globally.
 func migrateAddRegionCategory(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE template_regions ADD COLUMN category TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddDetectionLogCategory adds the category column to detection_log so
+// confirmed matches can record which counting category fired.
+func migrateAddDetectionLogCategory(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE detection_log ADD COLUMN category TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

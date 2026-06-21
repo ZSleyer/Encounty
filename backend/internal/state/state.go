@@ -179,6 +179,8 @@ type DetectionLogEntry struct {
 	At time.Time `json:"at"`
 	// Confidence is the NCC score that triggered the match (0.0–1.0).
 	Confidence float64 `json:"confidence"`
+	// Category is the counting category that fired, empty for the default one.
+	Category string `json:"category,omitempty"`
 }
 
 // maxDetectionLog is the maximum number of log entries retained per hunt.
@@ -1478,7 +1480,7 @@ func (m *Manager) UnlinkOverlay(pokemonID string) bool {
 // AppendDetectionLog records a confirmed auto-detection match for the Pokémon
 // with the given id. Only the last maxDetectionLog entries are retained; older
 // entries are dropped (FIFO). No-ops silently if the Pokémon has no DetectorConfig.
-func (m *Manager) AppendDetectionLog(id string, confidence float64) {
+func (m *Manager) AppendDetectionLog(id string, confidence float64, category string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
@@ -1486,7 +1488,7 @@ func (m *Manager) AppendDetectionLog(id string, confidence float64) {
 		if p.ID != id || p.DetectorConfig == nil {
 			continue
 		}
-		entry := DetectionLogEntry{At: time.Now().UTC(), Confidence: confidence}
+		entry := DetectionLogEntry{At: time.Now().UTC(), Confidence: confidence, Category: category}
 		p.DetectorConfig.DetectionLog = append(p.DetectorConfig.DetectionLog, entry)
 		if len(p.DetectorConfig.DetectionLog) > maxDetectionLog {
 			p.DetectorConfig.DetectionLog = p.DetectorConfig.DetectionLog[len(p.DetectorConfig.DetectionLog)-maxDetectionLog:]
