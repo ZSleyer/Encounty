@@ -32,9 +32,6 @@
     "three": "^0.183.2",
     "zustand": "^5.0.12"
   },
-  "resolutions": {
-    "picomatch": "^4.0.4"
-  },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.2",
     "@testing-library/dom": "^10.4.1",
