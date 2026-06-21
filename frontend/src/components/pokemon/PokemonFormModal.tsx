@@ -596,6 +596,10 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   const [selected, setSelected] = useState<SelectedState | null>(null);
   const [customSprite, setCustomSprite] = useState(defaults.customSprite);
+  // Mirror of customSprite for non-reactive reads inside the recalc effect, so
+  // it can detect a user override without re-running on every keystroke.
+  const customSpriteRef = useRef(customSprite);
+  customSpriteRef.current = customSprite;
   const spriteFileRef = useRef<HTMLInputElement>(null);
   const [spriteUploading, setSpriteUploading] = useState(false);
   const [spriteType, setSpriteType] = useState<SpriteType>(defaults.spriteType);
@@ -715,8 +719,11 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     const newSprite = getSpriteUrl(
       selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical,
     );
+    // Preserve a user-set custom sprite (local upload or manual URL): only
+    // resync customSprite when it still mirrors the auto-computed sprite.
+    const overridden = customSpriteRef.current !== selected.sprite;
     setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
-    setCustomSprite(newSprite);
+    if (!overridden) setCustomSprite(newSprite);
   }, [selectedGame, spriteType, spriteStyle, selected?.spriteId]);
 
   // --- Reset per-pokemon unavailable-style cache when the relevant inputs change ---

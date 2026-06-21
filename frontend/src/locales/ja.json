@@ -128,7 +128,7 @@
   "modal.spriteClassic": "クラシック",
   "modal.spriteUnavailable": "このポケモンにはスプライトがありません",
   "modal.variant": "カラーバリエーション",
-  "modal.customSprite": "カスタムSprite URL（任意）",
+  "modal.customSprite": "カスタムSprite（任意）",
   "modal.spriteUpload.choose": "ローカルファイルを選択",
   "modal.spriteUpload.uploading": "アップロード中...",
   "modal.spriteUpload.success": "Spriteをアップロードしました",

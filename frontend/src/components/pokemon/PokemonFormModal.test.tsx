@@ -769,7 +769,7 @@ describe("PokemonFormModal", () => {
 
       // Find the collapsible custom sprite toggle button
       const toggleBtn = screen.getAllByRole("button").find(
-        (b) => b.getAttribute("aria-expanded") !== null && (/custom|sprite.*url/i).exec(b.textContent ?? ""),
+        (b) => b.getAttribute("aria-expanded") !== null && (/sprite/i).exec(b.textContent ?? ""),
       );
       expect(toggleBtn).toBeTruthy();
       await userEvent.click(toggleBtn!);
@@ -1069,6 +1069,28 @@ describe("PokemonFormModal", () => {
 
       await waitFor(() => expect(spriteCalls().length).toBe(1));
       expect(spriteCalls()[0][1]).toMatchObject({ method: "POST" });
+    });
+
+    it("keeps an existing custom sprite when saving without picking a new file", async () => {
+      // Regression (issue #33): opening edit + Save must not revert a sprite
+      // that diverges from the auto-computed PokeAPI URL (e.g. a local upload).
+      const onSubmit = vi.fn();
+      render(
+        <PokemonFormModal mode="edit" pokemon={editPokemon} onSubmit={onSubmit} onClose={vi.fn()} />,
+      );
+      // Wait until the existing pokemon is matched and selected; this is what
+      // triggers the sprite recalc effect that used to clobber customSprite.
+      await screen.findByText("#bulbasaur");
+
+      const saveBtn = screen.getAllByRole("button").find(
+        (b) => (/save|speichern/i).exec(b.textContent ?? ""),
+      )!;
+      await userEvent.click(saveBtn);
+
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+      expect(onSubmit.mock.calls[0][1]).toMatchObject({
+        sprite_url: editPokemon.sprite_url,
+      });
     });
 
     it("rejects an oversized image without uploading", async () => {

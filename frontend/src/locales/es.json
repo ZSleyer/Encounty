@@ -128,7 +128,7 @@
   "modal.spriteClassic": "Clasico",
   "modal.spriteUnavailable": "No hay sprite disponible para este Pokémon",
   "modal.variant": "Variante de color",
-  "modal.customSprite": "URL de Sprite personalizado (opcional)",
+  "modal.customSprite": "Sprite personalizado (opcional)",
   "modal.spriteUpload.choose": "Elegir archivo local",
   "modal.spriteUpload.uploading": "Subiendo...",
   "modal.spriteUpload.success": "Sprite subido",
