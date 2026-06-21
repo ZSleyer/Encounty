@@ -241,6 +241,17 @@ var schemaV2 = []string{
 		FOREIGN KEY (template_id) REFERENCES detector_templates(id) ON DELETE CASCADE
 	)`,
 
+	// ── Pokemon sprites (user-uploaded local images stored as BLOB) ──────
+	// One sprite per pokemon. Deleted automatically when the pokemon row is
+	// removed (ON DELETE CASCADE), mirroring detector_templates.
+	`CREATE TABLE IF NOT EXISTS pokemon_sprites (
+		pokemon_id TEXT PRIMARY KEY,
+		data       BLOB NOT NULL,
+		mime       TEXT NOT NULL,
+		updated_at TEXT NOT NULL DEFAULT '',
+		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
+	)`,
+
 	// ── Detection log (capped per pokemon) ───────────────────────────────
 	`CREATE TABLE IF NOT EXISTS detection_log (
 		id         INTEGER PRIMARY KEY AUTOINCREMENT,

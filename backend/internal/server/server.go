@@ -462,6 +462,14 @@ func (s *Server) DetectorEncounterLogger() detectorhandler.EncounterLogger {
 	return dbAs[detectorhandler.EncounterLogger](s.db)
 }
 
+// PokemonDB returns the database handle as a pokemonhandler.SpriteStore so the
+// pokemon handler can save, load and delete user-uploaded sprite images without
+// depending on the concrete *database.DB type. Returns nil when no database is
+// configured.
+func (s *Server) PokemonDB() pokemonhandler.SpriteStore {
+	return dbAs[pokemonhandler.SpriteStore](s.db)
+}
+
 // Start begins accepting HTTP connections. Blocks until the server is shut
 // down; returns http.ErrServerClosed on a clean shutdown.
 func (s *Server) Start() error {
