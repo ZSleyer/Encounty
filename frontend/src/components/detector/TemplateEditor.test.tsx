@@ -484,6 +484,21 @@ describe("TemplateEditor", () => {
     });
   });
 
+  it("opens and closes the category help dialog", async () => {
+    const user = userEvent.setup();
+    const regions = [
+      { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
+    ];
+    await renderEditMode({ initialRegions: regions, initialName: "T", onUpdateRegions: vi.fn() });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Was sind Kategorien?" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
   it("shows error message when save fails", async () => {
     const user = userEvent.setup();
     const onUpdateRegions = vi.fn().mockRejectedValue(new Error("Network error"));
