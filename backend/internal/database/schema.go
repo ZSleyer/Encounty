@@ -47,6 +47,12 @@ var schemaV2 = []string{
 		sort_order INTEGER NOT NULL DEFAULT 0
 	)`,
 
+	// ── Capture resolutions (per camera deviceId) ────────────────────────
+	`CREATE TABLE IF NOT EXISTS capture_resolutions (
+		device_key TEXT PRIMARY KEY,
+		resolution TEXT NOT NULL DEFAULT ''
+	)`,
+
 	// ── Pokemon ──────────────────────────────────────────────────────────
 	`CREATE TABLE IF NOT EXISTS pokemon (
 		id                   TEXT    PRIMARY KEY,

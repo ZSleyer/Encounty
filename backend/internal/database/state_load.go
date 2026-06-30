@@ -139,6 +139,10 @@ func loadSingletonRows(db *sql.DB, st *state.AppState) error {
 	if err != nil {
 		return fmt.Errorf("load languages: %w", err)
 	}
+	st.Settings.CaptureResolutions, err = loadCaptureResolutions(db)
+	if err != nil {
+		return fmt.Errorf("load capture resolutions: %w", err)
+	}
 	globalOverlay, err := loadOverlay(db, "global", "default")
 	if err != nil {
 		return fmt.Errorf("load global overlay: %w", err)
@@ -250,6 +254,25 @@ func loadLanguages(db *sql.DB) ([]string, error) {
 		langs = []string{}
 	}
 	return langs, rows.Err()
+}
+
+// loadCaptureResolutions reads the per-device capture resolution map. Returns a
+// non-nil (possibly empty) map so the broadcast never emits null.
+func loadCaptureResolutions(db *sql.DB) (map[string]string, error) {
+	rows, err := db.Query(`SELECT device_key, resolution FROM capture_resolutions`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	resolutions := map[string]string{}
+	for rows.Next() {
+		var deviceKey, resolution string
+		if err := rows.Scan(&deviceKey, &resolution); err != nil {
+			return nil, err
+		}
+		resolutions[deviceKey] = resolution
+	}
+	return resolutions, rows.Err()
 }
 
 // loadPokemon reads all pokemon rows ordered by sort_order.

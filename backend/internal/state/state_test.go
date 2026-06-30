@@ -642,6 +642,38 @@ func TestGetConfigDir(t *testing.T) {
 	}
 }
 
+func TestSetCaptureResolution(t *testing.T) {
+	m := NewManager(testConfigDir)
+
+	// Set stores the entry.
+	m.SetCaptureResolution("cam-1", "1080")
+	if got := m.GetState().Settings.CaptureResolutions["cam-1"]; got != "1080" {
+		t.Errorf("CaptureResolutions[cam-1] = %q, want 1080", got)
+	}
+
+	// Overwrite replaces the value.
+	m.SetCaptureResolution("cam-1", "720")
+	if got := m.GetState().Settings.CaptureResolutions["cam-1"]; got != "720" {
+		t.Errorf("CaptureResolutions[cam-1] = %q, want 720", got)
+	}
+
+	// Empty resolution removes the entry.
+	m.SetCaptureResolution("cam-1", "")
+	if _, ok := m.GetState().Settings.CaptureResolutions["cam-1"]; ok {
+		t.Error("entry should have been removed for empty resolution")
+	}
+}
+
+func TestSetCaptureResolutionNilMap(t *testing.T) {
+	m := NewManager(testConfigDir)
+	// Force a nil map to exercise the lazy init branch.
+	m.UpdateSettings(Settings{CaptureResolutions: nil})
+	m.SetCaptureResolution("cam-2", "1440")
+	if got := m.GetState().Settings.CaptureResolutions["cam-2"]; got != "1440" {
+		t.Errorf("CaptureResolutions[cam-2] = %q, want 1440", got)
+	}
+}
+
 // TestConcurrentEncounterMutations hammers a single Pokémon with many
 // concurrent Increment, SetEncounters, and Reset calls. Run with -race it
 // proves the Manager mutex serialises every mutation: no data race, no panic,

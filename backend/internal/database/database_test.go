@@ -167,14 +167,15 @@ func makeTestState() state.AppState {
 			Increment: "F1", Decrement: "F2", Reset: "F3", NextPokemon: "F4", HuntToggle: "F5",
 		},
 		Settings: state.Settings{
-			OutputEnabled: true,
-			OutputDir:     "/test/output",
-			AutoSave:      true,
-			Languages:     []string{"de", "en", "fr"},
-			CrispSprites:  true,
-			Overlay:       makeTestOverlay(),
-			TutorialSeen:  state.TutorialFlags{OverlayEditor: true, AutoDetection: false},
-			ConfigPath:    "/test/config",
+			OutputEnabled:      true,
+			OutputDir:          "/test/output",
+			AutoSave:           true,
+			Languages:          []string{"de", "en", "fr"},
+			CrispSprites:       true,
+			Overlay:            makeTestOverlay(),
+			TutorialSeen:       state.TutorialFlags{OverlayEditor: true, AutoDetection: false},
+			ConfigPath:         "/test/config",
+			CaptureResolutions: map[string]string{"cam-abc": "1080", "cam-xyz": "auto"},
 		},
 		Pokemon: []state.Pokemon{
 			{
@@ -661,6 +662,9 @@ func compareSettings(t *testing.T, label string, got, want *state.Settings) {
 	}
 	if !reflect.DeepEqual(got.Languages, want.Languages) {
 		t.Errorf("%s Languages = %v, want %v", label, got.Languages, want.Languages)
+	}
+	if !reflect.DeepEqual(got.CaptureResolutions, want.CaptureResolutions) {
+		t.Errorf("%s CaptureResolutions = %v, want %v", label, got.CaptureResolutions, want.CaptureResolutions)
 	}
 }
 

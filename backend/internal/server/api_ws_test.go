@@ -345,6 +345,55 @@ func TestHandleUpdateSettingsWithFileWriter(t *testing.T) {
 	}
 }
 
+// --- handleUpdateCaptureResolution ---
+
+func TestHandleUpdateCaptureResolution(t *testing.T) {
+	srv := newTestServer(t)
+	mux := newTestMux(srv)
+
+	body := `{"device_key":"cam-1","resolution":"1080"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/capture/resolution", bytes.NewBufferString(body))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtStatus, w.Code, http.StatusOK)
+	}
+	if got := srv.state.GetState().Settings.CaptureResolutions["cam-1"]; got != "1080" {
+		t.Errorf("CaptureResolutions[cam-1] = %q, want %q", got, "1080")
+	}
+}
+
+func TestHandleUpdateCaptureResolutionInvalid(t *testing.T) {
+	srv := newTestServer(t)
+	mux := newTestMux(srv)
+
+	// Invalid resolution value.
+	body := `{"device_key":"cam-1","resolution":"4k"}`
+	req := httptest.NewRequest(http.MethodPut, "/api/capture/resolution", bytes.NewBufferString(body))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf(fmtStatus, w.Code, http.StatusBadRequest)
+	}
+
+	// Missing device_key.
+	req2 := httptest.NewRequest(http.MethodPut, "/api/capture/resolution", bytes.NewBufferString(`{"resolution":"1080"}`))
+	w2 := httptest.NewRecorder()
+	mux.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusBadRequest {
+		t.Errorf(fmtStatus, w2.Code, http.StatusBadRequest)
+	}
+
+	// Wrong method.
+	req3 := httptest.NewRequest(http.MethodGet, "/api/capture/resolution", nil)
+	w3 := httptest.NewRecorder()
+	mux.ServeHTTP(w3, req3)
+	if w3.Code != http.StatusMethodNotAllowed {
+		t.Errorf(fmtStatus, w3.Code, http.StatusMethodNotAllowed)
+	}
+}
+
 // --- handleUpdateSingleHotkey invalid JSON ---
 
 func TestHandleUpdateSingleHotkeyInvalidJSON(t *testing.T) {

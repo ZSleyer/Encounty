@@ -349,6 +349,11 @@ type Settings struct {
 	Overlay       OverlaySettings `json:"overlay"`
 	TutorialSeen  TutorialFlags   `json:"tutorial_seen"`
 	ConfigPath    string          `json:"config_path,omitempty"` // custom data directory override
+	// CaptureResolutions maps a camera deviceId to a preferred capture
+	// resolution preset ("auto"|"720"|"1080"|"1440"). Per-device because the
+	// resolution depends on the physical capture card. Always non-nil so the
+	// JSON broadcast never emits null.
+	CaptureResolutions map[string]string `json:"capture_resolutions"`
 }
 
 // AppState is the complete serialisable snapshot of the application. It is
@@ -410,12 +415,13 @@ func NewManager(configDir string) *Manager {
 			Sessions: []Session{},
 			Groups:   []Group{},
 			Settings: Settings{
-				OutputEnabled: false,
-				OutputDir:     filepath.Join(configDir, "output"),
-				AutoSave:      true,
-				Languages:     []string{"de", "en"},
-				CrispSprites:  true,
-				AccentColor:   "blue",
+				OutputEnabled:      false,
+				OutputDir:          filepath.Join(configDir, "output"),
+				AutoSave:           true,
+				Languages:          []string{"de", "en"},
+				CrispSprites:       true,
+				AccentColor:        "blue",
+				CaptureResolutions: map[string]string{},
 				// Default overlay — kept in sync with the frontend
 				// `DEFAULT_OVERLAY_SETTINGS` constant in
 				// frontend/src/components/overlay-editor/OverlayEditor.tsx so the
@@ -1235,7 +1241,33 @@ func (m *Manager) NextPokemon() {
 // all listeners so the frontend and file-output writer stay in sync.
 func (m *Manager) UpdateSettings(s Settings) {
 	m.mu.Lock()
+	// Preserve per-device capture resolutions when a settings payload omits
+	// them (the dedicated /api/capture/resolution endpoint owns that map).
+	if s.CaptureResolutions == nil {
+		s.CaptureResolutions = m.state.Settings.CaptureResolutions
+	}
+	if s.CaptureResolutions == nil {
+		s.CaptureResolutions = map[string]string{}
+	}
 	m.state.Settings = s
+	m.mu.Unlock()
+	m.markDirty()
+}
+
+// SetCaptureResolution stores the preferred capture resolution for a single
+// camera deviceId and notifies listeners. An empty resolution removes the
+// entry (falling back to the frontend default). The map is created lazily so
+// older state loaded without it stays valid.
+func (m *Manager) SetCaptureResolution(deviceKey, resolution string) {
+	m.mu.Lock()
+	if m.state.Settings.CaptureResolutions == nil {
+		m.state.Settings.CaptureResolutions = map[string]string{}
+	}
+	if resolution == "" {
+		delete(m.state.Settings.CaptureResolutions, deviceKey)
+	} else {
+		m.state.Settings.CaptureResolutions[deviceKey] = resolution
+	}
 	m.mu.Unlock()
 	m.markDirty()
 }

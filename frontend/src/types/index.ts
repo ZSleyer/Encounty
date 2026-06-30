@@ -2,6 +2,7 @@
  * index.ts — TypeScript types that mirror the Go structs in internal/state/state.go.
  * Keep these in sync whenever the Go model changes.
  */
+import type { CaptureResolution } from "../utils/captureResolution";
 
 /** Pokemon represents one shiny-hunt entry. */
 export interface Pokemon {
@@ -344,6 +345,8 @@ export interface Settings {
   overlay: OverlaySettings;
   tutorial_seen?: TutorialFlags;
   config_path?: string; // Custom data directory override
+  /** Preferred capture resolution per camera deviceId. */
+  capture_resolutions?: Record<string, CaptureResolution>;
 }
 
 /** AppState is the complete serialisable snapshot broadcast by the server. */

@@ -7,15 +7,22 @@
  * caller falls through to the native PipeWire/xdg-desktop-portal picker.
  */
 import { useState, useEffect, useRef, useCallback, type RefObject } from "react";
-import { X, Monitor, AppWindow, Camera, RefreshCw } from "lucide-react";
+import { X, Monitor, AppWindow, Camera, RefreshCw, Settings as SettingsIcon } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
+import { useCounterStore } from "../../hooks/useCounterState";
+import { apiUrl } from "../../utils/api";
 import {
   getLastSource,
   getGlobalLastSource,
   type RememberedCaptureSource,
 } from "../../utils/captureSourceMemory";
-import { resolutionConstraints } from "../../utils/captureResolution";
+import {
+  resolutionConstraints,
+  effectiveResolution,
+  RESOLUTION_OPTIONS,
+  type CaptureResolution,
+} from "../../utils/captureResolution";
 
 // --- Types -------------------------------------------------------------------
 
@@ -166,10 +173,13 @@ function selectCaptureSource(
 }
 
 /** Open a live preview stream for a single camera device, returning null on failure. */
-async function openCameraDevice(device: MediaDeviceInfo): Promise<CameraDevice | null> {
+async function openCameraDevice(
+  device: MediaDeviceInfo,
+  res: CaptureResolution,
+): Promise<CameraDevice | null> {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: { exact: device.deviceId }, ...resolutionConstraints() },
+      video: { deviceId: { exact: device.deviceId }, ...resolutionConstraints(res) },
       audio: false,
     });
     return {
@@ -182,7 +192,76 @@ async function openCameraDevice(device: MediaDeviceInfo): Promise<CameraDevice |
   }
 }
 
+/** PUT the per-device capture resolution to the backend. Fire-and-forget. */
+async function persistCaptureResolution(deviceId: string, resolution: CaptureResolution): Promise<void> {
+  try {
+    await fetch(apiUrl("/api/capture/resolution"), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ device_key: deviceId, resolution }),
+    });
+  } catch {
+    // Non-critical: the broadcast/refresh will reconcile next time.
+  }
+}
+
 // --- Grid sub-components -----------------------------------------------------
+
+/** Per-device resolution gear button + popover, overlaid on a camera tile. */
+function ResolutionGear({
+  deviceId,
+  current,
+  open,
+  onToggle,
+  onChange,
+  t,
+}: Readonly<{
+  deviceId: string;
+  current: CaptureResolution;
+  open: boolean;
+  onToggle: () => void;
+  onChange: (deviceId: string, res: CaptureResolution) => void;
+  t: (k: string) => string;
+}>) {
+  const label = (r: CaptureResolution) => (r === "auto" ? t("sourcePicker.resolutionAuto") : `${r}p`);
+  return (
+    <div className="absolute top-1 right-1 z-10">
+      <button
+        type="button"
+        aria-label={t("sourcePicker.resolution")}
+        aria-expanded={open}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        className="p-1 rounded-md bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors"
+      >
+        <SettingsIcon className="w-3.5 h-3.5" />
+      </button>
+      {open && (
+        <div
+          role="radiogroup"
+          aria-label={t("sourcePicker.resolution")}
+          className="absolute top-7 right-0 flex flex-col rounded-lg border border-border-subtle bg-bg-card shadow-lg overflow-hidden"
+        >
+          {RESOLUTION_OPTIONS.map((r) => (
+            <button
+              key={r}
+              type="button"
+              role="radio"
+              aria-checked={current === r}
+              onClick={(e) => { e.stopPropagation(); onChange(deviceId, r); }}
+              className={`px-3 py-1.5 text-[11px] font-medium text-left whitespace-nowrap transition-colors ${
+                current === r
+                  ? "bg-accent-blue/15 text-accent-blue"
+                  : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
+              }`}
+            >
+              {label(r)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** Renders the camera device grid, or a "no sources" message when empty. */
 function CameraGrid({
@@ -191,6 +270,8 @@ function CameraGrid({
   onSelect,
   onDoubleClick,
   videoRefsMap,
+  resolutions,
+  onChangeResolution,
   t,
 }: Readonly<{
   cameras: CameraDevice[];
@@ -198,25 +279,44 @@ function CameraGrid({
   onSelect: (id: string) => void;
   onDoubleClick: (id: string) => void;
   videoRefsMap: React.RefObject<Map<string, HTMLVideoElement>>;
+  resolutions: Record<string, CaptureResolution> | undefined;
+  onChangeResolution: (deviceId: string, res: CaptureResolution) => void;
   t: (k: string) => string;
 }>) {
+  const [openGearId, setOpenGearId] = useState<string | null>(null);
+
   if (cameras.length === 0) {
     return <p className="text-xs text-text-faint text-center py-12">{t("sourcePicker.noSources")}</p>;
   }
 
+  const activate = (id: string) => { setOpenGearId(null); onSelect(id); };
+
   return (
     <div className="grid grid-cols-2 gap-3">
       {cameras.map((cam) => (
-        <button
+        <div
           key={cam.deviceId}
-          onClick={() => onSelect(cam.deviceId)}
+          role="button"
+          tabIndex={0}
+          onClick={() => activate(cam.deviceId)}
           onDoubleClick={() => onDoubleClick(cam.deviceId)}
-          className={`relative rounded-xl border-2 overflow-hidden transition-all text-left ${
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(cam.deviceId); }
+          }}
+          className={`relative rounded-xl border-2 overflow-hidden transition-all text-left cursor-pointer ${
             selectedId === cam.deviceId
               ? "border-accent-blue ring-2 ring-accent-blue/30"
               : "border-border-subtle hover:border-text-muted"
           }`}
         >
+          <ResolutionGear
+            deviceId={cam.deviceId}
+            current={effectiveResolution(resolutions, cam.deviceId)}
+            open={openGearId === cam.deviceId}
+            onToggle={() => setOpenGearId((id) => (id === cam.deviceId ? null : cam.deviceId))}
+            onChange={(id, r) => { setOpenGearId(null); onChangeResolution(id, r); }}
+            t={t}
+          />
           <video
             ref={(el) => {
               if (el) videoRefsMap.current.set(cam.deviceId, el);
@@ -244,7 +344,7 @@ function CameraGrid({
               )}
             </div>
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );
@@ -350,6 +450,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const selectedStreamRef = useRef<MediaStream | null>(null);
+  const captureResolutions = useCounterStore((s) => s.appState?.settings.capture_resolutions);
 
   // Track refs for camera video elements
   const videoRefsMap = useRef<Map<string, HTMLVideoElement>>(new Map());
@@ -387,10 +488,13 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoInputs = devices.filter((d) => d.kind === "videoinput");
 
-      // Create a live preview stream for each camera
+      // Create a live preview stream for each camera at its preferred
+      // resolution. Read the map fresh from the store so changing one device's
+      // resolution does not force a full re-enumeration.
+      const resolutions = useCounterStore.getState().appState?.settings.capture_resolutions;
       const cameraEntries: CameraDevice[] = [];
       for (const device of videoInputs) {
-        const entry = await openCameraDevice(device);
+        const entry = await openCameraDevice(device, effectiveResolution(resolutions, device.deviceId));
         if (entry) cameraEntries.push(entry);
       }
       setCameras(cameraEntries);
@@ -547,6 +651,29 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
     setSelectedId(null);
   }, [activeTab]);
 
+  /**
+   * Persist a device's resolution and re-acquire only that preview stream so
+   * the change is visible immediately. The old stream is stopped to avoid a
+   * leak; the attach effect rebinds the replaced stream onto its <video>.
+   */
+  const changeResolution = useCallback(async (deviceId: string, res: CaptureResolution) => {
+    void persistCaptureResolution(deviceId, res);
+    const current = camerasRef.current.find((c) => c.deviceId === deviceId);
+    if (!current) return;
+    let next: MediaStream;
+    try {
+      next = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId }, ...resolutionConstraints(res) },
+        audio: false,
+      });
+    } catch {
+      return; // device cannot satisfy the request; keep the existing stream
+    }
+    current.stream.getTracks().forEach((tr) => tr.stop());
+    if (selectedStreamRef.current === current.stream) selectedStreamRef.current = next;
+    setCameras((prev) => prev.map((c) => (c.deviceId === deviceId ? { ...c, stream: next } : c)));
+  }, []);
+
   // --- Render ----------------------------------------------------------------
 
   /** Render the appropriate content grid based on loading state and active tab. */
@@ -567,6 +694,8 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
           onSelect={setSelectedId}
           onDoubleClick={handleDoubleClick}
           videoRefsMap={videoRefsMap}
+          resolutions={captureResolutions}
+          onChangeResolution={changeResolution}
           t={t}
         />
       );

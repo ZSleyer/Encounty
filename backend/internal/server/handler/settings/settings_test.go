@@ -625,6 +625,75 @@ func TestHotkeysStatusUnavailable(t *testing.T) {
 	}
 }
 
+// --- UpdateCaptureResolution -------------------------------------------------
+
+const pathCaptureRes = "/api/capture/resolution"
+
+// TestUpdateCaptureResolutionValid verifies a valid payload is stored on the
+// state manager and broadcast.
+func TestUpdateCaptureResolutionValid(t *testing.T) {
+	mux, deps := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPut, pathCaptureRes, jsonBody(`{"device_key":"cam-1","resolution":"1080"}`))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	if !deps.broadcastCalled {
+		t.Error(msgBroadcastNot)
+	}
+	if got := deps.stateMgr.GetState().Settings.CaptureResolutions["cam-1"]; got != "1080" {
+		t.Errorf("CaptureResolutions[cam-1] = %q, want 1080", got)
+	}
+}
+
+// TestUpdateCaptureResolutionEmptyRemoves verifies an empty resolution removes
+// a previously stored entry.
+func TestUpdateCaptureResolutionEmptyRemoves(t *testing.T) {
+	mux, deps := newTestMux(t)
+	deps.stateMgr.SetCaptureResolution("cam-1", "1080")
+
+	req := httptest.NewRequest(http.MethodPut, pathCaptureRes, jsonBody(`{"device_key":"cam-1","resolution":""}`))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(wantStatus200Body, w.Code, w.Body.String())
+	}
+	if _, ok := deps.stateMgr.GetState().Settings.CaptureResolutions["cam-1"]; ok {
+		t.Error("entry should have been removed for empty resolution")
+	}
+}
+
+// TestUpdateCaptureResolutionErrors covers the rejected inputs.
+func TestUpdateCaptureResolutionErrors(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	cases := []struct {
+		name   string
+		method string
+		body   string
+		want   int
+	}{
+		{"invalid resolution", http.MethodPut, `{"device_key":"cam-1","resolution":"4k"}`, http.StatusBadRequest},
+		{"missing device_key", http.MethodPut, `{"resolution":"1080"}`, http.StatusBadRequest},
+		{"malformed json", http.MethodPut, "{bad", http.StatusBadRequest},
+		{"wrong method", http.MethodGet, "", http.StatusMethodNotAllowed},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, pathCaptureRes, jsonBody(tc.body))
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+			if w.Code != tc.want {
+				t.Errorf("status = %d, want %d; body = %s", w.Code, tc.want, w.Body.String())
+			}
+		})
+	}
+}
+
 // errBindingFailed is a sentinel error for testing hotkey binding failures.
 var errBindingFailed = &bindingError{"binding failed"}
 

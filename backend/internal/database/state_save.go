@@ -48,6 +48,9 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err := saveLanguages(tx, st.Settings.Languages); err != nil {
 		return err
 	}
+	if err := saveCaptureResolutions(tx, st.Settings.CaptureResolutions); err != nil {
+		return err
+	}
 
 	// ── 4. Global overlay ───────────────────────────────────────────────
 	if err := saveOverlay(tx, &st.Settings.Overlay, "global", "default"); err != nil {
@@ -205,6 +208,24 @@ func saveLanguages(tx *sql.Tx, languages []string) error {
 	for i, lang := range languages {
 		if _, err := stmt.Exec(lang, i); err != nil {
 			return fmt.Errorf("insert language %q: %w", lang, err)
+		}
+	}
+	return nil
+}
+
+// saveCaptureResolutions replaces the per-device capture resolution map.
+func saveCaptureResolutions(tx *sql.Tx, resolutions map[string]string) error {
+	if _, err := tx.Exec(`DELETE FROM capture_resolutions`); err != nil {
+		return fmt.Errorf("delete capture_resolutions: %w", err)
+	}
+	stmt, err := tx.Prepare(`INSERT INTO capture_resolutions (device_key, resolution) VALUES (?, ?)`)
+	if err != nil {
+		return fmt.Errorf("prepare capture_resolutions: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+	for deviceKey, resolution := range resolutions {
+		if _, err := stmt.Exec(deviceKey, resolution); err != nil {
+			return fmt.Errorf("insert capture resolution %q: %w", deviceKey, err)
 		}
 	}
 	return nil

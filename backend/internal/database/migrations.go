@@ -129,6 +129,11 @@ var migrations = []migration{
 		description: "add category column to detection_log",
 		fn:          migrateAddDetectionLogCategory,
 	},
+	{
+		version:     23,
+		description: "add capture_resolutions table",
+		fn:          migrateAddCaptureResolutions,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -360,6 +365,21 @@ func migrateAddPokemonSprites(tx *sql.Tx) error {
 	)`)
 	if err != nil {
 		return fmt.Errorf("create pokemon_sprites table: %w", err)
+	}
+	return nil
+}
+
+// migrateAddCaptureResolutions creates the capture_resolutions table on
+// databases that predate per-device capture resolution. New databases get it
+// from the baseline schema; this brings existing ones up to date. Mirrors
+// schema.go.
+func migrateAddCaptureResolutions(tx *sql.Tx) error {
+	_, err := tx.Exec(`CREATE TABLE IF NOT EXISTS capture_resolutions (
+		device_key TEXT PRIMARY KEY,
+		resolution TEXT NOT NULL DEFAULT ''
+	)`)
+	if err != nil {
+		return fmt.Errorf("create capture_resolutions table: %w", err)
 	}
 	return nil
 }

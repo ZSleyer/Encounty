@@ -42,7 +42,7 @@ func TestRunMigrationsFreshDB(t *testing.T) {
 	}
 
 	// Spot-check a few tables created by the baseline migration.
-	for _, table := range []string{"encounter_events", "pokemon", "settings", "detector_configs"} {
+	for _, table := range []string{"encounter_events", "pokemon", "settings", "detector_configs", "capture_resolutions"} {
 		var name string
 		err := db.QueryRow(
 			`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, table,

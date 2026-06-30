@@ -52,6 +52,18 @@ type setConfigPathRequest struct {
 	Path string `json:"path"`
 }
 
+// captureResolutionRequest is the body for PUT /api/capture/resolution.
+type captureResolutionRequest struct {
+	DeviceKey  string `json:"device_key"`
+	Resolution string `json:"resolution"`
+}
+
+// validCaptureResolutions are the accepted resolution presets. An empty value
+// is also accepted and removes the per-device entry.
+var validCaptureResolutions = map[string]bool{
+	"auto": true, "720": true, "1080": true, "1440": true,
+}
+
 // updateHotkeyRequest is the body for PUT /api/hotkeys/{action}.
 type updateHotkeyRequest struct {
 	Key string `json:"key"`
@@ -91,6 +103,7 @@ func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	h := &handler{deps: d}
 	mux.HandleFunc("/api/settings", h.handleUpdateSettings)
 	mux.HandleFunc("/api/settings/config-path", h.handleSetConfigPath)
+	mux.HandleFunc("/api/capture/resolution", h.handleUpdateCaptureResolution)
 	mux.HandleFunc("/api/hotkeys", h.handleUpdateHotkeys)
 	mux.HandleFunc("/api/hotkeys/pause", h.handleHotkeysPause)
 	mux.HandleFunc("/api/hotkeys/resume", h.handleHotkeysResume)
@@ -134,6 +147,43 @@ func (h *handler) handleUpdateSettings(w http.ResponseWriter, r *http.Request) {
 	h.deps.FileWriterSetConfig(settings.OutputDir, settings.OutputEnabled)
 	h.deps.BroadcastState()
 	httputil.WriteJSON(w, http.StatusOK, settings)
+}
+
+// handleUpdateCaptureResolution stores the preferred capture resolution for a
+// single camera deviceId and broadcasts the change. PUT /api/capture/resolution
+//
+// @Summary      Update capture resolution
+// @Description  Sets the preferred resolution for one camera device
+// @Tags         settings
+// @Accept       json
+// @Produce      json
+// @Param        body body captureResolutionRequest true "Device key and resolution"
+// @Success      200 {object} captureResolutionRequest
+// @Failure      400 {object} httputil.ErrResp
+// @Router       /capture/resolution [put]
+func (h *handler) handleUpdateCaptureResolution(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var req captureResolutionRequest
+	if err := httputil.ReadJSON(r, &req); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if req.DeviceKey == "" {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "device_key is required"})
+		return
+	}
+	if req.Resolution != "" && !validCaptureResolutions[req.Resolution] {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid resolution"})
+		return
+	}
+	sm := h.deps.StateManager()
+	sm.SetCaptureResolution(req.DeviceKey, req.Resolution)
+	sm.ScheduleSave()
+	h.deps.BroadcastState()
+	httputil.WriteJSON(w, http.StatusOK, req)
 }
 
 // handleSetConfigPath moves all data to a new directory.

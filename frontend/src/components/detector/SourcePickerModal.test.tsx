@@ -519,7 +519,7 @@ describe("SourcePickerModal", () => {
 
     // Wait for camera to load (inside hidden dialog)
     const webcamLabel = await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
-    const cameraButton = webcamLabel.closest("button")!;
+    const cameraButton = webcamLabel.closest('[role="button"]') as HTMLElement;
     await user.click(cameraButton);
 
     // Camera should be highlighted
@@ -541,6 +541,161 @@ describe("SourcePickerModal", () => {
       value: originalMediaDevices,
       configurable: true,
     });
+  });
+
+  it("changes per-device resolution via the gear and persists it", async () => {
+    const user = userEvent.setup();
+    const originalMediaDevices = navigator.mediaDevices;
+    const getUserMedia = vi.fn().mockImplementation(() => Promise.resolve(createMockStream()));
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: {
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" },
+        ]),
+        getUserMedia,
+      },
+      configurable: true,
+    });
+
+    render(
+      <SourcePickerModal
+        sourceType="browser_camera"
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
+
+    // Open the gear popover (aria-label = sourcePicker.resolution).
+    const gear = screen.getByRole("button", { name: "Auflösung", hidden: true });
+    await user.click(gear);
+
+    // Pick 720p.
+    const option = screen.getByRole("radio", { name: "720p", hidden: true });
+    await user.click(option);
+
+    // Persisted to the backend with the device key.
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/capture/resolution"),
+        expect.objectContaining({
+          method: "PUT",
+          body: JSON.stringify({ device_key: "cam-1", resolution: "720" }),
+        }),
+      );
+    });
+
+    // Preview re-acquired at 720p (ideal 1280x720).
+    await waitFor(() => {
+      const calls = getUserMedia.mock.calls;
+      const lastCall = calls[calls.length - 1]?.[0];
+      expect(lastCall?.video?.width).toEqual({ ideal: 1280 });
+      expect(lastCall?.video?.deviceId).toEqual({ exact: "cam-1" });
+    });
+
+    vi.unstubAllGlobals();
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: originalMediaDevices,
+      configurable: true,
+    });
+  });
+
+  it("toggles the gear popover, supports keyboard activation and the Auto option", async () => {
+    const user = userEvent.setup();
+    const originalMediaDevices = navigator.mediaDevices;
+    const getUserMedia = vi.fn().mockImplementation(() => Promise.resolve(createMockStream()));
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: {
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" },
+        ]),
+        getUserMedia,
+      },
+      configurable: true,
+    });
+
+    render(
+      <SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />,
+    );
+
+    const label = await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
+    const tile = label.closest('[role="button"]') as HTMLElement;
+
+    // Keyboard activation selects the tile.
+    tile.focus();
+    await user.keyboard("{Enter}");
+    expect(tile.className).toContain("border-accent-blue");
+
+    const gear = screen.getByRole("button", { name: "Auflösung", hidden: true });
+    // Open then close (toggle) — popover options disappear.
+    await user.click(gear);
+    expect(screen.getByRole("radio", { name: "Auto", hidden: true })).toBeInTheDocument();
+    await user.click(gear);
+    expect(screen.queryByRole("radio", { name: "Auto", hidden: true })).not.toBeInTheDocument();
+
+    // Re-open and pick Auto (no constraint).
+    await user.click(gear);
+    await user.click(screen.getByRole("radio", { name: "Auto", hidden: true }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/capture/resolution"),
+        expect.objectContaining({ body: JSON.stringify({ device_key: "cam-1", resolution: "auto" }) }),
+      );
+    });
+
+    vi.unstubAllGlobals();
+    Object.defineProperty(navigator, "mediaDevices", { value: originalMediaDevices, configurable: true });
+  });
+
+  it("keeps the existing preview when re-acquiring at a new resolution fails", async () => {
+    const user = userEvent.setup();
+    const originalMediaDevices = navigator.mediaDevices;
+    const getUserMedia = vi
+      .fn()
+      .mockResolvedValueOnce(createMockStream()) // throwaway permission stream
+      .mockResolvedValueOnce(createMockStream()) // initial per-device preview
+      .mockRejectedValueOnce(new Error("OverconstrainedError")); // re-acquire fails
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: {
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { kind: "videoinput", deviceId: "cam-1", label: "Built-in Webcam" },
+        ]),
+        getUserMedia,
+      },
+      configurable: true,
+    });
+
+    render(
+      <SourcePickerModal sourceType="browser_camera" onSelect={vi.fn()} onClose={vi.fn()} />,
+    );
+
+    await screen.findByText("Built-in Webcam", {}, { timeout: 3000 });
+    await user.click(screen.getByRole("button", { name: "Auflösung", hidden: true }));
+    await user.click(screen.getByRole("radio", { name: "1440p", hidden: true }));
+
+    // Persist still fires even though the re-acquire failed (fire-and-forget).
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/capture/resolution"),
+        expect.objectContaining({ body: JSON.stringify({ device_key: "cam-1", resolution: "1440" }) }),
+      );
+    });
+    // Still renders without crashing.
+    expect(screen.getByText("Built-in Webcam")).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+    Object.defineProperty(navigator, "mediaDevices", { value: originalMediaDevices, configurable: true });
   });
 
   // --- Electron getCaptureSources failure ---

@@ -20,7 +20,7 @@ import React, {
 } from "react";
 import { useCounterStore } from "../hooks/useCounterState";
 import { saveLastSource } from "../utils/captureSourceMemory";
-import { resolutionConstraints } from "../utils/captureResolution";
+import { resolutionConstraints, effectiveResolution } from "../utils/captureResolution";
 import { apiUrl } from "../utils/api";
 
 /**
@@ -227,9 +227,13 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error("getUserMedia not available. Ensure context is secure (HTTPS/localhost).");
     }
+    // Read the per-device resolution fresh from the store to avoid a stale
+    // closure when capture is restarted without a pre-acquired stream.
+    const resolutions = useCounterStore.getState().appState?.settings.capture_resolutions;
+    const res = effectiveResolution(resolutions, sourceId);
     const videoConstraints: MediaTrackConstraints = sourceId
-      ? { deviceId: { exact: sourceId }, ...resolutionConstraints() }
-      : { ...resolutionConstraints() };
+      ? { deviceId: { exact: sourceId }, ...resolutionConstraints(res) }
+      : { ...resolutionConstraints(res) };
     return navigator.mediaDevices.getUserMedia({
       video: videoConstraints,
       audio: false,
