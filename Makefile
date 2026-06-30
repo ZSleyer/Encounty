@@ -33,6 +33,7 @@ frontend:
 frontend-build: frontend
 
 swagger:
+	@command -v $(shell go env GOPATH)/bin/swag >/dev/null 2>&1 || (echo "Installing swag v2..." && go install github.com/swaggo/swag/v2/cmd/swag@latest)
 	cd backend && $(shell go env GOPATH)/bin/swag init -g main.go --parseDependency --parseInternal -o docs --v3.1
 
 build: swagger build-linux build-windows build-darwin

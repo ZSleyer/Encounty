@@ -91,6 +91,10 @@ const docTemplate = `{
             },
             "detector.matchSubmitRequest": {
                 "properties": {
+                    "category": {
+                        "description": "Category is the counting category that fired, empty for the default one.",
+                        "type": "string"
+                    },
                     "frame_delta": {
                         "type": "number"
                     },
@@ -268,6 +272,12 @@ const docTemplate = `{
                     "canonical": {
                         "type": "string"
                     },
+                    "form_names": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
                     "generations": {
                         "items": {
                             "type": "integer"
@@ -295,10 +305,41 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "pokemon.reorderRequest": {
+                "properties": {
+                    "order": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
             "pokemon.setEncountersRequest": {
                 "properties": {
                     "count": {
                         "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "pokemon.setTimerRequest": {
+                "properties": {
+                    "ms": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "settings.captureResolutionRequest": {
+                "properties": {
+                    "device_key": {
+                        "type": "string"
+                    },
+                    "resolution": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -356,11 +397,22 @@ const docTemplate = `{
             },
             "state.AppState": {
                 "properties": {
+                    "active_group_id": {
+                        "type": "string"
+                    },
                     "active_id": {
                         "type": "string"
                     },
                     "data_path": {
                         "type": "string"
+                    },
+                    "groups": {
+                        "description": "Organizational Sidebar sections; always an array, never null",
+                        "items": {
+                            "$ref": "#/components/schemas/state.Group"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     },
                     "hotkeys": {
                         "$ref": "#/components/schemas/state.HotkeyMap"
@@ -436,6 +488,10 @@ const docTemplate = `{
                 "properties": {
                     "at": {
                         "description": "At is the UTC timestamp when the match was confirmed.",
+                        "type": "string"
+                    },
+                    "category": {
+                        "description": "Category is the counting category that fired, empty for the default one.",
                         "type": "string"
                     },
                     "confidence": {
@@ -574,9 +630,34 @@ const docTemplate = `{
                 },
                 "type": "object"
             },
+            "state.Group": {
+                "properties": {
+                    "collapsed": {
+                        "type": "boolean"
+                    },
+                    "color": {
+                        "description": "Hex string like \"#3b82f6\"; empty means default color",
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "sort_order": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
             "state.HotkeyMap": {
                 "properties": {
                     "decrement": {
+                        "type": "string"
+                    },
+                    "hunt_toggle": {
+                        "description": "HuntToggle starts or stops the hunt (timer + detector) for the active Pokémon.",
                         "type": "string"
                     },
                     "increment": {
@@ -629,6 +710,10 @@ const docTemplate = `{
             },
             "state.MatchedRegion": {
                 "properties": {
+                    "category": {
+                        "description": "Category is the optional counting group a region belongs to. Regions\nsharing a category are AND-combined and counted independently from other\ncategories. Empty means the default category (legacy single-counter).",
+                        "type": "string"
+                    },
                     "expected_text": {
                         "description": "used if Type == \"text\"",
                         "type": "string"
@@ -650,6 +735,54 @@ const docTemplate = `{
                     },
                     "idle_animation": {
                         "type": "string"
+                    },
+                    "style": {
+                        "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "trigger_decrement": {
+                        "type": "string"
+                    },
+                    "trigger_enter": {
+                        "type": "string"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    },
+                    "width": {
+                        "type": "integer"
+                    },
+                    "x": {
+                        "type": "integer"
+                    },
+                    "y": {
+                        "type": "integer"
+                    },
+                    "z_index": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "state.OddsElement": {
+                "properties": {
+                    "format": {
+                        "description": "\"fractional\" | \"percent\"",
+                        "type": "string"
+                    },
+                    "height": {
+                        "type": "integer"
+                    },
+                    "idle_animation": {
+                        "type": "string"
+                    },
+                    "label_style": {
+                        "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "label_text": {
+                        "type": "string"
+                    },
+                    "show_label": {
+                        "type": "boolean"
                     },
                     "style": {
                         "$ref": "#/components/schemas/state.TextStyle"
@@ -733,11 +866,17 @@ const docTemplate = `{
                     "name": {
                         "$ref": "#/components/schemas/state.NameElement"
                     },
+                    "odds": {
+                        "$ref": "#/components/schemas/state.OddsElement"
+                    },
                     "show_border": {
                         "type": "boolean"
                     },
                     "sprite": {
                         "$ref": "#/components/schemas/state.SpriteElement"
+                    },
+                    "timer": {
+                        "$ref": "#/components/schemas/state.TimerElement"
                     },
                     "title": {
                         "$ref": "#/components/schemas/state.TitleElement"
@@ -747,6 +886,9 @@ const docTemplate = `{
             },
             "state.Pokemon": {
                 "properties": {
+                    "base_name": {
+                        "type": "string"
+                    },
                     "canonical_name": {
                         "description": "English PokéAPI slug",
                         "type": "string"
@@ -763,8 +905,15 @@ const docTemplate = `{
                     "encounters": {
                         "type": "integer"
                     },
+                    "form_name": {
+                        "type": "string"
+                    },
                     "game": {
                         "description": "key from games.json",
+                        "type": "string"
+                    },
+                    "group_id": {
+                        "description": "Empty string means \"no group\" (shown in \"Ohne Gruppe\" section)",
                         "type": "string"
                     },
                     "hunt_mode": {
@@ -798,6 +947,10 @@ const docTemplate = `{
                     "shiny_charm": {
                         "type": "boolean"
                     },
+                    "sort_order": {
+                        "description": "Manual ordering position (ascending); assigned via ReorderPokemon",
+                        "type": "integer"
+                    },
                     "sprite_style": {
                         "description": "\"classic\" | \"animated\" | \"3d\" | \"artwork\"",
                         "type": "string"
@@ -812,6 +965,14 @@ const docTemplate = `{
                     "step": {
                         "description": "Increment/decrement step size (default 1)",
                         "type": "integer"
+                    },
+                    "tags": {
+                        "description": "Arbitrary short labels; always a JSON array, never null",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     },
                     "timer_accumulated_ms": {
                         "type": "integer"
@@ -854,6 +1015,13 @@ const docTemplate = `{
                     },
                     "auto_save": {
                         "type": "boolean"
+                    },
+                    "capture_resolutions": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "description": "CaptureResolutions maps a camera deviceId to a preferred capture\nresolution preset (\"auto\"|\"720\"|\"1080\"|\"1440\"). Per-device because the\nresolution depends on the physical capture card. Always non-nil so the\nJSON broadcast never emits null.",
+                        "type": "object"
                     },
                     "config_path": {
                         "description": "custom data directory override",
@@ -1010,6 +1178,44 @@ const docTemplate = `{
                         "type": "integer"
                     },
                     "text_shadow_y": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "state.TimerElement": {
+                "properties": {
+                    "height": {
+                        "type": "integer"
+                    },
+                    "idle_animation": {
+                        "type": "string"
+                    },
+                    "label_style": {
+                        "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "label_text": {
+                        "type": "string"
+                    },
+                    "show_label": {
+                        "type": "boolean"
+                    },
+                    "style": {
+                        "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    },
+                    "width": {
+                        "type": "integer"
+                    },
+                    "x": {
+                        "type": "integer"
+                    },
+                    "y": {
+                        "type": "integer"
+                    },
+                    "z_index": {
                         "type": "integer"
                     }
                 },
@@ -1330,6 +1536,57 @@ const docTemplate = `{
                 "summary": "Download a backup ZIP",
                 "tags": [
                     "system"
+                ]
+            }
+        },
+        "/capture/resolution": {
+            "put": {
+                "description": "Sets the preferred resolution for one camera device",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/settings.captureResolutionRequest",
+                                        "summary": "body",
+                                        "description": "Device key and resolution"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Device key and resolution",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/settings.captureResolutionRequest"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    }
+                },
+                "summary": "Update capture resolution",
+                "tags": [
+                    "settings"
                 ]
             }
         },
@@ -2545,6 +2802,67 @@ const docTemplate = `{
                 ]
             }
         },
+        "/pokemon/reorder": {
+            "put": {
+                "description": "Assigns each Pokemon a zero-based SortOrder matching its position in the request order",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/pokemon.reorderRequest",
+                                        "summary": "body",
+                                        "description": "Ordered Pokemon IDs"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Ordered Pokemon IDs",
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/state.AppState"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    }
+                },
+                "summary": "Reorder Pokemon",
+                "tags": [
+                    "pokemon"
+                ]
+            }
+        },
         "/pokemon/{id}": {
             "delete": {
                 "description": "Removes the Pokemon, stops its detector, and deletes template files",
@@ -2946,6 +3264,126 @@ const docTemplate = `{
                 ]
             }
         },
+        "/pokemon/{id}/sprite": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "file"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "413": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Request Entity Too Large"
+                    }
+                },
+                "summary": "Get or upload a Pokemon's local sprite image",
+                "tags": [
+                    "pokemon"
+                ]
+            },
+            "post": {
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "file"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "413": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Request Entity Too Large"
+                    }
+                },
+                "summary": "Get or upload a Pokemon's local sprite image",
+                "tags": [
+                    "pokemon"
+                ]
+            }
+        },
         "/pokemon/{id}/timer/reset": {
             "post": {
                 "description": "Clears the per-Pokemon timer entirely",
@@ -2976,6 +3414,61 @@ const docTemplate = `{
                     }
                 },
                 "summary": "Reset Pokemon timer",
+                "tags": [
+                    "pokemon"
+                ]
+            }
+        },
+        "/pokemon/{id}/timer/set": {
+            "post": {
+                "description": "Sets the per-Pokemon timer accumulated value to an exact millisecond value",
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/pokemon.setTimerRequest",
+                                        "summary": "body",
+                                        "description": "Timer value"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Timer value",
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    }
+                },
+                "summary": "Set Pokemon timer",
                 "tags": [
                     "pokemon"
                 ]
