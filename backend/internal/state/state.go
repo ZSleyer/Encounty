@@ -1287,6 +1287,7 @@ func (m *Manager) AddSession(sess Session) {
 	m.mu.Lock()
 	m.state.Sessions = append(m.state.Sessions, sess)
 	m.mu.Unlock()
+	m.markDirty()
 }
 
 // EndSession sets the EndedAt timestamp on the open session with the given id.
@@ -1300,6 +1301,7 @@ func (m *Manager) EndSession(id string) {
 			break
 		}
 	}
+	m.markDirty()
 }
 
 // SetDetectorConfig replaces the DetectorConfig for the Pokémon with the given id.
@@ -1493,6 +1495,7 @@ func (m *Manager) AppendDetectionLog(id string, confidence float64, category str
 		if len(p.DetectorConfig.DetectionLog) > maxDetectionLog {
 			p.DetectorConfig.DetectionLog = p.DetectorConfig.DetectionLog[len(p.DetectorConfig.DetectionLog)-maxDetectionLog:]
 		}
+		m.markDirty()
 		return
 	}
 }

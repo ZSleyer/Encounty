@@ -82,6 +82,12 @@ func main() {
 			fileWriter.Write(st)
 		})
 	}
+
+	// Persist on every state change via the single notifier chokepoint, so no
+	// individual handler can cause data loss by forgetting to schedule a save.
+	stateMgr.OnChange(func(state.AppState) {
+		stateMgr.ScheduleSave()
+	})
 	hotkeyMgr := initHotkeys(stateMgr)
 
 	// Detector manager — holds references for config/template management.

@@ -564,6 +564,58 @@ func TestOnChangeNotification(t *testing.T) {
 	mu.Unlock()
 }
 
+// TestMutationsTriggerNotify guards the persistence chokepoint: main.go saves
+// on every OnChange dispatch, so any state mutation that fails to call
+// markDirty would silently never persist. These three methods previously
+// skipped markDirty, which is how detector-driven encounters were lost on an
+// abnormal exit.
+func TestMutationsTriggerNotify(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(m *Manager)
+	}{
+		{"AddSession", func(m *Manager) {
+			m.AddSession(Session{ID: "s1", PokemonID: "p1", StartedAt: time.Now()})
+		}},
+		{"EndSession", func(m *Manager) {
+			m.AddSession(Session{ID: "s2", PokemonID: "p1", StartedAt: time.Now()})
+			m.EndSession("s2")
+		}},
+		{"AppendDetectionLog", func(m *Manager) {
+			p := makePokemon("p1", "Pikachu")
+			p.DetectorConfig = DefaultDetectorConfig()
+			m.AddPokemon(p)
+			m.AppendDetectionLog("p1", 0.99, "")
+		}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := NewManager(t.TempDir())
+			var mu sync.Mutex
+			calls := 0
+			m.OnChange(func(AppState) {
+				mu.Lock()
+				calls++
+				mu.Unlock()
+			})
+			m.StartNotifier()
+			defer m.StopNotifier()
+
+			tc.mutate(m)
+
+			// Coalescing window (50 ms) plus callback goroutine scheduling.
+			time.Sleep(150 * time.Millisecond)
+
+			mu.Lock()
+			defer mu.Unlock()
+			if calls == 0 {
+				t.Errorf("%s did not trigger OnChange; mutation would never persist", tc.name)
+			}
+		})
+	}
+}
+
 func TestGetActivePokemon(t *testing.T) {
 	m := NewManager(t.TempDir())
 
