@@ -18,6 +18,7 @@ import {
   Shield,
   AlertTriangle,
   Monitor,
+  Video,
   Check,
   CheckCircle,
 } from "lucide-react";
@@ -49,6 +50,11 @@ import { LOCALES } from "../utils/i18n";
 import type { Locale } from "../locales";
 import { apiUrl, wsUrl } from "../utils/api";
 import { FolderPathInput } from "../components/settings/FolderPathInput";
+import {
+  getCaptureResolution,
+  setCaptureResolution,
+  type CaptureResolution,
+} from "../utils/captureResolution";
 
 // --- Licenses types ----------------------------------------------------------
 
@@ -123,6 +129,12 @@ const BASE_SECTIONS: SectionDef[] = [
     titleKey: "settings.sectionBackup",
     icon: <ArchiveRestore className="w-4 h-4 text-accent-purple" />,
     keywords: ["backup", "restore", "sicherung", "wiederherstellen", "export", "import", "zip"],
+  },
+  {
+    id: "capture",
+    titleKey: "settings.sectionCapture",
+    icon: <Video className="w-4 h-4 text-accent-green" />,
+    keywords: ["capture", "kamera", "camera", "resolution", "aufloesung", "auflösung", "elgato", "16:9", "obs", "hd60", "source", "quelle"],
   },
   {
     id: "about",
@@ -575,6 +587,8 @@ export function Settings() {
   const { push: pushToast } = useToast();
   const { appState } = useCounterStore();
   const [settings, setSettings] = useState<SettingsType | null>(appState?.settings ?? null);
+  // Capture resolution lives in localStorage (machine-local), not synced settings.
+  const [captureRes, setCaptureRes] = useState<CaptureResolution>(getCaptureResolution());
   const [syncState, setSyncState] = useState<SyncState>(SYNC_IDLE);
   const [restoring, setRestoring] = useState(false);
   // Local-only display value for the database location text input.
@@ -921,6 +935,52 @@ export function Settings() {
                   )}
                   {t("settings.restoreBtn")}
                 </button>
+              </div>
+            </section>
+          )}
+
+          {/* ── Capture ──────────────────────────────────────── */}
+          {show("capture") && (
+            <section className="glass-card rounded-2xl p-6 space-y-5">
+              <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
+                <Video className="w-4 h-4 text-accent-green" />
+                {t("settings.sectionCapture")}
+              </h2>
+
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm text-text-primary">
+                    {t("settings.captureResolution")}
+                  </p>
+                  <p className="text-xs text-text-muted mt-0.5 max-w-sm">
+                    {t("settings.captureResolutionDesc")}
+                  </p>
+                </div>
+                <div
+                  role="radiogroup"
+                  aria-label={t("settings.captureResolution")}
+                  className="flex items-center border border-border-subtle rounded-lg overflow-hidden shrink-0"
+                >
+                  {(["auto", "720", "1080", "1440"] as CaptureResolution[]).map((r) => {
+                    const selected = captureRes === r;
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => { setCaptureRes(r); setCaptureResolution(r); }}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                          selected
+                            ? "bg-accent-blue/15 text-accent-blue"
+                            : "text-text-muted hover:text-text-primary"
+                        }`}
+                      >
+                        {t(`settings.captureResolution.${r}`)}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </section>
           )}

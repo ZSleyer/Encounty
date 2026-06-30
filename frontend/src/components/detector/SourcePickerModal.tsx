@@ -15,6 +15,7 @@ import {
   getGlobalLastSource,
   type RememberedCaptureSource,
 } from "../../utils/captureSourceMemory";
+import { resolutionConstraints } from "../../utils/captureResolution";
 
 // --- Types -------------------------------------------------------------------
 
@@ -168,7 +169,7 @@ function selectCaptureSource(
 async function openCameraDevice(device: MediaDeviceInfo): Promise<CameraDevice | null> {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { deviceId: { exact: device.deviceId } },
+      video: { deviceId: { exact: device.deviceId }, ...resolutionConstraints() },
       audio: false,
     });
     return {

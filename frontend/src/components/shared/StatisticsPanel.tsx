@@ -26,6 +26,7 @@ import {
   getOddsMilestones,
   getOddsPercent,
 } from "../../utils/odds";
+import { computeTimerMs } from "../../utils/timer";
 
 const MILESTONE_TARGETS = [0.5, 0.75, 0.9, 0.99];
 
@@ -76,9 +77,18 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
       .finally(() => setLoading(false));
   }, [pokemonId, interval, encounters]);
 
+  // Encounters per hour is derived from the active hunt duration (accumulated
+  // timer), not the calendar span between first and last encounter. An on/off
+  // hunt would otherwise report a far too low rate (see issue #35).
+  const ratePerHour = useMemo(() => {
+    if (!pokemon) return null;
+    const hours = computeTimerMs(pokemon) / 3_600_000;
+    return hours > 0 ? encounters / hours : null;
+  }, [pokemon, encounters]);
+
   const milestones = useMemo(
-    () => getOddsMilestones(pokemon, MILESTONE_TARGETS, stats?.rate_per_hour),
-    [pokemon, stats?.rate_per_hour],
+    () => getOddsMilestones(pokemon, MILESTONE_TARGETS, ratePerHour ?? undefined),
+    [pokemon, ratePerHour],
   );
   const probabilityCurve = useMemo(() => {
     const upper99 = encountersForProbability(pokemon, 0.99);
@@ -102,7 +112,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
         <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
         <MetricItem icon={<Calendar className="w-3.5 h-3.5 text-accent-green" />} label={t("stats.today")} value={stats?.today?.toLocaleString() ?? "0"} />
         <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
-        <MetricItem icon={<TrendingUp className="w-3.5 h-3.5 text-accent-yellow" />} label={t("stats.ratePerHour")} value={stats?.rate_per_hour ? stats.rate_per_hour.toFixed(1) : "—"} />
+        <MetricItem icon={<TrendingUp className="w-3.5 h-3.5 text-accent-yellow" />} label={t("stats.ratePerHour")} value={ratePerHour ? ratePerHour.toFixed(1) : "—"} />
         <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
         <MetricItem icon={<Sparkles className="w-3.5 h-3.5 text-accent-pink" />} label={t("stats.shinyChance")} value={getOddsPercent(pokemon)} />
         <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />

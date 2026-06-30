@@ -20,6 +20,7 @@ import React, {
 } from "react";
 import { useCounterStore } from "../hooks/useCounterState";
 import { saveLastSource } from "../utils/captureSourceMemory";
+import { resolutionConstraints } from "../utils/captureResolution";
 import { apiUrl } from "../utils/api";
 
 /**
@@ -226,9 +227,9 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error("getUserMedia not available. Ensure context is secure (HTTPS/localhost).");
     }
-    const videoConstraints: MediaTrackConstraints | boolean = sourceId
-      ? { deviceId: { exact: sourceId } }
-      : true;
+    const videoConstraints: MediaTrackConstraints = sourceId
+      ? { deviceId: { exact: sourceId }, ...resolutionConstraints() }
+      : { ...resolutionConstraints() };
     return navigator.mediaDevices.getUserMedia({
       video: videoConstraints,
       audio: false,

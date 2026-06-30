@@ -121,6 +121,8 @@ describe("StatisticsPanel", () => {
   });
 
   it("renders all metric cards with correct values", async () => {
+    // Rate per hour is derived from the active timer: 25 encounters over 2h = 12.5/h.
+    seedStore("poke-1", { encounters: 25, timer_accumulated_ms: 7_200_000 });
     vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
 
     render(<StatisticsPanel pokemonId="poke-1" />);
@@ -312,10 +314,10 @@ describe("StatisticsPanel", () => {
       vi.unstubAllGlobals();
     });
 
-    it("shows em-dash for ETA when rate_per_hour is zero", async () => {
-      seedStore("poke-1", { encounters: 100 });
-      const statsNoRate: EncounterStats = { ...sampleStats, rate_per_hour: 0 };
-      vi.stubGlobal("fetch", mockFetch(statsNoRate, sampleChart, sampleHistory));
+    it("shows em-dash for ETA when the active timer is zero", async () => {
+      // No accumulated timer means no rate, so milestone ETAs cannot be computed.
+      seedStore("poke-1", { encounters: 100, timer_accumulated_ms: 0 });
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
       render(<StatisticsPanel pokemonId="poke-1" />);
 
       await waitFor(() => {
@@ -331,7 +333,8 @@ describe("StatisticsPanel", () => {
     });
 
     it("shows reached label when the current encounter count passes a milestone", async () => {
-      seedStore("poke-1", { encounters: 100_000 });
+      // A non-zero timer yields a rate, which is required for the reached/ETA label.
+      seedStore("poke-1", { encounters: 100_000, timer_accumulated_ms: 3_600_000 });
       vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
       render(<StatisticsPanel pokemonId="poke-1" />);
 
