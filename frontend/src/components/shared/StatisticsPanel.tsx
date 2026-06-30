@@ -265,7 +265,7 @@ function ProbabilityPanel({
 
   return (
     <div className="grid grid-cols-[2fr_1fr] gap-4 shrink-0">
-      <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-[260px]">
+      <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-65">
         <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
           {t("stats.probabilityTitle")}
         </h3>
@@ -328,7 +328,7 @@ function ProbabilityPanel({
         </div>
       </div>
 
-      <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-[260px]">
+      <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-65">
         <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
           {t("stats.milestonesTitle")}
         </h3>
