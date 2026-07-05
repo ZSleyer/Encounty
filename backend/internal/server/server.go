@@ -909,7 +909,7 @@ func (s *Server) RunSetupOffline() error {
 // hub so the frontend can display a loading indicator. Returns the sync
 // result on success, or nil on failure.
 func (s *Server) syncPokedex(store pokedex.PokedexStore) *pokedex.SyncResult {
-	var current []pokedex.Entry
+	current := pokedex.LoadPokedex(store)
 
 	progress := func(step, detail string) {
 		slog.Info("Pokédex sync progress", "step", step)
