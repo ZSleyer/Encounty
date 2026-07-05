@@ -16,18 +16,20 @@ const (
 	pokeAPIGraphQL = "https://graphql.pokeapi.co/v1beta2"
 
 	// langJaHrkt is the PokéAPI language code for Japanese Katakana.
-	langJaHrkt = "ja-Hrkt"
+	langJaHrkt = "ja-hrkt"
 )
 
 // pokeAPILangMap maps PokéAPI language codes to the shorter keys used in
 // the local Pokédex Names maps. It is shared by species and form translation
-// helpers.
+// helpers. PokéAPI's GraphQL language enum is lowercase-only; an entry here
+// with the wrong casing silently empties the entire query result instead of
+// erroring, so keep these in sync with the enum exactly.
 var pokeAPILangMap = map[string]string{
 	langJaHrkt: "ja",
 	"ja":       "ja",
 	"ko":       "ko",
-	"zh-Hant":  "zh-hant",
-	"zh-Hans":  "zh-hans",
+	"zh-hant":  "zh-hant",
+	"zh-hans":  "zh-hans",
 	"fr":       "fr",
 	"de":       "de",
 	"es":       "es",
@@ -264,7 +266,7 @@ func collectFormGenerations(forms []pokemonFormRow) []int {
 // GraphQL endpoint and applies them to the entries in current. It returns the
 // number of individual name values that changed.
 func fetchAndApplySpeciesNames(current *[]Entry) (int, error) {
-	q := `{"query":"query{pokemonspeciesname(where:{language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){name pokemon_species_id language{name}}}"}`
+	q := `{"query":"query{pokemonspeciesname(where:{language:{name:{_in:[\"ja-hrkt\",\"ko\",\"zh-hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-hans\"]}}}){name pokemon_species_id language{name}}}"}`
 
 	var glResp struct {
 		Data struct {
@@ -327,7 +329,7 @@ func buildSpeciesTranslationMap(rows []speciesNameRow) map[int]map[string]string
 	return namesMap
 }
 
-// shouldSkipJaKatakana returns true when a Katakana "ja-Hrkt" entry should
+// shouldSkipJaKatakana returns true when a Katakana "ja-hrkt" entry should
 // be skipped because a Kanji "ja" translation already exists.
 func shouldSkipJaKatakana(langKey, apiLang string, existing map[string]string) bool {
 	return langKey == "ja" && apiLang == langJaHrkt && existing["ja"] != ""
@@ -337,7 +339,7 @@ func shouldSkipJaKatakana(langKey, apiLang string, existing map[string]string) b
 // endpoint and applies them to the form entries in current. It returns the
 // number of individual name values that changed.
 func fetchAndApplyFormNames(current *[]Entry) (int, error) {
-	q := `{"query":"query{pokemonformname(where:{language:{name:{_in:[\"ja-Hrkt\",\"ko\",\"zh-Hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-Hans\"]}}}){pokemonform{name} language{name} pokemon_name name}}"}`
+	q := `{"query":"query{pokemonformname(where:{language:{name:{_in:[\"ja-hrkt\",\"ko\",\"zh-hant\",\"fr\",\"de\",\"es\",\"it\",\"en\",\"ja\",\"zh-hans\"]}}}){pokemonform{name} language{name} pokemon_name name}}"}`
 
 	var glResp struct {
 		Data struct {
