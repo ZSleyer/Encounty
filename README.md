@@ -43,13 +43,9 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 
 - [macOS](docs/macOS.md)
 
-## About This Project
-
-Encounty was built with the help of LLM coding assistants. Without them, a project of this scope wouldn't have been possible to build solo in this timeframe. PRs created with the help of LLM agents are explicitly welcome, see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
 ## Contributing
 
-Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and build instructions.
+Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and build instructions. Encounty was built with the help of LLM coding assistants, without them a project of this scope wouldn't have been possible to build solo in this timeframe, so PRs created with the help of LLM agents are explicitly welcome too.
 
 ## License
 
