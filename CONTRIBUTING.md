@@ -2,6 +2,10 @@
 
 Pull requests are welcome: translations, features, bug fixes, or documentation.
 
+## AI-Assisted Contributions
+
+This project itself was built using LLM coding assistants, so PRs created with the help of LLM agents (Claude, Copilot, Cursor, etc.) are explicitly welcome. Please still review and test AI-generated changes yourself before submitting, you're responsible for the quality and correctness of your PR regardless of how it was produced.
+
 ## How Detection Works
 
 1. The browser captures your screen, window, or camera feed per hunt via `getDisplayMedia` / `getUserMedia`
