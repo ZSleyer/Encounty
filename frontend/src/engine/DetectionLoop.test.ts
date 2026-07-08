@@ -854,3 +854,137 @@ describe("DetectionLoop", () => {
     loop.stop();
   });
 });
+
+// --- Template lifecycle tests --------------------------------------------------
+
+describe("DetectionLoop template lifecycle", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  /** Minimal template stub with a tag for identification in release calls. */
+  function makeTemplate(tag: string) {
+    return { width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [], _tag: tag } as never;
+  }
+
+  /** Mock detector with a releaseTemplate spy. */
+  function createReleasingDetector(): Detector & { releaseTemplate: ReturnType<typeof vi.fn> } {
+    const releaseTemplate = vi.fn();
+    const detector: Detector = {
+      loadTemplate: () => null,
+      detect: async () => ({ bestScore: 0.1, frameDelta: 0.5, templateIndex: 0 }),
+      releaseTemplate,
+      destroy: () => {},
+    };
+    return Object.assign(detector, { releaseTemplate });
+  }
+
+  /** Extract the _tag of every template passed to releaseTemplate so far. */
+  function releasedTags(detector: { releaseTemplate: ReturnType<typeof vi.fn> }): string[] {
+    return detector.releaseTemplate.mock.calls.map((c) => (c[0] as { _tag: string })._tag);
+  }
+
+  it("stop() releases loaded templates", () => {
+    const detector = createReleasingDetector();
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeTemplate("a"), makeTemplate("b")]);
+
+    loop.stop();
+
+    expect(releasedTags(detector)).toEqual(["a", "b"]);
+  });
+
+  it("loadTemplates on a stopped loop releases the previous set", () => {
+    const detector = createReleasingDetector();
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeTemplate("old")]);
+
+    loop.loadTemplates([makeTemplate("new")]);
+
+    expect(releasedTags(detector)).toEqual(["old"]);
+  });
+
+  it("pending template swap releases the replaced set", async () => {
+    const detector = createReleasingDetector();
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeTemplate("original")]);
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    await tickLoop(200);
+
+    loop.loadTemplates([makeTemplate("replacement")]);
+    await tickLoop(300);
+    await tickLoop(300);
+
+    expect(releasedTags(detector)).toEqual(["original"]);
+    loop.stop();
+    expect(releasedTags(detector)).toEqual(["original", "replacement"]);
+  });
+
+  it("a second loadTemplates before pickup releases the overwritten pending set", async () => {
+    const detector = createReleasingDetector();
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeTemplate("original")]);
+
+    const video = createMockVideo();
+    loop.start(() => video);
+
+    // Two reloads before the loop picks either up
+    loop.loadTemplates([makeTemplate("pending1")]);
+    loop.loadTemplates([makeTemplate("pending2")]);
+
+    expect(releasedTags(detector)).toEqual(["pending1"]);
+    loop.stop();
+    // stop releases current templates and the surviving pending set
+    expect(releasedTags(detector)).toEqual(["pending1", "original", "pending2"]);
+  });
+
+  it("stop() with a pending set releases current and pending templates", async () => {
+    const detector = createReleasingDetector();
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeTemplate("current")]);
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    loop.loadTemplates([makeTemplate("pending")]);
+
+    loop.stop();
+
+    expect(releasedTags(detector)).toEqual(["current", "pending"]);
+  });
+
+  it("works with detectors that do not implement releaseTemplate", () => {
+    const detector = createMockDetector([0]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeTemplate("a")]);
+
+    expect(() => {
+      loop.loadTemplates([makeTemplate("b")]);
+      loop.stop();
+    }).not.toThrow();
+  });
+
+  it("getPerfSnapshot exposes gpuQueueWaitMs from detector.getStats", () => {
+    const detector: Detector = {
+      loadTemplate: () => null,
+      detect: async () => ({ bestScore: 0, frameDelta: 0, templateIndex: 0 }),
+      getStats: () => ({ queueWaitMsEMA: 12.5 }),
+      destroy: () => {},
+    };
+    const loop = new DetectionLoop("test-pokemon", detector);
+    expect(loop.getPerfSnapshot().gpuQueueWaitMs).toBe(12.5);
+  });
+
+  it("getPerfSnapshot reports 0 wait when the detector has no getStats", () => {
+    const detector = createMockDetector([0]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    expect(loop.getPerfSnapshot().gpuQueueWaitMs).toBe(0);
+  });
+});

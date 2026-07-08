@@ -122,8 +122,7 @@ function delay(ms: number): Promise<void> {
 export class DetectionLoop {
   private readonly pokemonId: string;
   private readonly detector: Detector;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private templates: any[] = [];
+  private templates: TemplateData[] = [];
   private config: DetectionLoopConfig = {
     precision: 0.85,
     changeThreshold: 0.01,
@@ -181,12 +180,25 @@ export class DetectionLoop {
     this.detector = detector;
   }
 
-  /** Load or replace templates for matching. Safe to call while the loop is running. */
+  /**
+   * Load or replace templates for matching. Safe to call while the loop is
+   * running. The loop takes ownership: replaced templates have their GPU
+   * resources released and must not be reused by the caller.
+   */
   loadTemplates(templates: TemplateData[]): void {
     if (this.running) {
+      if (this.pendingTemplates) this.releaseTemplates(this.pendingTemplates);
       this.pendingTemplates = templates;
     } else {
+      this.releaseTemplates(this.templates);
       this.templates = templates;
+    }
+  }
+
+  /** Release detector-side resources (GPU buffers) of the given templates. */
+  private releaseTemplates(templates: TemplateData[]): void {
+    for (const tmpl of templates) {
+      this.detector.releaseTemplate?.(tmpl);
     }
   }
 
@@ -221,12 +233,22 @@ export class DetectionLoop {
     this.runLoop(getVideo);
   }
 
-  /** Stop the detection loop. */
+  /**
+   * Stop the detection loop and release template GPU resources.
+   * The loop cannot be restarted afterwards; create a new one instead.
+   */
   stop(): void {
     this.running = false;
     if (this.timeoutId !== null) {
       clearTimeout(this.timeoutId);
       this.timeoutId = null;
+    }
+    // Release template GPU buffers (the loop owns loaded templates)
+    this.releaseTemplates(this.templates);
+    this.templates = [];
+    if (this.pendingTemplates) {
+      this.releaseTemplates(this.pendingTemplates);
+      this.pendingTemplates = null;
     }
     // Release GPU frame buffer if applicable
     if (this.previousFrameBuffer) {
@@ -317,6 +339,7 @@ export class DetectionLoop {
 
     // Apply pending template swap at a safe point (between iterations)
     if (this.pendingTemplates) {
+      this.releaseTemplates(this.templates);
       this.templates = this.pendingTemplates;
       this.pendingTemplates = null;
     }
@@ -629,6 +652,8 @@ export class DetectionLoop {
     smoothedScore: number;
     inHysteresis: boolean;
     inCooldown: boolean;
+    /** EMA of time spent waiting for the shared GPU detector (ms), 0 if unsupported. */
+    gpuQueueWaitMs: number;
   } {
     return {
       running: this.running,
@@ -643,6 +668,7 @@ export class DetectionLoop {
       smoothedScore: this.maxSmoothedScore(),
       inHysteresis: this.anyHysteresis(),
       inCooldown: this.allCooldown(),
+      gpuQueueWaitMs: this.detector.getStats?.().queueWaitMsEMA ?? 0,
     };
   }
 
