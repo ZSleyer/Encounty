@@ -431,4 +431,120 @@ describe("startDetection", () => {
       expect(stopLoop).toHaveBeenCalledWith("poke-1");
     });
   });
+
+  // --- setForceCPU detector teardown ---
+
+  describe("setForceCPU detector teardown", () => {
+    it("destroys the previous detector when toggling", async () => {
+      const mockDetector = {
+        loadTemplate: vi.fn().mockReturnValue({ data: "template" }),
+        detect: vi.fn(),
+        destroy: vi.fn(),
+      };
+      setForceCPU(true);
+      setForceCPU(false);
+      vi.mocked(WebGPUDetector.create).mockResolvedValue(mockDetector as never);
+
+      await ensureDetector();
+      setForceCPU(true);
+
+      expect(mockDetector.destroy).toHaveBeenCalledOnce();
+      setForceCPU(false);
+    });
+  });
+
+  // --- device-loss recovery ---
+
+  describe("device-loss recovery", () => {
+    const mockDetector = {
+      loadTemplate: vi.fn().mockReturnValue({ data: "template-data" }),
+      detect: vi.fn(),
+      destroy: vi.fn(),
+    };
+
+    /** Start a hunt and return the onDeviceLost callback captured by create(). */
+    async function startHuntAndCaptureCallback(pokemonId: string) {
+      setForceCPU(true);
+      setForceCPU(false);
+      vi.mocked(WebGPUDetector.create).mockResolvedValue(mockDetector as never);
+
+      await startDetectionForPokemon({
+        pokemonId,
+        templates: [makeTemplate()],
+        config: makeDetectorConfig(),
+        getVideoElement: () => null,
+        onScore: vi.fn(),
+      });
+
+      const createCalls = vi.mocked(WebGPUDetector.create).mock.calls;
+      const onDeviceLost = createCalls[createCalls.length - 1][0] as (
+        info: GPUDeviceLostInfo,
+      ) => Promise<void>;
+      expect(onDeviceLost).toBeTypeOf("function");
+      return onDeviceLost;
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("recreates the detector and restarts active loops after device loss", async () => {
+      const onDeviceLost = await startHuntAndCaptureCallback("poke-loss");
+      const createsBefore = vi.mocked(WebGPUDetector.create).mock.calls.length;
+      const registersBefore = vi.mocked(registerLoop).mock.calls.length;
+
+      const recovery = onDeviceLost({ reason: "unknown", message: "boom" } as GPUDeviceLostInfo);
+      await vi.advanceTimersByTimeAsync(1100);
+      await recovery;
+
+      expect(vi.mocked(WebGPUDetector.create).mock.calls.length).toBe(createsBefore + 1);
+      const newRegisters = vi.mocked(registerLoop).mock.calls.slice(registersBefore);
+      expect(newRegisters.some((call) => call[0] === "poke-loss")).toBe(true);
+
+      stopDetectionForPokemon("poke-loss");
+    });
+
+    it("does not restart after an intentional destroy (reason destroyed)", async () => {
+      const onDeviceLost = await startHuntAndCaptureCallback("poke-destroyed");
+      const createsBefore = vi.mocked(WebGPUDetector.create).mock.calls.length;
+
+      await onDeviceLost({ reason: "destroyed", message: "" } as GPUDeviceLostInfo);
+      await vi.advanceTimersByTimeAsync(1100);
+
+      expect(vi.mocked(WebGPUDetector.create).mock.calls.length).toBe(createsBefore);
+      stopDetectionForPokemon("poke-destroyed");
+    });
+
+    it("does not restart hunts that were stopped before the loss", async () => {
+      const onDeviceLost = await startHuntAndCaptureCallback("poke-stopped");
+      stopDetectionForPokemon("poke-stopped");
+      const registersBefore = vi.mocked(registerLoop).mock.calls.length;
+
+      const recovery = onDeviceLost({ reason: "unknown", message: "boom" } as GPUDeviceLostInfo);
+      await vi.advanceTimersByTimeAsync(1100);
+      await recovery;
+
+      const newRegisters = vi.mocked(registerLoop).mock.calls.slice(registersBefore);
+      expect(newRegisters.some((call) => call[0] === "poke-stopped")).toBe(false);
+    });
+
+    it("ignores a second loss event while recovery is in progress", async () => {
+      const onDeviceLost = await startHuntAndCaptureCallback("poke-double");
+      const createsBefore = vi.mocked(WebGPUDetector.create).mock.calls.length;
+
+      const first = onDeviceLost({ reason: "unknown", message: "1" } as GPUDeviceLostInfo);
+      const second = onDeviceLost({ reason: "unknown", message: "2" } as GPUDeviceLostInfo);
+      await vi.advanceTimersByTimeAsync(1100);
+      await first;
+      await second;
+
+      // Only one recovery ran: exactly one additional create()
+      expect(vi.mocked(WebGPUDetector.create).mock.calls.length).toBe(createsBefore + 1);
+      stopDetectionForPokemon("poke-double");
+    });
+  });
 });

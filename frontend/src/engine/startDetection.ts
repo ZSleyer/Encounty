@@ -40,16 +40,65 @@ let detectorInitPromise: Promise<void> | null = null;
 let forceCPUMode = false;
 
 /**
+ * Start options of every currently running detection loop, keyed by pokemon
+ * ID. Used to restart detection after a GPU device loss.
+ */
+const activeStartOptions = new Map<string, StartDetectionOptions>();
+
+/** Guards against overlapping device-loss recoveries. */
+let recoveringFromDeviceLoss = false;
+
+/**
  * Set forced CPU mode. Destroys the current detector so the next
  * ensureDetector() call re-initializes with the chosen backend.
  */
 export function setForceCPU(force: boolean): void {
   if (force === forceCPUMode) return;
   forceCPUMode = force;
-  // Invalidate current detector so next ensureDetector() re-creates it
+  // Destroy and invalidate the current detector so next ensureDetector()
+  // re-creates it. An intentional destroy() reports device loss with
+  // reason "destroyed", which handleDeviceLost ignores.
+  sharedDetector?.destroy();
   sharedDetector = null;
   sharedDetectorBackend = null;
   detectorInitPromise = null;
+}
+
+/**
+ * Recover from an unexpected GPU device loss: invalidate the dead detector
+ * and restart every active detection loop. startDetectionForPokemon()
+ * re-creates the detector (falling back to Worker/CPU when WebGPU stays
+ * unavailable), re-fetches templates and re-registers the loops.
+ */
+async function handleDeviceLost(info: GPUDeviceLostInfo): Promise<void> {
+  if (info.reason === "destroyed") return; // intentional teardown
+  if (recoveringFromDeviceLoss) return;
+  recoveringFromDeviceLoss = true;
+  console.error("[Detector] GPU device lost, restarting detection:", info.message);
+
+  sharedDetector = null;
+  sharedDetectorBackend = null;
+  detectorInitPromise = null;
+
+  // Give the browser a moment to reinitialize the GPU process.
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  try {
+    for (const options of [...activeStartOptions.values()]) {
+      try {
+        const loop = await startDetectionForPokemon(options);
+        if (loop) {
+          console.log(`[Detector] Recovered detection for ${options.pokemonId}`);
+        } else {
+          console.warn(`[Detector] Could not recover detection for ${options.pokemonId}`);
+        }
+      } catch (err) {
+        console.error(`[Detector] Recovery failed for ${options.pokemonId}:`, err);
+      }
+    }
+  } finally {
+    recoveringFromDeviceLoss = false;
+  }
 }
 
 /** Return whether force-CPU mode is active. */
@@ -66,7 +115,7 @@ export function ensureDetector(): Promise<void> {
     // Attempt WebGPU unless force-CPU mode is active
     if (!forceCPUMode) {
       try {
-        sharedDetector = await WebGPUDetector.create();
+        sharedDetector = await WebGPUDetector.create(handleDeviceLost);
         sharedDetectorBackend = "gpu";
         console.log("[Detector] Using WebGPU backend");
       } catch (gpuErr) {
@@ -175,6 +224,15 @@ export async function startDetectionForPokemon({
   loop.onScore(onScore);
   loop.start(getVideoElement);
   registerLoop(pokemonId, loop);
+  // Remember how this hunt was started so it can be restarted after a
+  // GPU device loss.
+  activeStartOptions.set(pokemonId, {
+    pokemonId,
+    templates,
+    config,
+    getVideoElement,
+    onScore,
+  });
   postDetectionState(pokemonId, true);
 
   return loop;
@@ -227,5 +285,19 @@ export async function reloadDetectionTemplates(
  */
 export function stopDetectionForPokemon(pokemonId: string): void {
   stopLoop(pokemonId);
+  activeStartOptions.delete(pokemonId);
   postDetectionState(pokemonId, false);
+}
+
+// --- Dev-only debug hooks ------------------------------------------------------
+
+if (import.meta.env.DEV && typeof window !== "undefined") {
+  // E2E hook to exercise the device-loss recovery path from the console.
+  (window as unknown as Record<string, unknown>).__encountyDetectorDebug = {
+    simulateDeviceLoss: () =>
+      void handleDeviceLost({
+        reason: "unknown",
+        message: "simulated device loss",
+      } as GPUDeviceLostInfo),
+  };
 }
