@@ -37,5 +37,14 @@ export interface Detector {
   ): _TemplateData | null | Promise<_TemplateData | null>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   detect(source: HTMLVideoElement, templates: any[], config: any): Promise<DetectorResult>;
+  /**
+   * Release the resources held by a loaded template. Only detectors whose
+   * templates hold GPU buffers implement this; CPU-based detectors rely on
+   * garbage collection. Ownership of loaded templates passes to
+   * DetectionLoop.loadTemplates(), which calls this on replace and stop.
+   */
+  releaseTemplate?(template: _TemplateData): void;
+  /** Detector-level diagnostics for the dev perf modal. */
+  getStats?(): { queueWaitMsEMA: number };
   destroy(): void;
 }

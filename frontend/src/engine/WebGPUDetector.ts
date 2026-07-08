@@ -37,6 +37,7 @@ import {
   fitDimensions,
   mergeCategoryScores,
 } from "./math";
+import { AsyncMutex } from "../utils/asyncMutex";
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -95,6 +96,8 @@ export interface TemplateData {
     /** Optional category grouping, carried from the source region. */
     category?: string;
   }>;
+  /** Worker-side template id used for selection and release (WorkerDetector only). */
+  workerId?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -251,6 +254,17 @@ export class WebGPUDetector {
   private frameTextureW = 0;
   private frameTextureH = 0;
 
+  /**
+   * Serializes detect() calls. Multiple detection loops share this detector,
+   * and a detect cycle suspends at several await points while referencing
+   * shared mutable state (frameTexture, deltaResultBuf). Without the mutex a
+   * concurrent detect() overwrites or destroys that state mid-cycle.
+   */
+  private readonly detectMutex = new AsyncMutex();
+
+  /** EMA-smoothed time detect() callers spend waiting on the mutex (ms). */
+  private queueWaitMsEMA = 0;
+
   private constructor(device: GPUDevice, pipelines: CompiledPipelines) {
     this.device = device;
     this.preprocessPipeline = pipelines.preprocess;
@@ -304,8 +318,13 @@ export class WebGPUDetector {
    * Request a GPU device and compile all compute pipelines.
    *
    * Throws if WebGPU is unavailable or the adapter cannot be obtained.
+   * The optional onDeviceLost callback fires when the device is lost for
+   * any reason, including an intentional destroy(); callers should check
+   * info.reason before reacting.
    */
-  static async create(): Promise<WebGPUDetector> {
+  static async create(
+    onDeviceLost?: (info: GPUDeviceLostInfo) => void,
+  ): Promise<WebGPUDetector> {
     if (!WebGPUDetector.isAvailable()) {
       throw new Error("WebGPU is not supported in this browser");
     }
@@ -322,8 +341,14 @@ export class WebGPUDetector {
     });
 
     device.lost.then((info) => {
-      console.error("[WebGPUDetector] device lost:", info.message);
+      console.error("[WebGPUDetector] device lost:", info.reason, info.message);
+      onDeviceLost?.(info);
     });
+
+    // Surface validation/out-of-memory errors that would otherwise be silent.
+    device.onuncapturederror = (e) => {
+      console.error("[WebGPUDetector] uncaptured error:", e.error?.message);
+    };
 
     const pipelines = WebGPUDetector.compilePipelines(device);
     return new WebGPUDetector(device, pipelines);
@@ -543,31 +568,32 @@ export class WebGPUDetector {
       "ncc_scores",
     );
 
-    const nccBindGroup = this.device.createBindGroup({
-      label: "ncc_bg",
-      layout: this.nccBGL,
-      entries: [
-        { binding: 0, resource: { buffer: frameBuf } },
-        { binding: 1, resource: { buffer: template.grayscaleBuffer! } },
-        { binding: 2, resource: { buffer: paramsBuf } },
-        { binding: 3, resource: { buffer: scoresBuf } },
-      ],
-    });
+    try {
+      const nccBindGroup = this.device.createBindGroup({
+        label: "ncc_bg",
+        layout: this.nccBGL,
+        entries: [
+          { binding: 0, resource: { buffer: frameBuf } },
+          { binding: 1, resource: { buffer: template.grayscaleBuffer! } },
+          { binding: 2, resource: { buffer: paramsBuf } },
+          { binding: 3, resource: { buffer: scoresBuf } },
+        ],
+      });
 
-    const encoder = this.device.createCommandEncoder({ label: "ncc_encoder" });
-    const pass = encoder.beginComputePass({ label: "ncc_pass" });
-    pass.setPipeline(this.nccPipeline);
-    pass.setBindGroup(0, nccBindGroup);
-    pass.dispatchWorkgroups(divCeil(totalPositions, NCC_WORKGROUP_SIZE), 1, 1);
-    pass.end();
-    this.device.queue.submit([encoder.finish()]);
+      const encoder = this.device.createCommandEncoder({ label: "ncc_encoder" });
+      const pass = encoder.beginComputePass({ label: "ncc_pass" });
+      pass.setPipeline(this.nccPipeline);
+      pass.setBindGroup(0, nccBindGroup);
+      pass.dispatchWorkgroups(divCeil(totalPositions, NCC_WORKGROUP_SIZE), 1, 1);
+      pass.end();
+      this.device.queue.submit([encoder.finish()]);
 
-    // Parallel max-reduction
-    const result = await this.reduceMax(scoresBuf, totalPositions);
-
-    this.pool.release(paramsBuf);
-    this.pool.release(scoresBuf);
-    return result;
+      // Parallel max-reduction
+      return await this.reduceMax(scoresBuf, totalPositions);
+    } finally {
+      this.pool.release(paramsBuf);
+      this.pool.release(scoresBuf);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -611,173 +637,176 @@ export class WebGPUDetector {
       "region_scores",
     );
 
+    // Every acquired buffer is registered here immediately, so the finally
+    // block releases exactly the acquired set even when a GPU error or
+    // device loss throws mid-cycle (a repeated leak here starves the pool).
     const buffersToRelease: GPUBuffer[] = [regionScoresBuf];
 
-    for (let ri = 0; ri < regionCount; ri++) {
-      const { rect, width: rw, height: rh, blockSize, buffer: tmplBuf } =
-        regionCrops[ri];
+    try {
+      for (let ri = 0; ri < regionCount; ri++) {
+        const { rect, width: rw, height: rh, blockSize, buffer: tmplBuf } =
+          regionCrops[ri];
 
-      // Map template-space rect to frame-space crop coordinates
-      const frameCrop = {
-        x: Math.round(rect.x * scaleX),
-        y: Math.round(rect.y * scaleY),
-        w: Math.max(4, Math.round(rect.w * scaleX)),
-        h: Math.max(4, Math.round(rect.h * scaleY)),
-      };
+        // Map template-space rect to frame-space crop coordinates
+        const frameCrop = {
+          x: Math.round(rect.x * scaleX),
+          y: Math.round(rect.y * scaleY),
+          w: Math.max(4, Math.round(rect.w * scaleX)),
+          h: Math.max(4, Math.round(rect.h * scaleY)),
+        };
 
-      // Crop the frame region and downscale to match template crop dimensions
-      const { buffer: frameCropBuf } = this.preprocess(
-        frameTexture,
-        frameCrop,
-        Math.max(rw, rh),
-      );
-      buffersToRelease.push(frameCropBuf);
+        // Crop the frame region and downscale to match template crop dimensions
+        const { buffer: frameCropBuf } = this.preprocess(
+          frameTexture,
+          frameCrop,
+          Math.max(rw, rh),
+        );
+        buffersToRelease.push(frameCropBuf);
 
-      // Phase 0C: Pool the metric params buffer
-      const metricParamsBuf = this.pool.acquire(
-        8,
-        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        `metric_params_${ri}`,
-      );
-      this.device.queue.writeBuffer(
-        metricParamsBuf,
-        0,
-        new Uint32Array([rw, rh]),
-      );
-      buffersToRelease.push(metricParamsBuf);
+        // Phase 0C: Pool the metric params buffer
+        const metricParamsBuf = this.pool.acquire(
+          8,
+          GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          `metric_params_${ri}`,
+        );
+        this.device.queue.writeBuffer(
+          metricParamsBuf,
+          0,
+          new Uint32Array([rw, rh]),
+        );
+        buffersToRelease.push(metricParamsBuf);
 
-      // --- Dispatch all 4 metric shaders in a single command encoder ---
-      const encoder = this.device.createCommandEncoder({
-        label: `hybrid_encoder_${ri}`,
-      });
+        // --- Dispatch all 4 metric shaders in a single command encoder ---
+        const encoder = this.device.createCommandEncoder({
+          label: `hybrid_encoder_${ri}`,
+        });
 
-      // 1. Block-SSIM: produces per-block scores, needs separate handling
-      const ssimResult = this.encodeBlockSsim(
-        encoder,
-        frameCropBuf,
-        tmplBuf,
-        rw,
-        rh,
-        blockSize,
-      );
-      buffersToRelease.push(ssimResult.scoresBuf, ssimResult.paramsBuf);
+        // 1. Block-SSIM: produces per-block scores, needs separate handling
+        const ssimResult = this.encodeBlockSsim(
+          encoder,
+          frameCropBuf,
+          tmplBuf,
+          rw,
+          rh,
+          blockSize,
+        );
+        buffersToRelease.push(ssimResult.scoresBuf, ssimResult.paramsBuf);
 
-      // 2. Pearson NCC
-      const pearsonOutBuf = this.createScalarOutputBuffer(`pearson_out_${ri}`);
-      buffersToRelease.push(pearsonOutBuf);
-      this.encodeMetricPass(encoder, {
-        pipeline: this.pearsonNccPipeline, bgl: this.pearsonNccBGL,
-        frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
-        outBuf: pearsonOutBuf, label: `pearson_pass_${ri}`,
-      });
+        // 2. Pearson NCC
+        const pearsonOutBuf = this.createScalarOutputBuffer(`pearson_out_${ri}`);
+        buffersToRelease.push(pearsonOutBuf);
+        this.encodeMetricPass(encoder, {
+          pipeline: this.pearsonNccPipeline, bgl: this.pearsonNccBGL,
+          frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
+          outBuf: pearsonOutBuf, label: `pearson_pass_${ri}`,
+        });
 
-      // 3. MAD
-      const madOutBuf = this.createScalarOutputBuffer(`mad_out_${ri}`);
-      buffersToRelease.push(madOutBuf);
-      this.encodeMetricPass(encoder, {
-        pipeline: this.madPipeline, bgl: this.madBGL,
-        frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
-        outBuf: madOutBuf, label: `mad_pass_${ri}`,
-      });
+        // 3. MAD
+        const madOutBuf = this.createScalarOutputBuffer(`mad_out_${ri}`);
+        buffersToRelease.push(madOutBuf);
+        this.encodeMetricPass(encoder, {
+          pipeline: this.madPipeline, bgl: this.madBGL,
+          frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
+          outBuf: madOutBuf, label: `mad_pass_${ri}`,
+        });
 
-      // 4. Histogram correlation
-      const histOutBuf = this.createScalarOutputBuffer(`hist_out_${ri}`);
-      buffersToRelease.push(histOutBuf);
-      this.encodeMetricPass(encoder, {
-        pipeline: this.histogramPipeline, bgl: this.histogramBGL,
-        frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
-        outBuf: histOutBuf, label: `hist_pass_${ri}`,
-      });
+        // 4. Histogram correlation
+        const histOutBuf = this.createScalarOutputBuffer(`hist_out_${ri}`);
+        buffersToRelease.push(histOutBuf);
+        this.encodeMetricPass(encoder, {
+          pipeline: this.histogramPipeline, bgl: this.histogramBGL,
+          frameBuf: frameCropBuf, tmplBuf, paramsBuf: metricParamsBuf,
+          outBuf: histOutBuf, label: `hist_pass_${ri}`,
+        });
 
-      // Submit all 4 metric dispatches
-      this.device.queue.submit([encoder.finish()]);
+        // Submit all 4 metric dispatches
+        this.device.queue.submit([encoder.finish()]);
 
-      // Block-SSIM median computed on GPU via histogram binning
-      const ssimMedian = await this.computeSsimMedianGPU(
-        ssimResult.scoresBuf,
-        ssimResult.totalBlocks,
-      );
+        // Block-SSIM median computed on GPU via histogram binning
+        const ssimMedian = await this.computeSsimMedianGPU(
+          ssimResult.scoresBuf,
+          ssimResult.totalBlocks,
+        );
 
-      // Assemble the 4 scores into a buffer for the fuse shader.
-      // GPU weights are hardcoded in fuse_scores.wgsl and must match HYBRID_WEIGHTS from math.ts.
-      const scoresInputBuf = this.pool.acquire(
-        16,
-        GPUBufferUsage.STORAGE |
-          GPUBufferUsage.COPY_SRC |
-          GPUBufferUsage.COPY_DST,
-        `fuse_input_${ri}`,
-      );
-      this.device.queue.writeBuffer(
-        scoresInputBuf,
-        0,
-        new Float32Array([ssimMedian, 0, 0, 0]),
-      );
-      buffersToRelease.push(scoresInputBuf);
+        // Assemble the 4 scores into a buffer for the fuse shader.
+        // GPU weights are hardcoded in fuse_scores.wgsl and must match HYBRID_WEIGHTS from math.ts.
+        const scoresInputBuf = this.pool.acquire(
+          16,
+          GPUBufferUsage.STORAGE |
+            GPUBufferUsage.COPY_SRC |
+            GPUBufferUsage.COPY_DST,
+          `fuse_input_${ri}`,
+        );
+        this.device.queue.writeBuffer(
+          scoresInputBuf,
+          0,
+          new Float32Array([ssimMedian, 0, 0, 0]),
+        );
+        buffersToRelease.push(scoresInputBuf);
 
-      // Phase 0E: Merge copy operations and fuse dispatch into a single encoder
-      const fuseOutBuf = this.createScalarOutputBuffer(`fuse_out_${ri}`);
-      buffersToRelease.push(fuseOutBuf);
+        // Phase 0E: Merge copy operations and fuse dispatch into a single encoder
+        const fuseOutBuf = this.createScalarOutputBuffer(`fuse_out_${ri}`);
+        buffersToRelease.push(fuseOutBuf);
 
-      const fuseEncoder = this.device.createCommandEncoder({
-        label: `copy_fuse_encoder_${ri}`,
-      });
+        const fuseEncoder = this.device.createCommandEncoder({
+          label: `copy_fuse_encoder_${ri}`,
+        });
 
-      // Copy the 3 GPU-produced scalar scores into the fuse input buffer
-      fuseEncoder.copyBufferToBuffer(pearsonOutBuf, 0, scoresInputBuf, 4, 4);
-      fuseEncoder.copyBufferToBuffer(madOutBuf, 0, scoresInputBuf, 8, 4);
-      fuseEncoder.copyBufferToBuffer(histOutBuf, 0, scoresInputBuf, 12, 4);
+        // Copy the 3 GPU-produced scalar scores into the fuse input buffer
+        fuseEncoder.copyBufferToBuffer(pearsonOutBuf, 0, scoresInputBuf, 4, 4);
+        fuseEncoder.copyBufferToBuffer(madOutBuf, 0, scoresInputBuf, 8, 4);
+        fuseEncoder.copyBufferToBuffer(histOutBuf, 0, scoresInputBuf, 12, 4);
 
-      // Fuse the 4 scores into one hybrid score on GPU
-      const fuseBindGroup = this.device.createBindGroup({
-        label: `fuse_bg_${ri}`,
-        layout: this.fuseScoresBGL,
-        entries: [
-          { binding: 0, resource: { buffer: scoresInputBuf } },
-          { binding: 1, resource: { buffer: fuseOutBuf } },
-        ],
-      });
-      const fusePass = fuseEncoder.beginComputePass({
-        label: `fuse_pass_${ri}`,
-      });
-      fusePass.setPipeline(this.fuseScoresPipeline);
-      fusePass.setBindGroup(0, fuseBindGroup);
-      fusePass.dispatchWorkgroups(1, 1, 1);
-      fusePass.end();
+        // Fuse the 4 scores into one hybrid score on GPU
+        const fuseBindGroup = this.device.createBindGroup({
+          label: `fuse_bg_${ri}`,
+          layout: this.fuseScoresBGL,
+          entries: [
+            { binding: 0, resource: { buffer: scoresInputBuf } },
+            { binding: 1, resource: { buffer: fuseOutBuf } },
+          ],
+        });
+        const fusePass = fuseEncoder.beginComputePass({
+          label: `fuse_pass_${ri}`,
+        });
+        fusePass.setPipeline(this.fuseScoresPipeline);
+        fusePass.setBindGroup(0, fuseBindGroup);
+        fusePass.dispatchWorkgroups(1, 1, 1);
+        fusePass.end();
 
-      // Copy the fused result into the region scores buffer at the right offset
-      fuseEncoder.copyBufferToBuffer(
-        fuseOutBuf,
-        0,
-        regionScoresBuf,
-        ri * 4,
-        4,
-      );
-      this.device.queue.submit([fuseEncoder.finish()]);
-    }
-
-    // Single readback of the per-region scores array, then group by category
-    // on the CPU and AND-combine (min) within each category.
-    const regionScores = await this.readF32Array(regionScoresBuf, regionCount);
-
-    const scoresByCategory = new Map<string, number[]>();
-    for (let ri = 0; ri < regionCount; ri++) {
-      const category = regionCrops[ri].category ?? "";
-      let group = scoresByCategory.get(category);
-      if (!group) {
-        group = [];
-        scoresByCategory.set(category, group);
+        // Copy the fused result into the region scores buffer at the right offset
+        fuseEncoder.copyBufferToBuffer(
+          fuseOutBuf,
+          0,
+          regionScoresBuf,
+          ri * 4,
+          4,
+        );
+        this.device.queue.submit([fuseEncoder.finish()]);
       }
-      group.push(regionScores[ri]);
+
+      // Single readback of the per-region scores array, then group by category
+      // on the CPU and AND-combine (min) within each category.
+      const regionScores = await this.readF32Array(regionScoresBuf, regionCount);
+
+      const scoresByCategory = new Map<string, number[]>();
+      for (let ri = 0; ri < regionCount; ri++) {
+        const category = regionCrops[ri].category ?? "";
+        let group = scoresByCategory.get(category);
+        if (!group) {
+          group = [];
+          scoresByCategory.set(category, group);
+        }
+        group.push(regionScores[ri]);
+      }
+
+      return categoryScoresFromGroups(scoresByCategory);
+    } finally {
+      // Release all temporary buffers back to the pool, also on throw
+      for (const buf of buffersToRelease) {
+        this.pool.release(buf);
+      }
     }
-
-    const categoryScores = categoryScoresFromGroups(scoresByCategory);
-
-    // Release all temporary buffers back to the pool
-    for (const buf of buffersToRelease) {
-      this.pool.release(buf);
-    }
-
-    return categoryScores;
   }
 
   /**
@@ -881,8 +910,39 @@ export class WebGPUDetector {
    *
    * Templates with regions use the GPU-accelerated 5-metric hybrid pipeline.
    * Templates without regions use sliding-window NCC.
+   *
+   * Calls are serialized via detectMutex: multiple detection loops share one
+   * detector instance, and an unserialized concurrent detect() would overwrite
+   * or destroy the shared frame texture (and race on deltaResultBuf) while
+   * this cycle is suspended at an await point.
    */
   async detect(
+    source: HTMLVideoElement,
+    templates: TemplateData[],
+    config: {
+      precision: number;
+      crop?: { x: number; y: number; w: number; h: number };
+      maxDim?: number;
+      changeThreshold?: number;
+      previousFrame?: GPUBuffer;
+    },
+  ): Promise<DetectResult & { frameBuffer: GPUBuffer }> {
+    const waitStart = performance.now();
+    return this.detectMutex.runExclusive(() => {
+      const waited = performance.now() - waitStart;
+      this.queueWaitMsEMA =
+        this.queueWaitMsEMA === 0 ? waited : 0.2 * waited + 0.8 * this.queueWaitMsEMA;
+      return this.detectInternal(source, templates, config);
+    });
+  }
+
+  /** Detector statistics for diagnostics (consumed by the dev perf modal). */
+  getStats(): { queueWaitMsEMA: number } {
+    return { queueWaitMsEMA: this.queueWaitMsEMA };
+  }
+
+  /** Detection cycle body; must only run under detectMutex. */
+  private async detectInternal(
     source: HTMLVideoElement,
     templates: TemplateData[],
     config: {
@@ -902,53 +962,60 @@ export class WebGPUDetector {
     const { buffer: frameBuf, width: frameW, height: frameH } =
       this.preprocess(texture, config.crop, config.maxDim);
 
-    // Compute pixel delta for frame deduplication
-    let frameDelta = 1;
-    if (config.previousFrame) {
-      frameDelta = await this.pixelDelta(config.previousFrame, frameBuf);
-    }
-
-    // Match against each template, using region-based hybrid or sliding-window NCC
-    let bestScore = 0;
-    let bestIndex = 0;
-    const categoryScores: Record<string, number> = {};
-
-    for (let i = 0; i < templates.length; i++) {
-      const tmpl = templates[i];
-      const hasRegions =
-        tmpl.regions.length > 0 &&
-        tmpl.regionCrops &&
-        tmpl.regionCrops.length > 0;
-
-      if (!hasRegions) continue;
-
-      const templateScores = await this.scoreTemplate(
-        tmpl, { texture, buf: frameBuf, w: frameW, h: frameH },
-        tmpl.regionCrops,
-      );
-
-      // Merge per-category scores across templates by taking the max.
-      const templateBest = mergeCategoryScores(categoryScores, templateScores);
-      if (templateBest > bestScore) {
-        bestScore = templateBest;
-        bestIndex = i;
+    try {
+      // Compute pixel delta for frame deduplication
+      let frameDelta = 1;
+      if (config.previousFrame) {
+        frameDelta = await this.pixelDelta(config.previousFrame, frameBuf);
       }
 
-      // Early exit is only safe with a single default category: with multiple
-      // categories, later templates may carry scores for other categories.
-      const onlyDefaultCategory =
-        Object.keys(categoryScores).length === 1 && "" in categoryScores;
-      if (onlyDefaultCategory && bestScore >= config.precision) break;
-    }
+      // Match against each template, using region-based hybrid or sliding-window NCC
+      let bestScore = 0;
+      let bestIndex = 0;
+      const categoryScores: Record<string, number> = {};
 
-    return {
-      bestScore,
-      score: bestScore,
-      frameDelta,
-      templateIndex: bestIndex,
-      frameBuffer: frameBuf,
-      categoryScores,
-    };
+      for (let i = 0; i < templates.length; i++) {
+        const tmpl = templates[i];
+        const hasRegions =
+          tmpl.regions.length > 0 &&
+          tmpl.regionCrops &&
+          tmpl.regionCrops.length > 0;
+
+        if (!hasRegions) continue;
+
+        const templateScores = await this.scoreTemplate(
+          tmpl, { texture, buf: frameBuf, w: frameW, h: frameH },
+          tmpl.regionCrops,
+        );
+
+        // Merge per-category scores across templates by taking the max.
+        const templateBest = mergeCategoryScores(categoryScores, templateScores);
+        if (templateBest > bestScore) {
+          bestScore = templateBest;
+          bestIndex = i;
+        }
+
+        // Early exit is only safe with a single default category: with multiple
+        // categories, later templates may carry scores for other categories.
+        const onlyDefaultCategory =
+          Object.keys(categoryScores).length === 1 && "" in categoryScores;
+        if (onlyDefaultCategory && bestScore >= config.precision) break;
+      }
+
+      return {
+        bestScore,
+        score: bestScore,
+        frameDelta,
+        templateIndex: bestIndex,
+        frameBuffer: frameBuf,
+        categoryScores,
+      };
+    } catch (err) {
+      // On success frameBuf ownership transfers to the caller (previousFrame
+      // for the next cycle); on throw nobody would release it, so do it here.
+      this.pool.release(frameBuf);
+      throw err;
+    }
   }
 
   /**
@@ -965,6 +1032,22 @@ export class WebGPUDetector {
       return this.regionHybridMatch(texture, { ...tmpl, regionCrops });
     }
     return {};
+  }
+
+  /**
+   * Destroy the GPU buffers held by a template loaded via loadTemplate().
+   *
+   * Templates are not pooled, so without this call every hunt start, stop
+   * or template reload leaks GPU memory. The template must not be used for
+   * matching afterwards.
+   */
+  releaseTemplate(template: TemplateData): void {
+    template.grayscaleBuffer?.destroy();
+    template.grayscaleBuffer = undefined;
+    for (const crop of template.regionCrops ?? []) {
+      crop.buffer.destroy();
+    }
+    template.regionCrops = undefined;
   }
 
   /** Release all GPU resources held by this detector. */
@@ -1620,12 +1703,12 @@ export class WebGPUDetector {
     pass.end();
     this.device.queue.submit([encoder.finish()]);
 
-    const median = await this.readF32(resultBuf);
-
-    this.pool.release(paramsBuf);
-    this.pool.release(resultBuf);
-
-    return median;
+    try {
+      return await this.readF32(resultBuf);
+    } finally {
+      this.pool.release(paramsBuf);
+      this.pool.release(resultBuf);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -1647,12 +1730,19 @@ export class WebGPUDetector {
     encoder.copyBufferToBuffer(src, 0, staging, 0, 4);
     this.device.queue.submit([encoder.finish()]);
 
-    await staging.mapAsync(GPUMapMode.READ);
-    const data = new Float32Array(staging.getMappedRange());
-    const result = data[0];
-    staging.unmap();
-    this.pool.release(staging);
-    return result;
+    try {
+      await staging.mapAsync(GPUMapMode.READ);
+      const data = new Float32Array(staging.getMappedRange());
+      const result = data[0];
+      staging.unmap();
+      this.pool.release(staging);
+      return result;
+    } catch (err) {
+      // mapAsync rejected (e.g. device loss): the buffer's mapped state is
+      // unknown, so destroy it instead of returning it to the pool.
+      staging.destroy();
+      throw err;
+    }
   }
 
   /** Copy `count` f32 values from a storage buffer to the CPU as a number array. */
@@ -1670,13 +1760,19 @@ export class WebGPUDetector {
     encoder.copyBufferToBuffer(src, 0, staging, 0, count * 4);
     this.device.queue.submit([encoder.finish()]);
 
-    await staging.mapAsync(GPUMapMode.READ);
-    const data = new Float32Array(staging.getMappedRange());
-    const result: number[] = [];
-    for (let i = 0; i < count; i++) result.push(data[i]);
-    staging.unmap();
-    this.pool.release(staging);
-    return result;
+    try {
+      await staging.mapAsync(GPUMapMode.READ);
+      const data = new Float32Array(staging.getMappedRange());
+      const result: number[] = [];
+      for (let i = 0; i < count; i++) result.push(data[i]);
+      staging.unmap();
+      this.pool.release(staging);
+      return result;
+    } catch (err) {
+      // Unknown mapped state after a rejected mapAsync, do not pool it.
+      staging.destroy();
+      throw err;
+    }
   }
 
   /**
@@ -1699,12 +1795,18 @@ export class WebGPUDetector {
     encoder.copyBufferToBuffer(src, 0, staging, 0, 4);
     this.device.queue.submit([encoder.finish()]);
 
-    await staging.mapAsync(GPUMapMode.READ);
-    const data = new Uint32Array(staging.getMappedRange());
-    const result = data[0];
-    staging.unmap();
-    this.pool.release(staging);
-    return result;
+    try {
+      await staging.mapAsync(GPUMapMode.READ);
+      const data = new Uint32Array(staging.getMappedRange());
+      const result = data[0];
+      staging.unmap();
+      this.pool.release(staging);
+      return result;
+    } catch (err) {
+      // Unknown mapped state after a rejected mapAsync, do not pool it.
+      staging.destroy();
+      throw err;
+    }
   }
 
   // -----------------------------------------------------------------------
