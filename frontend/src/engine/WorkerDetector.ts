@@ -8,6 +8,7 @@
  */
 import type { DetectorResult } from "./index";
 import type { TemplateData } from "./WebGPUDetector";
+import { AsyncMutex } from "../utils/asyncMutex";
 
 // --- WorkerDetector ----------------------------------------------------------
 
@@ -21,8 +22,23 @@ export class WorkerDetector {
     reject: (e: Error) => void;
   } | null = null;
 
-  /** Hidden video element used exclusively for frame capture, isolated from the preview. */
-  private captureVideo: HTMLVideoElement | null = null;
+  /**
+   * Serializes detect() calls. The worker protocol correlates exactly one
+   * in-flight detect with its response, so concurrent detection loops
+   * would otherwise supersede each other's requests on every frame.
+   */
+  private readonly detectMutex = new AsyncMutex();
+
+  /** EMA-smoothed time detect() callers spend waiting on the mutex (ms). */
+  private queueWaitMsEMA = 0;
+
+  /**
+   * Hidden video elements used exclusively for frame capture, isolated from
+   * the preview. Keyed by source element, since every hunt has its own
+   * capture stream and a single shared element would keep serving the
+   * first hunt's stream to all others.
+   */
+  private readonly captureVideos = new Map<HTMLVideoElement, HTMLVideoElement>();
 
   private constructor(worker: Worker) {
     this.worker = worker;
@@ -118,8 +134,9 @@ export class WorkerDetector {
     const id = this.nextTemplateId++;
     this.worker.postMessage({ cmd: "loadTemplate", id, imageData, regions });
 
-    // Return a stub TemplateData — the real one lives in the worker.
-    // The stub carries the minimum fields needed by DetectionLoop.
+    // Return a stub TemplateData, the real one lives in the worker.
+    // The stub carries the minimum fields needed by DetectionLoop plus the
+    // worker-side id so detect() can select and releaseTemplate() can free it.
     return {
       gray: new Float32Array(0),
       width: imageData.width,
@@ -128,7 +145,23 @@ export class WorkerDetector {
       stdDev: 1,
       pixelCount: imageData.width * imageData.height,
       regions: regions ?? [],
+      workerId: id,
     } as TemplateData;
+  }
+
+  /**
+   * Free a template in the worker. Without this, templates from stopped or
+   * reloaded hunts accumulate in the worker and keep being matched.
+   */
+  releaseTemplate(template: TemplateData): void {
+    if (template.workerId !== undefined) {
+      this.worker.postMessage({ cmd: "releaseTemplate", id: template.workerId });
+    }
+  }
+
+  /** Detector statistics for diagnostics (consumed by the dev perf modal). */
+  getStats(): { queueWaitMsEMA: number } {
+    return { queueWaitMsEMA: this.queueWaitMsEMA };
   }
 
   /**
@@ -136,11 +169,32 @@ export class WorkerDetector {
    *
    * Uses a hidden video element that mirrors the source stream to avoid
    * interfering with the preview <video> element's rendering. Captures
-   * the frame as ImageBitmap and transfers it to the worker.
+   * the frame as ImageBitmap and transfers it to the worker. Calls are
+   * serialized via detectMutex because the worker protocol supports only
+   * one in-flight detect at a time.
    */
   async detect(
     source: HTMLVideoElement,
-    _templates: TemplateData[],
+    templates: TemplateData[],
+    config: {
+      precision: number;
+      crop?: { x: number; y: number; w: number; h: number };
+      changeThreshold?: number;
+    },
+  ): Promise<DetectorResult> {
+    const waitStart = performance.now();
+    return this.detectMutex.runExclusive(() => {
+      const waited = performance.now() - waitStart;
+      this.queueWaitMsEMA =
+        this.queueWaitMsEMA === 0 ? waited : 0.2 * waited + 0.8 * this.queueWaitMsEMA;
+      return this.detectInternal(source, templates, config);
+    });
+  }
+
+  /** Detection body; must only run under detectMutex. */
+  private async detectInternal(
+    source: HTMLVideoElement,
+    templates: TemplateData[],
     config: {
       precision: number;
       crop?: { x: number; y: number; w: number; h: number };
@@ -164,6 +218,12 @@ export class WorkerDetector {
       this.pendingDetect = null;
     }
 
+    // Restrict matching to this call's templates: the worker holds templates
+    // of every hunt, and matching all of them would cross-count encounters.
+    const templateIds = templates
+      .map((t) => t.workerId)
+      .filter((id): id is number => id !== undefined);
+
     return new Promise<DetectorResult>((resolve, reject) => {
       const timeout = setTimeout(() => {
         if (this.pendingDetect?.reject === reject) {
@@ -177,7 +237,7 @@ export class WorkerDetector {
         reject: (e) => { clearTimeout(timeout); reject(e); },
       };
       this.worker.postMessage(
-        { cmd: "detect", frame: bitmap, config },
+        { cmd: "detect", frame: bitmap, config, templateIds },
         [bitmap],
       );
     });
@@ -189,43 +249,42 @@ export class WorkerDetector {
     this.worker.terminate();
     this.ready = false;
 
-    if (this.captureVideo) {
-      this.captureVideo.pause();
-      this.captureVideo.srcObject = null;
-      this.captureVideo.removeAttribute("src");
-      this.captureVideo = null;
+    for (const el of this.captureVideos.values()) {
+      el.pause();
+      el.srcObject = null;
+      el.removeAttribute("src");
     }
+    this.captureVideos.clear();
   }
 
   // --- Private helpers -------------------------------------------------------
 
   /**
-   * Get or create a hidden video element that mirrors the source's stream.
+   * Get or create the hidden video element that mirrors the source's stream.
    *
-   * For MediaStream sources (screen capture, camera), the stream is cloned
-   * so the preview and detection pipelines are fully independent. For file
-   * sources (development mode), the same src URL is shared since file
-   * playback is frame-buffered and not affected by concurrent reads.
+   * One capture element exists per source element, so hunts with different
+   * capture streams never read each other's frames. For MediaStream sources
+   * (screen capture, camera), the stream is cloned so the preview and
+   * detection pipelines are fully independent. For file sources
+   * (development mode), the same src URL is shared since file playback is
+   * frame-buffered and not affected by concurrent reads.
    */
   private getOrCreateCaptureVideo(source: HTMLVideoElement): HTMLVideoElement {
-    if (this.captureVideo) {
-      this.syncCaptureSource(source);
-      return this.captureVideo;
+    let el = this.captureVideos.get(source);
+    if (!el) {
+      el = document.createElement("video");
+      el.autoplay = true;
+      el.muted = true;
+      el.playsInline = true;
+      // Keep hidden, do not append to DOM
+      this.captureVideos.set(source, el);
     }
-
-    const el = document.createElement("video");
-    el.autoplay = true;
-    el.muted = true;
-    el.playsInline = true;
-    // Keep hidden — do not append to DOM
-    this.captureVideo = el;
-    this.syncCaptureSource(source);
+    this.syncCaptureSource(source, el);
     return el;
   }
 
   /** Ensure the hidden capture video mirrors the source's current stream or file. */
-  private syncCaptureSource(source: HTMLVideoElement): void {
-    const el = this.captureVideo!;
+  private syncCaptureSource(source: HTMLVideoElement, el: HTMLVideoElement): void {
     const stream = source.srcObject as MediaStream | null;
 
     if (stream) {

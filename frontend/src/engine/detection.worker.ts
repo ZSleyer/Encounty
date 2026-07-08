@@ -51,7 +51,14 @@ async function handleMessage(e: MessageEvent): Promise<void> {
         break;
       }
       try {
-        const tmplArray = Array.from(templates.values());
+        // Match only the requested templates: the worker holds templates of
+        // every hunt, and older messages carry no id list (match all).
+        const ids: number[] | undefined = msg.templateIds;
+        const tmplArray = ids
+          ? ids
+              .map((id) => templates.get(id))
+              .filter((t): t is TemplateData => t !== undefined)
+          : Array.from(templates.values());
         const result = await detector.detect(msg.frame, tmplArray, msg.config);
         // Close the transferred ImageBitmap to free GPU memory
         msg.frame.close();
@@ -66,6 +73,11 @@ async function handleMessage(e: MessageEvent): Promise<void> {
     case "clearTemplates":
       templates.clear();
       ctx.postMessage({ cmd: "clearTemplates", ok: true });
+      break;
+
+    case "releaseTemplate":
+      templates.delete(msg.id);
+      ctx.postMessage({ cmd: "releaseTemplate", id: msg.id, ok: true });
       break;
 
     case "destroy":
