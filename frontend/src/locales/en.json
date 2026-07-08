@@ -681,6 +681,8 @@
   "perfModal.pollInterval": "Current poll interval",
   "perfModal.pollIntervalHint": "Adaptive — bounded by min={{min}} ms and max={{max}} ms.",
   "perfModal.smoothedScore": "Smoothed score",
+  "perfModal.gpuQueueWait": "GPU queue wait",
+  "perfModal.gpuQueueWaitHint": "Average time spent waiting for the shared GPU detector. Grows when several hunts run in parallel.",
   "perfModal.framesProcessed": "Frames processed",
   "perfModal.loopState": "Loop state",
   "perfModal.stateRunning": "running",

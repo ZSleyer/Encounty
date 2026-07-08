@@ -39,6 +39,7 @@ interface LoopSnapshot {
   smoothedScore: number;
   inHysteresis: boolean;
   inCooldown: boolean;
+  gpuQueueWaitMs: number;
 }
 
 const POLL_INTERVAL_MS = 1000;
@@ -184,6 +185,7 @@ export default function DetectorPerfModal({
                 <Row label={t("perfModal.effectiveFps")} value={loopSnap.effectiveFps > 0 ? loopSnap.effectiveFps.toFixed(1) : "—"} hint={t("perfModal.effectiveFpsHint")} />
                 <Row label={t("perfModal.pollInterval")} value={`${Math.round(loopSnap.pollIntervalMs)} ms`} hint={t("perfModal.pollIntervalHint", { min: loopSnap.minPollMs, max: loopSnap.maxPollMs })} />
                 <Row label={t("perfModal.smoothedScore")} value={loopSnap.smoothedScore.toFixed(3)} />
+                <Row label={t("perfModal.gpuQueueWait")} value={fmtMs(loopSnap.gpuQueueWaitMs)} hint={t("perfModal.gpuQueueWaitHint")} />
                 <Row label={t("perfModal.framesProcessed")} value={String(loopSnap.framesProcessed)} />
                 <Row label={t("perfModal.loopState")} value={loopSnap.inHysteresis ? t("perfModal.stateHysteresis") : loopSnap.inCooldown ? t("perfModal.stateCooldown") : loopSnap.running ? t("perfModal.stateRunning") : t("perfModal.stateStopped")} />
               </dl>

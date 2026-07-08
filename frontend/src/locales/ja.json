@@ -681,6 +681,8 @@
   "perfModal.pollInterval": "現在のポーリング間隔",
   "perfModal.pollIntervalHint": "アダプティブ — min={{min}} ms と max={{max}} ms で制限されます。",
   "perfModal.smoothedScore": "平滑化スコア",
+  "perfModal.gpuQueueWait": "GPUキュー待機",
+  "perfModal.gpuQueueWaitHint": "共有GPUディテクターの平均待機時間。複数のハントが並行して実行されると増加します。",
   "perfModal.framesProcessed": "処理済みフレーム数",
   "perfModal.loopState": "ループ状態",
   "perfModal.stateRunning": "実行中",
