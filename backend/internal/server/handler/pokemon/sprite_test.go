@@ -144,3 +144,64 @@ func TestSpriteGetMissing(t *testing.T) {
 		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
 	}
 }
+
+// TestSpriteDelete verifies DELETE removes the stored sprite, clears the
+// Pokemon's sprite_url in state, and a subsequent GET returns 404.
+func TestSpriteDelete(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Pikachu")
+	png := smallPNG(t)
+
+	uploadReq := httptest.NewRequest(http.MethodPost, pathSpriteP1, bytes.NewReader(png))
+	uploadW := httptest.NewRecorder()
+	mux.ServeHTTP(uploadW, uploadReq)
+	if uploadW.Code != http.StatusOK {
+		t.Fatalf(fmtWantStatus, uploadW.Code, http.StatusOK)
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, pathSpriteP1, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusOK)
+	}
+	var resp spriteResponse
+	decodeJSON(t, w, &resp)
+	if resp.SpriteURL != "" {
+		t.Errorf("sprite_url = %q, want empty", resp.SpriteURL)
+	}
+
+	if _, ok := deps.spriteStore.sprites["p1"]; ok {
+		t.Error("sprite should have been deleted from the store")
+	}
+
+	st := deps.stateMgr.GetState()
+	if st.Pokemon[0].SpriteURL != "" {
+		t.Errorf("pokemon sprite_url = %q, want empty", st.Pokemon[0].SpriteURL)
+	}
+	if deps.saveCount == 0 {
+		t.Error(fmtWantSaveCall)
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, pathSpriteP1, nil)
+	getW := httptest.NewRecorder()
+	mux.ServeHTTP(getW, getReq)
+	if getW.Code != http.StatusNotFound {
+		t.Fatalf(fmtWantStatus, getW.Code, http.StatusNotFound)
+	}
+}
+
+// TestSpriteDeleteUnknownPokemon verifies a delete for a missing Pokemon
+// returns 404.
+func TestSpriteDeleteUnknownPokemon(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodDelete, pathSpriteP1, nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
+	}
+}

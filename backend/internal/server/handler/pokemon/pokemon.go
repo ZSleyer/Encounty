@@ -74,6 +74,9 @@ type Deps interface {
 	// State mutations
 	StateAddPokemon(p state.Pokemon)
 	StateUpdatePokemon(id string, update state.Pokemon) bool
+	// StateClearPokemonSprite resets sprite_url to empty. UpdatePokemon cannot
+	// do this itself since it treats an empty SpriteURL as "leave unchanged".
+	StateClearPokemonSprite(id string) bool
 	StateDeletePokemon(id string) bool
 	StateIncrement(id string) (int, bool)
 	StateDecrement(id string) (int, bool)
@@ -247,11 +250,14 @@ func (h *handler) handleUpdatePokemon(w http.ResponseWriter, r *http.Request, id
 }
 
 // handleDeletePokemon removes the Pokemon with the given id.
-// It also stops any running detector goroutine and removes the template files.
+// It also stops any running detector goroutine and removes the template files
+// and any uploaded sprite BLOB. The sprite is removed explicitly here rather
+// than relying on the pokemon_sprites foreign key cascade, since that cascade
+// only fires once the deletion is persisted to SQLite on the next state save.
 // DELETE /api/pokemon/{id}
 //
 // @Summary      Delete a Pokemon
-// @Description  Removes the Pokemon, stops its detector, and deletes template files
+// @Description  Removes the Pokemon, stops its detector, and deletes template files and any uploaded sprite
 // @Tags         pokemon
 // @Param        id path string true "Pokemon ID"
 // @Success      204
@@ -262,6 +268,9 @@ func (h *handler) handleDeletePokemon(w http.ResponseWriter, _ *http.Request, id
 		ds.Stop(id)
 	}
 	_ = os.RemoveAll(filepath.Join(h.deps.ConfigDir(), "templates", id))
+	if db := h.deps.PokemonDB(); db != nil {
+		_ = db.DeleteSprite(id)
+	}
 	if !h.deps.StateDeletePokemon(id) {
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return

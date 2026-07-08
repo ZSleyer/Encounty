@@ -153,6 +153,11 @@ func (d *testDeps) StateUpdatePokemon(id string, update state.Pokemon) bool {
 	return d.stateMgr.UpdatePokemon(id, update)
 }
 
+// StateClearPokemonSprite delegates to the real state manager.
+func (d *testDeps) StateClearPokemonSprite(id string) bool {
+	return d.stateMgr.ClearPokemonSprite(id)
+}
+
 // StateDeletePokemon delegates to the real state manager.
 func (d *testDeps) StateDeletePokemon(id string) bool { return d.stateMgr.DeletePokemon(id) }
 

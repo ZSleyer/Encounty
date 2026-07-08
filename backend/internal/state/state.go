@@ -811,6 +811,23 @@ func (m *Manager) UpdatePokemon(id string, update Pokemon) bool {
 	return false
 }
 
+// ClearPokemonSprite resets sprite_url to empty for the Pokémon with the given
+// id. UpdatePokemon cannot do this itself since it treats an empty SpriteURL
+// as "leave unchanged" so uploads are never accidentally wiped by unrelated
+// field patches. Returns false if no matching Pokémon was found.
+func (m *Manager) ClearPokemonSprite(id string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID == id {
+			m.state.Pokemon[i].SpriteURL = ""
+			m.markDirty()
+			return true
+		}
+	}
+	return false
+}
+
 // ReorderPokemon assigns each Pokémon in orderedIDs a zero-based SortOrder
 // matching its position. It returns an error if any id is unknown.
 func (m *Manager) ReorderPokemon(orderedIDs []string) error {

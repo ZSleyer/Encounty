@@ -33,25 +33,31 @@ type spriteResponse struct {
 	SpriteURL string `json:"sprite_url"`
 }
 
-// handleSprite serves a stored sprite (GET) or stores an uploaded one (POST).
-// GET  /api/pokemon/{id}/sprite
-// POST /api/pokemon/{id}/sprite
+// handleSprite serves a stored sprite (GET), stores an uploaded one (POST), or
+// removes a stored one (DELETE).
+// GET    /api/pokemon/{id}/sprite
+// POST   /api/pokemon/{id}/sprite
+// DELETE /api/pokemon/{id}/sprite
 //
-// @Summary      Get or upload a Pokemon's local sprite image
+// @Summary      Get, upload, or delete a Pokemon's local sprite image
 // @Tags         pokemon
 // @Param        id path string true "Pokemon ID"
 // @Success      200 {file} binary
+// @Success      200 {object} spriteResponse
 // @Failure      400 {object} httputil.ErrResp
 // @Failure      404 {object} httputil.ErrResp
 // @Failure      413 {object} httputil.ErrResp
 // @Router       /pokemon/{id}/sprite [get]
 // @Router       /pokemon/{id}/sprite [post]
+// @Router       /pokemon/{id}/sprite [delete]
 func (h *handler) handleSprite(w http.ResponseWriter, r *http.Request, id string) {
 	switch r.Method {
 	case http.MethodGet:
 		h.handleSpriteGet(w, id)
 	case http.MethodPost:
 		h.handleSpriteUpload(w, r, id)
+	case http.MethodDelete:
+		h.handleSpriteDelete(w, id)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -111,6 +117,33 @@ func (h *handler) handleSpriteUpload(w http.ResponseWriter, r *http.Request, id 
 	h.deps.BroadcastState()
 
 	httputil.WriteJSON(w, http.StatusOK, spriteResponse{SpriteURL: spriteURL})
+}
+
+// handleSpriteDelete removes the stored sprite BLOB and resets the Pokemon's
+// sprite_url to empty. Consumers already fall back to a default sprite icon
+// when sprite_url is empty, so no placeholder URL needs to be written.
+func (h *handler) handleSpriteDelete(w http.ResponseWriter, id string) {
+	db := h.deps.PokemonDB()
+	if db == nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: "no database configured"})
+		return
+	}
+
+	if !pokemonExists(h.deps.StateGetState(), id) {
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+
+	if err := db.DeleteSprite(id); err != nil {
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+
+	h.deps.StateClearPokemonSprite(id)
+	h.deps.StateScheduleSave()
+	h.deps.BroadcastState()
+
+	httputil.WriteJSON(w, http.StatusOK, spriteResponse{SpriteURL: ""})
 }
 
 // spriteError pairs an HTTP status with a message for upload validation failures.

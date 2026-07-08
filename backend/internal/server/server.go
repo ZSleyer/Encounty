@@ -349,6 +349,9 @@ func (s *Server) StateUpdatePokemon(id string, update state.Pokemon) bool {
 	return s.state.UpdatePokemon(id, update)
 }
 
+// StateClearPokemonSprite resets sprite_url to empty for the Pokemon with the given id.
+func (s *Server) StateClearPokemonSprite(id string) bool { return s.state.ClearPokemonSprite(id) }
+
 // StateDeletePokemon removes the Pokemon with the given id.
 func (s *Server) StateDeletePokemon(id string) bool { return s.state.DeletePokemon(id) }
 

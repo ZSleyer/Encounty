@@ -13,6 +13,7 @@ import {
   Box,
   Palette,
   Gamepad2,
+  Trash2,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { GameEntry } from "../../types";
@@ -602,6 +603,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   customSpriteRef.current = customSprite;
   const spriteFileRef = useRef<HTMLInputElement>(null);
   const [spriteUploading, setSpriteUploading] = useState(false);
+  const [spriteDeleting, setSpriteDeleting] = useState(false);
   const [spriteType, setSpriteType] = useState<SpriteType>(defaults.spriteType);
   const [spriteStyle, setSpriteStyle] = useState<SpriteStyle>(defaults.spriteStyle);
   // Sprite styles whose URL failed to load for the currently selected Pokemon.
@@ -811,6 +813,40 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     }
   };
 
+  /**
+   * Removes the currently uploaded custom sprite for this Pokemon, both
+   * server-side (DELETE the stored BLOB) and in the form state, falling back
+   * to the auto-computed default sprite (selected.sprite) instead of leaving
+   * the field blank, and persisting that fallback immediately so other views
+   * (list, overlay) don't show a broken/placeholder image before the next
+   * Save. Only available in edit mode, mirroring handleSpriteFile's guard.
+   */
+  const handleSpriteDelete = async () => {
+    if (props.mode !== "edit") return;
+    setSpriteDeleting(true);
+    try {
+      const res = await fetch(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`), { method: "DELETE" });
+      if (!res.ok) {
+        push({ type: "error", title: t("modal.spriteUpload.removeFailed") });
+        return;
+      }
+      const fallback = selected?.sprite ?? "";
+      setCustomSprite(fallback);
+      if (fallback) {
+        await fetch(apiUrl(`/api/pokemon/${props.pokemon.id}`), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sprite_url: fallback }),
+        });
+      }
+      push({ type: "success", title: t("modal.spriteUpload.removed") });
+    } catch {
+      push({ type: "error", title: t("modal.spriteUpload.removeFailed") });
+    } finally {
+      setSpriteDeleting(false);
+    }
+  };
+
   // --- Submit handler ---
   const handleSubmit = () => {
     if (!selected) return;
@@ -868,6 +904,11 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const inputClass =
     "w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors";
   const selectClass = `${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[position:right_0.5rem_center] bg-no-repeat pr-8`;
+  // Whether customSprite currently points at a locally-uploaded blob (as
+  // opposed to a manually-typed URL), so the delete/preview UI only shows
+  // for sprites this app actually stored for the Pokemon being edited.
+  const isUploadedSprite =
+    props.mode === "edit" && customSprite.startsWith(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`));
 
   return (
     <dialog
@@ -1491,14 +1532,34 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       onChange={handleSpriteFile}
                       className="hidden"
                     />
-                    <button
-                      type="button"
-                      onClick={() => spriteFileRef.current?.click()}
-                      disabled={spriteUploading}
-                      className="w-full py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      {spriteUploading ? t("modal.spriteUpload.uploading") : t("modal.spriteUpload.choose")}
-                    </button>
+                    <div className="flex gap-2">
+                      {isUploadedSprite && (
+                        <img
+                          src={customSprite}
+                          alt=""
+                          className="w-10 h-10 object-contain rounded border border-border-subtle pokemon-sprite"
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => spriteFileRef.current?.click()}
+                        disabled={spriteUploading}
+                        className={`${isUploadedSprite ? "flex-1" : "w-full"} py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed`}
+                      >
+                        {spriteUploading ? t("modal.spriteUpload.uploading") : t("modal.spriteUpload.choose")}
+                      </button>
+                      {isUploadedSprite && (
+                        <button
+                          type="button"
+                          onClick={handleSpriteDelete}
+                          disabled={spriteDeleting}
+                          aria-label={t("aria.spriteUpload.remove")}
+                          className="py-2 px-3 rounded-lg border border-border-subtle text-text-muted hover:text-red-400 hover:border-red-400/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <p className="text-xs text-text-muted">{t("modal.spriteUpload.saveFirst")}</p>
