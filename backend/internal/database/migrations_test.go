@@ -136,6 +136,124 @@ func TestRunMigrationsRollbackOnFailure(t *testing.T) {
 	}
 }
 
+// TestMigrationTemplateDetectionSettingsBackfill verifies that migration 25
+// backfills the per-template precision_val and hysteresis_factor columns from
+// the owning hunt's detector_configs row, and leaves templates that already
+// carry their own values untouched.
+func TestMigrationTemplateDetectionSettingsBackfill(t *testing.T) {
+	db := openRawTestDB(t)
+
+	// Apply all migrations up to (but not including) the backfill migration.
+	original := migrations
+	defer func() { migrations = original }()
+	var upTo []migration
+	for _, m := range original {
+		if m.version < 25 {
+			upTo = append(upTo, m)
+		}
+	}
+	migrations = upTo
+	if err := RunMigrations(db); err != nil {
+		t.Fatalf("RunMigrations up to version 24: %v", err)
+	}
+
+	// Seed a hunt config with distinct values and two templates: one without
+	// per-template settings (must be backfilled) and one with its own value
+	// (must be preserved).
+	if _, err := db.Exec(`INSERT INTO detector_configs (pokemon_id, precision_val, hysteresis_factor) VALUES ('p1', 0.9, 0.6)`); err != nil {
+		t.Fatalf("insert detector_configs: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO detector_templates (pokemon_id, image_data, name) VALUES ('p1', X'89504E47', 'inherit')`); err != nil {
+		t.Fatalf("insert template without settings: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO detector_templates (pokemon_id, image_data, name, precision_val, hysteresis_factor) VALUES ('p1', X'89504E47', 'own', 0.3, 0.4)`); err != nil {
+		t.Fatalf("insert template with settings: %v", err)
+	}
+
+	// Apply the remaining migrations, including the backfill.
+	migrations = original
+	if err := RunMigrations(db); err != nil {
+		t.Fatalf("RunMigrations including backfill: %v", err)
+	}
+
+	var precision, hysteresis float64
+	if err := db.QueryRow(`SELECT precision_val, hysteresis_factor FROM detector_templates WHERE name = 'inherit'`).Scan(&precision, &hysteresis); err != nil {
+		t.Fatalf("query backfilled template: %v", err)
+	}
+	if precision != 0.9 {
+		t.Errorf("backfilled precision_val = %v, want 0.9", precision)
+	}
+	if hysteresis != 0.6 {
+		t.Errorf("backfilled hysteresis_factor = %v, want 0.6", hysteresis)
+	}
+
+	if err := db.QueryRow(`SELECT precision_val, hysteresis_factor FROM detector_templates WHERE name = 'own'`).Scan(&precision, &hysteresis); err != nil {
+		t.Fatalf("query preserved template: %v", err)
+	}
+	if precision != 0.3 {
+		t.Errorf("preserved precision_val = %v, want 0.3", precision)
+	}
+	if hysteresis != 0.4 {
+		t.Errorf("preserved hysteresis_factor = %v, want 0.4", hysteresis)
+	}
+}
+
+// TestMigrationTemplatePollingSettingsBackfill verifies that migration 26
+// backfills the per-template consecutive_hits, cooldown_sec and
+// adaptive-polling columns from the owning hunt's detector_configs row, and
+// leaves templates that already carry their own values untouched.
+func TestMigrationTemplatePollingSettingsBackfill(t *testing.T) {
+	db := openRawTestDB(t)
+
+	// Apply all migrations up to (but not including) the backfill migration.
+	original := migrations
+	defer func() { migrations = original }()
+	var upTo []migration
+	for _, m := range original {
+		if m.version < 26 {
+			upTo = append(upTo, m)
+		}
+	}
+	migrations = upTo
+	if err := RunMigrations(db); err != nil {
+		t.Fatalf("RunMigrations up to version 25: %v", err)
+	}
+
+	// Seed a hunt config with distinct values and two templates: one without
+	// per-template settings (must be backfilled) and one with its own value
+	// (must be preserved).
+	if _, err := db.Exec(`INSERT INTO detector_configs (pokemon_id, consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms) VALUES ('p1', 4, 12, 250, 100, 1800)`); err != nil {
+		t.Fatalf("insert detector_configs: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO detector_templates (pokemon_id, image_data, name) VALUES ('p1', X'89504E47', 'inherit')`); err != nil {
+		t.Fatalf("insert template without settings: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO detector_templates (pokemon_id, image_data, name, consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms) VALUES ('p1', X'89504E47', 'own', 2, 5, 150, 80, 1500)`); err != nil {
+		t.Fatalf("insert template with settings: %v", err)
+	}
+
+	// Apply the remaining migrations, including the backfill.
+	migrations = original
+	if err := RunMigrations(db); err != nil {
+		t.Fatalf("RunMigrations including backfill: %v", err)
+	}
+
+	var hits, cooldown, base, min, max int
+	if err := db.QueryRow(`SELECT consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms FROM detector_templates WHERE name = 'inherit'`).Scan(&hits, &cooldown, &base, &min, &max); err != nil {
+		t.Fatalf("query backfilled template: %v", err)
+	}
+	if hits != 4 || cooldown != 12 || base != 250 || min != 100 || max != 1800 {
+		t.Errorf("backfilled (hits, cooldown, base, min, max) = (%d, %d, %d, %d, %d), want (4, 12, 250, 100, 1800)", hits, cooldown, base, min, max)
+	}
+
+	if err := db.QueryRow(`SELECT consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms FROM detector_templates WHERE name = 'own'`).Scan(&hits, &cooldown, &base, &min, &max); err != nil {
+		t.Fatalf("query preserved template: %v", err)
+	}
+	if hits != 2 || cooldown != 5 || base != 150 || min != 80 || max != 1500 {
+		t.Errorf("preserved (hits, cooldown, base, min, max) = (%d, %d, %d, %d, %d), want (2, 5, 150, 80, 1500)", hits, cooldown, base, min, max)
+	}
+}
+
 // TestRunMigrationsTracking verifies that the migrations table stores the
 // correct version, description, and a valid RFC3339 timestamp for each migration.
 func TestRunMigrationsTracking(t *testing.T) {

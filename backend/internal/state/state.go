@@ -129,6 +129,28 @@ type DetectorTemplate struct {
 	// JSON object. The backend only persists and forwards it; the detection
 	// engine in the frontend owns its shape.
 	Calibration json.RawMessage `json:"calibration,omitempty"`
+	// Precision is this template's own NCC match threshold (0.0-1.0). nil
+	// means no explicit value has been set yet; the detection engine falls
+	// back to a hardcoded default.
+	Precision *float64 `json:"precision,omitempty"`
+	// HysteresisFactor is this template's own hysteresis exit-threshold
+	// multiplier. nil falls back to a hardcoded default.
+	HysteresisFactor *float64 `json:"hysteresis_factor,omitempty"`
+	// ConsecutiveHits is this template's own required consecutive matching
+	// frames before counting an encounter. nil falls back to a hardcoded default.
+	ConsecutiveHits *int `json:"consecutive_hits,omitempty"`
+	// CooldownSec is this template's own minimum seconds between counts.
+	// nil falls back to a hardcoded default.
+	CooldownSec *int `json:"cooldown_sec,omitempty"`
+	// PollIntervalMs is this template's own base adaptive-polling interval.
+	// nil falls back to a hardcoded default.
+	PollIntervalMs *int `json:"poll_interval_ms,omitempty"`
+	// MinPollMs is this template's own fastest adaptive-polling interval.
+	// nil falls back to a hardcoded default.
+	MinPollMs *int `json:"min_poll_ms,omitempty"`
+	// MaxPollMs is this template's own slowest adaptive-polling interval.
+	// nil falls back to a hardcoded default.
+	MaxPollMs *int `json:"max_poll_ms,omitempty"`
 }
 
 // DetectorRect defines a rectangular screen region in absolute pixel coordinates.
@@ -148,16 +170,12 @@ type DetectorConfig struct {
 	WindowTitle string             `json:"window_title"`
 	Templates   []DetectorTemplate `json:"templates"` // replaces TemplatePaths
 
-	Precision           float64             `json:"precision"`        // 0.0–1.0, default 0.85
-	ConsecutiveHits     int                 `json:"consecutive_hits"` // consecutive matching frames required before counting
-	CooldownSec         int                 `json:"cooldown_sec"`     // minimum seconds between counts
-	ChangeThreshold     float64             `json:"change_threshold"` // pixel-delta fraction required to leave MATCH state
-	PollIntervalMs      int                 `json:"poll_interval_ms"` // base milliseconds between capture polls (adaptive centre point)
-	MinPollMs           int                 `json:"min_poll_ms"`      // fastest adaptive poll interval (high activity), default 30
-	MaxPollMs           int                 `json:"max_poll_ms"`      // slowest adaptive poll interval (static screen), default 500
+	// ChangeThreshold is the pixel-delta fraction required to leave MATCH
+	// state. Unlike precision/hysteresis/cooldown/hits/polling, this stays a
+	// hunt-level setting; it is not exposed as a per-template control.
+	ChangeThreshold     float64             `json:"change_threshold"`
 	AdaptiveCooldown    bool                `json:"adaptive_cooldown"`
 	AdaptiveCooldownMin int                 `json:"adaptive_cooldown_min"`   // Minimum seconds, default 3
-	HysteresisFactor    float64             `json:"hysteresis_factor"`       // 0.0–1.0, multiplier for hysteresis exit threshold (default 0.7)
 	DetectionLog        []DetectionLogEntry `json:"detection_log,omitempty"` // last maxDetectionLog confirmed matches
 }
 
@@ -165,15 +183,8 @@ type DetectorConfig struct {
 // matching the database schema defaults and frontend expectations.
 func DefaultDetectorConfig() *DetectorConfig {
 	return &DetectorConfig{
-		Precision:           0.55,
-		ConsecutiveHits:     1,
-		CooldownSec:         5,
 		ChangeThreshold:     0.15,
-		PollIntervalMs:      200,
-		MinPollMs:           50,
-		MaxPollMs:           2000,
 		AdaptiveCooldownMin: 3,
-		HysteresisFactor:    0.7,
 	}
 }
 

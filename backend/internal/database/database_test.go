@@ -196,8 +196,7 @@ func makeTestState() state.AppState {
 				CompletedAt: &now,
 				DetectorConfig: &state.DetectorConfig{
 					Enabled: true, SourceType: "browser_camera",
-					Precision: 0.9, ConsecutiveHits: 3, CooldownSec: 5,
-					ChangeThreshold: 0.15, PollIntervalMs: 50, MinPollMs: 30, MaxPollMs: 500,
+					ChangeThreshold: 0.15,
 					Templates: []state.DetectorTemplate{
 						{
 							// New template with image data: TemplateDBID == 0 triggers INSERT.
@@ -896,14 +895,8 @@ func compareDetectorConfig(t *testing.T, got, want *state.DetectorConfig) {
 	if got.SourceType != want.SourceType {
 		t.Errorf("DetectorConfig.SourceType = %q, want %q", got.SourceType, want.SourceType)
 	}
-	if !floatClose(got.Precision, want.Precision, 0.001) {
-		t.Errorf("DetectorConfig.Precision = %f, want %f", got.Precision, want.Precision)
-	}
-	if got.ConsecutiveHits != want.ConsecutiveHits {
-		t.Errorf("ConsecutiveHits = %d, want %d", got.ConsecutiveHits, want.ConsecutiveHits)
-	}
-	if got.CooldownSec != want.CooldownSec {
-		t.Errorf("CooldownSec = %d, want %d", got.CooldownSec, want.CooldownSec)
+	if !floatClose(got.ChangeThreshold, want.ChangeThreshold, 0.001) {
+		t.Errorf("DetectorConfig.ChangeThreshold = %f, want %f", got.ChangeThreshold, want.ChangeThreshold)
 	}
 
 	// Templates: SaveFullState inserts new templates with ImageData, so we

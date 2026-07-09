@@ -139,6 +139,16 @@ var migrations = []migration{
 		description: "add calibration column to detector_templates",
 		fn:          migrateAddTemplateCalibration,
 	},
+	{
+		version:     25,
+		description: "add per-template detection settings",
+		fn:          migrateAddTemplateDetectionSettings,
+	},
+	{
+		version:     26,
+		description: "add per-template cooldown, hits and polling settings",
+		fn:          migrateAddTemplatePollingSettings,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -395,6 +405,48 @@ func migrateAddCaptureResolutions(tx *sql.Tx) error {
 // on fresh databases.
 func migrateAddTemplateCalibration(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN calibration TEXT`)
+	return nil
+}
+
+// migrateAddTemplateDetectionSettings adds nullable per-template precision and
+// hysteresis columns to detector_templates, then backfills existing rows from
+// the owning hunt's detector_configs so template behaviour does not change for
+// existing data. ALTER TABLE duplicate-column errors are ignored because the
+// columns may already exist on fresh databases; backfill errors are returned.
+func migrateAddTemplateDetectionSettings(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN precision_val REAL`)
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN hysteresis_factor REAL`)
+	if _, err := tx.Exec(`UPDATE detector_templates SET
+		precision_val = (SELECT precision_val FROM detector_configs WHERE detector_configs.pokemon_id = detector_templates.pokemon_id),
+		hysteresis_factor = (SELECT hysteresis_factor FROM detector_configs WHERE detector_configs.pokemon_id = detector_templates.pokemon_id)
+		WHERE precision_val IS NULL`); err != nil {
+		return fmt.Errorf("backfill per-template detection settings: %w", err)
+	}
+	return nil
+}
+
+// migrateAddTemplatePollingSettings adds nullable per-template cooldown,
+// consecutive-hits and adaptive-polling columns to detector_templates, then
+// backfills existing rows from the owning hunt's detector_configs (still
+// physically present) so existing hunts keep their effective runtime
+// behaviour after the hunt-level settings are removed from the Go layer.
+// ALTER TABLE duplicate-column errors are ignored (columns may already exist
+// on fresh databases); backfill errors are returned.
+func migrateAddTemplatePollingSettings(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN consecutive_hits INTEGER`)
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN cooldown_sec INTEGER`)
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN poll_interval_ms INTEGER`)
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN min_poll_ms INTEGER`)
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN max_poll_ms INTEGER`)
+	if _, err := tx.Exec(`UPDATE detector_templates SET
+		consecutive_hits = (SELECT consecutive_hits FROM detector_configs WHERE detector_configs.pokemon_id = detector_templates.pokemon_id),
+		cooldown_sec = (SELECT cooldown_sec FROM detector_configs WHERE detector_configs.pokemon_id = detector_templates.pokemon_id),
+		poll_interval_ms = (SELECT poll_interval_ms FROM detector_configs WHERE detector_configs.pokemon_id = detector_templates.pokemon_id),
+		min_poll_ms = (SELECT min_poll_ms FROM detector_configs WHERE detector_configs.pokemon_id = detector_templates.pokemon_id),
+		max_poll_ms = (SELECT max_poll_ms FROM detector_configs WHERE detector_configs.pokemon_id = detector_templates.pokemon_id)
+		WHERE consecutive_hits IS NULL`); err != nil {
+		return fmt.Errorf("backfill per-template polling settings: %w", err)
+	}
 	return nil
 }
 

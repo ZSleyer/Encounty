@@ -257,11 +257,8 @@ func TestDetectorConfigWithRegionFields(t *testing.T) {
 						W: 300,
 						H: 400,
 					},
-					Precision:       0.85,
-					ConsecutiveHits: 2,
-					CooldownSec:     3,
-					Templates:       []state.DetectorTemplate{},
-					DetectionLog:    []state.DetectionLogEntry{},
+					Templates:    []state.DetectorTemplate{},
+					DetectionLog: []state.DetectionLogEntry{},
 				},
 			},
 		},
@@ -320,7 +317,6 @@ func TestTemplateRegionWithExpectedText(t *testing.T) {
 				DetectorConfig: &state.DetectorConfig{
 					Enabled:    true,
 					SourceType: "browser_camera",
-					Precision:  0.9,
 					Templates: []state.DetectorTemplate{
 						{
 							ImageData: []byte{0x89, 0x50, 0x4e, 0x47},
@@ -495,13 +491,11 @@ func TestDetectorConfigWithWindowTitle(t *testing.T) {
 				CreatedAt:   now,
 				OverlayMode: "default",
 				DetectorConfig: &state.DetectorConfig{
-					Enabled:         true,
-					SourceType:      "window",
-					WindowTitle:     titlePokemonWindow,
-					Precision:       0.95,
-					ConsecutiveHits: 5,
-					Templates:       []state.DetectorTemplate{},
-					DetectionLog:    []state.DetectionLogEntry{},
+					Enabled:      true,
+					SourceType:   "window",
+					WindowTitle:  titlePokemonWindow,
+					Templates:    []state.DetectorTemplate{},
+					DetectionLog: []state.DetectionLogEntry{},
 				},
 			},
 		},
@@ -576,8 +570,9 @@ func TestEmptyLanguages(t *testing.T) {
 	}
 }
 
-// TestDetectorConfigAllFields verifies that all DetectorConfig fields roundtrip,
-// including ChangeThreshold, PollIntervalMs, MinPollMs, MaxPollMs.
+// TestDetectorConfigAllFields verifies that the remaining hunt-level
+// DetectorConfig fields roundtrip. Precision/cooldown/hits/polling are now
+// per-template; see TestTemplateDetectionSettingsRoundtrip.
 func TestDetectorConfigAllFields(t *testing.T) {
 	db := openTestDB(t)
 	now := time.Now().UTC().Truncate(time.Second)
@@ -593,13 +588,7 @@ func TestDetectorConfigAllFields(t *testing.T) {
 				DetectorConfig: &state.DetectorConfig{
 					Enabled:         true,
 					SourceType:      "browser_camera",
-					Precision:       0.92,
-					ConsecutiveHits: 4,
-					CooldownSec:     10,
 					ChangeThreshold: 0.25,
-					PollIntervalMs:  75,
-					MinPollMs:       25,
-					MaxPollMs:       600,
 					Templates:       []state.DetectorTemplate{},
 					DetectionLog:    []state.DetectionLogEntry{},
 				},
@@ -631,15 +620,6 @@ func TestDetectorConfigAllFields(t *testing.T) {
 
 	if !floatClose(dc.ChangeThreshold, 0.25, 0.001) {
 		t.Errorf("ChangeThreshold = %f, want 0.25", dc.ChangeThreshold)
-	}
-	if dc.PollIntervalMs != 75 {
-		t.Errorf("PollIntervalMs = %d, want 75", dc.PollIntervalMs)
-	}
-	if dc.MinPollMs != 25 {
-		t.Errorf("MinPollMs = %d, want 25", dc.MinPollMs)
-	}
-	if dc.MaxPollMs != 600 {
-		t.Errorf("MaxPollMs = %d, want 600", dc.MaxPollMs)
 	}
 }
 
@@ -717,7 +697,6 @@ func TestTemplateCalibrationRoundtrip(t *testing.T) {
 				DetectorConfig: &state.DetectorConfig{
 					Enabled:    true,
 					SourceType: "browser_camera",
-					Precision:  0.9,
 					Templates: []state.DetectorTemplate{
 						{
 							ImageData:   []byte{0x89, 0x50, 0x4e, 0x47},
@@ -756,5 +735,124 @@ func TestTemplateCalibrationRoundtrip(t *testing.T) {
 	}
 	if len(tmpls[1].Calibration) != 0 {
 		t.Errorf("Calibration on second template = %s, want empty", tmpls[1].Calibration)
+	}
+}
+
+// TestTemplateDetectionSettingsRoundtrip verifies that per-template precision
+// and hysteresis factor survive save/load, and that templates without own
+// values load with nil pointers (meaning the hunt-level value applies).
+func TestTemplateDetectionSettingsRoundtrip(t *testing.T) {
+	db := openTestDB(t)
+	now := time.Now().UTC().Truncate(time.Second)
+	precision := 0.82
+	hysteresis := 0.65
+	consecutiveHits := 3
+	cooldownSec := 8
+	pollIntervalMs := 150
+	minPollMs := 80
+	maxPollMs := 1500
+
+	st := state.AppState{
+		ActiveID: "p1",
+		Pokemon: []state.Pokemon{
+			{
+				ID:          "p1",
+				Name:        "Ditto",
+				CreatedAt:   now,
+				OverlayMode: "default",
+				DetectorConfig: &state.DetectorConfig{
+					Enabled:    true,
+					SourceType: "browser_camera",
+					Templates: []state.DetectorTemplate{
+						{
+							ImageData:        []byte{0x89, 0x50, 0x4e, 0x47},
+							Regions:          []state.MatchedRegion{},
+							Precision:        &precision,
+							HysteresisFactor: &hysteresis,
+							ConsecutiveHits:  &consecutiveHits,
+							CooldownSec:      &cooldownSec,
+							PollIntervalMs:   &pollIntervalMs,
+							MinPollMs:        &minPollMs,
+							MaxPollMs:        &maxPollMs,
+						},
+						{
+							ImageData: []byte{0x89, 0x50, 0x4e, 0x47},
+							Regions:   []state.MatchedRegion{},
+						},
+					},
+					DetectionLog: []state.DetectionLogEntry{},
+				},
+			},
+		},
+		Sessions: []state.Session{},
+		Settings: state.Settings{
+			Languages: []string{"en"},
+			Overlay:   makeTestOverlay(),
+		},
+	}
+
+	if err := db.SaveFullState(&st); err != nil {
+		t.Fatalf(edgeFmtSaveErr, err)
+	}
+	got, err := db.LoadFullState()
+	if err != nil {
+		t.Fatalf(edgeFmtLoadErr, err)
+	}
+	tmpls := got.Pokemon[0].DetectorConfig.Templates
+	if len(tmpls) != 2 {
+		t.Fatalf("len(Templates) = %d, want 2", len(tmpls))
+	}
+	assertTemplateDetectionSettings(t, tmpls[0], precision, hysteresis, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs)
+	if tmpls[1].Precision != nil {
+		t.Errorf("Precision on second template = %v, want nil", *tmpls[1].Precision)
+	}
+	if tmpls[1].HysteresisFactor != nil {
+		t.Errorf("HysteresisFactor on second template = %v, want nil", *tmpls[1].HysteresisFactor)
+	}
+	if tmpls[1].ConsecutiveHits != nil || tmpls[1].CooldownSec != nil ||
+		tmpls[1].PollIntervalMs != nil || tmpls[1].MinPollMs != nil || tmpls[1].MaxPollMs != nil {
+		t.Error("second template has non-nil polling/hits/cooldown settings, want nil")
+	}
+
+	// A second save with loaded (DB-backed) templates must keep the values,
+	// exercising the UPDATE path in upsertPokemonTemplates.
+	if err := db.SaveFullState(got); err != nil {
+		t.Fatalf(edgeFmtSaveErr, err)
+	}
+	got2, err := db.LoadFullState()
+	if err != nil {
+		t.Fatalf(edgeFmtLoadErr, err)
+	}
+	tmpls = got2.Pokemon[0].DetectorConfig.Templates
+	assertTemplateDetectionSettings(t, tmpls[0], precision, hysteresis, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs)
+	if tmpls[1].Precision != nil || tmpls[1].HysteresisFactor != nil {
+		t.Error("second template gained detection settings after re-save, want nil")
+	}
+}
+
+// assertTemplateDetectionSettings checks all 7 per-template detection-setting
+// fields against expected values, failing with a descriptive message per field.
+func assertTemplateDetectionSettings(t *testing.T, tmpl state.DetectorTemplate, precision, hysteresis float64, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs int) {
+	t.Helper()
+	if tmpl.Precision == nil || *tmpl.Precision != precision {
+		t.Errorf("Precision = %v, want %v", tmpl.Precision, precision)
+	}
+	if tmpl.HysteresisFactor == nil || *tmpl.HysteresisFactor != hysteresis {
+		t.Errorf("HysteresisFactor = %v, want %v", tmpl.HysteresisFactor, hysteresis)
+	}
+	if tmpl.ConsecutiveHits == nil || *tmpl.ConsecutiveHits != consecutiveHits {
+		t.Errorf("ConsecutiveHits = %v, want %v", tmpl.ConsecutiveHits, consecutiveHits)
+	}
+	if tmpl.CooldownSec == nil || *tmpl.CooldownSec != cooldownSec {
+		t.Errorf("CooldownSec = %v, want %v", tmpl.CooldownSec, cooldownSec)
+	}
+	if tmpl.PollIntervalMs == nil || *tmpl.PollIntervalMs != pollIntervalMs {
+		t.Errorf("PollIntervalMs = %v, want %v", tmpl.PollIntervalMs, pollIntervalMs)
+	}
+	if tmpl.MinPollMs == nil || *tmpl.MinPollMs != minPollMs {
+		t.Errorf("MinPollMs = %v, want %v", tmpl.MinPollMs, minPollMs)
+	}
+	if tmpl.MaxPollMs == nil || *tmpl.MaxPollMs != maxPollMs {
+		t.Errorf("MaxPollMs = %v, want %v", tmpl.MaxPollMs, maxPollMs)
 	}
 }

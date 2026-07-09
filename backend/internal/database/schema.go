@@ -230,6 +230,13 @@ var schemaV2 = []string{
 		sort_order INTEGER NOT NULL DEFAULT 0,
 		enabled    INTEGER NOT NULL DEFAULT 1,
 		calibration TEXT,
+		precision_val     REAL,
+		hysteresis_factor REAL,
+		consecutive_hits  INTEGER,
+		cooldown_sec      INTEGER,
+		poll_interval_ms  INTEGER,
+		min_poll_ms       INTEGER,
+		max_poll_ms       INTEGER,
 		FOREIGN KEY (pokemon_id) REFERENCES detector_configs(pokemon_id) ON DELETE CASCADE
 	)`,
 

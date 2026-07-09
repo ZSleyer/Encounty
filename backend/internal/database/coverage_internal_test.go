@@ -1349,7 +1349,6 @@ func TestMigration11RemovesNegativeAndFullFrameRegions(t *testing.T) {
 				DetectorConfig: &state.DetectorConfig{
 					Enabled:    true,
 					SourceType: "screen_region",
-					Precision:  0.55,
 					Templates: []state.DetectorTemplate{
 						{
 							Name:      "tmpl-with-negative",

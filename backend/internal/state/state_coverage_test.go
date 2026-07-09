@@ -467,24 +467,6 @@ func TestDefaultDetectorConfig(t *testing.T) {
 	if cfg == nil {
 		t.Fatal("DefaultDetectorConfig returned nil")
 	}
-	if cfg.Precision != 0.55 {
-		t.Errorf("Precision = %f, want 0.55", cfg.Precision)
-	}
-	if cfg.ConsecutiveHits != 1 {
-		t.Errorf("ConsecutiveHits = %d, want 1", cfg.ConsecutiveHits)
-	}
-	if cfg.CooldownSec != 5 {
-		t.Errorf("CooldownSec = %d, want 5", cfg.CooldownSec)
-	}
-	if cfg.PollIntervalMs != 200 {
-		t.Errorf("PollIntervalMs = %d, want 200", cfg.PollIntervalMs)
-	}
-	if cfg.MinPollMs != 50 {
-		t.Errorf("MinPollMs = %d, want 50", cfg.MinPollMs)
-	}
-	if cfg.MaxPollMs != 2000 {
-		t.Errorf("MaxPollMs = %d, want 2000", cfg.MaxPollMs)
-	}
 	if cfg.ChangeThreshold != 0.15 {
 		t.Errorf("ChangeThreshold = %f, want 0.15", cfg.ChangeThreshold)
 	}

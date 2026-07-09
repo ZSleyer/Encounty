@@ -337,10 +337,8 @@ func prepareDetectorConfigStmt(tx *sql.Tx) (*sql.Stmt, error) {
 	stmt, err := tx.Prepare(`
 		INSERT INTO detector_configs (pokemon_id, enabled, source_type,
 			region_x, region_y, region_w, region_h, window_title,
-			precision_val, consecutive_hits, cooldown_sec, change_threshold,
-			poll_interval_ms, min_poll_ms, max_poll_ms, adaptive_cooldown, adaptive_cooldown_min,
-			hysteresis_factor)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			change_threshold, adaptive_cooldown, adaptive_cooldown_min)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(pokemon_id) DO UPDATE SET
 			enabled               = excluded.enabled,
 			source_type           = excluded.source_type,
@@ -349,16 +347,9 @@ func prepareDetectorConfigStmt(tx *sql.Tx) (*sql.Stmt, error) {
 			region_w              = excluded.region_w,
 			region_h              = excluded.region_h,
 			window_title          = excluded.window_title,
-			precision_val         = excluded.precision_val,
-			consecutive_hits      = excluded.consecutive_hits,
-			cooldown_sec          = excluded.cooldown_sec,
 			change_threshold      = excluded.change_threshold,
-			poll_interval_ms      = excluded.poll_interval_ms,
-			min_poll_ms           = excluded.min_poll_ms,
-			max_poll_ms           = excluded.max_poll_ms,
 			adaptive_cooldown     = excluded.adaptive_cooldown,
-			adaptive_cooldown_min = excluded.adaptive_cooldown_min,
-			hysteresis_factor     = excluded.hysteresis_factor`)
+			adaptive_cooldown_min = excluded.adaptive_cooldown_min`)
 	if err != nil {
 		return nil, fmt.Errorf("prepare detector_configs upsert: %w", err)
 	}
@@ -378,11 +369,8 @@ func upsertSingleDetectorConfig(tx *sql.Tx, stmt *sql.Stmt, p state.Pokemon) err
 	if _, err := stmt.Exec(
 		p.ID, boolToInt(cfg.Enabled), cfg.SourceType,
 		cfg.Region.X, cfg.Region.Y, cfg.Region.W, cfg.Region.H,
-		cfg.WindowTitle, cfg.Precision, cfg.ConsecutiveHits,
-		cfg.CooldownSec, cfg.ChangeThreshold,
-		cfg.PollIntervalMs, cfg.MinPollMs, cfg.MaxPollMs,
+		cfg.WindowTitle, cfg.ChangeThreshold,
 		boolToInt(cfg.AdaptiveCooldown), cfg.AdaptiveCooldownMin,
-		cfg.HysteresisFactor,
 	); err != nil {
 		return fmt.Errorf("upsert detector_config for %q: %w", p.ID, err)
 	}
@@ -735,16 +723,20 @@ func upsertPokemonTemplates(tx *sql.Tx, pokemonID string, templates []state.Dete
 		calibrationVal := calibrationToDB(tmpl.Calibration)
 		if tmpl.TemplateDBID > 0 {
 			if _, err := tx.Exec(
-				`UPDATE detector_templates SET name = ?, sort_order = ?, enabled = ?, calibration = ? WHERE id = ?`,
-				tmpl.Name, sortOrder, enabledVal, calibrationVal, tmpl.TemplateDBID,
+				`UPDATE detector_templates SET name = ?, sort_order = ?, enabled = ?, calibration = ?, precision_val = ?, hysteresis_factor = ?,
+					consecutive_hits = ?, cooldown_sec = ?, poll_interval_ms = ?, min_poll_ms = ?, max_poll_ms = ? WHERE id = ?`,
+				tmpl.Name, sortOrder, enabledVal, calibrationVal, tmpl.Precision, tmpl.HysteresisFactor,
+				tmpl.ConsecutiveHits, tmpl.CooldownSec, tmpl.PollIntervalMs, tmpl.MinPollMs, tmpl.MaxPollMs, tmpl.TemplateDBID,
 			); err != nil {
 				return fmt.Errorf("update template sort_order %d: %w", tmpl.TemplateDBID, err)
 			}
 			referencedIDs[tmpl.TemplateDBID] = true
 		} else if tmpl.ImageData != nil {
 			res, err := tx.Exec(
-				`INSERT INTO detector_templates (pokemon_id, image_data, name, sort_order, enabled, calibration) VALUES (?, ?, ?, ?, ?, ?)`,
-				pokemonID, tmpl.ImageData, tmpl.Name, sortOrder, enabledVal, calibrationVal,
+				`INSERT INTO detector_templates (pokemon_id, image_data, name, sort_order, enabled, calibration, precision_val, hysteresis_factor,
+					consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				pokemonID, tmpl.ImageData, tmpl.Name, sortOrder, enabledVal, calibrationVal, tmpl.Precision, tmpl.HysteresisFactor,
+				tmpl.ConsecutiveHits, tmpl.CooldownSec, tmpl.PollIntervalMs, tmpl.MinPollMs, tmpl.MaxPollMs,
 			)
 			if err != nil {
 				return fmt.Errorf("insert new template for %q: %w", pokemonID, err)

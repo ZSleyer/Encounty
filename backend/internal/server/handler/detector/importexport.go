@@ -139,9 +139,16 @@ func (h *handler) copyTemplatesFromSource(targetID string, srcTemplates []state.
 			name = fmt.Sprintf("Template %d", sortOrder+1)
 		}
 		newTmpl := state.DetectorTemplate{
-			Name:    name,
-			Regions: make([]state.MatchedRegion, len(srcTmpl.Regions)),
-			Enabled: srcTmpl.Enabled,
+			Name:             name,
+			Regions:          make([]state.MatchedRegion, len(srcTmpl.Regions)),
+			Enabled:          srcTmpl.Enabled,
+			Precision:        srcTmpl.Precision,
+			HysteresisFactor: srcTmpl.HysteresisFactor,
+			ConsecutiveHits:  srcTmpl.ConsecutiveHits,
+			CooldownSec:      srcTmpl.CooldownSec,
+			PollIntervalMs:   srcTmpl.PollIntervalMs,
+			MinPollMs:        srcTmpl.MinPollMs,
+			MaxPollMs:        srcTmpl.MaxPollMs,
 		}
 		copy(newTmpl.Regions, srcTmpl.Regions)
 
@@ -183,6 +190,15 @@ func (h *handler) handleExportTemplates(w http.ResponseWriter, r *http.Request, 
 		Name     string                `json:"name"`
 		Regions  []state.MatchedRegion `json:"regions"`
 		Enabled  *bool                 `json:"enabled,omitempty"`
+		// The fields below carry this template's own detection settings;
+		// nil means the engine's hardcoded fallback applies.
+		Precision        *float64 `json:"precision,omitempty"`
+		HysteresisFactor *float64 `json:"hysteresis_factor,omitempty"`
+		ConsecutiveHits  *int     `json:"consecutive_hits,omitempty"`
+		CooldownSec      *int     `json:"cooldown_sec,omitempty"`
+		PollIntervalMs   *int     `json:"poll_interval_ms,omitempty"`
+		MinPollMs        *int     `json:"min_poll_ms,omitempty"`
+		MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
 	}
 
 	db := h.deps.DetectorDB()
@@ -199,10 +215,17 @@ func (h *handler) handleExportTemplates(w http.ResponseWriter, r *http.Request, 
 		}
 		filename := fmt.Sprintf("template_%d.png", i)
 		metadata = append(metadata, exportMeta{
-			Filename: filename,
-			Name:     tmpl.Name,
-			Regions:  tmpl.Regions,
-			Enabled:  tmpl.Enabled,
+			Filename:         filename,
+			Name:             tmpl.Name,
+			Regions:          tmpl.Regions,
+			Enabled:          tmpl.Enabled,
+			Precision:        tmpl.Precision,
+			HysteresisFactor: tmpl.HysteresisFactor,
+			ConsecutiveHits:  tmpl.ConsecutiveHits,
+			CooldownSec:      tmpl.CooldownSec,
+			PollIntervalMs:   tmpl.PollIntervalMs,
+			MinPollMs:        tmpl.MinPollMs,
+			MaxPollMs:        tmpl.MaxPollMs,
 		})
 		pngDataList = append(pngDataList, data)
 	}
@@ -235,6 +258,15 @@ type templateImportMeta struct {
 	Name     string                `json:"name"`
 	Regions  []state.MatchedRegion `json:"regions"`
 	Enabled  *bool                 `json:"enabled,omitempty"`
+	// The fields below restore this template's own detection settings from
+	// the export; nil means the engine's hardcoded fallback applies.
+	Precision        *float64 `json:"precision,omitempty"`
+	HysteresisFactor *float64 `json:"hysteresis_factor,omitempty"`
+	ConsecutiveHits  *int     `json:"consecutive_hits,omitempty"`
+	CooldownSec      *int     `json:"cooldown_sec,omitempty"`
+	PollIntervalMs   *int     `json:"poll_interval_ms,omitempty"`
+	MinPollMs        *int     `json:"min_poll_ms,omitempty"`
+	MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
 }
 
 // handleImportTemplatesFile imports templates from an uploaded ZIP file.
@@ -377,7 +409,18 @@ func (h *handler) importTemplatesFromMeta(pokemonID string, metadata []templateI
 		if name == "" {
 			name = fmt.Sprintf("Template %d", sortOrder+1)
 		}
-		newTmpl := state.DetectorTemplate{Name: name, Regions: meta.Regions, Enabled: meta.Enabled}
+		newTmpl := state.DetectorTemplate{
+			Name:             name,
+			Regions:          meta.Regions,
+			Enabled:          meta.Enabled,
+			Precision:        meta.Precision,
+			HysteresisFactor: meta.HysteresisFactor,
+			ConsecutiveHits:  meta.ConsecutiveHits,
+			CooldownSec:      meta.CooldownSec,
+			PollIntervalMs:   meta.PollIntervalMs,
+			MinPollMs:        meta.MinPollMs,
+			MaxPollMs:        meta.MaxPollMs,
+		}
 		if err := h.storeTemplateImage(pokemonID, pngBytes, sortOrder, &newTmpl); err != nil {
 			continue
 		}

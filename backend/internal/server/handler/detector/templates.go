@@ -10,6 +10,7 @@ import (
 	"image"
 	_ "image/gif"
 	"image/png"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,6 +22,22 @@ import (
 )
 
 const templateFileFmt = "template_%d.png"
+
+// validatePollIntervals enforces the adaptive-polling invariants on a
+// template's own poll settings: min ≤ max and min ≤ base ≤ max. Fields left
+// nil (not present in the request) are skipped so partial updates work.
+func validatePollIntervals(minMs, maxMs, baseMs *int) error {
+	if minMs != nil && maxMs != nil && *minMs > *maxMs {
+		return fmt.Errorf("min_poll_ms (%d) must be ≤ max_poll_ms (%d)", *minMs, *maxMs)
+	}
+	if baseMs != nil && minMs != nil && *baseMs < *minMs {
+		return fmt.Errorf("poll_interval_ms (%d) must be ≥ min_poll_ms (%d)", *baseMs, *minMs)
+	}
+	if baseMs != nil && maxMs != nil && *baseMs > *maxMs {
+		return fmt.Errorf("poll_interval_ms (%d) must be ≤ max_poll_ms (%d)", *baseMs, *maxMs)
+	}
+	return nil
+}
 
 // templateUploadResponse returns the new template's index and DB ID.
 type templateUploadResponse struct {
@@ -133,12 +150,37 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 		// Calibration replaces the stored stability calibration when regions
 		// are updated; omitted means the old calibration is stale and cleared.
 		Calibration json.RawMessage `json:"calibration,omitempty"`
+		// The detection-setting fields below are this template's own values.
+		// Unlike Calibration, a key absent from the request body keeps the
+		// stored value; a key present with a null value clears it back to nil
+		// (the engine's hardcoded fallback applies; see presence check below).
+		Precision        *float64 `json:"precision,omitempty"`
+		HysteresisFactor *float64 `json:"hysteresis_factor,omitempty"`
+		ConsecutiveHits  *int     `json:"consecutive_hits,omitempty"`
+		CooldownSec      *int     `json:"cooldown_sec,omitempty"`
+		PollIntervalMs   *int     `json:"poll_interval_ms,omitempty"`
+		MinPollMs        *int     `json:"min_poll_ms,omitempty"`
+		MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
 	}
-	var body patchBody
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	rawBody, err := io.ReadAll(r.Body)
+	if err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid json body"})
 		return
 	}
+	var body patchBody
+	if err := json.Unmarshal(rawBody, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid json body"})
+		return
+	}
+	if err := validatePollIntervals(body.MinPollMs, body.MaxPollMs, body.PollIntervalMs); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	// Presence map to distinguish an omitted key (keep stored value) from a
+	// key explicitly set to null (clear the value) for the detection settings.
+	var presence map[string]json.RawMessage
+	_ = json.Unmarshal(rawBody, &presence)
+
 	cfg2 := state.DetectorConfig{}
 	if pokemon.DetectorConfig != nil {
 		cfg2 = *pokemon.DetectorConfig
@@ -155,6 +197,27 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 	}
 	if body.Name != nil {
 		cfg2.Templates[n].Name = *body.Name
+	}
+	if _, ok := presence["precision"]; ok {
+		cfg2.Templates[n].Precision = body.Precision
+	}
+	if _, ok := presence["hysteresis_factor"]; ok {
+		cfg2.Templates[n].HysteresisFactor = body.HysteresisFactor
+	}
+	if _, ok := presence["consecutive_hits"]; ok {
+		cfg2.Templates[n].ConsecutiveHits = body.ConsecutiveHits
+	}
+	if _, ok := presence["cooldown_sec"]; ok {
+		cfg2.Templates[n].CooldownSec = body.CooldownSec
+	}
+	if _, ok := presence["poll_interval_ms"]; ok {
+		cfg2.Templates[n].PollIntervalMs = body.PollIntervalMs
+	}
+	if _, ok := presence["min_poll_ms"]; ok {
+		cfg2.Templates[n].MinPollMs = body.MinPollMs
+	}
+	if _, ok := presence["max_poll_ms"]; ok {
+		cfg2.Templates[n].MaxPollMs = body.MaxPollMs
 	}
 	if body.Enabled != nil {
 		cfg2.Templates[n].Enabled = body.Enabled
@@ -213,6 +276,10 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	if err := validatePollIntervals(req.MinPollMs, req.MaxPollMs, req.PollIntervalMs); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
 
 	// Ensure the detector_configs row exists in the DB before inserting the
 	// template image, because detector_templates.pokemon_id has a FK ->
@@ -231,10 +298,17 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		tmplName = fmt.Sprintf("Template %d", sortOrder+1)
 	}
 	tmpl := state.DetectorTemplate{
-		Name:        tmplName,
-		Regions:     req.Regions,
-		Enabled:     &t,
-		Calibration: req.Calibration,
+		Name:             tmplName,
+		Regions:          req.Regions,
+		Enabled:          &t,
+		Calibration:      req.Calibration,
+		Precision:        req.Precision,
+		HysteresisFactor: req.HysteresisFactor,
+		ConsecutiveHits:  req.ConsecutiveHits,
+		CooldownSec:      req.CooldownSec,
+		PollIntervalMs:   req.PollIntervalMs,
+		MinPollMs:        req.MinPollMs,
+		MaxPollMs:        req.MaxPollMs,
 	}
 	if err := h.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
@@ -263,6 +337,15 @@ type templateUploadRequest struct {
 	// Calibration is the opaque stability calibration JSON computed by the
 	// frontend test step; persisted as-is.
 	Calibration json.RawMessage `json:"calibration,omitempty"`
+	// The detection-setting fields below seed this template's own values;
+	// nil means the engine's hardcoded fallback applies.
+	Precision        *float64 `json:"precision,omitempty"`
+	HysteresisFactor *float64 `json:"hysteresis_factor,omitempty"`
+	ConsecutiveHits  *int     `json:"consecutive_hits,omitempty"`
+	CooldownSec      *int     `json:"cooldown_sec,omitempty"`
+	PollIntervalMs   *int     `json:"poll_interval_ms,omitempty"`
+	MinPollMs        *int     `json:"min_poll_ms,omitempty"`
+	MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
 }
 
 // parseTemplateUpload reads and validates the base64-encoded image from the

@@ -461,7 +461,7 @@ func TestSetDetectorConfig(t *testing.T) {
 	m := NewManager(t.TempDir())
 	m.AddPokemon(makePokemon("p1", "Pikachu"))
 
-	cfg := &DetectorConfig{Enabled: true, Precision: 0.9}
+	cfg := &DetectorConfig{Enabled: true, ChangeThreshold: 0.9}
 	ok := m.SetDetectorConfig("p1", cfg)
 	if !ok {
 		t.Fatal("SetDetectorConfig returned false")
@@ -470,8 +470,8 @@ func TestSetDetectorConfig(t *testing.T) {
 	if st.Pokemon[0].DetectorConfig == nil {
 		t.Fatal("DetectorConfig should be set")
 	}
-	if st.Pokemon[0].DetectorConfig.Precision != 0.9 {
-		t.Errorf("Precision = %f, want 0.9", st.Pokemon[0].DetectorConfig.Precision)
+	if st.Pokemon[0].DetectorConfig.ChangeThreshold != 0.9 {
+		t.Errorf("ChangeThreshold = %f, want 0.9", st.Pokemon[0].DetectorConfig.ChangeThreshold)
 	}
 }
 

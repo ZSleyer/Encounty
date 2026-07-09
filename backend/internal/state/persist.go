@@ -130,10 +130,6 @@ func migratePokemonDefaults(pokemon []Pokemon) {
 		if dc != nil && dc.AdaptiveCooldownMin == 0 {
 			dc.AdaptiveCooldownMin = 3
 		}
-		// HysteresisFactor 0 is never a valid value; default to 0.7.
-		if dc != nil && dc.HysteresisFactor == 0 {
-			dc.HysteresisFactor = 0.7
-		}
 	}
 }
 
@@ -168,30 +164,6 @@ func (m *Manager) applyLegacyDefaults() {
 	// Default to "blue" so legacy JSON loads stay visually consistent.
 	if m.state.Settings.AccentColor == "" {
 		m.state.Settings.AccentColor = "blue"
-	}
-
-	// Migrate detector configs from v0.6.4 frontend defaults to v0.7.0
-	// backend defaults where values still match the old defaults.
-	for i := range m.state.Pokemon {
-		dc := m.state.Pokemon[i].DetectorConfig
-		if dc == nil {
-			continue
-		}
-		if dc.Precision == 0.80 {
-			dc.Precision = 0.55
-		}
-		if dc.CooldownSec == 8 {
-			dc.CooldownSec = 5
-		}
-		if dc.PollIntervalMs == 50 {
-			dc.PollIntervalMs = 200
-		}
-		if dc.MinPollMs == 30 {
-			dc.MinPollMs = 50
-		}
-		if dc.MaxPollMs == 500 {
-			dc.MaxPollMs = 2000
-		}
 	}
 }
 

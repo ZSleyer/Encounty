@@ -15,7 +15,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -297,9 +296,9 @@ func TestConfigGetNoConfig(t *testing.T) {
 func TestConfigGetWithConfig(t *testing.T) {
 	mux, deps := newTestMux(t)
 	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
-		Enabled:    true,
-		SourceType: "screen_region",
-		Precision:  0.9,
+		Enabled:         true,
+		SourceType:      "screen_region",
+		ChangeThreshold: 0.3,
 	})
 
 	req := httptest.NewRequest(http.MethodGet, pathConfig, nil)
@@ -315,8 +314,8 @@ func TestConfigGetWithConfig(t *testing.T) {
 	if !cfg.Enabled {
 		t.Error("expected Enabled=true")
 	}
-	if cfg.Precision != 0.9 {
-		t.Errorf("Precision = %f, want 0.9", cfg.Precision)
+	if cfg.ChangeThreshold != 0.3 {
+		t.Errorf("ChangeThreshold = %f, want 0.3", cfg.ChangeThreshold)
 	}
 }
 
@@ -327,7 +326,6 @@ func TestConfigPostSuccess(t *testing.T) {
 	body := jsonBody(t, state.DetectorConfig{
 		Enabled:    true,
 		SourceType: "window",
-		Precision:  0.85,
 	})
 
 	req := httptest.NewRequest(http.MethodPost, pathConfig, body)
@@ -368,34 +366,8 @@ func TestConfigPostNotFound(t *testing.T) {
 	}
 }
 
-func TestConfigPostInvalidPollIntervals(t *testing.T) {
-	cases := []struct {
-		name string
-		cfg  state.DetectorConfig
-	}{
-		{"min greater than max", state.DetectorConfig{MinPollMs: 500, MaxPollMs: 200, PollIntervalMs: 300}},
-		{"base below min", state.DetectorConfig{MinPollMs: 300, MaxPollMs: 1000, PollIntervalMs: 100}},
-		{"base above max", state.DetectorConfig{MinPollMs: 50, MaxPollMs: 200, PollIntervalMs: 500}},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			mux, deps := newTestMux(t)
-			addTestPokemon(t, deps, "p1", "Pikachu")
-
-			req := httptest.NewRequest(http.MethodPost, pathConfig, jsonBody(t, tc.cfg))
-			w := httptest.NewRecorder()
-			mux.ServeHTTP(w, req)
-
-			if w.Code != http.StatusBadRequest {
-				t.Fatalf("want 400, got %d body=%s", w.Code, w.Body.String())
-			}
-			if !strings.Contains(w.Body.String(), "poll") {
-				t.Errorf("error body should mention 'poll', got %s", w.Body.String())
-			}
-		})
-	}
-}
+// Poll-interval validation moved to the per-template PATCH/upload endpoints;
+// see TestTemplatePatchInvalidPollIntervals and TestTemplateUploadInvalidPollIntervals.
 
 func TestConfigPostInvalidJSON(t *testing.T) {
 	mux, deps := newTestMux(t)
@@ -1809,6 +1781,321 @@ func TestTemplatePatchRegionsClearsStaleCalibration(t *testing.T) {
 	p := findPokemon(st, "p1")
 	if len(p.DetectorConfig.Templates[0].Calibration) != 0 {
 		t.Errorf("Calibration = %s, want empty", p.DetectorConfig.Templates[0].Calibration)
+	}
+}
+
+// --- Per-template detection settings (upload and PATCH) -----------------------
+
+// floatPtr returns a pointer to the given float64 for optional-field tests.
+func floatPtr(v float64) *float64 { return &v }
+
+// intPtr returns a pointer to the given int for optional-field tests.
+func intPtr(v int) *int { return &v }
+
+func TestTemplateUploadWithDetectionSettings(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	pngData := makePNGBytes(t)
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	body := jsonBody(t, map[string]any{
+		"imageBase64":       b64,
+		"regions":           []state.MatchedRegion{{Type: "image"}},
+		"precision":         0.8,
+		"hysteresis_factor": 0.65,
+		"consecutive_hits":  int(3),
+		"cooldown_sec":      int(8),
+		"poll_interval_ms":  int(150),
+		"min_poll_ms":       int(80),
+		"max_poll_ms":       int(1500),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if len(p.DetectorConfig.Templates) != 1 {
+		t.Fatal("expected 1 template after upload")
+	}
+	tmpl := p.DetectorConfig.Templates[0]
+	if tmpl.Precision == nil || *tmpl.Precision != 0.8 {
+		t.Errorf("Precision = %v, want 0.8", tmpl.Precision)
+	}
+	if tmpl.HysteresisFactor == nil || *tmpl.HysteresisFactor != 0.65 {
+		t.Errorf("HysteresisFactor = %v, want 0.65", tmpl.HysteresisFactor)
+	}
+	if tmpl.ConsecutiveHits == nil || *tmpl.ConsecutiveHits != 3 {
+		t.Errorf("ConsecutiveHits = %v, want 3", tmpl.ConsecutiveHits)
+	}
+	if tmpl.CooldownSec == nil || *tmpl.CooldownSec != 8 {
+		t.Errorf("CooldownSec = %v, want 8", tmpl.CooldownSec)
+	}
+	if tmpl.PollIntervalMs == nil || *tmpl.PollIntervalMs != 150 {
+		t.Errorf("PollIntervalMs = %v, want 150", tmpl.PollIntervalMs)
+	}
+	if tmpl.MinPollMs == nil || *tmpl.MinPollMs != 80 {
+		t.Errorf("MinPollMs = %v, want 80", tmpl.MinPollMs)
+	}
+	if tmpl.MaxPollMs == nil || *tmpl.MaxPollMs != 1500 {
+		t.Errorf("MaxPollMs = %v, want 1500", tmpl.MaxPollMs)
+	}
+}
+
+// TestTemplateUploadInvalidPollIntervals verifies that an upload whose
+// min/base/max poll settings violate min ≤ base ≤ max is rejected with 400,
+// mirroring the validation that used to live on the hunt-level config POST.
+func TestTemplateUploadInvalidPollIntervals(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	pngData := makePNGBytes(t)
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	body := jsonBody(t, map[string]any{
+		"imageBase64": b64,
+		"regions":     []state.MatchedRegion{{Type: "image"}},
+		"min_poll_ms": int(500),
+		"max_poll_ms": int(100),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(msgWant400, w.Code)
+	}
+}
+
+func TestTemplateUploadWithoutDetectionSettingsLeavesNil(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	pngData := makePNGBytes(t)
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	body := jsonBody(t, map[string]any{
+		"imageBase64": b64,
+		"regions":     []state.MatchedRegion{{Type: "image"}},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	tmpl := p.DetectorConfig.Templates[0]
+	if tmpl.Precision != nil || tmpl.HysteresisFactor != nil {
+		t.Errorf("Precision = %v, HysteresisFactor = %v, want nil (inherit hunt config)", tmpl.Precision, tmpl.HysteresisFactor)
+	}
+}
+
+func TestTemplatePatchSetsDetectionSettings(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1, Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	body := jsonBody(t, map[string]any{
+		"precision":         0.77,
+		"hysteresis_factor": 0.55,
+		"consecutive_hits":  int(4),
+		"cooldown_sec":      int(12),
+		"poll_interval_ms":  int(250),
+		"min_poll_ms":       int(100),
+		"max_poll_ms":       int(1800),
+	})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	tmpl := p.DetectorConfig.Templates[0]
+	if tmpl.Precision == nil || *tmpl.Precision != 0.77 {
+		t.Errorf("Precision = %v, want 0.77", tmpl.Precision)
+	}
+	if tmpl.HysteresisFactor == nil || *tmpl.HysteresisFactor != 0.55 {
+		t.Errorf("HysteresisFactor = %v, want 0.55", tmpl.HysteresisFactor)
+	}
+	if tmpl.ConsecutiveHits == nil || *tmpl.ConsecutiveHits != 4 {
+		t.Errorf("ConsecutiveHits = %v, want 4", tmpl.ConsecutiveHits)
+	}
+	if tmpl.CooldownSec == nil || *tmpl.CooldownSec != 12 {
+		t.Errorf("CooldownSec = %v, want 12", tmpl.CooldownSec)
+	}
+	if tmpl.PollIntervalMs == nil || *tmpl.PollIntervalMs != 250 {
+		t.Errorf("PollIntervalMs = %v, want 250", tmpl.PollIntervalMs)
+	}
+	if tmpl.MinPollMs == nil || *tmpl.MinPollMs != 100 {
+		t.Errorf("MinPollMs = %v, want 100", tmpl.MinPollMs)
+	}
+	if tmpl.MaxPollMs == nil || *tmpl.MaxPollMs != 1800 {
+		t.Errorf("MaxPollMs = %v, want 1800", tmpl.MaxPollMs)
+	}
+}
+
+// TestTemplatePatchInvalidPollIntervals verifies that a PATCH whose
+// min/base/max poll settings violate min ≤ base ≤ max is rejected with 400.
+func TestTemplatePatchInvalidPollIntervals(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1, Regions: []state.MatchedRegion{{Type: "image"}}},
+		},
+	})
+
+	body := jsonBody(t, map[string]any{
+		"poll_interval_ms": int(50),
+		"min_poll_ms":      int(200),
+		"max_poll_ms":      int(100),
+	})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(msgWant400, w.Code)
+	}
+}
+
+func TestTemplatePatchOmittedDetectionSettingsKept(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{
+				TemplateDBID:     1,
+				Regions:          []state.MatchedRegion{{Type: "image"}},
+				Precision:        floatPtr(0.8),
+				HysteresisFactor: floatPtr(0.65),
+				ConsecutiveHits:  intPtr(3),
+				CooldownSec:      intPtr(8),
+				PollIntervalMs:   intPtr(150),
+				MinPollMs:        intPtr(80),
+				MaxPollMs:        intPtr(1500),
+			},
+		},
+	})
+
+	// A region update omitting precision/hysteresis/polling clears the
+	// calibration but must keep the stored detection settings.
+	body := jsonBody(t, map[string]any{
+		"regions": []state.MatchedRegion{
+			{Type: "image", Rect: state.DetectorRect{X: 10, Y: 20, W: 100, H: 200}},
+		},
+		"name": "Renamed",
+	})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	tmpl := p.DetectorConfig.Templates[0]
+	if tmpl.Precision == nil || *tmpl.Precision != 0.8 {
+		t.Errorf("Precision = %v, want kept 0.8", tmpl.Precision)
+	}
+	if tmpl.HysteresisFactor == nil || *tmpl.HysteresisFactor != 0.65 {
+		t.Errorf("HysteresisFactor = %v, want kept 0.65", tmpl.HysteresisFactor)
+	}
+	if tmpl.ConsecutiveHits == nil || *tmpl.ConsecutiveHits != 3 {
+		t.Errorf("ConsecutiveHits = %v, want kept 3", tmpl.ConsecutiveHits)
+	}
+	if tmpl.CooldownSec == nil || *tmpl.CooldownSec != 8 {
+		t.Errorf("CooldownSec = %v, want kept 8", tmpl.CooldownSec)
+	}
+	if tmpl.PollIntervalMs == nil || *tmpl.PollIntervalMs != 150 {
+		t.Errorf("PollIntervalMs = %v, want kept 150", tmpl.PollIntervalMs)
+	}
+	if tmpl.MinPollMs == nil || *tmpl.MinPollMs != 80 {
+		t.Errorf("MinPollMs = %v, want kept 80", tmpl.MinPollMs)
+	}
+	if tmpl.MaxPollMs == nil || *tmpl.MaxPollMs != 1500 {
+		t.Errorf("MaxPollMs = %v, want kept 1500", tmpl.MaxPollMs)
+	}
+}
+
+// TestTemplatePatchExplicitNullClearsDetectionSettings verifies that sending
+// precision/hysteresis_factor as explicit JSON null (as opposed to omitting
+// the key entirely) clears a stored per-template override back to the
+// hunt-level default, distinguishing "don't touch" from "reset".
+func TestTemplatePatchExplicitNullClearsDetectionSettings(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{
+				TemplateDBID:     1,
+				Regions:          []state.MatchedRegion{{Type: "image"}},
+				Precision:        floatPtr(0.8),
+				HysteresisFactor: floatPtr(0.65),
+				ConsecutiveHits:  intPtr(3),
+				CooldownSec:      intPtr(8),
+				PollIntervalMs:   intPtr(150),
+				MinPollMs:        intPtr(80),
+				MaxPollMs:        intPtr(1500),
+			},
+		},
+	})
+
+	body := jsonBody(t, map[string]any{
+		"precision":         nil,
+		"hysteresis_factor": nil,
+		"consecutive_hits":  nil,
+		"cooldown_sec":      nil,
+		"poll_interval_ms":  nil,
+		"min_poll_ms":       nil,
+		"max_poll_ms":       nil,
+	})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	tmpl := p.DetectorConfig.Templates[0]
+	if tmpl.Precision != nil {
+		t.Errorf("Precision = %v, want cleared to nil", *tmpl.Precision)
+	}
+	if tmpl.HysteresisFactor != nil {
+		t.Errorf("HysteresisFactor = %v, want cleared to nil", *tmpl.HysteresisFactor)
+	}
+	if tmpl.ConsecutiveHits != nil {
+		t.Errorf("ConsecutiveHits = %v, want cleared to nil", *tmpl.ConsecutiveHits)
+	}
+	if tmpl.CooldownSec != nil {
+		t.Errorf("CooldownSec = %v, want cleared to nil", *tmpl.CooldownSec)
+	}
+	if tmpl.PollIntervalMs != nil {
+		t.Errorf("PollIntervalMs = %v, want cleared to nil", *tmpl.PollIntervalMs)
+	}
+	if tmpl.MinPollMs != nil {
+		t.Errorf("MinPollMs = %v, want cleared to nil", *tmpl.MinPollMs)
+	}
+	if tmpl.MaxPollMs != nil {
+		t.Errorf("MaxPollMs = %v, want cleared to nil", *tmpl.MaxPollMs)
 	}
 }
 
