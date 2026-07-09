@@ -359,7 +359,7 @@ func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, er
 // It collects all template rows first and closes the cursor before querying
 // regions, avoiding a deadlock with MaxOpenConns(1).
 func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTemplate, error) {
-	rows, err := db.Query(`SELECT id, name, sort_order, enabled FROM detector_templates WHERE pokemon_id = ? ORDER BY sort_order`, pokemonID)
+	rows, err := db.Query(`SELECT id, name, sort_order, enabled, calibration FROM detector_templates WHERE pokemon_id = ? ORDER BY sort_order`, pokemonID)
 	if err != nil {
 		return nil, err
 	}
@@ -369,12 +369,16 @@ func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTempla
 		var t state.DetectorTemplate
 		var sortOrder int
 		var enabledInt int
-		if err := rows.Scan(&t.TemplateDBID, &t.Name, &sortOrder, &enabledInt); err != nil {
+		var calibration sql.NullString
+		if err := rows.Scan(&t.TemplateDBID, &t.Name, &sortOrder, &enabledInt, &calibration); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
 		enabled := enabledInt != 0
 		t.Enabled = &enabled
+		if calibration.Valid && calibration.String != "" {
+			t.Calibration = json.RawMessage(calibration.String)
+		}
 		templates = append(templates, t)
 	}
 	if err := rows.Err(); err != nil {

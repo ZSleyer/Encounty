@@ -229,6 +229,7 @@ var schemaV2 = []string{
 		name       TEXT    NOT NULL DEFAULT '',
 		sort_order INTEGER NOT NULL DEFAULT 0,
 		enabled    INTEGER NOT NULL DEFAULT 1,
+		calibration TEXT,
 		FOREIGN KEY (pokemon_id) REFERENCES detector_configs(pokemon_id) ON DELETE CASCADE
 	)`,
 

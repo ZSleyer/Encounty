@@ -130,6 +130,9 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 		Regions []state.MatchedRegion `json:"regions,omitempty"`
 		Enabled *bool                 `json:"enabled,omitempty"`
 		Name    *string               `json:"name,omitempty"`
+		// Calibration replaces the stored stability calibration when regions
+		// are updated; omitted means the old calibration is stale and cleared.
+		Calibration json.RawMessage `json:"calibration,omitempty"`
 	}
 	var body patchBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -146,6 +149,9 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 	}
 	if body.Regions != nil {
 		cfg2.Templates[n].Regions = body.Regions
+		// Regions define what the calibration was measured against, so a
+		// region update replaces (or clears) the stored calibration.
+		cfg2.Templates[n].Calibration = body.Calibration
 	}
 	if body.Name != nil {
 		cfg2.Templates[n].Name = *body.Name
@@ -202,7 +208,7 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		cfg = *pokemon.DetectorConfig
 	}
 
-	pngBytes, regions, uploadName, err := parseTemplateUpload(r)
+	pngBytes, req, err := parseTemplateUpload(r)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
@@ -220,14 +226,15 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 
 	sortOrder := len(cfg.Templates)
 	t := true
-	tmplName := uploadName
+	tmplName := req.Name
 	if tmplName == "" {
 		tmplName = fmt.Sprintf("Template %d", sortOrder+1)
 	}
 	tmpl := state.DetectorTemplate{
-		Name:    tmplName,
-		Regions: regions,
-		Enabled: &t,
+		Name:        tmplName,
+		Regions:     req.Regions,
+		Enabled:     &t,
+		Calibration: req.Calibration,
 	}
 	if err := h.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
@@ -253,15 +260,18 @@ type templateUploadRequest struct {
 	ImageBase64 string                `json:"imageBase64"`
 	Regions     []state.MatchedRegion `json:"regions"`
 	Name        string                `json:"name,omitempty"`
+	// Calibration is the opaque stability calibration JSON computed by the
+	// frontend test step; persisted as-is.
+	Calibration json.RawMessage `json:"calibration,omitempty"`
 }
 
 // parseTemplateUpload reads and validates the base64-encoded image from the
-// request body, returning the re-encoded PNG bytes, regions, and optional name.
-func parseTemplateUpload(r *http.Request) ([]byte, []state.MatchedRegion, string, error) {
+// request body, returning the re-encoded PNG bytes and the parsed request.
+func parseTemplateUpload(r *http.Request) ([]byte, *templateUploadRequest, error) {
 	r.Body = http.MaxBytesReader(nil, r.Body, 20<<20)
 	var req templateUploadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return nil, nil, "", fmt.Errorf("failed to parse json body")
+		return nil, nil, fmt.Errorf("failed to parse json body")
 	}
 
 	b64data := req.ImageBase64
@@ -270,19 +280,19 @@ func parseTemplateUpload(r *http.Request) ([]byte, []state.MatchedRegion, string
 	}
 	imgData, err := base64.StdEncoding.DecodeString(b64data)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("invalid base64 image data")
+		return nil, nil, fmt.Errorf("invalid base64 image data")
 	}
 
 	img, _, err := image.Decode(bytes.NewReader(imgData))
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("invalid image format: %v", err)
+		return nil, nil, fmt.Errorf("invalid image format: %v", err)
 	}
 
 	pngBytes, err := encodePNG(img)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, err
 	}
-	return pngBytes, req.Regions, req.Name, nil
+	return pngBytes, &req, nil
 }
 
 // encodePNG encodes an image to PNG and returns the bytes.

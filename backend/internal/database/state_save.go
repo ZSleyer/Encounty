@@ -4,6 +4,7 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -731,18 +732,19 @@ func upsertDetectorTemplates(tx *sql.Tx, pokemon []state.Pokemon) (map[int64]boo
 func upsertPokemonTemplates(tx *sql.Tx, pokemonID string, templates []state.DetectorTemplate, referencedIDs map[int64]bool) error {
 	for sortOrder, tmpl := range templates {
 		enabledVal := boolToInt(tmpl.Enabled == nil || *tmpl.Enabled)
+		calibrationVal := calibrationToDB(tmpl.Calibration)
 		if tmpl.TemplateDBID > 0 {
 			if _, err := tx.Exec(
-				`UPDATE detector_templates SET name = ?, sort_order = ?, enabled = ? WHERE id = ?`,
-				tmpl.Name, sortOrder, enabledVal, tmpl.TemplateDBID,
+				`UPDATE detector_templates SET name = ?, sort_order = ?, enabled = ?, calibration = ? WHERE id = ?`,
+				tmpl.Name, sortOrder, enabledVal, calibrationVal, tmpl.TemplateDBID,
 			); err != nil {
 				return fmt.Errorf("update template sort_order %d: %w", tmpl.TemplateDBID, err)
 			}
 			referencedIDs[tmpl.TemplateDBID] = true
 		} else if tmpl.ImageData != nil {
 			res, err := tx.Exec(
-				`INSERT INTO detector_templates (pokemon_id, image_data, name, sort_order, enabled) VALUES (?, ?, ?, ?, ?)`,
-				pokemonID, tmpl.ImageData, tmpl.Name, sortOrder, enabledVal,
+				`INSERT INTO detector_templates (pokemon_id, image_data, name, sort_order, enabled, calibration) VALUES (?, ?, ?, ?, ?, ?)`,
+				pokemonID, tmpl.ImageData, tmpl.Name, sortOrder, enabledVal, calibrationVal,
 			)
 			if err != nil {
 				return fmt.Errorf("insert new template for %q: %w", pokemonID, err)
@@ -752,6 +754,15 @@ func upsertPokemonTemplates(tx *sql.Tx, pokemonID string, templates []state.Dete
 		}
 	}
 	return nil
+}
+
+// calibrationToDB converts an opaque calibration JSON blob to a nullable
+// TEXT value for storage. Empty means NULL.
+func calibrationToDB(raw json.RawMessage) any {
+	if len(raw) == 0 {
+		return nil
+	}
+	return string(raw)
 }
 
 // deleteUnreferencedTemplates removes detector_templates rows whose IDs are

@@ -125,6 +125,10 @@ type DetectorTemplate struct {
 	ImageData    []byte          `json:"-"`                        // PNG bytes, loaded on demand
 	Regions      []MatchedRegion `json:"regions"`
 	Enabled      *bool           `json:"enabled,omitempty"` // nil = true (backward compat)
+	// Calibration holds frontend-computed stability calibration as an opaque
+	// JSON object. The backend only persists and forwards it; the detection
+	// engine in the frontend owns its shape.
+	Calibration json.RawMessage `json:"calibration,omitempty"`
 }
 
 // DetectorRect defines a rectangular screen region in absolute pixel coordinates.

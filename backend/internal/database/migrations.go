@@ -134,6 +134,11 @@ var migrations = []migration{
 		description: "add capture_resolutions table",
 		fn:          migrateAddCaptureResolutions,
 	},
+	{
+		version:     24,
+		description: "add calibration column to detector_templates",
+		fn:          migrateAddTemplateCalibration,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -381,6 +386,15 @@ func migrateAddCaptureResolutions(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("create capture_resolutions table: %w", err)
 	}
+	return nil
+}
+
+// migrateAddTemplateCalibration adds the calibration column to
+// detector_templates. It stores an opaque JSON blob computed by the frontend
+// stability analysis. Errors are ignored because the column may already exist
+// on fresh databases.
+func migrateAddTemplateCalibration(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN calibration TEXT`)
 	return nil
 }
 

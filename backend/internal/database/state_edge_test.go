@@ -10,6 +10,7 @@
 package database_test
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -694,5 +695,66 @@ func TestPokemonAllStringFields(t *testing.T) {
 	}
 	if p.HuntType != "masuda" {
 		t.Errorf("HuntType = %q, want %q", p.HuntType, "masuda")
+	}
+}
+
+// TestTemplateCalibrationRoundtrip verifies that the opaque calibration JSON
+// blob on a detector template survives save/load, and that templates without
+// calibration load with an empty one.
+func TestTemplateCalibrationRoundtrip(t *testing.T) {
+	db := openTestDB(t)
+	now := time.Now().UTC().Truncate(time.Second)
+	calJSON := `{"recommended_precision":0.72,"match_p10":0.75,"match_median":0.8,"noise_p90":0.2,"sample_count":12}`
+
+	st := state.AppState{
+		ActiveID: "p1",
+		Pokemon: []state.Pokemon{
+			{
+				ID:          "p1",
+				Name:        "Ditto",
+				CreatedAt:   now,
+				OverlayMode: "default",
+				DetectorConfig: &state.DetectorConfig{
+					Enabled:    true,
+					SourceType: "browser_camera",
+					Precision:  0.9,
+					Templates: []state.DetectorTemplate{
+						{
+							ImageData:   []byte{0x89, 0x50, 0x4e, 0x47},
+							Regions:     []state.MatchedRegion{},
+							Calibration: json.RawMessage(calJSON),
+						},
+						{
+							ImageData: []byte{0x89, 0x50, 0x4e, 0x47},
+							Regions:   []state.MatchedRegion{},
+						},
+					},
+					DetectionLog: []state.DetectionLogEntry{},
+				},
+			},
+		},
+		Sessions: []state.Session{},
+		Settings: state.Settings{
+			Languages: []string{"en"},
+			Overlay:   makeTestOverlay(),
+		},
+	}
+
+	if err := db.SaveFullState(&st); err != nil {
+		t.Fatalf(edgeFmtSaveErr, err)
+	}
+	got, err := db.LoadFullState()
+	if err != nil {
+		t.Fatalf(edgeFmtLoadErr, err)
+	}
+	tmpls := got.Pokemon[0].DetectorConfig.Templates
+	if len(tmpls) != 2 {
+		t.Fatalf("len(Templates) = %d, want 2", len(tmpls))
+	}
+	if string(tmpls[0].Calibration) != calJSON {
+		t.Errorf("Calibration = %s, want %s", tmpls[0].Calibration, calJSON)
+	}
+	if len(tmpls[1].Calibration) != 0 {
+		t.Errorf("Calibration on second template = %s, want empty", tmpls[1].Calibration)
 	}
 }
