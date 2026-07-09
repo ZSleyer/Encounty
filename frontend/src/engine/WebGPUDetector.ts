@@ -1,5 +1,5 @@
 /**
- * WebGPUDetector — GPU-accelerated template matching engine.
+ * WebGPUDetector: GPU-accelerated template matching engine.
  *
  * Implements a wgpu-style compute pipeline in the browser using the
  * WebGPU API. Two matching strategies are supported:
@@ -29,7 +29,6 @@ import pearsonNccShader from "./shaders/pearson_ncc.wgsl?raw";
 import madShader from "./shaders/mad.wgsl?raw";
 import histogramShader from "./shaders/histogram.wgsl?raw";
 import fuseScoresShader from "./shaders/fuse_scores.wgsl?raw";
-import reduceMinShader from "./shaders/reduce_min.wgsl?raw";
 import ssimMedianShader from "./shaders/ssim_median.wgsl?raw";
 import {
   adaptiveBlockSizeForRegion,
@@ -140,8 +139,6 @@ interface CompiledPipelines {
   histogramBGL: GPUBindGroupLayout;
   fuseScores: GPUComputePipeline;
   fuseScoresBGL: GPUBindGroupLayout;
-  reduceMin: GPUComputePipeline;
-  reduceMinBGL: GPUBindGroupLayout;
   ssimMedian: GPUComputePipeline;
   ssimMedianBGL: GPUBindGroupLayout;
 }
@@ -236,8 +233,6 @@ export class WebGPUDetector {
   private readonly histogramBGL: GPUBindGroupLayout;
   private readonly fuseScoresPipeline: GPUComputePipeline;
   private readonly fuseScoresBGL: GPUBindGroupLayout;
-  private readonly reduceMinPipeline: GPUComputePipeline;
-  private readonly reduceMinBGL: GPUBindGroupLayout;
   private readonly ssimMedianPipeline: GPUComputePipeline;
   private readonly ssimMedianBGL: GPUBindGroupLayout;
   private destroyed = false;
@@ -285,8 +280,6 @@ export class WebGPUDetector {
     this.histogramBGL = pipelines.histogramBGL;
     this.fuseScoresPipeline = pipelines.fuseScores;
     this.fuseScoresBGL = pipelines.fuseScoresBGL;
-    this.reduceMinPipeline = pipelines.reduceMin;
-    this.reduceMinBGL = pipelines.reduceMinBGL;
     this.ssimMedianPipeline = pipelines.ssimMedian;
     this.ssimMedianBGL = pipelines.ssimMedianBGL;
 
@@ -424,6 +417,40 @@ export class WebGPUDetector {
     crop?: { x: number; y: number; w: number; h: number },
     maxDim = 320,
   ): { buffer: GPUBuffer; width: number; height: number } {
+    const encoder = this.device.createCommandEncoder({
+      label: "preprocess_encoder",
+    });
+    // The persistent params buffer is safe here because the pass is submitted
+    // before the buffer can be rewritten by a later preprocess call.
+    const result = this.encodePreprocess(
+      encoder,
+      texture,
+      this.preprocessParamsBuf,
+      crop,
+      maxDim,
+    );
+    this.device.queue.submit([encoder.finish()]);
+    return result;
+  }
+
+  /**
+   * Encode a crop + downscale + grayscale pass into the given encoder without
+   * submitting.
+   *
+   * The caller provides the uniform params buffer: batched callers that encode
+   * several preprocess passes before one submit must pass a distinct buffer
+   * per pass, because queue.writeBuffer lands before the whole submission and
+   * a shared buffer would be overwritten by the last write.
+   *
+   * The output buffer is acquired from the pool; the caller releases it.
+   */
+  private encodePreprocess(
+    encoder: GPUCommandEncoder,
+    texture: GPUTexture,
+    paramsBuf: GPUBuffer,
+    crop?: { x: number; y: number; w: number; h: number },
+    maxDim = 320,
+  ): { buffer: GPUBuffer; width: number; height: number } {
     const srcW = texture.width;
     const srcH = texture.height;
     const cropX = crop?.x ?? 0;
@@ -433,7 +460,6 @@ export class WebGPUDetector {
 
     const [dstW, dstH] = fitDimensions(cropW, cropH, maxDim);
 
-    // Phase 0D: Update persistent preprocess params buffer via writeBuffer
     const paramsData = new Uint32Array([
       srcW,
       srcH,
@@ -444,9 +470,8 @@ export class WebGPUDetector {
       cropW,
       cropH,
     ]);
-    this.device.queue.writeBuffer(this.preprocessParamsBuf, 0, paramsData);
+    this.device.queue.writeBuffer(paramsBuf, 0, paramsData);
 
-    // Phase 0C: Acquire output buffer from pool
     const outputSize = dstW * dstH * 4; // f32 = 4 bytes
     const outputBuf = this.pool.acquire(
       outputSize,
@@ -458,15 +483,12 @@ export class WebGPUDetector {
       label: "preprocess_bg",
       layout: this.preprocessBGL,
       entries: [
-        { binding: 0, resource: { buffer: this.preprocessParamsBuf } },
+        { binding: 0, resource: { buffer: paramsBuf } },
         { binding: 1, resource: texture.createView() },
         { binding: 2, resource: { buffer: outputBuf } },
       ],
     });
 
-    const encoder = this.device.createCommandEncoder({
-      label: "preprocess_encoder",
-    });
     const pass = encoder.beginComputePass({ label: "preprocess_pass" });
     pass.setPipeline(this.preprocessPipeline);
     pass.setBindGroup(0, bindGroup);
@@ -475,8 +497,6 @@ export class WebGPUDetector {
       divCeil(dstH, PREPROCESS_WG),
     );
     pass.end();
-
-    this.device.queue.submit([encoder.finish()]);
 
     return { buffer: outputBuf, width: dstW, height: dstH };
   }
@@ -601,7 +621,7 @@ export class WebGPUDetector {
   // -----------------------------------------------------------------------
 
   /**
-   * Region-based 4-metric hybrid matching — fully GPU-accelerated.
+   * Region-based 4-metric hybrid matching, fully GPU-accelerated.
    *
    * For each defined region, crops the corresponding area from the live frame,
    * dispatches all 4 metric shaders (Block-SSIM, Pearson, MAD, histogram),
@@ -610,9 +630,11 @@ export class WebGPUDetector {
    * AND-combined (min) so every region of a category must match. Returns the
    * per-category scores keyed by category name (default category is "").
    *
-   * Only a single GPU readback of the per-region scores array occurs at the
-   * very end. The SSIM median is computed on GPU via histogram binning,
-   * avoiding the previous mid-pipeline CPU sync point.
+   * The whole match (preprocess, metrics, SSIM median, fusion, score
+   * collection) for all regions is encoded into ONE command encoder and
+   * submitted once. All intermediate results (including the SSIM median) stay
+   * on the GPU and move via copyBufferToBuffer; the only CPU-GPU sync point
+   * is the single readback of the per-region scores array at the end.
    */
   private async regionHybridMatch(
     frameTexture: GPUTexture,
@@ -643,6 +665,14 @@ export class WebGPUDetector {
     const buffersToRelease: GPUBuffer[] = [regionScoresBuf];
 
     try {
+      // ONE encoder for everything; a single submit follows the loop. All
+      // queue.writeBuffer calls inside the loop land before that submission,
+      // which is safe because every written buffer is a distinct pool
+      // acquisition (nothing is released back until the finally block).
+      const encoder = this.device.createCommandEncoder({
+        label: "hybrid_encoder",
+      });
+
       for (let ri = 0; ri < regionCount; ri++) {
         const { rect, width: rw, height: rh, blockSize, buffer: tmplBuf } =
           regionCrops[ri];
@@ -655,15 +685,24 @@ export class WebGPUDetector {
           h: Math.max(4, Math.round(rect.h * scaleY)),
         };
 
-        // Crop the frame region and downscale to match template crop dimensions
-        const { buffer: frameCropBuf } = this.preprocess(
+        // Crop the frame region and downscale to match template crop
+        // dimensions. Each region needs its own params buffer because the
+        // passes execute only after the shared submit.
+        const preprocessParamsBuf = this.pool.acquire(
+          32,
+          GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          `preprocess_params_${ri}`,
+        );
+        buffersToRelease.push(preprocessParamsBuf);
+        const { buffer: frameCropBuf } = this.encodePreprocess(
+          encoder,
           frameTexture,
+          preprocessParamsBuf,
           frameCrop,
           Math.max(rw, rh),
         );
         buffersToRelease.push(frameCropBuf);
 
-        // Phase 0C: Pool the metric params buffer
         const metricParamsBuf = this.pool.acquire(
           8,
           GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -676,12 +715,7 @@ export class WebGPUDetector {
         );
         buffersToRelease.push(metricParamsBuf);
 
-        // --- Dispatch all 4 metric shaders in a single command encoder ---
-        const encoder = this.device.createCommandEncoder({
-          label: `hybrid_encoder_${ri}`,
-        });
-
-        // 1. Block-SSIM: produces per-block scores, needs separate handling
+        // 1. Block-SSIM: per-block scores, median-reduced on GPU below
         const ssimResult = this.encodeBlockSsim(
           encoder,
           frameCropBuf,
@@ -719,17 +753,11 @@ export class WebGPUDetector {
           outBuf: histOutBuf, label: `hist_pass_${ri}`,
         });
 
-        // Submit all 4 metric dispatches
-        this.device.queue.submit([encoder.finish()]);
-
-        // Block-SSIM median computed on GPU via histogram binning
-        const ssimMedian = await this.computeSsimMedianGPU(
-          ssimResult.scoresBuf,
-          ssimResult.totalBlocks,
-        );
-
-        // Assemble the 4 scores into a buffer for the fuse shader.
-        // GPU weights are hardcoded in fuse_scores.wgsl and must match HYBRID_WEIGHTS from math.ts.
+        // Fuse input layout: [ssim_median, pearson, mad, hist]. Zero-init via
+        // writeBuffer (pooled buffer may hold stale data), then every slot is
+        // overwritten by a GPU-to-GPU copy. No score ever visits the CPU.
+        // GPU weights are hardcoded in fuse_scores.wgsl and must match
+        // HYBRID_WEIGHTS from math.ts.
         const scoresInputBuf = this.pool.acquire(
           16,
           GPUBufferUsage.STORAGE |
@@ -740,24 +768,30 @@ export class WebGPUDetector {
         this.device.queue.writeBuffer(
           scoresInputBuf,
           0,
-          new Float32Array([ssimMedian, 0, 0, 0]),
+          new Float32Array([0, 0, 0, 0]),
         );
         buffersToRelease.push(scoresInputBuf);
 
-        // Phase 0E: Merge copy operations and fuse dispatch into a single encoder
-        const fuseOutBuf = this.createScalarOutputBuffer(`fuse_out_${ri}`);
-        buffersToRelease.push(fuseOutBuf);
+        // Block-SSIM median via GPU histogram binning, result copied straight
+        // into the fuse input (replaces the former per-region CPU readback)
+        if (ssimResult.totalBlocks > 0) {
+          const median = this.encodeSsimMedian(
+            encoder,
+            ssimResult.scoresBuf,
+            ssimResult.totalBlocks,
+          );
+          buffersToRelease.push(median.paramsBuf, median.resultBuf);
+          encoder.copyBufferToBuffer(median.resultBuf, 0, scoresInputBuf, 0, 4);
+        }
 
-        const fuseEncoder = this.device.createCommandEncoder({
-          label: `copy_fuse_encoder_${ri}`,
-        });
-
-        // Copy the 3 GPU-produced scalar scores into the fuse input buffer
-        fuseEncoder.copyBufferToBuffer(pearsonOutBuf, 0, scoresInputBuf, 4, 4);
-        fuseEncoder.copyBufferToBuffer(madOutBuf, 0, scoresInputBuf, 8, 4);
-        fuseEncoder.copyBufferToBuffer(histOutBuf, 0, scoresInputBuf, 12, 4);
+        // Copy the 3 scalar metric scores into the fuse input buffer
+        encoder.copyBufferToBuffer(pearsonOutBuf, 0, scoresInputBuf, 4, 4);
+        encoder.copyBufferToBuffer(madOutBuf, 0, scoresInputBuf, 8, 4);
+        encoder.copyBufferToBuffer(histOutBuf, 0, scoresInputBuf, 12, 4);
 
         // Fuse the 4 scores into one hybrid score on GPU
+        const fuseOutBuf = this.createScalarOutputBuffer(`fuse_out_${ri}`);
+        buffersToRelease.push(fuseOutBuf);
         const fuseBindGroup = this.device.createBindGroup({
           label: `fuse_bg_${ri}`,
           layout: this.fuseScoresBGL,
@@ -766,7 +800,7 @@ export class WebGPUDetector {
             { binding: 1, resource: { buffer: fuseOutBuf } },
           ],
         });
-        const fusePass = fuseEncoder.beginComputePass({
+        const fusePass = encoder.beginComputePass({
           label: `fuse_pass_${ri}`,
         });
         fusePass.setPipeline(this.fuseScoresPipeline);
@@ -775,15 +809,17 @@ export class WebGPUDetector {
         fusePass.end();
 
         // Copy the fused result into the region scores buffer at the right offset
-        fuseEncoder.copyBufferToBuffer(
+        encoder.copyBufferToBuffer(
           fuseOutBuf,
           0,
           regionScoresBuf,
           ri * 4,
           4,
         );
-        this.device.queue.submit([fuseEncoder.finish()]);
       }
+
+      // Single submission for all regions
+      this.device.queue.submit([encoder.finish()]);
 
       // Single readback of the per-region scores array, then group by category
       // on the CPU and AND-combine (min) within each category.
@@ -1065,7 +1101,7 @@ export class WebGPUDetector {
   }
 
   // -----------------------------------------------------------------------
-  // Private helpers — pipeline compilation
+  // Private helpers: pipeline compilation
   // -----------------------------------------------------------------------
 
   /** Compile all compute pipelines and their bind group layouts. */
@@ -1340,34 +1376,6 @@ export class WebGPUDetector {
       compute: { module: fuseScoresModule, entryPoint: "main" },
     });
 
-    // --- Reduce-min pipeline -----------------------------------------------
-    const reduceMinModule = device.createShaderModule({
-      label: "reduce_min.wgsl",
-      code: reduceMinShader,
-    });
-    const reduceMinBGL = device.createBindGroupLayout({
-      label: "reduce_min_bgl",
-      entries: [
-        {
-          binding: 0,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "storage" },
-        },
-        {
-          binding: 1,
-          visibility: GPUShaderStage.COMPUTE,
-          buffer: { type: "uniform" },
-        },
-      ],
-    });
-    const reduceMin = device.createComputePipeline({
-      label: "reduce_min_pipeline",
-      layout: device.createPipelineLayout({
-        bindGroupLayouts: [reduceMinBGL],
-      }),
-      compute: { module: reduceMinModule, entryPoint: "main" },
-    });
-
     // --- SSIM median pipeline (histogram-based GPU median) -------------------
     const ssimMedianModule = device.createShaderModule({
       label: "ssim_median.wgsl",
@@ -1420,15 +1428,13 @@ export class WebGPUDetector {
       histogramBGL,
       fuseScores,
       fuseScoresBGL,
-      reduceMin,
-      reduceMinBGL,
       ssimMedian,
       ssimMedianBGL,
     };
   }
 
   // -----------------------------------------------------------------------
-  // Private helpers — reduction
+  // Private helpers: reduction
   // -----------------------------------------------------------------------
 
   /**
@@ -1483,58 +1489,8 @@ export class WebGPUDetector {
     return this.readF32(buf);
   }
 
-  /**
-   * Iteratively reduce `count` f32 values in `buf` to a single minimum.
-   *
-   * Same structure as reduceMax but uses the reduce_min shader (neutral
-   * element is 1.0 for out-of-bounds slots).
-   */
-  private async reduceMin(buf: GPUBuffer, count: number): Promise<number> {
-    let remaining = count;
-
-    while (remaining > 1) {
-      const workgroups = divCeil(remaining, NCC_WORKGROUP_SIZE);
-
-      // Phase 0C: Pool the reduce params buffer
-      const rpBuf = this.pool.acquire(
-        8,
-        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-        "reduce_min_params",
-      );
-      this.device.queue.writeBuffer(
-        rpBuf,
-        0,
-        new Uint32Array([remaining, 0]),
-      );
-
-      const bindGroup = this.device.createBindGroup({
-        label: "reduce_min_bg",
-        layout: this.reduceMinBGL,
-        entries: [
-          { binding: 0, resource: { buffer: buf } },
-          { binding: 1, resource: { buffer: rpBuf } },
-        ],
-      });
-
-      const encoder = this.device.createCommandEncoder({
-        label: "reduce_min_encoder",
-      });
-      const pass = encoder.beginComputePass({ label: "reduce_min_pass" });
-      pass.setPipeline(this.reduceMinPipeline);
-      pass.setBindGroup(0, bindGroup);
-      pass.dispatchWorkgroups(workgroups, 1, 1);
-      pass.end();
-      this.device.queue.submit([encoder.finish()]);
-
-      this.pool.release(rpBuf);
-      remaining = workgroups;
-    }
-
-    return this.readF32(buf);
-  }
-
   // -----------------------------------------------------------------------
-  // Private helpers — metric dispatch encoding
+  // Private helpers, metric dispatch encoding
   // -----------------------------------------------------------------------
 
   /**
@@ -1594,8 +1550,9 @@ export class WebGPUDetector {
    * Encode a Block-SSIM compute pass into the given encoder.
    *
    * Returns the scores buffer and total block count so the caller can
-   * read back and compute the median. Both returned buffers are acquired
-   * from the pool; the caller is responsible for releasing them.
+   * reduce the per-block scores to their median (see encodeSsimMedian).
+   * Both returned buffers are acquired from the pool; the caller is
+   * responsible for releasing them.
    */
   private encodeBlockSsim(
     encoder: GPUCommandEncoder,
@@ -1652,28 +1609,26 @@ export class WebGPUDetector {
   }
 
   /**
-   * Compute the approximate median of Block-SSIM scores entirely on the GPU.
+   * Encode the approximate Block-SSIM median (64-bin GPU histogram) into the
+   * given encoder without submitting.
    *
-   * Uses a 64-bin histogram to avoid reading all per-block scores back to the
-   * CPU. Only a single f32 (the bin-centre of the median bin) is read back,
-   * eliminating the previous mid-pipeline CPU-GPU sync point.
+   * The median lands in the returned result buffer on the GPU; callers copy
+   * it onward via copyBufferToBuffer, so no CPU readback is involved. Both
+   * returned buffers are pool acquisitions the caller must release.
    */
-  private async computeSsimMedianGPU(
+  private encodeSsimMedian(
+    encoder: GPUCommandEncoder,
     scoresBuf: GPUBuffer,
     totalBlocks: number,
-  ): Promise<number> {
-    if (totalBlocks <= 0) return 0;
-
-    // Params uniform: count
-    const paramsData = new Uint32Array([totalBlocks]);
+  ): { paramsBuf: GPUBuffer; resultBuf: GPUBuffer } {
     const paramsBuf = this.pool.acquire(
       4,
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       "ssim_median_params",
     );
-    this.device.queue.writeBuffer(paramsBuf, 0, paramsData);
+    this.device.queue.writeBuffer(paramsBuf, 0, new Uint32Array([totalBlocks]));
 
-    // Result buffer: single f32
+    // Result buffer: single f32, zero-initialised (pooled, may hold stale data)
     const resultBuf = this.pool.acquire(
       4,
       GPUBufferUsage.STORAGE |
@@ -1681,7 +1636,6 @@ export class WebGPUDetector {
         GPUBufferUsage.COPY_DST,
       "ssim_median_result",
     );
-    // Zero-init result
     this.device.queue.writeBuffer(resultBuf, 0, new Float32Array([0]));
 
     const bindGroup = this.device.createBindGroup({
@@ -1693,26 +1647,17 @@ export class WebGPUDetector {
       ],
     });
 
-    const encoder = this.device.createCommandEncoder({
-      label: "ssim_median_encoder",
-    });
     const pass = encoder.beginComputePass({ label: "ssim_median_pass" });
     pass.setPipeline(this.ssimMedianPipeline);
     pass.setBindGroup(0, bindGroup);
     pass.dispatchWorkgroups(1); // Single workgroup of 256 threads
     pass.end();
-    this.device.queue.submit([encoder.finish()]);
 
-    try {
-      return await this.readF32(resultBuf);
-    } finally {
-      this.pool.release(paramsBuf);
-      this.pool.release(resultBuf);
-    }
+    return { paramsBuf, resultBuf };
   }
 
   // -----------------------------------------------------------------------
-  // Private helpers — GPU readback
+  // Private helpers: GPU readback
   // -----------------------------------------------------------------------
 
   /** Copy the first f32 from a storage buffer to the CPU via a staging buffer. */
@@ -1810,7 +1755,7 @@ export class WebGPUDetector {
   }
 
   // -----------------------------------------------------------------------
-  // Private helpers — template preparation
+  // Private helpers: template preparation
   // -----------------------------------------------------------------------
 
   /**
