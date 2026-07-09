@@ -138,6 +138,20 @@ export interface DetectorTemplate {
   regions: MatchedRegion[];
   enabled?: boolean;
   name?: string;
+  /**
+   * Stability calibration computed by the template test step (see
+   * engine/templateStability.ts). Persisted opaquely by the backend.
+   */
+  calibration?: TemplateCalibration | null;
+}
+
+/** Per-template stability calibration persisted with the template. */
+export interface TemplateCalibration {
+  recommended_precision: number;
+  match_p10: number;
+  match_median: number;
+  noise_p90: number;
+  sample_count: number;
 }
 
 /** DetectorConfig holds all auto-detection settings for a single Pokémon hunt. */
