@@ -23,6 +23,10 @@ import {
   cropTemplateGray,
   matchMultiScale,
   matchWholeTemplate,
+  scoreRegionHybrid,
+  scoreRegionHybridWithStats,
+  precomputeRegionTemplateStats,
+  bilinearResampleGray,
 } from "./math";
 
 // ---------------------------------------------------------------------------
@@ -443,5 +447,99 @@ describe("matchWholeTemplate", () => {
     // This goes through the downscale + ncc path
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Precomputed template stats (scoreRegionHybridWithStats)
+// ---------------------------------------------------------------------------
+
+describe("scoreRegionHybridWithStats", () => {
+  /** Deterministic pseudo-random grayscale generator (0-255). */
+  const noise = (seed: number) => (x: number, y: number) =>
+    Math.abs(Math.sin(seed + x * 12.9898 + y * 78.233) * 43758.5453) % 256;
+
+  it("is bit-identical to scoreRegionHybrid", () => {
+    const cases: Array<[number, number, number]> = [
+      [64, 48, 16],   // multiple blocks
+      [37, 21, 8],    // odd dimensions with partial blocks
+      [320, 200, 32], // large region
+      [4, 4, 8],      // tiny region (blocks smaller than blockSize)
+    ];
+    for (const [w, h, blockSize] of cases) {
+      const frame = makeGray(w, h, noise(1));
+      const tmpl = makeGray(w, h, noise(2));
+      const stats = precomputeRegionTemplateStats(tmpl, w, h, blockSize);
+      expect(scoreRegionHybridWithStats(frame, tmpl, stats)).toBe(
+        scoreRegionHybrid(frame, tmpl, w, h, blockSize),
+      );
+    }
+  });
+
+  it("scores identical crops as 1 within fusion clamp", () => {
+    const img = makeGray(64, 64, noise(3));
+    const stats = precomputeRegionTemplateStats(img, 64, 64, 16);
+    const score = scoreRegionHybridWithStats(img, img, stats);
+    expect(score).toBeGreaterThan(0.99);
+  });
+
+  it("reuses stats across many windows without drift", () => {
+    const tmpl = makeGray(32, 32, noise(4));
+    const stats = precomputeRegionTemplateStats(tmpl, 32, 32, 8);
+    for (let i = 0; i < 5; i++) {
+      const frame = makeGray(32, 32, noise(10 + i));
+      expect(scoreRegionHybridWithStats(frame, tmpl, stats)).toBe(
+        scoreRegionHybrid(frame, tmpl, 32, 32, 8),
+      );
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// bilinearResampleGray
+// ---------------------------------------------------------------------------
+
+describe("bilinearResampleGray", () => {
+  it("copies exactly at 1:1 scale", () => {
+    const src = makeGray(10, 8, (x, y) => x * 10 + y);
+    const dst = new Float32Array(4 * 3);
+    bilinearResampleGray(src, 10, 8, 2, 1, 4, 3, dst, 4, 3);
+    for (let y = 0; y < 3; y++) {
+      for (let x = 0; x < 4; x++) {
+        expect(dst[y * 4 + x]).toBe(src[(y + 1) * 10 + (x + 2)]);
+      }
+    }
+  });
+
+  it("interpolates a 2x downscale as the average of pixel pairs", () => {
+    // Row: 0, 100, 200, 300; downscale 4 -> 2 samples at sx 0.5 and 2.5
+    const src = Float32Array.from([0, 100, 200, 300]);
+    const dst = new Float32Array(2);
+    bilinearResampleGray(src, 4, 1, 0, 0, 4, 1, dst, 2, 1);
+    expect(dst[0]).toBeCloseTo(50, 5);
+    expect(dst[1]).toBeCloseTo(250, 5);
+  });
+
+  it("clamps sampling at the source edges", () => {
+    const src = Float32Array.from([10, 20, 30, 40]); // 2x2
+    const dst = new Float32Array(1);
+    // Window starting at the top-left corner: first sample centre maps to -0.5
+    bilinearResampleGray(src, 2, 2, 0, 0, 1, 1, dst, 1, 1);
+    expect(dst[0]).toBe(10);
+    expect(Number.isFinite(dst[0])).toBe(true);
+  });
+
+  it("resamples a window offset inside a larger buffer", () => {
+    const src = makeGray(20, 20, (x, y) => x + y * 20);
+    const dst = new Float32Array(5 * 5);
+    bilinearResampleGray(src, 20, 20, 5, 5, 10, 10, dst, 5, 5);
+    // Linear gradient stays linear under bilinear resampling:
+    // sample at (x, y) maps to source (5 + 2x + 0.5, 5 + 2y + 0.5)
+    for (let y = 0; y < 5; y++) {
+      for (let x = 0; x < 5; x++) {
+        const expected = (5 + 2 * x + 0.5) + (5 + 2 * y + 0.5) * 20;
+        expect(dst[y * 5 + x]).toBeCloseTo(expected, 4);
+      }
+    }
   });
 });

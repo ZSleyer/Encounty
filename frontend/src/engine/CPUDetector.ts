@@ -1,5 +1,5 @@
 /**
- * CPUDetector — CPU fallback for NCC template matching.
+ * CPUDetector: CPU fallback for NCC template matching.
  *
  * Used when WebGPU is unavailable. Implements the same detection interface
  * as WebGPUDetector using OffscreenCanvas for frame capture and a pure
@@ -10,13 +10,16 @@ import type { DetectResult, TemplateData } from "./WebGPUDetector";
 import {
   fitDimensions,
   pixelDelta,
-  scoreRegionHybrid,
+  scoreRegionHybridWithStats,
+  precomputeRegionTemplateStats,
+  bilinearResampleGray,
   categoryScoresFromGroups,
   mergeCategoryScores,
   cropTemplateGray,
   adaptiveBlockSizeForRegion,
   matchWholeTemplate,
   IntegralImagePool,
+  type RegionTemplateStats,
 } from "./math";
 
 /** Source type accepted by CPUDetector: video element or transferable bitmap. */
@@ -46,10 +49,6 @@ export class CPUDetector {
   private readonly ctx: OffscreenCanvasRenderingContext2D;
   private previousGray: Float32Array | null = null;
 
-  /** Reusable canvas for region cropping (avoids creating 25+ canvases per frame). */
-  private readonly cropCanvas: OffscreenCanvas;
-  private readonly cropCtx: OffscreenCanvasRenderingContext2D;
-
   /** Reusable buffer for captureGrayscale (avoids allocation every frame). */
   private frameGrayBuf: Float32Array | null = null;
 
@@ -68,11 +67,6 @@ export class CPUDetector {
     const ctx = this.canvas.getContext("2d");
     if (!ctx) throw new Error("Failed to get 2d context for CPUDetector");
     this.ctx = ctx;
-
-    this.cropCanvas = new OffscreenCanvas(1, 1);
-    const cropCtx = this.cropCanvas.getContext("2d", { willReadFrequently: true });
-    if (!cropCtx) throw new Error("Failed to get 2d context for crop canvas");
-    this.cropCtx = cropCtx;
   }
 
   /** Always returns true since no hardware requirements exist. */
@@ -292,29 +286,24 @@ export class CPUDetector {
   }
 
   /**
-   * Crop a region from a canvas context, scale to target size, convert to grayscale.
+   * Read a rectangle from a canvas context at full resolution and convert it
+   * to grayscale (0-255 range).
    *
-   * Reuses the persistent crop canvas to avoid creating a new OffscreenCanvas
-   * on every call (up to 25 calls per region in the sliding window).
+   * One call per region per frame; the sliding-window search resamples its
+   * windows from the returned buffer instead of issuing further readbacks.
+   * The buffer is pooled; callers release it via `releaseGray()`.
    */
-  cropGrayscale(
+  readGrayscale(
     ctx: OffscreenCanvasRenderingContext2D,
     x: number, y: number, w: number, h: number,
-    dw: number, dh: number,
-  ): { gray: Float32Array; width: number; height: number } {
-    // Resize persistent crop canvas if dimensions changed
-    if (this.cropCanvas.width !== dw || this.cropCanvas.height !== dh) {
-      this.cropCanvas.width = dw;
-      this.cropCanvas.height = dh;
-    }
-    this.cropCtx.drawImage(ctx.canvas, x, y, w, h, 0, 0, dw, dh);
-    const pixels = this.cropCtx.getImageData(0, 0, dw, dh).data;
-    const n = dw * dh;
+  ): Float32Array {
+    const pixels = ctx.getImageData(x, y, w, h).data;
+    const n = w * h;
     const gray = this.acquireGray(n);
     for (let i = 0; i < n; i++) {
       gray[i] = 0.299 * pixels[i * 4] + 0.587 * pixels[i * 4 + 1] + 0.114 * pixels[i * 4 + 2];
     }
-    return { gray, width: dw, height: dh };
+    return gray;
   }
 }
 
@@ -332,34 +321,56 @@ interface SlidingWindowRegion {
   dw: number; dh: number;
 }
 
-/** Compute the best hybrid score for a single region using a sliding window search. */
+/**
+ * Compute the best hybrid score for a single region using a sliding window
+ * search.
+ *
+ * Performs a SINGLE canvas readback covering the region plus the slide range,
+ * converts it to grayscale once, and extracts each of the 25 shifted windows
+ * via bilinear resampling from that buffer (previously every window cost its
+ * own drawImage + getImageData round trip). Template statistics are
+ * precomputed once per region and reused for every window.
+ */
 function scoreRegionSlidingWindow(
   detector: CPUDetector,
   tmpCtx: OffscreenCanvasRenderingContext2D,
   tmplCrop: Float32Array,
   region: SlidingWindowRegion,
-  blockSize: number,
+  stats: RegionTemplateStats,
 ): number {
   const { frameRx, frameRy, frameRw, frameRh, srcW, srcH, dw, dh } = region;
   let bestRegionScore = 0;
   const slideStep = 2;
   const slideRange = 4;
 
+  // One padded readback covering all window positions (clamped to the frame)
+  const padX = Math.max(0, frameRx - slideRange);
+  const padY = Math.max(0, frameRy - slideRange);
+  const padW = Math.min(srcW - padX, frameRw + 2 * slideRange);
+  const padH = Math.min(srcH - padY, frameRh + 2 * slideRange);
+  if (padW <= 0 || padH <= 0) return 0;
+
+  const padGray = detector.readGrayscale(tmpCtx, padX, padY, padW, padH);
+  const frameCrop = detector.acquireGray(dw * dh);
+
   for (let dy = -slideRange; dy <= slideRange; dy += slideStep) {
     for (let dx = -slideRange; dx <= slideRange; dx += slideStep) {
       const ox = Math.max(0, Math.min(frameRx + dx, srcW - frameRw));
       const oy = Math.max(0, Math.min(frameRy + dy, srcH - frameRh));
 
-      const frameCrop = detector.cropGrayscale(tmpCtx, ox, oy, frameRw, frameRh, dw, dh);
+      bilinearResampleGray(
+        padGray, padW, padH,
+        ox - padX, oy - padY, frameRw, frameRh,
+        frameCrop, dw, dh,
+      );
 
-      const combined = scoreRegionHybrid(frameCrop.gray, tmplCrop, dw, dh, blockSize);
+      const combined = scoreRegionHybridWithStats(frameCrop, tmplCrop, stats);
       if (combined > bestRegionScore) bestRegionScore = combined;
-
-      // Release pooled frame crop buffer after scoring
-      detector.releaseGray(frameCrop.gray);
     }
   }
 
+  detector.releaseGray(frameCrop);
+  detector.releaseGray(padGray);
   return bestRegionScore;
 }
 
@@ -383,7 +394,7 @@ function matchTemplate(
 ): Record<string, number> {
   const regions = tmpl.regions ?? [];
 
-  // No regions defined — fall back to whole-template matching (default category)
+  // No regions defined, fall back to whole-template matching (default category)
   if (regions.length === 0) {
     return { "": matchWholeTemplate(frameGray, tmpl, maxDim, pool) };
   }
@@ -430,10 +441,12 @@ function matchTemplate(
     if (!tmplCrop) continue;
 
     const blockSize = adaptiveBlockSizeForRegion(dw, dh);
+    // Template-side statistics are constant across all window positions
+    const stats = precomputeRegionTemplateStats(tmplCrop, dw, dh, blockSize);
     const bestRegionScore = scoreRegionSlidingWindow(
       detector, tmpCtx, tmplCrop,
       { frameRx, frameRy, frameRw, frameRh, srcW, srcH, dw, dh },
-      blockSize,
+      stats,
     );
 
     let group = scoresByCategory.get(category);

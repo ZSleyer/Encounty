@@ -468,6 +468,292 @@ export function scoreRegionHybrid(
   return fuseHybridScores(ssim, pearson, mad, histogram);
 }
 
+// ---------------------------------------------------------------------------
+// Precomputed template statistics for repeated region scoring
+// ---------------------------------------------------------------------------
+
+/**
+ * Template-side statistics that are constant across sliding-window positions.
+ *
+ * The CPU sliding-window search scores the same template crop against many
+ * shifted frame windows; precomputing these once per region (instead of once
+ * per window) roughly halves the metric work. All accumulators follow the
+ * exact iteration order of the plain metric functions, so scores computed
+ * via scoreRegionHybridWithStats are bit-identical to scoreRegionHybrid.
+ */
+export interface RegionTemplateStats {
+  w: number;
+  h: number;
+  blockSize: number;
+  /** Pearson: template pixel sum and sum of squares. */
+  tmplSum: number;
+  tmplSum2: number;
+  /** Normalised 64-bin grayscale histogram of the template crop. */
+  tmplHist: Float64Array;
+  /** Per-block SSIM stats, in block iteration order (skipped blocks omitted). */
+  blockMeans: Float64Array;
+  blockVars: Float64Array;
+}
+
+/** Histogram bin count shared by the CPU metrics (must match the GPU shaders). */
+const HIST_BINS = 64;
+
+/** Compute the normalised 64-bin histogram of a grayscale buffer (0-255 range). */
+function grayHistogram(data: Float32Array): Float64Array {
+  const hist = new Float64Array(HIST_BINS);
+  const scale = HIST_BINS / 256;
+  for (let i = 0; i < data.length; i++) {
+    hist[Math.min(Math.floor(data[i] * scale), HIST_BINS - 1)]++;
+  }
+  const n = data.length || 1;
+  for (let i = 0; i < HIST_BINS; i++) hist[i] /= n;
+  return hist;
+}
+
+/**
+ * Precompute all template-side statistics for one region crop.
+ *
+ * Call once per region, then score each sliding-window position with
+ * scoreRegionHybridWithStats.
+ */
+export function precomputeRegionTemplateStats(
+  tmplCrop: Float32Array,
+  w: number,
+  h: number,
+  blockSize: number,
+): RegionTemplateStats {
+  // Pearson accumulators (same ascending order as pearsonCorrelation)
+  let tmplSum = 0;
+  let tmplSum2 = 0;
+  for (let i = 0; i < tmplCrop.length; i++) {
+    tmplSum += tmplCrop[i];
+    tmplSum2 += tmplCrop[i] * tmplCrop[i];
+  }
+
+  // Per-block SSIM stats (same block enumeration and skip rule as blockSSIM)
+  const blocksX = Math.max(1, Math.floor(w / blockSize));
+  const blocksY = Math.max(1, Math.floor(h / blockSize));
+  const means: number[] = [];
+  const vars: number[] = [];
+  for (let by = 0; by < blocksY; by++) {
+    for (let bx = 0; bx < blocksX; bx++) {
+      const ox = bx * blockSize;
+      const oy = by * blockSize;
+      const bw = Math.min(blockSize, w - ox);
+      const bh = Math.min(blockSize, h - oy);
+      if (bw < 4 || bh < 4) continue;
+
+      const bn = bw * bh;
+      let tSum = 0, tSum2 = 0;
+      for (let y = 0; y < bh; y++) {
+        for (let x = 0; x < bw; x++) {
+          const tv = tmplCrop[(oy + y) * w + (ox + x)];
+          tSum += tv;
+          tSum2 += tv * tv;
+        }
+      }
+      const tMean = tSum / bn;
+      means.push(tMean);
+      vars.push(Math.max(0, tSum2 / bn - tMean * tMean));
+    }
+  }
+
+  return {
+    w,
+    h,
+    blockSize,
+    tmplSum,
+    tmplSum2,
+    tmplHist: grayHistogram(tmplCrop),
+    blockMeans: Float64Array.from(means),
+    blockVars: Float64Array.from(vars),
+  };
+}
+
+/** Pearson correlation reusing precomputed template sums. */
+function pearsonWithStats(
+  frameCrop: Float32Array,
+  tmplCrop: Float32Array,
+  stats: RegionTemplateStats,
+): number {
+  const n = frameCrop.length;
+  let sumA = 0, sumA2 = 0, sumAB = 0;
+  for (let i = 0; i < n; i++) {
+    sumA += frameCrop[i];
+    sumA2 += frameCrop[i] * frameCrop[i];
+    sumAB += frameCrop[i] * tmplCrop[i];
+  }
+  const meanA = sumA / n, meanB = stats.tmplSum / n;
+  const varA = sumA2 / n - meanA * meanA;
+  const varB = stats.tmplSum2 / n - meanB * meanB;
+  const cov = sumAB / n - meanA * meanB;
+  const denom = Math.sqrt(varA) * Math.sqrt(varB);
+  if (denom < 1e-6) return 0;
+  return Math.max(0, cov / denom);
+}
+
+/** Histogram correlation reusing the precomputed template histogram. */
+function histogramWithStats(
+  frameCrop: Float32Array,
+  stats: RegionTemplateStats,
+): number {
+  const histA = grayHistogram(frameCrop);
+  const histB = stats.tmplHist;
+
+  let meanA = 0, meanB = 0;
+  for (let i = 0; i < HIST_BINS; i++) {
+    meanA += histA[i];
+    meanB += histB[i];
+  }
+  meanA /= HIST_BINS;
+  meanB /= HIST_BINS;
+
+  let cov = 0, varA = 0, varB = 0;
+  for (let i = 0; i < HIST_BINS; i++) {
+    const da = histA[i] - meanA;
+    const db = histB[i] - meanB;
+    cov += da * db;
+    varA += da * da;
+    varB += db * db;
+  }
+  const denom = Math.sqrt(varA * varB);
+  if (denom < 1e-12) return 0;
+  return Math.max(0, cov / denom);
+}
+
+/** Block-SSIM reusing precomputed per-block template means and variances. */
+function blockSSIMWithStats(
+  frameCrop: Float32Array,
+  tmplCrop: Float32Array,
+  stats: RegionTemplateStats,
+): number {
+  const { w, h, blockSize } = stats;
+  const L = 255;
+  const c1 = (0.01 * L) ** 2;
+  const c2 = (0.03 * L) ** 2;
+
+  const blocksX = Math.max(1, Math.floor(w / blockSize));
+  const blocksY = Math.max(1, Math.floor(h / blockSize));
+  const scores: number[] = [];
+  let blockIdx = 0;
+
+  for (let by = 0; by < blocksY; by++) {
+    for (let bx = 0; bx < blocksX; bx++) {
+      const ox = bx * blockSize;
+      const oy = by * blockSize;
+      const bw = Math.min(blockSize, w - ox);
+      const bh = Math.min(blockSize, h - oy);
+      if (bw < 4 || bh < 4) continue;
+
+      const bn = bw * bh;
+      let fSum = 0, fSum2 = 0, ftSum = 0;
+      for (let y = 0; y < bh; y++) {
+        for (let x = 0; x < bw; x++) {
+          const idx = (oy + y) * w + (ox + x);
+          const fv = frameCrop[idx];
+          fSum += fv;
+          fSum2 += fv * fv;
+          ftSum += fv * tmplCrop[idx];
+        }
+      }
+
+      const fMean = fSum / bn;
+      const tMean = stats.blockMeans[blockIdx];
+      const tVar = stats.blockVars[blockIdx];
+      blockIdx++;
+
+      const fVar = Math.max(0, fSum2 / bn - fMean * fMean);
+      const cov = ftSum / bn - fMean * tMean;
+      const fStd = Math.sqrt(fVar);
+      const tStd = Math.sqrt(tVar);
+
+      const lum = (2 * fMean * tMean + c1) / (fMean * fMean + tMean * tMean + c1);
+      const con = (2 * fStd * tStd + c2) / (fVar + tVar + c2);
+      const str = (cov + c2 / 2) / (fStd * tStd + c2 / 2);
+
+      scores.push(Math.max(0, lum * con * str));
+    }
+  }
+
+  if (scores.length === 0) return 0;
+  scores.sort((a, b) => a - b);
+  return scores[Math.floor(scores.length * 0.5)]; // Median
+}
+
+/**
+ * Score a region crop like scoreRegionHybrid, but with precomputed
+ * template statistics.
+ *
+ * Bit-identical to scoreRegionHybrid (every accumulator follows the same
+ * iteration order); use this in loops that score the same template against
+ * many frame windows.
+ */
+export function scoreRegionHybridWithStats(
+  frameCrop: Float32Array,
+  tmplCrop: Float32Array,
+  stats: RegionTemplateStats,
+): number {
+  const ssim = blockSSIMWithStats(frameCrop, tmplCrop, stats);
+  const pearson = pearsonWithStats(frameCrop, tmplCrop, stats);
+  const mad = madSimilarity(frameCrop, tmplCrop);
+  const histogram = histogramWithStats(frameCrop, stats);
+  return fuseHybridScores(ssim, pearson, mad, histogram);
+}
+
+// ---------------------------------------------------------------------------
+// Bilinear resampling
+// ---------------------------------------------------------------------------
+
+/**
+ * Bilinear-resample a window of a grayscale buffer into a destination buffer.
+ *
+ * Reads the source window (sx0, sy0, sw, sh) from src (srcW x srcH, row-major)
+ * and writes a dw x dh resample into dst. Uses the same pixel-centre mapping
+ * and edge clamping as preprocess.wgsl, so CPU and GPU crops of the same
+ * window produce closely matching values. Sampling may bleed up to one pixel
+ * outside the window (clamped to the src bounds), matching GPU behaviour.
+ */
+export function bilinearResampleGray(
+  src: Float32Array,
+  srcW: number,
+  srcH: number,
+  sx0: number,
+  sy0: number,
+  sw: number,
+  sh: number,
+  dst: Float32Array,
+  dw: number,
+  dh: number,
+): void {
+  const scaleX = sw / dw;
+  const scaleY = sh / dh;
+
+  for (let y = 0; y < dh; y++) {
+    const sy = sy0 + (y + 0.5) * scaleY - 0.5;
+    const y0 = Math.floor(sy);
+    const fy = sy - y0;
+    const cy0 = Math.min(srcH - 1, Math.max(0, y0));
+    const cy1 = Math.min(srcH - 1, Math.max(0, y0 + 1));
+
+    for (let x = 0; x < dw; x++) {
+      const sx = sx0 + (x + 0.5) * scaleX - 0.5;
+      const x0 = Math.floor(sx);
+      const fx = sx - x0;
+      const cx0 = Math.min(srcW - 1, Math.max(0, x0));
+      const cx1 = Math.min(srcW - 1, Math.max(0, x0 + 1));
+
+      const tl = src[cy0 * srcW + cx0];
+      const tr = src[cy0 * srcW + cx1];
+      const bl = src[cy1 * srcW + cx0];
+      const br = src[cy1 * srcW + cx1];
+
+      const top = tl + (tr - tl) * fx;
+      const bottom = bl + (br - bl) * fx;
+      dst[y * dw + x] = top + (bottom - top) * fy;
+    }
+  }
+}
+
 /**
  * AND-logic across region scores: return the minimum.
  *
