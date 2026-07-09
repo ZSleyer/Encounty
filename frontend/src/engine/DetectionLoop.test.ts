@@ -236,6 +236,57 @@ describe("DetectionLoop", () => {
     expect(fetchCall).toBeDefined();
   });
 
+  it("uses the calibrated precision instead of the configured one when lower", async () => {
+    // adjusted = (0.7 - 0.15) / 0.85 ≈ 0.647: fails at precision 0.85,
+    // passes with calibratedPrecision 0.6
+    const detector = createMockDetector([0.7, 0.7, 0.7, 0.7, 0.7]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({ consecutiveHits: 3, precision: 0.85, calibratedPrecision: 0.6 });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    for (let i = 0; i < 5; i++) await tickLoop(200);
+    loop.stop();
+
+    expect(countMatchPosts()).toBe(1);
+  });
+
+  it("keeps the configured precision as upper bound over the calibration", async () => {
+    // calibratedPrecision above precision must not raise the threshold:
+    // min(0.5, 0.95) = 0.5, adjusted score ≈ 0.647 still matches
+    const detector = createMockDetector([0.7, 0.7, 0.7, 0.7, 0.7]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({ consecutiveHits: 3, precision: 0.5, calibratedPrecision: 0.95 });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    for (let i = 0; i < 5; i++) await tickLoop(200);
+    loop.stop();
+
+    expect(countMatchPosts()).toBe(1);
+  });
+
+  it("ignores the calibrated precision when adaptiveThreshold is disabled", async () => {
+    const detector = createMockDetector([0.7, 0.7, 0.7, 0.7, 0.7]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([{ width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024, regions: [] } as never]);
+    loop.updateConfig({
+      consecutiveHits: 3,
+      precision: 0.85,
+      calibratedPrecision: 0.6,
+      adaptiveThreshold: false,
+    });
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    for (let i = 0; i < 5; i++) await tickLoop(200);
+    loop.stop();
+
+    expect(countMatchPosts()).toBe(0);
+  });
+
   it("counts each category independently, posting one match per category", async () => {
     // Two categories both well above precision; each should confirm and report
     // a match on its own, so the shared counter is incremented once per category.

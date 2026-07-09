@@ -46,6 +46,12 @@ interface DetectionLoopConfig {
   adaptiveThreshold?: boolean;
   /** Template regions used for adaptive threshold computation. */
   regions?: Region[];
+  /**
+   * Measured precision recommendation from template stability calibration
+   * (min across loaded templates). When present it replaces the region-size
+   * heuristic; the configured precision remains the upper bound.
+   */
+  calibratedPrecision?: number;
   /** Base polling interval in ms (default: DEFAULT_POLL_MS). */
   pollIntervalMs?: number;
   /** Fastest adaptive polling interval in ms (default: MIN_POLL_MS). */
@@ -311,10 +317,21 @@ export class DetectionLoop {
    * background noise, so we reduce the threshold proportionally (capped).
    */
   private computeEffectivePrecision(): number {
-    const { precision, adaptiveThreshold, regions } = this.config;
+    const { precision, adaptiveThreshold, regions, calibratedPrecision } = this.config;
 
     // Adaptive threshold is enabled by default unless explicitly disabled
-    if (adaptiveThreshold === false || !regions || regions.length === 0) {
+    if (adaptiveThreshold === false) {
+      return precision;
+    }
+
+    // Measured calibration beats the region-size heuristic. It reflects how
+    // detectable the template's match window really is under polling; the
+    // user-configured precision stays as an upper bound.
+    if (calibratedPrecision !== undefined) {
+      return Math.min(precision, calibratedPrecision);
+    }
+
+    if (!regions || regions.length === 0) {
       return precision;
     }
 

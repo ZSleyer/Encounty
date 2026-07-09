@@ -9,6 +9,7 @@
 import { WebGPUDetector, CPUDetector, WorkerDetector } from "../engine";
 import type { Detector, TemplateData } from "../engine";
 import { DetectionLoop, registerLoop, stopLoop, getActiveLoop } from "./DetectionLoop";
+import { calibratedPrecisionFor } from "./templateStability";
 import { apiUrl } from "../utils/api";
 import type { DetectorConfig, DetectorTemplate } from "../types";
 
@@ -212,6 +213,9 @@ export async function startDetectionForPokemon({
 
   loop.updateConfig({
     precision: config.precision,
+    calibratedPrecision: calibratedPrecisionFor(
+      enabledTemplates.map(({ template: tmpl }) => tmpl),
+    ),
     changeThreshold: config.change_threshold,
     consecutiveHits: config.consecutive_hits,
     pollIntervalMs: config.poll_interval_ms,
