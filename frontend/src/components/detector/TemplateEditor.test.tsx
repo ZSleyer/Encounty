@@ -34,7 +34,7 @@ vi.mock("../../hooks/useReplayBuffer", () => ({
 const mockTemplateTest = {
   runBatch: vi.fn() as ReturnType<typeof vi.fn>,
   scoreFrame: vi.fn().mockReturnValue({ frameIndex: 0, overallScore: 0, regionScores: [] }) as ReturnType<typeof vi.fn>,
-  batchResults: new Map<number, { overallScore: number }>(),
+  batchResults: new Map<number, { overallScore: number; frameIndex?: number }>(),
   isRunning: false,
   progress: 0,
   currentResult: null as { overallScore: number; regionScores: { index: number; score: number }[] } | null,
@@ -1211,6 +1211,169 @@ describe("TemplateEditor", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Schritt 3: Regionen definieren")).toBeInTheDocument();
+    });
+  });
+
+  // --- Stability analysis panel (test phase) ---
+
+  describe("stability analysis panel", () => {
+    const stabilityRegions = [
+      { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
+    ];
+
+    /** Scores with a clean match window: rating "good". */
+    const goodScores = [0.1, 0.12, 0.08, 0.85, 0.9, 0.92, 0.88, 0.86, 0.11, 0.09, 0.1, 0.12];
+    /** Overlapping noise/match distributions: rating "poor". */
+    const poorScores = [0.6, 0.65, 0.7, 0.72, 0.74, 0.75, 0.7, 0.68, 0.66, 0.64, 0.62, 0.6];
+
+    /** Fill the batch results mock with sampled frame scores. */
+    function setBatchResults(scores: number[]) {
+      mockTemplateTest.batchResults = new Map(
+        scores.map((overallScore, i) => [i * 5, { frameIndex: i * 5, overallScore }]),
+      );
+      mockTemplateTest.isRunning = false;
+    }
+
+    /** Navigate an edit-mode render into the test phase. */
+    async function goToTestPhase() {
+      mockReplayBuffer.frameCount = 60;
+      mockReplayBuffer.getFrame = vi.fn().mockReturnValue({
+        width: 640, height: 480, data: new Uint8ClampedArray(640 * 480 * 4),
+      });
+      const user = userEvent.setup();
+      await renderEditMode({ initialRegions: stabilityRegions });
+      await user.click(screen.getByText("Weiter"));
+      await waitFor(() => {
+        expect(screen.getByText("Frame wählen")).toBeInTheDocument();
+      });
+      return user;
+    }
+
+    it("shows the panel with a good rating and stats after a batch run", async () => {
+      setBatchResults(goodScores);
+      await goToTestPhase();
+
+      expect(screen.getByText(/Stabilitäts-Analyse: Zuverlässig erkennbar/)).toBeInTheDocument();
+      // Stats line: 5 frames in the match window
+      expect(screen.getByText(/5 Frames im Match-Fenster/)).toBeInTheDocument();
+      // Recommendation line present with a percentage
+      expect(screen.getByText(/Empfohlene Genauigkeit: \d+%/)).toBeInTheDocument();
+    });
+
+    it("defaults the apply checkbox to checked for a good rating", async () => {
+      setBatchResults(goodScores);
+      await goToTestPhase();
+
+      const checkbox = screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ });
+      expect(checkbox).toBeChecked();
+    });
+
+    it("defaults the apply checkbox to unchecked for a poor rating", async () => {
+      setBatchResults(poorScores);
+      await goToTestPhase();
+
+      expect(screen.getByText(/Stabilitäts-Analyse: Unzuverlässig/)).toBeInTheDocument();
+      const checkbox = screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ });
+      expect(checkbox).not.toBeChecked();
+    });
+
+    it("lets the user toggle the apply checkbox", async () => {
+      setBatchResults(goodScores);
+      const user = await goToTestPhase();
+
+      const checkbox = screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ });
+      await user.click(checkbox);
+      expect(checkbox).not.toBeChecked();
+      await user.click(checkbox);
+      expect(checkbox).toBeChecked();
+    });
+
+    it("hides the panel while the batch is running", async () => {
+      setBatchResults(goodScores);
+      mockTemplateTest.isRunning = true;
+      await goToTestPhase();
+
+      expect(screen.queryByText(/Stabilitäts-Analyse/)).not.toBeInTheDocument();
+    });
+
+    it("hides the panel when there are too few samples", async () => {
+      setBatchResults(goodScores.slice(0, 4));
+      await goToTestPhase();
+
+      expect(screen.queryByText(/Stabilitäts-Analyse/)).not.toBeInTheDocument();
+    });
+
+    /** Save handler signature matching TemplateEditorProps.onSaveTemplate. */
+    type SaveTemplateFn = NonNullable<React.ComponentProps<typeof TemplateEditor>["onSaveTemplate"]>;
+
+    /**
+     * Render with initialImageUrl but WITHOUT onUpdateRegions so the save path
+     * uses onSaveTemplate, which carries the calibration payload.
+     */
+    async function goToConfirmAndSave(onSaveTemplate: SaveTemplateFn, uncheck: boolean) {
+      mockReplayBuffer.frameCount = 60;
+      mockReplayBuffer.getFrame = vi.fn().mockReturnValue({
+        width: 640, height: 480, data: new Uint8ClampedArray(640 * 480 * 4),
+      });
+      const mockToDataURL = vi.fn().mockReturnValue("data:image/png;base64,testdata");
+      HTMLCanvasElement.prototype.toDataURL = mockToDataURL;
+
+      const user = userEvent.setup();
+      render(
+        <TemplateEditor
+          initialImageUrl="/api/detector/poke-1/template/0"
+          initialRegions={stabilityRegions}
+          onClose={vi.fn()}
+          onSaveTemplate={onSaveTemplate}
+        />,
+      );
+      await waitFor(() => {
+        expect(screen.getAllByTitle("Region löschen").length).toBe(1);
+      });
+
+      // Snapshot -> test phase
+      await user.click(screen.getByText("Weiter"));
+      await waitFor(() => {
+        expect(screen.getByText("Frame wählen")).toBeInTheDocument();
+      });
+
+      if (uncheck) {
+        await user.click(screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ }));
+      }
+
+      // Test -> confirm phase -> save
+      await user.click(screen.getByText("Weiter"));
+      await waitFor(() => {
+        expect(screen.getByText("Speichern")).toBeInTheDocument();
+      });
+      await user.click(screen.getByText("Speichern"));
+      await waitFor(() => {
+        expect(onSaveTemplate).toHaveBeenCalledTimes(1);
+      });
+    }
+
+    it("includes the calibration in the save payload when applied", async () => {
+      setBatchResults(goodScores);
+      const onSaveTemplate = vi.fn<SaveTemplateFn>().mockResolvedValue(undefined);
+      await goToConfirmAndSave(onSaveTemplate, false);
+
+      const payload = onSaveTemplate.mock.calls[0][0];
+      const calibration = payload.calibration!;
+      expect(calibration).toBeDefined();
+      expect(calibration.recommended_precision).toBeGreaterThan(0);
+      expect(calibration.recommended_precision).toBeLessThanOrEqual(0.95);
+      expect(calibration.sample_count).toBe(5);
+      expect(calibration.match_p10).toBeCloseTo(0.85, 3);
+      expect(calibration.noise_p90).toBeLessThanOrEqual(0.12);
+    });
+
+    it("omits the calibration from the save payload when unchecked", async () => {
+      setBatchResults(goodScores);
+      const onSaveTemplate = vi.fn<SaveTemplateFn>().mockResolvedValue(undefined);
+      await goToConfirmAndSave(onSaveTemplate, true);
+
+      const payload = onSaveTemplate.mock.calls[0][0];
+      expect(payload.calibration).toBeUndefined();
     });
   });
 });

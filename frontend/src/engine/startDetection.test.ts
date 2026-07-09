@@ -356,6 +356,46 @@ describe("startDetection", () => {
       );
     });
 
+    it("passes the minimum calibrated precision of enabled templates to updateConfig", async () => {
+      const calibrated = (rec: number, enabled = true) => ({
+        ...makeTemplate(enabled),
+        calibration: {
+          recommended_precision: rec,
+          match_p10: rec + 0.03,
+          match_median: rec + 0.1,
+          noise_p90: 0.2,
+          sample_count: 10,
+        },
+      });
+
+      await startDetectionForPokemon({
+        pokemonId: "poke-1",
+        // Disabled template has the lowest recommendation and must be ignored
+        templates: [calibrated(0.5, false), calibrated(0.8), calibrated(0.65)],
+        config: makeDetectorConfig(),
+        getVideoElement: () => null,
+        onScore: vi.fn(),
+      });
+
+      expect(mockUpdateConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ calibratedPrecision: 0.65 }),
+      );
+    });
+
+    it("passes no calibrated precision when templates carry no calibration", async () => {
+      await startDetectionForPokemon({
+        pokemonId: "poke-1",
+        templates: [makeTemplate()],
+        config: makeDetectorConfig(),
+        getVideoElement: () => null,
+        onScore: vi.fn(),
+      });
+
+      expect(mockUpdateConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ calibratedPrecision: undefined }),
+      );
+    });
+
     it("skips templates that fail to fetch", async () => {
       let callCount = 0;
       vi.stubGlobal(

@@ -1720,3 +1720,119 @@ func TestTemplateDeleteWithImagePath(t *testing.T) {
 		t.Errorf(wantZeroTemplatesFmt, len(p.DetectorConfig.Templates))
 	}
 }
+
+// --- Template calibration (upload and PATCH) ----------------------------------
+
+// calJSON is a representative frontend-computed calibration blob.
+const calJSON = `{"recommended_precision":0.72,"match_p10":0.75,"match_median":0.8,"noise_p90":0.2,"sample_count":12}`
+
+func TestTemplateUploadWithCalibration(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	pngData := makePNGBytes(t)
+	b64 := base64.StdEncoding.EncodeToString(pngData)
+	body := jsonBody(t, map[string]any{
+		"imageBase64": b64,
+		"regions":     []state.MatchedRegion{{Type: "image"}},
+		"calibration": json.RawMessage(calJSON),
+	})
+
+	req := httptest.NewRequest(http.MethodPost, pathTemplateUpload, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if len(p.DetectorConfig.Templates) != 1 {
+		t.Fatal("expected 1 template after upload")
+	}
+	if string(p.DetectorConfig.Templates[0].Calibration) != calJSON {
+		t.Errorf("Calibration = %s, want %s", p.DetectorConfig.Templates[0].Calibration, calJSON)
+	}
+}
+
+func TestTemplatePatchRegionsReplacesCalibration(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1, Regions: []state.MatchedRegion{{Type: "image"}}, Calibration: json.RawMessage(`{"recommended_precision":0.5}`)},
+		},
+	})
+
+	body := jsonBody(t, map[string]any{
+		"regions":     []state.MatchedRegion{{Type: "image"}},
+		"calibration": json.RawMessage(calJSON),
+	})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if string(p.DetectorConfig.Templates[0].Calibration) != calJSON {
+		t.Errorf("Calibration = %s, want %s", p.DetectorConfig.Templates[0].Calibration, calJSON)
+	}
+}
+
+func TestTemplatePatchRegionsClearsStaleCalibration(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1, Regions: []state.MatchedRegion{{Type: "image"}}, Calibration: json.RawMessage(calJSON)},
+		},
+	})
+
+	// Region update without a calibration: the old one no longer applies
+	body := jsonBody(t, map[string]any{
+		"regions": []state.MatchedRegion{
+			{Type: "image", Rect: state.DetectorRect{X: 10, Y: 20, W: 100, H: 200}},
+		},
+	})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if len(p.DetectorConfig.Templates[0].Calibration) != 0 {
+		t.Errorf("Calibration = %s, want empty", p.DetectorConfig.Templates[0].Calibration)
+	}
+}
+
+func TestTemplatePatchWithoutRegionsKeepsCalibration(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemonWithConfig(t, deps, "p1", "Pikachu", &state.DetectorConfig{
+		Templates: []state.DetectorTemplate{
+			{TemplateDBID: 1, Regions: []state.MatchedRegion{{Type: "image"}}, Calibration: json.RawMessage(calJSON)},
+		},
+	})
+
+	// Name-only patch must not touch the calibration
+	body := jsonBody(t, map[string]any{"name": "Renamed"})
+	req := httptest.NewRequest(http.MethodPatch, pathTemplate0, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if string(p.DetectorConfig.Templates[0].Calibration) != calJSON {
+		t.Errorf("Calibration = %s, want %s", p.DetectorConfig.Templates[0].Calibration, calJSON)
+	}
+}
