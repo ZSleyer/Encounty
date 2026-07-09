@@ -1,9 +1,19 @@
-// Parallel max-reduction shader.
+// reduce_max.wgsl: iterative parallel max-reduction over an f32 buffer.
 //
-// Each workgroup of 256 threads loads one element each into shared memory,
-// performs a tree reduction to find the local maximum, and writes the result
-// back to the first element of its workgroup range.  The host dispatches
-// this shader iteratively until a single value remains.
+// Each workgroup of 256 threads loads one element per thread into shared
+// memory, performs a tree reduction to find the local maximum, and writes
+// the result back IN PLACE to data[workgroup_id]. The host dispatches this
+// shader iteratively (count shrinks by 256x per pass) until a single value
+// remains at data[0]. Out-of-bounds slots use 0.0, the neutral element for
+// max over non-negative scores.
+//
+// Bindings:
+//   @binding(0) data:   f32 buffer, reduced in place
+//   @binding(1) params: ReduceParams uniform (element count of this pass)
+//
+// Dispatch: ceil(count / 256) workgroups of 256 threads per pass.
+// Host: WebGPUDetector.reduceMax(), used after ncc.wgsl to find the best
+// sliding-window score.
 
 struct ReduceParams {
     count: u32,

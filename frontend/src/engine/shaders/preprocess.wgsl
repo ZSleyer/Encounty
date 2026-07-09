@@ -1,12 +1,24 @@
-// Fused crop + downscale + grayscale conversion compute shader.
+// preprocess.wgsl: fused crop + bilinear downscale + grayscale conversion.
 //
-// Reads an RGBA texture via textureLoad, applies a crop region,
-// bilinear-downscales to the target resolution, and converts to
-// f32 grayscale using ITU-R BT.601 luminance weights.
+// The entry point of every GPU detection cycle. Reads an RGBA texture via
+// textureLoad, applies a crop region, bilinear-downscales to the target
+// resolution, and converts to f32 grayscale using ITU-R BT.601 luminance
+// weights (0.299 R + 0.587 G + 0.114 B), normalised to [0, 1]. The same
+// weights are used when templates are converted on the CPU
+// (WebGPUDetector.loadTemplate), so frame and template values are directly
+// comparable.
 //
-// WebGPU variant: reads from a texture2D<f32> instead of a packed u32
-// storage buffer, allowing zero-copy upload from video frames via
-// copyExternalImageToTexture.
+// Reads from a texture2d<f32> instead of a storage buffer, allowing
+// zero-copy upload from video frames via copyExternalImageToTexture.
+// Sampling outside the source is clamped to the edge.
+//
+// Bindings:
+//   @binding(0) params:      Params uniform (source size, target size, crop)
+//   @binding(1) src_texture: RGBA source texture (video frame)
+//   @binding(2) output:      grayscale f32 buffer, row-major, dst_w * dst_h
+//
+// Dispatch: ceil(dst_w / 16) x ceil(dst_h / 16) workgroups of 16x16 threads.
+// Host: WebGPUDetector.preprocess() / encodePreprocess().
 
 struct Params {
     src_w:  u32,

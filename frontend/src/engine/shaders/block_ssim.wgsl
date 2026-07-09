@@ -1,18 +1,31 @@
-// Block-SSIM (Structural Similarity Index) compute shader.
+// block_ssim.wgsl: per-block Structural Similarity Index (SSIM).
 //
+// Metric 1 of the 4-metric region hybrid (weights in fuse_scores.wgsl).
 // Computes SSIM between two grayscale f32 buffers (a frame region crop and
 // a template region crop of identical dimensions) by dividing the image into
-// non-overlapping blocks and computing one SSIM score per block.
+// non-overlapping blocks and computing one SSIM score per block. The host
+// reduces the per-block scores to their median via ssim_median.wgsl, which
+// makes the metric robust against small localised differences.
 //
-// Each workgroup handles exactly one block.  Threads within the workgroup
+// Each workgroup handles exactly one block. Threads within the workgroup
 // cooperatively accumulate partial sums over the block pixels, then perform
-// a parallel reduction in shared memory.  Thread 0 finalises the SSIM
-// calculation and writes the per-block score.
+// a parallel reduction in shared memory. Thread 0 finalises the
+// three-component SSIM (luminance * contrast * structure) and writes the
+// per-block score, floored at 0.
+//
+// Bindings:
+//   @binding(0) frame_crop: grayscale f32 frame region, width * height
+//   @binding(1) tmpl_crop:  grayscale f32 template region, same size
+//   @binding(2) params:     SSIMParams uniform (dimensions and block size)
+//   @binding(3) scores:     output, one f32 per block, blocks_x * blocks_y
+//
+// Dispatch: one workgroup of 256 threads per block (total_blocks, 1, 1).
+// Host: WebGPUDetector.regionHybridMatch() via encodeBlockSsim().
 
 struct SSIMParams {
     width:      u32,
     height:     u32,
-    block_size: u32,  // 8, 16, or 32 — adaptive based on region size
+    block_size: u32,  // 8, 16, or 32, adaptive based on region size
     _pad:       u32,
 }
 
@@ -29,7 +42,7 @@ const C2: f32 = 0.0009;
 
 const WG_SIZE: u32 = 256u;
 
-// Shared memory for parallel reduction — one slot per thread, five accumulators.
+// Shared memory for parallel reduction, one slot per thread, five accumulators.
 var<workgroup> s_f_sum:  array<f32, 256>;
 var<workgroup> s_t_sum:  array<f32, 256>;
 var<workgroup> s_f2_sum: array<f32, 256>;
@@ -94,7 +107,7 @@ fn main(
     s_ft_sum[tid] = ft_acc;
     workgroupBarrier();
 
-    // Tree reduction — halve active threads each iteration.
+    // Tree reduction, halve active threads each iteration.
     for (var stride = WG_SIZE >> 1u; stride > 0u; stride >>= 1u) {
         if tid < stride {
             s_f_sum[tid]  += s_f_sum[tid + stride];

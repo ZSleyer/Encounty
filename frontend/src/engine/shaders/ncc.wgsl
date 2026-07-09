@@ -1,9 +1,22 @@
-// NCC (Normalized Cross-Correlation) compute shader.
+// ncc.wgsl: sliding-window Normalized Cross-Correlation template matching.
 //
-// Each invocation computes the NCC score at one candidate position (fx, fy)
-// by iterating over the template window.  The brute-force per-thread approach
-// is O(tw*th) per thread but thousands of threads run in parallel, making it
-// faster than a CPU integral-image approach for typical template sizes.
+// Used for templates WITHOUT regions. Each invocation computes the NCC score
+// at one candidate position (fx, fy) by iterating over the whole template
+// window twice (pass 1: patch mean, pass 2: variance and cross-correlation).
+// The brute-force per-thread approach is O(tmpl_w * tmpl_h) per thread, but
+// thousands of positions run in parallel, which beats a CPU integral-image
+// approach for typical template sizes. Scores are clamped to [0, 1]; a flat
+// patch or flat template (std below 1e-6) scores 0.
+//
+// Bindings:
+//   @binding(0) frame:  grayscale f32 frame, row-major, frame_w * frame_h
+//   @binding(1) tmpl:   grayscale f32 template, row-major, tmpl_w * tmpl_h
+//   @binding(2) params: NccParams uniform (template stats precomputed on CPU)
+//   @binding(3) scores: output, one f32 per candidate position, out_w * out_h
+//
+// Dispatch: ceil(out_w * out_h / 256) workgroups of 256 threads (1D).
+// Host: WebGPUDetector.nccMatch(), followed by reduce_max.wgsl to find the
+// best score.
 
 struct NccParams {
     frame_w:   u32,

@@ -1,7 +1,22 @@
-// ssim_median.wgsl — GPU-side approximate median via histogram binning.
+// ssim_median.wgsl: approximate median of Block-SSIM scores on the GPU.
 //
-// Divides [0, 1] into 64 bins, counts scores per bin, then scans to find
-// the bin containing the 50th percentile. Output is the bin centre.
+// Reduces the per-block scores from block_ssim.wgsl to their median without
+// a CPU readback. Divides [0, 1] into 64 bins, counts scores per bin via
+// atomicAdd in shared memory, then thread 0 scans the bins cumulatively to
+// find the one containing the 50th percentile. Output is that bin's centre,
+// so the result is quantised to 1/64 steps, which is accurate enough for a
+// fused similarity metric.
+//
+// The result stays in a GPU buffer and is copied into the fuse input
+// (fuse_scores.wgsl slot 0) via copyBufferToBuffer; it never visits the CPU.
+//
+// Bindings:
+//   @binding(0) scores: per-block SSIM scores from block_ssim.wgsl
+//   @binding(1) params: Params uniform (score count, must be > 0)
+//   @binding(2) result: output, single f32 (median bin centre)
+//
+// Dispatch: exactly ONE workgroup of 256 threads.
+// Host: WebGPUDetector.regionHybridMatch() via encodeSsimMedian().
 
 struct Params {
   count: u32,

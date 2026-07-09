@@ -1,13 +1,24 @@
-// Global Pearson correlation (NCC) compute shader.
+// pearson_ncc.wgsl: global Pearson correlation between two image crops.
 //
+// Metric 2 of the 4-metric region hybrid (weights in fuse_scores.wgsl).
 // Computes the Pearson correlation coefficient between two same-sized
-// grayscale f32 buffers.  Uses the same 5-accumulator pattern as
+// grayscale f32 buffers. Uses the same 5-accumulator pattern as
 // block_ssim.wgsl but operates over the ENTIRE buffer rather than
-// per-block, producing a single scalar output.
+// per-block, producing a single scalar in [0, 1] (negative correlation
+// clamps to 0; a flat input scores 0 via the denominator guard).
 //
 // Each thread accumulates partial sums over its stride of the buffer,
-// then a tree reduction in shared memory combines them.  Thread 0
-// computes the final correlation coefficient.
+// then a tree reduction in shared memory combines them. Thread 0
+// computes the final coefficient.
+//
+// Bindings:
+//   @binding(0) frame_crop: grayscale f32 frame region, width * height
+//   @binding(1) tmpl_crop:  grayscale f32 template region, same size
+//   @binding(2) params:     PearsonParams uniform (crop dimensions)
+//   @binding(3) result:     output, single f32 at index 0
+//
+// Dispatch: exactly ONE workgroup of 256 threads.
+// Host: WebGPUDetector.regionHybridMatch() via encodeMetricPass().
 
 struct PearsonParams {
     width:  u32,
@@ -21,7 +32,7 @@ struct PearsonParams {
 
 const WG_SIZE: u32 = 256u;
 
-// Shared memory for parallel reduction — five accumulators per thread.
+// Shared memory for parallel reduction, five accumulators per thread.
 var<workgroup> s_a_sum:  array<f32, 256>;
 var<workgroup> s_b_sum:  array<f32, 256>;
 var<workgroup> s_a2_sum: array<f32, 256>;
@@ -58,7 +69,7 @@ fn main(@builtin(local_invocation_id) lid: vec3<u32>) {
     s_ab_sum[tid] = ab_acc;
     workgroupBarrier();
 
-    // Tree reduction — halve active threads each iteration.
+    // Tree reduction, halve active threads each iteration.
     for (var stride = WG_SIZE >> 1u; stride > 0u; stride >>= 1u) {
         if tid < stride {
             s_a_sum[tid]  += s_a_sum[tid + stride];

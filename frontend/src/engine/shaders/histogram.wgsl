@@ -1,12 +1,25 @@
-// 64-bin histogram correlation compute shader.
+// histogram.wgsl: 64-bin grayscale histogram correlation.
 //
-// Builds two 64-bin grayscale histograms using atomicAdd on workgroup
-// shared memory, normalises them, then computes the Pearson correlation
-// coefficient between the two histogram vectors.
+// Metric 4 of the 4-metric region hybrid (weights in fuse_scores.wgsl).
+// Builds one 64-bin histogram per input using atomicAdd on workgroup shared
+// memory, normalises them, then computes the Pearson correlation coefficient
+// between the two histogram vectors. Captures overall tonal similarity
+// independent of pixel positions. The binning (v * 63.75) must match the CPU
+// reference in math.ts (histogramCorrelation).
 //
-// The shader runs in a single workgroup of 256 threads.  Each thread
-// processes a stride of the input buffers to build per-image histograms,
-// then participates in computing the correlation.
+// Each thread processes a stride of the input buffers to build the
+// histograms; the first 64 threads then each own one bin for the
+// correlation, and a tree reduction combines the partial terms. Negative
+// correlation clamps to 0.
+//
+// Bindings:
+//   @binding(0) frame_crop: grayscale f32 frame region, width * height
+//   @binding(1) tmpl_crop:  grayscale f32 template region, same size
+//   @binding(2) params:     HistParams uniform (crop dimensions)
+//   @binding(3) result:     output, single f32 at index 0
+//
+// Dispatch: exactly ONE workgroup of 256 threads.
+// Host: WebGPUDetector.regionHybridMatch() via encodeMetricPass().
 
 struct HistParams {
     width:  u32,
@@ -62,7 +75,7 @@ fn main(@builtin(local_invocation_id) lid: vec3<u32>) {
     let inv_n = 1.0 / f32(n);
     let mean_h = 1.0 / f32(BINS); // = inv_n * n / BINS
 
-    // Compute correlation components — first 64 threads each handle one bin.
+    // Compute correlation components, first 64 threads each handle one bin.
     var cov_acc:  f32 = 0.0;
     var varA_acc: f32 = 0.0;
     var varB_acc: f32 = 0.0;

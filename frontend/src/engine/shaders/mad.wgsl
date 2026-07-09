@@ -1,12 +1,24 @@
-// Mean Absolute Difference (MAD) similarity compute shader.
+// mad.wgsl: Mean Absolute Difference similarity between two image crops.
 //
+// Metric 3 of the 4-metric region hybrid (weights in fuse_scores.wgsl).
 // Computes MAD between two same-sized grayscale f32 buffers and converts
-// the result to a similarity score.  Each thread accumulates absolute
+// the result to a similarity score. Each thread accumulates absolute
 // differences over its stride, then a tree reduction sums them.
 // Thread 0 converts to similarity: max(0, 1 - sum / (n * 0.5)).
 //
-// WebGPU grayscale values are in [0, 1] range, so max meaningful
-// difference is ~0.5 for normalisation.
+// Grayscale values are normalised to [0, 1], so 0.5 is treated as the
+// maximum meaningful average difference for normalisation; anything
+// beyond that clamps to similarity 0. Must match the CPU reference in
+// math.ts (madSimilarity).
+//
+// Bindings:
+//   @binding(0) frame_crop: grayscale f32 frame region, width * height
+//   @binding(1) tmpl_crop:  grayscale f32 template region, same size
+//   @binding(2) params:     MADParams uniform (crop dimensions)
+//   @binding(3) result:     output, single f32 at index 0
+//
+// Dispatch: exactly ONE workgroup of 256 threads.
+// Host: WebGPUDetector.regionHybridMatch() via encodeMetricPass().
 
 struct MADParams {
     width:  u32,
