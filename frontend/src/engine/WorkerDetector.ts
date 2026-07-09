@@ -57,6 +57,7 @@ export class WorkerDetector {
             frameDelta: result.frameDelta,
             templateIndex: result.templateIndex,
             categoryScores: result.categoryScores,
+            categoryWinners: result.categoryWinners,
           });
         }
         this.pendingDetect = null;

@@ -15,6 +15,7 @@ import {
   andLogicAcrossRegions,
   categoryScoresFromGroups,
   mergeCategoryScores,
+  newCategoryMerge,
 
   adaptiveBlockSizeForRegion,
   blockSSIM,
@@ -286,25 +287,27 @@ describe("categoryScoresFromGroups", () => {
 
 describe("mergeCategoryScores", () => {
   it("keeps the max per category across templates and returns the best", () => {
-    const acc: Record<string, number> = {};
-    // Template 1: A strong, B weak.
-    let best = mergeCategoryScores(acc, { A: 0.9, B: 0.3 });
+    const acc = newCategoryMerge();
+    // Template 0: A strong, B weak.
+    let best = mergeCategoryScores(acc, { A: 0.9, B: 0.3 }, 0);
     expect(best).toBeCloseTo(0.9, 6);
-    // Template 2: A weaker, B strong, new category C.
-    best = mergeCategoryScores(acc, { A: 0.5, B: 0.85, C: 0.7 });
+    // Template 1: A weaker, B strong, new category C.
+    best = mergeCategoryScores(acc, { A: 0.5, B: 0.85, C: 0.7 }, 1);
     expect(best).toBeCloseTo(0.85, 6);
-    expect(acc.A).toBeCloseTo(0.9, 6); // kept template 1's stronger A
-    expect(acc.B).toBeCloseTo(0.85, 6); // kept template 2's stronger B
-    expect(acc.C).toBeCloseTo(0.7, 6);
+    expect(acc.scores.A).toBeCloseTo(0.9, 6); // kept template 0's stronger A
+    expect(acc.scores.B).toBeCloseTo(0.85, 6); // kept template 1's stronger B
+    expect(acc.scores.C).toBeCloseTo(0.7, 6);
+    expect(acc.winners).toEqual({ A: 0, B: 1, C: 1 });
   });
 
   it("single default category preserves the legacy bestScore meaning", () => {
-    const acc: Record<string, number> = {};
-    const best = mergeCategoryScores(acc, { "": 0.77 });
+    const acc = newCategoryMerge();
+    const best = mergeCategoryScores(acc, { "": 0.77 }, 0);
     // With a single default category, bestScore equals that category's score.
     expect(best).toBeCloseTo(0.77, 6);
-    expect(acc[""]).toBeCloseTo(0.77, 6);
-    expect(Object.keys(acc)).toEqual([""]);
+    expect(acc.scores[""]).toBeCloseTo(0.77, 6);
+    expect(Object.keys(acc.scores)).toEqual([""]);
+    expect(acc.winners[""]).toBe(0);
   });
 });
 

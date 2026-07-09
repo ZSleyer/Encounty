@@ -788,18 +788,36 @@ export function categoryScoresFromGroups(
   return result;
 }
 
+/** Accumulator tracking the winning template's score and index per category. */
+export interface CategoryMerge {
+  scores: Record<string, number>;
+  /** Index into the detect() templates array of the highest-scoring template per category. */
+  winners: Record<string, number>;
+}
+
+/** Create an empty category merge accumulator. */
+export function newCategoryMerge(): CategoryMerge {
+  return { scores: {}, winners: {} };
+}
+
 /**
  * Merge per-category scores from one template into an accumulator by taking
  * the max per category, mirroring how detectors keep the best template per
- * category. Returns the best score across the merged categories.
+ * category. Also records which template won each category, so callers can
+ * resolve that template's own precision/hysteresis settings. Returns the
+ * best score across the merged categories.
  */
 export function mergeCategoryScores(
-  accumulator: Record<string, number>,
+  accumulator: CategoryMerge,
   templateScores: Record<string, number>,
+  templateIndex: number,
 ): number {
   let best = 0;
   for (const [category, value] of Object.entries(templateScores)) {
-    if (value > (accumulator[category] ?? 0)) accumulator[category] = value;
+    if (value > (accumulator.scores[category] ?? 0)) {
+      accumulator.scores[category] = value;
+      accumulator.winners[category] = templateIndex;
+    }
     if (value > best) best = value;
   }
   return best;

@@ -35,6 +35,7 @@ import {
   categoryScoresFromGroups,
   fitDimensions,
   mergeCategoryScores,
+  newCategoryMerge,
 } from "./math";
 import { AsyncMutex } from "../utils/asyncMutex";
 
@@ -59,6 +60,12 @@ export interface DetectResult {
    * when it is the only category, equals bestScore (legacy behavior).
    */
   categoryScores?: Record<string, number>;
+  /**
+   * Index (into the detect() templates array) of the template that produced
+   * each category's score, so callers can resolve that template's own
+   * precision/hysteresis settings. Keyed like categoryScores.
+   */
+  categoryWinners?: Record<string, number>;
 }
 
 /**
@@ -97,6 +104,20 @@ export interface TemplateData {
   }>;
   /** Worker-side template id used for selection and release (WorkerDetector only). */
   workerId?: number;
+  /** This template's own NCC match threshold (0.0-1.0). Falls back to a hardcoded default when absent. */
+  precision?: number;
+  /** This template's own hysteresis exit-threshold multiplier (0.0-1.0). Falls back to a hardcoded default when absent. */
+  hysteresisFactor?: number;
+  /** This template's own required consecutive matching frames before counting. Falls back to a hardcoded default when absent. */
+  consecutiveHits?: number;
+  /** This template's own minimum seconds between counts. Falls back to a hardcoded default when absent. */
+  cooldownSec?: number;
+  /** This template's own base adaptive-polling interval (ms). Falls back to a hardcoded default when absent. */
+  pollIntervalMs?: number;
+  /** This template's own fastest adaptive-polling interval (ms). Falls back to a hardcoded default when absent. */
+  minPollMs?: number;
+  /** This template's own slowest adaptive-polling interval (ms). Falls back to a hardcoded default when absent. */
+  maxPollMs?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -1008,7 +1029,7 @@ export class WebGPUDetector {
       // Match against each template, using region-based hybrid or sliding-window NCC
       let bestScore = 0;
       let bestIndex = 0;
-      const categoryScores: Record<string, number> = {};
+      const merge = newCategoryMerge();
 
       for (let i = 0; i < templates.length; i++) {
         const tmpl = templates[i];
@@ -1025,7 +1046,7 @@ export class WebGPUDetector {
         );
 
         // Merge per-category scores across templates by taking the max.
-        const templateBest = mergeCategoryScores(categoryScores, templateScores);
+        const templateBest = mergeCategoryScores(merge, templateScores, i);
         if (templateBest > bestScore) {
           bestScore = templateBest;
           bestIndex = i;
@@ -1034,7 +1055,7 @@ export class WebGPUDetector {
         // Early exit is only safe with a single default category: with multiple
         // categories, later templates may carry scores for other categories.
         const onlyDefaultCategory =
-          Object.keys(categoryScores).length === 1 && "" in categoryScores;
+          Object.keys(merge.scores).length === 1 && "" in merge.scores;
         if (onlyDefaultCategory && bestScore >= config.precision) break;
       }
 
@@ -1044,7 +1065,8 @@ export class WebGPUDetector {
         frameDelta,
         templateIndex: bestIndex,
         frameBuffer: frameBuf,
-        categoryScores,
+        categoryScores: merge.scores,
+        categoryWinners: merge.winners,
       };
     } catch (err) {
       // On success frameBuf ownership transfers to the caller (previousFrame

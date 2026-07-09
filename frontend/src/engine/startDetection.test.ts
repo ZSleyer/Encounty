@@ -85,13 +85,7 @@ function makeDetectorConfig() {
     region: { x: 0, y: 0, w: 100, h: 100 },
     window_title: "",
     templates: [],
-    precision: 0.85,
-    consecutive_hits: 3,
-    cooldown_sec: 5,
     change_threshold: 0.01,
-    poll_interval_ms: 200,
-    min_poll_ms: 50,
-    max_poll_ms: 1000,
   };
 }
 
@@ -326,14 +320,9 @@ describe("startDetection", () => {
       expect(result).toBeNull();
     });
 
-    it("maps config fields correctly when calling updateConfig", async () => {
+    it("only forwards changeThreshold to updateConfig, no hunt-level detection settings", async () => {
       const config = makeDetectorConfig();
-      config.precision = 0.92;
-      config.consecutive_hits = 5;
-      config.cooldown_sec = 10;
-      config.poll_interval_ms = 300;
-      config.min_poll_ms = 100;
-      config.max_poll_ms = 2000;
+      config.change_threshold = 0.42;
 
       await startDetectionForPokemon({
         pokemonId: "poke-1",
@@ -343,7 +332,29 @@ describe("startDetection", () => {
         onScore: vi.fn(),
       });
 
-      expect(mockUpdateConfig).toHaveBeenCalledWith(
+      expect(mockUpdateConfig).toHaveBeenCalledWith({ changeThreshold: 0.42 });
+    });
+
+    it("attaches each template's own consecutiveHits/cooldownSec/polling settings onto its loaded TemplateData", async () => {
+      await startDetectionForPokemon({
+        pokemonId: "poke-1",
+        templates: [
+          {
+            ...makeTemplate(),
+            precision: 0.92,
+            consecutive_hits: 5,
+            cooldown_sec: 10,
+            poll_interval_ms: 300,
+            min_poll_ms: 100,
+            max_poll_ms: 2000,
+          },
+        ],
+        config: makeDetectorConfig(),
+        getVideoElement: () => null,
+        onScore: vi.fn(),
+      });
+
+      expect(mockLoadTemplates).toHaveBeenCalledWith([
         expect.objectContaining({
           precision: 0.92,
           consecutiveHits: 5,
@@ -351,49 +362,30 @@ describe("startDetection", () => {
           pollIntervalMs: 300,
           minPollMs: 100,
           maxPollMs: 2000,
-          hysteresisFactor: 0.7,
         }),
-      );
+      ]);
     });
 
-    it("passes the minimum calibrated precision of enabled templates to updateConfig", async () => {
-      const calibrated = (rec: number, enabled = true) => ({
-        ...makeTemplate(enabled),
-        calibration: {
-          recommended_precision: rec,
-          match_p10: rec + 0.03,
-          match_median: rec + 0.1,
-          noise_p90: 0.2,
-          sample_count: 10,
-        },
-      });
+    it("attaches each template's own precision/hysteresis override onto its loaded TemplateData", async () => {
+      mockDetector.loadTemplate
+        .mockImplementationOnce(() => ({ data: "template-data-1" }))
+        .mockImplementationOnce(() => ({ data: "template-data-2" }));
 
       await startDetectionForPokemon({
         pokemonId: "poke-1",
-        // Disabled template has the lowest recommendation and must be ignored
-        templates: [calibrated(0.5, false), calibrated(0.8), calibrated(0.65)],
+        templates: [
+          { ...makeTemplate(), precision: 0.7, hysteresis_factor: 0.6 },
+          { ...makeTemplate() },
+        ],
         config: makeDetectorConfig(),
         getVideoElement: () => null,
         onScore: vi.fn(),
       });
 
-      expect(mockUpdateConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ calibratedPrecision: 0.65 }),
-      );
-    });
-
-    it("passes no calibrated precision when templates carry no calibration", async () => {
-      await startDetectionForPokemon({
-        pokemonId: "poke-1",
-        templates: [makeTemplate()],
-        config: makeDetectorConfig(),
-        getVideoElement: () => null,
-        onScore: vi.fn(),
-      });
-
-      expect(mockUpdateConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ calibratedPrecision: undefined }),
-      );
+      expect(mockLoadTemplates).toHaveBeenCalledWith([
+        expect.objectContaining({ precision: 0.7, hysteresisFactor: 0.6 }),
+        expect.objectContaining({ precision: undefined, hysteresisFactor: undefined }),
+      ]);
     });
 
     it("skips templates that fail to fetch", async () => {

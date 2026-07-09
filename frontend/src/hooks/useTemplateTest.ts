@@ -49,6 +49,8 @@ export interface UseTemplateTestResult {
   cancel: () => void;
   /** Best overall score from batch results. */
   bestScore: number;
+  /** Average scoring cost per frame in ms from the last batch (0 until run). */
+  avgScoreMs: number;
 }
 
 // --- Helpers ---
@@ -142,6 +144,7 @@ export function useTemplateTest(): UseTemplateTestResult {
   const [progress, setProgress] = useState(0);
   const [currentResult, setCurrentResult] = useState<TemplateTestResult | null>(null);
   const [bestScore, setBestScore] = useState(0);
+  const [avgScoreMs, setAvgScoreMs] = useState(0);
 
   // Cancellation flag for the current batch run
   const cancelledRef = useRef(false);
@@ -199,6 +202,7 @@ export function useTemplateTest(): UseTemplateTestResult {
       setIsRunning(true);
       setProgress(0);
       setBestScore(0);
+      setAvgScoreMs(0);
       const results = new Map<number, TemplateTestResult>();
       setBatchResults(results);
 
@@ -222,6 +226,8 @@ export function useTemplateTest(): UseTemplateTestResult {
 
       let cursor = 0;
       let runningBest = 0;
+      let scoredFrames = 0;
+      let scoredMs = 0;
 
       /** Process a chunk of frames in one idle callback. */
       const processChunk = (_deadline?: IdleDeadline) => {
@@ -242,6 +248,9 @@ export function useTemplateTest(): UseTemplateTestResult {
           const frame = getFrame(idx);
           if (!frame) continue;
 
+          // Timed to derive the polling recommendation from real hardware cost;
+          // includes the RGBA conversion, which the runtime loop also pays.
+          const frameStart = performance.now();
           const frameGray = rgbaToGray(frame);
           const result = scoreOneFrame(
             frameGray,
@@ -251,6 +260,8 @@ export function useTemplateTest(): UseTemplateTestResult {
             regions,
             idx,
           );
+          scoredMs += performance.now() - frameStart;
+          scoredFrames++;
           results.set(idx, result);
 
           if (result.overallScore > runningBest) {
@@ -265,6 +276,7 @@ export function useTemplateTest(): UseTemplateTestResult {
         setBestScore(runningBest);
 
         if (cursor >= totalFrames) {
+          setAvgScoreMs(scoredFrames > 0 ? scoredMs / scoredFrames : 0);
           setIsRunning(false);
           setProgress(1);
           return;
@@ -298,5 +310,6 @@ export function useTemplateTest(): UseTemplateTestResult {
     currentResult,
     cancel,
     bestScore,
+    avgScoreMs,
   };
 }

@@ -9,7 +9,6 @@
 import { WebGPUDetector, CPUDetector, WorkerDetector } from "../engine";
 import type { Detector, TemplateData } from "../engine";
 import { DetectionLoop, registerLoop, stopLoop, getActiveLoop } from "./DetectionLoop";
-import { calibratedPrecisionFor } from "./templateStability";
 import { apiUrl } from "../utils/api";
 import type { DetectorConfig, DetectorTemplate } from "../types";
 
@@ -153,6 +152,38 @@ export function getDetectorBackend(): "gpu" | "cpu" | null {
   return sharedDetectorBackend;
 }
 
+/**
+ * Fetch and load a template's image from the backend, attaching its own
+ * detection settings (or undefined to fall back to the engine's hardcoded
+ * defaults).
+ */
+async function loadOneTemplate(
+  detector: Detector,
+  pokemonId: string,
+  tmpl: DetectorTemplate,
+  index: number,
+): Promise<TemplateData | null> {
+  try {
+    const imgResp = await fetch(apiUrl(`/api/detector/${pokemonId}/template/${index}`));
+    if (!imgResp.ok) return null;
+    const blob = await imgResp.blob();
+    const bmp = await createImageBitmap(blob);
+    const templateData = await detector.loadTemplate(bmp, tmpl.regions);
+    bmp.close();
+    if (!templateData) return null;
+    templateData.precision = tmpl.precision;
+    templateData.hysteresisFactor = tmpl.hysteresis_factor;
+    templateData.consecutiveHits = tmpl.consecutive_hits;
+    templateData.cooldownSec = tmpl.cooldown_sec;
+    templateData.pollIntervalMs = tmpl.poll_interval_ms;
+    templateData.minPollMs = tmpl.min_poll_ms;
+    templateData.maxPollMs = tmpl.max_poll_ms;
+    return templateData;
+  } catch {
+    return null;
+  }
+}
+
 // --- Start / Stop helpers ----------------------------------------------------
 
 /** Options for starting a detection loop. */
@@ -194,17 +225,8 @@ export async function startDetectionForPokemon({
 
   const loadedTemplates: TemplateData[] = [];
   for (const { template: tmpl, index } of enabledTemplates) {
-    try {
-      const imgResp = await fetch(apiUrl(`/api/detector/${pokemonId}/template/${index}`));
-      if (!imgResp.ok) continue;
-      const blob = await imgResp.blob();
-      const bmp = await createImageBitmap(blob);
-      const templateData = await detector.loadTemplate(bmp, tmpl.regions);
-      bmp.close();
-      if (templateData) loadedTemplates.push(templateData);
-    } catch {
-      // Skip templates that fail to load
-    }
+    const templateData = await loadOneTemplate(detector, pokemonId, tmpl, index);
+    if (templateData) loadedTemplates.push(templateData);
   }
 
   if (loadedTemplates.length === 0) return null;
@@ -212,17 +234,7 @@ export async function startDetectionForPokemon({
   loop.loadTemplates(loadedTemplates);
 
   loop.updateConfig({
-    precision: config.precision,
-    calibratedPrecision: calibratedPrecisionFor(
-      enabledTemplates.map(({ template: tmpl }) => tmpl),
-    ),
     changeThreshold: config.change_threshold,
-    consecutiveHits: config.consecutive_hits,
-    pollIntervalMs: config.poll_interval_ms,
-    minPollMs: config.min_poll_ms,
-    maxPollMs: config.max_poll_ms,
-    hysteresisFactor: config.hysteresis_factor ?? 0.7,
-    cooldownSec: config.cooldown_sec,
   });
 
   loop.onScore(onScore);
@@ -266,17 +278,8 @@ export async function reloadDetectionTemplates(
 
   const loadedTemplates: TemplateData[] = [];
   for (const { template: tmpl, index } of enabledTemplates) {
-    try {
-      const imgResp = await fetch(apiUrl(`/api/detector/${pokemonId}/template/${index}`));
-      if (!imgResp.ok) continue;
-      const blob = await imgResp.blob();
-      const bmp = await createImageBitmap(blob);
-      const templateData = await detector.loadTemplate(bmp, tmpl.regions);
-      bmp.close();
-      if (templateData) loadedTemplates.push(templateData);
-    } catch {
-      // Skip templates that fail to load
-    }
+    const templateData = await loadOneTemplate(detector, pokemonId, tmpl, index);
+    if (templateData) loadedTemplates.push(templateData);
   }
 
   loop.loadTemplates(loadedTemplates);

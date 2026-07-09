@@ -41,8 +41,17 @@ export interface StabilityStats {
   recommendedPrecision: number;
   /** Fraction of match-window frames at or above the recommended threshold. */
   matchFraction: number;
+  /** Recommended hysteresis factor for the detection loop (0.5..0.95). */
+  recommendedHysteresis: number;
   /** Overall detectability rating. */
   rating: StabilityRating;
+}
+
+/** Recommended adaptive-polling intervals derived from a stability analysis. */
+export interface PollingRecommendation {
+  minPollMs: number;
+  basePollMs: number;
+  maxPollMs: number;
 }
 
 export type { TemplateCalibration };
@@ -61,6 +70,33 @@ const NOISE_MARGIN = 0.05;
 /** Bounds for the recommended precision. */
 const MIN_PRECISION = 0.2;
 const MAX_PRECISION = 0.95;
+
+/** Bounds and step of the hysteresis-factor slider in the detector settings. */
+const MIN_HYSTERESIS = 0.5;
+const MAX_HYSTERESIS = 0.95;
+const HYSTERESIS_STEP = 0.05;
+
+/** Worst-case scenario for the polling recommendation: parallel hunts. */
+const PARALLEL_HUNTS = 10;
+
+/**
+ * Conservative floor for the fastest recommended interval: polling below
+ * 25 ms is the dominant load driver and never necessary for a 60fps feed.
+ */
+const FLOOR_MIN_POLL_MS = 25;
+
+/**
+ * Ceiling for the idle (max) interval, the proven low-load value. The match
+ * window can lower it further: short matches on a 60fps feed must still be
+ * hit by at least two polls.
+ */
+const CEIL_MAX_POLL_MS = 2000;
+
+/**
+ * Milliseconds between two sampled batch-test frames: the replay buffer
+ * captures at ~60fps and the batch test scores every 5th frame.
+ */
+const SAMPLE_SPACING_MS = (1000 / 60) * 5;
 
 // --- Helpers -------------------------------------------------------------------
 
@@ -149,8 +185,65 @@ export function analyzeStability(samples: StabilitySample[]): StabilityStats | n
     sampleCount: matchScores.length,
     recommendedPrecision: recommended,
     matchFraction,
+    recommendedHysteresis: recommendHysteresis(recommended, noiseP90),
     rating: upper >= lower ? rate(matchFraction, separation) : "poor",
   };
+}
+
+/**
+ * Recommend a hysteresis factor from the precision and the noise ceiling.
+ *
+ * The loop exits hysteresis when the score drops below precision * factor.
+ * Targeting the midpoint between noise p90 and the precision keeps the exit
+ * above lingering noise while still triggering once the match disappears.
+ */
+function recommendHysteresis(precision: number, noiseP90: number): number {
+  const exitTarget = (noiseP90 + precision) / 2;
+  const factor = exitTarget / precision;
+  const snapped = Math.round(factor / HYSTERESIS_STEP) * HYSTERESIS_STEP;
+  return Math.min(MAX_HYSTERESIS, Math.max(MIN_HYSTERESIS, snapped));
+}
+
+/** Clamp v into [min, max] after rounding to the given step. */
+function clampStep(v: number, step: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, Math.round(v / step) * step));
+}
+
+/**
+ * Recommend adaptive-polling intervals from the measured per-frame scoring
+ * cost on this machine and the measured match-window length.
+ *
+ * Worst case by design: PARALLEL_HUNTS hunts run at once and only half of the
+ * CPU cores are available to them, the other half is reserved for the game,
+ * streaming and other software. The minimum interval keeps the worst-case
+ * detection duty cycle at or below 25% (never below FLOOR_MIN_POLL_MS), the
+ * maximum interval stays at the proven low-load ceiling unless the match
+ * window is so short that two polls would no longer land inside it, and the
+ * base interval sits at four times the minimum, mirroring the proven
+ * 50/200/2000 ms ratio.
+ *
+ * Returns null when no timing was measured.
+ */
+export function recommendPolling(
+  stats: StabilityStats,
+  avgScoreMs: number,
+  hardwareConcurrency: number = globalThis.navigator?.hardwareConcurrency ?? 4,
+): PollingRecommendation | null {
+  if (avgScoreMs <= 0) return null;
+
+  const usableCores = Math.max(1, Math.floor(hardwareConcurrency / 2));
+  const wallMs = avgScoreMs * Math.ceil(PARALLEL_HUNTS / usableCores);
+  const windowMs = stats.sampleCount * SAMPLE_SPACING_MS;
+  // Slider bounds below mirror the detector settings inputs.
+  const minPollMs = clampStep(Math.max(4 * wallMs, FLOOR_MIN_POLL_MS), 5, 10, 1000);
+  const maxPollMs = clampStep(
+    Math.min(CEIL_MAX_POLL_MS, windowMs / 2),
+    50,
+    Math.max(100, minPollMs),
+    5000,
+  );
+  const basePollMs = clampStep(4 * minPollMs, 10, minPollMs, Math.min(2000, maxPollMs));
+  return { minPollMs, basePollMs, maxPollMs };
 }
 
 /** Convert stability stats into the persisted calibration payload. */
@@ -167,25 +260,4 @@ export function toCalibration(stats: StabilityStats): TemplateCalibration {
 /** Round to 3 decimal places for compact persistence. */
 function round3(v: number): number {
   return Math.round(v * 1000) / 1000;
-}
-
-/**
- * Compute the effective calibrated precision for a set of templates.
- *
- * Returns the minimum recommended precision across templates that carry a
- * valid calibration, or undefined when none do. The minimum is used because
- * detect() takes the max score across templates: the loop must not demand
- * more than the weakest calibrated template can deliver under polling.
- */
-export function calibratedPrecisionFor(
-  templates: { calibration?: TemplateCalibration | null }[],
-): number | undefined {
-  let min: number | undefined;
-  for (const t of templates) {
-    const rec = t.calibration?.recommended_precision;
-    if (typeof rec === "number" && rec > 0 && rec <= 1 && (min === undefined || rec < min)) {
-      min = rec;
-    }
-  }
-  return min;
 }

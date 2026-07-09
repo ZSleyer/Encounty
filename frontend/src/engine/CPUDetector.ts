@@ -15,6 +15,7 @@ import {
   bilinearResampleGray,
   categoryScoresFromGroups,
   mergeCategoryScores,
+  newCategoryMerge,
   cropTemplateGray,
   adaptiveBlockSizeForRegion,
   matchWholeTemplate,
@@ -178,7 +179,7 @@ export class CPUDetector {
     // NCC against each template
     let bestScore = 0;
     let bestIndex = 0;
-    const categoryScores: Record<string, number> = {};
+    const merge = newCategoryMerge();
 
     for (let i = 0; i < templates.length; i++) {
       const tmpl = templates[i];
@@ -190,7 +191,7 @@ export class CPUDetector {
       );
 
       // Merge per-category scores across templates by taking the max.
-      const templateBest = mergeCategoryScores(categoryScores, templateScores);
+      const templateBest = mergeCategoryScores(merge, templateScores, i);
       if (templateBest > bestScore) {
         bestScore = templateBest;
         bestIndex = i;
@@ -199,11 +200,18 @@ export class CPUDetector {
       // Early exit is only safe with a single default category: with multiple
       // categories, later templates may carry scores for other categories.
       const onlyDefaultCategory =
-        Object.keys(categoryScores).length === 1 && "" in categoryScores;
+        Object.keys(merge.scores).length === 1 && "" in merge.scores;
       if (onlyDefaultCategory && bestScore >= config.precision) break;
     }
 
-    return { bestScore, score: bestScore, frameDelta, templateIndex: bestIndex, categoryScores };
+    return {
+      bestScore,
+      score: bestScore,
+      frameDelta,
+      templateIndex: bestIndex,
+      categoryScores: merge.scores,
+      categoryWinners: merge.winners,
+    };
   }
 
   /** Release resources. */

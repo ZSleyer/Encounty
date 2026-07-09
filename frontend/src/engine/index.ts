@@ -24,6 +24,12 @@ export interface DetectorResult {
    * when it is the only category, equals bestScore (legacy behavior).
    */
   categoryScores?: Record<string, number>;
+  /**
+   * Index (into the detect() templates array) of the template that produced
+   * each category's score, so callers can resolve that template's own
+   * precision/hysteresis settings. Keyed like categoryScores.
+   */
+  categoryWinners?: Record<string, number>;
   /** Opaque frame buffer for deduplication — pass back as previousFrame on next cycle. */
   frameBuffer?: unknown;
 }

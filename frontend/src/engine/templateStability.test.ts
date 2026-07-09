@@ -5,8 +5,8 @@
 import { describe, it, expect } from "vitest";
 import {
   analyzeStability,
+  recommendPolling,
   toCalibration,
-  calibratedPrecisionFor,
   type StabilitySample,
 } from "./templateStability";
 
@@ -67,6 +67,21 @@ describe("analyzeStability", () => {
     expect(low!.recommendedPrecision).toBeGreaterThanOrEqual(0.2);
   });
 
+  it("recommends a hysteresis factor within slider bounds", () => {
+    const clean = analyzeStability(
+      samples([0.1, 0.12, 0.08, 0.85, 0.9, 0.92, 0.88, 0.86, 0.11, 0.09, 0.1, 0.12]),
+    )!;
+    expect(clean.recommendedHysteresis).toBeGreaterThanOrEqual(0.5);
+    expect(clean.recommendedHysteresis).toBeLessThanOrEqual(0.95);
+    // Exit threshold (precision * factor) must sit above the noise ceiling
+    expect(clean.recommendedPrecision * clean.recommendedHysteresis).toBeGreaterThan(clean.noiseP90);
+
+    const noisy = analyzeStability(
+      samples([0.6, 0.65, 0.7, 0.72, 0.74, 0.75, 0.7, 0.68, 0.66, 0.64, 0.62, 0.6]),
+    )!;
+    expect(noisy.recommendedHysteresis).toBeLessThanOrEqual(0.95);
+  });
+
   it("is independent of sample order", () => {
     const base = [0.1, 0.12, 0.08, 0.85, 0.9, 0.92, 0.88, 0.86, 0.11, 0.09, 0.1, 0.12];
     const shuffled = samples(base).reverse();
@@ -89,23 +104,49 @@ describe("toCalibration", () => {
   });
 });
 
-describe("calibratedPrecisionFor", () => {
-  it("returns the minimum valid recommendation", () => {
-    const min = calibratedPrecisionFor([
-      { calibration: { recommended_precision: 0.8, match_p10: 0, match_median: 0, noise_p90: 0, sample_count: 5 } },
-      { calibration: { recommended_precision: 0.6, match_p10: 0, match_median: 0, noise_p90: 0, sample_count: 5 } },
-      {},
-    ]);
-    expect(min).toBe(0.6);
+describe("recommendPolling", () => {
+  // 5 match-window samples -> window ~417ms on a 60fps feed
+  const shortWindow = analyzeStability(
+    samples([0.1, 0.12, 0.08, 0.85, 0.9, 0.92, 0.88, 0.86, 0.11, 0.09, 0.1, 0.12]),
+  )!;
+  // 48 match-window samples -> window ~4s, longer than the low-load ceiling
+  const longWindow = analyzeStability(
+    samples([...new Array(26).fill(0.1), ...new Array(48).fill(0.9), ...new Array(26).fill(0.1)]),
+  )!;
+
+  it("returns null without a measured scoring cost", () => {
+    expect(recommendPolling(shortWindow, 0, 8)).toBeNull();
   });
 
-  it("ignores invalid values and returns undefined without calibrations", () => {
-    expect(calibratedPrecisionFor([{}, { calibration: null }])).toBeUndefined();
-    expect(
-      calibratedPrecisionFor([
-        { calibration: { recommended_precision: 0, match_p10: 0, match_median: 0, noise_p90: 0, sample_count: 1 } },
-        { calibration: { recommended_precision: 1.5, match_p10: 0, match_median: 0, noise_p90: 0, sample_count: 1 } },
-      ]),
-    ).toBeUndefined();
+  it("lands on the proven 50/200/2000 profile for typical hardware", () => {
+    // 8 cores -> 4 usable -> ceil(10/4)=3 rounds -> wall 12ms -> 4*12=48 -> 50
+    const rec = recommendPolling(longWindow, 4, 8)!;
+    expect(rec.minPollMs).toBe(50);
+    expect(rec.basePollMs).toBe(200);
+    // Long window: idle interval capped by the low-load ceiling, not the window
+    expect(rec.maxPollMs).toBe(2000);
+  });
+
+  it("caps the idle interval so two polls land in a short match window", () => {
+    const rec = recommendPolling(shortWindow, 4, 8)!;
+    expect(rec.maxPollMs).toBe(200);
+    expect(rec.basePollMs).toBeLessThanOrEqual(rec.maxPollMs);
+  });
+
+  it("keeps a conservative floor on strong hardware", () => {
+    const fast = recommendPolling(shortWindow, 0.1, 32)!;
+    expect(fast.minPollMs).toBe(25);
+    expect(fast.basePollMs).toBe(100);
+  });
+
+  it("scales up on weak hardware within slider bounds", () => {
+    // 2 cores -> 1 usable -> wall 200ms -> min 800
+    const slow = recommendPolling(shortWindow, 20, 2)!;
+    expect(slow.minPollMs).toBe(800);
+    expect(slow.maxPollMs).toBeGreaterThanOrEqual(slow.minPollMs);
+    expect(slow.basePollMs).toBeGreaterThanOrEqual(slow.minPollMs);
+
+    const extreme = recommendPolling(shortWindow, 500, 2)!;
+    expect(extreme.minPollMs).toBe(1000);
   });
 });
