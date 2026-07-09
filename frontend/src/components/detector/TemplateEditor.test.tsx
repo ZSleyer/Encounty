@@ -87,7 +87,7 @@ async function renderEditMode(props: {
   initialName?: string;
   pokemonName?: string;
   onClose?: () => void;
-  onUpdateRegions?: (regions: MatchedRegion[], name?: string) => void | Promise<void>;
+  onUpdateRegions?: (regions: MatchedRegion[], opts?: { name?: string; precision?: number; hysteresisFactor?: number }) => void | Promise<void>;
   precision?: number;
   cooldownSec?: number;
 }) {
@@ -99,8 +99,8 @@ async function renderEditMode(props: {
       pokemonName={props.pokemonName}
       onClose={props.onClose ?? vi.fn()}
       onUpdateRegions={props.onUpdateRegions ?? vi.fn()}
-      precision={props.precision}
-      cooldownSec={props.cooldownSec}
+      initialPrecision={props.precision}
+      initialCooldownSec={props.cooldownSec}
     />,
   );
   // Wait for the mocked Image.onload to fire and phase to transition to "snapshot".
@@ -459,7 +459,7 @@ describe("TemplateEditor", () => {
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalledWith(
         regions,
-        "Test Template",
+        expect.objectContaining({ name: "Test Template" }),
       );
     });
   });
@@ -479,7 +479,7 @@ describe("TemplateEditor", () => {
     await waitFor(() => {
       expect(onUpdateRegions).toHaveBeenCalledWith(
         [expect.objectContaining({ category: "Console A" })],
-        "Test Template",
+        expect.objectContaining({ name: "Test Template" }),
       );
     });
   });
@@ -521,7 +521,7 @@ describe("TemplateEditor", () => {
     await clickNextThenSave(user);
 
     await waitFor(() => {
-      expect(onUpdateRegions).toHaveBeenCalledWith(regions, "Trimmed");
+      expect(onUpdateRegions).toHaveBeenCalledWith(regions, expect.objectContaining({ name: "Trimmed" }));
     });
   });
 
@@ -535,7 +535,61 @@ describe("TemplateEditor", () => {
     await clickNextThenSave(user);
 
     await waitFor(() => {
-      expect(onUpdateRegions).toHaveBeenCalledWith(regions, undefined);
+      expect(onUpdateRegions).toHaveBeenCalledWith(regions, expect.objectContaining({ name: undefined }));
+    });
+  });
+
+  // --- Per-template precision/hysteresis ---
+
+  it("saves this template's precision/hysteresis, defaulting to the hunt values", async () => {
+    const user = userEvent.setup();
+    const onUpdateRegions = vi.fn().mockResolvedValue(undefined);
+    const regions = [
+      { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
+    ];
+    await renderEditMode({ initialRegions: regions, onUpdateRegions });
+    await clickNextThenSave(user);
+
+    await waitFor(() => {
+      expect(onUpdateRegions).toHaveBeenCalledWith(
+        regions,
+        expect.objectContaining({ precision: 0.55, hysteresisFactor: 0.7 }),
+      );
+    });
+  });
+
+  it("pre-fills and keeps a template's existing precision/hysteresis", async () => {
+    const user = userEvent.setup();
+    const onUpdateRegions = vi.fn().mockResolvedValue(undefined);
+    const regions = [
+      { type: "image" as const, expected_text: "", rect: { x: 10, y: 20, w: 100, h: 50 } },
+    ];
+    render(
+      <TemplateEditor
+        initialImageUrl="/api/detector/poke-1/template/0"
+        initialRegions={regions}
+        initialPrecision={0.66}
+        initialHysteresisFactor={0.8}
+        onClose={vi.fn()}
+        onUpdateRegions={onUpdateRegions}
+      />,
+    );
+    await waitFor(() => {
+      expect(screen.getAllByTitle("Region löschen").length).toBe(1);
+    });
+
+    await user.click(screen.getByText("Weiter"));
+    await waitFor(() => {
+      expect(screen.getByText("Speichern")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Speichern"));
+
+    await waitFor(() => {
+      expect(onUpdateRegions).toHaveBeenCalledWith(
+        regions,
+        expect.objectContaining({ precision: 0.66, hysteresisFactor: 0.8 }),
+      );
     });
   });
 

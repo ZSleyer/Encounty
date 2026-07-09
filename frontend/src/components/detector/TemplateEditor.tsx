@@ -18,7 +18,11 @@ import { MatchedRegion, TemplateCalibration } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
 import { useReplayBuffer } from "../../hooks/useReplayBuffer";
 import { useTemplateTest } from "../../hooks/useTemplateTest";
-import { analyzeStability, toCalibration, type StabilityStats } from "../../engine/templateStability";
+import { analyzeStability, recommendPolling, toCalibration, type PollingRecommendation, type StabilityStats } from "../../engine/templateStability";
+import {
+  DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
+  DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
+} from "../../engine/detectorDefaults";
 
 // --- Props -------------------------------------------------------------------
 
@@ -27,9 +31,16 @@ export type TemplateEditorProps = Readonly<{
   stream?: MediaStream;
   onClose: () => void;
   /** Called when saving a new template (new-template mode). */
-  onSaveTemplate?: (payload: { imageBase64: string; regions: MatchedRegion[]; name?: string; calibration?: TemplateCalibration }) => Promise<void>;
+  onSaveTemplate?: (payload: {
+    imageBase64: string; regions: MatchedRegion[]; name?: string; calibration?: TemplateCalibration;
+    precision?: number; hysteresisFactor?: number; consecutiveHits?: number; cooldownSec?: number;
+    pollIntervalMs?: number; minPollMs?: number; maxPollMs?: number;
+  }) => Promise<void>;
   /** Called when updating regions of an existing template (edit mode). */
-  onUpdateRegions?: (regions: MatchedRegion[], name?: string) => void | Promise<void>;
+  onUpdateRegions?: (regions: MatchedRegion[], opts?: {
+    name?: string; precision?: number; hysteresisFactor?: number; consecutiveHits?: number;
+    cooldownSec?: number; pollIntervalMs?: number; minPollMs?: number; maxPollMs?: number;
+  }) => void | Promise<void>;
   /** Pre-load an existing template image by URL (edit mode). */
   initialImageUrl?: string;
   /** Pre-load existing regions (edit mode). */
@@ -40,10 +51,20 @@ export type TemplateEditorProps = Readonly<{
   pokemonName?: string;
   /** Tesseract language code for OCR auto-recognition (e.g. "deu", "eng"). */
   ocrLang?: string;
-  /** Detection precision threshold (0.0–1.0) for test step visualization. */
-  precision?: number;
-  /** Cooldown in seconds after a confirmed match. */
-  cooldownSec?: number;
+  /** This template's own precision override, if it already has one (edit mode). Falls back to a hardcoded default when absent. */
+  initialPrecision?: number;
+  /** This template's own hysteresis factor override, if it already has one (edit mode). Falls back to a hardcoded default when absent. */
+  initialHysteresisFactor?: number;
+  /** This template's own consecutive-hits override, if it already has one (edit mode). Falls back to a hardcoded default when absent. */
+  initialConsecutiveHits?: number;
+  /** This template's own cooldown override in seconds, if it already has one (edit mode). Falls back to a hardcoded default when absent. */
+  initialCooldownSec?: number;
+  /** This template's own base adaptive-polling interval (ms), if it already has one (edit mode). Falls back to a hardcoded default when absent. */
+  initialPollIntervalMs?: number;
+  /** This template's own fastest adaptive-polling interval (ms), if it already has one (edit mode). Falls back to a hardcoded default when absent. */
+  initialMinPollMs?: number;
+  /** This template's own slowest adaptive-polling interval (ms), if it already has one (edit mode). Falls back to a hardcoded default when absent. */
+  initialMaxPollMs?: number;
 }>;
 
 type Phase = "video" | "replay" | "snapshot" | "test" | "confirm";
@@ -319,7 +340,7 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
 function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
   label: string; score: number; precision?: number; precisionLabel?: string;
 }>) {
-  const threshold = precision ?? 0.55;
+  const threshold = precision ?? DEFAULT_PRECISION;
   const isMatch = score >= threshold;
   const pct = (score * 100).toFixed(0);
   const thresholdPct = (threshold * 100).toFixed(0);
@@ -355,9 +376,6 @@ function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
     </div>
   );
 }
-
-/** Hysteresis factor: after a match, score must drop to precision × this value. */
-const HYSTERESIS_FACTOR = 0.7;
 
 /** Detection flow state for each frame. */
 type FlowState = "searching" | "match" | "hysteresis" | "cooldown";
@@ -430,7 +448,7 @@ function simulateDetectionFlow(
     states: new Map(),
     zones: [],
     threshold,
-    hysteresisExit: threshold * HYSTERESIS_FACTOR,
+    hysteresisExit: threshold * DEFAULT_HYSTERESIS_FACTOR,
     cooldownFrames,
   };
 
@@ -459,8 +477,8 @@ function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, co
   t: (k: string) => string;
 }>) {
   if (batchResults.size === 0) return null;
-  const threshold = precision ?? 0.55;
-  const cooldownFrames = (cooldownSec ?? 5) * 60; // 60 fps
+  const threshold = precision ?? DEFAULT_PRECISION;
+  const cooldownFrames = (cooldownSec ?? DEFAULT_COOLDOWN_SEC) * 60; // 60 fps
   const entries = Array.from(batchResults.entries()).sort(([a], [b]) => a - b) as [number, { overallScore: number }][];
   const barWidth = 100 / Math.max(entries.length, 1);
   const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
@@ -647,10 +665,13 @@ function ratingPresentation(rating: StabilityStats["rating"]): {
 /**
  * Stability analysis panel shown after a batch test run. Summarizes the score
  * distribution over the detected match window, the noise floor, and the
- * recommended precision, plus a toggle to persist the calibration on save.
+ * recommended precision, hysteresis and adaptive-polling settings, plus a
+ * toggle to persist the calibration on save. Rendered as a fixed overlay on
+ * the right edge so appearing after the test never shifts the editor layout.
  */
-function StabilityPanel({ stats, applyCalibration, onToggleApply, t }: Readonly<{
+function StabilityPanel({ stats, polling, applyCalibration, onToggleApply, t }: Readonly<{
   stats: StabilityStats;
+  polling: PollingRecommendation | null;
   applyCalibration: boolean;
   onToggleApply: (v: boolean) => void;
   t: (k: string) => string;
@@ -662,9 +683,15 @@ function StabilityPanel({ stats, applyCalibration, onToggleApply, t }: Readonly<
     .replace("{median}", pct(stats.matchMedian))
     .replace("{p10}", pct(stats.matchP10))
     .replace("{noise}", pct(stats.noiseP90));
+  const pollingLine = polling
+    ? t("templateEditor.stabilityPolling")
+        .replace("{min}", String(polling.minPollMs))
+        .replace("{base}", String(polling.basePollMs))
+        .replace("{max}", String(polling.maxPollMs))
+    : null;
 
   return (
-    <div className="rounded-xl border border-border-subtle bg-white/5 p-3 space-y-2 text-sm 2xl:text-base">
+    <aside className="fixed right-4 top-1/2 -translate-y-1/2 z-110 w-72 2xl:w-80 max-h-[85vh] overflow-y-auto rounded-xl border border-border-subtle bg-black/80 backdrop-blur-md p-3 space-y-2 text-sm 2xl:text-base">
       <div className={`flex items-center gap-2 font-semibold ${colorClass}`}>
         <Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
         <span>{t("templateEditor.stabilityTitle")}: {t(labelKey)}</span>
@@ -673,6 +700,15 @@ function StabilityPanel({ stats, applyCalibration, onToggleApply, t }: Readonly<
       <p className="text-xs 2xl:text-sm text-text-muted">
         {t("templateEditor.stabilityRecommended").replace("{value}", pct(stats.recommendedPrecision))}
       </p>
+      <p className="text-xs 2xl:text-sm text-text-muted">
+        {t("templateEditor.stabilityHysteresis").replace("{value}", pct(stats.recommendedHysteresis))}
+      </p>
+      {pollingLine && (
+        <>
+          <p className="text-xs 2xl:text-sm text-text-muted">{pollingLine}</p>
+          <p className="text-[11px] 2xl:text-xs text-text-muted">{t("templateEditor.stabilityPollingHint")}</p>
+        </>
+      )}
       <label className="flex items-center gap-2 text-xs 2xl:text-sm text-text-primary cursor-pointer">
         <input
           type="checkbox"
@@ -683,8 +719,19 @@ function StabilityPanel({ stats, applyCalibration, onToggleApply, t }: Readonly<
         <span>{t("templateEditor.stabilityApply")}</span>
       </label>
       <p className="text-[11px] 2xl:text-xs text-text-muted">{t("templateEditor.stabilityHint")}</p>
-    </div>
+    </aside>
   );
+}
+
+/** All detection settings owned by a single template, edited in the confirm step. */
+export interface TemplateSettingsValues {
+  precision: number;
+  hysteresisFactor: number;
+  consecutiveHits: number;
+  cooldownSec: number;
+  pollIntervalMs: number;
+  minPollMs: number;
+  maxPollMs: number;
 }
 
 /** Persists the current template (new or updated regions). */
@@ -693,23 +740,33 @@ async function saveTemplate(opts: {
   regions: MatchedRegion[];
   templateName: string;
   calibration?: TemplateCalibration;
+  settings: TemplateSettingsValues;
   onUpdateRegions: TemplateEditorProps["onUpdateRegions"];
   onSaveTemplate: TemplateEditorProps["onSaveTemplate"];
   setIsSaving: (v: boolean) => void;
   setErrorMsg: (v: string | null) => void;
 }) {
-  const { canvas, regions, templateName, calibration, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg } = opts;
+  const { canvas, regions, templateName, calibration, settings, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg } = opts;
   if (!canvas) return;
+
+  const {
+    precision, hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs,
+  } = settings;
 
   setIsSaving(true);
   setErrorMsg(null);
   try {
     const trimmedName = templateName.trim() || undefined;
     if (onUpdateRegions) {
-      await onUpdateRegions(regions, trimmedName);
+      await onUpdateRegions(regions, {
+        name: trimmedName, precision, hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs,
+      });
     } else if (onSaveTemplate) {
       const base64Data = canvas.toDataURL("image/png");
-      await onSaveTemplate({ imageBase64: base64Data, regions, name: trimmedName, calibration });
+      await onSaveTemplate({
+        imageBase64: base64Data, regions, name: trimmedName, calibration,
+        precision, hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs,
+      });
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Failed to save template";
@@ -1040,8 +1097,13 @@ export function TemplateEditor({
   initialName,
   pokemonName,
   ocrLang = "eng",
-  precision: precisionProp,
-  cooldownSec: cooldownSecProp,
+  initialPrecision,
+  initialHysteresisFactor,
+  initialConsecutiveHits,
+  initialCooldownSec,
+  initialPollIntervalMs,
+  initialMinPollMs,
+  initialMaxPollMs,
 }: TemplateEditorProps) {
   const { t } = useI18n();
   // Callback ref so React triggers a re-render when the video element mounts,
@@ -1069,12 +1131,67 @@ export function TemplateEditor({
     [templateTest.isRunning, templateTest.batchResults],
   );
 
+  // Adaptive-polling recommendation from the measured scoring cost (worst
+  // case: 10 parallel hunts on half the CPU cores of this machine)
+  const pollingRecommendation = useMemo(
+    () => (stabilityStats ? recommendPolling(stabilityStats, templateTest.avgScoreMs) : null),
+    [stabilityStats, templateTest.avgScoreMs],
+  );
+
   // Whether the calibration is persisted on save; defaults to on unless the
   // analysis rates the template poor.
   const [applyCalibration, setApplyCalibration] = useState(false);
+
+  // This template's own detection settings, always maintained per template
+  // (not a hunt-level default). Seeded from the template's existing values in
+  // edit mode, otherwise from hardcoded defaults.
+  const [templateSettings, setTemplateSettings] = useState<TemplateSettingsValues>({
+    precision: initialPrecision ?? DEFAULT_PRECISION,
+    hysteresisFactor: initialHysteresisFactor ?? DEFAULT_HYSTERESIS_FACTOR,
+    consecutiveHits: initialConsecutiveHits ?? DEFAULT_CONSECUTIVE_HITS,
+    cooldownSec: initialCooldownSec ?? DEFAULT_COOLDOWN_SEC,
+    pollIntervalMs: initialPollIntervalMs ?? DEFAULT_POLL_MS,
+    minPollMs: initialMinPollMs ?? MIN_POLL_MS,
+    maxPollMs: initialMaxPollMs ?? MAX_POLL_MS,
+  });
+  const updateTemplateSettings = (patch: Partial<TemplateSettingsValues>) =>
+    setTemplateSettings((prev) => ({ ...prev, ...patch }));
+
   useEffect(() => {
-    setApplyCalibration(stabilityStats !== null && stabilityStats.rating !== "poor");
+    const shouldApply = stabilityStats !== null && stabilityStats.rating !== "poor";
+    setApplyCalibration(shouldApply);
+    // A good stability result overwrites this template's precision/hysteresis
+    // and polling settings with the measured recommendation; the user can
+    // still adjust them before saving.
+    if (shouldApply && stabilityStats) {
+      updateTemplateSettings({
+        precision: stabilityStats.recommendedPrecision,
+        hysteresisFactor: stabilityStats.recommendedHysteresis,
+        ...(pollingRecommendation && {
+          pollIntervalMs: pollingRecommendation.basePollMs,
+          minPollMs: pollingRecommendation.minPollMs,
+          maxPollMs: pollingRecommendation.maxPollMs,
+        }),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stabilityStats]);
+
+  /** Toggling "apply calibration" also overwrites this template's values with the recommendation. */
+  const handleToggleApplyCalibration = (v: boolean) => {
+    setApplyCalibration(v);
+    if (v && stabilityStats) {
+      updateTemplateSettings({
+        precision: stabilityStats.recommendedPrecision,
+        hysteresisFactor: stabilityStats.recommendedHysteresis,
+        ...(pollingRecommendation && {
+          pollIntervalMs: pollingRecommendation.basePollMs,
+          minPollMs: pollingRecommendation.minPollMs,
+          maxPollMs: pollingRecommendation.maxPollMs,
+        }),
+      });
+    }
+  };
 
   // Browser-based replay buffer capturing from the stream at 60fps
   const replayBuffer = useReplayBuffer(stream ? videoEl : null);
@@ -1296,6 +1413,7 @@ export function TemplateEditor({
       regions,
       templateName: templateName.trim() || "",
       calibration: applyCalibration && stabilityStats ? toCalibration(stabilityStats) : undefined,
+      settings: templateSettings,
       onUpdateRegions,
       onSaveTemplate,
       setIsSaving,
@@ -1471,8 +1589,8 @@ export function TemplateEditor({
               batchResults={templateTest.batchResults}
               frameCount={replayBuffer.frameCount}
               selectedIndex={selectedFrameIndex}
-              precision={precisionProp}
-              cooldownSec={cooldownSecProp}
+              precision={templateSettings.precision}
+              cooldownSec={templateSettings.cooldownSec}
               t={t}
             />
           </div>
@@ -1517,32 +1635,35 @@ export function TemplateEditor({
             )}
             {templateTest.currentResult && (
               <>
-                <ScoreBar label={t("templateEditor.testOverall")} score={templateTest.currentResult.overallScore} precision={precisionProp} precisionLabel={t("detector.precision")} />
+                <ScoreBar label={t("templateEditor.testOverall")} score={templateTest.currentResult.overallScore} precision={templateSettings.precision} precisionLabel={t("detector.precision")} />
                 {templateTest.currentResult.regionScores.map((rs) => (
                   <ScoreBar
                     key={rs.index}
                     label={`${t("templateEditor.regionN")} ${rs.index + 1}`}
                     score={rs.score}
-                    precision={precisionProp}
+                    precision={templateSettings.precision}
                     precisionLabel={t("detector.precision")}
                   />
                 ))}
               </>
             )}
-            {!templateTest.isRunning && templateTest.bestScore < (precisionProp ?? 0.55) && templateTest.batchResults.size > 0 && (
+            {!templateTest.isRunning && templateTest.bestScore < templateSettings.precision && templateTest.batchResults.size > 0 && (
               <p className="text-xs 2xl:text-sm text-amber-400 text-center mt-2">
                 {t("templateEditor.testLowScoreHint")}
               </p>
             )}
-            {stabilityStats && (
-              <StabilityPanel
-                stats={stabilityStats}
-                applyCalibration={applyCalibration}
-                onToggleApply={setApplyCalibration}
-                t={t}
-              />
-            )}
           </div>
+
+          {/* Stability result as a fixed overlay so it never shifts the layout */}
+          {stabilityStats && (
+            <StabilityPanel
+              stats={stabilityStats}
+              polling={pollingRecommendation}
+              applyCalibration={applyCalibration}
+              onToggleApply={handleToggleApplyCalibration}
+              t={t}
+            />
+          )}
         </>
       )}
 

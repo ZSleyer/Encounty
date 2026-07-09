@@ -11,7 +11,11 @@ import {
   MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, Trash2,
   FlaskConical, Activity,
 } from "lucide-react";
-import { DetectorConfig, HuntTypePreset, Pokemon, MatchedRegion, TemplateCalibration, Settings as SettingsType } from "../../types";
+import { DetectorConfig, DetectorTemplate, HuntTypePreset, Pokemon, MatchedRegion, TemplateCalibration, Settings as SettingsType } from "../../types";
+import {
+  DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
+  DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
+} from "../../engine/detectorDefaults";
 import { useI18n } from "../../contexts/I18nContext";
 import { preloadOcrLang } from "../../hooks/useOCR";
 import { useToast } from "../../contexts/ToastContext";
@@ -21,7 +25,7 @@ import { TemplateEditor } from "./TemplateEditor";
 import { DetectorTutorial } from "./DetectorTutorial";
 import { SourcePickerModal, SelectedSource } from "./SourcePickerModal";
 import { DetectorPreview } from "./DetectorPreview";
-import { DetectorSettings } from "./DetectorSettings";
+import { DetectorSettings, type TemplateSettingsPatch } from "./DetectorSettings";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { ConfirmModal } from "../shared/ConfirmModal";
 
@@ -46,13 +50,7 @@ const DEFAULT_CONFIG: DetectorConfig = {
   region: { x: 0, y: 0, w: 0, h: 0 },
   window_title: "",
   templates: [],
-  precision: 0.55,
-  consecutive_hits: 1,
-  cooldown_sec: 5,
   change_threshold: 0.15,
-  poll_interval_ms: 200,
-  min_poll_ms: 50,
-  max_poll_ms: 2000,
 };
 
 // --- Props -------------------------------------------------------------------
@@ -74,6 +72,19 @@ function getErrorMessage(err: unknown, networkMsg: string, fallbackMsg: string):
   if (err instanceof TypeError) return networkMsg;
   if (err instanceof Error) return err.message;
   return fallbackMsg;
+}
+
+/** Seed a full settings draft from a template, falling back to hardcoded defaults for unset fields. */
+function draftFromTemplate(tmpl: DetectorTemplate | null): Required<TemplateSettingsPatch> {
+  return {
+    precision: tmpl?.precision ?? DEFAULT_PRECISION,
+    hysteresis_factor: tmpl?.hysteresis_factor ?? DEFAULT_HYSTERESIS_FACTOR,
+    consecutive_hits: tmpl?.consecutive_hits ?? DEFAULT_CONSECUTIVE_HITS,
+    cooldown_sec: tmpl?.cooldown_sec ?? DEFAULT_COOLDOWN_SEC,
+    poll_interval_ms: tmpl?.poll_interval_ms ?? DEFAULT_POLL_MS,
+    min_poll_ms: tmpl?.min_poll_ms ?? MIN_POLL_MS,
+    max_poll_ms: tmpl?.max_poll_ms ?? MAX_POLL_MS,
+  };
 }
 
 function stateDotClass(state: string, running: boolean): { dot: string; pulse: boolean } {
@@ -136,18 +147,31 @@ export function DetectorPanel({
       ...DEFAULT_CONFIG,
       ...saved,
       source_type: saved.source_type || DEFAULT_CONFIG.source_type,
-      precision: saved.precision ?? DEFAULT_CONFIG.precision,
-      consecutive_hits: saved.consecutive_hits ?? DEFAULT_CONFIG.consecutive_hits,
-      cooldown_sec: saved.cooldown_sec ?? DEFAULT_CONFIG.cooldown_sec,
-      poll_interval_ms: saved.poll_interval_ms ?? DEFAULT_CONFIG.poll_interval_ms,
-      min_poll_ms: saved.min_poll_ms ?? DEFAULT_CONFIG.min_poll_ms,
-      max_poll_ms: saved.max_poll_ms ?? DEFAULT_CONFIG.max_poll_ms,
     };
   });
   const templates = useMemo(
     () => pokemon.detector_config?.templates ?? [],
     [pokemon.detector_config?.templates],
   );
+  // The active template (single-active semantics: at most one is enabled at
+  // a time via the "Aktives Template festlegen" toggle) owns every detection
+  // setting shown in the Einstellungen tab — there is no hunt-level default.
+  const activeTemplateIndex = useMemo(
+    () => templates.findIndex((tmpl) => tmpl.enabled !== false),
+    [templates],
+  );
+  const activeTemplate = activeTemplateIndex >= 0 ? templates[activeTemplateIndex] : null;
+
+  // Draft of the active template's detection settings, edited in the
+  // Einstellungen tab. Re-seeded whenever the active template changes so
+  // switching templates always shows that template's own saved values
+  // (discarding any unsaved draft from the previously active template).
+  const [templateDraft, setTemplateDraft] = useState<Required<TemplateSettingsPatch>>(() => draftFromTemplate(activeTemplate));
+  useEffect(() => {
+    setTemplateDraft(draftFromTemplate(activeTemplate));
+    setSettingsDirty(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTemplateIndex, activeTemplate?.template_db_id]);
 
   // Source picker state
   const [showSourcePicker, setShowSourcePicker] = useState(false);
@@ -156,6 +180,8 @@ export function DetectorPanel({
   const [showAddTemplate, setShowAddTemplate] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<{
     index: number; url: string; regions: MatchedRegion[]; dbId?: number; name?: string;
+    precision?: number; hysteresisFactor?: number; consecutiveHits?: number;
+    cooldownSec?: number; pollIntervalMs?: number; minPollMs?: number; maxPollMs?: number;
   } | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -289,35 +315,18 @@ export function DetectorPanel({
       setCfg({ ...DEFAULT_CONFIG });
       return;
     }
-    setCfg({
-      ...DEFAULT_CONFIG,
-      ...saved,
-      precision: saved.precision ?? DEFAULT_CONFIG.precision,
-      consecutive_hits: saved.consecutive_hits ?? DEFAULT_CONFIG.consecutive_hits,
-      cooldown_sec: saved.cooldown_sec ?? DEFAULT_CONFIG.cooldown_sec,
-      poll_interval_ms: saved.poll_interval_ms ?? DEFAULT_CONFIG.poll_interval_ms,
-      min_poll_ms: saved.min_poll_ms ?? DEFAULT_CONFIG.min_poll_ms,
-      max_poll_ms: saved.max_poll_ms ?? DEFAULT_CONFIG.max_poll_ms,
-    });
+    setCfg({ ...DEFAULT_CONFIG, ...saved });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pokemon.id]);
 
-  // Sync cfg settings from backend when detector_config changes externally
-  // (e.g. from another client or WebSocket broadcast). Skip while the user
+  // Re-seed the settings draft from the active template whenever
+  // detector_config changes externally (a different client, a WebSocket
+  // broadcast, or the active template itself changing). Skip while the user
   // is editing settings locally (dirty state) to avoid overwriting their input.
   useEffect(() => {
     if (settingsDirty) return;
-    const saved = pokemon.detector_config;
-    if (!saved) return;
-    setCfg(prev => ({
-      ...prev,
-      precision: saved.precision ?? DEFAULT_CONFIG.precision,
-      consecutive_hits: saved.consecutive_hits ?? DEFAULT_CONFIG.consecutive_hits,
-      cooldown_sec: saved.cooldown_sec ?? DEFAULT_CONFIG.cooldown_sec,
-      poll_interval_ms: saved.poll_interval_ms ?? DEFAULT_CONFIG.poll_interval_ms,
-      min_poll_ms: saved.min_poll_ms ?? DEFAULT_CONFIG.min_poll_ms,
-      max_poll_ms: saved.max_poll_ms ?? DEFAULT_CONFIG.max_poll_ms,
-    }));
+    setTemplateDraft(draftFromTemplate(activeTemplate));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pokemon.detector_config, settingsDirty]);
 
   // --- Hunt-type presets ----------------------------------------------------
@@ -364,7 +373,7 @@ export function DetectorPanel({
 
   const handleApplyDefaults = () => {
     if (!activePreset) return;
-    setCfg((prev) => ({
+    setTemplateDraft((prev) => ({
       ...prev,
       cooldown_sec: activePreset.default_cooldown_sec,
       consecutive_hits: activePreset.default_consecutive_hits,
@@ -425,11 +434,26 @@ export function DetectorPanel({
   };
 
   /** Update local editing state for template name. */
-  const handleSaveNewTemplate = async (payload: { imageBase64: string; regions: MatchedRegion[]; name?: string; calibration?: TemplateCalibration }) => {
+  const handleSaveNewTemplate = async (payload: {
+    imageBase64: string; regions: MatchedRegion[]; name?: string; calibration?: TemplateCalibration;
+    precision?: number; hysteresisFactor?: number; consecutiveHits?: number; cooldownSec?: number;
+    pollIntervalMs?: number; minPollMs?: number; maxPollMs?: number;
+  }) => {
+    const {
+      hysteresisFactor, consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs, ...rest
+    } = payload;
     const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/template_upload`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...rest,
+        hysteresis_factor: hysteresisFactor,
+        consecutive_hits: consecutiveHits,
+        cooldown_sec: cooldownSec,
+        poll_interval_ms: pollIntervalMs,
+        min_poll_ms: minPollMs,
+        max_poll_ms: maxPollMs,
+      }),
     });
     if (res.ok) {
       setErrorMsg(null);
@@ -449,10 +473,23 @@ export function DetectorPanel({
       regions: tmpl.regions || [],
       dbId: tmpl.template_db_id,
       name: tmpl.name,
+      precision: tmpl.precision,
+      hysteresisFactor: tmpl.hysteresis_factor,
+      consecutiveHits: tmpl.consecutive_hits,
+      cooldownSec: tmpl.cooldown_sec,
+      pollIntervalMs: tmpl.poll_interval_ms,
+      minPollMs: tmpl.min_poll_ms,
+      maxPollMs: tmpl.max_poll_ms,
     });
   };
 
-  const handleUpdateRegions = async (regions: MatchedRegion[], name?: string) => {
+  const handleUpdateRegions = async (
+    regions: MatchedRegion[],
+    opts?: {
+      name?: string; precision?: number; hysteresisFactor?: number; consecutiveHits?: number;
+      cooldownSec?: number; pollIntervalMs?: number; minPollMs?: number; maxPollMs?: number;
+    },
+  ) => {
     if (!editingTemplate) return;
 
     // Validate index — fall back to lookup by template_db_id if out of range
@@ -467,7 +504,16 @@ export function DetectorPanel({
     }
 
     const patchData: Record<string, unknown> = { regions };
-    if (name !== undefined) patchData.name = name;
+    if (opts?.name !== undefined) patchData.name = opts.name;
+    // Always send every detection setting explicitly (value or null) so the
+    // template always carries a concrete value after saving.
+    patchData.precision = opts?.precision ?? null;
+    patchData.hysteresis_factor = opts?.hysteresisFactor ?? null;
+    patchData.consecutive_hits = opts?.consecutiveHits ?? null;
+    patchData.cooldown_sec = opts?.cooldownSec ?? null;
+    patchData.poll_interval_ms = opts?.pollIntervalMs ?? null;
+    patchData.min_poll_ms = opts?.minPollMs ?? null;
+    patchData.max_poll_ms = opts?.maxPollMs ?? null;
 
     try {
       const res = await patchWithRetry(
@@ -542,28 +588,48 @@ export function DetectorPanel({
   // --- Settings handlers -----------------------------------------------------
 
   const handleResetSettings = () => {
-    setCfg((prev) => ({
-      ...prev,
-      precision: DEFAULT_CONFIG.precision,
-      consecutive_hits: DEFAULT_CONFIG.consecutive_hits,
-      cooldown_sec: DEFAULT_CONFIG.cooldown_sec,
-      change_threshold: DEFAULT_CONFIG.change_threshold,
-      poll_interval_ms: DEFAULT_CONFIG.poll_interval_ms,
-      min_poll_ms: DEFAULT_CONFIG.min_poll_ms,
-      max_poll_ms: DEFAULT_CONFIG.max_poll_ms,
-    }));
+    setTemplateDraft({
+      precision: DEFAULT_PRECISION,
+      hysteresis_factor: DEFAULT_HYSTERESIS_FACTOR,
+      consecutive_hits: DEFAULT_CONSECUTIVE_HITS,
+      cooldown_sec: DEFAULT_COOLDOWN_SEC,
+      poll_interval_ms: DEFAULT_POLL_MS,
+      min_poll_ms: MIN_POLL_MS,
+      max_poll_ms: MAX_POLL_MS,
+    });
     setSettingsDirty(true);
   };
 
+  /** Persists the settings draft onto the active template via PATCH. */
   const handleSaveSettings = async () => {
-    await onConfigChange({ ...cfg, templates });
-    setSettingsDirty(false);
-    pushToast({ type: "success", title: t("detector.settingsSaved") });
+    if (activeTemplateIndex < 0) return;
+    try {
+      const res = await patchWithRetry(
+        apiUrl(`/api/detector/${pokemon.id}/template/${activeTemplateIndex}`),
+        templateDraft,
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? t("detector.errSaveFailed"));
+      }
+      setSettingsDirty(false);
+      pushToast({ type: "success", title: t("detector.settingsSaved") });
+      // Hot-reload detection loop if running
+      if (isRunning && loopRef.current) {
+        setTimeout(() => {
+          const latest = pokemon.detector_config?.templates ?? [];
+          reloadDetectionTemplates(pokemon.id, latest);
+        }, 200);
+      }
+    } catch (err) {
+      const msg = getErrorMessage(err, t("detector.errNetworkFailed"), t("detector.errSaveFailed"));
+      pushToast({ type: "error", title: msg });
+    }
   };
 
-  /** Wrapper that updates a cfg field and marks settings as dirty. */
-  const updateCfg = (patch: Partial<DetectorConfig>) => {
-    setCfg((prev) => ({ ...prev, ...patch }));
+  /** Wrapper that updates the active template's settings draft and marks it dirty. */
+  const updateTemplateDraft = (patch: TemplateSettingsPatch) => {
+    setTemplateDraft((prev) => ({ ...prev, ...patch }));
     setSettingsDirty(true);
   };
 
@@ -727,7 +793,7 @@ export function DetectorPanel({
               <div className="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all duration-150 ${
-                    confidence >= cfg.precision ? "bg-green-400" : "bg-accent-blue/50"
+                    confidence >= (activeTemplate?.precision ?? DEFAULT_PRECISION) ? "bg-green-400" : "bg-accent-blue/50"
                   }`}
                   style={{ width: `${Math.min(confidence * 100, 100)}%` }}
                 />
@@ -820,7 +886,7 @@ export function DetectorPanel({
           <div className="flex-1 min-w-0">
             <DetectorPreview
               pokemon={pokemon}
-              cfg={cfg}
+              precision={activeTemplate?.precision}
               isRunning={isRunning}
               confidence={confidence}
             />
@@ -1087,7 +1153,7 @@ export function DetectorPanel({
                     {/* Precision threshold context */}
                     {(pokemon.detector_config?.detection_log?.length ?? 0) > 0 && (
                       <div className="flex items-center gap-2 px-3 py-1.5 mb-1 text-[10px] text-text-faint">
-                        <span>{t("detector.precision")}: {(cfg.precision * 100).toFixed(0)}%</span>
+                        <span>{t("detector.precision")}: {((activeTemplate?.precision ?? DEFAULT_PRECISION) * 100).toFixed(0)}%</span>
                         <span>·</span>
                         <span>{pokemon.detector_config?.detection_log?.length ?? 0} {t("detector.logEntryCount")}</span>
                       </div>
@@ -1103,7 +1169,7 @@ export function DetectorPanel({
                       }
                       return [...log].reverse().map((entry, i) => {
                         const pct = Math.min(entry.confidence * 100, 100);
-                        const isMatch = entry.confidence >= cfg.precision;
+                        const isMatch = entry.confidence >= (activeTemplate?.precision ?? DEFAULT_PRECISION);
                         return (
                           <div
                             key={`log-${entry.at}-${i}`}
@@ -1156,8 +1222,8 @@ export function DetectorPanel({
 
                 {rightTab === "settings" && (
                   <DetectorSettings
-                    cfg={cfg}
-                    onUpdate={updateCfg}
+                    template={activeTemplate ? { ...activeTemplate, ...templateDraft } : null}
+                    onUpdate={updateTemplateDraft}
                     onSave={handleSaveSettings}
                     onReset={handleResetSettings}
                     settingsDirty={settingsDirty}
@@ -1178,8 +1244,6 @@ export function DetectorPanel({
           stream={stream}
           pokemonName={pokemon.name}
           ocrLang={pokemonOcrLang}
-          precision={cfg.precision}
-          cooldownSec={cfg.cooldown_sec}
           onClose={() => setShowAddTemplate(false)}
           onSaveTemplate={handleSaveNewTemplate}
         />
@@ -1193,8 +1257,13 @@ export function DetectorPanel({
           initialName={editingTemplate.name}
           pokemonName={pokemon.name}
           ocrLang={pokemonOcrLang}
-          precision={cfg.precision}
-          cooldownSec={cfg.cooldown_sec}
+          initialPrecision={editingTemplate.precision}
+          initialHysteresisFactor={editingTemplate.hysteresisFactor}
+          initialConsecutiveHits={editingTemplate.consecutiveHits}
+          initialCooldownSec={editingTemplate.cooldownSec}
+          initialPollIntervalMs={editingTemplate.pollIntervalMs}
+          initialMinPollMs={editingTemplate.minPollMs}
+          initialMaxPollMs={editingTemplate.maxPollMs}
           onClose={() => setEditingTemplate(null)}
           onUpdateRegions={handleUpdateRegions}
         />

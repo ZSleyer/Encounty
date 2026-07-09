@@ -7,15 +7,17 @@
  */
 import { useEffect, useRef } from "react";
 import { Camera } from "lucide-react";
-import { DetectorConfig, Pokemon } from "../../types";
+import { Pokemon } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
+import { DEFAULT_PRECISION } from "../../engine/detectorDefaults";
 
 // --- Props -------------------------------------------------------------------
 
 export type DetectorPreviewProps = Readonly<{
   pokemon: Pokemon;
-  cfg: DetectorConfig;
+  /** The active template's precision threshold for the confidence badge color. */
+  precision?: number;
   isRunning?: boolean;
   confidence?: number;
 }>;
@@ -34,7 +36,7 @@ function confidenceBadgeClass(confidence: number, precision: number): string {
 /** Preview panel showing CaptureService stream and detection confidence. */
 export function DetectorPreview({
   pokemon,
-  cfg,
+  precision,
   isRunning,
   confidence,
 }: DetectorPreviewProps) {
@@ -79,7 +81,7 @@ export function DetectorPreview({
       {/* Confidence overlay badge */}
       {isRunning && confidence != null && confidence > 0.01 && stream && (
         <div
-          className={`absolute top-2 right-2 px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold backdrop-blur-sm ${confidenceBadgeClass(confidence, cfg.precision || 0.8)}`}
+          className={`absolute top-2 right-2 px-2 py-0.5 rounded-md text-[11px] font-mono font-semibold backdrop-blur-sm ${confidenceBadgeClass(confidence, precision || DEFAULT_PRECISION)}`}
         >
           {(confidence * 100).toFixed(1)}%
         </div>

@@ -6,6 +6,7 @@ import { useI18n } from "../../contexts/I18nContext";
 import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
 import { SPRITE_FALLBACK } from "../../utils/sprites";
 import { DetectorPreview } from "../detector/DetectorPreview";
+import { DEFAULT_PRECISION } from "../../engine/detectorDefaults";
 
 type Props = Readonly<{
   pokemon: Pokemon;
@@ -221,7 +222,7 @@ export function PokemonCard({
             >
               <DetectorPreview
                 pokemon={pokemon}
-                cfg={pokemon.detector_config}
+                precision={pokemon.detector_config.templates.find((tmpl) => tmpl.enabled !== false)?.precision}
                 isRunning={!!statusEntry}
                 confidence={confidence}
               />
@@ -232,7 +233,7 @@ export function PokemonCard({
                 <b className="text-text-secondary">{confidence != null ? `${(confidence * 100).toFixed(0)}%` : "–"}</b>
               </span>
               <span>
-                {t("detector.precision")}: {((pokemon.detector_config.precision || 0.8) * 100).toFixed(0)}%
+                {t("detector.precision")}: {((pokemon.detector_config.templates.find((tmpl) => tmpl.enabled !== false)?.precision ?? DEFAULT_PRECISION) * 100).toFixed(0)}%
               </span>
             </div>
           </div>

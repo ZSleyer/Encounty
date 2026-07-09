@@ -81,7 +81,7 @@ vi.mock("./TemplateEditor", () => ({
   TemplateEditor: (props: {
     onClose: () => void;
     onSaveTemplate?: (payload: { imageBase64: string; regions: unknown[]; name?: string }) => Promise<void>;
-    onUpdateRegions?: (regions: unknown[], name?: string) => Promise<void>;
+    onUpdateRegions?: (regions: unknown[], opts?: { name?: string; precision?: number; hysteresisFactor?: number }) => Promise<void>;
   }) => (
     <div data-testid="template-editor-mock">
       <p>Template bearbeiten</p>
@@ -93,7 +93,7 @@ vi.mock("./TemplateEditor", () => ({
       {props.onUpdateRegions && (
         <button onClick={() => props.onUpdateRegions!(
           [{ type: "image", expected_text: "", rect: { x: 5, y: 5, w: 50, h: 50 } }],
-          "Updated Name",
+          { name: "Updated Name" },
         )}>
           Update Regions
         </button>
@@ -324,13 +324,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           {
             image_path: "tmpl1.png",
@@ -392,13 +386,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
@@ -422,13 +410,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.9, at: "2024-03-01T12:00:00Z" },
@@ -498,13 +480,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
         ],
@@ -556,13 +532,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Active Template", regions: [] },
           { image_path: "tmpl2.png", enabled: false, name: "Inactive Template", regions: [] },
@@ -588,13 +558,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
@@ -654,13 +618,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
         ],
@@ -685,13 +643,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
         ],
@@ -745,13 +697,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "T1", regions: [] },
           { image_path: "tmpl2.png", enabled: false, name: "T2", regions: [] },
@@ -786,13 +732,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [VALID_REGION] },
         ],
@@ -815,13 +755,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Shiny Template", regions: [] },
         ],
@@ -845,13 +779,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
           { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [VALID_REGION] },
@@ -880,13 +808,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
         ],
@@ -948,13 +870,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
@@ -979,13 +895,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
@@ -1010,13 +920,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.3, at: "2024-03-01T12:00:00Z" },
@@ -1112,13 +1016,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "", regions: [] },
         ],
@@ -1141,13 +1039,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
@@ -1178,13 +1070,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "My Template", regions: [] },
         ],
@@ -1210,13 +1096,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
@@ -1248,13 +1128,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [] },
         ],
@@ -1286,13 +1160,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "T1", regions: [] },
         ],
@@ -1339,13 +1207,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.3, at: "2024-03-01T12:00:00Z" },
@@ -1395,13 +1257,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_camera",
         region: { x: 10, y: 20, w: 100, h: 200 },
         window_title: "MyWindow",
-        precision: 0.75,
-        consecutive_hits: 3,
-        cooldown_sec: 10,
         change_threshold: 0.2,
-        poll_interval_ms: 500,
-        min_poll_ms: 100,
-        max_poll_ms: 3000,
         templates: [],
       },
     });
@@ -1439,13 +1295,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
           { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [VALID_REGION] },
@@ -1475,13 +1325,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Template 1", regions: [VALID_REGION] },
         ],
@@ -1547,13 +1391,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
         detection_log: [
           { confidence: 0.8, at: "2024-03-01T12:00:00Z" },
@@ -1639,12 +1477,23 @@ describe("DetectorPanel", () => {
     });
   });
 
-  // --- Settings save calls onConfigChange ---
+  // --- Settings save PATCHes the active template ---
 
-  it("calls onConfigChange when settings are saved after modification", async () => {
+  it("PATCHes the active template when settings are saved after modification", async () => {
     const user = userEvent.setup();
-    const onConfigChange = vi.fn().mockResolvedValue(undefined);
-    renderPanel({ onConfigChange });
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
+        ],
+      },
+    });
+    renderPanel({ pokemon });
 
     // Switch to settings tab
     const settingsTab = screen.getByText(/Einstellungen|Settings/i);
@@ -1663,7 +1512,11 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      expect(onConfigChange).toHaveBeenCalled();
+      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
+        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+          (call[0] as string).includes("/template/0")
+      );
+      expect(patchCalls.length).toBeGreaterThan(0);
     });
   });
 
@@ -1677,14 +1530,10 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.99,
-        consecutive_hits: 5,
-        cooldown_sec: 30,
         change_threshold: 0.5,
-        poll_interval_ms: 1000,
-        min_poll_ms: 100,
-        max_poll_ms: 5000,
-        templates: [],
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+        ],
       },
     });
     renderPanel({ pokemon });
@@ -1721,13 +1570,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "My Template", regions: [] },
         ],
@@ -1775,13 +1618,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
           { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [] },
@@ -1815,13 +1652,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
           { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [] },
@@ -1861,13 +1692,7 @@ describe("DetectorPanel", () => {
         source_type: "" as never,
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
       },
     });
@@ -2027,13 +1852,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           {
             image_path: "tmpl1.png",
@@ -2084,13 +1903,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [VALID_REGION] },
         ],
@@ -2130,7 +1943,19 @@ describe("DetectorPanel", () => {
 
   it("marks settings as dirty on reset and shows unsaved indicator", async () => {
     const user = userEvent.setup();
-    renderPanel();
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+        ],
+      },
+    });
+    renderPanel({ pokemon });
 
     // Switch to settings tab
     const settingsTab = screen.getByText(/Einstellungen|Settings/i);
@@ -2161,13 +1986,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "TestTemplate", regions: [] },
         ],
@@ -2216,13 +2035,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "TestTemplate", regions: [] },
         ],
@@ -2272,12 +2085,24 @@ describe("DetectorPanel", () => {
     });
   });
 
-  // --- handleSaveSettings calls onConfigChange and pushes toast ---
+  // --- handleSaveSettings PATCHes the active template and pushes toast ---
 
-  it("saves settings and shows success toast", async () => {
+  it("PATCHes the active template with the draft settings on save", async () => {
+    vi.mocked(globalThis.fetch).mockClear();
     const user = userEvent.setup();
-    const onConfigChange = vi.fn().mockResolvedValue(undefined);
-    renderPanel({ onConfigChange });
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION] },
+        ],
+      },
+    });
+    renderPanel({ pokemon });
 
     // Switch to settings tab
     const settingsTab = screen.getByText(/Einstellungen|Settings/i);
@@ -2293,13 +2118,13 @@ describe("DetectorPanel", () => {
     await user.click(screen.getByText(/Speichern|Save/i));
 
     await waitFor(() => {
-      expect(onConfigChange).toHaveBeenCalledWith(
-        expect.objectContaining({
-          precision: 0.55,
-          consecutive_hits: 1,
-          cooldown_sec: 5,
-        }),
+      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
+        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+          (call[0] as string).includes("/template/0")
       );
+      expect(patchCalls.length).toBeGreaterThan(0);
+      const body = JSON.parse(patchCalls[0][1]!.body as string);
+      expect(body).toMatchObject({ precision: 0.55, consecutive_hits: 1, cooldown_sec: 5 });
     });
   });
 
@@ -2329,13 +2154,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
       },
     });
@@ -2362,13 +2181,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [] },
         ],
@@ -2490,9 +2303,21 @@ describe("DetectorPanel", () => {
   // --- Settings update through settings tab sliders ---
 
   it("updates config field and marks dirty when settings slider changes", async () => {
+    vi.mocked(globalThis.fetch).mockClear();
     const user = userEvent.setup();
-    const onConfigChange = vi.fn().mockResolvedValue(undefined);
-    renderPanel({ onConfigChange });
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+        ],
+      },
+    });
+    renderPanel({ pokemon });
 
     // Switch to settings tab
     const settingsTab = screen.getByText(/Einstellungen|Settings/i);
@@ -2508,16 +2333,17 @@ describe("DetectorPanel", () => {
     const resetBtn = screen.getByText(/Zurücksetzen|Reset/i);
     await user.click(resetBtn);
 
-    // Now save and verify onConfigChange receives updated config
+    // Now save and verify the active template got PATCHed
     const saveBtn = screen.getByText(/Speichern|Save/i);
     await user.click(saveBtn);
 
     await waitFor(() => {
-      expect(onConfigChange).toHaveBeenCalledTimes(1);
+      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
+        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+          (call[0] as string).includes("/template/0")
+      );
+      expect(patchCalls.length).toBeGreaterThan(0);
     });
-
-    // After save, settings should no longer be dirty
-    // Clicking save again without changes should work since settingsDirty was cleared
   });
 
   // --- Dev video source type renders file input ---
@@ -2553,13 +2379,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "TestTpl", regions: [] },
         ],
@@ -2698,9 +2518,21 @@ describe("DetectorPanel", () => {
   // --- updateCfg is triggered when precision slider changes ---
 
   it("updates config and enables save when precision slider is changed", async () => {
+    vi.mocked(globalThis.fetch).mockClear();
     const user = userEvent.setup();
-    const onConfigChange = vi.fn().mockResolvedValue(undefined);
-    renderPanel({ onConfigChange });
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+        ],
+      },
+    });
+    renderPanel({ pokemon });
 
     // Switch to settings tab
     await user.click(screen.getByText(/Einstellungen|Settings/i));
@@ -2723,18 +2555,34 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      expect(onConfigChange).toHaveBeenCalledWith(
-        expect.objectContaining({ precision: 0.8 }),
+      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
+        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+          (call[0] as string).includes("/template/0")
       );
+      expect(patchCalls.length).toBeGreaterThan(0);
+      const body = JSON.parse(patchCalls[0][1]!.body as string);
+      expect(body).toMatchObject({ precision: 0.8 });
     });
   });
 
   // --- updateCfg for cooldown setting ---
 
   it("updates cooldown setting and saves", async () => {
+    vi.mocked(globalThis.fetch).mockClear();
     const user = userEvent.setup();
-    const onConfigChange = vi.fn().mockResolvedValue(undefined);
-    renderPanel({ onConfigChange });
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+        ],
+      },
+    });
+    renderPanel({ pokemon });
 
     // Switch to settings tab
     await user.click(screen.getByText(/Einstellungen|Settings/i));
@@ -2753,9 +2601,13 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      expect(onConfigChange).toHaveBeenCalledWith(
-        expect.objectContaining({ cooldown_sec: 15 }),
+      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
+        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+          (call[0] as string).includes("/template/0")
       );
+      expect(patchCalls.length).toBeGreaterThan(0);
+      const body = JSON.parse(patchCalls[0][1]!.body as string);
+      expect(body).toMatchObject({ cooldown_sec: 15 });
     });
   });
 
@@ -3143,13 +2995,7 @@ describe("DetectorPanel", () => {
         source_type: "screen_region" as never,
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
       },
     });
@@ -3177,13 +3023,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
           { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [] },
@@ -3312,13 +3152,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: false, name: "ToggleMe", regions: [VALID_REGION] },
         ],
@@ -3362,13 +3196,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "NetErr", regions: [] },
         ],
@@ -3417,13 +3245,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: false, name: "T1", regions: [VALID_REGION] },
         ],
@@ -3457,13 +3279,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "A", regions: [] },
           { image_path: "tmpl2.png", enabled: false, name: "B", regions: [] },
@@ -3499,13 +3315,7 @@ describe("DetectorPanel", () => {
         source_type: "" as never,
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [],
       },
     });
@@ -3573,13 +3383,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "t1.png", enabled: true, name: "First", regions: [] },
           { image_path: "t2.png", enabled: false, name: "Second", regions: [] },
@@ -3888,13 +3692,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Modify Me", regions: [VALID_REGION], template_db_id: 10 },
         ],
@@ -3953,13 +3751,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Fail Update", regions: [VALID_REGION], template_db_id: 20 },
         ],
@@ -4005,13 +3797,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Net Fail", regions: [VALID_REGION], template_db_id: 30 },
         ],
@@ -4049,13 +3835,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Close Me", regions: [VALID_REGION], template_db_id: 40 },
         ],
@@ -4240,13 +4020,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Only Template", regions: [VALID_REGION], template_db_id: 99 },
         ],
@@ -4304,13 +4078,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Hot Reload", regions: [], template_db_id: 60 },
         ],
@@ -4354,13 +4122,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Active Toggle", regions: [] },
           { image_path: "tmpl2.png", enabled: false, name: "Inactive Toggle", regions: [] },
@@ -4502,13 +4264,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "Err Test", regions: [VALID_REGION], template_db_id: 50 },
         ],
@@ -4555,13 +4311,7 @@ describe("DetectorPanel", () => {
         source_type: "browser_display",
         region: { x: 0, y: 0, w: 0, h: 0 },
         window_title: "",
-        precision: 0.55,
-        consecutive_hits: 1,
-        cooldown_sec: 5,
         change_threshold: 0.15,
-        poll_interval_ms: 200,
-        min_poll_ms: 50,
-        max_poll_ms: 2000,
         templates: [
           { image_path: "tmpl1.png", enabled: true, name: "DbId Template", regions: [VALID_REGION], template_db_id: 99 },
         ],

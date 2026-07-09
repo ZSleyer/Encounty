@@ -29,13 +29,7 @@ function makeDetectorConfig(overrides?: Partial<DetectorConfig>): DetectorConfig
     region: { x: 0, y: 0, w: 1920, h: 1080 },
     window_title: "",
     templates: [],
-    precision: 0.55,
-    consecutive_hits: 1,
-    cooldown_sec: 8,
     change_threshold: 0.15,
-    poll_interval_ms: 50,
-    min_poll_ms: 30,
-    max_poll_ms: 500,
     ...overrides,
   };
 }
@@ -211,7 +205,12 @@ describe("PokemonCard", () => {
   it("expands the preview with the configured threshold", async () => {
     captureState.capturing.add("poke-1");
     captureState.stream = new MediaStream();
-    const pokemon = makePokemon({ id: "poke-1", detector_config: makeDetectorConfig({ precision: 0.55 }) });
+    const pokemon = makePokemon({
+      id: "poke-1",
+      detector_config: makeDetectorConfig({
+        templates: [{ image_path: "tmpl.png", regions: [], enabled: true, precision: 0.55 }],
+      }),
+    });
     const { userEvent } = await import("../../test-utils");
     const user = userEvent.setup();
     const { container } = render(<PokemonCard {...defaultProps} pokemon={pokemon} />);

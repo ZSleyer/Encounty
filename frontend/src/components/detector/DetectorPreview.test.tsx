@@ -1,26 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, makePokemon } from "../../test-utils";
 import { DetectorPreview, DetectorPreviewProps } from "./DetectorPreview";
-import { DetectorConfig } from "../../types";
-
-/** Minimal DetectorConfig fixture. */
-function makeDetectorConfig(overrides?: Partial<DetectorConfig>): DetectorConfig {
-  return {
-    enabled: false,
-    source_type: "browser_display",
-    region: { x: 0, y: 0, w: 1920, h: 1080 },
-    window_title: "",
-    templates: [],
-    precision: 0.8,
-    consecutive_hits: 1,
-    cooldown_sec: 8,
-    change_threshold: 0.15,
-    poll_interval_ms: 50,
-    min_poll_ms: 30,
-    max_poll_ms: 500,
-    ...overrides,
-  };
-}
 
 // Mock CaptureServiceContext to control stream availability
 const mockGetStream = vi.fn().mockReturnValue(null);
@@ -39,7 +19,6 @@ vi.mock("../../contexts/CaptureServiceContext", () => ({
 function renderPreview(overrides?: Partial<DetectorPreviewProps>) {
   const props: DetectorPreviewProps = {
     pokemon: makePokemon(),
-    cfg: makeDetectorConfig(),
     isRunning: false,
     confidence: 0,
     ...overrides,
@@ -114,7 +93,7 @@ describe("DetectorPreview", () => {
     renderPreview({
       isRunning: true,
       confidence: 0.85,
-      cfg: makeDetectorConfig({ precision: 0.8 }),
+      precision: 0.8,
     });
 
     const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-green-500\/80`);
@@ -129,7 +108,7 @@ describe("DetectorPreview", () => {
     renderPreview({
       isRunning: true,
       confidence: 0.6,
-      cfg: makeDetectorConfig({ precision: 0.8 }),
+      precision: 0.8,
     });
 
     const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-amber-500\/80`);
@@ -144,7 +123,7 @@ describe("DetectorPreview", () => {
     renderPreview({
       isRunning: true,
       confidence: 0.3,
-      cfg: makeDetectorConfig({ precision: 0.8 }),
+      precision: 0.8,
     });
 
     const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-black\/60`);
@@ -170,7 +149,7 @@ describe("DetectorPreview", () => {
     renderPreview({
       isRunning: true,
       confidence: 0.82,
-      cfg: makeDetectorConfig({ precision: 0.8 }),
+      precision: 0.8,
     });
 
     const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-green-500\/80`);

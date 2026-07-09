@@ -17,13 +17,7 @@ function makeDetectorConfig(overrides?: Partial<DetectorConfig>): DetectorConfig
     region: { x: 0, y: 0, w: 0, h: 0 },
     window_title: "",
     templates: [],
-    precision: 0.8,
-    consecutive_hits: 1,
-    cooldown_sec: 5,
     change_threshold: 0.1,
-    poll_interval_ms: 1000,
-    min_poll_ms: 500,
-    max_poll_ms: 5000,
     ...overrides,
   };
 }

@@ -2,20 +2,18 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { DetectorSettings, DetectorSettingsProps } from "./DetectorSettings";
-import { DetectorConfig, HuntTypePreset } from "../../types";
+import { DetectorTemplate, HuntTypePreset } from "../../types";
 
-/** Minimal DetectorConfig fixture with sensible defaults. */
-function makeDetectorConfig(overrides?: Partial<DetectorConfig>): DetectorConfig {
+/** Minimal DetectorTemplate fixture with sensible defaults. */
+function makeTemplate(overrides?: Partial<DetectorTemplate>): DetectorTemplate {
   return {
-    enabled: false,
-    source_type: "browser_display",
-    region: { x: 0, y: 0, w: 1920, h: 1080 },
-    window_title: "",
-    templates: [],
+    image_path: "tmpl.png",
+    regions: [],
+    name: "Template 1",
+    enabled: true,
     precision: 0.8,
     consecutive_hits: 1,
     cooldown_sec: 5,
-    change_threshold: 0.15,
     poll_interval_ms: 50,
     min_poll_ms: 30,
     max_poll_ms: 500,
@@ -36,7 +34,7 @@ async function expandSettings(user: ReturnType<typeof userEvent.setup>) {
 /** Helper to render DetectorSettings with default props. */
 function renderSettings(overrides?: Partial<DetectorSettingsProps>) {
   const props: DetectorSettingsProps = {
-    cfg: makeDetectorConfig(),
+    template: makeTemplate(),
     onUpdate: vi.fn(),
     onSave: vi.fn(),
     onReset: vi.fn(),
@@ -67,7 +65,7 @@ describe("DetectorSettings", () => {
   it("shows correct precision percentage in expanded state", async () => {
     const user = userEvent.setup();
     renderSettings({
-      cfg: makeDetectorConfig({ precision: 0.95 }),
+      template: makeTemplate({ precision: 0.95 }),
     });
     await expandSettings(user);
     expect(screen.getByText("95%")).toBeInTheDocument();
@@ -274,6 +272,20 @@ describe("DetectorSettings", () => {
     const settingsDiv = container.querySelector("[aria-disabled]");
     expect(settingsDiv).toBeInTheDocument();
     expect(settingsDiv).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("shows an empty state instead of sliders when there is no active template", () => {
+    renderSettings({ embedded: true, template: null });
+    expect(document.getElementById("det-precision")).not.toBeInTheDocument();
+    expect(screen.getByText(/Kein aktives Template/)).toBeInTheDocument();
+  });
+
+  it("shows the template's own precision, not a hunt-level default", async () => {
+    const user = userEvent.setup();
+    renderSettings({ template: makeTemplate({ name: "Wow!", precision: 0.73 }) });
+    await expandSettings(user);
+    expect(screen.getByText("73%")).toBeInTheDocument();
+    expect(screen.getByText(/Wow!/)).toBeInTheDocument();
   });
 
 });
