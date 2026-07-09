@@ -11,7 +11,7 @@ import {
   MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, Trash2,
   FlaskConical, Activity,
 } from "lucide-react";
-import { DetectorConfig, HuntTypePreset, Pokemon, MatchedRegion, Settings as SettingsType } from "../../types";
+import { DetectorConfig, HuntTypePreset, Pokemon, MatchedRegion, TemplateCalibration, Settings as SettingsType } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { preloadOcrLang } from "../../hooks/useOCR";
 import { useToast } from "../../contexts/ToastContext";
@@ -425,7 +425,7 @@ export function DetectorPanel({
   };
 
   /** Update local editing state for template name. */
-  const handleSaveNewTemplate = async (payload: { imageBase64: string; regions: MatchedRegion[]; name?: string }) => {
+  const handleSaveNewTemplate = async (payload: { imageBase64: string; regions: MatchedRegion[]; name?: string; calibration?: TemplateCalibration }) => {
     const res = await fetch(apiUrl(`/api/detector/${pokemon.id}/template_upload`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },

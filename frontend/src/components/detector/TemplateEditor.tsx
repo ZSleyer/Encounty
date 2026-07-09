@@ -6,17 +6,19 @@
  * frames to pick the best one, then draw detection regions on it.
  * In edit mode, loads an existing template image for region editing.
  */
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon,
   Type, Loader2, ScanText, Play, ArrowRight, BarChart3, ArrowLeft, HelpCircle,
+  CheckCircle2, AlertTriangle, XCircle,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import { MatchedRegion } from "../../types";
+import { MatchedRegion, TemplateCalibration } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
 import { useReplayBuffer } from "../../hooks/useReplayBuffer";
 import { useTemplateTest } from "../../hooks/useTemplateTest";
+import { analyzeStability, toCalibration, type StabilityStats } from "../../engine/templateStability";
 
 // --- Props -------------------------------------------------------------------
 
@@ -25,7 +27,7 @@ export type TemplateEditorProps = Readonly<{
   stream?: MediaStream;
   onClose: () => void;
   /** Called when saving a new template (new-template mode). */
-  onSaveTemplate?: (payload: { imageBase64: string; regions: MatchedRegion[]; name?: string }) => Promise<void>;
+  onSaveTemplate?: (payload: { imageBase64: string; regions: MatchedRegion[]; name?: string; calibration?: TemplateCalibration }) => Promise<void>;
   /** Called when updating regions of an existing template (edit mode). */
   onUpdateRegions?: (regions: MatchedRegion[], name?: string) => void | Promise<void>;
   /** Pre-load an existing template image by URL (edit mode). */
@@ -625,17 +627,78 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
   );
 }
 
+// --- Stability Panel -----------------------------------------------------------
+
+/** Icon and i18n label key for a stability rating. */
+function ratingPresentation(rating: StabilityStats["rating"]): {
+  Icon: typeof CheckCircle2;
+  labelKey: string;
+  colorClass: string;
+} {
+  if (rating === "good") {
+    return { Icon: CheckCircle2, labelKey: "templateEditor.stabilityGood", colorClass: "text-emerald-400" };
+  }
+  if (rating === "ok") {
+    return { Icon: AlertTriangle, labelKey: "templateEditor.stabilityOk", colorClass: "text-amber-400" };
+  }
+  return { Icon: XCircle, labelKey: "templateEditor.stabilityPoor", colorClass: "text-red-400" };
+}
+
+/**
+ * Stability analysis panel shown after a batch test run. Summarizes the score
+ * distribution over the detected match window, the noise floor, and the
+ * recommended precision, plus a toggle to persist the calibration on save.
+ */
+function StabilityPanel({ stats, applyCalibration, onToggleApply, t }: Readonly<{
+  stats: StabilityStats;
+  applyCalibration: boolean;
+  onToggleApply: (v: boolean) => void;
+  t: (k: string) => string;
+}>) {
+  const { Icon, labelKey, colorClass } = ratingPresentation(stats.rating);
+  const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
+  const statsLine = t("templateEditor.stabilityStats")
+    .replace("{count}", String(stats.sampleCount))
+    .replace("{median}", pct(stats.matchMedian))
+    .replace("{p10}", pct(stats.matchP10))
+    .replace("{noise}", pct(stats.noiseP90));
+
+  return (
+    <div className="rounded-xl border border-border-subtle bg-white/5 p-3 space-y-2 text-sm 2xl:text-base">
+      <div className={`flex items-center gap-2 font-semibold ${colorClass}`}>
+        <Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
+        <span>{t("templateEditor.stabilityTitle")}: {t(labelKey)}</span>
+      </div>
+      <p className="text-xs 2xl:text-sm text-text-muted">{statsLine}</p>
+      <p className="text-xs 2xl:text-sm text-text-muted">
+        {t("templateEditor.stabilityRecommended").replace("{value}", pct(stats.recommendedPrecision))}
+      </p>
+      <label className="flex items-center gap-2 text-xs 2xl:text-sm text-text-primary cursor-pointer">
+        <input
+          type="checkbox"
+          checked={applyCalibration}
+          onChange={(e) => onToggleApply(e.target.checked)}
+          className="w-4 h-4 accent-accent-blue"
+        />
+        <span>{t("templateEditor.stabilityApply")}</span>
+      </label>
+      <p className="text-[11px] 2xl:text-xs text-text-muted">{t("templateEditor.stabilityHint")}</p>
+    </div>
+  );
+}
+
 /** Persists the current template (new or updated regions). */
 async function saveTemplate(opts: {
   canvas: HTMLCanvasElement | null;
   regions: MatchedRegion[];
   templateName: string;
+  calibration?: TemplateCalibration;
   onUpdateRegions: TemplateEditorProps["onUpdateRegions"];
   onSaveTemplate: TemplateEditorProps["onSaveTemplate"];
   setIsSaving: (v: boolean) => void;
   setErrorMsg: (v: string | null) => void;
 }) {
-  const { canvas, regions, templateName, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg } = opts;
+  const { canvas, regions, templateName, calibration, onUpdateRegions, onSaveTemplate, setIsSaving, setErrorMsg } = opts;
   if (!canvas) return;
 
   setIsSaving(true);
@@ -646,7 +709,7 @@ async function saveTemplate(opts: {
       await onUpdateRegions(regions, trimmedName);
     } else if (onSaveTemplate) {
       const base64Data = canvas.toDataURL("image/png");
-      await onSaveTemplate({ imageBase64: base64Data, regions, name: trimmedName });
+      await onSaveTemplate({ imageBase64: base64Data, regions, name: trimmedName, calibration });
     }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Failed to save template";
@@ -997,6 +1060,22 @@ export function TemplateEditor({
 
   const templateTest = useTemplateTest();
 
+  // Stability analysis over the completed batch run (null while running/empty)
+  const stabilityStats = useMemo(
+    () =>
+      !templateTest.isRunning && templateTest.batchResults.size > 0
+        ? analyzeStability([...templateTest.batchResults.values()])
+        : null,
+    [templateTest.isRunning, templateTest.batchResults],
+  );
+
+  // Whether the calibration is persisted on save; defaults to on unless the
+  // analysis rates the template poor.
+  const [applyCalibration, setApplyCalibration] = useState(false);
+  useEffect(() => {
+    setApplyCalibration(stabilityStats !== null && stabilityStats.rating !== "poor");
+  }, [stabilityStats]);
+
   // Browser-based replay buffer capturing from the stream at 60fps
   const replayBuffer = useReplayBuffer(stream ? videoEl : null);
   const [snapshotWidth, setSnapshotWidth] = useState(0);
@@ -1216,6 +1295,7 @@ export function TemplateEditor({
       canvas: canvasRef.current,
       regions,
       templateName: templateName.trim() || "",
+      calibration: applyCalibration && stabilityStats ? toCalibration(stabilityStats) : undefined,
       onUpdateRegions,
       onSaveTemplate,
       setIsSaving,
@@ -1453,6 +1533,14 @@ export function TemplateEditor({
               <p className="text-xs 2xl:text-sm text-amber-400 text-center mt-2">
                 {t("templateEditor.testLowScoreHint")}
               </p>
+            )}
+            {stabilityStats && (
+              <StabilityPanel
+                stats={stabilityStats}
+                applyCalibration={applyCalibration}
+                onToggleApply={setApplyCalibration}
+                t={t}
+              />
             )}
           </div>
         </>
