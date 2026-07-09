@@ -143,6 +143,26 @@ export interface DetectorTemplate {
    * engine/templateStability.ts). Persisted opaquely by the backend.
    */
   calibration?: TemplateCalibration | null;
+  /**
+   * This template's own NCC match threshold (0.0-1.0). Undefined falls back
+   * to the engine's hardcoded default (see engine/detectorDefaults.ts).
+   */
+  precision?: number;
+  /**
+   * This template's own hysteresis exit-threshold multiplier (0.0-1.0).
+   * Undefined falls back to the engine's hardcoded default.
+   */
+  hysteresis_factor?: number;
+  /** This template's own required consecutive matching frames before counting. */
+  consecutive_hits?: number;
+  /** This template's own minimum seconds between counts. */
+  cooldown_sec?: number;
+  /** This template's own base adaptive-polling interval (ms). */
+  poll_interval_ms?: number;
+  /** This template's own fastest adaptive-polling interval (ms). */
+  min_poll_ms?: number;
+  /** This template's own slowest adaptive-polling interval (ms). */
+  max_poll_ms?: number;
 }
 
 /** Per-template stability calibration persisted with the template. */
@@ -154,24 +174,21 @@ export interface TemplateCalibration {
   sample_count: number;
 }
 
-/** DetectorConfig holds all auto-detection settings for a single Pokémon hunt. */
+/**
+ * DetectorConfig holds hunt-level auto-detection settings for a single
+ * Pokémon hunt. Precision, hysteresis, cooldown, consecutive hits, and
+ * adaptive-polling are per-template settings (see DetectorTemplate), not
+ * hunt-level anymore.
+ */
 export interface DetectorConfig {
   enabled: boolean;
   source_type: "screen_region" | "window" | "camera" | "browser_display" | "browser_camera" | "dev_video";
   region: DetectorRect;
   window_title: string;
   templates: DetectorTemplate[];
-  precision: number;        // 0.0–1.0
-  consecutive_hits: number;
-  cooldown_sec: number;
   change_threshold: number;
-  poll_interval_ms: number;  // base interval (adaptive centre point)
-  min_poll_ms: number;       // fastest adaptive interval (high activity)
-  max_poll_ms: number;       // slowest adaptive interval (static screen)
   adaptive_cooldown?: boolean;
   adaptive_cooldown_min?: number;
-  adaptive_threshold?: boolean;        // auto-adjust precision based on region size (default: true)
-  hysteresis_factor?: number;          // 0.0–1.0, hysteresis exit threshold multiplier (default 0.7)
   detection_log?: DetectionLogEntry[]; // last N confirmed matches
   ocr_backend?: "tesseract";  // OCR engine (only tesseract supported)
 }
