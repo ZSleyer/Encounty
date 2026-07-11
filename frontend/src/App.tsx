@@ -38,6 +38,7 @@ import { apiUrl, wsUrl } from "./utils/api";
 import { CaptureServiceProvider, useCaptureService } from "./contexts/CaptureServiceContext";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { startDetectionForPokemon, stopDetectionForPokemon } from "./engine/startDetection";
+import { useModalA11y } from "./hooks/useModalA11y";
 
 // Tracks which pokemon were already marked as completed in the last state_update.
 // Used as a safety net so the detection loop is stopped even if the typed
@@ -53,12 +54,21 @@ function UpdateOverlay({
   version: string;
 }>) {
   const { t } = useI18n();
+  // Not cancelable: an update install/restart can't be interrupted, so Escape is a no-op.
+  const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: () => {} });
   return (
-    <div className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="update-overlay-title"
+      tabIndex={-1}
+      className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
+    >
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl">
         <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
         <div className="text-center space-y-2">
-          <p className="text-lg font-semibold text-text-primary">
+          <p id="update-overlay-title" className="text-lg font-semibold text-text-primary">
             {updateState === "restarting" ? t("update.restarting") : t("update.installing")}
           </p>
           <p className="text-sm text-text-muted">
