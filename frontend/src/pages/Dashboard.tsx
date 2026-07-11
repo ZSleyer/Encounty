@@ -60,7 +60,7 @@ import { startDetectionForPokemon, stopDetectionForPokemon } from "../engine/sta
 import { OverlayEditor } from "../components/overlay-editor/OverlayEditor";
 import { useCounterStore } from "../hooks/useCounterState";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, GameEntry, AppState, Group } from "../types";
+import { Pokemon, DetectorConfig, OverlaySettings, OverlayMode, AppState, Group } from "../types";
 import { TagChip } from "../components/shared/TagChip";
 import { TagFilterBar } from "../components/shared/TagFilterBar";
 import { SidebarGroupSection, type GroupAction } from "../components/shared/SidebarGroupSection";
@@ -381,18 +381,6 @@ function buildResetConfirmConfig(
     };
   }
   return null;
-}
-
-/** Fetches the games list on mount for generation-aware odds display. */
-function useGames(): GameEntry[] {
-  const [games, setGames] = useState<GameEntry[]>([]);
-  useEffect(() => {
-    fetch(apiUrl("/api/games"))
-      .then((r) => r.json())
-      .then((data: GameEntry[]) => { if (Array.isArray(data)) setGames(data); })
-      .catch(() => {});
-  }, []);
-  return games;
 }
 
 /** Switches away from the detector tab when the viewed Pokemon gets archived. */
@@ -1784,8 +1772,6 @@ export function Dashboard() {
   const [overlayDirty, setOverlayDirty] = useState(false);
   const [overlaySaving, setOverlaySaving] = useState(false);
   const [overlaySaved, setOverlaySaved] = useState(false);
-
-  const games = useGames();
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
