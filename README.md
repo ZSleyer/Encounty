@@ -47,9 +47,16 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 
 Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and build instructions. Encounty was built with the help of LLM coding assistants, without them a project of this scope wouldn't have been possible to build solo in this timeframe, so PRs created with the help of LLM agents are explicitly welcome too.
 
-## License
+## License Notice
 
-[GNU Affero General Public License v3 (AGPLv3)](LICENSE)
+This project is licensed under the [GNU Affero General Public License v3 (AGPLv3)](LICENSE).
+
+You are free to use, modify, and redistribute this software, provided that you fully comply with the terms of the AGPLv3. If you modify this software and make it available over a network or distribute it in any form, you must fulfill all obligations imposed by the license, including making the complete corresponding source code available.
+
+Any use of this source code outside the permissions granted by the AGPLv3, including incorporating it into proprietary software without complying with the license, constitutes copyright infringement.
+
+The author actively protects this project's intellectual property and reserves the right to investigate and pursue any license violations through all available legal remedies.
+
 
 ## Star History
 
