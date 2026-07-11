@@ -15,6 +15,7 @@
  */
 
 import type { TemplateCalibration } from "../types";
+import type { SweepResult } from "./parameterSweep";
 
 // --- Types -------------------------------------------------------------------
 
@@ -45,6 +46,10 @@ export interface StabilityStats {
   recommendedHysteresis: number;
   /** Overall detectability rating. */
   rating: StabilityRating;
+  /** Frame index of the first sample inside the detected match window. */
+  matchStartFrame: number;
+  /** Frame index of the last sample inside the detected match window. */
+  matchEndFrame: number;
 }
 
 /** Recommended adaptive-polling intervals derived from a stability analysis. */
@@ -59,7 +64,7 @@ export type { TemplateCalibration };
 // --- Constants ----------------------------------------------------------------
 
 /** Minimum number of sampled frames required for a meaningful analysis. */
-const MIN_SAMPLES = 8;
+export const MIN_SAMPLES = 8;
 
 /** Safety margin subtracted from the match p10 for the recommendation. */
 const MATCH_MARGIN = 0.03;
@@ -187,6 +192,8 @@ export function analyzeStability(samples: StabilitySample[]): StabilityStats | n
     matchFraction,
     recommendedHysteresis: recommendHysteresis(recommended, noiseP90),
     rating: upper >= lower ? rate(matchFraction, separation) : "poor",
+    matchStartFrame: ordered[start].frameIndex,
+    matchEndFrame: ordered[end].frameIndex,
   };
 }
 
@@ -246,14 +253,34 @@ export function recommendPolling(
   return { minPollMs, basePollMs, maxPollMs };
 }
 
-/** Convert stability stats into the persisted calibration payload. */
-export function toCalibration(stats: StabilityStats): TemplateCalibration {
-  return {
-    recommended_precision: round3(stats.recommendedPrecision),
+/**
+ * Convert stability stats into the persisted calibration payload.
+ *
+ * When a parameter-sweep result is provided the swept precision replaces the
+ * analytic recommendation (the sweep operates on the noise-floor adjusted
+ * scale, which is what the runtime compares against) and the full sweep
+ * outcome is embedded so the editor can apply it to the template settings.
+ */
+export function toCalibration(stats: StabilityStats, sweep?: SweepResult | null): TemplateCalibration {
+  const base: TemplateCalibration = {
+    recommended_precision: round3(sweep ? sweep.precision : stats.recommendedPrecision),
     match_p10: round3(stats.matchP10),
     match_median: round3(stats.matchMedian),
     noise_p90: round3(stats.noiseP90),
     sample_count: stats.sampleCount,
+  };
+  if (!sweep) return base;
+  return {
+    ...base,
+    sweep: {
+      hysteresis_factor: round3(sweep.hysteresisFactor),
+      consecutive_hits: sweep.consecutiveHits,
+      poll_interval_ms: sweep.pollIntervalMs,
+      min_poll_ms: sweep.minPollMs,
+      max_poll_ms: sweep.maxPollMs,
+      robustness_margin: round3(sweep.robustnessMargin),
+      latency_ms: Math.round(sweep.worstLatencyMs),
+    },
   };
 }
 

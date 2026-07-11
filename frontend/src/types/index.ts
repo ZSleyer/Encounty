@@ -172,6 +172,20 @@ export interface TemplateCalibration {
   match_median: number;
   noise_p90: number;
   sample_count: number;
+  /**
+   * Simulation-based parameter sweep outcome. Written by the parameter sweep
+   * in the Template-Editor and stored opaquely by the backend. All values are
+   * on the noise-floor adjusted score scale used by the runtime.
+   */
+  sweep?: {
+    hysteresis_factor: number;
+    consecutive_hits: number;
+    poll_interval_ms: number;
+    min_poll_ms: number;
+    max_poll_ms: number;
+    robustness_margin: number;
+    latency_ms: number;
+  };
 }
 
 /**
