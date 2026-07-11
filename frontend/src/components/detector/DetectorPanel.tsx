@@ -897,8 +897,8 @@ export function DetectorPanel({
           {/* Right: Templates top, divider, Log/Settings bottom */}
           <div className="w-80 xl:w-96 shrink-0 flex flex-col min-h-0 border-l border-border-subtle bg-bg-card" data-detector-tutorial="templates">
               {/* Templates header */}
-              <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-border-subtle shrink-0">
-                <span className="text-xs font-semibold text-text-primary">
+              <div className="flex items-center flex-wrap justify-between gap-x-1.5 gap-y-1.5 px-4 py-2.5 border-b border-border-subtle shrink-0">
+                <span className="text-xs font-semibold text-text-primary whitespace-nowrap">
                   {t("detector.templates")}
                   {templates.length > 0 && (
                     <span className="ml-1 text-[10px] bg-accent-blue/20 text-accent-blue px-1 py-0.5 rounded-full">
@@ -906,7 +906,6 @@ export function DetectorPanel({
                     </span>
                   )}
                 </span>
-                <div className="flex-1" />
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => {
@@ -917,7 +916,7 @@ export function DetectorPanel({
                     title={isRunning ? t("detector.disabledWhileRunning") : t("detector.tooltipAddFromVideo")}
                     aria-label={t("detector.tooltipAddFromVideo")}
                     aria-disabled={isRunning || undefined}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-accent-blue hover:bg-accent-blue/90 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-accent-blue hover:bg-accent-blue/90 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <Plus className="w-3 h-3" />
                     {t("detector.addFromVideo")}
@@ -928,7 +927,7 @@ export function DetectorPanel({
                     title={isRunning ? t("detector.disabledWhileRunning") : t("detector.importFromPokemon")}
                     aria-label={t("detector.importFromPokemon")}
                     aria-disabled={isRunning || undefined}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     <Upload className="w-3 h-3" />
                     {t("detector.importTemplates")}
