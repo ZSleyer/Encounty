@@ -4338,4 +4338,142 @@ describe("DetectorPanel", () => {
       Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response),
     );
   });
+
+  // --- Hysteresis mode (3D mode) flows through the settings draft ---
+
+  it("includes the template's hysteresis_mode in the settings save PATCH body", async () => {
+    const user = userEvent.setup();
+    vi.mocked(globalThis.fetch).mockClear();
+
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION], hysteresis_mode: "region" },
+        ],
+      },
+    });
+    renderPanel({ pokemon });
+
+    // Switch to settings tab
+    const settingsTab = screen.getByText(/Einstellungen|Settings/i);
+    await user.click(settingsTab);
+
+    // Mark the draft dirty without touching the mode checkbox
+    const slider = document.getElementById("det-precision") as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: "0.9" } });
+
+    const saveBtn = screen.getByText(/Speichern|Save/i);
+    await user.click(saveBtn);
+
+    await waitFor(() => {
+      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
+        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+          (call[0] as string).includes("/template/0"),
+      );
+      expect(patchCalls.length).toBeGreaterThan(0);
+      const body = JSON.parse(patchCalls[0][1]?.body as string);
+      // The draft is seeded from the template, so the mode must survive a save
+      expect(body.hysteresis_mode).toBe("region");
+    });
+  });
+
+  it("resets hysteresis_mode to score when settings are reset and saved", async () => {
+    const user = userEvent.setup();
+    vi.mocked(globalThis.fetch).mockClear();
+
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [VALID_REGION], hysteresis_mode: "region" },
+        ],
+      },
+    });
+    renderPanel({ pokemon });
+
+    const settingsTab = screen.getByText(/Einstellungen|Settings/i);
+    await user.click(settingsTab);
+
+    // Reset marks the draft dirty and reverts every setting to its default
+    const resetBtn = screen.getByText(/Zurücksetzen|Reset/i);
+    await user.click(resetBtn);
+
+    const saveBtn = screen.getByText(/Speichern|Save/i);
+    await user.click(saveBtn);
+
+    await waitFor(() => {
+      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
+        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+          (call[0] as string).includes("/template/0"),
+      );
+      expect(patchCalls.length).toBeGreaterThan(0);
+      const body = JSON.parse(patchCalls[0][1]?.body as string);
+      expect(body.hysteresis_mode).toBe("score");
+    });
+  });
+
+  it("does not include hysteresis_mode in the region update PATCH body", async () => {
+    const user = userEvent.setup();
+    // Clear the shared mock's call history so earlier settings-save PATCHes
+    // from previous tests cannot leak into this test's assertions.
+    vi.mocked(globalThis.fetch).mockClear();
+    vi.mocked(globalThis.fetch).mockImplementation((input) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url.includes("/api/hunt-types")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
+    });
+
+    const pokemon = makePokemon({
+      detector_config: {
+        enabled: true,
+        source_type: "browser_display",
+        region: { x: 0, y: 0, w: 0, h: 0 },
+        window_title: "",
+        change_threshold: 0.15,
+        templates: [
+          { image_path: "tmpl1.png", enabled: true, name: "3D Template", regions: [VALID_REGION], template_db_id: 77, hysteresis_mode: "region" },
+        ],
+      },
+    });
+    renderPanel({ pokemon, isRunning: false });
+
+    const editBtn = screen.getByLabelText("Bearbeiten");
+    await user.click(editBtn);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("template-editor-mock")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Update Regions"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("template-editor-mock")).not.toBeInTheDocument();
+    });
+
+    const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
+      call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+        (call[0] as string).includes("/template/0"),
+    );
+    expect(patchCalls.length).toBeGreaterThan(0);
+    const body = JSON.parse(patchCalls[0][1]?.body as string);
+    // A region edit must never touch the mode; the backend treats an omitted
+    // field as "keep", while null would clear it back to score mode.
+    expect("hysteresis_mode" in body).toBe(false);
+
+    // Restore
+    vi.mocked(globalThis.fetch).mockImplementation(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response),
+    );
+  });
 });

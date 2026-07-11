@@ -537,6 +537,8 @@
   "detector.cooldownDesc": "Pause minimale après une correspondance. Empêche le double comptage. Après le cooldown, le système attend également que la correspondance disparaisse (hystérèse).",
   "detector.hysteresis": "Seuil d'hystérèse",
   "detector.hysteresisDesc": "Pourcentage de la précision en dessous duquel le score doit descendre après une correspondance avant qu'une nouvelle puisse être détectée",
+  "detector.hysteresisMode": "Mode 3D",
+  "detector.hysteresisModeDesc": "Pour les jeux 3D où l'image entière bouge constamment : le détecteur surveille les régions correspondantes et ne se réarme que lorsque leur contenu change réellement.",
   "detector.cooldownHint": "Hystérèse : Après le cooldown, le score doit descendre en dessous de {{pct}}% de la précision avant qu'une nouvelle correspondance puisse être comptée.",
   "detector.templateSettingsNote": "Paramètres de détection du template \"{{name}}\". Chaque template a sa propre précision, hystérèse, cooldown, nombre de hits et polling.",
   "detector.noActiveTemplate": "Aucun template actif sélectionné. Activez un template dans la liste ci-dessus pour voir ou modifier ses paramètres de détection.",

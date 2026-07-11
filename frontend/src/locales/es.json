@@ -537,6 +537,8 @@
   "detector.cooldownDesc": "Pausa mínima despues de una coincidencia. Evita el conteo doble. Despues del cooldown, el sistema también espera a que la coincidencia desaparezca (histeresis).",
   "detector.hysteresis": "Umbral de histeresis",
   "detector.hysteresisDesc": "Porcentaje de la precisión por debajo del cual debe caer la puntuación despues de una coincidencia antes de que se pueda detectar una nueva",
+  "detector.hysteresisMode": "Modo 3D",
+  "detector.hysteresisModeDesc": "Para juegos 3D en los que toda la pantalla se mueve constantemente: el detector observa las regiones coincidentes y solo se rearma cuando su contenido cambia realmente.",
   "detector.cooldownHint": "Histeresis: Despues del cooldown, la puntuación debe bajar por debajo del {{pct}}% de la precisión antes de que se pueda contar una nueva coincidencia.",
   "detector.templateSettingsNote": "Mostrando ajustes de detección de la plantilla \"{{name}}\". Cada plantilla tiene su propia precisión, histeresis, cooldown, aciertos y polling.",
   "detector.noActiveTemplate": "No hay ninguna plantilla activa seleccionada. Activa una plantilla en la lista de arriba para ver o editar sus ajustes de detección.",

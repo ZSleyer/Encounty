@@ -79,6 +79,7 @@ function draftFromTemplate(tmpl: DetectorTemplate | null): Required<TemplateSett
   return {
     precision: tmpl?.precision ?? DEFAULT_PRECISION,
     hysteresis_factor: tmpl?.hysteresis_factor ?? DEFAULT_HYSTERESIS_FACTOR,
+    hysteresis_mode: tmpl?.hysteresis_mode ?? "score",
     consecutive_hits: tmpl?.consecutive_hits ?? DEFAULT_CONSECUTIVE_HITS,
     cooldown_sec: tmpl?.cooldown_sec ?? DEFAULT_COOLDOWN_SEC,
     poll_interval_ms: tmpl?.poll_interval_ms ?? DEFAULT_POLL_MS,
@@ -591,6 +592,7 @@ export function DetectorPanel({
     setTemplateDraft({
       precision: DEFAULT_PRECISION,
       hysteresis_factor: DEFAULT_HYSTERESIS_FACTOR,
+      hysteresis_mode: "score",
       consecutive_hits: DEFAULT_CONSECUTIVE_HITS,
       cooldown_sec: DEFAULT_COOLDOWN_SEC,
       poll_interval_ms: DEFAULT_POLL_MS,

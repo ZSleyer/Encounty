@@ -49,7 +49,7 @@ export function validatePollIntervals(
 
 /** The subset of DetectorTemplate fields this panel edits. */
 export type TemplateSettingsPatch = Partial<Pick<DetectorTemplate,
-  "precision" | "hysteresis_factor" | "cooldown_sec" | "consecutive_hits" |
+  "precision" | "hysteresis_factor" | "hysteresis_mode" | "cooldown_sec" | "consecutive_hits" |
   "poll_interval_ms" | "min_poll_ms" | "max_poll_ms"
 >>;
 
@@ -162,6 +162,21 @@ export function DetectorSettings({
               className="w-full accent-accent-blue"
             />
             <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.hysteresisDesc")}</p>
+          </div>
+          {/* Hysteresis mode toggle: region-based re-arm for 3D games where the
+              score never drops because the whole screen moves constantly. */}
+          <div>
+            <div className="flex items-center gap-2">
+              <input
+                id="det-hysteresis-mode" type="checkbox"
+                checked={template?.hysteresis_mode === "region"}
+                aria-describedby="det-hysteresis-mode-desc"
+                onChange={(e) => onUpdate({ hysteresis_mode: e.target.checked ? "region" : "score" })}
+                className="w-4 h-4 accent-accent-blue focus-visible:outline-2 focus-visible:outline-accent-blue"
+              />
+              <label htmlFor="det-hysteresis-mode" className="text-xs 2xl:text-sm text-text-muted">{t("detector.hysteresisMode")}</label>
+            </div>
+            <p id="det-hysteresis-mode-desc" className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.hysteresisModeDesc")}</p>
           </div>
           {/* Hysteresis explanation */}
           <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">

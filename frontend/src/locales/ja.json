@@ -537,6 +537,8 @@
   "detector.cooldownDesc": "一致後の最小待機時間。二重カウントを防ぎます。Cooldown後、システムは一致が消えるのも待ちます（ヒステリシス）。",
   "detector.hysteresis": "ヒステリシス閾値",
   "detector.hysteresisDesc": "一致後、新しい一致が検出される前にスコアが下回る必要がある精度の割合",
+  "detector.hysteresisMode": "3Dモード",
+  "detector.hysteresisModeDesc": "画面全体が常に動く3Dゲーム向け：検出器は一致したRegionを監視し、その内容が実際に変化したときにのみ再度待ち受け状態になります。",
   "detector.cooldownHint": "ヒステリシス：Cooldown後、スコアが精度の{{pct}}%を下回ってから新しい一致がカウントされます。",
   "detector.templateSettingsNote": "Template「{{name}}」の検出設定を表示しています。各Templateは独自の精度・ヒステリシス・Cooldown・Treffer・Pollingを持ちます。",
   "detector.noActiveTemplate": "アクティブなTemplateが選択されていません。上のリストでTemplateを有効にすると、検出設定を確認・編集できます。",

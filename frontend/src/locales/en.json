@@ -537,6 +537,8 @@
   "detector.cooldownDesc": "Minimum pause after a match. Prevents double-counting. After the cooldown, the system also waits for the match to disappear (hysteresis).",
   "detector.hysteresis": "Hysteresis threshold",
   "detector.hysteresisDesc": "Percentage of precision the score must drop below after a match before a new match can be detected",
+  "detector.hysteresisMode": "3D mode",
+  "detector.hysteresisModeDesc": "For 3D games where the whole screen moves constantly: the detector watches the matched regions and re-arms only when their content actually changes.",
   "detector.cooldownHint": "Hysteresis: After cooldown, the score must drop below {{pct}}% of precision before a new match can count.",
   "detector.templateSettingsNote": "Showing detection settings for template \"{{name}}\". Every template has its own precision, hysteresis, cooldown, hits and polling.",
   "detector.noActiveTemplate": "No active template selected. Enable a template in the list above to view or edit its detection settings.",

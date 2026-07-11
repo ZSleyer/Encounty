@@ -224,6 +224,41 @@ describe("DetectorSettings", () => {
     expect(props.onUpdate).toHaveBeenCalledWith({ max_poll_ms: 1000 });
   });
 
+  it("renders the hysteresis mode checkbox unchecked when the template uses score mode", async () => {
+    const user = userEvent.setup();
+    renderSettings();
+    await expandSettings(user);
+    const checkbox = document.getElementById("det-hysteresis-mode") as HTMLInputElement;
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox.checked).toBe(false);
+  });
+
+  it("shows the hysteresis mode checkbox checked when the template uses region mode", async () => {
+    const user = userEvent.setup();
+    renderSettings({ template: makeTemplate({ hysteresis_mode: "region" }) });
+    await expandSettings(user);
+    const checkbox = document.getElementById("det-hysteresis-mode") as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+  });
+
+  it("emits a region patch when the hysteresis mode checkbox is checked", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings();
+    await expandSettings(user);
+    const checkbox = document.getElementById("det-hysteresis-mode") as HTMLInputElement;
+    await user.click(checkbox);
+    expect(props.onUpdate).toHaveBeenCalledWith({ hysteresis_mode: "region" });
+  });
+
+  it("emits a score patch when the hysteresis mode checkbox is unchecked", async () => {
+    const user = userEvent.setup();
+    const { props } = renderSettings({ template: makeTemplate({ hysteresis_mode: "region" }) });
+    await expandSettings(user);
+    const checkbox = document.getElementById("det-hysteresis-mode") as HTMLInputElement;
+    await user.click(checkbox);
+    expect(props.onUpdate).toHaveBeenCalledWith({ hysteresis_mode: "score" });
+  });
+
   it("calls onUpdate when hysteresis slider changes", async () => {
     const user = userEvent.setup();
     const { props } = renderSettings();

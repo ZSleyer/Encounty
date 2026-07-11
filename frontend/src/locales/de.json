@@ -537,6 +537,8 @@
   "detector.cooldownDesc": "Mindestpause nach einem Treffer. Verhindert Doppelzählungen. Nach Ablauf wird zusätzlich geprüft, ob der Treffer nicht mehr sichtbar ist (Hysterese).",
   "detector.hysteresis": "Hysterese-Schwelle",
   "detector.hysteresisDesc": "Prozentsatz der Präzision, unter den der Score nach einem Treffer fallen muss, bevor ein neuer Treffer erkannt wird",
+  "detector.hysteresisMode": "3D-Modus",
+  "detector.hysteresisModeDesc": "Für 3D-Spiele, in denen sich das ganze Bild ständig bewegt: Der Detektor beobachtet die gematchten Regionen und wird erst wieder scharf, wenn sich deren Inhalt tatsächlich ändert.",
   "detector.cooldownHint": "Hysterese: Nach dem Cooldown muss der Score unter {{pct}}% der Genauigkeit fallen, bevor ein neuer Treffer gezählt wird.",
   "detector.templateSettingsNote": "Erkennungseinstellungen für Template \"{{name}}\". Jedes Template hat seine eigene Genauigkeit, Hysterese, Cooldown, Treffer und Polling.",
   "detector.noActiveTemplate": "Kein aktives Template ausgewählt. Aktiviere ein Template in der Liste oben, um seine Erkennungseinstellungen anzusehen oder zu bearbeiten.",
