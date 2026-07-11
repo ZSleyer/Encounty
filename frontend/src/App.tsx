@@ -97,14 +97,22 @@ function UpdateNotification({
 }>) {
   const { t } = useI18n();
   const versionTag = version.startsWith("v") ? version : `v${version}`;
+  const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onDismiss });
   return (
-    <div className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn" role="alert">
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="update-notification-title"
+      tabIndex={-1}
+      className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
+    >
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
         <div className="w-14 h-14 rounded-full bg-accent-blue/15 flex items-center justify-center">
           <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
         </div>
         <div className="text-center space-y-1.5">
-          <p className="text-lg font-semibold text-text-primary">
+          <p id="update-notification-title" className="text-lg font-semibold text-text-primary">
             {t("update.newVersion")}
           </p>
           <p className="text-sm text-text-muted">
@@ -131,6 +139,52 @@ function UpdateNotification({
             className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
           >
             {manualDownload ? t("update.openDownload") : t("update.updateNow")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Confirmation modal shown when the user tries to close the tab via Ctrl+W / Cmd+W. */
+function CloseTabWarning({
+  onStay,
+  onQuit,
+}: Readonly<{
+  onStay: () => void;
+  onQuit: () => void;
+}>) {
+  const { t } = useI18n();
+  const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onStay });
+  return (
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="close-warning-title"
+      tabIndex={-1}
+      className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
+    >
+      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+        <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
+          <AlertTriangle className="w-7 h-7 text-amber-500" />
+        </div>
+        <div className="text-center space-y-1.5">
+          <p id="close-warning-title" className="text-lg font-semibold text-text-primary">{t("app.closeWarning")}</p>
+          <p className="text-sm text-text-muted">{t("app.closeWarningDesc")}</p>
+        </div>
+        <div className="flex gap-3 w-full">
+          <button
+            onClick={onStay}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
+          >
+            {t("app.closeWarningStay")}
+          </button>
+          <button
+            onClick={onQuit}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+          >
+            {t("app.closeWarningQuit")}
           </button>
         </div>
       </div>
@@ -499,31 +553,7 @@ function AppShell() {
       </a>
       {/* Close-tab warning modal */}
       {showCloseWarning && (
-        <div className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn">
-          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
-              <AlertTriangle className="w-7 h-7 text-amber-500" />
-            </div>
-            <div className="text-center space-y-1.5">
-              <p className="text-lg font-semibold text-text-primary">{t("app.closeWarning")}</p>
-              <p className="text-sm text-text-muted">{t("app.closeWarningDesc")}</p>
-            </div>
-            <div className="flex gap-3 w-full">
-              <button
-                onClick={() => setShowCloseWarning(false)}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
-              >
-                {t("app.closeWarningStay")}
-              </button>
-              <button
-                onClick={quitApp}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
-              >
-                {t("app.closeWarningQuit")}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CloseTabWarning onStay={() => setShowCloseWarning(false)} onQuit={quitApp} />
       )}
 
       {updateState !== "idle" && updateInfo && (

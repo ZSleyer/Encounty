@@ -1989,8 +1989,8 @@ describe("App", () => {
       expect(screen.getAllByText("9.9.9").length).toBeGreaterThanOrEqual(1);
     });
 
-    // The update notification popup should be rendered with role="alert"
-    expect(screen.getByRole("alert")).toBeInTheDocument();
+    // The update notification popup should be rendered as an accessible dialog
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
   });
@@ -2344,7 +2344,7 @@ describe("App", () => {
     act(() => { updateAvailableCb!({ version: "3.2.1" }); });
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
     // Changelog link should point to the release page with v prefix
@@ -2468,7 +2468,7 @@ describe("App", () => {
     act(() => { updateAvailableCb!({ version: "10.0.0" }); });
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
     // Click "Jetzt aktualisieren" (Update Now) in the notification
@@ -2545,7 +2545,7 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
     }, { timeout: 8000 });
 
     // Click the download button (Windows = manual download)
@@ -3438,8 +3438,8 @@ describe("App", () => {
       expect(screen.getAllByText("12.0.0").length).toBeGreaterThanOrEqual(1);
     });
 
-    // The notification popup (role="alert") should NOT appear
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // The notification popup (role="dialog") should NOT appear
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
   });

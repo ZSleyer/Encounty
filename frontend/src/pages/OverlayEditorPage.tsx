@@ -21,6 +21,7 @@ import { OverlaySettings, Pokemon } from "../types";
 import { useI18n } from "../contexts/I18nContext";
 import { getSpriteUrl } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 /** Hardcoded preview Pokemon for the default layout editor. */
 function makePreviewPokemon(): Pokemon {
@@ -68,6 +69,11 @@ export function OverlayEditorPage() {
   }, []);
 
   const blocker = useBlocker(overlayDirty);
+  const unsavedDialogOpen = blocker.state === "blocked";
+  const unsavedDialogRef = useModalA11y<HTMLDivElement>({
+    isOpen: unsavedDialogOpen,
+    onClose: () => blocker.reset?.(),
+  });
 
   const [previewPokemon] = useState(() => makePreviewPokemon());
 
@@ -122,9 +128,9 @@ export function OverlayEditorPage() {
       {/* Header bar */}
       <div className="flex items-center gap-3 px-4 py-2.5 bg-bg-secondary border-b border-border-subtle shrink-0 flex-wrap">
         <Layers className="w-4 h-4 text-accent-blue shrink-0" />
-        <span className="text-sm font-semibold text-text-primary mr-2">
+        <h1 className="text-sm font-semibold text-text-primary mr-2">
           {t("overlay.defaultTitle")}
-        </span>
+        </h1>
 
         <div className="ml-auto flex items-center gap-3">
           {/* OBS URL split button (per-Pokemon or universal) */}
@@ -172,18 +178,22 @@ export function OverlayEditorPage() {
       </main>
 
       {/* Unsaved-changes confirmation modal */}
-      {blocker.state === "blocked" && (
+      {unsavedDialogOpen && (
         <div // NOSONAR — backdrop click dismisses unsaved-changes dialog
+          ref={unsavedDialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="overlay-unsaved-title"
+          tabIndex={-1}
           className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
           onClick={(e) => { if (e.target === e.currentTarget) blocker.reset?.(); }}
-          onKeyDown={(e) => { if (e.key === "Escape") blocker.reset?.(); }}
         >
           <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
             <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />
             </div>
             <div className="text-center space-y-1.5">
-              <p className="text-lg font-semibold text-text-primary">
+              <p id="overlay-unsaved-title" className="text-lg font-semibold text-text-primary">
                 {t("overlay.unsavedTitle")}
               </p>
               <p className="text-sm text-text-muted">

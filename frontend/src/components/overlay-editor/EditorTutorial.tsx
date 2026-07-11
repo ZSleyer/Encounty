@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "../../contexts/I18nContext";
+import { useModalA11y } from "../../hooks/useModalA11y";
 
 type Props = Readonly<{
   onComplete: () => void;
@@ -50,6 +51,9 @@ export function EditorTutorial({ onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  // The tutorial is always actively showing a step while mounted; the parent
+  // only renders this component while the walkthrough is running.
+  const tooltipRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onComplete });
 
   useEffect(() => {
     const el = document.querySelector(`[data-tutorial="${STEPS[step].target}"]`);
@@ -139,8 +143,15 @@ export function EditorTutorial({ onComplete }: Props) {
 
       {/* Tooltip */}
       <div style={tooltipStyle}>
-        <div className="bg-bg-secondary border border-border-subtle rounded-xl shadow-lg p-4">
-          <p className="text-sm font-semibold text-text-primary mb-1">
+        <div
+          ref={tooltipRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="editor-tutorial-title"
+          tabIndex={-1}
+          className="bg-bg-secondary border border-border-subtle rounded-xl shadow-lg p-4"
+        >
+          <p id="editor-tutorial-title" className="text-sm font-semibold text-text-primary mb-1">
             {t(current.titleKey)}
           </p>
           <p className="text-xs text-text-secondary mb-3">
