@@ -149,6 +149,11 @@ var migrations = []migration{
 		description: "add per-template cooldown, hits and polling settings",
 		fn:          migrateAddTemplatePollingSettings,
 	},
+	{
+		version:     27,
+		description: "add hysteresis_mode column to detector_templates",
+		fn:          migrateAddTemplateHysteresisMode,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -396,6 +401,15 @@ func migrateAddCaptureResolutions(tx *sql.Tx) error {
 	if err != nil {
 		return fmt.Errorf("create capture_resolutions table: %w", err)
 	}
+	return nil
+}
+
+// migrateAddTemplateHysteresisMode adds the nullable hysteresis_mode column
+// to detector_templates. NULL means the legacy score-based hysteresis exit;
+// the frontend detection engine interprets the value. The ALTER TABLE error
+// is ignored because the column may already exist on fresh databases.
+func migrateAddTemplateHysteresisMode(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN hysteresis_mode TEXT`)
 	return nil
 }
 

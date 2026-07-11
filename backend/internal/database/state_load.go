@@ -356,7 +356,7 @@ func loadDetectorConfig(db *sql.DB, pokemonID string) (*state.DetectorConfig, er
 // regions, avoiding a deadlock with MaxOpenConns(1).
 func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTemplate, error) {
 	rows, err := db.Query(`SELECT id, name, sort_order, enabled, calibration, precision_val, hysteresis_factor,
-		consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms
+		consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms, hysteresis_mode
 		FROM detector_templates WHERE pokemon_id = ? ORDER BY sort_order`, pokemonID)
 	if err != nil {
 		return nil, err
@@ -370,8 +370,9 @@ func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTempla
 		var calibration sql.NullString
 		var precision, hysteresis sql.NullFloat64
 		var consecutiveHits, cooldownSec, pollIntervalMs, minPollMs, maxPollMs sql.NullInt64
+		var hysteresisMode sql.NullString
 		if err := rows.Scan(&t.TemplateDBID, &t.Name, &sortOrder, &enabledInt, &calibration, &precision, &hysteresis,
-			&consecutiveHits, &cooldownSec, &pollIntervalMs, &minPollMs, &maxPollMs); err != nil {
+			&consecutiveHits, &cooldownSec, &pollIntervalMs, &minPollMs, &maxPollMs, &hysteresisMode); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
@@ -405,6 +406,9 @@ func loadDetectorTemplates(db *sql.DB, pokemonID string) ([]state.DetectorTempla
 		if maxPollMs.Valid {
 			v := int(maxPollMs.Int64)
 			t.MaxPollMs = &v
+		}
+		if hysteresisMode.Valid && hysteresisMode.String != "" {
+			t.HysteresisMode = &hysteresisMode.String
 		}
 		templates = append(templates, t)
 	}

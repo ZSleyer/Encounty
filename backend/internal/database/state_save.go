@@ -724,9 +724,9 @@ func upsertPokemonTemplates(tx *sql.Tx, pokemonID string, templates []state.Dete
 		if tmpl.TemplateDBID > 0 {
 			if _, err := tx.Exec(
 				`UPDATE detector_templates SET name = ?, sort_order = ?, enabled = ?, calibration = ?, precision_val = ?, hysteresis_factor = ?,
-					consecutive_hits = ?, cooldown_sec = ?, poll_interval_ms = ?, min_poll_ms = ?, max_poll_ms = ? WHERE id = ?`,
+					consecutive_hits = ?, cooldown_sec = ?, poll_interval_ms = ?, min_poll_ms = ?, max_poll_ms = ?, hysteresis_mode = ? WHERE id = ?`,
 				tmpl.Name, sortOrder, enabledVal, calibrationVal, tmpl.Precision, tmpl.HysteresisFactor,
-				tmpl.ConsecutiveHits, tmpl.CooldownSec, tmpl.PollIntervalMs, tmpl.MinPollMs, tmpl.MaxPollMs, tmpl.TemplateDBID,
+				tmpl.ConsecutiveHits, tmpl.CooldownSec, tmpl.PollIntervalMs, tmpl.MinPollMs, tmpl.MaxPollMs, tmpl.HysteresisMode, tmpl.TemplateDBID,
 			); err != nil {
 				return fmt.Errorf("update template sort_order %d: %w", tmpl.TemplateDBID, err)
 			}
@@ -734,9 +734,9 @@ func upsertPokemonTemplates(tx *sql.Tx, pokemonID string, templates []state.Dete
 		} else if tmpl.ImageData != nil {
 			res, err := tx.Exec(
 				`INSERT INTO detector_templates (pokemon_id, image_data, name, sort_order, enabled, calibration, precision_val, hysteresis_factor,
-					consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					consecutive_hits, cooldown_sec, poll_interval_ms, min_poll_ms, max_poll_ms, hysteresis_mode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				pokemonID, tmpl.ImageData, tmpl.Name, sortOrder, enabledVal, calibrationVal, tmpl.Precision, tmpl.HysteresisFactor,
-				tmpl.ConsecutiveHits, tmpl.CooldownSec, tmpl.PollIntervalMs, tmpl.MinPollMs, tmpl.MaxPollMs,
+				tmpl.ConsecutiveHits, tmpl.CooldownSec, tmpl.PollIntervalMs, tmpl.MinPollMs, tmpl.MaxPollMs, tmpl.HysteresisMode,
 			)
 			if err != nil {
 				return fmt.Errorf("insert new template for %q: %w", pokemonID, err)

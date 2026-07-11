@@ -39,6 +39,23 @@ func validatePollIntervals(minMs, maxMs, baseMs *int) error {
 	return nil
 }
 
+// validateHysteresisMode checks a template's hysteresis re-arm mode. nil is
+// valid (the engine falls back to the legacy score-based behaviour); an
+// explicit value must be one of the modes the frontend detection engine
+// understands, so typos are rejected here instead of silently degrading
+// detection behaviour at runtime.
+func validateHysteresisMode(mode *string) error {
+	if mode == nil {
+		return nil
+	}
+	switch *mode {
+	case "score", "region":
+		return nil
+	default:
+		return fmt.Errorf("hysteresis_mode %q must be \"score\" or \"region\"", *mode)
+	}
+}
+
 // templateUploadResponse returns the new template's index and DB ID.
 type templateUploadResponse struct {
 	Index        int   `json:"index"`
@@ -161,6 +178,7 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 		PollIntervalMs   *int     `json:"poll_interval_ms,omitempty"`
 		MinPollMs        *int     `json:"min_poll_ms,omitempty"`
 		MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
+		HysteresisMode   *string  `json:"hysteresis_mode,omitempty"`
 	}
 	rawBody, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -173,6 +191,10 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 		return
 	}
 	if err := validatePollIntervals(body.MinPollMs, body.MaxPollMs, body.PollIntervalMs); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	if err := validateHysteresisMode(body.HysteresisMode); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
@@ -218,6 +240,9 @@ func (h *handler) handleTemplatePatch(w http.ResponseWriter, r *http.Request, id
 	}
 	if _, ok := presence["max_poll_ms"]; ok {
 		cfg2.Templates[n].MaxPollMs = body.MaxPollMs
+	}
+	if _, ok := presence["hysteresis_mode"]; ok {
+		cfg2.Templates[n].HysteresisMode = body.HysteresisMode
 	}
 	if body.Enabled != nil {
 		cfg2.Templates[n].Enabled = body.Enabled
@@ -280,6 +305,10 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
+	if err := validateHysteresisMode(req.HysteresisMode); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
 
 	// Ensure the detector_configs row exists in the DB before inserting the
 	// template image, because detector_templates.pokemon_id has a FK ->
@@ -309,6 +338,7 @@ func (h *handler) handleDetectorTemplateUpload(w http.ResponseWriter, r *http.Re
 		PollIntervalMs:   req.PollIntervalMs,
 		MinPollMs:        req.MinPollMs,
 		MaxPollMs:        req.MaxPollMs,
+		HysteresisMode:   req.HysteresisMode,
 	}
 	if err := h.storeTemplateImage(id, pngBytes, sortOrder, &tmpl); err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
@@ -346,6 +376,7 @@ type templateUploadRequest struct {
 	PollIntervalMs   *int     `json:"poll_interval_ms,omitempty"`
 	MinPollMs        *int     `json:"min_poll_ms,omitempty"`
 	MaxPollMs        *int     `json:"max_poll_ms,omitempty"`
+	HysteresisMode   *string  `json:"hysteresis_mode,omitempty"`
 }
 
 // parseTemplateUpload reads and validates the base64-encoded image from the

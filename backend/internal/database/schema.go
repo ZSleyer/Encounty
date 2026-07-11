@@ -237,6 +237,7 @@ var schemaV2 = []string{
 		poll_interval_ms  INTEGER,
 		min_poll_ms       INTEGER,
 		max_poll_ms       INTEGER,
+		hysteresis_mode   TEXT,
 		FOREIGN KEY (pokemon_id) REFERENCES detector_configs(pokemon_id) ON DELETE CASCADE
 	)`,
 

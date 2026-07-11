@@ -151,6 +151,12 @@ type DetectorTemplate struct {
 	// MaxPollMs is this template's own slowest adaptive-polling interval.
 	// nil falls back to a hardcoded default.
 	MaxPollMs *int `json:"max_poll_ms,omitempty"`
+	// HysteresisMode selects how the detection engine re-arms after a match.
+	// nil or "score" means the legacy score-based hysteresis exit; "region"
+	// makes the detector watch the matched regions' pixel content and re-arm
+	// only when it actually changes (for 3D games). The backend only validates
+	// and persists this value; the frontend detection engine owns the semantics.
+	HysteresisMode *string `json:"hysteresis_mode,omitempty"`
 }
 
 // DetectorRect defines a rectangular screen region in absolute pixel coordinates.

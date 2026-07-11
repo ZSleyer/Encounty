@@ -751,6 +751,7 @@ func TestTemplateDetectionSettingsRoundtrip(t *testing.T) {
 	pollIntervalMs := 150
 	minPollMs := 80
 	maxPollMs := 1500
+	hysteresisMode := "region"
 
 	st := state.AppState{
 		ActiveID: "p1",
@@ -774,6 +775,7 @@ func TestTemplateDetectionSettingsRoundtrip(t *testing.T) {
 							PollIntervalMs:   &pollIntervalMs,
 							MinPollMs:        &minPollMs,
 							MaxPollMs:        &maxPollMs,
+							HysteresisMode:   &hysteresisMode,
 						},
 						{
 							ImageData: []byte{0x89, 0x50, 0x4e, 0x47},
@@ -812,6 +814,12 @@ func TestTemplateDetectionSettingsRoundtrip(t *testing.T) {
 	if tmpls[1].ConsecutiveHits != nil || tmpls[1].CooldownSec != nil ||
 		tmpls[1].PollIntervalMs != nil || tmpls[1].MinPollMs != nil || tmpls[1].MaxPollMs != nil {
 		t.Error("second template has non-nil polling/hits/cooldown settings, want nil")
+	}
+	if tmpls[0].HysteresisMode == nil || *tmpls[0].HysteresisMode != hysteresisMode {
+		t.Errorf("HysteresisMode = %v, want %q", tmpls[0].HysteresisMode, hysteresisMode)
+	}
+	if tmpls[1].HysteresisMode != nil {
+		t.Errorf("HysteresisMode on second template = %q, want nil", *tmpls[1].HysteresisMode)
 	}
 
 	// A second save with loaded (DB-backed) templates must keep the values,
