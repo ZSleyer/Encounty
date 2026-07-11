@@ -2247,7 +2247,7 @@ export function Dashboard() {
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setEditingPokemon(p); }}
-                className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors opacity-0 group-hover:opacity-100"
+                className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors"
                 title={t("dash.edit")}
               >
                 <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
