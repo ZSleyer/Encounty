@@ -7,11 +7,11 @@
 [![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)](https://github.com/ZSleyer/Encounty/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)](https://github.com/ZSleyer/Encounty/releases)
 
-Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. It captures your game screen directly in the app, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware.
+Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. It captures your game screen directly in the app, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware.
 
 ## Download
 
-**[Download the latest version here](https://github.com/ZSleyer/Encounty/releases/latest)**
+**[Download Encounty for Linux, macOS, and Windows](https://github.com/ZSleyer/Encounty/releases/latest)**
 
 | Platform                   | Architecture | File                        |
 |----------------------------|--------------|-----------------------------|
@@ -26,7 +26,7 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 3. Built-in safeguards prevent false positives and double-counts
 4. Every confirmed encounter updates your counter in real time, including any connected OBS overlays
 
-### Features
+## Features
 
 - **All mainline Pokémon games** from Gen 1 (Red/Blue/Yellow) through Gen 9 (Legends Z-A) with game-specific shiny odds
 - **60+ hunt methods** including Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts, and many more
@@ -39,7 +39,7 @@ Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. I
 - **Pokédex** with sprite support and PokeAPI sync
 - **Multi-language** support for English, German, Spanish, French, and Japanese
 
-### Troubleshooting
+## Troubleshooting
 
 - [macOS](docs/macOS.md)
 
