@@ -72,10 +72,37 @@ components:
       type: object
     detector.templateUploadRequest:
       properties:
+        calibration:
+          description: |-
+            Calibration is the opaque stability calibration JSON computed by the
+            frontend test step; persisted as-is.
+          items:
+            type: integer
+          type: array
+          uniqueItems: false
+        consecutive_hits:
+          type: integer
+        cooldown_sec:
+          type: integer
+        hysteresis_factor:
+          type: number
+        hysteresis_mode:
+          type: string
         imageBase64:
           type: string
+        max_poll_ms:
+          type: integer
+        min_poll_ms:
+          type: integer
         name:
           type: string
+        poll_interval_ms:
+          type: integer
+        precision:
+          description: |-
+            The detection-setting fields below seed this template's own values;
+            nil means the engine's hardcoded fallback applies.
+          type: number
         regions:
           items:
             $ref: '#/components/schemas/state.MatchedRegion'
@@ -212,6 +239,11 @@ components:
         ms:
           type: integer
       type: object
+    pokemon.spriteResponse:
+      properties:
+        sprite_url:
+          type: string
+      type: object
     settings.captureResolutionRequest:
       properties:
         device_key:
@@ -332,14 +364,11 @@ components:
           description: Minimum seconds, default 3
           type: integer
         change_threshold:
-          description: pixel-delta fraction required to leave MATCH state
+          description: |-
+            ChangeThreshold is the pixel-delta fraction required to leave MATCH
+            state. Unlike precision/hysteresis/cooldown/hits/polling, this stays a
+            hunt-level setting; it is not exposed as a per-template control.
           type: number
-        consecutive_hits:
-          description: consecutive matching frames required before counting
-          type: integer
-        cooldown_sec:
-          description: minimum seconds between counts
-          type: integer
         detection_log:
           description: last maxDetectionLog confirmed matches
           items:
@@ -348,22 +377,6 @@ components:
           uniqueItems: false
         enabled:
           type: boolean
-        hysteresis_factor:
-          description: 0.0–1.0, multiplier for hysteresis exit threshold (default
-            0.7)
-          type: number
-        max_poll_ms:
-          description: slowest adaptive poll interval (static screen), default 500
-          type: integer
-        min_poll_ms:
-          description: fastest adaptive poll interval (high activity), default 30
-          type: integer
-        poll_interval_ms:
-          description: base milliseconds between capture polls (adaptive centre point)
-          type: integer
-        precision:
-          description: 0.0–1.0, default 0.85
-          type: number
         region:
           $ref: '#/components/schemas/state.DetectorRect'
         source_type:
@@ -391,15 +404,68 @@ components:
       type: object
     state.DetectorTemplate:
       properties:
+        calibration:
+          description: |-
+            Calibration holds frontend-computed stability calibration as an opaque
+            JSON object. The backend only persists and forwards it; the detection
+            engine in the frontend owns its shape.
+          items:
+            type: integer
+          type: array
+          uniqueItems: false
+        consecutive_hits:
+          description: |-
+            ConsecutiveHits is this template's own required consecutive matching
+            frames before counting an encounter. nil falls back to a hardcoded default.
+          type: integer
+        cooldown_sec:
+          description: |-
+            CooldownSec is this template's own minimum seconds between counts.
+            nil falls back to a hardcoded default.
+          type: integer
         enabled:
           description: nil = true (backward compat)
           type: boolean
+        hysteresis_factor:
+          description: |-
+            HysteresisFactor is this template's own hysteresis exit-threshold
+            multiplier. nil falls back to a hardcoded default.
+          type: number
+        hysteresis_mode:
+          description: |-
+            HysteresisMode selects how the detection engine re-arms after a match.
+            nil or "score" means the legacy score-based hysteresis exit; "region"
+            makes the detector watch the matched regions' pixel content and re-arm
+            only when it actually changes (for 3D games). The backend only validates
+            and persists this value; the frontend detection engine owns the semantics.
+          type: string
         image_path:
           description: legacy filesystem path
           type: string
+        max_poll_ms:
+          description: |-
+            MaxPollMs is this template's own slowest adaptive-polling interval.
+            nil falls back to a hardcoded default.
+          type: integer
+        min_poll_ms:
+          description: |-
+            MinPollMs is this template's own fastest adaptive-polling interval.
+            nil falls back to a hardcoded default.
+          type: integer
         name:
           description: user-visible template name
           type: string
+        poll_interval_ms:
+          description: |-
+            PollIntervalMs is this template's own base adaptive-polling interval.
+            nil falls back to a hardcoded default.
+          type: integer
+        precision:
+          description: |-
+            Precision is this template's own NCC match threshold (0.0-1.0). nil
+            means no explicit value has been set yet; the detection engine falls
+            back to a hardcoded default.
+          type: number
         regions:
           items:
             $ref: '#/components/schemas/state.MatchedRegion'
@@ -1799,6 +1865,7 @@ paths:
   /pokemon/{id}:
     delete:
       description: Removes the Pokemon, stops its detector, and deletes template files
+        and any uploaded sprite
       parameters:
       - description: Pokemon ID
         in: path
@@ -2044,7 +2111,7 @@ paths:
       tags:
       - pokemon
   /pokemon/{id}/sprite:
-    get:
+    delete:
       parameters:
       - description: Pokemon ID
         in: path
@@ -2057,7 +2124,9 @@ paths:
           content:
             application/json:
               schema:
-                type: file
+                oneOf:
+                - type: file
+                - $ref: '#/components/schemas/pokemon.spriteResponse'
           description: OK
         "400":
           content:
@@ -2077,7 +2146,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Request Entity Too Large
-      summary: Get or upload a Pokemon's local sprite image
+      summary: Get, upload, or delete a Pokemon's local sprite image
+      tags:
+      - pokemon
+    get:
+      parameters:
+      - description: Pokemon ID
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - type: file
+                - $ref: '#/components/schemas/pokemon.spriteResponse'
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Not Found
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/httputil.ErrResp'
+          description: Request Entity Too Large
+      summary: Get, upload, or delete a Pokemon's local sprite image
       tags:
       - pokemon
     post:
@@ -2093,7 +2200,9 @@ paths:
           content:
             application/json:
               schema:
-                type: file
+                oneOf:
+                - type: file
+                - $ref: '#/components/schemas/pokemon.spriteResponse'
           description: OK
         "400":
           content:
@@ -2113,7 +2222,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/httputil.ErrResp'
           description: Request Entity Too Large
-      summary: Get or upload a Pokemon's local sprite image
+      summary: Get, upload, or delete a Pokemon's local sprite image
       tags:
       - pokemon
   /pokemon/{id}/timer/reset:
