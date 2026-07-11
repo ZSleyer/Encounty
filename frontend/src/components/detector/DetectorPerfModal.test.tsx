@@ -12,8 +12,12 @@ type ElectronAPIStub = {
   getProcessStats?: () => Promise<unknown>;
 };
 
+// jsdom does not implement HTMLDialogElement.showModal/close, so the modal is
+// opened via the real native API, mocked the same way SourcePickerModal does it.
 describe("DetectorPerfModal", () => {
   beforeEach(() => {
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
     vi.useFakeTimers();
   });
 
@@ -36,11 +40,31 @@ describe("DetectorPerfModal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("calls onClose when Escape is pressed", () => {
+  it("calls onClose when the dialog's native cancel event fires (Escape key)", () => {
+    const onClose = vi.fn();
+    const { container } = render(<DetectorPerfModal pokemonId={null} onClose={onClose} />);
+    // The browser dispatches a non-bubbling "cancel" event on the <dialog>
+    // itself when Escape is pressed on a modal opened via showModal().
+    const dialog = container.querySelector("dialog")!;
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls onClose when the backdrop (the dialog itself) is clicked", () => {
+    const onClose = vi.fn();
+    const { container } = render(<DetectorPerfModal pokemonId={null} onClose={onClose} />);
+    const dialog = container.querySelector("dialog")!;
+    fireEvent.click(dialog);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call onClose when a click inside the dialog content bubbles up", () => {
     const onClose = vi.fn();
     render(<DetectorPerfModal pokemonId={null} onClose={onClose} />);
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(onClose).toHaveBeenCalledTimes(1);
+    // Clicking the heading (inside the dialog's content) must not close it,
+    // only a click whose target is the <dialog> element itself (the backdrop) does.
+    fireEvent.click(screen.getAllByText(/Performance/i)[0]);
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("shows empty loop state when no active loop is registered", () => {

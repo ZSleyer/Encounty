@@ -1,8 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, userEvent, makeAppState, makePokemon } from "../../test-utils";
+import { render, screen, userEvent, makeAppState, makePokemon } from "../../test-utils";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { useCounterStore } from "../../hooks/useCounterState";
 import type { DetectorConfig, DetectorTemplate } from "../../types";
+
+// jsdom does not implement HTMLDialogElement.showModal/close — stub them so the
+// dialog behaves like a real native modal (toggling the `open` attribute) and
+// existing screen queries keep working without needing `{ hidden: true }`.
+HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+  this.setAttribute("open", "");
+});
+HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+  this.removeAttribute("open");
+});
 
 /** Helper to build a minimal DetectorTemplate with required fields. */
 function makeTemplate(overrides?: Partial<DetectorTemplate>): DetectorTemplate {
@@ -59,6 +69,8 @@ beforeEach(() => {
     ],
   });
   useCounterStore.setState({ appState: state });
+  vi.mocked(HTMLDialogElement.prototype.showModal).mockClear();
+  vi.mocked(HTMLDialogElement.prototype.close).mockClear();
 });
 
 describe("ImportTemplatesModal", () => {
@@ -152,13 +164,19 @@ describe("ImportTemplatesModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("closes modal on Escape key press", () => {
+  it("closes modal on Escape key press (native dialog cancel event)", () => {
     const onClose = vi.fn();
     render(
       <ImportTemplatesModal currentPokemonId="current" onImport={vi.fn()} onClose={onClose} />,
     );
-    fireEvent.keyDown(document, { key: "Escape" });
-    expect(onClose).toHaveBeenCalled();
+    // Pressing Escape on an open native <dialog> fires a `cancel` event;
+    // jsdom doesn't implement this automatically, so we simulate it directly.
+    // The modal is rendered via createPortal into document.body.
+    const dialog = document.querySelector("dialog");
+    expect(dialog).not.toBeNull();
+    dialog!.dispatchEvent(new Event("cancel", { bubbles: true }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(HTMLDialogElement.prototype.close).toHaveBeenCalled();
   });
 
   it("shows no search results when search matches nothing", async () => {

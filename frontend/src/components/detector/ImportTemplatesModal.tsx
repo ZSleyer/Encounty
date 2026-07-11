@@ -24,18 +24,19 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   // Auto-focus search on mount
   useEffect(() => { searchRef.current?.focus(); }, []);
 
-  // Close on ESC key
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  // Open dialog on mount so it gets a real native focus trap and ::backdrop.
+  useEffect(() => { dialogRef.current?.showModal(); }, []);
+
+  /** Close the native dialog, then notify the parent. Also handles Escape via onCancel. */
+  const handleCancel = () => {
+    dialogRef.current?.close();
+    onClose();
+  };
 
   const candidates = useMemo(() => {
     const all = (appState?.pokemon ?? []).filter(
@@ -48,7 +49,8 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
 
   return createPortal(
     <dialog
-      open
+      ref={dialogRef}
+      onCancel={handleCancel}
       className="fixed inset-0 z-100 bg-black/70 flex items-center justify-center backdrop-blur-sm p-4 m-0 w-full h-full max-w-none max-h-none border-none"
       aria-label={t("detector.importFromPokemon")}
     >
@@ -56,7 +58,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
         type="button"
         className="fixed inset-0 w-full h-full cursor-default bg-transparent border-none"
         aria-label={t("aria.close")}
-        onClick={onClose}
+        onClick={handleCancel}
       />
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- stops event propagation to backdrop */}
       <div
@@ -69,7 +71,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
         <div className="flex items-center justify-between px-5 pt-5 pb-3 shrink-0">
           <h3 className="text-sm font-semibold text-text-primary">{t("detector.importFromPokemon")}</h3>
           <button
-            onClick={onClose}
+            onClick={handleCancel}
             className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
             aria-label={t("aria.close")}
           >

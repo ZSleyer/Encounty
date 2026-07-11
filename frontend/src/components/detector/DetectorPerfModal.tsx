@@ -86,20 +86,18 @@ export default function DetectorPerfModal({
   const [gpuInfo, setGpuInfo] = useState<GpuInfoBasic | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   // Auto-focus the close button on mount for keyboard accessibility.
   useEffect(() => {
     closeButtonRef.current?.focus();
   }, []);
 
-  // Escape closes the modal.
+  // Open natively via showModal() so the browser provides a real focus trap
+  // and blocks interaction with the background (::backdrop).
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    dialogRef.current?.showModal();
+  }, []);
 
   // One-shot GPU info on mount.
   useEffect(() => {
@@ -148,9 +146,26 @@ export default function DetectorPerfModal({
   const inElectron = Boolean(window.electronAPI?.isElectron);
   const gpuDevice = describeGpuDevice(gpuInfo);
 
+  const handleCancel = () => {
+    dialogRef.current?.close();
+    onClose();
+  };
+
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) handleCancel();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [handleCancel]);
+
   return (
     <dialog
-      open
+      ref={dialogRef}
+      onCancel={handleCancel}
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center m-0 p-0 border-none max-w-none max-h-none w-full h-full"
       aria-label={t("perfModal.title")}
     >
@@ -163,7 +178,7 @@ export default function DetectorPerfModal({
           </h2>
           <button
             ref={closeButtonRef}
-            onClick={onClose}
+            onClick={handleCancel}
             className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent-blue"
             aria-label={t("perfModal.close")}
           >

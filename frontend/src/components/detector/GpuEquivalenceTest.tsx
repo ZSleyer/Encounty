@@ -788,10 +788,16 @@ export default function GpuEquivalenceTest({
 
   const abortRef = useRef<AbortController | null>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   // Auto-focus close button on mount
   useEffect(() => {
     closeButtonRef.current?.focus();
+  }, []);
+
+  // Open dialog on mount
+  useEffect(() => {
+    dialogRef.current?.showModal();
   }, []);
 
   // Cleanup on unmount
@@ -858,6 +864,23 @@ export default function GpuEquivalenceTest({
     abortRef.current?.abort();
   }, []);
 
+  /** Close the dialog natively and notify the parent. */
+  const handleDialogClose = useCallback(() => {
+    dialogRef.current?.close();
+    onClose();
+  }, [onClose]);
+
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) handleDialogClose();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [handleDialogClose]);
+
   // --- Summary stats ---
   const totalTests = results.length;
   const passed = results.filter((r) => r.delta < 0.05).length;
@@ -874,7 +897,8 @@ export default function GpuEquivalenceTest({
 
   return (
     <dialog
-      open
+      ref={dialogRef}
+      onCancel={handleDialogClose}
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center m-0 p-0 border-none max-w-none max-h-none w-full h-full"
       aria-label="GPU Equivalence Test"
     >
@@ -886,7 +910,7 @@ export default function GpuEquivalenceTest({
           </h2>
           <button
             ref={closeButtonRef}
-            onClick={onClose}
+            onClick={handleDialogClose}
             className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent"
             aria-label="Close"
           >
