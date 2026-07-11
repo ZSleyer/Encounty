@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, userEvent, waitFor } from "../../test-utils";
+import { render, screen, userEvent, waitFor, within } from "../../test-utils";
 import { TemplateEditor } from "./TemplateEditor";
 import type { MatchedRegion } from "../../types";
 import type { SweepResult } from "../../engine/parameterSweep";
@@ -1293,7 +1293,7 @@ describe("TemplateEditor", () => {
     });
   });
 
-  // --- Stability analysis panel (test phase) ---
+  // --- Stability analysis status button and modal (test phase) ---
 
   describe("stability analysis panel", () => {
     const stabilityRegions = [
@@ -1328,31 +1328,85 @@ describe("TemplateEditor", () => {
       return user;
     }
 
-    it("shows the panel with a good rating and stats after a batch run", async () => {
+    /**
+     * Opens the stability modal via the status button. Waits until the button
+     * carries the final rating in its accessible name, which implies the
+     * batch analysis and the parameter sweep have both finished.
+     */
+    async function openStabilityModal(user: ReturnType<typeof userEvent.setup>) {
+      const button = await screen.findByRole("button", { name: /Stabilitäts-Analyse:/ });
+      await user.click(button);
+      return await screen.findByRole("dialog");
+    }
+
+    it("shows the rating on the status button after a batch run", async () => {
       setBatchResults(goodScores);
       await goToTestPhase();
 
-      expect(screen.getByText(/Stabilitäts-Analyse: Zuverlässig erkennbar/)).toBeInTheDocument();
+      const button = await screen.findByRole("button", { name: /Stabilitäts-Analyse: Zuverlässig erkennbar/ });
+      expect(button).toBeEnabled();
+      // The auto-applied calibration is part of the accessible name
+      expect(button).toHaveAccessibleName(/Empfehlungen werden beim Speichern übernommen/);
+    });
+
+    it("shows rating, stats and recommendation in the modal after a batch run", async () => {
+      setBatchResults(goodScores);
+      const user = await goToTestPhase();
+
+      const dialog = await openStabilityModal(user);
+      expect(within(dialog).getByText(/Stabilitäts-Analyse: Zuverlässig erkennbar/)).toBeInTheDocument();
       // Stats line: 5 frames in the match window
-      expect(screen.getByText(/5 Frames im Match-Fenster/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/5 Bilder zeigen den Match/)).toBeInTheDocument();
       // Recommendation line present with a percentage
-      expect(screen.getByText(/Empfohlene Genauigkeit: \d+%/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Empfohlene Genauigkeit: \d+%/)).toBeInTheDocument();
+    });
+
+    it("opens the modal from the status button and closes it again", async () => {
+      setBatchResults(goodScores);
+      const user = await goToTestPhase();
+
+      const button = await screen.findByRole("button", { name: /Stabilitäts-Analyse:/ });
+      await user.click(button);
+      const dialog = await screen.findByRole("dialog");
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+      // Focus moves into the dialog on open
+      expect(dialog).toHaveFocus();
+
+      // Escape closes and returns focus to the trigger button
+      await user.keyboard("{Escape}");
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(button).toHaveFocus();
+
+      // Close button closes as well
+      await user.click(button);
+      const reopened = await screen.findByRole("dialog");
+      await user.click(within(reopened).getByRole("button", { name: "Schließen" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(button).toHaveFocus();
+
+      // Backdrop click closes too
+      await user.click(button);
+      const third = await screen.findByRole("dialog");
+      await user.click(third.parentElement!);
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     });
 
     it("defaults the apply checkbox to checked for a good rating", async () => {
       setBatchResults(goodScores);
-      await goToTestPhase();
+      const user = await goToTestPhase();
 
-      const checkbox = screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ });
+      const dialog = await openStabilityModal(user);
+      const checkbox = within(dialog).getByRole("checkbox", { name: /Empfohlene Einstellungen beim Speichern übernehmen/ });
       expect(checkbox).toBeChecked();
     });
 
     it("defaults the apply checkbox to unchecked for a poor rating", async () => {
       setBatchResults(poorScores);
-      await goToTestPhase();
+      const user = await goToTestPhase();
 
-      expect(screen.getByText(/Stabilitäts-Analyse: Unzuverlässig/)).toBeInTheDocument();
-      const checkbox = screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ });
+      const dialog = await openStabilityModal(user);
+      expect(within(dialog).getByText(/Stabilitäts-Analyse: Unzuverlässig/)).toBeInTheDocument();
+      const checkbox = within(dialog).getByRole("checkbox", { name: /Empfohlene Einstellungen beim Speichern übernehmen/ });
       expect(checkbox).not.toBeChecked();
     });
 
@@ -1360,26 +1414,30 @@ describe("TemplateEditor", () => {
       setBatchResults(goodScores);
       const user = await goToTestPhase();
 
-      const checkbox = screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ });
+      const dialog = await openStabilityModal(user);
+      const checkbox = within(dialog).getByRole("checkbox", { name: /Empfohlene Einstellungen beim Speichern übernehmen/ });
       await user.click(checkbox);
       expect(checkbox).not.toBeChecked();
       await user.click(checkbox);
       expect(checkbox).toBeChecked();
     });
 
-    it("hides the panel while the batch is running", async () => {
+    it("shows a disabled analyzing button while the batch is running", async () => {
       setBatchResults(goodScores);
       mockTemplateTest.isRunning = true;
       await goToTestPhase();
 
-      expect(screen.queryByText(/Stabilitäts-Analyse/)).not.toBeInTheDocument();
+      const button = screen.getByRole("button", { name: "Analysiere…" });
+      expect(button).toBeDisabled();
+      expect(screen.queryByRole("dialog")).toBeNull();
     });
 
-    it("hides the panel when there are too few samples", async () => {
+    it("disables the status button when there are too few samples", async () => {
       setBatchResults(goodScores.slice(0, 4));
       await goToTestPhase();
 
-      expect(screen.queryByText(/Stabilitäts-Analyse/)).not.toBeInTheDocument();
+      const button = screen.getByRole("button", { name: "Stabilitäts-Analyse" });
+      expect(button).toBeDisabled();
     });
 
     /** Save handler signature matching TemplateEditorProps.onSaveTemplate. */
@@ -1391,7 +1449,7 @@ describe("TemplateEditor", () => {
      */
     async function goToConfirmAndSave(
       onSaveTemplate: SaveTemplateFn,
-      opts: { uncheck?: boolean; awaitSweep?: boolean } = {},
+      opts: { uncheck?: boolean; awaitSweep?: boolean; recheck?: boolean } = {},
     ) {
       mockReplayBuffer.frameCount = 60;
       mockReplayBuffer.getFrame = vi.fn().mockReturnValue({
@@ -1420,14 +1478,17 @@ describe("TemplateEditor", () => {
       });
 
       if (opts.awaitSweep) {
-        // The hits line only renders once the sweep result arrived
-        await waitFor(() => {
-          expect(screen.getByText(/Empfohlene Hits in Folge/)).toBeInTheDocument();
-        });
+        // The button only shows the final rating once the sweep has finished
+        await screen.findByRole("button", { name: /Stabilitäts-Analyse:/ });
       }
 
-      if (opts.uncheck) {
-        await user.click(screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ }));
+      if (opts.uncheck || opts.recheck) {
+        const dialog = await openStabilityModal(user);
+        const checkbox = within(dialog).getByRole("checkbox", { name: /Empfohlene Einstellungen beim Speichern übernehmen/ });
+        await user.click(checkbox);
+        if (opts.recheck) await user.click(checkbox);
+        await user.click(within(dialog).getByRole("button", { name: "Schließen" }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
       }
 
       // Test -> confirm phase -> save
@@ -1482,40 +1543,48 @@ describe("TemplateEditor", () => {
       worstLatencyMs: 120,
     };
 
-    it("shows a progress line while the sweep is running", async () => {
+    it("shows a progress line in the modal while the sweep is running", async () => {
       setBatchResults(goodScores);
       mockSweepControl.finished = false;
-      await goToTestPhase();
+      const user = await goToTestPhase();
 
-      expect(await screen.findByText("Simuliere optimale Einstellungen…")).toBeInTheDocument();
+      // While the sweep runs, the button shows the analyzing state but stays clickable
+      const button = await screen.findByRole("button", { name: "Analysiere…" });
+      expect(button).toBeEnabled();
+      await user.click(button);
+      const dialog = await screen.findByRole("dialog");
+
+      expect(within(dialog).getByText("Simuliere optimale Einstellungen…")).toBeInTheDocument();
       // Analytic recommendation stays visible as the fallback while sweeping
-      expect(screen.getByText(/Empfohlene Genauigkeit: \d+%/)).toBeInTheDocument();
+      expect(within(dialog).getByText(/Empfohlene Genauigkeit: \d+%/)).toBeInTheDocument();
     });
 
-    it("shows the swept values in the panel once the sweep completes", async () => {
+    it("shows the swept values in the modal once the sweep completes", async () => {
       setBatchResults(goodScores);
       mockSweepControl.result = { ...sweepFixture };
-      await goToTestPhase();
+      const user = await goToTestPhase();
 
+      const dialog = await openStabilityModal(user);
       await waitFor(() => {
-        expect(screen.getByText("Empfohlene Genauigkeit: 60%")).toBeInTheDocument();
+        expect(within(dialog).getByText("Empfohlene Genauigkeit: 60%")).toBeInTheDocument();
       });
-      expect(screen.getByText("Empfohlene Hysterese: 85%")).toBeInTheDocument();
-      expect(screen.getByText("Empfohlene Hits in Folge: 2")).toBeInTheDocument();
-      expect(screen.getByText("Empfohlenes Polling: min 50 ms, Basis 400 ms, max 2000 ms")).toBeInTheDocument();
+      expect(within(dialog).getByText("Neuer Treffer erst, wenn der alte verschwunden ist (Schwelle: 85%)")).toBeInTheDocument();
+      expect(within(dialog).getByText("Ein Match zählt erst nach 2 Treffern in Folge")).toBeInTheDocument();
+      expect(within(dialog).getByText("Empfohlene Scan-Rate: alle 400 ms (min 50 ms, max 2000 ms)")).toBeInTheDocument();
       // Progress line disappears once the sweep finished
-      expect(screen.queryByText("Simuliere optimale Einstellungen…")).not.toBeInTheDocument();
+      expect(within(dialog).queryByText("Simuliere optimale Einstellungen…")).not.toBeInTheDocument();
       // A perfect sweep shows no caution line
-      expect(screen.queryByText(/Der Sweep konnte den Match nicht/)).not.toBeInTheDocument();
+      expect(within(dialog).queryByText(/Der automatische Test konnte den Match nicht/)).not.toBeInTheDocument();
     });
 
     it("shows a caution line when the sweep is imperfect", async () => {
       setBatchResults(goodScores);
       mockSweepControl.result = { ...sweepFixture, cleanPhases: 3, perfect: false };
-      await goToTestPhase();
+      const user = await goToTestPhase();
 
+      const dialog = await openStabilityModal(user);
       expect(
-        await screen.findByText(/Der Sweep konnte den Match nicht in jedem simulierten Durchlauf sauber bestätigen/),
+        within(dialog).getByText(/Der automatische Test konnte den Match nicht in jedem Durchlauf sicher bestätigen/),
       ).toBeInTheDocument();
     });
 
@@ -1536,6 +1605,18 @@ describe("TemplateEditor", () => {
       expect(payload.calibration?.recommended_precision).toBeCloseTo(0.6, 3);
       expect(payload.calibration?.sweep?.consecutive_hits).toBe(2);
       expect(payload.calibration?.sweep?.poll_interval_ms).toBe(400);
+    });
+
+    it("writes the swept values into the save payload when re-applied via the modal checkbox", async () => {
+      setBatchResults(goodScores);
+      mockSweepControl.result = { ...sweepFixture };
+      const onSaveTemplate = vi.fn<SaveTemplateFn>().mockResolvedValue(undefined);
+      await goToConfirmAndSave(onSaveTemplate, { awaitSweep: true, recheck: true });
+
+      const payload = onSaveTemplate.mock.calls[0][0];
+      expect(payload.precision).toBeCloseTo(0.6, 5);
+      expect(payload.consecutiveHits).toBe(2);
+      expect(payload.calibration?.sweep?.consecutive_hits).toBe(2);
     });
 
     it("restores the pre-apply draft values when the apply checkbox is toggled off", async () => {

@@ -6,12 +6,12 @@
  * frames to pick the best one, then draw detection regions on it.
  * In edit mode, loads an existing template image for region editing.
  */
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo, useId } from "react";
 import { createPortal } from "react-dom";
 import {
   X, Camera, Save, RefreshCw, Trash2, Image as ImageIcon,
   Type, Loader2, ScanText, Play, ArrowRight, BarChart3, ArrowLeft, HelpCircle,
-  CheckCircle2, AlertTriangle, XCircle,
+  CheckCircle2, AlertTriangle, XCircle, Check,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { MatchedRegion, TemplateCalibration } from "../../types";
@@ -80,11 +80,14 @@ function NewTemplateControls({
   onTakeSnapshot, onResetSnapshot, onSave,
   onUseFrame, onBackToLive,
   onGoToTest, onPickFrame, onAdjustRegions, onLooksGood, onBackToTest,
+  stabilityStatus,
   t,
 }: Readonly<{
   phase: Phase;
   isSaving: boolean;
   hasRegions: boolean;
+  /** Stability-analysis status button, rendered inside the test-phase control row. */
+  stabilityStatus?: React.ReactNode;
   onTakeSnapshot: () => void;
   onResetSnapshot: () => void;
   onSave: () => void;
@@ -156,6 +159,7 @@ function NewTemplateControls({
   if (phase === "test") {
     return (
       <div className="flex w-full gap-3">
+        {stabilityStatus}
         <button
           onClick={onPickFrame}
           className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
@@ -643,13 +647,12 @@ function ratingPresentation(rating: StabilityStats["rating"]): {
 }
 
 /**
- * Stability analysis panel shown after a batch test run. Summarizes the score
- * distribution over the detected match window, the noise floor, and the
- * recommended precision, hysteresis and adaptive-polling settings, plus a
- * toggle to persist the calibration on save. Rendered as a fixed overlay on
- * the right edge so appearing after the test never shifts the editor layout.
+ * Stability analysis details: score distribution summary, the recommended
+ * settings (a finished sweep supersedes the analytic values) and the toggle
+ * that persists the calibration on save. Rendered inside StabilityStatus's
+ * modal.
  */
-function StabilityPanel({ stats, polling, sweep, sweepRunning, applyCalibration, onToggleApply, t }: Readonly<{
+function StabilityDetails({ stats, polling, sweep, sweepRunning, applyCalibration, onToggleApply, t }: Readonly<{
   stats: StabilityStats;
   polling: PollingRecommendation | null;
   /** Finished parameter-sweep result; supersedes the analytic values when present. */
@@ -660,7 +663,6 @@ function StabilityPanel({ stats, polling, sweep, sweepRunning, applyCalibration,
   onToggleApply: (v: boolean) => void;
   t: (k: string) => string;
 }>) {
-  const { Icon, labelKey, colorClass } = ratingPresentation(stats.rating);
   const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
   const statsLine = t("templateEditor.stabilityStats")
     .replace("{count}", String(stats.sampleCount))
@@ -684,11 +686,7 @@ function StabilityPanel({ stats, polling, sweep, sweepRunning, applyCalibration,
     : null;
 
   return (
-    <aside className="fixed right-4 top-1/2 -translate-y-1/2 z-110 w-72 2xl:w-80 max-h-[85vh] overflow-y-auto rounded-xl border border-border-subtle bg-black/80 backdrop-blur-md p-3 space-y-2 text-sm 2xl:text-base">
-      <div className={`flex items-center gap-2 font-semibold ${colorClass}`}>
-        <Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
-        <span>{t("templateEditor.stabilityTitle")}: {t(labelKey)}</span>
-      </div>
+    <>
       <p className="text-xs 2xl:text-sm text-text-muted">{statsLine}</p>
       {sweepRunning && (
         <p className="flex items-center gap-2 text-xs 2xl:text-sm text-text-muted">
@@ -726,7 +724,135 @@ function StabilityPanel({ stats, polling, sweep, sweepRunning, applyCalibration,
         <span>{t("templateEditor.stabilityApply")}</span>
       </label>
       <p className="text-[11px] 2xl:text-xs text-text-muted">{t("templateEditor.stabilityHint")}</p>
-    </aside>
+    </>
+  );
+}
+
+/**
+ * Compact stability status button shown during the test step, anchored to the
+ * right edge so appearing after the batch test never shifts the editor layout.
+ * Shows a spinner while the batch test or the parameter sweep is running and
+ * the color-coded rating once the analysis is done; a small check marks that
+ * the calibration will be applied on save. Clicking it opens a centered modal
+ * with the full stability details.
+ */
+function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, applyCalibration, onToggleApply, t }: Readonly<{
+  stats: StabilityStats | null;
+  polling: PollingRecommendation | null;
+  /** Finished parameter-sweep result; supersedes the analytic values when present. */
+  sweep: SweepResult | null;
+  /** True while the parameter sweep is still simulating combinations. */
+  sweepRunning: boolean;
+  /** True while the batch test is still scoring frames (no stats yet). */
+  batchRunning: boolean;
+  applyCalibration: boolean;
+  onToggleApply: (v: boolean) => void;
+  t: (k: string) => string;
+}>) {
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  const running = batchRunning || sweepRunning;
+  const rating = stats ? ratingPresentation(stats.rating) : null;
+  const showApplied = !running && applyCalibration && stats !== null;
+
+  // Move focus into the dialog when it opens (WCAG 2.2 focus management).
+  useEffect(() => {
+    if (open) dialogRef.current?.focus();
+  }, [open]);
+
+  /** Close the modal and return focus to the trigger button. */
+  const close = useCallback(() => {
+    setOpen(false);
+    buttonRef.current?.focus();
+  }, []);
+
+  // Accessible name carries the full status so the rating icon color and the
+  // applied check are not the only carriers of information.
+  let buttonLabel: string;
+  if (running) {
+    buttonLabel = t("templateEditor.stabilityAnalyzing");
+  } else if (rating) {
+    buttonLabel = `${t("templateEditor.stabilityTitle")}: ${t(rating.labelKey)}`;
+    if (showApplied) buttonLabel += `. ${t("templateEditor.stabilityApplied")}`;
+  } else {
+    buttonLabel = t("templateEditor.stabilityTitle");
+  }
+
+  let buttonIcon: React.ReactNode;
+  if (running) {
+    buttonIcon = <Loader2 className="w-4 h-4 2xl:w-5 2xl:h-5 animate-spin shrink-0" aria-hidden="true" />;
+  } else if (rating) {
+    buttonIcon = <rating.Icon className={`w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 ${rating.colorClass}`} aria-hidden="true" />;
+  } else {
+    buttonIcon = <BarChart3 className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 text-text-muted" aria-hidden="true" />;
+  }
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        disabled={!stats}
+        onClick={() => setOpen(true)}
+        aria-label={buttonLabel}
+        aria-haspopup="dialog"
+        title={showApplied ? t("templateEditor.stabilityApplied") : undefined}
+        className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {buttonIcon}
+        <span>{running ? t("templateEditor.stabilityAnalyzing") : t("templateEditor.stabilityTitle")}</span>
+        {showApplied && (
+          <Check className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 text-emerald-400 shrink-0" aria-hidden="true" />
+        )}
+      </button>
+      {open && stats && rating && createPortal(
+        <div
+          className="fixed inset-0 z-120 flex items-center justify-center bg-black/60 p-4"
+          onClick={close}
+          role="presentation"
+        >
+          {/* Escape handling lives on the dialog, which holds focus while open. */}
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => { if (e.key === "Escape") close(); }}
+            className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-xl border border-border-subtle bg-bg-card p-4 shadow-xl space-y-2 text-sm 2xl:text-base outline-none"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 id={titleId} className={`flex items-center gap-2 font-semibold ${rating.colorClass}`}>
+                <rating.Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
+                <span>{t("templateEditor.stabilityTitle")}: {t(rating.labelKey)}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={close}
+                aria-label={t("templateEditor.close")}
+                className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/10 transition-colors shrink-0"
+              >
+                <X className="w-4 h-4 2xl:w-5 2xl:h-5" aria-hidden="true" />
+              </button>
+            </div>
+            <StabilityDetails
+              stats={stats}
+              polling={polling}
+              sweep={sweep}
+              sweepRunning={sweepRunning}
+              applyCalibration={applyCalibration}
+              onToggleApply={onToggleApply}
+              t={t}
+            />
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }
 
@@ -1765,18 +1891,6 @@ export function TemplateEditor({
             )}
           </div>
 
-          {/* Stability result as a fixed overlay so it never shifts the layout */}
-          {stabilityStats && (
-            <StabilityPanel
-              stats={stabilityStats}
-              polling={pollingRecommendation}
-              sweep={sweepResult}
-              sweepRunning={sweepRunning}
-              applyCalibration={applyCalibration}
-              onToggleApply={handleToggleApplyCalibration}
-              t={t}
-            />
-          )}
         </>
       )}
 
@@ -1884,6 +1998,18 @@ export function TemplateEditor({
             onAdjustRegions={handleAdjustRegions}
             onLooksGood={handleLooksGood}
             onBackToTest={handleBackToTest}
+            stabilityStatus={
+              <StabilityStatus
+                stats={stabilityStats}
+                polling={pollingRecommendation}
+                sweep={sweepResult}
+                sweepRunning={sweepRunning}
+                batchRunning={templateTest.isRunning}
+                applyCalibration={applyCalibration}
+                onToggleApply={handleToggleApplyCalibration}
+                t={t}
+              />
+            }
             t={t}
           />
         )}
