@@ -17,7 +17,7 @@ This project itself was built using LLM coding assistants, so PRs created with t
 
 | Tool    | Version | Purpose             |
 |---------|---------|---------------------|
-| Go      | 1.25+   | Backend API server  |
+| Go      | 1.26+   | Backend API server  |
 | Node.js | 22+     | Frontend + Electron |
 | Yarn    | any     | Package manager     |
 | Make    | any     | Build orchestration |
