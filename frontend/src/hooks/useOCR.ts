@@ -5,7 +5,7 @@
  * using a cached Tesseract.js worker per language code.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createWorker } from "tesseract.js";
+import { createWorker, PSM } from "tesseract.js";
 
 // --- Types -------------------------------------------------------------------
 
@@ -68,7 +68,12 @@ async function getWorker(lang: string): Promise<TesseractWorker> {
   if (BUNDLED_OCR_LANGS.has(lang)) {
     config.langPath = TESSDATA_PATH;
   }
-  initPromise[lang] ??= createWorker(lang, undefined, config).then((w) => {
+  initPromise[lang] ??= createWorker(lang, undefined, config).then(async (w) => {
+    // Region OCR always reads a single line of game text; single-line page
+    // segmentation stops tesseract from mis-segmenting stylized fonts into
+    // multiple bogus blocks. Must complete before the worker is served from
+    // the cache, otherwise the first recognize() would use the default mode.
+    await w.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE });
     workerCache[lang] = w;
     delete initPromise[lang];
     return w;

@@ -19,6 +19,7 @@ import { useOCR } from "../../hooks/useOCR";
 import { useReplayBuffer } from "../../hooks/useReplayBuffer";
 import { useTemplateTest } from "../../hooks/useTemplateTest";
 import { analyzeStability, recommendPolling, toCalibration, type PollingRecommendation, type StabilityStats } from "../../engine/templateStability";
+import { preprocessForOCR } from "../../engine/ocrPreprocess";
 import {
   DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
   DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
@@ -873,7 +874,9 @@ async function runRegionOCR(
   const ctx = crop.getContext("2d");
   if (!ctx) return null;
   ctx.drawImage(sourceCanvas, region.rect.x, region.rect.y, region.rect.w, region.rect.h, 0, 0, region.rect.w, region.rect.h);
-  return recognize(crop, lang);
+  // Upscale and binarize the crop first; raw game-font crops are usually too
+  // small and low-contrast for tesseract to read reliably.
+  return recognize(preprocessForOCR(crop), lang);
 }
 
 /** Captures the current video frame directly onto the canvas. */

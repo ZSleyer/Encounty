@@ -7,11 +7,13 @@ type CreateWorkerArgs = [
   config?: { workerPath?: string; corePath?: string; langPath?: string },
 ];
 
-const { mockRecognize, mockCreateWorker } = vi.hoisted(() => {
+const { mockRecognize, mockSetParameters, mockCreateWorker } = vi.hoisted(() => {
   const recognize = vi.fn();
-  const worker = { recognize };
+  const setParameters = vi.fn(() => Promise.resolve());
+  const worker = { recognize, setParameters };
   return {
     mockRecognize: recognize,
+    mockSetParameters: setParameters,
     mockCreateWorker: vi.fn(
       (..._args: [string, number?, Record<string, unknown>?]) =>
         Promise.resolve(worker),
@@ -21,6 +23,7 @@ const { mockRecognize, mockCreateWorker } = vi.hoisted(() => {
 
 vi.mock("tesseract.js", () => ({
   createWorker: mockCreateWorker,
+  PSM: { SINGLE_LINE: "7" },
 }));
 
 /* Import after mock so the module picks up the mocked createWorker. */
@@ -199,5 +202,23 @@ describe("useOCR", () => {
 
     expect(result.current.ocrError).toMatch(/network or firewall/i);
     expect(result.current.ocrError).toContain("importScripts");
+  });
+
+  it("configures single-line page segmentation before the first recognize", async () => {
+    mockRecognize.mockResolvedValue({ data: { text: "Pikachu" } });
+
+    // Fresh language code: the module-level worker cache persists across
+    // tests, and setParameters only runs during worker initialization.
+    const { result } = renderHook(() => useOCR("psm-fresh"));
+
+    await act(async () => {
+      await result.current.recognize("img");
+    });
+
+    expect(mockSetParameters).toHaveBeenCalledWith({ tessedit_pageseg_mode: "7" });
+    // setParameters must resolve inside worker init, before recognize runs
+    expect(mockSetParameters.mock.invocationCallOrder[0]).toBeLessThan(
+      mockRecognize.mock.invocationCallOrder[0],
+    );
   });
 });
