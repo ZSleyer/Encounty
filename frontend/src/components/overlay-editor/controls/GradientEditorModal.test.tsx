@@ -269,6 +269,66 @@ describe("GradientEditorModal", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  // --- Keyboard-driven stop position ---
+
+  it("moves a stop handle right via ArrowRight and selects it", () => {
+    const onConfirm = vi.fn();
+    render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
+    const handle1 = screen.getByLabelText("Stop 1");
+    fireEvent.keyDown(handle1, { key: "ArrowRight" });
+    // The handle's `key` includes position, so React remounts the node; re-query it.
+    expect(screen.getByLabelText("Stop 1").className).toContain("border-accent-blue");
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    const stops = onConfirm.mock.calls[0][0];
+    expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(1);
+  });
+
+  it("moves a stop handle left via ArrowLeft, clamped at 0", () => {
+    const onConfirm = vi.fn();
+    render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
+    const handle1 = screen.getByLabelText("Stop 1");
+    fireEvent.keyDown(handle1, { key: "ArrowLeft" });
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    const stops = onConfirm.mock.calls[0][0];
+    expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(0);
+  });
+
+  it("moves a stop handle via ArrowUp/ArrowDown", () => {
+    const onConfirm = vi.fn();
+    render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
+    const handle2 = screen.getByLabelText("Stop 2");
+    fireEvent.keyDown(handle2, { key: "ArrowDown" });
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    const stops = onConfirm.mock.calls[0][0];
+    expect(stops.find((s: { position: number; color: string }) => s.color === "#0000ff").position).toBe(99);
+  });
+
+  it("ignores non-arrow keys on a stop handle", () => {
+    const onConfirm = vi.fn();
+    render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
+    const handle1 = screen.getByLabelText("Stop 1");
+    fireEvent.keyDown(handle1, { key: "Enter" });
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    const stops = onConfirm.mock.calls[0][0];
+    expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(0);
+  });
+
+  // --- Add-stop button ---
+
+  it("adds a stop at the midpoint when clicking the add-stop button", () => {
+    const onConfirm = vi.fn();
+    render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
+    const addBtn = screen.getByTitle("Farbstopp hinzufügen");
+    fireEvent.click(addBtn);
+    fireEvent.click(screen.getByTitle("Übernehmen"));
+    const stops = onConfirm.mock.calls[0][0];
+    expect(stops.length).toBe(3);
+    const middleStop = stops.find((s: { position: number }) => s.position === 50);
+    expect(middleStop).toBeDefined();
+    // Midpoint of red (#ff0000) and blue (#0000ff) interpolated at t=0.5
+    expect(middleStop.color).toBe("#800080");
+  });
+
   it("updates stop color via color picker callback", () => {
     const onOpenColorPicker = vi.fn();
     const onConfirm = vi.fn();

@@ -703,6 +703,18 @@ export function DetectorPanel({
     globalThis.addEventListener("mouseup", onUp);
   }, [templatesHeight]);
 
+  /** Resizes the templates/log divider via arrow keys, mirroring the mouse-drag clamping and persistence. */
+  const handleDetectorDividerKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const step = e.key === "ArrowUp" ? -24 : 24;
+    setTemplatesHeight(h => {
+      const newH = Math.max(80, Math.min(h + step, window.innerHeight - 250));
+      try { localStorage.setItem("encounty_detector_split", String(newH)); } catch {}
+      return newH;
+    });
+  }, []);
+
   // --- Derived ---------------------------------------------------------------
 
   const { dot: dotClass, pulse } = stateDotClass(detectorState, isRunning);
@@ -1099,7 +1111,8 @@ export function DetectorPanel({
                 <button
                   type="button"
                   onMouseDown={startDetectorDividerDrag}
-                  className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
+                  onKeyDown={handleDetectorDividerKeyDown}
+                  className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block relative after:absolute after:-inset-2 after:content-['']"
                   aria-label={t("detector.resizeDivider")}
                 />
                 <button

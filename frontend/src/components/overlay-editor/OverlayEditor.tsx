@@ -887,6 +887,18 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     globalThis.addEventListener("mouseup", onUp);
   }, [propertiesHeight]);
 
+  /** Resizes the properties/layers divider via arrow keys, mirroring the mouse-drag clamping and persistence. */
+  const handleDividerKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const step = e.key === "ArrowUp" ? -24 : 24;
+    setPropertiesHeight(h => {
+      const newH = Math.max(100, Math.min(h + step, globalThis.innerHeight - 200));
+      try { localStorage.setItem("encounty_editor_split", String(newH)); } catch {}
+      return newH;
+    });
+  }, []);
+
   return (
     <div className={`flex min-h-0 h-full ${compact ? "pb-2" : ""}`}>
       {/* Left vertical toolbar */}
@@ -990,6 +1002,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           <button
             type="button"
             onMouseDown={startDividerDrag}
+            onKeyDown={handleDividerKeyDown}
             className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
             aria-label={t("overlay.resizeDivider")}
           />

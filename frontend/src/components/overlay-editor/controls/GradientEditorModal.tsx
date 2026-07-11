@@ -1,7 +1,7 @@
 /** Modal for editing gradient stops (colors + positions) and angle. */
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { X } from "lucide-react";
+import { X, Plus } from "lucide-react";
 import { NumSlider } from "./NumSlider";
 import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
@@ -39,6 +39,25 @@ function buildGradientCSS(stops: GradientStop[], angle: number): string {
   const sorted = [...stops].sort((a, b) => a.position - b.position);
   const parts = sorted.map((s) => `${s.color} ${s.position}%`).join(", ");
   return `linear-gradient(${angle}deg, ${parts})`;
+}
+
+/** Compute the color that would appear at `pct` (0-100) along the current stops. */
+function colorAtPosition(stops: GradientStop[], pct: number): string {
+  const sorted = [...stops].sort((a, b) => a.position - b.position);
+  let color = "#ffffff";
+  if (sorted.length >= 2) {
+    const before = [...sorted].reverse().find((s) => s.position <= pct);
+    const after = sorted.find((s) => s.position >= pct);
+    if (before && after && before !== after) {
+      const t = (pct - before.position) / (after.position - before.position);
+      color = interpolateColor(before.color, after.color, t);
+    } else if (before) {
+      color = before.color;
+    } else if (after) {
+      color = after.color;
+    }
+  }
+  return color;
 }
 
 export function GradientEditorModal({
@@ -113,21 +132,15 @@ export function GradientEditorModal({
     if (!barRef.current) return;
     const rect = barRef.current.getBoundingClientRect();
     const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-    const sorted = [...stops].sort((a, b) => a.position - b.position);
-    let color = "#ffffff";
-    if (sorted.length >= 2) {
-      const before = [...sorted].reverse().find((s) => s.position <= pct);
-      const after = sorted.find((s) => s.position >= pct);
-      if (before && after && before !== after) {
-        const t = (pct - before.position) / (after.position - before.position);
-        color = interpolateColor(before.color, after.color, t);
-      } else if (before) {
-        color = before.color;
-      } else if (after) {
-        color = after.color;
-      }
-    }
+    const color = colorAtPosition(stops, pct);
     setStops((prev) => [...prev, { color, position: Math.round(pct) }]);
+  };
+
+  // --- Add stop via keyboard-accessible button (midpoint, interpolated color) ---
+  const handleAddStopClick = () => {
+    const pct = 50;
+    const color = colorAtPosition(stops, pct);
+    setStops((prev) => [...prev, { color, position: pct }]);
   };
 
   const updateStopColor = (idx: number, color: string) => {
@@ -157,19 +170,30 @@ export function GradientEditorModal({
         <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
           Gradient bearbeiten
         </h2>
-        <button title={t("tooltip.common.close")} onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
+        <button title={t("tooltip.common.close")} onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']">
           <X size={16} />
         </button>
       </div>
 
       {/* --- Preview bar --- */}
-      <button
-        ref={barRef}
-        type="button"
-        className="w-full h-8 rounded-lg cursor-crosshair mb-1 border-0 p-0"
-        style={{ background: buildGradientCSS(stops, angle) }}
-        onClick={handleBarClick}
-      />
+      <div className="flex items-center gap-2 mb-1">
+        <button
+          ref={barRef}
+          type="button"
+          className="w-full h-8 rounded-lg cursor-crosshair border-0 p-0"
+          style={{ background: buildGradientCSS(stops, angle) }}
+          onClick={handleBarClick}
+        />
+        <button
+          type="button"
+          title={t("modal.tooltipAddStop")}
+          aria-label={t("modal.tooltipAddStop")}
+          onClick={handleAddStopClick}
+          className="shrink-0 text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
 
       {/* --- Stop handles --- */}
       <div className="relative w-full h-5 mb-4">
@@ -192,6 +216,24 @@ export function GradientEditorModal({
             onMouseDown={(e) => {
               e.preventDefault();
               startDrag(idx);
+            }}
+            onKeyDown={(e) => {
+              switch (e.key) {
+                case "ArrowLeft":
+                case "ArrowDown":
+                  e.preventDefault();
+                  setSelectedIdx(idx);
+                  updateStopPosition(idx, stop.position - 1);
+                  break;
+                case "ArrowRight":
+                case "ArrowUp":
+                  e.preventDefault();
+                  setSelectedIdx(idx);
+                  updateStopPosition(idx, stop.position + 1);
+                  break;
+                default:
+                  break;
+              }
             }}
           />
         ))}

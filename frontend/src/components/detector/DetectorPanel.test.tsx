@@ -2300,6 +2300,46 @@ describe("DetectorPanel", () => {
     });
   });
 
+  // --- Divider keyboard resize ---
+
+  it("increases template split height on ArrowDown keydown", async () => {
+    // Start below the innerHeight-250 ceiling so the +24px step isn't clamped
+    localStorage.setItem("encounty_detector_split", "400");
+    renderPanel();
+    const dividerBtn = await screen.findByLabelText(/Größe ändern|Resize/i);
+
+    fireEvent.keyDown(dividerBtn, { key: "ArrowDown" });
+
+    await waitFor(() => {
+      const templateGrid = document.querySelector("[style*='height: 424px']");
+      expect(templateGrid).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(localStorage.getItem("encounty_detector_split")).toBe("424");
+    });
+    localStorage.removeItem("encounty_detector_split");
+  });
+
+  it("clamps template split height to the minimum on repeated ArrowUp keydown", async () => {
+    localStorage.setItem("encounty_detector_split", "90");
+    renderPanel();
+    const dividerBtn = await screen.findByLabelText(/Größe ändern|Resize/i);
+
+    // Press ArrowUp repeatedly — well past enough presses to hit the 80px floor
+    for (let i = 0; i < 5; i++) {
+      fireEvent.keyDown(dividerBtn, { key: "ArrowUp" });
+    }
+
+    await waitFor(() => {
+      const templateGrid = document.querySelector("[style*='height: 80px']");
+      expect(templateGrid).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(localStorage.getItem("encounty_detector_split")).toBe("80");
+    });
+    localStorage.removeItem("encounty_detector_split");
+  });
+
   // --- Settings update through settings tab sliders ---
 
   it("updates config field and marks dirty when settings slider changes", async () => {

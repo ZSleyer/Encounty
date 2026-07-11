@@ -728,4 +728,120 @@ describe("RegionPicker", () => {
 
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
+
+  // --- Keyboard-driven region selection (WCAG 2.1.1 / 2.5.7 parallel path) ---
+
+  describe("keyboard region selection", () => {
+    /** Sets up a 800x600 container so pixel-space keyboard math is deterministic. */
+    function mockContainerSize(regionArea: HTMLElement, width = 800, height = 600) {
+      Object.defineProperty(regionArea, "clientWidth", { value: width, configurable: true });
+      Object.defineProperty(regionArea, "clientHeight", { value: height, configurable: true });
+    }
+
+    it("Enter starts a centered default-size selection", async () => {
+      render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
+      const regionArea = await screen.findByLabelText("Region selection area");
+      mockContainerSize(regionArea);
+      const { fireEvent } = await import("@testing-library/react");
+
+      fireEvent.keyDown(regionArea, { key: "Enter" });
+
+      const selectionDiv = regionArea.querySelector("div") as HTMLElement;
+      expect(selectionDiv).not.toBeNull();
+      // 40% of 800x600, centered.
+      expect(selectionDiv.style.width).toBe("320px");
+      expect(selectionDiv.style.height).toBe("240px");
+      expect(selectionDiv.style.left).toBe("240px");
+      expect(selectionDiv.style.top).toBe("180px");
+
+      // Confirm becomes enabled once a keyboard selection exists.
+      const confirmBtn = screen.getByText("Bestätigen").closest("button")!;
+      expect(confirmBtn).not.toBeDisabled();
+    });
+
+    it("arrow keys move the selection without resizing it", async () => {
+      render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
+      const regionArea = await screen.findByLabelText("Region selection area");
+      mockContainerSize(regionArea);
+      const { fireEvent } = await import("@testing-library/react");
+
+      fireEvent.keyDown(regionArea, { key: "Enter" });
+      fireEvent.keyDown(regionArea, { key: "ArrowRight" });
+      fireEvent.keyDown(regionArea, { key: "ArrowDown" });
+
+      const selectionDiv = regionArea.querySelector("div") as HTMLElement;
+      expect(selectionDiv.style.left).toBe("256px"); // 240 + 16
+      expect(selectionDiv.style.top).toBe("196px"); // 180 + 16
+      expect(selectionDiv.style.width).toBe("320px");
+      expect(selectionDiv.style.height).toBe("240px");
+    });
+
+    it("Shift+arrow keys resize the selection without moving its origin", async () => {
+      render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
+      const regionArea = await screen.findByLabelText("Region selection area");
+      mockContainerSize(regionArea);
+      const { fireEvent } = await import("@testing-library/react");
+
+      fireEvent.keyDown(regionArea, { key: "Enter" });
+      fireEvent.keyDown(regionArea, { key: "ArrowRight", shiftKey: true });
+      fireEvent.keyDown(regionArea, { key: "ArrowDown", shiftKey: true });
+
+      const selectionDiv = regionArea.querySelector("div") as HTMLElement;
+      expect(selectionDiv.style.width).toBe("336px"); // 320 + 16
+      expect(selectionDiv.style.height).toBe("256px"); // 240 + 16
+      expect(selectionDiv.style.left).toBe("240px");
+      expect(selectionDiv.style.top).toBe("180px");
+    });
+
+    it("arrow keys are clamped to the container bounds", async () => {
+      render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
+      const regionArea = await screen.findByLabelText("Region selection area");
+      mockContainerSize(regionArea);
+      const { fireEvent } = await import("@testing-library/react");
+
+      fireEvent.keyDown(regionArea, { key: "Enter" });
+      // Push far left/up beyond the container origin.
+      for (let i = 0; i < 30; i++) {
+        fireEvent.keyDown(regionArea, { key: "ArrowLeft" });
+        fireEvent.keyDown(regionArea, { key: "ArrowUp" });
+      }
+
+      const selectionDiv = regionArea.querySelector("div") as HTMLElement;
+      expect(selectionDiv.style.left).toBe("0px");
+      expect(selectionDiv.style.top).toBe("0px");
+    });
+
+    it("does nothing on arrow keys before a selection has been started", async () => {
+      render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
+      const regionArea = await screen.findByLabelText("Region selection area");
+      mockContainerSize(regionArea);
+      const { fireEvent } = await import("@testing-library/react");
+
+      fireEvent.keyDown(regionArea, { key: "ArrowRight" });
+
+      expect(regionArea.querySelector("div")).toBeNull();
+      const confirmBtn = screen.getByText("Bestätigen").closest("button")!;
+      expect(confirmBtn).toBeDisabled();
+    });
+
+    it("Enter again resets the selection back to the default box", async () => {
+      render(<RegionPicker onConfirm={vi.fn()} onCancel={vi.fn()} />);
+      const regionArea = await screen.findByLabelText("Region selection area");
+      mockContainerSize(regionArea);
+      const { fireEvent } = await import("@testing-library/react");
+
+      fireEvent.keyDown(regionArea, { key: "Enter" });
+      fireEvent.keyDown(regionArea, { key: "ArrowRight" });
+      fireEvent.keyDown(regionArea, { key: "ArrowRight" });
+      let selectionDiv = regionArea.querySelector("div") as HTMLElement;
+      expect(selectionDiv.style.left).toBe("272px"); // 240 + 16 + 16
+
+      // Pressing Enter again restarts at the default centered position, acting
+      // as the "cancel and redraw" affordance in place of a separate Escape handler.
+      fireEvent.keyDown(regionArea, { key: "Enter" });
+      selectionDiv = regionArea.querySelector("div") as HTMLElement;
+      expect(selectionDiv.style.left).toBe("240px");
+      expect(selectionDiv.style.top).toBe("180px");
+    });
+  });
 });

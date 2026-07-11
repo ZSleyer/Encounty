@@ -295,7 +295,32 @@ export function ColorPickerModal({
         type="button"
         ref={satAreaRef}
         aria-label="Color saturation and brightness picker"
+        aria-valuetext={`Saturation ${Math.round(s * 100)}%, Brightness ${Math.round(v * 100)}%`}
         onMouseDown={handleSatMouseDown}
+        onKeyDown={(e) => {
+          let newS = s;
+          let newV = v;
+          switch (e.key) {
+            case "ArrowLeft":
+              newS = Math.max(0, s - 0.02);
+              break;
+            case "ArrowRight":
+              newS = Math.min(1, s + 0.02);
+              break;
+            case "ArrowUp":
+              newV = Math.min(1, v + 0.02);
+              break;
+            case "ArrowDown":
+              newV = Math.max(0, v - 0.02);
+              break;
+            default:
+              return;
+          }
+          e.preventDefault();
+          setS(newS);
+          setV(newV);
+          syncFromHsv(h, newS, newV);
+        }}
         className="appearance-none p-0 m-0 block relative w-full rounded border border-border-subtle cursor-crosshair select-none"
         style={{
           height: 256,
@@ -331,6 +356,24 @@ export function ColorPickerModal({
         aria-valuemin={0}
         aria-valuemax={360}
         onMouseDown={handleHueMouseDown}
+        onKeyDown={(e) => {
+          let newH = h;
+          switch (e.key) {
+            case "ArrowLeft":
+            case "ArrowDown":
+              newH = Math.max(0, h - 5);
+              break;
+            case "ArrowRight":
+            case "ArrowUp":
+              newH = Math.min(360, h + 5);
+              break;
+            default:
+              return;
+          }
+          e.preventDefault();
+          setH(newH);
+          syncFromHsv(newH, s, v);
+        }}
         className="relative w-full rounded mt-3 cursor-pointer select-none border border-border-subtle"
         style={{
           height: 16,
@@ -363,6 +406,23 @@ export function ColorPickerModal({
           aria-valuemin={0}
           aria-valuemax={100}
           onMouseDown={handleOpacityMouseDown}
+          onKeyDown={(e) => {
+            let newOpacity = opacity;
+            switch (e.key) {
+              case "ArrowLeft":
+              case "ArrowDown":
+                newOpacity = Math.max(0, opacity - 0.05);
+                break;
+              case "ArrowRight":
+              case "ArrowUp":
+                newOpacity = Math.min(1, opacity + 0.05);
+                break;
+              default:
+                return;
+            }
+            e.preventDefault();
+            setOpacity(newOpacity);
+          }}
           className="relative w-full rounded mt-2 cursor-pointer select-none border border-border-subtle overflow-hidden"
           style={{ height: 16 }}
         >

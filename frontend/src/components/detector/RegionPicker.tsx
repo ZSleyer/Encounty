@@ -34,6 +34,48 @@ interface RawRect {
   h: number;
 }
 
+// ── Keyboard-driven selection helpers (parallel path to mouse drag) ────────
+
+/** Pixel step applied per arrow-key press when moving or resizing the selection. */
+const KEY_STEP = 16;
+/** Minimum selection size (in pixels) a keyboard resize is allowed to shrink to. */
+const MIN_KEY_SIZE = 20;
+
+const ARROW_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
+/** Builds the default centered selection (40% of the container) for the keyboard "start" action. */
+function defaultKeyboardSelection(containerW: number, containerH: number): RawRect {
+  const w = containerW * 0.4;
+  const h = containerH * 0.4;
+  return { x: (containerW - w) / 2, y: (containerH - h) / 2, w, h };
+}
+
+/** Moves a selection by one keyboard step, clamped to stay fully within the container. */
+function moveSelectionByKey(sel: RawRect, key: string, containerW: number, containerH: number): RawRect {
+  let x = sel.x;
+  let y = sel.y;
+  if (key === "ArrowLeft") x -= KEY_STEP;
+  else if (key === "ArrowRight") x += KEY_STEP;
+  else if (key === "ArrowUp") y -= KEY_STEP;
+  else if (key === "ArrowDown") y += KEY_STEP;
+  x = Math.min(Math.max(x, 0), containerW - sel.w);
+  y = Math.min(Math.max(y, 0), containerH - sel.h);
+  return { ...sel, x, y };
+}
+
+/** Resizes a selection by one keyboard step, clamped between a sane minimum and the container bounds. */
+function resizeSelectionByKey(sel: RawRect, key: string, containerW: number, containerH: number): RawRect {
+  let w = sel.w;
+  let h = sel.h;
+  if (key === "ArrowLeft") w -= KEY_STEP;
+  else if (key === "ArrowRight") w += KEY_STEP;
+  else if (key === "ArrowUp") h -= KEY_STEP;
+  else if (key === "ArrowDown") h += KEY_STEP;
+  w = Math.min(Math.max(w, MIN_KEY_SIZE), containerW - sel.x);
+  h = Math.min(Math.max(h, MIN_KEY_SIZE), containerH - sel.y);
+  return { ...sel, w, h };
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 
 /**
@@ -202,6 +244,39 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
     setIsDragging(false);
   };
 
+  // ── Keyboard event handler (parallel path to mouse drag) ────────────────
+
+  /**
+   * Keyboard-driven parallel path to select a region, mirroring the mouse drag
+   * flow: Enter starts (or restarts) a centered default-size selection, arrow
+   * keys move it, Shift+arrow resizes it. The resulting selection is the same
+   * state the mouse path produces, so the existing Confirm button (already
+   * keyboard-reachable) finalizes it, so no separate commit step is needed here.
+   * Enter always resetting to the default box (rather than only when there is
+   * no selection yet) also doubles as the "cancel and restart" action, so no
+   * separate Escape handling is needed for the pending box itself.
+   */
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const containerW = container.clientWidth;
+    const containerH = container.clientHeight;
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      setSelection(defaultKeyboardSelection(containerW, containerH));
+      return;
+    }
+
+    if (!selection || !ARROW_KEYS.has(e.key)) return;
+    e.preventDefault();
+    setSelection(
+      e.shiftKey
+        ? resizeSelectionByKey(selection, e.key, containerW, containerH)
+        : moveSelectionByKey(selection, e.key, containerW, containerH),
+    );
+  };
+
   // ── Confirm handler ──────────────────────────────────────────────────────
 
   const handleConfirm = () => {
@@ -332,6 +407,7 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onKeyDown={handleKeyDown}
             >
               {/* Selection rectangle */}
               {selection && (

@@ -260,6 +260,76 @@ describe("ColorPickerModal", () => {
     expect(opacitySlider).toBeInTheDocument();
   });
 
+  // --- Keyboard-driven adjustments ---
+
+  it("adjusts saturation and brightness via arrow keys and updates hex", () => {
+    render(<ColorPickerModal color="#ff0000" onConfirm={vi.fn()} onClose={vi.fn()} />);
+    const satArea = screen.getByLabelText("Color saturation and brightness picker");
+    const before = screen.getByDisplayValue("FF0000");
+    expect(before).toBeInTheDocument();
+    fireEvent.keyDown(satArea, { key: "ArrowLeft" });
+    // Saturation decreased -> hex should no longer be pure red (FF0000)
+    expect(screen.queryByDisplayValue("FF0000")).not.toBeInTheDocument();
+    expect(satArea).toHaveAttribute(
+      "aria-valuetext",
+      expect.stringContaining("Saturation"),
+    );
+  });
+
+  it("adjusts brightness via ArrowUp/ArrowDown on the saturation area", () => {
+    render(<ColorPickerModal color="#ff0000" onConfirm={vi.fn()} onClose={vi.fn()} />);
+    const satArea = screen.getByLabelText("Color saturation and brightness picker");
+    fireEvent.keyDown(satArea, { key: "ArrowDown" });
+    expect(screen.queryByDisplayValue("FF0000")).not.toBeInTheDocument();
+  });
+
+  it("ignores non-arrow keys on the saturation area", () => {
+    render(<ColorPickerModal {...defaultProps} />);
+    const satArea = screen.getByLabelText("Color saturation and brightness picker");
+    fireEvent.keyDown(satArea, { key: "Enter" });
+    expect(screen.getByDisplayValue("FF0000")).toBeInTheDocument();
+  });
+
+  it("adjusts hue via arrow keys and updates hex", () => {
+    render(<ColorPickerModal color="#ff0000" onConfirm={vi.fn()} onClose={vi.fn()} />);
+    const hueSlider = screen.getByLabelText("Hue");
+    fireEvent.keyDown(hueSlider, { key: "ArrowRight" });
+    expect(screen.queryByDisplayValue("FF0000")).not.toBeInTheDocument();
+  });
+
+  it("adjusts hue down via ArrowLeft/ArrowDown, clamped at 0", () => {
+    render(<ColorPickerModal color="#ff0000" onConfirm={vi.fn()} onClose={vi.fn()} />);
+    const hueSlider = screen.getByLabelText("Hue");
+    fireEvent.keyDown(hueSlider, { key: "ArrowDown" });
+    // Hue was already 0, clamped -> stays FF0000
+    expect(screen.getByDisplayValue("FF0000")).toBeInTheDocument();
+  });
+
+  it("adjusts opacity via arrow keys", () => {
+    render(
+      <ColorPickerModal color="#ff0000" opacity={0} showOpacity onConfirm={vi.fn()} onClose={vi.fn()} />,
+    );
+    const opacitySlider = screen.getByLabelText("Opacity");
+    expect(screen.getByText("0%")).toBeInTheDocument();
+    fireEvent.keyDown(opacitySlider, { key: "ArrowRight" });
+    expect(screen.getByText("5%")).toBeInTheDocument();
+    fireEvent.keyDown(opacitySlider, { key: "ArrowUp" });
+    expect(screen.getByText("10%")).toBeInTheDocument();
+    fireEvent.keyDown(opacitySlider, { key: "ArrowLeft" });
+    expect(screen.getByText("5%")).toBeInTheDocument();
+    fireEvent.keyDown(opacitySlider, { key: "ArrowDown" });
+    expect(screen.getByText("0%")).toBeInTheDocument();
+  });
+
+  it("ignores non-arrow keys on the opacity slider", () => {
+    render(
+      <ColorPickerModal color="#ff0000" opacity={0} showOpacity onConfirm={vi.fn()} onClose={vi.fn()} />,
+    );
+    const opacitySlider = screen.getByLabelText("Opacity");
+    fireEvent.keyDown(opacitySlider, { key: "Tab" });
+    expect(screen.getByText("0%")).toBeInTheDocument();
+  });
+
   // --- Backdrop click ---
 
   it("calls onClose when pressing outside the dialog", () => {

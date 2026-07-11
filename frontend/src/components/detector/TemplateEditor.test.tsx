@@ -1634,4 +1634,111 @@ describe("TemplateEditor", () => {
       expect(payload.calibration).toBeUndefined();
     });
   });
+
+  // --- Keyboard-driven region drawing (WCAG 2.1.1 / 2.5.7 parallel path) ---
+
+  describe("keyboard region drawing", () => {
+    /** Returns the focusable drawing surface (role="application", snapshot phase only). */
+    function getDrawSurface() {
+      return screen.getByRole("application");
+    }
+
+    /** Reads the current in-progress drawn box's inline percentage style as numbers, or null if absent. */
+    function readCurrentBoxStyle(surface: HTMLElement) {
+      const box = surface.querySelector<HTMLElement>(".border-yellow-400");
+      if (!box) return null;
+      return {
+        left: parseFloat(box.style.left),
+        top: parseFloat(box.style.top),
+        width: parseFloat(box.style.width),
+        height: parseFloat(box.style.height),
+      };
+    }
+
+    /** Asserts each numeric field of the pending box is close to the expected percentage value. */
+    function expectCurrentBoxCloseTo(
+      surface: HTMLElement,
+      expected: { left: number; top: number; width: number; height: number },
+    ) {
+      const style = readCurrentBoxStyle(surface);
+      expect(style).not.toBeNull();
+      expect(style!.left).toBeCloseTo(expected.left, 5);
+      expect(style!.top).toBeCloseTo(expected.top, 5);
+      expect(style!.width).toBeCloseTo(expected.width, 5);
+      expect(style!.height).toBeCloseTo(expected.height, 5);
+    }
+
+    it("is focusable and exposes an aria-label describing the keyboard flow", async () => {
+      await renderEditMode({ initialRegions: [] });
+      const surface = getDrawSurface();
+      expect(surface).toHaveAttribute("tabindex", "0");
+      expect(surface).toHaveAttribute(
+        "aria-label",
+        "Bereich zum Zeichnen einer Region. Enter startet ein Feld, Pfeiltasten verschieben es, Umschalt+Pfeiltaste ändert die Größe, Enter bestätigt.",
+      );
+    });
+
+    it("Enter starts a new box at the default centered position", async () => {
+      const { fireEvent } = await import("@testing-library/react");
+      await renderEditMode({ initialRegions: [] });
+      const surface = getDrawSurface();
+
+      expect(readCurrentBoxStyle(surface)).toBeNull();
+      fireEvent.keyDown(surface, { key: "Enter" });
+
+      expectCurrentBoxCloseTo(surface, { left: 40, top: 40, width: 20, height: 20 });
+    });
+
+    it("arrow keys move the pending box without resizing it", async () => {
+      const { fireEvent } = await import("@testing-library/react");
+      await renderEditMode({ initialRegions: [] });
+      const surface = getDrawSurface();
+
+      fireEvent.keyDown(surface, { key: "Enter" });
+      fireEvent.keyDown(surface, { key: "ArrowRight" });
+      fireEvent.keyDown(surface, { key: "ArrowDown" });
+
+      expectCurrentBoxCloseTo(surface, { left: 42, top: 42, width: 20, height: 20 });
+    });
+
+    it("Shift+arrow keys resize the pending box without moving its origin", async () => {
+      const { fireEvent } = await import("@testing-library/react");
+      await renderEditMode({ initialRegions: [] });
+      const surface = getDrawSurface();
+
+      fireEvent.keyDown(surface, { key: "Enter" });
+      fireEvent.keyDown(surface, { key: "ArrowRight", shiftKey: true });
+      fireEvent.keyDown(surface, { key: "ArrowDown", shiftKey: true });
+
+      expectCurrentBoxCloseTo(surface, { left: 40, top: 40, width: 22, height: 22 });
+    });
+
+    it("Enter again commits the pending box as a new region", async () => {
+      const { fireEvent } = await import("@testing-library/react");
+      await renderEditMode({ initialRegions: [] });
+      const surface = getDrawSurface();
+
+      fireEvent.keyDown(surface, { key: "Enter" });
+      fireEvent.keyDown(surface, { key: "Enter" });
+
+      expect(readCurrentBoxStyle(surface)).toBeNull();
+      await waitFor(() => {
+        expect(screen.getAllByTitle("Region löschen")).toHaveLength(1);
+      });
+    });
+
+    it("Escape cancels the pending box without committing it", async () => {
+      const { fireEvent } = await import("@testing-library/react");
+      await renderEditMode({ initialRegions: [] });
+      const surface = getDrawSurface();
+
+      fireEvent.keyDown(surface, { key: "Enter" });
+      expect(readCurrentBoxStyle(surface)).not.toBeNull();
+
+      fireEvent.keyDown(surface, { key: "Escape" });
+
+      expect(readCurrentBoxStyle(surface)).toBeNull();
+      expect(screen.queryByTitle("Region löschen")).not.toBeInTheDocument();
+    });
+  });
 });

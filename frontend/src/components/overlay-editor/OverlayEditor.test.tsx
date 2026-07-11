@@ -1813,6 +1813,48 @@ describe("OverlayEditor", () => {
     expect(dividerBtn).toBeInTheDocument();
   });
 
+  // --- Divider keyboard resize ---
+
+  it("increases properties panel height on ArrowDown keydown", () => {
+    const { container } = render(
+      <OverlayEditor
+        settings={makeOverlaySettings()}
+        onUpdate={vi.fn()}
+        activePokemon={makePokemon()}
+      />,
+    );
+
+    const dividerBtn = screen.getByLabelText(/Größe ändern/i);
+    fireEvent.keyDown(dividerBtn, { key: "ArrowDown" });
+
+    // Default height is 500px, one ArrowDown step increases it by 24px
+    const propertiesSection = container.querySelector("[data-tutorial='properties']");
+    expect((propertiesSection as HTMLElement).style.height).toBe("524px");
+    expect(localStorage.getItem("encounty_editor_split")).toBe("524");
+  });
+
+  it("clamps properties panel height to the minimum on repeated ArrowUp keydown", () => {
+    localStorage.setItem("encounty_editor_split", "110");
+
+    const { container } = render(
+      <OverlayEditor
+        settings={makeOverlaySettings()}
+        onUpdate={vi.fn()}
+        activePokemon={makePokemon()}
+      />,
+    );
+
+    const dividerBtn = screen.getByLabelText(/Größe ändern/i);
+    // Press ArrowUp repeatedly — well past enough presses to hit the 100px floor
+    for (let i = 0; i < 5; i++) {
+      fireEvent.keyDown(dividerBtn, { key: "ArrowUp" });
+    }
+
+    const propertiesSection = container.querySelector("[data-tutorial='properties']");
+    expect((propertiesSection as HTMLElement).style.height).toBe("100px");
+    expect(localStorage.getItem("encounty_editor_split")).toBe("100");
+  });
+
   // --- Zoom drag interaction ---
 
   it("handles zoom drag interaction on canvas", () => {

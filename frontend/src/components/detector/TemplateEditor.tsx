@@ -1074,6 +1074,48 @@ function commitDrawnRegion(
   }
 }
 
+// --- Keyboard-driven region drawing (parallel path to mouse/touch drag) ------
+
+/** Step size (relative fraction) applied per arrow-key press when moving or resizing a box. */
+const REGION_KEY_STEP = 0.02;
+
+/** Default centered box used when a keyboard user starts drawing with Enter. */
+const REGION_DEFAULT_BOX = { x: 0.4, y: 0.4, w: 0.2, h: 0.2 };
+
+const ARROW_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
+/** Moves a box by one keyboard step in the arrow-key direction, clamped to the 0..1 image area. */
+function moveBoxByKey(
+  box: { x: number; y: number; w: number; h: number },
+  key: string,
+): { x: number; y: number; w: number; h: number } {
+  let x = box.x;
+  let y = box.y;
+  if (key === "ArrowLeft") x -= REGION_KEY_STEP;
+  else if (key === "ArrowRight") x += REGION_KEY_STEP;
+  else if (key === "ArrowUp") y -= REGION_KEY_STEP;
+  else if (key === "ArrowDown") y += REGION_KEY_STEP;
+  x = Math.min(Math.max(x, 0), 1 - box.w);
+  y = Math.min(Math.max(y, 0), 1 - box.h);
+  return { x, y, w: box.w, h: box.h };
+}
+
+/** Resizes a box by one keyboard step in the arrow-key direction, clamped within the 0..1 image area. */
+function resizeBoxByKey(
+  box: { x: number; y: number; w: number; h: number },
+  key: string,
+): { x: number; y: number; w: number; h: number } {
+  let w = box.w;
+  let h = box.h;
+  if (key === "ArrowLeft") w -= REGION_KEY_STEP;
+  else if (key === "ArrowRight") w += REGION_KEY_STEP;
+  else if (key === "ArrowUp") h -= REGION_KEY_STEP;
+  else if (key === "ArrowDown") h += REGION_KEY_STEP;
+  w = Math.min(Math.max(w, 0.02), 1 - box.x);
+  h = Math.min(Math.max(h, 0.02), 1 - box.y);
+  return { x: box.x, y: box.y, w, h };
+}
+
 /** Fixed palette for category chips. Regions sharing a category get the same hue. */
 const CATEGORY_COLORS = [
   "#60a5fa", "#a78bfa", "#34d399", "#fbbf24", "#f472b6",
@@ -1569,6 +1611,33 @@ export function TemplateEditor({
     setCurrentBox(null);
   };
 
+  /**
+   * Keyboard-driven parallel path to draw a region box, mirroring the mouse/touch
+   * drag flow: Enter starts a box, arrow keys move it, Shift+arrow resizes it,
+   * Enter again commits it, Escape cancels the pending box.
+   */
+  const onRegionKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (phase !== "snapshot") return;
+    if (!currentBox) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        setCurrentBox(REGION_DEFAULT_BOX);
+      }
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitDrawnRegion(currentBox, canvasRef.current, setRegions);
+      setCurrentBox(null);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setCurrentBox(null);
+    } else if (ARROW_KEYS.has(e.key)) {
+      e.preventDefault();
+      setCurrentBox(e.shiftKey ? resizeBoxByKey(currentBox, e.key) : moveBoxByKey(currentBox, e.key));
+    }
+  };
+
   const updateRegion = (index: number, updates: Partial<MatchedRegion>) =>
     setRegions((prev) => applyRegionUpdate(prev, index, updates, pokemonName));
 
@@ -1672,6 +1741,7 @@ export function TemplateEditor({
   const pointerDown = isSnapshotPhase ? onPointerDown : undefined;
   const pointerMove = isSnapshotPhase ? onPointerMove : undefined;
   const pointerUp = isSnapshotPhase ? onPointerUp : undefined;
+  const regionKeyDown = isSnapshotPhase ? onRegionKeyDown : undefined;
 
   // --- Render ----------------------------------------------------------------
 
@@ -1698,6 +1768,9 @@ export function TemplateEditor({
       {/* NOSONAR: non-native interactive element is intentional for freeform region drawing */}
       <div // NOSONAR
         ref={containerRef}
+        tabIndex={isSnapshotPhase ? 0 : undefined}
+        role={isSnapshotPhase ? "application" : undefined}
+        aria-label={isSnapshotPhase ? t("aria.regionDrawSurface") : undefined}
         className={`relative w-full ${phase === "confirm" ? "max-w-[40vw] max-h-[30vh]" : "max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh]"} aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-3 flex items-center justify-center select-none touch-none ${cursorClass}`}
         onMouseDown={pointerDown}
         onMouseMove={pointerMove}
@@ -1706,6 +1779,7 @@ export function TemplateEditor({
         onTouchStart={pointerDown}
         onTouchMove={pointerMove}
         onTouchEnd={pointerUp}
+        onKeyDown={regionKeyDown}
       >
         {/* Video feed layer -- hidden in edit mode */}
         {!isEditMode && (
