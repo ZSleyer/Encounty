@@ -122,8 +122,7 @@ export function SidebarGroupSection({
   return (
     <section aria-label={label} data-testid="sidebar-group-section">
       {/* Header — uses two sibling buttons (toggle + menu) inside a div
-          to avoid invalid nested <button> markup. The `group` class enables
-          group-hover: visibility transitions on the action buttons. */}
+          to avoid invalid nested <button> markup. */}
       <div className="group flex items-center gap-1.5 px-3 py-1.5 bg-bg-primary/30 border-b border-border-subtle/50 sticky top-0 backdrop-blur-sm z-10">
         <button
           type="button"
@@ -148,7 +147,7 @@ export function SidebarGroupSection({
           <button
             type="button"
             onClick={onShowGroupView}
-            className="p-1 rounded text-text-faint hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+            className="min-w-6 min-h-6 flex items-center justify-center rounded text-text-faint hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             title={t("group.viewGroup")}
             aria-label={t("group.viewGroup")}
           >
@@ -159,7 +158,7 @@ export function SidebarGroupSection({
           <button
             type="button"
             onClick={onSetHotkeyTarget}
-            className={`p-1 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
+            className={`min-w-6 min-h-6 flex items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
               isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
             }`}
             title={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}
@@ -178,7 +177,7 @@ export function SidebarGroupSection({
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label={t("group.manage")}
-              className="p-1 rounded text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="min-w-6 min-h-6 flex items-center justify-center rounded text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               <MoreVertical className="w-3.5 h-3.5" />
             </button>

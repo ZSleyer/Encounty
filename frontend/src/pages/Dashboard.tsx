@@ -2236,7 +2236,7 @@ export function Dashboard() {
               )}
               <button
                 onClick={(e) => { e.stopPropagation(); send("set_active", { pokemon_id: p.id }); }}
-                className={`p-0.5 rounded transition-colors hover:text-accent-blue ${
+                className={`min-w-6 min-h-6 flex items-center justify-center rounded transition-colors hover:text-accent-blue ${
                   isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
                 }`}
                 title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
@@ -2247,7 +2247,7 @@ export function Dashboard() {
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setEditingPokemon(p); }}
-                className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors"
+                className="min-w-6 min-h-6 flex items-center justify-center rounded text-text-faint hover:text-text-primary transition-colors"
                 title={t("dash.edit")}
               >
                 <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
