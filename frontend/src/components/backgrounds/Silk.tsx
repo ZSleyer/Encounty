@@ -141,7 +141,7 @@ const Silk: React.FC<Readonly<SilkProps>> = ({ speed = 5, scale = 1, color = '#7
   );
 
   return (
-    <Canvas dpr={[1, 2]} frameloop="always">
+    <Canvas dpr={[1, 2]} frameloop="always" aria-hidden="true">
       <SilkPlane ref={meshRef} uniforms={uniforms} />
     </Canvas>
   );
