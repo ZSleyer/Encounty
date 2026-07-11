@@ -163,6 +163,15 @@ export interface DetectorTemplate {
   min_poll_ms?: number;
   /** This template's own slowest adaptive-polling interval (ms). */
   max_poll_ms?: number;
+  /**
+   * How this template's hysteresis phase decides that a confirmed match has
+   * left the screen. Undefined or "score" keeps the legacy score-based exit
+   * (score drops below precision * hysteresis_factor). "region" watches the
+   * matched region pixels instead and exits only when the region content
+   * actually changed, which is more robust in 3D games where the whole frame
+   * changes constantly.
+   */
+  hysteresis_mode?: "score" | "region";
 }
 
 /** Per-template stability calibration persisted with the template. */

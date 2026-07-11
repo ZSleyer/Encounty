@@ -118,6 +118,8 @@ export interface TemplateData {
   minPollMs?: number;
   /** This template's own slowest adaptive-polling interval (ms). Falls back to a hardcoded default when absent. */
   maxPollMs?: number;
+  /** This template's own hysteresis exit mode ("score" or "region"). Falls back to the score-based default when absent. */
+  hysteresisMode?: "score" | "region";
 }
 
 // ---------------------------------------------------------------------------

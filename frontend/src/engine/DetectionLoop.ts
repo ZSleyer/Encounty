@@ -19,10 +19,12 @@ import { apiUrl } from "../utils/api";
 import {
   DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
   DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
+  DEFAULT_HYSTERESIS_MODE,
 } from "./detectorDefaults";
 import {
   type CategoryState, newCategoryState, applyNoiseFloor, updateMatchState,
 } from "./matchStateMachine";
+import { extractRegionGrays, regionSetDelta, type RegionGray } from "./regionDelta";
 
 // --- Types -------------------------------------------------------------------
 
@@ -44,8 +46,37 @@ interface DetectionLoopConfig {
   changeThreshold: number;
 }
 
+/** Detection settings resolved from the template that won a category's score. */
+interface ResolvedTemplateSettings {
+  precision: number;
+  hysteresisFactor: number;
+  consecutiveHits: number;
+  cooldownSec: number;
+  minPollMs: number;
+  maxPollMs: number;
+  basePollMs: number;
+  /** How the winning template's hysteresis phase exits ("score" or "region"). */
+  hysteresisMode: "score" | "region";
+  /** Index (into the loaded templates) of the template these settings came from. */
+  winnerIndex: number;
+}
+
 /** Fast tick interval during cooldown/hysteresis (no GPU work, just timer updates). */
 const COOLDOWN_TICK_MS = 100;
+
+/**
+ * Normalized mean-abs-diff above which region content counts as changed for
+ * the region-based hysteresis exit. Unvalidated against real 3D noise yet,
+ * tune here.
+ */
+const REGION_EXIT_DELTA = 0.12;
+
+/**
+ * Number of consecutive polls whose region delta must exceed REGION_EXIT_DELTA
+ * before region-based hysteresis exits. Debounces against 3D rendering noise
+ * (camera sway, particles) that can spike a single poll's delta.
+ */
+const REGION_EXIT_CONSECUTIVE = 2;
 
 // --- EMA smoothing constant --------------------------------------------------
 
@@ -86,6 +117,19 @@ export class DetectionLoop {
 
   /** Last video.currentTime seen — used to skip detection when the frame hasn't changed. */
   private lastVideoTime = -1;
+
+  /** Lazily created canvas reused for region pixel extraction (avoids a per-poll allocation). */
+  private regionScratchCanvas: HTMLCanvasElement | null = null;
+
+  /**
+   * Frozen region snapshots per category, present only while that category's
+   * region-mode hysteresis is active. templateIndex pins the template whose
+   * regions were snapshotted so later polls re-extract the exact same rects.
+   */
+  private readonly regionSnapshots = new Map<string, { frozen: RegionGray[]; exitStreak: number; templateIndex: number }>();
+
+  /** Region delta of the leading category this poll, driving adaptive polling in region mode (null when not computed). */
+  private lastRegionDelta: number | null = null;
 
   /** Opaque frame buffer from the previous detection cycle (for GPU-level deduplication). */
   private previousFrameBuffer: unknown = null;
@@ -168,6 +212,8 @@ export class DetectionLoop {
     this.lastCallbackState = "";
     this.lastVideoTime = -1;
     this.previousFrameBuffer = null;
+    this.regionSnapshots.clear();
+    this.lastRegionDelta = null;
     this.runLoop(getVideo);
   }
 
@@ -196,6 +242,8 @@ export class DetectionLoop {
       }
       this.previousFrameBuffer = null;
     }
+    this.regionSnapshots.clear();
+    this.lastRegionDelta = null;
   }
 
   // --- Category state helpers ------------------------------------------------
@@ -247,10 +295,7 @@ export class DetectionLoop {
    * produced its winning score, falling back to hardcoded engine defaults
    * for templates that carry no explicit value of their own.
    */
-  private resolveTemplateSettings(winnerIndex: number): {
-    precision: number; hysteresisFactor: number; consecutiveHits: number;
-    cooldownSec: number; minPollMs: number; maxPollMs: number; basePollMs: number;
-  } {
+  private resolveTemplateSettings(winnerIndex: number): ResolvedTemplateSettings {
     const winner = this.templates[winnerIndex];
     return {
       precision: winner?.precision ?? DEFAULT_PRECISION,
@@ -260,6 +305,8 @@ export class DetectionLoop {
       minPollMs: winner?.minPollMs ?? MIN_POLL_MS,
       maxPollMs: winner?.maxPollMs ?? MAX_POLL_MS,
       basePollMs: winner?.pollIntervalMs ?? DEFAULT_POLL_MS,
+      hysteresisMode: winner?.hysteresisMode ?? DEFAULT_HYSTERESIS_MODE,
+      winnerIndex,
     };
   }
 
@@ -376,26 +423,19 @@ export class DetectionLoop {
     // its own template's min/base/max poll settings govern the next interval.
     let maxAdjusted = 0;
     let leaderSettings = this.resolveTemplateSettings(0);
+    let leaderRegionDelta: number | null = null;
 
     for (const [category, rawScore] of Object.entries(categoryScores)) {
-      const state = this.getCategoryState(category);
-      const settings = this.resolveTemplateSettings(categoryWinners[category] ?? 0);
-      const adjusted = applyNoiseFloor(rawScore);
-      state.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * state.smoothedScore;
+      const { adjusted, settings, regionDelta } = this.processCategory(
+        category, rawScore, categoryWinners[category] ?? 0, video, result.frameDelta,
+      );
       if (adjusted > maxAdjusted) {
         maxAdjusted = adjusted;
         leaderSettings = settings;
-      }
-
-      const wasInHysteresis = state.inHysteresis;
-      updateMatchState(state, adjusted, settings, Date.now());
-
-      // Each category notifies the backend on its own confirmed match, so every
-      // gameplay increments the shared counter once per encounter.
-      if (state.inHysteresis && !wasInHysteresis) {
-        this.reportMatch(adjusted, result.frameDelta, category);
+        leaderRegionDelta = regionDelta;
       }
     }
+    this.lastRegionDelta = leaderRegionDelta;
 
     // Periodic score logging for debugging (every ~2s)
     if (Math.random() < 0.1) {
@@ -404,13 +444,136 @@ export class DetectionLoop {
 
     this.emitScoreCallback();
 
+    // Region-mode leaders drive adaptive polling with the matched region's
+    // delta: in 3D games the whole frame changes constantly, so the global
+    // frame delta would never let polling slow down on a static match.
+    const pollDelta = leaderSettings.hysteresisMode === "region" && leaderRegionDelta !== null
+      ? leaderRegionDelta
+      : result.frameDelta;
+
     // When every category just entered cooldown, switch to fast ticks instead
     // of the adaptive interval (which would be slow for low scores).
     this.minPollMs = leaderSettings.minPollMs;
     this.maxPollMs = leaderSettings.maxPollMs;
     this.pollIntervalMs = this.allCooldown()
       ? COOLDOWN_TICK_MS
-      : this.computeNextInterval(maxAdjusted, result.frameDelta, leaderSettings.precision, leaderSettings.minPollMs, leaderSettings.maxPollMs);
+      : this.computeNextInterval(maxAdjusted, pollDelta, leaderSettings.precision, leaderSettings.minPollMs, leaderSettings.maxPollMs);
+  }
+
+  /**
+   * Score one category for the current frame: apply the noise floor and EMA,
+   * run the region-based hysteresis check when active, advance the match
+   * state machine, and manage the region snapshot lifecycle (freeze on
+   * hysteresis entry, drop on exit).
+   */
+  private processCategory(
+    category: string,
+    rawScore: number,
+    winnerIndex: number,
+    video: HTMLVideoElement,
+    frameDelta: number,
+  ): { adjusted: number; settings: ResolvedTemplateSettings; regionDelta: number | null } {
+    const state = this.getCategoryState(category);
+    const settings = this.resolveTemplateSettings(winnerIndex);
+    const adjusted = applyNoiseFloor(rawScore);
+    state.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * state.smoothedScore;
+
+    const { exitOverride, regionDelta } = this.evaluateRegionHysteresis(category, state, video);
+
+    const wasInHysteresis = state.inHysteresis;
+    updateMatchState(state, adjusted, settings, Date.now(), exitOverride);
+
+    if (state.inHysteresis && !wasInHysteresis) {
+      // Each category notifies the backend on its own confirmed match, so every
+      // gameplay increments the shared counter once per encounter.
+      this.reportMatch(adjusted, frameDelta, category);
+      this.snapshotRegionsOnEntry(category, settings, video);
+    } else if (!state.inHysteresis && wasInHysteresis) {
+      this.regionSnapshots.delete(category);
+    }
+
+    return { adjusted, settings, regionDelta };
+  }
+
+  /**
+   * Compare the current region pixels of a category in region-mode hysteresis
+   * against its frozen snapshot and advance the exit streak.
+   *
+   * Returns the exit decision for updateMatchState. exitOverride stays
+   * undefined (score-based exit applies for this poll) when the category is
+   * not in hysteresis, has no snapshot (score mode, or snapshot extraction
+   * failed on entry), or the current extraction fails.
+   */
+  private evaluateRegionHysteresis(
+    category: string,
+    state: CategoryState,
+    video: HTMLVideoElement,
+  ): { exitOverride: boolean | undefined; regionDelta: number | null } {
+    if (!state.inHysteresis) return { exitOverride: undefined, regionDelta: null };
+    const snapshot = this.regionSnapshots.get(category);
+    if (!snapshot) return { exitOverride: undefined, regionDelta: null };
+
+    const current = this.extractCategoryRegionGrays(video, snapshot.templateIndex, category);
+    if (!current) return { exitOverride: undefined, regionDelta: null };
+
+    const delta = regionSetDelta(snapshot.frozen, current);
+    // A single changed poll may be 3D rendering noise; require the change to
+    // persist for REGION_EXIT_CONSECUTIVE polls before ending the hysteresis.
+    snapshot.exitStreak = delta > REGION_EXIT_DELTA ? snapshot.exitStreak + 1 : 0;
+    return { exitOverride: snapshot.exitStreak >= REGION_EXIT_CONSECUTIVE, regionDelta: delta };
+  }
+
+  /**
+   * Freeze the winning template's region pixels when a category enters
+   * hysteresis in region mode.
+   *
+   * The snapshot stays frozen for the whole hysteresis phase even if the
+   * winning template changes mid-hysteresis: it captures what the screen
+   * looked like when the match confirmed, which is the reference the exit
+   * condition must compare against. Extraction failure stores nothing, so
+   * the category falls back to the score-based exit.
+   */
+  private snapshotRegionsOnEntry(
+    category: string,
+    settings: ResolvedTemplateSettings,
+    video: HTMLVideoElement,
+  ): void {
+    const winner = this.templates[settings.winnerIndex];
+    // Region mode needs regions to watch; templates without any stay on the
+    // legacy score-based exit even when configured as "region".
+    if (settings.hysteresisMode !== "region" || !winner || winner.regions.length === 0) return;
+
+    const frozen = this.extractCategoryRegionGrays(video, settings.winnerIndex, category);
+    if (!frozen) return;
+    this.regionSnapshots.set(category, { frozen, exitStreak: 0, templateIndex: settings.winnerIndex });
+  }
+
+  /**
+   * Extract the grayscale pixels of a template's regions for one category
+   * from the current video frame.
+   *
+   * Regions are filtered to the given category; a category without any
+   * explicitly matching region watches all of the template's regions instead
+   * (mirrors how the default category scores against every region).
+   */
+  private extractCategoryRegionGrays(
+    video: HTMLVideoElement,
+    templateIndex: number,
+    category: string,
+  ): RegionGray[] | null {
+    const tmpl = this.templates[templateIndex];
+    if (!tmpl || tmpl.regions.length === 0) return null;
+
+    const matching = tmpl.regions.filter((region) => (region.category ?? "") === category);
+    const rects = (matching.length > 0 ? matching : tmpl.regions).map((region) => region.rect);
+
+    this.regionScratchCanvas ??= document.createElement("canvas");
+    return extractRegionGrays(
+      video,
+      { width: tmpl.width, height: tmpl.height },
+      rects,
+      this.regionScratchCanvas,
+    );
   }
 
   /** Replace the previous frame buffer, destroying the old one if applicable. */

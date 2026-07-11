@@ -178,6 +178,7 @@ async function loadOneTemplate(
     templateData.pollIntervalMs = tmpl.poll_interval_ms;
     templateData.minPollMs = tmpl.min_poll_ms;
     templateData.maxPollMs = tmpl.max_poll_ms;
+    templateData.hysteresisMode = tmpl.hysteresis_mode;
     return templateData;
   } catch {
     return null;

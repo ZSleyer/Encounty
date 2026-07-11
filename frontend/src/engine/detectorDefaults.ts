@@ -21,3 +21,5 @@ export const DEFAULT_POLL_MS = 200;
 export const MIN_POLL_MS = 50;
 /** Default slowest adaptive-polling interval in ms. */
 export const MAX_POLL_MS = 2000;
+/** Default hysteresis exit mode: legacy score-based exit ("region" is opt-in for 3D games). */
+export const DEFAULT_HYSTERESIS_MODE = "score" as const;

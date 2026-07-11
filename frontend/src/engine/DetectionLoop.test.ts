@@ -10,6 +10,14 @@ import {
   isLoopRunning,
 } from "./DetectionLoop";
 import type { Detector } from "../engine";
+import { extractRegionGrays, regionSetDelta } from "./regionDelta";
+
+// Region extraction needs a real 2d canvas (unavailable in jsdom); the
+// region-mode tests drive the hysteresis exit purely via mocked deltas.
+vi.mock("./regionDelta", () => ({
+  extractRegionGrays: vi.fn(),
+  regionSetDelta: vi.fn(),
+}));
 
 // --- Helpers -----------------------------------------------------------------
 
@@ -1055,5 +1063,163 @@ describe("DetectionLoop template lifecycle", () => {
     const detector = createMockDetector([0]);
     const loop = new DetectionLoop("test-pokemon", detector);
     expect(loop.getPerfSnapshot().gpuQueueWaitMs).toBe(0);
+  });
+});
+
+// --- Region-based hysteresis mode ----------------------------------------------
+
+describe("DetectionLoop region hysteresis mode", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true });
+    // Default region-mode plumbing: extraction succeeds, content unchanged.
+    vi.mocked(extractRegionGrays).mockReset().mockReturnValue([
+      { data: new Float32Array(16), width: 4, height: 4 },
+    ]);
+    vi.mocked(regionSetDelta).mockReset().mockReturnValue(0);
+  });
+
+  afterEach(() => {
+    stopLoop("test-pokemon");
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  /**
+   * Region-mode template stub with one region. maxPollMs kept low because a
+   * low region delta legitimately backs polling off to the max interval,
+   * which would otherwise starve a test's fixed tick budget.
+   */
+  function makeRegionTemplate(overrides: Record<string, unknown> = {}) {
+    return {
+      width: 32, height: 32, mean: 128, stdDev: 40, pixelCount: 1024,
+      regions: [{ type: "image", rect: { x: 0, y: 0, w: 16, h: 16 } }],
+      hysteresisMode: "region",
+      consecutiveHits: 3,
+      precision: 0.85,
+      maxPollMs: 400,
+      ...overrides,
+    } as never;
+  }
+
+  /** Run a started loop for the given number of ticks. */
+  async function runTicks(count: number, ms: number): Promise<void> {
+    for (let i = 0; i < count; i++) {
+      await tickLoop(ms);
+    }
+  }
+
+  it("keeps hysteresis while the score stays high and the region delta stays low", async () => {
+    const detector = createMockDetector([0.95]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeRegionTemplate({ cooldownSec: 30 })]);
+
+    const states: string[] = [];
+    loop.onScore((_score, state) => states.push(state));
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    await runTicks(8, 600);
+    loop.stop();
+
+    expect(states).toContain("match");
+    expect(states).not.toContain("cooldown");
+    expect(countMatchPosts()).toBe(1);
+  });
+
+  it("keeps hysteresis even when the score drops, as long as the region content is unchanged", async () => {
+    // The score-based exit would fire on the 0.2 frames; the region override
+    // (delta 0, content unchanged) must replace it and hold the hysteresis.
+    const detector = createMockDetector([0.95, 0.95, 0.95, 0.2]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeRegionTemplate({ cooldownSec: 30 })]);
+
+    const states: string[] = [];
+    loop.onScore((_score, state) => states.push(state));
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    await runTicks(8, 600);
+    loop.stop();
+
+    expect(states).toContain("match");
+    expect(states).not.toContain("cooldown");
+    expect(countMatchPosts()).toBe(1);
+  });
+
+  it("exits hysteresis after two consecutive polls with a high region delta despite a high score", async () => {
+    vi.mocked(regionSetDelta).mockReturnValue(0.5);
+    const detector = createMockDetector([0.95]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeRegionTemplate({ cooldownSec: 30 })]);
+
+    const states: string[] = [];
+    loop.onScore((_score, state) => states.push(state));
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    await runTicks(8, 300);
+    loop.stop();
+
+    // The score never drops, so only the region exit can reach cooldown.
+    expect(states).toContain("cooldown");
+    expect(countMatchPosts()).toBe(1);
+  });
+
+  it("resets the exit streak when a low-delta poll interrupts the changed polls", async () => {
+    // Alternate changed/unchanged polls: the streak never reaches 2.
+    let call = 0;
+    vi.mocked(regionSetDelta).mockImplementation(() => (call++ % 2 === 0 ? 0.5 : 0.01));
+    const detector = createMockDetector([0.95]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeRegionTemplate({ cooldownSec: 30 })]);
+
+    const states: string[] = [];
+    loop.onScore((_score, state) => states.push(state));
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    await runTicks(10, 500);
+    loop.stop();
+
+    expect(states).toContain("match");
+    expect(states).not.toContain("cooldown");
+    expect(countMatchPosts()).toBe(1);
+  });
+
+  it("falls back to the score-based exit when a region-mode template has no regions", async () => {
+    const detector = createMockDetector([0.95, 0.95, 0.95, 0.95, 0.1]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeRegionTemplate({ regions: [], cooldownSec: 30 })]);
+
+    const states: string[] = [];
+    loop.onScore((_score, state) => states.push(state));
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    await runTicks(8, 500);
+    loop.stop();
+
+    // No regions means no snapshot: the low score exits the hysteresis.
+    expect(states).toContain("cooldown");
+    expect(vi.mocked(extractRegionGrays)).not.toHaveBeenCalled();
+  });
+
+  it("drives adaptive polling with the region delta, reaching maxPollMs despite a high frame delta", async () => {
+    // The mock detector always reports frameDelta 0.5; only the region delta
+    // (0.001, below the 0.01 change threshold) can slow polling to the max.
+    vi.mocked(regionSetDelta).mockReturnValue(0.001);
+    const detector = createMockDetector([0.95]);
+    const loop = new DetectionLoop("test-pokemon", detector);
+    loop.loadTemplates([makeRegionTemplate({ consecutiveHits: 1, maxPollMs: 1000, cooldownSec: 30 })]);
+
+    const video = createMockVideo();
+    loop.start(() => video);
+    // Poll 1 confirms the match and freezes the snapshot; poll 2 computes the
+    // region delta that the adaptive interval must pick up.
+    await runTicks(3, 200);
+
+    expect(loop.getPerfSnapshot().pollIntervalMs).toBe(1000);
+    loop.stop();
   });
 });
