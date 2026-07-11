@@ -2196,7 +2196,6 @@ export function Dashboard() {
           data-sidebar-idx={idx}
           tabIndex={0}
           draggable
-          aria-grabbed={dragId === p.id}
           className={`${itemClassName}${dragId === p.id ? " opacity-40" : ""}`}
           onClick={(e) => handleCardClick(e, p.id, idx)}
           onKeyDown={(e) => handleSidebarKeyDown(e, p.id)}
