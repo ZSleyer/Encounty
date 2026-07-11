@@ -7,7 +7,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)](https://github.com/ZSleyer/Encounty/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)](https://github.com/ZSleyer/Encounty/releases)
 
-Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. It captures your game screen directly in the browser, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware.
+Encounty is a modern, open-source encounter tracker for Pokemon shiny hunting. It captures your game screen directly in the app, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware.
 
 ## Download
 
