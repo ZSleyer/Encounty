@@ -20,6 +20,9 @@ import {
   DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
   DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
 } from "./detectorDefaults";
+import {
+  type CategoryState, newCategoryState, applyNoiseFloor, updateMatchState,
+} from "./matchStateMachine";
 
 // --- Types -------------------------------------------------------------------
 
@@ -41,40 +44,6 @@ interface DetectionLoopConfig {
   changeThreshold: number;
 }
 
-/**
- * Per-category match state.
- *
- * Each counting category (see MatchedRegion.category) advances its own
- * consecutive-hit, hysteresis and cooldown phases independently, so two
- * gameplays captured in one video source can each confirm a match without
- * blocking one another. The default category (empty-string key) reproduces
- * the legacy single-counter behavior.
- */
-interface CategoryState {
-  consecutiveCount: number;
-  missCount: number;
-  inHysteresis: boolean;
-  inCooldown: boolean;
-  cooldownStartedAt: number;
-  /** Cooldown duration (seconds) captured from the winning template when this category entered cooldown. */
-  cooldownSec: number;
-  /** Smoothed score (EMA) used for live confidence display. */
-  smoothedScore: number;
-}
-
-/** Create a fresh, idle category state. */
-function newCategoryState(): CategoryState {
-  return {
-    consecutiveCount: 0,
-    missCount: 0,
-    inHysteresis: false,
-    inCooldown: false,
-    cooldownStartedAt: 0,
-    cooldownSec: DEFAULT_COOLDOWN_SEC,
-    smoothedScore: 0,
-  };
-}
-
 /** Fast tick interval during cooldown/hysteresis (no GPU work, just timer updates). */
 const COOLDOWN_TICK_MS = 100;
 
@@ -82,9 +51,6 @@ const COOLDOWN_TICK_MS = 100;
 
 /** Weight for the newest score in the exponential moving average. */
 const EMA_ALPHA = 0.3;
-
-/** Scores below this floor are mapped to zero to suppress metric noise. */
-const NOISE_FLOOR = 0.15;
 
 /** Maximum number of attempts to deliver a confirmed match to the backend. */
 const MATCH_RETRY_ATTEMPTS = 3;
@@ -362,8 +328,10 @@ export class DetectionLoop {
     // Precision/hysteresis/consecutiveHits are irrelevant here: every tracked
     // state is in the cooldown phase, which only reads state.cooldownSec
     // (captured from the winning template when the category entered cooldown).
+    const zeroSettings = { precision: 0, hysteresisFactor: 0, consecutiveHits: 0, cooldownSec: 0 };
+    const now = Date.now();
     for (const state of this.categoryStates.values()) {
-      this.updateMatchState(state, 0, 0, 0, 0, 0);
+      updateMatchState(state, 0, zeroSettings, now);
     }
     this.emitScoreCallback();
   }
@@ -412,8 +380,7 @@ export class DetectionLoop {
     for (const [category, rawScore] of Object.entries(categoryScores)) {
       const state = this.getCategoryState(category);
       const settings = this.resolveTemplateSettings(categoryWinners[category] ?? 0);
-      const { precision, hysteresisFactor, consecutiveHits, cooldownSec } = settings;
-      const adjusted = this.applyNoiseFloor(rawScore);
+      const adjusted = applyNoiseFloor(rawScore);
       state.smoothedScore = EMA_ALPHA * adjusted + (1 - EMA_ALPHA) * state.smoothedScore;
       if (adjusted > maxAdjusted) {
         maxAdjusted = adjusted;
@@ -421,7 +388,7 @@ export class DetectionLoop {
       }
 
       const wasInHysteresis = state.inHysteresis;
-      this.updateMatchState(state, adjusted, precision, hysteresisFactor, consecutiveHits, cooldownSec);
+      updateMatchState(state, adjusted, settings, Date.now());
 
       // Each category notifies the backend on its own confirmed match, so every
       // gameplay increments the shared counter once per encounter.
@@ -467,80 +434,6 @@ export class DetectionLoop {
       if (!this.running) return;
       this.runLoop(getVideo);
     }, this.pollIntervalMs);
-  }
-
-  /**
-   * Suppress metric noise by remapping low scores to zero.
-   *
-   * The hybrid metric fusion (SSIM+Pearson+MAD+Histogram) produces
-   * 0.15-0.30 even for unrelated frames due to coarse histogram bins and
-   * MAD normalization. This linear remap eliminates that visual noise.
-   */
-  private applyNoiseFloor(raw: number): number {
-    if (raw <= NOISE_FLOOR) return 0;
-    return (raw - NOISE_FLOOR) / (1 - NOISE_FLOOR);
-  }
-
-  /**
-   * Update hysteresis and consecutive-hit state after scoring a frame.
-   *
-   * After a confirmed match, hysteresis blocks re-triggering until the
-   * score drops well below the threshold (70% of precision).
-   *
-   * Uses a "near-consecutive" approach: a single below-threshold frame
-   * between match frames is tolerated (miss counter) because short
-   * encounter animations can produce intermittent low scores between
-   * high-score frames at typical polling rates.
-   */
-  private updateMatchState(
-    state: CategoryState, adjusted: number, precision: number, hysteresisFactor: number,
-    consecutiveHits: number, cooldownSec: number,
-  ): void {
-    // Phase 1: Hysteresis — wait for score to drop after a confirmed match
-    if (state.inHysteresis) {
-      const belowThreshold = adjusted < precision * hysteresisFactor;
-      if (belowThreshold) {
-        // Score dropped — transition to cooldown phase. The cooldown duration
-        // is captured from the winning template at this exact moment, so a
-        // category's cooldown always matches the template that confirmed it.
-        state.inHysteresis = false;
-        state.inCooldown = true;
-        state.cooldownStartedAt = Date.now();
-        state.cooldownSec = cooldownSec;
-      }
-      state.consecutiveCount = 0;
-      state.missCount = 0;
-      return;
-    }
-
-    // Phase 2: Cooldown — wait for timer to elapse after hysteresis ended
-    if (state.inCooldown) {
-      const cooldownElapsed = Date.now() - state.cooldownStartedAt >= state.cooldownSec * 1000;
-      if (cooldownElapsed) {
-        state.inCooldown = false;
-      }
-      state.consecutiveCount = 0;
-      state.missCount = 0;
-      return;
-    }
-
-    // Phase 3: Normal detection — count consecutive matches
-    if (adjusted >= precision) {
-      state.consecutiveCount += 1;
-      state.missCount = 0;
-    } else if (state.consecutiveCount > 0 && state.missCount < 1) {
-      // Tolerate a single below-threshold frame between match frames
-      state.missCount += 1;
-    } else {
-      state.consecutiveCount = 0;
-      state.missCount = 0;
-    }
-
-    if (state.consecutiveCount >= consecutiveHits) {
-      state.consecutiveCount = 0;
-      state.missCount = 0;
-      state.inHysteresis = true;
-    }
   }
 
   /** Throttled UI callback — fires at most 4 times/second unless the state changes. */
