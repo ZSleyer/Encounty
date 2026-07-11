@@ -81,6 +81,7 @@ import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
 const UNGROUPED_VIEW_ID = "__ungrouped__";
 import { formatTimer, computeTimerMs } from "../utils/timer";
 import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserSourceButton";
+import { useModalA11y } from "../hooks/useModalA11y";
 
 /** Tab identifiers for the right content panel. */
 type PanelTab = "counter" | "detector" | "overlay" | "statistics";
@@ -468,11 +469,14 @@ interface SidebarKeyboardContext {
 /** Handles ArrowDown/Up navigation in the sidebar list. */
 function handleSidebarArrow(e: KeyboardEvent, ctx: SidebarKeyboardContext): void {
   e.preventDefault();
-  if (e.key === "ArrowDown") {
-    ctx.setFocusedIdx(prev => prev === null ? 0 : Math.min(prev + 1, ctx.displayList.length - 1));
-  } else {
-    ctx.setFocusedIdx(prev => prev === null ? ctx.displayList.length - 1 : Math.max(prev - 1, 0));
-  }
+  const next = e.key === "ArrowDown"
+    ? (ctx.focusedIdx === null ? 0 : Math.min(ctx.focusedIdx + 1, ctx.displayList.length - 1))
+    : (ctx.focusedIdx === null ? ctx.displayList.length - 1 : Math.max(ctx.focusedIdx - 1, 0));
+  ctx.setFocusedIdx(next);
+  // Move real DOM focus along with the visual highlight so keyboard/AT users
+  // land on the same item the highlight indicates, not just a visual cursor.
+  const el = ctx.aside.querySelector<HTMLElement>(`[data-sidebar-idx="${next}"]`);
+  el?.focus();
 }
 
 /** Handles Enter (activate) and Space (toggle select) on focused sidebar item. */
@@ -1704,7 +1708,17 @@ function DashboardLoader({ label }: Readonly<{ label: string }>) {
   );
 }
 
-export function Dashboard() {
+interface DashboardProps {
+  /**
+   * Whether the Dashboard is the currently active route. Dashboard stays
+   * mounted (hidden via CSS) when navigating to other pages, so this gates
+   * `id="main-content"` to avoid a duplicate id colliding with the other
+   * pages' own `<main id="main-content">` and breaking the skip-link.
+   */
+  readonly isActiveRoute?: boolean;
+}
+
+export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {}) {
   const { appState, flashPokemon, detectorStatus, setDetectorStatus, clearDetectorStatus } = useCounterStore();
   const { t } = useI18n();
   const capture = useCaptureService();
@@ -1745,6 +1759,10 @@ export function Dashboard() {
   const [panelTab, setPanelTab] = useState<PanelTab>("counter");
   const rightPanelTab = panelTab;
   const [pendingTab, setPendingTab] = useState<PanelTab | null>(null);
+  const unsavedDialogRef = useModalA11y<HTMLDivElement>({
+    isOpen: !!pendingTab,
+    onClose: () => setPendingTab(null),
+  });
 
   // Seed the viewed Pokémon once from the backend's active_id so the panel is
   // not empty on first load. After this the view is driven only by local
@@ -2192,7 +2210,7 @@ export function Dashboard() {
         {isDropTarget && !dropAfter && dropSlot}
         <li
           role="option"
-          aria-selected={isViewed}
+          aria-selected={isViewed || isSelected}
           data-sidebar-idx={idx}
           tabIndex={0}
           draggable
@@ -2616,7 +2634,8 @@ export function Dashboard() {
       )}
       <div className="w-px shrink-0 bg-border-subtle" />
 
-      <main id="main-content" className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
+      <main id={isActiveRoute ? "main-content" : undefined} className="flex-1 flex flex-col relative h-full min-h-0 bg-transparent overflow-hidden">
+        <h1 className="sr-only">{t("nav.dashboard")}</h1>
 
         {viewedPokemon ? (
           <div className="flex flex-col h-full w-full">
@@ -2809,16 +2828,20 @@ export function Dashboard() {
       {/* Unsaved overlay changes — tab switch confirmation */}
       {pendingTab && (
         <div // NOSONAR — backdrop click dismisses unsaved-changes dialog
+          ref={unsavedDialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dashboard-unsaved-title"
+          tabIndex={-1}
           className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
           onClick={(e) => { if (e.target === e.currentTarget) setPendingTab(null); }}
-          onKeyDown={(e) => { if (e.key === "Escape") setPendingTab(null); }}
         >
           <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
             <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />
             </div>
             <div className="text-center space-y-1.5">
-              <p className="text-lg font-semibold text-text-primary">
+              <p id="dashboard-unsaved-title" className="text-lg font-semibold text-text-primary">
                 {t("overlay.unsavedTitle")}
               </p>
               <p className="text-sm text-text-muted">

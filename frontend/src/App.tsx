@@ -216,6 +216,21 @@ function AppShell() {
 
   const [buildDate, setBuildDate] = useState("");
 
+  // Give each route a distinct document title (WCAG 2.4.2 Page Titled).
+  // The /overlay route is an OBS browser-source page, not app chrome, so its
+  // title is left untouched.
+  useEffect(() => {
+    if (isOverlay) return;
+    const routeTitles: Record<string, string> = {
+      "/": t("nav.dashboard"),
+      "/hotkeys": t("nav.hotkeys"),
+      "/overlay-editor": t("nav.overlayEditor"),
+      "/settings": t("nav.settings"),
+    };
+    const label = routeTitles[location.pathname];
+    document.title = label ? `${label} · ${t("app.name")}` : t("app.name");
+  }, [location.pathname, isOverlay, t]);
+
   useEffect(() => {
     fetch(apiUrl("/api/version"))
       .then((r) => r.json())
@@ -642,7 +657,7 @@ function AppShell() {
       {/* ── Main content ─────────────────────────────────────── */}
       {/* Dashboard stays mounted when navigating to overlay editor */}
       <div className={location.pathname === "/" ? "flex-1 overflow-hidden flex flex-col" : "hidden"}>
-        <Dashboard />
+        <Dashboard isActiveRoute={location.pathname === "/"} />
       </div>
       {location.pathname !== "/" && (
         <div className="flex-1 overflow-hidden flex flex-col">

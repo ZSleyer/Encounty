@@ -76,6 +76,25 @@ describe("Dashboard", () => {
     expect(container).toBeTruthy();
   });
 
+  it("renders the #main-content id by default (isActiveRoute defaults true)", async () => {
+    render(<Dashboard />);
+    await act(async () => {});
+    expect(document.getElementById("main-content")).not.toBeNull();
+  });
+
+  it("omits the #main-content id when isActiveRoute is false, so it can't collide with another mounted page's own main landmark", async () => {
+    render(<Dashboard isActiveRoute={false} />);
+    await act(async () => {});
+    expect(document.getElementById("main-content")).toBeNull();
+  });
+
+  it("renders an sr-only h1 for the page", async () => {
+    render(<Dashboard />);
+    await act(async () => {});
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading.className).toContain("sr-only");
+  });
+
   it("displays timer in correct format", async () => {
     const pokemon = makePokemon({
       id: "test-1",
@@ -3599,6 +3618,32 @@ describe("Dashboard sidebar keyboard navigation", () => {
     const lastItem = document.querySelector("[data-sidebar-idx='2']");
     expect(lastItem).not.toBeNull();
     expect(lastItem!.className).toContain("ring-1");
+  });
+
+  it("moves real DOM focus together with the visual highlight on ArrowDown", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+
+    await user.keyboard("{ArrowDown}");
+    const firstItem = document.querySelector("[data-sidebar-idx='0']");
+    expect(document.activeElement).toBe(firstItem);
+
+    await user.keyboard("{ArrowDown}");
+    const secondItem = document.querySelector("[data-sidebar-idx='1']");
+    expect(document.activeElement).toBe(secondItem);
+  });
+
+  it("reflects multi-select state via aria-selected, not just the viewed item", async () => {
+    render(<Dashboard />);
+
+    const items = document.querySelectorAll("[data-sidebar-idx]");
+    expect(items.length).toBeGreaterThan(1);
+    const second = items[1] as HTMLElement;
+    expect(second.getAttribute("aria-selected")).toBe("false");
+
+    fireEvent.click(second, { ctrlKey: true });
+
+    expect(second.getAttribute("aria-selected")).toBe("true");
   });
 
   it("selects all with Ctrl+A", async () => {

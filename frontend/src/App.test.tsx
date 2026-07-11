@@ -1568,6 +1568,20 @@ describe("App", () => {
     });
   });
 
+  it("does not render a duplicate #main-content id from the always-mounted Dashboard on a non-Dashboard route", async () => {
+    mockAcceptedState();
+    render(
+      <MemoryRouter initialEntries={["/hotkeys"]}>
+        <App />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      // Dashboard stays mounted (CSS-hidden) behind every other route; it must
+      // not contribute its own #main-content id once another route is active.
+      expect(document.querySelectorAll("#main-content").length).toBeLessThanOrEqual(1);
+    });
+  });
+
   // --- Server not ready and not setup pending shows spinner ---
 
   it("shows spinner when server reports not ready without setup pending", async () => {
