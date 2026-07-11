@@ -2621,25 +2621,29 @@ export function Dashboard() {
         {viewedPokemon ? (
           <div className="flex flex-col h-full w-full">
             {/* Top Bar (übergeordnet, scrollt nicht mit) */}
-            <header className="flex-none px-4 py-2.5 border-b border-border-subtle bg-bg-card z-50 relative grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            <header className="flex-none px-4 py-2.5 border-b border-border-subtle bg-bg-card z-50 relative grid grid-cols-[auto_1fr_auto] items-center gap-3">
 
               {/* Left: Tabs */}
-              <div className="flex justify-start">
-                <div className="flex bg-bg-card rounded-xl border border-border-subtle p-0.5 shadow-sm">
+              <div className="flex justify-start min-w-0">
+                <div className="flex bg-bg-card rounded-xl border border-border-subtle p-0.5 shadow-sm min-w-0">
                   <button
                     onClick={() => setRightPanelTab("counter")}
                     className={tabButtonClass(rightPanelTab === "counter")}
+                    title={t("dash.tabCounter")}
+                    aria-label={t("dash.tabCounter")}
                   >
                     <Tally5 className="w-3.5 h-3.5" />
-                    {t("dash.tabCounter")}
+                    <span className="hidden 2xl:inline">{t("dash.tabCounter")}</span>
                   </button>
                   {!viewedPokemon.completed_at && (
                     <button
                       onClick={() => setRightPanelTab("detector")}
                       className={tabButtonClass(rightPanelTab === "detector")}
+                      title={t("dash.tabDetector")}
+                      aria-label={t("dash.tabDetector")}
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      {t("dash.tabDetector")}
+                      <span className="hidden 2xl:inline">{t("dash.tabDetector")}</span>
                       {detectorStatus[viewedPokemon.id]?.state === "match" && (
                         <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
                       )}
@@ -2648,31 +2652,35 @@ export function Dashboard() {
                   <button
                     onClick={() => setRightPanelTab("overlay")}
                     className={tabButtonClass(rightPanelTab === "overlay")}
+                    title={t("dash.tabOverlay")}
+                    aria-label={t("dash.tabOverlay")}
                   >
                     <Layers className="w-3.5 h-3.5" />
-                    {t("dash.tabOverlay")}
+                    <span className="hidden 2xl:inline">{t("dash.tabOverlay")}</span>
                   </button>
                   <button
                     onClick={() => setRightPanelTab("statistics")}
                     className={tabButtonClass(rightPanelTab === "statistics")}
+                    title={t("dash.tabStatistics")}
+                    aria-label={t("dash.tabStatistics")}
                   >
                     <BarChart3 className="w-3.5 h-3.5" />
-                    {t("dash.tabStatistics")}
+                    <span className="hidden 2xl:inline">{t("dash.tabStatistics")}</span>
                   </button>
                 </div>
               </div>
 
               {/* Center: Pokemon sprite + name + game badge — always centered via grid */}
-              <div className="flex items-center gap-2 justify-center">
+              <div className="flex items-center gap-2 justify-center min-w-0">
                 <TrimmedBoxSprite
                   canonicalName={viewedPokemon.canonical_name}
                   spriteType={viewedPokemon.sprite_type}
                   alt={viewedPokemon.name}
-                  className="h-10 w-auto"
+                  className="h-10 w-auto shrink-0"
                   fallbackSrc={viewedPokemon.sprite_url}
                 />
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm font-bold text-text-primary leading-tight">{viewedPokemon.name}</span>
+                <div className="flex flex-col gap-0.5 min-w-0">
+                  <span className="text-sm font-bold text-text-primary leading-tight truncate">{viewedPokemon.name}</span>
                   {viewedPokemon.game && (
                     <span className="text-[10px] uppercase tracking-wider font-semibold text-text-muted leading-tight truncate max-w-28">
                       {formatGame(viewedPokemon.game)}
@@ -2682,7 +2690,7 @@ export function Dashboard() {
               </div>
 
               {/* Right: Action buttons + Hunt CTA */}
-              <div className="flex items-center gap-2 justify-end">
+              <div className="flex items-center gap-2 justify-end min-w-0">
 
               {/* 1. Edit — common utility action */}
               <button
@@ -2691,7 +2699,7 @@ export function Dashboard() {
                 aria-label={t("dash.edit")}
               >
                 <Edit2 className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">{t("dash.edit")}</span>
+                <span className="hidden 2xl:inline">{t("dash.edit")}</span>
               </button>
 
               {/* 2. Delete — destructive */}
@@ -2701,7 +2709,7 @@ export function Dashboard() {
                 aria-label={t("dash.delete")}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden xl:inline">{t("dash.delete")}</span>
+                <span className="hidden 2xl:inline">{t("dash.delete")}</span>
               </button>
 
               {/* 3. Caught / Reactivate — positive state change before CTA */}
@@ -2712,7 +2720,7 @@ export function Dashboard() {
                   aria-label={t("dash.reactivate")}
                 >
                   <Undo2 className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">{t("dash.reactivate")}</span>
+                  <span className="hidden 2xl:inline">{t("dash.reactivate")}</span>
                 </button>
               ) : (
                 <button
@@ -2721,7 +2729,7 @@ export function Dashboard() {
                   aria-label={t("dash.caught")}
                 >
                   <PartyPopper className="w-3.5 h-3.5" />
-                  <span className="hidden xl:inline">{t("dash.caught")}</span>
+                  <span className="hidden 2xl:inline">{t("dash.caught")}</span>
                 </button>
               )}
 
