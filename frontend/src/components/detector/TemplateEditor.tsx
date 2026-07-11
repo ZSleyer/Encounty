@@ -157,8 +157,11 @@ function NewTemplateControls({
   }
 
   if (phase === "test") {
+    // w-max instead of w-full: four nowrap buttons overflow the max-w-md
+    // parent, and content width lets the items-center parent keep the row
+    // horizontally centered instead of overflowing to the right only.
     return (
-      <div className="flex w-full gap-3">
+      <div className="flex w-max max-w-none gap-3">
         {stabilityStatus}
         <button
           onClick={onPickFrame}
