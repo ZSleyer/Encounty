@@ -204,4 +204,96 @@ describe("SidebarGroupSection", () => {
     await user.click(backdrop);
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
+
+  it("omits the view-group button when onShowGroupView is not passed", () => {
+    render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="L"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+    expect(screen.queryByRole("button", { name: /gruppe anzeigen/i })).toBeNull();
+  });
+
+  it("invokes onShowGroupView when the view-group button is clicked", async () => {
+    const onShowGroupView = vi.fn();
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="L"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+        onShowGroupView={onShowGroupView}
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+    await user.click(screen.getByRole("button", { name: /gruppe anzeigen/i }));
+    expect(onShowGroupView).toHaveBeenCalled();
+  });
+
+  it("omits the hotkey-target button for the synthetic ungrouped bucket even when onSetHotkeyTarget is passed", () => {
+    render(
+      <SidebarGroupSection
+        group={null}
+        label="Ungrouped"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+        onSetHotkeyTarget={() => {}}
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+    expect(screen.queryByRole("button", { name: /hotkey-ziel/i })).toBeNull();
+  });
+
+  it("shows the inactive hotkey-target state and invokes onSetHotkeyTarget on click", async () => {
+    const onSetHotkeyTarget = vi.fn();
+    const { userEvent } = await import("../../test-utils");
+    const user = userEvent.setup();
+    render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="L"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+        onSetHotkeyTarget={onSetHotkeyTarget}
+        isHotkeyTarget={false}
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+    const inactiveBtn = screen.getByRole("button", { name: /als hotkey-ziel setzen/i });
+    expect(inactiveBtn).toHaveAttribute("aria-pressed", "false");
+    await user.click(inactiveBtn);
+    expect(onSetHotkeyTarget).toHaveBeenCalled();
+  });
+
+  it("shows the active hotkey-target state", () => {
+    render(
+      <SidebarGroupSection
+        group={makeGroup()}
+        label="L"
+        count={1}
+        collapsed={false}
+        onToggleCollapse={() => {}}
+        onSetHotkeyTarget={() => {}}
+        isHotkeyTarget
+      >
+        <li>c</li>
+      </SidebarGroupSection>,
+    );
+    const activeBtn = screen.getByRole("button", { name: /hotkey-ziel \(klicken zum entfernen\)/i });
+    expect(activeBtn).toHaveAttribute("aria-pressed", "true");
+  });
 });
