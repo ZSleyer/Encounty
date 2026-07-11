@@ -1,122 +1,46 @@
 /**
  * Tests for the detection flow simulation used in the template test step.
  *
- * The simulateDetectionFlow function is defined in TemplateEditor.tsx but is
- * not exported. This file mirrors the pure function implementation for direct
- * unit testing of the state machine logic.
+ * simulateDetectionFlow delegates all state transitions to the shared
+ * matchStateMachine, so these tests exercise the exported function directly
+ * instead of mirroring a private implementation. Scores are specified on the
+ * noise-floor adjusted scale (the scale the runtime compares against) and
+ * converted back to raw batch scores, because the simulation applies the same
+ * noise floor as the detection loop.
  */
 import { describe, it, expect } from "vitest";
-
-// --- Mirrored types and constants from TemplateEditor.tsx ---
-
-/** Hysteresis factor: after a match, score must drop to precision x this value. */
-const HYSTERESIS_FACTOR = 0.7;
-
-/** Detection flow state for each frame. */
-type FlowState = "searching" | "match" | "hysteresis" | "cooldown";
-
-/** Zone span in the sparkline. */
-interface FlowZone { startIdx: number; endIdx: number; type: "hysteresis" | "cooldown" }
-
-/** Mutable context passed through the detection state machine. */
-interface FlowContext {
-  phase: "searching" | "hysteresis" | "cooldown";
-  zoneStart: number;
-  cooldownRemaining: number;
-  states: Map<number, FlowState>;
-  zones: FlowZone[];
-  threshold: number;
-  hysteresisExit: number;
-  cooldownFrames: number;
-}
-
-function processHysteresisFrame(ctx: FlowContext, idx: number, score: number): void {
-  if (score < ctx.hysteresisExit) {
-    ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: idx, type: "hysteresis" });
-    ctx.phase = "cooldown";
-    ctx.cooldownRemaining = ctx.cooldownFrames;
-    ctx.zoneStart = idx;
-    ctx.states.set(idx, "cooldown");
-  } else {
-    ctx.states.set(idx, "hysteresis");
-  }
-}
-
-function processCooldownFrame(ctx: FlowContext, idx: number, score: number): void {
-  ctx.cooldownRemaining -= 5;
-  if (ctx.cooldownRemaining > 0) {
-    ctx.states.set(idx, "cooldown");
-    return;
-  }
-  ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: idx, type: "cooldown" });
-  ctx.phase = "searching";
-  ctx.zoneStart = -1;
-  processSearchingFrame(ctx, idx, score);
-}
-
-function processSearchingFrame(ctx: FlowContext, idx: number, score: number): void {
-  if (score >= ctx.threshold) {
-    ctx.states.set(idx, "match");
-    ctx.phase = "hysteresis";
-    ctx.zoneStart = idx;
-  } else {
-    ctx.states.set(idx, "searching");
-  }
-}
-
-/**
- * Mirror of simulateDetectionFlow from TemplateEditor.tsx.
- * Simulate the full detection state machine:
- * Searching -> Match -> Hysteresis -> Cooldown -> Searching.
- */
-function simulateDetectionFlow(
-  entries: [number, { overallScore: number }][],
-  threshold: number,
-  cooldownFrames: number,
-): { states: Map<number, FlowState>; zones: FlowZone[] } {
-  const ctx: FlowContext = {
-    phase: "searching",
-    zoneStart: -1,
-    cooldownRemaining: 0,
-    states: new Map(),
-    zones: [],
-    threshold,
-    hysteresisExit: threshold * HYSTERESIS_FACTOR,
-    cooldownFrames,
-  };
-
-  for (const [idx, r] of entries) {
-    if (ctx.phase === "hysteresis") processHysteresisFrame(ctx, idx, r.overallScore);
-    else if (ctx.phase === "cooldown") processCooldownFrame(ctx, idx, r.overallScore);
-    else processSearchingFrame(ctx, idx, r.overallScore);
-  }
-
-  if (ctx.phase !== "searching" && ctx.zoneStart >= 0 && entries.length > 0) {
-    const lastIdx = entries[entries.length - 1][0];
-    ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: lastIdx, type: ctx.phase === "hysteresis" ? "hysteresis" : "cooldown" });
-  }
-
-  return { states: ctx.states, zones: ctx.zones };
-}
+import { simulateDetectionFlow } from "./TemplateEditor";
+import { NOISE_FLOOR, type MatchStateSettings } from "../../engine/matchStateMachine";
 
 // --- Test helpers ---
 
-/** Build entries from [frameIndex, score] tuples. */
+/** Convert an intended noise-floor adjusted score into the raw batch score. */
+function raw(adjusted: number): number {
+  return adjusted <= 0 ? 0 : adjusted * (1 - NOISE_FLOOR) + NOISE_FLOOR;
+}
+
+/** Build entries from [frameIndex, adjustedScore] tuples. */
 function makeEntries(scores: [number, number][]): [number, { overallScore: number }][] {
-  return scores.map(([idx, score]) => [idx, { overallScore: score }]);
+  return scores.map(([idx, adjusted]) => [idx, { overallScore: raw(adjusted) }]);
+}
+
+/** Base settings: one hit confirms, cooldown spans three sampled entries. */
+function makeSettings(overrides?: Partial<MatchStateSettings>): MatchStateSettings {
+  // Entries are sampled every 5th frame of a 60fps buffer (83.33ms apart), so
+  // the cooldown elapses three entries after the hysteresis exit. 0.24s sits
+  // safely below the exact three-entry spacing (250ms) so float rounding of
+  // the virtual clock cannot flip the boundary tick either way.
+  return { precision: 0.8, hysteresisFactor: 0.7, consecutiveHits: 1, cooldownSec: 0.24, ...overrides };
 }
 
 // --- Tests ---
 
 describe("simulateDetectionFlow", () => {
-  const threshold = 0.8;
-  const cooldownFrames = 15; // 3 entries at 5-per-step
-
   it("marks all entries as searching when all scores are below threshold", () => {
     const entries = makeEntries([
       [0, 0.1], [5, 0.3], [10, 0.5], [15, 0.7],
     ]);
-    const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
     expect(zones).toHaveLength(0);
     for (const [, state] of states) {
@@ -125,20 +49,19 @@ describe("simulateDetectionFlow", () => {
   });
 
   it("transitions through match -> hysteresis -> cooldown -> searching on a single spike", () => {
-    // threshold = 0.8, hysteresisExit = 0.56
-    // cooldownFrames = 15 → needs 3 entries (3 * 5 = 15) to expire
+    // precision 0.8, hysteresis exit at 0.8 * 0.7 = 0.56 (adjusted scale)
     const entries = makeEntries([
       [0, 0.2],  // searching
-      [5, 0.9],  // match (>= 0.8)
+      [5, 0.9],  // hit confirms (consecutiveHits = 1) -> match
       [10, 0.7], // hysteresis (>= 0.56)
       [15, 0.6], // hysteresis (>= 0.56)
       [20, 0.4], // hysteresis exits (< 0.56) -> cooldown starts
-      [25, 0.1], // cooldown (remaining: 15-5=10)
-      [30, 0.1], // cooldown (remaining: 10-5=5)
-      [35, 0.1], // cooldown (remaining: 5-5=0) -> cooldown expires -> searching
+      [25, 0.1], // cooldown (~83ms elapsed)
+      [30, 0.1], // cooldown (~167ms elapsed)
+      [35, 0.1], // cooldown elapsed (250ms) -> searching
       [40, 0.1], // searching
     ]);
-    const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
     expect(states.get(0)).toBe("searching");
     expect(states.get(5)).toBe("match");
@@ -158,12 +81,12 @@ describe("simulateDetectionFlow", () => {
 
   it("keeps hysteresis open as a trailing zone when score stays high", () => {
     const entries = makeEntries([
-      [0, 0.2],  // searching
-      [5, 0.9],  // match
+      [0, 0.2],   // searching
+      [5, 0.9],   // match
       [10, 0.85], // hysteresis
       [15, 0.9],  // hysteresis
     ]);
-    const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
     expect(states.get(0)).toBe("searching");
     expect(states.get(5)).toBe("match");
@@ -176,20 +99,19 @@ describe("simulateDetectionFlow", () => {
   });
 
   it("handles two separate matches with cooldown between them", () => {
-    // First match, drop, cooldown, then second match
     const entries = makeEntries([
       [0, 0.9],  // match
       [5, 0.3],  // hysteresis exits -> cooldown
-      [10, 0.1], // cooldown (15-5=10)
-      [15, 0.1], // cooldown (10-5=5)
-      [20, 0.1], // cooldown expires (5-5=0) -> searching
+      [10, 0.1], // cooldown
+      [15, 0.1], // cooldown
+      [20, 0.1], // cooldown expires -> searching
       [25, 0.9], // match (second match)
       [30, 0.3], // hysteresis exits -> cooldown
       [35, 0.1], // cooldown
       [40, 0.1], // cooldown
       [45, 0.1], // cooldown expires -> searching
     ]);
-    const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
     expect(states.get(0)).toBe("match");
     expect(states.get(5)).toBe("cooldown");
@@ -206,68 +128,82 @@ describe("simulateDetectionFlow", () => {
     expect(zones[3].type).toBe("cooldown");
   });
 
-  it("transitions from expired cooldown into immediate match when score is above threshold", () => {
+  it("skips hit counting on the cooldown expiry frame like the runtime machine", () => {
     const entries = makeEntries([
       [0, 0.9],  // match
       [5, 0.3],  // hysteresis exits -> cooldown
-      [10, 0.1], // cooldown (15-5=10)
-      [15, 0.1], // cooldown (10-5=5)
-      [20, 0.9], // cooldown expires (5-5=0) -> score >= threshold -> match
-      [25, 0.3], // hysteresis exits -> cooldown
+      [10, 0.1], // cooldown
+      [15, 0.1], // cooldown
+      [20, 0.9], // cooldown expires: the machine returns without counting hits
+      [25, 0.9], // first counted hit after cooldown -> match
     ]);
-    const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
-    expect(states.get(20)).toBe("match");
-    expect(states.get(25)).toBe("cooldown");
+    expect(states.get(20)).toBe("searching");
+    expect(states.get(25)).toBe("match");
 
-    // Zones: hyst [0,5], cool [5,20], hyst [20,25], trailing cool
-    expect(zones).toHaveLength(4);
+    // Zones: hyst [0,5], cool [5,20], trailing hyst [25,25]
+    expect(zones).toHaveLength(3);
     expect(zones[0]).toEqual({ startIdx: 0, endIdx: 5, type: "hysteresis" });
     expect(zones[1]).toEqual({ startIdx: 5, endIdx: 20, type: "cooldown" });
-    expect(zones[2]).toEqual({ startIdx: 20, endIdx: 25, type: "hysteresis" });
-    expect(zones[3]).toEqual({ startIdx: 25, endIdx: 25, type: "cooldown" });
+    expect(zones[2]).toEqual({ startIdx: 25, endIdx: 25, type: "hysteresis" });
+  });
+
+  it("requires the configured number of consecutive hits before confirming", () => {
+    const entries = makeEntries([
+      [0, 0.2],  // searching
+      [5, 0.9],  // first hit, not confirmed yet
+      [10, 0.9], // second hit -> confirmed -> match
+      [15, 0.4], // hysteresis exits -> cooldown
+    ]);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings({ consecutiveHits: 2 }));
+
+    expect(states.get(5)).toBe("searching");
+    expect(states.get(10)).toBe("match");
+    expect(states.get(15)).toBe("cooldown");
+
+    expect(zones).toHaveLength(2);
+    expect(zones[0]).toEqual({ startIdx: 10, endIdx: 15, type: "hysteresis" });
+    expect(zones[1]).toEqual({ startIdx: 15, endIdx: 15, type: "cooldown" });
+  });
+
+  it("tolerates a single dip between hits (near-consecutive counting)", () => {
+    const entries = makeEntries([
+      [0, 0.9], // first hit
+      [5, 0.5], // single below-threshold frame is tolerated
+      [10, 0.9], // second hit -> confirmed -> match
+    ]);
+    const { states } = simulateDetectionFlow(entries, makeSettings({ consecutiveHits: 2 }));
+
+    expect(states.get(0)).toBe("searching");
+    expect(states.get(5)).toBe("searching");
+    expect(states.get(10)).toBe("match");
   });
 
   it("returns empty states and no zones for empty entries", () => {
-    const { states, zones } = simulateDetectionFlow([], threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow([], makeSettings());
     expect(states.size).toBe(0);
     expect(zones).toHaveLength(0);
   });
 
-  it("stays in hysteresis when score equals the exit threshold exactly", () => {
-    // hysteresisExit = 0.8 * 0.7 = 0.56
-    const exitThreshold = threshold * HYSTERESIS_FACTOR; // 0.56
+  it("stays in hysteresis just above the exit threshold and exits just below it", () => {
+    // hysteresisExit = 0.8 * 0.7 = 0.56 on the adjusted scale
     const entries = makeEntries([
-      [0, 0.9],           // match
-      [5, exitThreshold], // exactly at exit threshold -> stays in hysteresis
-      [10, exitThreshold], // still at exit threshold -> stays in hysteresis
-      [15, exitThreshold - 0.01], // just below -> exits hysteresis
+      [0, 0.9],   // match
+      [5, 0.57],  // just above exit threshold -> stays in hysteresis
+      [10, 0.55], // just below -> exits hysteresis
     ]);
-    const { states } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
     expect(states.get(0)).toBe("match");
     expect(states.get(5)).toBe("hysteresis");
-    expect(states.get(10)).toBe("hysteresis");
-    expect(states.get(15)).toBe("cooldown");
-  });
-
-  it("exits hysteresis when score drops below the exit threshold", () => {
-    // hysteresisExit = 0.8 * 0.7 = 0.56
-    const justBelow = threshold * HYSTERESIS_FACTOR - 0.001;
-    const entries = makeEntries([
-      [0, 0.9],      // match
-      [5, justBelow], // below exit threshold -> cooldown
-    ]);
-    const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
-
-    expect(states.get(0)).toBe("match");
-    expect(states.get(5)).toBe("cooldown");
-    expect(zones[0]).toEqual({ startIdx: 0, endIdx: 5, type: "hysteresis" });
+    expect(states.get(10)).toBe("cooldown");
+    expect(zones[0]).toEqual({ startIdx: 0, endIdx: 10, type: "hysteresis" });
   });
 
   it("handles a single entry above threshold with trailing hysteresis zone", () => {
     const entries = makeEntries([[0, 0.9]]);
-    const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
     expect(states.get(0)).toBe("match");
     expect(zones).toHaveLength(1);
@@ -276,11 +212,11 @@ describe("simulateDetectionFlow", () => {
 
   it("produces a trailing cooldown zone when cooldown has not expired", () => {
     const entries = makeEntries([
-      [0, 0.9], // match
-      [5, 0.3], // hysteresis exits -> cooldown
+      [0, 0.9],  // match
+      [5, 0.3],  // hysteresis exits -> cooldown
       [10, 0.1], // still in cooldown
     ]);
-    const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+    const { states, zones } = simulateDetectionFlow(entries, makeSettings());
 
     expect(states.get(5)).toBe("cooldown");
     expect(states.get(10)).toBe("cooldown");

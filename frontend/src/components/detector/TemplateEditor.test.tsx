@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, userEvent, waitFor } from "../../test-utils";
 import { TemplateEditor } from "./TemplateEditor";
 import type { MatchedRegion } from "../../types";
+import type { SweepResult } from "../../engine/parameterSweep";
 
 // Mock useOCR since it uses tesseract.js which is heavy
 vi.mock("../../hooks/useOCR", () => ({
@@ -40,9 +41,28 @@ const mockTemplateTest = {
   currentResult: null as { overallScore: number; regionScores: { index: number; score: number }[] } | null,
   cancel: vi.fn() as ReturnType<typeof vi.fn>,
   bestScore: 0,
+  avgScoreMs: 0,
 };
 vi.mock("../../hooks/useTemplateTest", () => ({
   useTemplateTest: () => mockTemplateTest,
+}));
+
+// Mock the parameter sweep with a controllable runner. The editor pumps the
+// runner via the setTimeout fallback (jsdom has no requestIdleCallback), so a
+// finished runner delivers its result asynchronously after the batch stats
+// appear, just like the real incremental sweep.
+const mockSweepControl = {
+  /** Result the runner reports once finished (null = sweep found nothing). */
+  result: null as SweepResult | null,
+  /** When false, step() never finishes and the sweep stays "running". */
+  finished: true,
+};
+vi.mock("../../engine/parameterSweep", () => ({
+  createSweepRunner: () => ({
+    step: () => mockSweepControl.finished,
+    progress: () => (mockSweepControl.finished ? 1 : 0.5),
+    result: () => (mockSweepControl.finished ? mockSweepControl.result : null),
+  }),
 }));
 
 // Mock ResizeObserver which is not available in jsdom
@@ -177,6 +197,11 @@ describe("TemplateEditor", () => {
     mockTemplateTest.currentResult = null;
     mockTemplateTest.cancel = vi.fn();
     mockTemplateTest.bestScore = 0;
+    mockTemplateTest.avgScoreMs = 0;
+
+    // Reset sweep mock: finishes immediately without a result (analytic fallback)
+    mockSweepControl.result = null;
+    mockSweepControl.finished = true;
 
     // Reset replay buffer mock to default (no frames)
     mockReplayBuffer.frameCount = 0;
@@ -1364,7 +1389,10 @@ describe("TemplateEditor", () => {
      * Render with initialImageUrl but WITHOUT onUpdateRegions so the save path
      * uses onSaveTemplate, which carries the calibration payload.
      */
-    async function goToConfirmAndSave(onSaveTemplate: SaveTemplateFn, uncheck: boolean) {
+    async function goToConfirmAndSave(
+      onSaveTemplate: SaveTemplateFn,
+      opts: { uncheck?: boolean; awaitSweep?: boolean } = {},
+    ) {
       mockReplayBuffer.frameCount = 60;
       mockReplayBuffer.getFrame = vi.fn().mockReturnValue({
         width: 640, height: 480, data: new Uint8ClampedArray(640 * 480 * 4),
@@ -1391,7 +1419,14 @@ describe("TemplateEditor", () => {
         expect(screen.getByText("Frame wählen")).toBeInTheDocument();
       });
 
-      if (uncheck) {
+      if (opts.awaitSweep) {
+        // The hits line only renders once the sweep result arrived
+        await waitFor(() => {
+          expect(screen.getByText(/Empfohlene Hits in Folge/)).toBeInTheDocument();
+        });
+      }
+
+      if (opts.uncheck) {
         await user.click(screen.getByRole("checkbox", { name: /Kalibrierung beim Speichern übernehmen/ }));
       }
 
@@ -1409,7 +1444,7 @@ describe("TemplateEditor", () => {
     it("includes the calibration in the save payload when applied", async () => {
       setBatchResults(goodScores);
       const onSaveTemplate = vi.fn<SaveTemplateFn>().mockResolvedValue(undefined);
-      await goToConfirmAndSave(onSaveTemplate, false);
+      await goToConfirmAndSave(onSaveTemplate);
 
       const payload = onSaveTemplate.mock.calls[0][0];
       const calibration = payload.calibration!;
@@ -1424,9 +1459,97 @@ describe("TemplateEditor", () => {
     it("omits the calibration from the save payload when unchecked", async () => {
       setBatchResults(goodScores);
       const onSaveTemplate = vi.fn<SaveTemplateFn>().mockResolvedValue(undefined);
-      await goToConfirmAndSave(onSaveTemplate, true);
+      await goToConfirmAndSave(onSaveTemplate, { uncheck: true });
 
       const payload = onSaveTemplate.mock.calls[0][0];
+      expect(payload.calibration).toBeUndefined();
+    });
+
+    // --- Parameter sweep in the stability panel ---
+
+    /** Complete sweep result fixture used by the sweep display and save tests. */
+    const sweepFixture: SweepResult = {
+      precision: 0.6,
+      hysteresisFactor: 0.85,
+      consecutiveHits: 2,
+      pollIntervalMs: 400,
+      minPollMs: 50,
+      maxPollMs: 2000,
+      cleanPhases: 4,
+      totalPhases: 4,
+      perfect: true,
+      robustnessMargin: 0.2,
+      worstLatencyMs: 120,
+    };
+
+    it("shows a progress line while the sweep is running", async () => {
+      setBatchResults(goodScores);
+      mockSweepControl.finished = false;
+      await goToTestPhase();
+
+      expect(await screen.findByText("Simuliere optimale Einstellungen…")).toBeInTheDocument();
+      // Analytic recommendation stays visible as the fallback while sweeping
+      expect(screen.getByText(/Empfohlene Genauigkeit: \d+%/)).toBeInTheDocument();
+    });
+
+    it("shows the swept values in the panel once the sweep completes", async () => {
+      setBatchResults(goodScores);
+      mockSweepControl.result = { ...sweepFixture };
+      await goToTestPhase();
+
+      await waitFor(() => {
+        expect(screen.getByText("Empfohlene Genauigkeit: 60%")).toBeInTheDocument();
+      });
+      expect(screen.getByText("Empfohlene Hysterese: 85%")).toBeInTheDocument();
+      expect(screen.getByText("Empfohlene Hits in Folge: 2")).toBeInTheDocument();
+      expect(screen.getByText("Empfohlenes Polling: min 50 ms, Basis 400 ms, max 2000 ms")).toBeInTheDocument();
+      // Progress line disappears once the sweep finished
+      expect(screen.queryByText("Simuliere optimale Einstellungen…")).not.toBeInTheDocument();
+      // A perfect sweep shows no caution line
+      expect(screen.queryByText(/Der Sweep konnte den Match nicht/)).not.toBeInTheDocument();
+    });
+
+    it("shows a caution line when the sweep is imperfect", async () => {
+      setBatchResults(goodScores);
+      mockSweepControl.result = { ...sweepFixture, cleanPhases: 3, perfect: false };
+      await goToTestPhase();
+
+      expect(
+        await screen.findByText(/Der Sweep konnte den Match nicht in jedem simulierten Durchlauf sauber bestätigen/),
+      ).toBeInTheDocument();
+    });
+
+    it("saves the swept hits and polling values in the payload when applied", async () => {
+      setBatchResults(goodScores);
+      mockSweepControl.result = { ...sweepFixture };
+      const onSaveTemplate = vi.fn<SaveTemplateFn>().mockResolvedValue(undefined);
+      await goToConfirmAndSave(onSaveTemplate, { awaitSweep: true });
+
+      const payload = onSaveTemplate.mock.calls[0][0];
+      expect(payload.precision).toBeCloseTo(0.6, 5);
+      expect(payload.hysteresisFactor).toBeCloseTo(0.85, 5);
+      expect(payload.consecutiveHits).toBe(2);
+      expect(payload.pollIntervalMs).toBe(400);
+      expect(payload.minPollMs).toBe(50);
+      expect(payload.maxPollMs).toBe(2000);
+      // The calibration embeds the full sweep outcome
+      expect(payload.calibration?.recommended_precision).toBeCloseTo(0.6, 3);
+      expect(payload.calibration?.sweep?.consecutive_hits).toBe(2);
+      expect(payload.calibration?.sweep?.poll_interval_ms).toBe(400);
+    });
+
+    it("restores the pre-apply draft values when the apply checkbox is toggled off", async () => {
+      setBatchResults(goodScores);
+      mockSweepControl.result = { ...sweepFixture };
+      const onSaveTemplate = vi.fn<SaveTemplateFn>().mockResolvedValue(undefined);
+      await goToConfirmAndSave(onSaveTemplate, { awaitSweep: true, uncheck: true });
+
+      const payload = onSaveTemplate.mock.calls[0][0];
+      // Hardcoded defaults restored (this render passed no initial overrides)
+      expect(payload.precision).toBeCloseTo(0.55, 5);
+      expect(payload.hysteresisFactor).toBeCloseTo(0.7, 5);
+      expect(payload.consecutiveHits).toBe(1);
+      expect(payload.pollIntervalMs).toBe(200);
       expect(payload.calibration).toBeUndefined();
     });
   });

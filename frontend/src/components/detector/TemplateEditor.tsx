@@ -19,6 +19,8 @@ import { useOCR } from "../../hooks/useOCR";
 import { useReplayBuffer } from "../../hooks/useReplayBuffer";
 import { useTemplateTest } from "../../hooks/useTemplateTest";
 import { analyzeStability, recommendPolling, toCalibration, type PollingRecommendation, type StabilityStats } from "../../engine/templateStability";
+import { applyNoiseFloor, newCategoryState, updateMatchState, type MatchStateSettings } from "../../engine/matchStateMachine";
+import { createSweepRunner, type SweepResult } from "../../engine/parameterSweep";
 import { preprocessForOCR } from "../../engine/ocrPreprocess";
 import {
   DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
@@ -379,110 +381,87 @@ function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
 }
 
 /** Detection flow state for each frame. */
-type FlowState = "searching" | "match" | "hysteresis" | "cooldown";
+export type FlowState = "searching" | "match" | "hysteresis" | "cooldown";
 
 /** Zone span in the sparkline. */
-interface FlowZone { startIdx: number; endIdx: number; type: "hysteresis" | "cooldown" }
+export interface FlowZone { startIdx: number; endIdx: number; type: "hysteresis" | "cooldown" }
 
-/** Mutable context passed through the detection state machine. */
-interface FlowContext {
-  phase: "searching" | "hysteresis" | "cooldown";
-  zoneStart: number;
-  cooldownRemaining: number;
-  states: Map<number, FlowState>;
-  zones: FlowZone[];
-  threshold: number;
-  hysteresisExit: number;
-  cooldownFrames: number;
-}
-
-/** Process a single frame during the hysteresis phase. */
-function processHysteresisFrame(ctx: FlowContext, idx: number, score: number): void {
-  if (score < ctx.hysteresisExit) {
-    ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: idx, type: "hysteresis" });
-    ctx.phase = "cooldown";
-    ctx.cooldownRemaining = ctx.cooldownFrames;
-    ctx.zoneStart = idx;
-    ctx.states.set(idx, "cooldown");
-  } else {
-    ctx.states.set(idx, "hysteresis");
-  }
-}
-
-/** Process a single frame during the cooldown phase. */
-function processCooldownFrame(ctx: FlowContext, idx: number, score: number): void {
-  ctx.cooldownRemaining -= 5; // sampled every 5th frame
-  if (ctx.cooldownRemaining > 0) {
-    ctx.states.set(idx, "cooldown");
-    return;
-  }
-  ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: idx, type: "cooldown" });
-  ctx.phase = "searching";
-  ctx.zoneStart = -1;
-  processSearchingFrame(ctx, idx, score);
-}
-
-/** Process a single frame during the searching phase. */
-function processSearchingFrame(ctx: FlowContext, idx: number, score: number): void {
-  if (score >= ctx.threshold) {
-    ctx.states.set(idx, "match");
-    ctx.phase = "hysteresis";
-    ctx.zoneStart = idx;
-  } else {
-    ctx.states.set(idx, "searching");
-  }
-}
+/** Milliseconds per replay-buffer frame (~60fps capture), drives the virtual flow clock. */
+const FLOW_FRAME_MS = 1000 / 60;
 
 /**
- * Simulate the full detection state machine: Searching → Match → Hysteresis → Cooldown → Searching.
- * Cooldown is estimated from cooldownSec and the replay buffer's fps (~60fps, sampled every 5th).
+ * Simulate the runtime detection flow (Searching → Match → Hysteresis →
+ * Cooldown → Searching) over the batch-test score timeline.
+ *
+ * Every transition is delegated to the shared matchStateMachine so the
+ * sparkline preview can never diverge from the real detection loop: scores
+ * pass through the same noise floor, hysteresis exits use the per-template
+ * factor, consecutive hits are honored, and the cooldown timer runs on a
+ * virtual clock derived from the ~60fps replay buffer.
+ *
+ * Exported for direct unit testing (TemplateEditor.flow.test.ts).
  */
-function simulateDetectionFlow(
+export function simulateDetectionFlow(
   entries: [number, { overallScore: number }][],
-  threshold: number,
-  cooldownFrames: number,
+  settings: MatchStateSettings,
 ): { states: Map<number, FlowState>; zones: FlowZone[] } {
-  const ctx: FlowContext = {
-    phase: "searching",
-    zoneStart: -1,
-    cooldownRemaining: 0,
-    states: new Map(),
-    zones: [],
-    threshold,
-    hysteresisExit: threshold * DEFAULT_HYSTERESIS_FACTOR,
-    cooldownFrames,
-  };
+  const states = new Map<number, FlowState>();
+  const zones: FlowZone[] = [];
+  const state = newCategoryState();
+  let zoneStart = -1;
 
   for (const [idx, r] of entries) {
-    if (ctx.phase === "hysteresis") processHysteresisFrame(ctx, idx, r.overallScore);
-    else if (ctx.phase === "cooldown") processCooldownFrame(ctx, idx, r.overallScore);
-    else processSearchingFrame(ctx, idx, r.overallScore);
+    const wasInHysteresis = state.inHysteresis;
+    const wasInCooldown = state.inCooldown;
+    updateMatchState(state, applyNoiseFloor(r.overallScore), settings, idx * FLOW_FRAME_MS);
+
+    if (!wasInHysteresis && state.inHysteresis) {
+      // Confirmation frame: the machine just entered hysteresis.
+      states.set(idx, "match");
+      zoneStart = idx;
+    } else if (state.inHysteresis) {
+      states.set(idx, "hysteresis");
+    } else if (wasInHysteresis && state.inCooldown) {
+      // Hysteresis exit: close the hysteresis zone, open the cooldown zone.
+      zones.push({ startIdx: zoneStart, endIdx: idx, type: "hysteresis" });
+      states.set(idx, "cooldown");
+      zoneStart = idx;
+    } else if (state.inCooldown) {
+      states.set(idx, "cooldown");
+    } else if (wasInCooldown) {
+      // Cooldown expiry frame: the runtime machine skips hit counting on this
+      // tick, so the frame renders as searching even at a high score.
+      zones.push({ startIdx: zoneStart, endIdx: idx, type: "cooldown" });
+      states.set(idx, "searching");
+      zoneStart = -1;
+    } else {
+      states.set(idx, "searching");
+    }
   }
 
-  // Close trailing zone
-  if (ctx.phase !== "searching" && ctx.zoneStart >= 0 && entries.length > 0) {
+  // Close the trailing zone when the timeline ends mid-hysteresis/cooldown.
+  if ((state.inHysteresis || state.inCooldown) && zoneStart >= 0 && entries.length > 0) {
     const lastIdx = entries[entries.length - 1][0];
-    ctx.zones.push({ startIdx: ctx.zoneStart, endIdx: lastIdx, type: ctx.phase === "hysteresis" ? "hysteresis" : "cooldown" });
+    zones.push({ startIdx: zoneStart, endIdx: lastIdx, type: state.inHysteresis ? "hysteresis" : "cooldown" });
   }
 
-  return { states: ctx.states, zones: ctx.zones };
+  return { states, zones };
 }
 
 /** Score timeline visualizing the detection flow: Searching → Match → Hysteresis → Cooldown → Searching. */
-function ScoreSparkline({ batchResults, frameCount, selectedIndex, precision, cooldownSec, t }: Readonly<{
+function ScoreSparkline({ batchResults, frameCount, selectedIndex, settings, t }: Readonly<{
   batchResults: Map<number, { overallScore: number }>;
   frameCount: number;
   selectedIndex: number;
-  precision?: number;
-  cooldownSec?: number;
+  /** Draft per-template settings driving the flow preview. */
+  settings: MatchStateSettings;
   t: (k: string) => string;
 }>) {
   if (batchResults.size === 0) return null;
-  const threshold = precision ?? DEFAULT_PRECISION;
-  const cooldownFrames = (cooldownSec ?? DEFAULT_COOLDOWN_SEC) * 60; // 60 fps
+  const threshold = settings.precision;
   const entries = Array.from(batchResults.entries()).sort(([a], [b]) => a - b) as [number, { overallScore: number }][];
   const barWidth = 100 / Math.max(entries.length, 1);
-  const { states, zones } = simulateDetectionFlow(entries, threshold, cooldownFrames);
+  const { states, zones } = simulateDetectionFlow(entries, settings);
 
   const matchCount = Array.from(states.values()).filter((s) => s === "match").length;
   const maxFrame = Math.max(frameCount - 1, 1);
@@ -670,9 +649,13 @@ function ratingPresentation(rating: StabilityStats["rating"]): {
  * toggle to persist the calibration on save. Rendered as a fixed overlay on
  * the right edge so appearing after the test never shifts the editor layout.
  */
-function StabilityPanel({ stats, polling, applyCalibration, onToggleApply, t }: Readonly<{
+function StabilityPanel({ stats, polling, sweep, sweepRunning, applyCalibration, onToggleApply, t }: Readonly<{
   stats: StabilityStats;
   polling: PollingRecommendation | null;
+  /** Finished parameter-sweep result; supersedes the analytic values when present. */
+  sweep: SweepResult | null;
+  /** True while the parameter sweep is still simulating combinations. */
+  sweepRunning: boolean;
   applyCalibration: boolean;
   onToggleApply: (v: boolean) => void;
   t: (k: string) => string;
@@ -684,11 +667,20 @@ function StabilityPanel({ stats, polling, applyCalibration, onToggleApply, t }: 
     .replace("{median}", pct(stats.matchMedian))
     .replace("{p10}", pct(stats.matchP10))
     .replace("{noise}", pct(stats.noiseP90));
-  const pollingLine = polling
+  // The finished sweep replaces the analytic recommendation in the display.
+  const shownPrecision = sweep ? sweep.precision : stats.recommendedPrecision;
+  const shownHysteresis = sweep ? sweep.hysteresisFactor : stats.recommendedHysteresis;
+  let pollingValues: { min: number; base: number; max: number } | null = null;
+  if (sweep) {
+    pollingValues = { min: sweep.minPollMs, base: sweep.pollIntervalMs, max: sweep.maxPollMs };
+  } else if (polling) {
+    pollingValues = { min: polling.minPollMs, base: polling.basePollMs, max: polling.maxPollMs };
+  }
+  const pollingLine = pollingValues
     ? t("templateEditor.stabilityPolling")
-        .replace("{min}", String(polling.minPollMs))
-        .replace("{base}", String(polling.basePollMs))
-        .replace("{max}", String(polling.maxPollMs))
+        .replace("{min}", String(pollingValues.min))
+        .replace("{base}", String(pollingValues.base))
+        .replace("{max}", String(pollingValues.max))
     : null;
 
   return (
@@ -698,17 +690,31 @@ function StabilityPanel({ stats, polling, applyCalibration, onToggleApply, t }: 
         <span>{t("templateEditor.stabilityTitle")}: {t(labelKey)}</span>
       </div>
       <p className="text-xs 2xl:text-sm text-text-muted">{statsLine}</p>
+      {sweepRunning && (
+        <p className="flex items-center gap-2 text-xs 2xl:text-sm text-text-muted">
+          <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" aria-hidden="true" />
+          <span>{t("templateEditor.stabilitySweeping")}</span>
+        </p>
+      )}
       <p className="text-xs 2xl:text-sm text-text-muted">
-        {t("templateEditor.stabilityRecommended").replace("{value}", pct(stats.recommendedPrecision))}
+        {t("templateEditor.stabilityRecommended").replace("{value}", pct(shownPrecision))}
       </p>
       <p className="text-xs 2xl:text-sm text-text-muted">
-        {t("templateEditor.stabilityHysteresis").replace("{value}", pct(stats.recommendedHysteresis))}
+        {t("templateEditor.stabilityHysteresis").replace("{value}", pct(shownHysteresis))}
       </p>
+      {sweep && (
+        <p className="text-xs 2xl:text-sm text-text-muted">
+          {t("templateEditor.stabilityHits").replace("{value}", String(sweep.consecutiveHits))}
+        </p>
+      )}
       {pollingLine && (
         <>
           <p className="text-xs 2xl:text-sm text-text-muted">{pollingLine}</p>
           <p className="text-[11px] 2xl:text-xs text-text-muted">{t("templateEditor.stabilityPollingHint")}</p>
         </>
+      )}
+      {sweep && !sweep.perfect && (
+        <p className="text-xs 2xl:text-sm text-amber-400">{t("templateEditor.stabilitySweepImperfect")}</p>
       )}
       <label className="flex items-center gap-2 text-xs 2xl:text-sm text-text-primary cursor-pointer">
         <input
@@ -1145,6 +1151,14 @@ export function TemplateEditor({
   // analysis rates the template poor.
   const [applyCalibration, setApplyCalibration] = useState(false);
 
+  // Simulation-based parameter sweep over the batch timeline; runs
+  // incrementally after the batch test finishes so the UI stays responsive.
+  const [sweepResult, setSweepResult] = useState<SweepResult | null>(null);
+  const [sweepRunning, setSweepRunning] = useState(false);
+  // Generation guard: bumping it invalidates any pending pump callback of an
+  // outdated sweep (unmount or a new batch run).
+  const sweepGenRef = useRef(0);
+
   // This template's own detection settings, always maintained per template
   // (not a hunt-level default). Seeded from the template's existing values in
   // edit mode, otherwise from hardcoded defaults.
@@ -1157,17 +1171,92 @@ export function TemplateEditor({
     minPollMs: initialMinPollMs ?? MIN_POLL_MS,
     maxPollMs: initialMaxPollMs ?? MAX_POLL_MS,
   });
-  const updateTemplateSettings = (patch: Partial<TemplateSettingsValues>) =>
-    setTemplateSettings((prev) => ({ ...prev, ...patch }));
+
+  // Draft values captured before a recommendation overwrote them, so toggling
+  // the apply checkbox off restores what the user had.
+  const preApplyRef = useRef<TemplateSettingsValues | null>(null);
+
+  /**
+   * Overwrite the draft settings with a recommendation, capturing the previous
+   * draft once so toggling apply off can restore it. The capture lives inside
+   * the updater (idempotent via ??=) so it always snapshots the latest draft.
+   */
+  const writeRecommendation = (patch: Partial<TemplateSettingsValues>) =>
+    setTemplateSettings((prev) => {
+      preApplyRef.current ??= prev;
+      return { ...prev, ...patch };
+    });
+
+  /** Best available recommendation: the finished sweep wins over the analytic fallback. */
+  const recommendationPatch = (): Partial<TemplateSettingsValues> | null => {
+    if (sweepResult) {
+      return {
+        precision: sweepResult.precision,
+        hysteresisFactor: sweepResult.hysteresisFactor,
+        consecutiveHits: sweepResult.consecutiveHits,
+        pollIntervalMs: sweepResult.pollIntervalMs,
+        minPollMs: sweepResult.minPollMs,
+        maxPollMs: sweepResult.maxPollMs,
+      };
+    }
+    if (stabilityStats) {
+      return {
+        precision: stabilityStats.recommendedPrecision,
+        hysteresisFactor: stabilityStats.recommendedHysteresis,
+        ...(pollingRecommendation && {
+          pollIntervalMs: pollingRecommendation.basePollMs,
+          minPollMs: pollingRecommendation.minPollMs,
+          maxPollMs: pollingRecommendation.maxPollMs,
+        }),
+      };
+    }
+    return null;
+  };
+
+  // Run the parameter sweep whenever a fresh batch analysis appears. Combos
+  // are evaluated in 200ms budget slices during idle time, mirroring the
+  // chunking pattern of useTemplateTest so the editor never blocks.
+  useEffect(() => {
+    sweepGenRef.current += 1;
+    const gen = sweepGenRef.current;
+    setSweepResult(null);
+    setSweepRunning(false);
+    if (!stabilityStats) return;
+
+    const runner = createSweepRunner({
+      samples: [...templateTest.batchResults.values()],
+      stats: stabilityStats,
+      avgScoreMs: templateTest.avgScoreMs,
+      cooldownSec: templateSettings.cooldownSec,
+    });
+    setSweepRunning(true);
+    const schedule = (fn: () => void) => {
+      if (typeof requestIdleCallback === "undefined") setTimeout(fn, 0);
+      else requestIdleCallback(() => fn());
+    };
+    const pump = () => {
+      if (gen !== sweepGenRef.current) return;
+      if (runner.step(200)) {
+        setSweepRunning(false);
+        setSweepResult(runner.result());
+        return;
+      }
+      schedule(pump);
+    };
+    schedule(pump);
+    return () => { sweepGenRef.current += 1; };
+    // Batch results, scoring cost and cooldown are captured at the moment the
+    // stats appear; re-running on draft edits would discard a finished sweep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stabilityStats]);
 
   useEffect(() => {
     const shouldApply = stabilityStats !== null && stabilityStats.rating !== "poor";
     setApplyCalibration(shouldApply);
-    // A good stability result overwrites this template's precision/hysteresis
-    // and polling settings with the measured recommendation; the user can
-    // still adjust them before saving.
+    // Analytic fallback, applied immediately so the draft is sensible while
+    // the sweep is still running; the sweep effect below refines it once done.
     if (shouldApply && stabilityStats) {
-      updateTemplateSettings({
+      writeRecommendation({
         precision: stabilityStats.recommendedPrecision,
         hysteresisFactor: stabilityStats.recommendedHysteresis,
         ...(pollingRecommendation && {
@@ -1180,19 +1269,34 @@ export function TemplateEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stabilityStats]);
 
-  /** Toggling "apply calibration" also overwrites this template's values with the recommendation. */
+  useEffect(() => {
+    if (!sweepResult || !stabilityStats || stabilityStats.rating === "poor") return;
+    // The finished sweep supersedes the analytic values with the full swept
+    // parameter set (including consecutive hits and polling bounds).
+    setApplyCalibration(true);
+    writeRecommendation({
+      precision: sweepResult.precision,
+      hysteresisFactor: sweepResult.hysteresisFactor,
+      consecutiveHits: sweepResult.consecutiveHits,
+      pollIntervalMs: sweepResult.pollIntervalMs,
+      minPollMs: sweepResult.minPollMs,
+      maxPollMs: sweepResult.maxPollMs,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sweepResult]);
+
+  /**
+   * Toggling "apply calibration" on writes the current recommendation into
+   * this template's draft values; toggling it off restores the pre-apply draft.
+   */
   const handleToggleApplyCalibration = (v: boolean) => {
     setApplyCalibration(v);
-    if (v && stabilityStats) {
-      updateTemplateSettings({
-        precision: stabilityStats.recommendedPrecision,
-        hysteresisFactor: stabilityStats.recommendedHysteresis,
-        ...(pollingRecommendation && {
-          pollIntervalMs: pollingRecommendation.basePollMs,
-          minPollMs: pollingRecommendation.minPollMs,
-          maxPollMs: pollingRecommendation.maxPollMs,
-        }),
-      });
+    if (v) {
+      const patch = recommendationPatch();
+      if (patch) writeRecommendation(patch);
+    } else if (preApplyRef.current) {
+      setTemplateSettings(preApplyRef.current);
+      preApplyRef.current = null;
     }
   };
 
@@ -1415,7 +1519,7 @@ export function TemplateEditor({
       canvas: canvasRef.current,
       regions,
       templateName: templateName.trim() || "",
-      calibration: applyCalibration && stabilityStats ? toCalibration(stabilityStats) : undefined,
+      calibration: applyCalibration && stabilityStats ? toCalibration(stabilityStats, sweepResult ?? undefined) : undefined,
       settings: templateSettings,
       onUpdateRegions,
       onSaveTemplate,
@@ -1592,8 +1696,12 @@ export function TemplateEditor({
               batchResults={templateTest.batchResults}
               frameCount={replayBuffer.frameCount}
               selectedIndex={selectedFrameIndex}
-              precision={templateSettings.precision}
-              cooldownSec={templateSettings.cooldownSec}
+              settings={{
+                precision: templateSettings.precision,
+                hysteresisFactor: templateSettings.hysteresisFactor,
+                consecutiveHits: templateSettings.consecutiveHits,
+                cooldownSec: templateSettings.cooldownSec,
+              }}
               t={t}
             />
           </div>
@@ -1662,6 +1770,8 @@ export function TemplateEditor({
             <StabilityPanel
               stats={stabilityStats}
               polling={pollingRecommendation}
+              sweep={sweepResult}
+              sweepRunning={sweepRunning}
               applyCalibration={applyCalibration}
               onToggleApply={handleToggleApplyCalibration}
               t={t}
