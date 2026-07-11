@@ -24,6 +24,18 @@ interface ToastContextType {
   toasts: Toast[];
   push: (toast: Omit<Toast, "id">) => void;
   dismiss: (id: string) => void;
+  /** pause suspends a toast's auto-dismiss timer, e.g. while hovered or focused. */
+  pause: (id: string) => void;
+  /** resume restarts a paused toast's auto-dismiss timer for its remaining duration. */
+  resume: (id: string) => void;
+}
+
+/** Bookkeeping for a toast's auto-dismiss timer, kept outside React state so
+ * pausing/resuming never triggers a re-render of the provider itself. */
+interface TimerEntry {
+  handle: ReturnType<typeof setTimeout> | null;
+  remaining: number;
+  startedAt: number;
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);
@@ -31,13 +43,43 @@ const ToastContext = createContext<ToastContextType | null>(null);
 /** ToastProvider supplies the toast queue and push/dismiss actions to the tree. */
 export function ToastProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const timers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const timers = useRef<Map<string, TimerEntry>>(new Map());
 
   const dismiss = useCallback((id: string) => {
-    clearTimeout(timers.current.get(id));
+    const entry = timers.current.get(id);
+    if (entry?.handle) clearTimeout(entry.handle);
     timers.current.delete(id);
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const scheduleTimer = useCallback(
+    (id: string, remaining: number) => {
+      const handle = setTimeout(() => dismiss(id), remaining);
+      timers.current.set(id, { handle, remaining, startedAt: Date.now() });
+    },
+    [dismiss],
+  );
+
+  const pause = useCallback((id: string) => {
+    const entry = timers.current.get(id);
+    if (!entry?.handle) return; // unknown or already paused
+    clearTimeout(entry.handle);
+    const elapsed = Date.now() - entry.startedAt;
+    timers.current.set(id, {
+      handle: null,
+      remaining: Math.max(entry.remaining - elapsed, 0),
+      startedAt: Date.now(),
+    });
+  }, []);
+
+  const resume = useCallback(
+    (id: string) => {
+      const entry = timers.current.get(id);
+      if (!entry || entry.handle) return; // unknown or not paused
+      scheduleTimer(id, entry.remaining);
+    },
+    [scheduleTimer],
+  );
 
   const push = useCallback(
     (toast: Omit<Toast, "id">) => {
@@ -70,10 +112,10 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
             (t) => t.type === "encounter" && t.spriteUrl === toast.spriteUrl,
           );
           if (existing) {
-            clearTimeout(timers.current.get(existing.id));
+            const oldEntry = timers.current.get(existing.id);
+            if (oldEntry?.handle) clearTimeout(oldEntry.handle);
             timers.current.delete(existing.id);
-            const timer = setTimeout(() => dismiss(id), duration);
-            timers.current.set(id, timer);
+            scheduleTimer(id, duration);
             return prev.map((t) =>
               t.id === existing.id ? { ...toast, id } : t,
             );
@@ -81,15 +123,17 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
         }
         // Keep max 5 toasts
         const next = prev.length >= 5 ? prev.slice(1) : prev;
-        const timer = setTimeout(() => dismiss(id), duration);
-        timers.current.set(id, timer);
+        scheduleTimer(id, duration);
         return [...next, { ...toast, id }];
       });
     },
-    [dismiss],
+    [scheduleTimer],
   );
 
-  const value = useMemo(() => ({ toasts, push, dismiss }), [toasts, push, dismiss]);
+  const value = useMemo(
+    () => ({ toasts, push, dismiss, pause, resume }),
+    [toasts, push, dismiss, pause, resume],
+  );
 
   return (
     <ToastContext.Provider value={value}>

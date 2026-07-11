@@ -82,6 +82,7 @@ export function GroupCounterView({
               {t("group.count", { count: members.length })}
             </span>
             <span
+              aria-live="polite"
               className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums"
               title={t("group.totalEncounters", { count: totalEncounters })}
             >

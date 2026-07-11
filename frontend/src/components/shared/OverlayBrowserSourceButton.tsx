@@ -126,6 +126,11 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
         {copied ? t("overlay.urlCopied") : currentLabel}
       </button>
 
+      {/* aria-live announces copy feedback to screen readers without any visual change. */}
+      <p aria-live="polite" className="sr-only">
+        {copied ? t("overlay.urlCopied") : ""}
+      </p>
+
       {/* Dropdown chevron */}
       <button
         type="button"

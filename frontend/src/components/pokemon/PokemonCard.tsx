@@ -146,6 +146,8 @@ export function PokemonCard({
 
         {/* Counter — the hero; scales up on roomier cards. */}
         <div
+          aria-live="polite"
+          aria-atomic="true"
           className={`text-center w-full bg-bg-secondary/30 rounded-xl py-4 2xl:py-5 border border-border-subtle/50 transition-all duration-200 ${isFlashing ? "scale-105 bg-accent-blue/20 border-accent-blue/50" : ""}`}
         >
           <span className="text-4xl 2xl:text-6xl font-black text-text-primary tabular-nums tracking-tight">

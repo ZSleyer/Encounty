@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import { ToastContainer } from "./ToastContainer";
 import { ToastProvider, useToast } from "../../contexts/ToastContext";
 import { ThemeProvider } from "../../contexts/ThemeContext";
@@ -247,5 +247,110 @@ describe("ToastContainer", () => {
     renderWithProvider();
     act(() => screen.getByTestId("push-success").click());
     expect(screen.getByLabelText(/Dismiss notification|Benachrichtigung schließen/)).toBeInTheDocument();
+  });
+
+  it("error toast renders inside a role=alert region while a non-error toast renders inside role=status", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-info").click());
+    act(() => screen.getByTestId("push-error").click());
+
+    const statusRegion = screen.getByRole("status");
+    expect(statusRegion).toHaveAttribute("aria-live", "polite");
+    expect(statusRegion).toHaveTextContent("Info");
+
+    const alertRegion = screen.getByRole("alert");
+    expect(alertRegion).toHaveAttribute("aria-live", "assertive");
+    expect(alertRegion).toHaveTextContent("Error!");
+  });
+
+  it("a never-hovered toast still dismisses at exactly its original duration", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-info").click());
+
+    // Info toast duration is 2000ms; must still be present just before, gone right after.
+    act(() => vi.advanceTimersByTime(1999));
+    expect(screen.getByText("Info")).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByText("Info")).not.toBeInTheDocument();
+  });
+
+  it("hovering a toast pauses its auto-dismiss timer past the original duration", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-info").click());
+    const toastEl = screen.getByRole("status");
+
+    act(() => vi.advanceTimersByTime(500));
+    act(() => fireEvent.mouseEnter(toastEl));
+
+    // Advance well past the original 2000ms duration; toast must remain because it's paused.
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByText("Info")).toBeInTheDocument();
+  });
+
+  it("focusing a toast also pauses its auto-dismiss timer", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-info").click());
+    const toastEl = screen.getByRole("status");
+
+    act(() => vi.advanceTimersByTime(500));
+    act(() => fireEvent.focus(toastEl));
+
+    act(() => vi.advanceTimersByTime(5000));
+    expect(screen.getByText("Info")).toBeInTheDocument();
+  });
+
+  it("unhovering a paused toast resumes the timer for the remaining duration and it eventually dismisses", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-info").click());
+    const toastEl = screen.getByRole("status");
+
+    // 500ms elapse before hovering, leaving 1500ms remaining.
+    act(() => vi.advanceTimersByTime(500));
+    act(() => fireEvent.mouseEnter(toastEl));
+
+    // Stays paused no matter how long we wait while hovered.
+    act(() => vi.advanceTimersByTime(10000));
+    expect(screen.getByText("Info")).toBeInTheDocument();
+
+    act(() => fireEvent.mouseLeave(toastEl));
+
+    // Remaining 1500ms should still apply from the moment of resume, not a fresh 2000ms.
+    act(() => vi.advanceTimersByTime(1499));
+    expect(screen.getByText("Info")).toBeInTheDocument();
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByText("Info")).not.toBeInTheDocument();
+  });
+
+  it("blurring a paused toast resumes the timer", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-info").click());
+    const toastEl = screen.getByRole("status");
+
+    act(() => vi.advanceTimersByTime(500));
+    act(() => fireEvent.focus(toastEl));
+    act(() => vi.advanceTimersByTime(10000));
+    expect(screen.getByText("Info")).toBeInTheDocument();
+
+    act(() => fireEvent.blur(toastEl));
+    act(() => vi.advanceTimersByTime(1500));
+    expect(screen.queryByText("Info")).not.toBeInTheDocument();
+  });
+
+  it("manual dismiss (X button) still works while a toast is being hovered", () => {
+    renderWithProvider();
+    act(() => screen.getByTestId("push-success").click());
+    const toastEl = screen.getByRole("status");
+
+    act(() => fireEvent.mouseEnter(toastEl));
+
+    const dismissButtons = screen.getAllByRole("button").filter(
+      (btn) => btn.querySelector("svg") && btn.closest(".pointer-events-auto"),
+    );
+    act(() => dismissButtons[dismissButtons.length - 1].click());
+    act(() => vi.advanceTimersByTime(250));
+
+    expect(screen.queryByText("Success!")).not.toBeInTheDocument();
   });
 });

@@ -219,7 +219,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
             </div>
 
             {conflictAction && (
-              <p className="text-xs 2xl:text-sm text-amber-400 ml-4">
+              <p role="status" aria-live="polite" className="text-xs 2xl:text-sm text-amber-400 ml-4">
                 ⚠ {t("hotkeys.conflict", { action: t(conflictAction.labelKey) })}
               </p>
             )}
@@ -228,7 +228,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       })}
 
       {recording && (
-        <div className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg">
+        <div role="status" aria-live="polite" className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg">
           <p className="text-sm 2xl:text-base text-accent-blue">
             ● {t("hotkeys.pressKey", { action: t(ACTIONS.find((a) => a.key === recording)?.labelKey ?? "") })}
             {liveModifiers && (
@@ -241,7 +241,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         </div>
       )}
 
-      {error && <p className="text-xs text-red-400 mt-2">{error}</p>}
+      {error && <p role="alert" className="text-xs text-red-400 mt-2">{error}</p>}
     </div>
   )
 }

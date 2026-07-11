@@ -98,8 +98,9 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
 
   if (loading && !stats) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div role="status" className="flex items-center justify-center py-12">
         <div className="w-8 h-8 border-2 border-accent-blue border-t-transparent rounded-full animate-spin" />
+        <span className="sr-only">{t("common.loading")}</span>
       </div>
     );
   }
@@ -374,7 +375,7 @@ function MetricItem({
 }>) {
   return (
     <div className="flex items-center gap-2">
-      <div className="shrink-0 opacity-60">{icon}</div>
+      <div aria-hidden="true" className="shrink-0 opacity-60">{icon}</div>
       <span className="text-sm font-bold text-text-primary tabular-nums">{value}</span>
       <span className="text-xs text-text-muted">{label}</span>
     </div>
