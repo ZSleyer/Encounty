@@ -284,7 +284,7 @@ export function ColorPickerModal({
         <button
           title={t("tooltip.common.close")}
           onClick={handleCancel}
-          className="text-text-muted hover:text-text-primary transition-colors"
+          className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']"
         >
           <X className="w-4 h-4" />
         </button>

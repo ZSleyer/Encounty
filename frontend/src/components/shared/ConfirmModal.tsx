@@ -55,6 +55,7 @@ export function ConfirmModal({
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
+      aria-labelledby="confirm-modal-title"
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-md animate-slide-in backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-4">
@@ -62,11 +63,14 @@ export function ConfirmModal({
           {isDestructive && (
             <AlertTriangle className="w-5 h-5 text-accent-red" />
           )}
-          <h2 className="text-lg font-bold text-text-primary">{title}</h2>
+          <h2 id="confirm-modal-title" className="text-lg font-bold text-text-primary">
+            {title}
+          </h2>
         </div>
         <button
           onClick={handleCancel}
-          className="text-text-muted hover:text-text-primary transition-colors"
+          aria-label={t("aria.close")}
+          className="relative after:absolute after:-inset-2 after:content-[''] text-text-muted hover:text-text-primary transition-colors"
         >
           <X className="w-5 h-5" />
         </button>

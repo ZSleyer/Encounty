@@ -70,7 +70,7 @@ export function TextColorEditorModal({
         <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
           Textfarbe bearbeiten
         </h2>
-        <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors" title={t("tooltip.common.close")}>
+        <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']" title={t("tooltip.common.close")}>
           <X size={16} />
         </button>
       </div>

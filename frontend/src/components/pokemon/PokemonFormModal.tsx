@@ -914,11 +914,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
+      aria-labelledby="pokemon-form-title"
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
     >
       {/* --- Header --- */}
       <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg font-bold text-text-primary">
+        <h2 id="pokemon-form-title" className="text-lg font-bold text-text-primary">
           {isEdit ? t("modal.editTitle") : t("modal.addTitle")}
         </h2>
         <button
@@ -1032,6 +1033,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     type="button"
                     disabled={isUnavailable}
                     aria-disabled={isUnavailable}
+                    aria-pressed={isSelected}
                     onClick={() => {
                       if (!isUnavailable) setSpriteStyle(s.key);
                     }}
@@ -1087,6 +1089,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 <button
                   key={tp}
                   onClick={() => setSpriteType(tp)}
+                  aria-pressed={spriteType === tp}
                   className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
                     spriteType === tp
                       ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"

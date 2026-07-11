@@ -231,7 +231,7 @@ function ResolutionGear({
         aria-label={t("sourcePicker.resolution")}
         aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        className="p-1 rounded-md bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors"
+        className="p-1 rounded-md bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors relative after:absolute after:-inset-2 after:content-['']"
       >
         <SettingsIcon className="w-3.5 h-3.5" />
       </button>

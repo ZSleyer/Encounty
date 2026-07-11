@@ -27,26 +27,26 @@ describe("WindowControls", () => {
 
   it("renders minimize, maximize, and close buttons", () => {
     render(<WindowControls />);
-    expect(screen.getByTitle("Minimize")).toBeInTheDocument();
-    expect(screen.getByTitle("Maximize")).toBeInTheDocument();
-    expect(screen.getByTitle("Close")).toBeInTheDocument();
+    expect(screen.getByTitle("Minimieren")).toBeInTheDocument();
+    expect(screen.getByTitle("Maximieren")).toBeInTheDocument();
+    expect(screen.getByTitle("Fenster schließen")).toBeInTheDocument();
   });
 
   it("calls minimize when minimize button is clicked", () => {
     render(<WindowControls />);
-    fireEvent.click(screen.getByTitle("Minimize"));
+    fireEvent.click(screen.getByTitle("Minimieren"));
     expect(mockAPI.minimize).toHaveBeenCalledOnce();
   });
 
   it("calls maximize when maximize button is clicked", () => {
     render(<WindowControls />);
-    fireEvent.click(screen.getByTitle("Maximize"));
+    fireEvent.click(screen.getByTitle("Maximieren"));
     expect(mockAPI.maximize).toHaveBeenCalledOnce();
   });
 
   it("calls close when close button is clicked", () => {
     render(<WindowControls />);
-    fireEvent.click(screen.getByTitle("Close"));
+    fireEvent.click(screen.getByTitle("Fenster schließen"));
     expect(mockAPI.close).toHaveBeenCalledOnce();
   });
 
@@ -58,7 +58,7 @@ describe("WindowControls", () => {
       return vi.fn();
     }) as any);
     render(<WindowControls />);
-    expect(screen.getByTitle("Restore")).toBeInTheDocument();
+    expect(screen.getByTitle("Wiederherstellen")).toBeInTheDocument();
   });
 
   it("registers onMaximizedChange listener on mount", () => {

@@ -5,8 +5,10 @@
  */
 import { useState, useEffect } from "react";
 import { Minus, Square, Copy, X } from "lucide-react";
+import { useI18n } from "../../contexts/I18nContext";
 
 export function WindowControls() {
+  const { t } = useI18n();
   const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
@@ -30,14 +32,16 @@ export function WindowControls() {
       <button
         onClick={() => api.minimize()}
         className="w-12 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-        title="Minimize"
+        title={t("aria.windowMinimize")}
+        aria-label={t("aria.windowMinimize")}
       >
         <Minus className="w-4 h-4" />
       </button>
       <button
         onClick={() => api.maximize()}
         className="w-12 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
-        title={maximized ? "Restore" : "Maximize"}
+        title={maximized ? t("aria.windowRestore") : t("aria.windowMaximize")}
+        aria-label={maximized ? t("aria.windowRestore") : t("aria.windowMaximize")}
       >
         {maximized ? (
           <Copy className="w-3.5 h-3.5" />
@@ -48,7 +52,8 @@ export function WindowControls() {
       <button
         onClick={() => api.close()}
         className="w-12 flex items-center justify-center text-text-muted hover:text-white hover:bg-red-600 transition-colors"
-        title="Close"
+        title={t("aria.windowClose")}
+        aria-label={t("aria.windowClose")}
       >
         <X className="w-4 h-4" />
       </button>

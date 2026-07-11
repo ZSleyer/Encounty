@@ -347,7 +347,7 @@ export function OverlayPropertyPanel({
             <select
               value={localSettings.background_animation ?? "none"}
               onChange={(e) => update({ ...localSettings, background_animation: e.target.value })}
-              className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
+              className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="waves">{t("overlay.animWaves")}</option>
@@ -518,7 +518,7 @@ export function OverlayPropertyPanel({
                     <span className="text-xs text-text-muted">{t("overlay.animVariant")}</span>
                     <select value={(bgConfig.pixelVariant as string) ?? "circle"}
                       onChange={(e) => setBgConfig("pixelVariant", e.target.value)}
-                      className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1">
+                      className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1">
                       <option value="circle">Circle</option>
                       <option value="square">Square</option>
                       <option value="diamond">Diamond</option>
@@ -575,7 +575,7 @@ export function OverlayPropertyPanel({
                         background_image_fit: e.target.value as "cover" | "contain" | "stretch" | "tile",
                       })
                     }
-                    className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary outline-none mt-1"
+                    className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1"
                   >
                     <option value="cover">Cover</option>
                     <option value="contain">Contain</option>

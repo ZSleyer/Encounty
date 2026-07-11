@@ -127,7 +127,7 @@ export function ShadowEditorModal({
         <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
           Schatten bearbeiten
         </h2>
-        <button title={t("tooltip.common.close")} onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
+        <button title={t("tooltip.common.close")} onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']">
           <X size={16} />
         </button>
       </div>

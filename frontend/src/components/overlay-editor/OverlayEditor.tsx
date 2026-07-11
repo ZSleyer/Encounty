@@ -1001,7 +1001,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               try { localStorage.removeItem("encounty_editor_split"); } catch {}
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-md p-1 text-text-muted hover:text-text-primary transition-opacity z-10"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-md p-1 text-text-muted hover:text-text-primary transition-opacity z-10 relative after:absolute after:-inset-2 after:content-['']"
             title={t("tooltip.editor.resetLayout")}
             aria-label={t("tooltip.editor.resetLayout")}
           >
@@ -1018,7 +1018,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             <button
               onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
               title={t("tooltip.editor.resetLayout")}
-              className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+              className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
             >
               <RotateCcw className="w-3 h-3" />
             </button>
