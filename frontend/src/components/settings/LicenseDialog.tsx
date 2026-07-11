@@ -56,7 +56,12 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
   };
 
   return (
-    <div className="fixed inset-0 z-200 bg-bg-primary flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-200 bg-bg-primary flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="license-title"
+    >
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl shadow-2xl w-full max-w-2xl h-[min(90vh,720px)] flex flex-col animate-slide-in overflow-hidden">
         {/* Header */}
         <div className="px-8 pt-8 pb-4 flex flex-col items-center gap-4 shrink-0">
@@ -67,7 +72,9 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
               className="w-12 h-12 rounded-xl object-contain"
             />
             <div>
-              <h1 className="text-xl font-bold text-text-primary">Encounty</h1>
+              <h1 id="license-title" className="text-xl font-bold text-text-primary">
+                Encounty
+              </h1>
               <p className="text-xs text-text-muted">{t("license.subtitle")}</p>
             </div>
           </div>
@@ -78,6 +85,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
               <button
                 key={l.code}
                 onClick={() => switchLocale(l.code)}
+                aria-pressed={locale === l.code}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
                   locale === l.code
                     ? "bg-accent-blue text-white"
@@ -113,6 +121,9 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
           <div
             ref={scrollRef}
             onScroll={handleScroll}
+            tabIndex={0}
+            role="region"
+            aria-label={t("aria.licenseText")}
             className="h-full overflow-y-auto rounded-xl bg-bg-primary border border-border-subtle p-4 text-xs text-text-muted font-mono whitespace-pre-wrap leading-relaxed"
           >
             {AGPLV3_LICENSE}
