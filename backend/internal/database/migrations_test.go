@@ -256,19 +256,19 @@ func TestMigrationTemplatePollingSettingsBackfill(t *testing.T) {
 
 // TestMigrationRemapAccentColorPresets verifies that migration 28 translates
 // every legacy accent color preset to its replacement in the new palette and
-// maps unknown values to the default acid.
+// maps unknown values to the default violet.
 func TestMigrationRemapAccentColorPresets(t *testing.T) {
 	cases := []struct {
 		old  string
 		want string
 	}{
-		{"blue", "acid"},
-		{"green", "acid"},
+		{"blue", "blue"},
+		{"green", "green"},
 		{"purple", "violet"},
-		{"pink", "crimson"},
-		{"orange", "crimson"},
+		{"pink", "pink"},
+		{"orange", "orange"},
 		{"cyan", "cyan"},
-		{"unknown", "acid"},
+		{"unknown", "violet"},
 	}
 
 	for _, tc := range cases {

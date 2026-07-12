@@ -1063,7 +1063,7 @@ const docTemplate = `{
             "state.Settings": {
                 "properties": {
                     "accent_color": {
-                        "description": "preset key: acid|crimson|cyan|violet",
+                        "description": "preset key: violet|acid|crimson|cyan|blue|green|pink|orange",
                         "type": "string"
                     },
                     "auto_save": {

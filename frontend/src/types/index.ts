@@ -377,14 +377,26 @@ export interface TutorialFlags {
  * variants for contrast. Keep this list in sync with both the CSS palette and
  * the picker UI in pages/Settings.tsx.
  */
-export type AccentColor = "acid" | "crimson" | "cyan" | "violet";
+export type AccentColor =
+  | "violet"
+  | "acid"
+  | "crimson"
+  | "cyan"
+  | "blue"
+  | "green"
+  | "pink"
+  | "orange";
 
 /** All accent presets in display order, used by the Settings picker. */
 export const ACCENT_COLORS: readonly AccentColor[] = [
+  "violet",
   "acid",
   "crimson",
   "cyan",
-  "violet",
+  "blue",
+  "green",
+  "pink",
+  "orange",
 ] as const;
 
 export interface Settings {

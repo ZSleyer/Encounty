@@ -418,19 +418,15 @@ func migrateAddTemplateHysteresisMode(tx *sql.Tx) error {
 	return nil
 }
 
-// migrateRemapAccentColorPresets translates stored accent color presets from
-// the old palette (blue, purple, green, cyan, pink, orange) to the new one
-// (acid, crimson, cyan, violet). Purple maps to violet, pink and orange map
-// to crimson, cyan stays cyan, everything else (including blue and green)
-// falls back to the new default acid.
+// migrateRemapAccentColorPresets normalizes stored accent color presets for
+// the Tempest palette (violet, acid, crimson, cyan, blue, green, pink,
+// orange). The old blue, green, pink, orange and cyan keys stay valid with
+// Tempest-adapted values; purple maps to violet, and anything unknown falls
+// back to the new default violet.
 func migrateRemapAccentColorPresets(tx *sql.Tx) error {
-	if _, err := tx.Exec(`UPDATE settings SET accent_color = CASE accent_color
-		WHEN 'purple' THEN 'violet'
-		WHEN 'pink' THEN 'crimson'
-		WHEN 'orange' THEN 'crimson'
-		WHEN 'cyan' THEN 'cyan'
-		ELSE 'acid'
-	END`); err != nil {
+	if _, err := tx.Exec(`UPDATE settings SET accent_color = 'violet'
+		WHERE accent_color NOT IN
+		('violet', 'acid', 'crimson', 'cyan', 'blue', 'green', 'pink', 'orange')`); err != nil {
 		return fmt.Errorf("remap accent_color presets: %w", err)
 	}
 	return nil

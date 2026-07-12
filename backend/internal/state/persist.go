@@ -161,9 +161,9 @@ func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
 // v2 database. Must be called with m.mu held.
 func (m *Manager) applyLegacyDefaults() {
 	// AccentColor replaced the legacy UIAnimations toggle in v0.7.x.
-	// Default to "acid" so legacy JSON loads pick up the current palette.
+	// Default to "violet" so legacy JSON loads pick up the current palette.
 	if m.state.Settings.AccentColor == "" {
-		m.state.Settings.AccentColor = "acid"
+		m.state.Settings.AccentColor = "violet"
 	}
 }
 
