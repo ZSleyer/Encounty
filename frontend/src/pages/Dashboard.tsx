@@ -1490,12 +1490,25 @@ function DashboardCounterTab({
         {/* Identity row: small sprite tile, name, form/game meta line */}
         <div className="flex items-center gap-3 mt-4">
           <div className="w-16 h-16 shrink-0 flex items-center justify-center bg-bg-secondary border border-border-subtle">
-            <img
-              src={spriteUrl}
-              alt={pokemon.name}
-              onError={() => onImgError(pokemon.id)}
-              className="pokemon-sprite w-14 h-14 object-contain"
-            />
+            {pokemon.sprite_style === "box" ? (
+              /* Box menu icons are tiny; nearest-neighbour downscaling of the
+                 full sheet cell distorts them, so render the trimmed content
+                 at an integer scale instead. */
+              <TrimmedBoxSprite
+                canonicalName={pokemon.canonical_name}
+                spriteType={pokemon.sprite_type}
+                alt={pokemon.name}
+                fitPx={56}
+                fallbackSrc={spriteUrl}
+              />
+            ) : (
+              <img
+                src={spriteUrl}
+                alt={pokemon.name}
+                onError={() => onImgError(pokemon.id)}
+                className="pokemon-sprite w-14 h-14 object-contain"
+              />
+            )}
           </div>
           <div className="flex flex-col gap-0.5 min-w-0">
             <span className="text-base font-semibold text-text-primary capitalize truncate">{baseName}</span>

@@ -14,6 +14,13 @@ interface TrimmedBoxSpriteProps {
    * generic SPRITE_FALLBACK silhouette. Takes precedence over hideOnFail.
    */
   readonly fallbackSrc?: string;
+  /**
+   * Render the trimmed content at the largest integer multiple of its
+   * natural size that fits a fitPx square. Keeps pixel rows uniform so
+   * nearest-neighbour scaling never distorts the sprite. Overrides any
+   * size classes in className.
+   */
+  readonly fitPx?: number;
 }
 
 interface ContentBounds {
@@ -92,8 +99,8 @@ function detectBounds(img: HTMLImageElement): ContentBounds | null {
  * consistently sized and centered regardless of their position within the 68x56
  * sprite sheet cell.
  */
-export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, className = "", hideOnFail = false, fallbackSrc }: TrimmedBoxSpriteProps) {
-  const [src, setSrc] = useState<string | null>(null);
+export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, className = "", hideOnFail = false, fallbackSrc, fitPx }: TrimmedBoxSpriteProps) {
+  const [src, setSrc] = useState<{ url: string; w: number; h: number } | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -112,7 +119,8 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
         setFailed(true);
         return;
       }
-      setSrc(dataUrl);
+      const { cw, ch } = computeCropRegion(bounds, img.width, img.height, 1);
+      setSrc({ url: dataUrl, w: cw, h: ch });
     };
     img.onerror = () => setFailed(true);
     img.src = getBoxSpriteUrl(canonicalName, spriteType);
@@ -128,10 +136,18 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
 
   if (!src) return <div className={className} aria-hidden="true" />;
 
+  const fitStyle = fitPx
+    ? (() => {
+        const scale = Math.max(1, Math.floor(fitPx / Math.max(src.w, src.h)));
+        return { width: src.w * scale, height: src.h * scale };
+      })()
+    : undefined;
+
   return (
     <img
-      src={src}
+      src={src.url}
       alt={alt}
+      style={fitStyle}
       className={`pokemon-sprite object-contain [image-rendering:pixelated] ${className}`}
     />
   );
