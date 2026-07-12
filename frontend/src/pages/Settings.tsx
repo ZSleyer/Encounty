@@ -39,7 +39,7 @@ const ACCENT_SWATCH: Record<AccentColor, string> = {
 };
 import { ALL_LANGUAGES } from "../utils/games";
 import { useI18n } from "../contexts/I18nContext";
-import { useTheme } from "../contexts/ThemeContext";
+import { useTheme, useMotion } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import { CountryFlag } from "../components/shared/CountryFlag";
 import { AboutSection } from "../components/settings/AboutSection";
@@ -98,7 +98,7 @@ const BASE_SECTIONS: SectionDef[] = [
     titleKey: "settings.sectionDisplay",
     icon: <Image className="w-4 h-4 text-accent-blue" />,
     tab: "appearance",
-    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache", "theme", "dark", "light", "dunkel", "hell", "locale", "accent", "akzent", "farbe", "color"],
+    keywords: ["sprite", "crisp", "pixel", "scharf", "darstellung", "display", "language", "sprache", "theme", "dark", "light", "dunkel", "hell", "locale", "accent", "akzent", "farbe", "color", "motion", "animation", "animationen", "reduce", "bewegung"],
   },
   {
     id: "languages",
@@ -464,6 +464,9 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
   t: (key: string) => string;
 }>) {
   const activeAccent = settings.accent_color ?? "violet";
+  // Local (per-device) preference, persisted in localStorage rather than the
+  // backend settings payload, hence not part of the auto-save flow.
+  const { motion, setMotion } = useMotion();
   return (
     <section className="glass-card rounded-2xl p-6 space-y-5">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
@@ -554,6 +557,26 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
           enabled={settings.crisp_sprites ?? false}
           onChange={() => setCrispSprites(!(settings.crisp_sprites ?? false))}
           label={t("settings.crispSprites")}
+          color="bg-accent-blue/80"
+        />
+      </div>
+
+      <div className="border-t border-border-subtle/50" />
+
+      {/* Reduce motion (local preference, stored in localStorage) */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm text-text-primary">
+            {t("settings.reduceMotion")}
+          </p>
+          <p className="text-xs text-text-muted mt-0.5 max-w-sm">
+            {t("settings.reduceMotionDesc")}
+          </p>
+        </div>
+        <Toggle
+          enabled={motion === "off"}
+          onChange={() => setMotion(motion === "off" ? "auto" : "off")}
+          label={t("settings.reduceMotion")}
           color="bg-accent-blue/80"
         />
       </div>

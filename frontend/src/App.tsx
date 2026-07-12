@@ -29,7 +29,7 @@ import { useWebSocket } from "./hooks/useWebSocket";
 import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
 import { WSMessage, AppState, AccentColor, ACCENT_COLORS } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
-import { ThemeProvider } from "./contexts/ThemeContext";
+import { ThemeProvider, useMotion } from "./contexts/ThemeContext";
 import { ToastProvider, useToast } from "./contexts/ToastContext";
 import { ToastContainer } from "./components/shared/ToastContainer";
 import { WindowControls } from "./components/settings/WindowControls";
@@ -71,7 +71,7 @@ function UpdateOverlay({
       tabIndex={-1}
       className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
-      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl">
+      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl anim-t-flicker">
         <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
         <div className="text-center space-y-2">
           <p id="update-overlay-title" className="text-lg font-semibold text-text-primary">
@@ -113,7 +113,7 @@ function UpdateNotification({
       tabIndex={-1}
       className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
-      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-flicker">
         <div className="w-14 h-14 rounded-none bg-accent-blue/15 flex items-center justify-center">
           <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
         </div>
@@ -171,7 +171,7 @@ function CloseTabWarning({
       tabIndex={-1}
       className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
-      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+      <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-flicker">
         <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
           <AlertTriangle className="w-7 h-7 text-amber-500" />
         </div>
@@ -206,7 +206,26 @@ function AppShell() {
     useCounterStore();
   const { t, isMachineTranslated } = useI18n();
   const { push: pushToast } = useToast();
+  const { motion } = useMotion();
   const captureService = useCaptureService();
+
+  // Mark non-overlay documents as "app" and mirror the motion preference as a
+  // DOM attribute so index.css can gate animations. Overlay routes get neither
+  // attribute, which exempts the OBS browser source by construction.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isOverlay) {
+      delete root.dataset.route;
+      delete root.dataset.motion;
+      return;
+    }
+    root.dataset.route = "app";
+    if (motion === "off") {
+      root.dataset.motion = "off";
+    } else {
+      delete root.dataset.motion;
+    }
+  }, [isOverlay, motion]);
 
   const [restarting] = useState(false);
   const [quitting, setQuitting] = useState(false);
@@ -670,7 +689,18 @@ function AppShell() {
         <Dashboard isActiveRoute={location.pathname === "/"} />
       </div>
       {location.pathname !== "/" && (
-        <div className="flex-1 overflow-hidden flex flex-col">
+        <div
+          key={location.pathname}
+          className="flex-1 overflow-hidden flex flex-col anim-t-reveal"
+          onAnimationEnd={(e) => {
+            // Drop the reveal class once done: a lingering clip-path would
+            // clip fixed-position dialogs rendered inside routed pages and
+            // create a stacking context that paints below the z-10 header.
+            if (e.target === e.currentTarget && e.animationName === "t-reveal") {
+              e.currentTarget.classList.remove("anim-t-reveal");
+            }
+          }}
+        >
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={null} />

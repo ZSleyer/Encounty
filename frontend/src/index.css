@@ -492,6 +492,21 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
+/* Native selects: custom chevron with spacing symmetric to the left text
+   padding (the UA arrow hugs the edge). Encoded SVG per theme because
+   background-image cannot read CSS variables. */
+select {
+  appearance: none;
+  padding-right: 30px !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238fa3b5' stroke-width='1'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+}
+
+[data-theme="light"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%234a5f73' stroke-width='1'/%3E%3C/svg%3E");
+}
+
 body {
   margin: 0;
   font-family:
@@ -820,4 +835,54 @@ code {
 
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-out;
+}
+
+/* ── Tempest micro-transitions ───────────────────────────────────
+   Sharp, short-lived entrances that match the hard-cornered Tempest
+   skin. Both are inherently gated by the reduced-motion block below. */
+@keyframes t-reveal {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+
+@keyframes t-flicker-in {
+  0% { opacity: 0; }
+  40% { opacity: 1; }
+  55% { opacity: 0.25; }
+  100% { opacity: 1; }
+}
+
+.anim-t-reveal {
+  animation: t-reveal 180ms cubic-bezier(0.9, 0, 0.1, 1) both;
+}
+
+.anim-t-flicker {
+  animation: t-flicker-in 150ms linear both;
+}
+
+/* ── Reduced-motion gating ───────────────────────────────────────
+   Applied only to app chrome ([data-route="app"], set by AppShell);
+   the /overlay OBS browser source never carries these attributes and
+   keeps animating. Durations use 0.01ms instead of "none" so
+   animationend/transitionend handlers still fire. The first block
+   covers the in-app "reduce motion" toggle (data-motion="off"), the
+   media query block covers the OS-level preference. */
+[data-route="app"][data-motion="off"] *,
+[data-route="app"][data-motion="off"] *::before,
+[data-route="app"][data-motion="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-route="app"] *,
+  [data-route="app"] *::before,
+  [data-route="app"] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
