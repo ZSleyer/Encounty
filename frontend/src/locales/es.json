@@ -448,7 +448,7 @@
   "stats.colEncounters": "Encuentros",
   "stats.colEta": "ETA",
   "stats.etaReached": "alcanzado",
-  "stats.currentMarker": "Actual",
+  "stats.currentMarker": "Encuentros actuales",
   "huntType.label": "Método de Hunt",
   "huntType.encounter": "Encounter salvaje",
   "huntType.soft_reset": "Soft Reset",

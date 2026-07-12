@@ -108,14 +108,14 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   return (
     <div className="w-full h-full flex flex-col gap-4 min-h-0 overflow-y-auto">
       {/* Metrics strip */}
-      <div className="bg-bg-card border border-border-subtle rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-around gap-y-2 gap-x-3 shrink-0">
+      <div className="bg-bg-card border border-border-subtle rounded-none px-4 py-2.5 flex flex-wrap items-center justify-around gap-y-2 gap-x-3 shrink-0">
         <MetricItem icon={<BarChart3 className="w-3.5 h-3.5 text-accent-blue" />} label={t("stats.total")} value={stats?.total?.toLocaleString() ?? "0"} />
         <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
         <MetricItem icon={<Calendar className="w-3.5 h-3.5 text-accent-green" />} label={t("stats.today")} value={stats?.today?.toLocaleString() ?? "0"} />
         <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
         <MetricItem icon={<TrendingUp className="w-3.5 h-3.5 text-accent-yellow" />} label={t("stats.ratePerHour")} value={ratePerHour ? ratePerHour.toFixed(1) : "—"} />
         <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
-        <MetricItem icon={<Sparkles className="w-3.5 h-3.5 text-accent-pink" />} label={t("stats.shinyChance")} value={getOddsPercent(pokemon)} />
+        <MetricItem icon={<Sparkles className="w-3.5 h-3.5 text-accent-red" />} label={t("stats.shinyChance")} value={getOddsPercent(pokemon)} />
         <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
         <MetricItem icon={<Clock className="w-3.5 h-3.5 text-accent-purple" />} label={t("stats.firstEncounter")} value={stats?.first_at && stats.total > 0 ? new Date(stats.first_at).toLocaleDateString() : "—"} />
       </div>
@@ -123,20 +123,20 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
       {/* Chart + History side-by-side, both fill height */}
       <div className="flex-1 grid grid-cols-[2fr_1fr] gap-4 min-h-0">
         {/* Chart */}
-        <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-0">
+        <div className="t-panel p-5 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-3 shrink-0">
             <h3 className="text-sm font-semibold text-text-primary">
               {t("stats.chartTitle")}
             </h3>
-            <fieldset className="flex gap-1 bg-bg-secondary rounded-lg p-0.5 border-0 m-0" aria-label={t("stats.chartTitle")}>
+            <fieldset className="flex border border-border-subtle rounded-none p-0 m-0" aria-label={t("stats.chartTitle")}>
               {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
                 <button
                   key={iv}
                   onClick={() => setInterval(iv)}
                   aria-pressed={interval === iv}
-                  className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-3 py-1 rounded-none text-xs font-medium transition-colors ${
                     interval === iv
-                      ? "bg-accent-blue text-white"
+                      ? "bg-accent-blue/20 text-accent-blue"
                       : "text-text-muted hover:text-text-primary"
                   }`}
                 >
@@ -149,30 +149,31 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
             <div role="img" aria-label={t("stats.chartTitle")} className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                   <XAxis
                     dataKey="label"
-                    tick={{ fontSize: 10, fill: "#94a3b8" }}
+                    tick={{ fontSize: 10, fill: "var(--text-muted)" }}
                     tickFormatter={(v: string) => {
                       if (interval === "hour") return v.slice(11, 16);
                       if (interval === "week") return v;
                       return v.slice(5);
                     }}
                   />
-                  <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }} width={40} />
+                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} width={40} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#1e293b",
-                      border: "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: "8px",
+                      backgroundColor: "var(--bg-card)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "0",
                       fontSize: "12px",
+                      color: "var(--text-primary)",
                     }}
                   />
                   <Area
                     type="monotone"
                     dataKey="count"
-                    stroke="#3b82f6"
-                    fill="#3b82f6"
+                    stroke="var(--accent-blue)"
+                    fill="var(--accent-blue)"
                     fillOpacity={0.15}
                     strokeWidth={2}
                   />
@@ -187,7 +188,7 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
         </div>
 
         {/* Recent History */}
-        <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-0">
+        <div className="t-panel p-5 flex flex-col min-h-0">
           <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
             {t("stats.recentHistory")}
           </h3>
@@ -195,11 +196,11 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
             <div className="overflow-y-auto flex-1 min-h-0">
               <table className="w-full text-xs" aria-label={t("stats.recentHistory")}>
                 <thead className="sticky top-0 bg-bg-card">
-                  <tr className="border-b border-border-subtle text-text-muted font-semibold">
-                    <th className="text-left py-1.5 px-2 font-semibold">{t("stats.colTime")}</th>
-                    <th className="text-right py-1.5 px-2 font-semibold">{t("stats.colChange")}</th>
-                    <th className="text-right py-1.5 px-2 font-semibold">{t("stats.colCount")}</th>
-                    <th className="text-right py-1.5 px-2 font-semibold">{t("stats.colSource")}</th>
+                  <tr className="border-b border-border-subtle text-text-faint">
+                    <th className="text-left py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colTime")}</th>
+                    <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colChange")}</th>
+                    <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colCount")}</th>
+                    <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colSource")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -266,7 +267,7 @@ function ProbabilityPanel({
 
   return (
     <div className="grid grid-cols-[2fr_1fr] gap-4 shrink-0">
-      <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-65">
+      <div className="t-panel p-5 flex flex-col min-h-65">
         <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
           {t("stats.probabilityTitle")}
         </h3>
@@ -278,48 +279,39 @@ function ProbabilityPanel({
         >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
               <XAxis
                 dataKey="n"
                 type="number"
                 domain={["dataMin", "dataMax"]}
-                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
                 tickFormatter={(v: number) => v.toLocaleString()}
               />
               <YAxis
                 domain={[0, 100]}
-                tick={{ fontSize: 10, fill: "#94a3b8" }}
+                tick={{ fontSize: 10, fill: "var(--text-muted)" }}
                 width={40}
                 tickFormatter={(v: number) => `${v}%`}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1e293b",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
+                  backgroundColor: "var(--bg-card)",
+                  border: "1px solid var(--border-subtle)",
+                  borderRadius: "0",
                   fontSize: "12px",
+                  color: "var(--text-primary)",
                 }}
                 formatter={(v) => `${Number(v).toFixed(1)}%`}
                 labelFormatter={(v) => Number(v).toLocaleString()}
               />
-              <ReferenceLine y={50} stroke="rgba(148,163,184,0.3)" strokeDasharray="2 2" />
-              <ReferenceLine y={90} stroke="rgba(148,163,184,0.3)" strokeDasharray="2 2" />
-              <ReferenceLine y={99} stroke="rgba(148,163,184,0.3)" strokeDasharray="2 2" />
-              <ReferenceLine
-                x={currentEncounters}
-                stroke="#ec4899"
-                strokeWidth={2}
-                label={{
-                  value: t("stats.currentMarker"),
-                  position: "top",
-                  fill: "#ec4899",
-                  fontSize: 10,
-                }}
-              />
+              <ReferenceLine y={50} stroke="var(--text-faint)" strokeOpacity={0.3} strokeDasharray="2 2" />
+              <ReferenceLine y={90} stroke="var(--text-faint)" strokeOpacity={0.3} strokeDasharray="2 2" />
+              <ReferenceLine y={99} stroke="var(--text-faint)" strokeOpacity={0.3} strokeDasharray="2 2" />
+              <ReferenceLine x={currentEncounters} stroke="var(--accent-red)" strokeWidth={2} />
               <Line
                 type="monotone"
                 dataKey="percent"
-                stroke="#3b82f6"
+                stroke="var(--accent-blue)"
                 strokeWidth={2}
                 dot={false}
                 isAnimationActive={false}
@@ -327,18 +319,22 @@ function ProbabilityPanel({
             </LineChart>
           </ResponsiveContainer>
         </div>
+        <div className="flex items-center gap-1.5 text-[11px] text-text-faint mt-2 shrink-0">
+          <span aria-hidden="true" className="inline-block w-3 h-0.5 bg-accent-red" />
+          {t("stats.currentMarker")}
+        </div>
       </div>
 
-      <div className="bg-bg-card border border-border-subtle rounded-2xl p-5 flex flex-col min-h-65">
+      <div className="t-panel p-5 flex flex-col min-h-65">
         <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
           {t("stats.milestonesTitle")}
         </h3>
         <table className="w-full text-xs" aria-label={t("stats.milestonesTitle")}>
           <thead>
-            <tr className="border-b border-border-subtle text-text-muted font-semibold">
-              <th className="text-left py-1.5 px-2 font-semibold">{t("stats.colTarget")}</th>
-              <th className="text-right py-1.5 px-2 font-semibold">{t("stats.colEncounters")}</th>
-              <th className="text-right py-1.5 px-2 font-semibold">{t("stats.colEta")}</th>
+            <tr className="border-b border-border-subtle text-text-faint">
+              <th className="text-left py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colTarget")}</th>
+              <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colEncounters")}</th>
+              <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colEta")}</th>
             </tr>
           </thead>
           <tbody>

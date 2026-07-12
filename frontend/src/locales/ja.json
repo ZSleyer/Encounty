@@ -448,7 +448,7 @@
   "stats.colEncounters": "遭遇数",
   "stats.colEta": "ETA",
   "stats.etaReached": "達成",
-  "stats.currentMarker": "現在",
+  "stats.currentMarker": "現在のEncounter数",
   "huntType.label": "Huntの方法",
   "huntType.encounter": "野生のEncounter",
   "huntType.soft_reset": "Soft Reset",
