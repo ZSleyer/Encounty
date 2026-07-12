@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Minus, RotateCcw, Edit2, Gamepad2, Video, VideoOff, ChevronDown } from "lucide-react";
+import { Plus, Minus, RotateCcw, Edit2, Gamepad2, Video } from "lucide-react";
 import { Pokemon } from "../../types";
 import { useCounterStore, DetectorStatusEntry } from "../../hooks/useCounterState";
 import { useI18n } from "../../contexts/I18nContext";
@@ -7,7 +7,6 @@ import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServ
 import { SPRITE_FALLBACK } from "../../utils/sprites";
 import { getOddsFractional } from "../../utils/odds";
 import { DetectorPreview } from "../detector/DetectorPreview";
-import { DEFAULT_PRECISION } from "../../engine/detectorDefaults";
 
 type Props = Readonly<{
   pokemon: Pokemon;
@@ -49,7 +48,6 @@ export function PokemonCard({
   useCaptureVersion(); // re-render when capture streams change
   const isFlashing = flashingIds?.has(pokemon.id) ?? false;
   const [imgError, setImgError] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const statusEntry = detectorStatus[pokemon.id];
   // A live preview is offered whenever a detection source is actually streaming
   // for this Pokémon, independent of whether match templates are configured.
@@ -94,12 +92,16 @@ export function PokemonCard({
       </button>
 
       <div className="p-4 2xl:p-5 flex-1 flex flex-col gap-3">
-        {/* Status label: mirrors the single-hunt hero panel's status chip. */}
-        {pokemon.is_active && (
-          <span className="t-label t-label--accent w-fit" title={t("dash.tooltipSetActive")}>
-            {t("dash.tabActive")}
-          </span>
-        )}
+        {/* Status label: mirrors the single-hunt hero panel's status chip.
+            Always mounted (visibility toggled, not presence) so every card
+            in a row reserves the same height regardless of active state. */}
+        <span
+          className={`t-label t-label--accent w-fit ${pokemon.is_active ? "" : "invisible"}`}
+          title={pokemon.is_active ? t("dash.tooltipSetActive") : undefined}
+          aria-hidden={!pokemon.is_active}
+        >
+          {t("dash.tabActive")}
+        </span>
 
         {/* Identity row: sprite next to name + game keeps the card short and
             lets the counter stay the hero. pr-8 clears the edit button. */}
@@ -175,60 +177,39 @@ export function PokemonCard({
           </button>
         </div>
 
-        {/* Footer — always present so every card reserves the same space: the
-            live-preview toggle when a source streams, otherwise a muted note. */}
-        <div className="flex items-center min-h-[30px] mt-auto pt-2 border-t border-border-subtle">
-          {previewAvailable ? (
-            <button
-              onClick={() => setShowPreview((v) => !v)}
-              aria-expanded={showPreview}
-              title={t("dash.preview")}
-              className="flex items-center gap-1 py-1 pr-2 pl-1 rounded-none text-[11px] font-medium text-text-muted hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-            >
-              <Video className="w-3.5 h-3.5" />
-              <span>{t("dash.preview")}</span>
-              {confidence != null && confidence > 0.01 && (
-                <span className="tabular-nums text-text-faint">{(confidence * 100).toFixed(0)}%</span>
-              )}
-              <ChevronDown className={`w-3 h-3 transition-transform ${showPreview ? "rotate-180" : ""}`} />
-            </button>
-          ) : (
-            <span className="flex items-center gap-1 pl-1 text-[11px] text-text-faint">
-              <VideoOff className="w-3.5 h-3.5" />
-              {t("dash.noPreview")}
-            </span>
-          )}
+        {/* Footer label — always mounted (visibility toggled) so the row never
+            resizes. Redundant with the preview box itself when there's no
+            source (it already shows the same "no stream" placeholder). */}
+        <div className="flex items-center min-h-[26px] mt-auto pt-2 border-t border-border-subtle">
+          <span
+            className={`flex items-center gap-1 pl-1 text-[11px] font-medium text-text-muted ${previewAvailable ? "" : "invisible"}`}
+            aria-hidden={!previewAvailable}
+          >
+            <Video className="w-3.5 h-3.5" />
+            {t("dash.preview")}
+          </span>
         </div>
 
-        {/* Collapsible live source preview — click to jump to auto-detection.
-            Shows current match confidence (DetectorPreview badge) and threshold. */}
-        {previewAvailable && showPreview && pokemon.detector_config && (
-          <div className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={() => onOpenDetector?.(pokemon.id)}
-              title={t("dash.openDetector")}
-              aria-label={t("dash.openDetector")}
-              className="block w-full aspect-video rounded-none overflow-hidden border border-border-subtle hover:border-accent-blue/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-            >
-              <DetectorPreview
-                pokemon={pokemon}
-                precision={pokemon.detector_config.templates.find((tmpl) => tmpl.enabled !== false)?.precision}
-                isRunning={!!statusEntry}
-                confidence={confidence}
-              />
-            </button>
-            <div className="flex items-center justify-between text-[11px] tabular-nums text-text-muted">
-              <span>
-                {t("detector.confidence")}:{" "}
-                <b className="text-text-secondary">{confidence != null ? `${(confidence * 100).toFixed(0)}%` : "–"}</b>
-              </span>
-              <span>
-                {t("detector.precision")}: {((pokemon.detector_config.templates.find((tmpl) => tmpl.enabled !== false)?.precision ?? DEFAULT_PRECISION) * 100).toFixed(0)}%
-              </span>
-            </div>
-          </div>
-        )}
+        {/* Preview — always rendered at a fixed aspect ratio so cards never
+            resize when a source connects; DetectorPreview shows its own
+            no-source placeholder (same as the Auto Erkennung tab) when idle.
+            Only clickable through to auto-detection once a source AND a
+            template are actually configured. */}
+        <button
+          type="button"
+          onClick={() => previewAvailable && onOpenDetector?.(pokemon.id)}
+          disabled={!previewAvailable}
+          title={previewAvailable ? t("dash.openDetector") : undefined}
+          aria-label={previewAvailable ? t("dash.openDetector") : t("dash.noPreview")}
+          className="block w-full aspect-video overflow-hidden border border-border-subtle enabled:hover:border-accent-blue/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue disabled:cursor-default"
+        >
+          <DetectorPreview
+            pokemon={pokemon}
+            precision={pokemon.detector_config?.templates.find((tmpl) => tmpl.enabled !== false)?.precision}
+            isRunning={!!statusEntry}
+            confidence={confidence}
+          />
+        </button>
       </div>
     </div>
   );

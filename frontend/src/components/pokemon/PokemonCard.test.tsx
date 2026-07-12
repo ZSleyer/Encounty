@@ -189,39 +189,22 @@ describe("PokemonCard", () => {
 
   // --- Live source preview ---
 
-  it("shows a 'no source' note when nothing is streaming", () => {
+  it("shows the detector's own 'no source' placeholder and a disabled preview button when nothing is streaming", () => {
     render(<PokemonCard {...defaultProps} />);
-    expect(screen.getByText("Keine Quelle verbunden")).toBeInTheDocument();
-    expect(screen.queryByTitle("Live-Vorschau")).not.toBeInTheDocument();
+    expect(screen.getByText("Keine Verbindung")).toBeInTheDocument();
+    expect(screen.getByText("Live-Vorschau")).toHaveClass("invisible");
+    expect(screen.getByLabelText("Keine Quelle verbunden")).toBeDisabled();
   });
 
-  it("offers the live preview toggle when a source is streaming", () => {
+  it("shows the live preview label and an enabled preview button when a source is streaming", () => {
     captureState.capturing.add("poke-1");
     const pokemon = makePokemon({ id: "poke-1", detector_config: makeDetectorConfig() });
     render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
-    expect(screen.getByTitle("Live-Vorschau")).toBeInTheDocument();
-    expect(screen.queryByText("Keine Quelle verbunden")).not.toBeInTheDocument();
+    expect(screen.getByText("Live-Vorschau")).not.toHaveClass("invisible");
+    expect(screen.getByLabelText("Auto-Erkennung öffnen")).toBeEnabled();
   });
 
-  it("expands the preview with the configured threshold", async () => {
-    captureState.capturing.add("poke-1");
-    captureState.stream = new MediaStream();
-    const pokemon = makePokemon({
-      id: "poke-1",
-      detector_config: makeDetectorConfig({
-        templates: [{ image_path: "tmpl.png", regions: [], enabled: true, precision: 0.55 }],
-      }),
-    });
-    const { userEvent } = await import("../../test-utils");
-    const user = userEvent.setup();
-    const { container } = render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
-
-    await user.click(screen.getByTitle("Live-Vorschau"));
-    expect(container.textContent).toContain("Genauigkeit: 55%");
-    expect(container.textContent).toContain("Konfidenz:");
-  });
-
-  it("opens auto-detection when the expanded preview is clicked", async () => {
+  it("opens auto-detection when the preview is clicked", async () => {
     captureState.capturing.add("poke-1");
     captureState.stream = new MediaStream();
     const onOpenDetector = vi.fn();
@@ -230,7 +213,6 @@ describe("PokemonCard", () => {
     const user = userEvent.setup();
     render(<PokemonCard {...defaultProps} pokemon={pokemon} onOpenDetector={onOpenDetector} />);
 
-    await user.click(screen.getByTitle("Live-Vorschau"));
     await user.click(screen.getByLabelText("Auto-Erkennung öffnen"));
     expect(onOpenDetector).toHaveBeenCalledWith("poke-1");
   });
