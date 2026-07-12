@@ -2000,7 +2000,7 @@ export function TemplateEditor({
                   <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
                     {selectedFrameIndex + 1} / {replayBuffer.frameCount}
                   </span>
-                  <div className="relative flex-1">
+                  <div className="relative flex-1 h-3">
                     {/* Hysteresis hatch: the opaque hysteresis color plus a
                         diagonal stripe layer — same two-part recipe as the
                         legend swatch, so the two render identically instead
@@ -2017,7 +2017,7 @@ export function TemplateEditor({
                       <div
                         key={`${x1}-${x2}`}
                         aria-hidden="true"
-                        className="absolute inset-y-0 pointer-events-none"
+                        className="absolute inset-0 pointer-events-none"
                         style={{
                           left: `${x1}%`,
                           width: `${x2 - x1}%`,
@@ -2042,7 +2042,7 @@ export function TemplateEditor({
                         background: flow?.gradient ?? "color-mix(in srgb, var(--bg-primary) 55%, transparent)",
                         borderColor: "color-mix(in srgb, var(--border-subtle) 70%, transparent)",
                       }}
-                      className="relative w-full h-3 border rounded-none appearance-none cursor-pointer
+                      className="block relative w-full h-3 border rounded-none appearance-none cursor-pointer
                         [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-text-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]
                         [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-text-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]"
                     />
