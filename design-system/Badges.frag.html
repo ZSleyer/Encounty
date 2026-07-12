@@ -1,9 +1,12 @@
 <style>
+/* Border only, no fill: a solid tinted box read as an unstyled leftover
+   rather than an intentional choice. Severity/count lives in the border +
+   text color, same idiom as .t-label. */
 .t-badge {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 18px; height: 18px; padding: 0 5px;
   border-radius: 0; font-size: 11px; font-weight: 700;
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
   color: var(--accent);
 }
 .t-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
@@ -36,7 +39,7 @@
 <div class="col">
   <div class="row" style="align-items: center; gap: 20px;">
     <span style="display: inline-flex; gap: 6px; align-items: center; font-size: 13px;">Aktiv <span class="t-badge">2</span></span>
-    <span style="display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text-muted);">Archiv <span class="t-badge" style="background: var(--bg-hover); color: var(--text-muted);">1</span></span>
+    <span style="display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text-muted);">Archiv <span class="t-badge" style="border-color: var(--border); color: var(--text-muted);">1</span></span>
     <span class="t-status"><span class="dot" style="background: var(--accent-green);"></span>Läuft</span>
     <span class="t-status"><span class="dot" style="background: var(--text-faint);"></span>Gestoppt</span>
     <span class="t-status"><span class="dot" style="background: var(--accent-red);"></span>Fehler</span>
