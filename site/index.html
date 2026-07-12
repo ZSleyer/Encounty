@@ -146,6 +146,45 @@
 
       <div class="glow-line" role="presentation"></div>
 
+      <!-- Template demo video -->
+      <section aria-labelledby="demo-heading" class="px-4 py-20">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="demo-heading"
+            class="font-pixel text-center text-lg leading-relaxed text-text-primary"
+          >
+            See it in action
+          </h2>
+          <p class="mx-auto mt-4 max-w-xl text-center text-text-secondary">
+            Creating a detection template takes under a minute: snapshot your game, mark the
+            encounter text, test the match, done.
+          </p>
+          <div class="card mt-8 overflow-hidden p-2">
+            <video
+              id="demo-video"
+              autoplay
+              muted
+              loop
+              preload="metadata"
+              playsinline
+              disablepictureinpicture
+              disableremoteplayback
+              poster="/template-demo-poster.jpg"
+              width="1280"
+              height="698"
+              class="w-full cursor-pointer rounded-xl"
+              tabindex="0"
+              aria-label="Demo video: creating an auto-detection template in Encounty. Click or press Enter to pause or resume."
+            >
+              <source src="/template-demo.mp4" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
       <!-- Features -->
       <section aria-labelledby="features-heading" id="features" class="px-4 py-20">
         <div class="mx-auto max-w-6xl">
@@ -264,5 +303,23 @@
         </p>
       </div>
     </footer>
+    <script>
+      const demo = document.getElementById("demo-video");
+      // WCAG 2.2.2: auto-playing motion needs a pause mechanism and must
+      // respect the user's reduced-motion preference.
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        demo.removeAttribute("autoplay");
+        demo.pause();
+      }
+      const toggle = () => (demo.paused ? demo.play() : demo.pause());
+      demo.addEventListener("click", toggle);
+      demo.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggle();
+        }
+      });
+      demo.addEventListener("contextmenu", (e) => e.preventDefault());
+    </script>
   </body>
 </html>
