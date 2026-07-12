@@ -62,14 +62,14 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
       aria-modal="true"
       aria-labelledby="license-title"
     >
-      <div className="bg-bg-secondary border border-border-subtle rounded-2xl shadow-2xl w-full max-w-2xl h-[min(90vh,720px)] flex flex-col animate-slide-in overflow-hidden">
+      <div className="t-panel anim-t-flicker shadow-2xl w-full max-w-2xl h-[min(90vh,720px)] flex flex-col">
         {/* Header */}
         <div className="px-8 pt-8 pb-4 flex flex-col items-center gap-4 shrink-0">
           <div className="flex items-center gap-4">
             <img
               src="/app-icon.png"
               alt="Encounty"
-              className="w-12 h-12 rounded-xl object-contain"
+              className="w-12 h-12 rounded-none object-contain"
             />
             <div>
               <h1 id="license-title" className="text-xl font-bold text-text-primary">
@@ -86,9 +86,9 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
                 key={l.code}
                 onClick={() => switchLocale(l.code)}
                 aria-pressed={locale === l.code}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-none text-xs font-medium transition-colors ${
                   locale === l.code
-                    ? "bg-accent-blue text-white"
+                    ? "bg-accent-blue text-bg-primary"
                     : "bg-bg-hover text-text-muted hover:text-text-primary"
                 }`}
               >
@@ -101,7 +101,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
 
         {/* Summary line */}
         <div className="px-8 pb-3 shrink-0">
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-accent-blue/5 border border-accent-blue/10">
+          <div className="flex items-start gap-3 p-4 rounded-none bg-accent-blue/5 border border-accent-blue/10">
             <Scale className="w-5 h-5 text-accent-blue shrink-0 mt-0.5" />
             <p className="text-sm text-text-secondary leading-relaxed">
               {t("license.summary")}
@@ -124,7 +124,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
             tabIndex={0}
             role="region"
             aria-label={t("aria.licenseText")}
-            className="h-full overflow-y-auto rounded-xl bg-bg-primary border border-border-subtle p-4 text-xs text-text-muted font-mono whitespace-pre-wrap leading-relaxed"
+            className="h-full overflow-y-auto rounded-none bg-bg-primary border border-border-subtle p-4 text-xs text-text-muted font-mono whitespace-pre-wrap leading-relaxed"
           >
             {AGPLV3_LICENSE}
           </div>
@@ -142,9 +142,9 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
           <button
             onClick={handleAccept}
             disabled={!hasScrolledToBottom}
-            className={`w-full py-3 rounded-xl text-sm font-semibold transition-all ${
+            className={`w-full py-3 rounded-none text-sm font-semibold transition-all ${
               hasScrolledToBottom
-                ? "bg-accent-blue hover:bg-accent-blue/80 text-white shadow-lg shadow-accent-blue/20"
+                ? "t-cut bg-accent-blue hover:bg-accent-blue/80 text-bg-primary shadow-lg shadow-accent-blue/20"
                 : "bg-bg-hover text-text-faint cursor-not-allowed"
             }`}
           >

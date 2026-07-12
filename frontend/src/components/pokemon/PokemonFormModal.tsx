@@ -917,7 +917,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="pokemon-form-title"
-      className="m-auto bg-bg-card border border-border-subtle rounded-none p-6 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
+      className="t-panel anim-t-flicker m-auto rounded-none p-6 w-full max-w-2xl backdrop:bg-black/70"
     >
       {/* --- Header --- */}
       <div className="flex items-center justify-between mb-5">
