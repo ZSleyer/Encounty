@@ -120,10 +120,10 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
 
   if (failed) {
     if (fallbackSrc) {
-      return <img src={fallbackSrc} alt={alt} className={`pokemon-sprite ${className}`} />;
+      return <img src={fallbackSrc} alt={alt} className={`pokemon-sprite object-contain ${className}`} />;
     }
     if (hideOnFail) return null;
-    return <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite ${className}`} />;
+    return <img src={SPRITE_FALLBACK} alt={alt} className={`pokemon-sprite object-contain ${className}`} />;
   }
 
   if (!src) return <div className={className} aria-hidden="true" />;
@@ -132,7 +132,7 @@ export function TrimmedBoxSprite({ canonicalName, spriteType = "shiny", alt, cla
     <img
       src={src}
       alt={alt}
-      className={`pokemon-sprite [image-rendering:pixelated] ${className}`}
+      className={`pokemon-sprite object-contain [image-rendering:pixelated] ${className}`}
     />
   );
 }
