@@ -301,6 +301,12 @@
           Encounty is a fan project and is not affiliated with Nintendo, Game Freak or The
           Pokémon Company.
         </p>
+        <p>
+          <span id="copyright-year">© 2026</span>
+          <a href="https://youtube.com/@ZSleyer" class="underline hover:text-text-primary"
+            >ZSleyer</a
+          >
+        </p>
       </div>
     </footer>
     <script>
@@ -320,6 +326,11 @@
         }
       });
       demo.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      // Same copyright range logic as the Encounty app footer.
+      const year = new Date().getFullYear();
+      document.getElementById("copyright-year").textContent =
+        "© " + (year === 2026 ? "2026" : "2026–" + year);
     </script>
   </body>
 </html>
