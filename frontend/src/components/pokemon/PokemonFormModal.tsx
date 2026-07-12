@@ -471,19 +471,21 @@ function GroupAndTagsSection({
             </button>
           )}
         </label>
-        <select
-          id="group-select-form"
-          value={groupId}
-          onChange={(e) => onGroupChange(e.target.value)}
-          className={selectClass}
-        >
-          <option value="">{t("sidebar.noGroup")}</option>
-          {groups.map((g) => (
-            <option key={g.id} value={g.id}>
-              {g.name}
-            </option>
-          ))}
-        </select>
+        <div className="t-select-wrap">
+          <select
+            id="group-select-form"
+            value={groupId}
+            onChange={(e) => onGroupChange(e.target.value)}
+            className={selectClass}
+          >
+            <option value="">{t("sidebar.noGroup")}</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div>
@@ -510,7 +512,7 @@ function GroupAndTagsSection({
             className={inputClass}
           />
           {suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg max-h-40 overflow-y-auto">
+            <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-bg-secondary border border-border-subtle rounded-none shadow-lg max-h-40 overflow-y-auto">
               {suggestions.map((s) => (
                 <button
                   key={s}
@@ -902,8 +904,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   // --- Input class reused across form fields ---
   const inputClass =
-    "w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors";
-  const selectClass = `${inputClass} appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[position:right_0.5rem_center] bg-no-repeat pr-8`;
+    "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors";
+  const selectClass = "t-select";
   // Whether customSprite currently points at a locally-uploaded blob (as
   // opposed to a manually-typed URL), so the delete/preview UI only shows
   // for sprites this app actually stored for the Pokemon being edited.
@@ -915,7 +917,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="pokemon-form-title"
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
+      className="m-auto bg-bg-card border border-border-subtle rounded-none p-6 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
     >
       {/* --- Header --- */}
       <div className="flex items-center justify-between mb-5">
@@ -932,7 +934,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       </div>
 
       {missingNames && (
-        <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-900/20 border border-amber-700/30 text-amber-300 text-xs">
+        <div className="flex items-start gap-2 p-3 mb-4 rounded-none bg-accent-yellow/10 border border-accent-yellow/30 text-accent-yellow text-xs">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{t("modal.missingNames")}</span>
         </div>
@@ -941,7 +943,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       {/* --- Two-column layout --- */}
       <div className="grid grid-cols-[260px_1fr] gap-6">
         {/* --- Left Column: Pokemon Identity --- */}
-        <div className="bg-bg-secondary rounded-xl p-4 flex flex-col items-center gap-3">
+        <div className="bg-bg-secondary rounded-none p-4 flex flex-col items-center gap-3">
           {/* Sprite area */}
           <div className="flex flex-col items-center gap-2 w-full">
             {selected ? (
@@ -1038,7 +1040,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       if (!isUnavailable) setSpriteStyle(s.key);
                     }}
                     title={isUnavailable ? t("modal.spriteUnavailable") : s.desc}
-                    className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
+                    className={`flex flex-col items-center gap-1 px-2 py-2 rounded-none text-xs font-medium transition-colors border ${isLastOdd ? "col-span-2" : ""} ${buttonStateClass}`}
                   >
                     {previewUrl ? (
                       <img
@@ -1090,7 +1092,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   key={tp}
                   onClick={() => setSpriteType(tp)}
                   aria-pressed={spriteType === tp}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                  className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-none text-sm font-medium transition-colors border ${
                     spriteType === tp
                       ? "bg-accent-blue/10 text-accent-blue border-accent-blue/30"
                       : "bg-bg-primary text-text-muted border-border-subtle hover:text-text-secondary"
@@ -1118,7 +1120,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 aria-expanded={langMenuOpen}
                 aria-haspopup="true"
                 aria-label={t("modal.language")}
-                className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 <CountryFlag code={language} />
                 <span className="flex-1 text-left">{ALL_LANGUAGES.find((l) => l.code === language)?.label ?? language.toUpperCase()}</span>
@@ -1127,7 +1129,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               {langMenuOpen && (
                 <>
                   <button className="fixed inset-0 z-40 cursor-default" onClick={() => setLangMenuOpen(false)} aria-label={t("aria.close")} />
-                  <div aria-label={t("modal.language")} className="absolute left-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-full max-h-48 overflow-y-auto">
+                  <div aria-label={t("modal.language")} className="absolute left-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-full max-h-48 overflow-y-auto">
                     {availableLangs.map((lang) => {
                       const info = ALL_LANGUAGES.find((l) => l.code === lang);
                       return (
@@ -1155,7 +1157,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
         <div className="flex flex-col gap-4">
           {/* Section: Pokemon search / selected card */}
           {isEdit && selected && !showSearch ? (
-            <div className="flex items-center gap-3 bg-bg-secondary rounded-lg px-4 py-3">
+            <div className="flex items-center gap-3 bg-bg-secondary rounded-none px-4 py-3">
               <TrimmedBoxSprite
                 canonicalName={selected.canonical}
                 spriteType={spriteType}
@@ -1183,7 +1185,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   setQuery("");
                   setTimeout(() => inputRef.current?.focus(), 50);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary text-xs font-medium transition-colors"
               >
                 <ArrowRightLeft className="w-3.5 h-3.5" />
                 {t("modal.change")}
@@ -1191,7 +1193,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             </div>
           ) : (
             <div className="relative">
-              <div data-focus-wrapper className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-lg px-3 py-2">
+              <div data-focus-wrapper className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2">
                 <Search className="w-4 h-4 text-text-muted shrink-0" />
                 <input
                   ref={inputRef}
@@ -1221,7 +1223,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               </div>
 
               {suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-lg overflow-hidden z-10 shadow-xl max-h-52 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-none overflow-hidden z-10 shadow-xl max-h-52 overflow-y-auto">
                   {isBrowseMode && (
                     <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">
                       {t("modal.browseDex")}
@@ -1290,26 +1292,28 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               >
                 {t("modal.game")}
               </label>
-              <select
-                id="game-select-form"
-                value={selectedGame}
-                onChange={(e) => setSelectedGame(e.target.value)}
-                className={selectClass}
-              >
-                <option value="">{t("modal.noGame")}</option>
-                {Object.entries(genGroups).map(([gen, entries]) => (
-                  <optgroup
-                    key={gen}
-                    label={`${t("modal.generation")} ${gen}`}
-                  >
-                    {entries.map((g) => (
-                      <option key={g.key} value={g.key}>
-                        {getGameName(g, [language, ...activeLanguages, "en"])}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+              <div className="t-select-wrap">
+                <select
+                  id="game-select-form"
+                  value={selectedGame}
+                  onChange={(e) => setSelectedGame(e.target.value)}
+                  className={selectClass}
+                >
+                  <option value="">{t("modal.noGame")}</option>
+                  {Object.entries(genGroups).map(([gen, entries]) => (
+                    <optgroup
+                      key={gen}
+                      label={`${t("modal.generation")} ${gen}`}
+                    >
+                      {entries.map((g) => (
+                        <option key={g.key} value={g.key}>
+                          {getGameName(g, [language, ...activeLanguages, "en"])}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
@@ -1340,18 +1344,20 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 >
                   {t("huntType.label")}
                 </label>
-                <select
-                  id="hunt-type-select-form"
-                  value={huntType}
-                  onChange={(e) => setHuntType(e.target.value)}
-                  className={selectClass}
-                >
-                  {getAvailableHuntMethods(selectedGame).map((m) => (
-                    <option key={m.key} value={m.key}>
-                      {t(`huntType.${m.key}`)}
-                    </option>
-                  ))}
-                </select>
+                <div className="t-select-wrap">
+                  <select
+                    id="hunt-type-select-form"
+                    value={huntType}
+                    onChange={(e) => setHuntType(e.target.value)}
+                    className={selectClass}
+                  >
+                    {getAvailableHuntMethods(selectedGame).map((m) => (
+                      <option key={m.key} value={m.key}>
+                        {t(`huntType.${m.key}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div>
                 <label
@@ -1382,18 +1388,20 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               >
                 {t("huntType.label")}
               </label>
-              <select
-                id="hunt-type-select-form"
-                value={huntType}
-                onChange={(e) => setHuntType(e.target.value)}
-                className={selectClass}
-              >
-                {getAvailableHuntMethods(selectedGame).map((m) => (
-                  <option key={m.key} value={m.key}>
-                    {t(`huntType.${m.key}`)}
-                  </option>
-                ))}
-              </select>
+              <div className="t-select-wrap">
+                <select
+                  id="hunt-type-select-form"
+                  value={huntType}
+                  onChange={(e) => setHuntType(e.target.value)}
+                  className={selectClass}
+                >
+                  {getAvailableHuntMethods(selectedGame).map((m) => (
+                    <option key={m.key} value={m.key}>
+                      {t(`huntType.${m.key}`)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           )}
 
@@ -1473,9 +1481,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 type="checkbox"
                 checked={shinyCharm}
                 onChange={(e) => setShinyCharm(e.target.checked)}
-                className="rounded border-border-subtle text-accent focus:ring-accent"
+                className="rounded-none border-border-subtle text-accent-blue focus:ring-accent-blue"
               />
-              <Sparkles size={14} className="text-yellow-400" />
+              <Sparkles size={14} className="text-accent-yellow" />
               <span className="text-xs text-text-secondary">
                 {t("huntType.shinyCharm")}
               </span>
@@ -1540,14 +1548,14 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         <img
                           src={customSprite}
                           alt=""
-                          className="w-10 h-10 object-contain rounded border border-border-subtle pokemon-sprite"
+                          className="w-10 h-10 object-contain rounded-none border border-border-subtle pokemon-sprite"
                         />
                       )}
                       <button
                         type="button"
                         onClick={() => spriteFileRef.current?.click()}
                         disabled={spriteUploading}
-                        className={`${isUploadedSprite ? "flex-1" : "w-full"} py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed`}
+                        className={`${isUploadedSprite ? "flex-1" : "w-full"} py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-xs disabled:opacity-40 disabled:cursor-not-allowed`}
                       >
                         {spriteUploading ? t("modal.spriteUpload.uploading") : t("modal.spriteUpload.choose")}
                       </button>
@@ -1557,7 +1565,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                           onClick={handleSpriteDelete}
                           disabled={spriteDeleting}
                           aria-label={t("aria.spriteUpload.remove")}
-                          className="py-2 px-3 rounded-lg border border-border-subtle text-text-muted hover:text-red-400 hover:border-red-400/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="py-2 px-3 rounded-none border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -1577,14 +1585,14 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       <div className="flex gap-3 mt-6">
         <button
           onClick={handleCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          className="flex-1 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           {t("modal.cancel")}
         </button>
         <button
           onClick={handleSubmit}
           disabled={!selected}
-          className="t-cut flex-1 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="t-cut flex-1 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isEdit ? t("modal.save") : t("modal.add")}
         </button>

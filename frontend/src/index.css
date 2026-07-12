@@ -218,6 +218,43 @@
     0 0 0 4px var(--accent-blue);
 }
 
+/* Native select: appearance:none plus a hand-drawn chevron so the right-side
+   spacing matches the left text padding (native chevrons don't). */
+.t-select-wrap {
+  position: relative;
+  display: block;
+}
+
+.t-select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid var(--text-muted);
+  border-bottom: 1px solid var(--text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+
+.t-select {
+  font: inherit;
+  appearance: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  padding: 7px 30px 7px 10px;
+  width: 100%;
+  transition: border-color 150ms;
+}
+
+.t-select:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent-blue) 50%, transparent);
+}
+
 /* ── Background Patterns ───────────────────────────────────── */
 
 .dash-bg {

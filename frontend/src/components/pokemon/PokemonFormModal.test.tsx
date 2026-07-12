@@ -927,7 +927,7 @@ describe("PokemonFormModal", () => {
 
       // Wait for the warning to appear
       await waitFor(() => {
-        const alert = document.querySelector(".text-amber-300");
+        const alert = document.querySelector(".text-accent-yellow");
         expect(alert).toBeInTheDocument();
       });
     });
