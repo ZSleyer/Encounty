@@ -158,9 +158,35 @@
 }
 
 /* Native dialogs reuse the panel skin; restore UA modal positioning that
-   t-panel's position:relative would otherwise override. */
+   t-panel's position:relative would otherwise override. The UA gives dialogs
+   overflow:auto, so bracket pseudo-elements at -1px would create permanent
+   scrollbars and scroll out of view. Brackets render as border-box background
+   strokes instead, which never produce overflow. */
 dialog.t-panel {
   position: fixed;
+  --dialog-bracket: var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+  background-image: linear-gradient(var(--dialog-bracket), var(--dialog-bracket)),
+    linear-gradient(var(--dialog-bracket), var(--dialog-bracket)),
+    linear-gradient(var(--dialog-bracket), var(--dialog-bracket)),
+    linear-gradient(var(--dialog-bracket), var(--dialog-bracket));
+  background-size:
+    10px 1px,
+    1px 10px,
+    10px 1px,
+    1px 10px;
+  background-position:
+    left top,
+    left top,
+    right bottom,
+    right bottom;
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  background-clip: border-box;
+}
+
+dialog.t-panel::before,
+dialog.t-panel::after {
+  content: none;
 }
 
 /* Hatch texture: faint 135deg diagonal hairlines. */
