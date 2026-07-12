@@ -228,7 +228,7 @@ func loadSettings(db *sql.DB) (state.Settings, error) {
 	s.AutoSave = autoSave != 0
 	s.CrispSprites = crispSprites != 0
 	if s.AccentColor == "" {
-		s.AccentColor = "blue"
+		s.AccentColor = "acid"
 	}
 	s.TutorialSeen.OverlayEditor = tutOverlay != 0
 	s.TutorialSeen.AutoDetection = tutDetection != 0

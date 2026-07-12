@@ -154,6 +154,11 @@ var migrations = []migration{
 		description: "add hysteresis_mode column to detector_templates",
 		fn:          migrateAddTemplateHysteresisMode,
 	},
+	{
+		version:     28,
+		description: "remap accent color presets to new palette",
+		fn:          migrateRemapAccentColorPresets,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -410,6 +415,24 @@ func migrateAddCaptureResolutions(tx *sql.Tx) error {
 // is ignored because the column may already exist on fresh databases.
 func migrateAddTemplateHysteresisMode(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE detector_templates ADD COLUMN hysteresis_mode TEXT`)
+	return nil
+}
+
+// migrateRemapAccentColorPresets translates stored accent color presets from
+// the old palette (blue, purple, green, cyan, pink, orange) to the new one
+// (acid, crimson, cyan, violet). Purple maps to violet, pink and orange map
+// to crimson, cyan stays cyan, everything else (including blue and green)
+// falls back to the new default acid.
+func migrateRemapAccentColorPresets(tx *sql.Tx) error {
+	if _, err := tx.Exec(`UPDATE settings SET accent_color = CASE accent_color
+		WHEN 'purple' THEN 'violet'
+		WHEN 'pink' THEN 'crimson'
+		WHEN 'orange' THEN 'crimson'
+		WHEN 'cyan' THEN 'cyan'
+		ELSE 'acid'
+	END`); err != nil {
+		return fmt.Errorf("remap accent_color presets: %w", err)
+	}
 	return nil
 }
 

@@ -254,6 +254,63 @@ func TestMigrationTemplatePollingSettingsBackfill(t *testing.T) {
 	}
 }
 
+// TestMigrationRemapAccentColorPresets verifies that migration 28 translates
+// every legacy accent color preset to its replacement in the new palette and
+// maps unknown values to the default acid.
+func TestMigrationRemapAccentColorPresets(t *testing.T) {
+	cases := []struct {
+		old  string
+		want string
+	}{
+		{"blue", "acid"},
+		{"green", "acid"},
+		{"purple", "violet"},
+		{"pink", "crimson"},
+		{"orange", "crimson"},
+		{"cyan", "cyan"},
+		{"unknown", "acid"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.old, func(t *testing.T) {
+			db := openRawTestDB(t)
+
+			// Apply all migrations up to (but not including) the remap migration.
+			original := migrations
+			defer func() { migrations = original }()
+			var upTo []migration
+			for _, m := range original {
+				if m.version < 28 {
+					upTo = append(upTo, m)
+				}
+			}
+			migrations = upTo
+			if err := RunMigrations(db); err != nil {
+				t.Fatalf("RunMigrations up to version 27: %v", err)
+			}
+
+			// Seed the singleton settings row with a legacy preset value.
+			if _, err := db.Exec(`INSERT INTO settings (id, accent_color) VALUES (1, ?)`, tc.old); err != nil {
+				t.Fatalf("insert settings: %v", err)
+			}
+
+			// Apply the remaining migrations, including the remap.
+			migrations = original
+			if err := RunMigrations(db); err != nil {
+				t.Fatalf("RunMigrations including remap: %v", err)
+			}
+
+			var got string
+			if err := db.QueryRow(`SELECT accent_color FROM settings WHERE id = 1`).Scan(&got); err != nil {
+				t.Fatalf("query accent_color: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("accent_color after remap = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 // TestRunMigrationsTracking verifies that the migrations table stores the
 // correct version, description, and a valid RFC3339 timestamp for each migration.
 func TestRunMigrationsTracking(t *testing.T) {
