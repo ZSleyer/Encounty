@@ -157,6 +157,12 @@
   --panel-bracket: var(--accent-red);
 }
 
+/* Native dialogs reuse the panel skin; restore UA modal positioning that
+   t-panel's position:relative would otherwise override. */
+dialog.t-panel {
+  position: fixed;
+}
+
 /* Hatch texture: faint 135deg diagonal hairlines. */
 .t-hatch {
   background-image: repeating-linear-gradient(

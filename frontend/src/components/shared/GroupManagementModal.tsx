@@ -145,7 +145,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
         onCancel={handleCancel}
         aria-modal="true"
         aria-labelledby="group-mgmt-title"
-        className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-lg animate-slide-in backdrop:bg-black/70"
+        className="m-auto t-panel p-6 w-full max-w-lg anim-t-flicker backdrop:bg-black/70"
       >
         <div className="flex items-center justify-between mb-5">
           <h2 id="group-mgmt-title" className="text-lg font-bold text-text-primary">
@@ -174,7 +174,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
             return (
               <li
                 key={group.id}
-                className="flex flex-col gap-2 bg-bg-secondary rounded-lg px-2 py-1.5"
+                className="flex flex-col gap-2 bg-bg-secondary rounded-none px-2 py-1.5"
               >
                 <div className="flex items-center gap-2">
                   <ColorSwatch
@@ -268,14 +268,14 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                   }
                 }}
                 placeholder={t("group.name")}
-                className="flex-1 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
+                className="flex-1 bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
               />
               <button
                 type="button"
                 onClick={() => void handleCreate()}
                 disabled={!newName.trim() || saving}
                 aria-label={t("group.create")}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 <Plus className="w-3.5 h-3.5" />
                 {t("group.create")}

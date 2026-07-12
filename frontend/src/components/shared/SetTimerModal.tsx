@@ -49,14 +49,14 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
     handleCancel();
   };
 
-  const inputClass = "w-full bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums";
+  const inputClass = "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums";
 
   return (
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="set-timer-title"
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm animate-slide-in backdrop:bg-black/70"
+      className="m-auto t-panel p-6 w-full max-w-sm anim-t-flicker backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-4">
         <h2 id="set-timer-title" className="text-lg font-bold text-text-primary">
@@ -122,13 +122,13 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
       <div className="flex gap-3">
         <button
           onClick={handleCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          className="flex-1 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           {t("modal.cancel")}
         </button>
         <button
           onClick={handleSave}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
+          className="flex-1 py-2 t-cut rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors"
         >
           {t("modal.save")}
         </button>

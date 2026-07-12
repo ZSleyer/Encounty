@@ -2961,7 +2961,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
           onClick={(e) => { if (e.target === e.currentTarget) setPendingTab(null); }}
         >
-          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+          <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-flicker">
             <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />
             </div>
@@ -2977,7 +2977,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               <button
                 type="button"
                 onClick={() => setPendingTab(null)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
               >
                 {t("overlay.unsavedStay")}
               </button>
@@ -2988,7 +2988,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                   setRightPanelTab(pendingTab);
                   setPendingTab(null);
                 }}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-red hover:bg-red-500 text-white text-sm font-semibold transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:bg-red-500 text-white text-sm font-semibold transition-colors"
               >
                 {t("overlay.unsavedDiscard")}
               </button>

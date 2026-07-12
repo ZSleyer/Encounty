@@ -56,14 +56,17 @@ export function ConfirmModal({
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="confirm-modal-title"
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-md animate-slide-in backdrop:bg-black/70"
+      className={`m-auto t-panel ${isDestructive ? "t-panel--danger " : ""}p-6 w-full max-w-md anim-t-flicker backdrop:bg-black/70`}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           {isDestructive && (
             <AlertTriangle className="w-5 h-5 text-accent-red" />
           )}
-          <h2 id="confirm-modal-title" className="text-lg font-bold text-text-primary">
+          <h2
+            id="confirm-modal-title"
+            className={`text-lg font-bold ${isDestructive ? "text-accent-red" : "text-text-primary"}`}
+          >
             {title}
           </h2>
         </div>
@@ -81,16 +84,16 @@ export function ConfirmModal({
       <div className="flex gap-3">
         <button
           onClick={handleCancel}
-          className="flex-1 px-4 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
+          className="flex-1 px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
         >
           {resolvedCancel}
         </button>
         <button
           onClick={handleConfirm}
-          className={`flex-1 px-4 py-2 rounded-lg text-white font-semibold text-sm transition-colors shadow-sm whitespace-nowrap ${
+          className={`flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap ${
             isDestructive
-              ? "bg-accent-red/80 hover:bg-accent-red border border-accent-red/50"
-              : "bg-accent-blue hover:bg-accent-blue/80"
+              ? "bg-accent-red/80 hover:bg-accent-red border border-accent-red/50 text-white"
+              : "bg-accent-blue hover:bg-accent-blue/80 text-bg-primary"
           }`}
         >
           {resolvedConfirm}
