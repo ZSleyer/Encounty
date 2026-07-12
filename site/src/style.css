@@ -1,21 +1,20 @@
 @import "tailwindcss";
 
-/* Design tokens copied from frontend/src/index.css (dark theme). */
+/* Design tokens copied from frontend/src/index.css (Tempest, dark theme). */
 :root {
-  --bg-primary: #0f0f13;
-  --bg-secondary: #1a1a24;
-  --bg-card: #1e1e2e;
-  --bg-hover: #252535;
-  --accent-blue: #4a9eff;
+  --bg-primary: #0d1117;
+  --bg-secondary: #131922;
+  --bg-card: #161e28;
+  --bg-hover: #1e2836;
+  --accent-blue: #a685f0;
   --accent-green: #34d67a;
-  --accent-yellow: #ffd700;
+  --accent-yellow: #ffb020;
   --accent-red: #f05050;
-  --accent-purple: #b970ff;
-  --border-subtle: #333345;
-  --text-primary: #f1f5f9;
-  --text-secondary: #b8c9da;
-  --text-muted: #94aabf;
-  --text-faint: #7b8fa3;
+  --border-subtle: #2a3644;
+  --text-primary: #eef3f8;
+  --text-secondary: #b7c5d3;
+  --text-muted: #8fa3b5;
+  --text-faint: #7a8ea0;
 }
 
 @theme {
@@ -26,13 +25,11 @@
   --color-accent-blue: var(--accent-blue);
   --color-accent-green: var(--accent-green);
   --color-accent-red: var(--accent-red);
-  --color-accent-purple: var(--accent-purple);
   --color-border-subtle: var(--border-subtle);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-muted: var(--text-muted);
   --color-text-faint: var(--text-faint);
-  --font-pixel: "Press Start 2P", monospace;
   --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
 }
@@ -48,51 +45,144 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Signature gradient divider from the app footer. */
+/* Uppercase, letter-spaced section eyebrow — the app's own section-label
+   vocabulary (card-title / t-label), scaled up for a marketing headline. */
+.t-heading {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+
+/* Micro label chip: uppercase spaced-out tag with a hairline border. */
+.t-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  padding: 3px 10px;
+  color: var(--text-muted);
+}
+
+.t-label--accent {
+  border-color: color-mix(in srgb, var(--accent-blue) 55%, transparent);
+  color: var(--accent-blue);
+}
+
+/* .t-label's own border/color are unlayered and would otherwise beat a
+   Tailwind hover:border/hover:text utility outright (unlayered CSS always
+   wins over @layer utilities regardless of pseudo-state or specificity),
+   so the interactive nav variant gets its hover state written here. */
+a.t-label {
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+a.t-label:hover {
+  border-color: color-mix(in srgb, var(--accent-blue) 55%, transparent);
+  color: var(--accent-blue);
+}
+
+/* Corner-cut CTA: clips the top-right corner, the app's primary-action
+   shape. The clip-path also clips the outline, so keyboard focus is a
+   box-shadow ring instead. */
+.t-cut {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  border-radius: 0;
+}
+
+.t-cut:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
+}
+
+/* Panel with Tempest corner brackets — the app's own card shell. */
+.t-panel {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  transition: border-color 0.2s ease;
+}
+
+.t-panel::before,
+.t-panel::after {
+  content: "";
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.t-panel::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
+}
+
+.t-panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
+}
+
+.t-panel:hover {
+  border-color: color-mix(in srgb, var(--accent-blue) 40%, var(--border-subtle));
+}
+
+/* Hairline gradient divider, single-accent (matches the app's one-accent
+   discipline instead of a rainbow fade). */
 .glow-line {
   height: 1px;
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--accent-blue) 20%,
-    var(--accent-purple) 50%,
-    var(--accent-red) 80%,
+    var(--accent-blue) 50%,
     transparent 100%
   );
 }
 
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: 1rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+/* Faint diagonal hairline texture, the app's .t-hatch. */
+.t-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--text-primary) 3%, transparent) 7px 8px
+  );
 }
 
-.card:hover {
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-blue) 18%, transparent);
-}
-
-/* Soft radial accent glow behind the hero. */
+/* Soft radial accent glow behind the hero — single accent hue. */
 .hero-glow {
-  background:
-    radial-gradient(
-      600px 300px at 50% 0%,
-      color-mix(in srgb, var(--accent-blue) 14%, transparent),
-      transparent 70%
-    ),
-    radial-gradient(
-      500px 260px at 80% 20%,
-      color-mix(in srgb, var(--accent-purple) 9%, transparent),
-      transparent 70%
-    );
+  background: radial-gradient(
+    650px 320px at 50% 0%,
+    color-mix(in srgb, var(--accent-blue) 13%, transparent),
+    transparent 70%
+  );
+}
+
+/* Bordered number badge for the "How it works" steps — same shape as the
+   app's own step-indicator squares. */
+.t-step-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid color-mix(in srgb, var(--accent-blue) 55%, transparent);
+  color: var(--accent-blue);
+  font-weight: 700;
+  font-size: 14px;
 }
 
 a:focus-visible,
 button:focus-visible {
   outline: 2px solid var(--accent-blue);
   outline-offset: 3px;
-  border-radius: 0.25rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
