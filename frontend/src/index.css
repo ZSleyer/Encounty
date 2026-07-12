@@ -189,6 +189,49 @@ dialog.t-panel::after {
   content: none;
 }
 
+/* CRT reveal for every native <dialog> in the app (not just .t-panel ones):
+   unfolds from a center line on open, collapses back into one on close
+   (old-TV power-on, mirrored). `display`/`overlay` use allow-discrete so the
+   UA keeps rendering the dialog in the top layer for the duration of the
+   close transition instead of yanking it instantly. */
+dialog {
+  /* -2px, not 0: clipping exactly at the border edge shaves off the
+     corner-bracket hairlines (they render on the border-box boundary), so
+     the fully-open state needs a hair of breathing room around it. */
+  clip-path: inset(-2px);
+  opacity: 1;
+  transition:
+    clip-path 240ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 200ms ease-out,
+    overlay 240ms allow-discrete,
+    display 240ms allow-discrete;
+}
+
+dialog::backdrop {
+  transition: opacity 240ms ease-out;
+  opacity: 1;
+}
+
+dialog:not([open]) {
+  clip-path: inset(50% 0 50% 0);
+  opacity: 0;
+}
+
+dialog:not([open])::backdrop {
+  opacity: 0;
+}
+
+@starting-style {
+  dialog[open] {
+    clip-path: inset(50% 0 50% 0);
+    opacity: 0;
+  }
+
+  dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
 /* Hatch texture: faint 135deg diagonal hairlines. */
 .t-hatch {
   background-image: repeating-linear-gradient(
@@ -959,13 +1002,6 @@ code {
   }
 }
 
-@keyframes t-flicker-in {
-  0% { opacity: 0; }
-  40% { opacity: 1; }
-  55% { opacity: 0.25; }
-  100% { opacity: 1; }
-}
-
 .anim-t-reveal {
   animation: t-reveal 240ms cubic-bezier(0.7, 0, 0.2, 1) both;
 }
@@ -974,8 +1010,33 @@ code {
   animation: t-reveal-rtl 240ms cubic-bezier(0.7, 0, 0.2, 1) both;
 }
 
-.anim-t-flicker {
-  animation: t-flicker-in 150ms linear both;
+/* CRT reveal: unfolds from a center line (old-TV power-on, reversed) instead
+   of the opacity flicker this replaces. Entrance-only by default, for plain
+   `role="dialog"` overlays that don't get a native close transition
+   (App.tsx fatal-error / license screens, the Dashboard tutorial modal).
+   `@starting-style` fires on first paint, so no JS mount hook is needed. */
+.anim-t-crt-in {
+  /* -2px, not 0: see the `dialog` rule above — clipping exactly at the edge
+     shaves off this panel's own border/corner-bracket hairlines. */
+  clip-path: inset(-2px);
+  opacity: 1;
+  transition: clip-path 240ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease-out;
+}
+
+@starting-style {
+  .anim-t-crt-in {
+    clip-path: inset(50% 0 50% 0);
+    opacity: 0;
+  }
+}
+
+/* When this class sits inside a native <dialog> (the "full-screen shell +
+   inner panel" modals, e.g. ImportTemplatesModal), the dialog's own
+   allow-discrete close transition keeps everything rendered long enough for
+   this descendant rule to also mirror the collapse on close. */
+dialog:not([open]) .anim-t-crt-in {
+  clip-path: inset(50% 0 50% 0);
+  opacity: 0;
 }
 
 /* ── Reduced-motion gating ───────────────────────────────────────

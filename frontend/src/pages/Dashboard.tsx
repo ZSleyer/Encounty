@@ -146,10 +146,7 @@ function PokemonTimer({ pokemon, send, disabled = false, timerStartBlocked = fal
       {editOpen && (
         <SetTimerModal
           currentMs={computeTimerMs(pokemon)}
-          onSave={(ms) => {
-            send("timer_set", { pokemon_id: pokemon.id, ms });
-            setEditOpen(false);
-          }}
+          onSave={(ms) => send("timer_set", { pokemon_id: pokemon.id, ms })}
           onClose={() => setEditOpen(false)}
         />
       )}
@@ -158,10 +155,7 @@ function PokemonTimer({ pokemon, send, disabled = false, timerStartBlocked = fal
           title={t("confirm.timerResetTitle")}
           message={t("confirm.timerResetMsg")}
           isDestructive
-          onConfirm={() => {
-            send("timer_reset", { pokemon_id: pokemon.id });
-            setConfirmResetOpen(false);
-          }}
+          onConfirm={() => send("timer_reset", { pokemon_id: pokemon.id })}
           onClose={() => setConfirmResetOpen(false)}
         />
       )}
@@ -865,7 +859,6 @@ function requestBulkDelete(
     onConfirm: () => {
       for (const id of selectedIds) void fetch(apiUrl(`/api/pokemon/${id}`), { method: "DELETE" }).catch(() => {});
       setSelectedIds(new Set());
-      setConfirmConfig(prev => ({ ...prev, isOpen: false }));
     },
   });
 }
@@ -1989,7 +1982,6 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    setShowAddModal(false);
   };
   const handleSavePokemon = async (id: string, data: NewPokemonData) => {
     const p = appState!.pokemon.find((x) => x.id === id);
@@ -2015,7 +2007,6 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
         body: JSON.stringify({ ms: newTimerMs }),
       });
     }
-    setEditingPokemon(null);
   };
 
   const handleDetectorConfigChange = (pokemonId: string, cfg: DetectorConfig | null) =>
@@ -2552,7 +2543,6 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
         isDestructive: true,
         onConfirm: () => {
           void fetch(apiUrl(`/api/groups/${g.id}`), { method: "DELETE" }).catch(() => {});
-          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
         },
       });
       return;
@@ -2973,10 +2963,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       {setEncounterPokemon && (
         <SetEncounterModal
           pokemon={setEncounterPokemon}
-          onSave={(count) => {
-            send("set_encounters", { pokemon_id: setEncounterPokemon.id, count });
-            setSetEncounterPokemon(null);
-          }}
+          onSave={(count) => send("set_encounters", { pokemon_id: setEncounterPokemon.id, count })}
           onClose={() => setSetEncounterPokemon(null)}
         />
       )}
@@ -2992,7 +2979,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
           onClick={(e) => { if (e.target === e.currentTarget) setPendingTab(null); }}
         >
-          <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-flicker">
+          <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
             <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />
             </div>

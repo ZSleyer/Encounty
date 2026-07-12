@@ -31,10 +31,8 @@ export default {
       animation: {
         // Functional UI feedback animations kept for the main app:
         // - flash: highlights a Pokemon row when it's auto-detected
-        // - slide-in: modal entrance
         // - float: legacy sprite idle option still referenced by Overlay.tsx
         flash: "flash 0.4s ease-out",
-        "slide-in": "slideIn 0.2s ease-out",
         float: "float 3s ease-in-out infinite",
         "overlay-fade-in": "overlay-fade-in 0.4s ease-out",
         "overlay-slide-in": "overlay-slide-in 0.3s ease-out",
@@ -69,10 +67,6 @@ export default {
         flash: {
           "0%, 100%": { backgroundColor: "transparent" },
           "50%": { backgroundColor: "rgba(74, 158, 255, 0.3)" },
-        },
-        slideIn: {
-          from: { opacity: "0", transform: "translateY(-8px)" },
-          to: { opacity: "1", transform: "translateY(0)" },
         },
         float: {
           "0%, 100%": { transform: "translateY(0px)" },

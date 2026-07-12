@@ -36,6 +36,7 @@ import { gameSupportsCharm } from "../../utils/gameGroups";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
 import { useToast } from "../../contexts/ToastContext";
+import { useDialogClose } from "../../hooks/useDialogClose";
 
 // --- Exported types ---
 
@@ -100,7 +101,7 @@ export interface GroupOption {
 export type PokemonFormModalProps =
   | {
       mode: "add";
-      onSubmit: (data: NewPokemonData) => void;
+      onSubmit: (data: NewPokemonData) => void | Promise<void>;
       onClose: () => void;
       activeLanguages?: string[];
       groups?: GroupOption[];
@@ -110,7 +111,7 @@ export type PokemonFormModalProps =
   | {
       mode: "edit";
       pokemon: ExistingPokemonData;
-      onSubmit: (id: string, data: NewPokemonData) => void;
+      onSubmit: (id: string, data: NewPokemonData) => void | Promise<void>;
       onClose: () => void;
       activeLanguages?: string[];
       groups?: GroupOption[];
@@ -347,13 +348,20 @@ function applyEditModeMatch(
   }
 }
 
-/** Dispatch the submit action based on modal mode (add vs edit). */
-function submitByMode(props: Readonly<PokemonFormModalProps>, data: NewPokemonData) {
-  if (props.mode === "edit") {
-    props.onSubmit(props.pokemon.id, data);
-  } else {
-    props.onSubmit(data);
-    props.onClose();
+/** Dispatch the submit action based on modal mode (add vs edit), then play the
+ *  dialog's close transition. Awaits `onSubmit` first (it may be async, e.g.
+ *  a save request) so the dialog stays open — and visibly submitting — until
+ *  the request settles, succeed or fail, instead of closing instantly and
+ *  leaving the caller to close it later with no transition to play. */
+async function submitByMode(props: Readonly<PokemonFormModalProps>, data: NewPokemonData, close: () => void) {
+  try {
+    if (props.mode === "edit") {
+      await props.onSubmit(props.pokemon.id, data);
+    } else {
+      await props.onSubmit(data);
+    }
+  } finally {
+    close();
   }
 }
 
@@ -871,13 +879,10 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       group_id: groupId,
       tags,
     };
-    submitByMode(props, data);
+    void submitByMode(props, data, handleCancel);
   };
 
-  const handleCancel = () => {
-    dialogRef.current?.close();
-    props.onClose();
-  };
+  const handleCancel = useDialogClose(dialogRef, props.onClose);
 
   // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
   useEffect(() => {
@@ -917,7 +922,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="pokemon-form-title"
-      className="t-panel anim-t-flicker m-auto rounded-none p-0 w-full max-w-2xl backdrop:bg-black/70"
+      className="t-panel m-auto rounded-none p-0 w-full max-w-2xl backdrop:bg-black/70"
     >
       {/* Modal anatomy: hairline-separated header / scrollable body / footer. */}
       <div className="grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[85vh]">

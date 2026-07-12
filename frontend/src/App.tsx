@@ -71,7 +71,7 @@ function UpdateOverlay({
       tabIndex={-1}
       className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
-      <div className="t-panel p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl anim-t-flicker">
+      <div className="t-panel p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl anim-t-crt-in">
         <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
         <div className="text-center space-y-2">
           <p id="update-overlay-title" className="text-lg font-semibold text-text-primary">
@@ -113,7 +113,7 @@ function UpdateNotification({
       tabIndex={-1}
       className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
-      <div className="t-panel p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-flicker">
+      <div className="t-panel p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
         <div className="w-14 h-14 rounded-none bg-accent-blue/15 flex items-center justify-center">
           <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
         </div>
@@ -171,7 +171,7 @@ function CloseTabWarning({
       tabIndex={-1}
       className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
-      <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-flicker">
+      <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
         <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
           <AlertTriangle className="w-7 h-7 text-amber-500" />
         </div>

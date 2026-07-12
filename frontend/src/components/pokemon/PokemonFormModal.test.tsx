@@ -227,7 +227,10 @@ describe("PokemonFormModal", () => {
       await userEvent.click(submitBtn!);
 
       expect(onSubmit).toHaveBeenCalledTimes(1);
-      expect(onClose).toHaveBeenCalledTimes(1);
+      // onClose is deferred until the dialog's close transition finishes (or
+      // the hook's fallback timeout fires — jsdom doesn't run real CSS
+      // transitions), not called in the same tick as the click.
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     });
 
     it("shows browse mode suggestions when input is focused with empty query", async () => {
@@ -555,7 +558,10 @@ describe("PokemonFormModal", () => {
       await userEvent.click(cancelBtn!);
 
       expect(HTMLDialogElement.prototype.close).toHaveBeenCalled();
-      expect(onClose).toHaveBeenCalledTimes(1);
+      // onClose is deferred until the dialog's close transition finishes (or
+      // the hook's fallback timeout fires — jsdom doesn't run real CSS
+      // transitions), not called in the same tick as the click.
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     });
 
     it("calls onClose when X close button is clicked", async () => {
@@ -571,7 +577,7 @@ describe("PokemonFormModal", () => {
       expect(closeButtons.length).toBeGreaterThan(0);
       await userEvent.click(closeButtons[0]);
 
-      expect(onClose).toHaveBeenCalledTimes(1);
+      await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
     });
 
     it("calls onClose when dialog cancel event fires (Escape key)", async () => {

@@ -62,7 +62,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
       aria-modal="true"
       aria-labelledby="license-title"
     >
-      <div className="t-panel anim-t-flicker shadow-2xl w-full max-w-2xl h-[min(90vh,720px)] flex flex-col">
+      <div className="t-panel anim-t-crt-in shadow-2xl w-full max-w-2xl h-[min(90vh,720px)] flex flex-col">
         {/* Header */}
         <div className="px-8 pt-8 pb-4 flex flex-col items-center gap-4 shrink-0">
           <div className="flex items-center gap-4">

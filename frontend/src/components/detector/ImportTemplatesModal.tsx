@@ -10,6 +10,7 @@ import { createPortal } from "react-dom";
 import { useCounterStore } from "../../hooks/useCounterState";
 import { useI18n } from "../../contexts/I18nContext";
 import { apiUrl } from "../../utils/api";
+import { useDialogClose } from "../../hooks/useDialogClose";
 
 export type ImportTemplatesModalProps = Readonly<{
   currentPokemonId: string;
@@ -33,10 +34,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
   useEffect(() => { dialogRef.current?.showModal(); }, []);
 
   /** Close the native dialog, then notify the parent. Also handles Escape via onCancel. */
-  const handleCancel = () => {
-    dialogRef.current?.close();
-    onClose();
-  };
+  const handleCancel = useDialogClose(dialogRef, onClose);
 
   const candidates = useMemo(() => {
     const all = (appState?.pokemon ?? []).filter(
@@ -62,7 +60,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
       />
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- stops event propagation to backdrop */}
       <div
-        className="t-panel anim-t-flicker shadow-2xl w-full max-w-lg flex flex-col"
+        className="t-panel anim-t-crt-in shadow-2xl w-full max-w-lg flex flex-col"
         style={{ maxHeight: "min(80vh, 600px)" }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { Pokemon } from "../../types";
+import { useDialogClose } from "../../hooks/useDialogClose";
 
 interface SetEncounterModalProps {
   readonly pokemon: Pokemon;
@@ -22,10 +23,7 @@ export function SetEncounterModal({ pokemon, onSave, onClose }: Readonly<SetEnco
     inputRef.current?.select();
   }, []);
 
-  const handleCancel = () => {
-    dialogRef.current?.close();
-    onClose();
-  };
+  const handleCancel = useDialogClose(dialogRef, onClose);
 
   // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
   useEffect(() => {
@@ -48,7 +46,7 @@ export function SetEncounterModal({ pokemon, onSave, onClose }: Readonly<SetEnco
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="set-encounter-title"
-      className="m-auto t-panel p-6 w-full max-w-sm anim-t-flicker backdrop:bg-black/70"
+      className="m-auto t-panel p-6 w-full max-w-sm backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-4">
         <h2 id="set-encounter-title" className="text-lg font-bold text-text-primary">

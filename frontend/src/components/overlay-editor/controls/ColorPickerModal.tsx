@@ -6,6 +6,7 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "../../../contexts/I18nContext";
+import { useDialogClose } from "../../../hooks/useDialogClose";
 
 // --- HSV / RGB / Hex conversion utilities ---
 
@@ -233,10 +234,7 @@ export function ColorPickerModal({
     setHexInput(preset.replace("#", "").toUpperCase());
   };
 
-  const handleCancel = () => {
-    dialogRef.current?.close();
-    onClose();
-  };
+  const handleCancel = useDialogClose(dialogRef, onClose);
 
   // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>).
   // We listen for `mousedown` (not `click`) on the document and only close if the
@@ -265,8 +263,7 @@ export function ColorPickerModal({
   const handleConfirm = () => {
     const finalHex = hsvToHex(h, s, v);
     onConfirm(finalHex, showOpacity ? opacity : undefined);
-    dialogRef.current?.close();
-    onClose();
+    handleCancel();
   };
 
   const currentHex = hsvToHex(h, s, v);
@@ -276,7 +273,7 @@ export function ColorPickerModal({
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-xs animate-slide-in backdrop:bg-black/70"
+      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-xs backdrop:bg-black/70"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">

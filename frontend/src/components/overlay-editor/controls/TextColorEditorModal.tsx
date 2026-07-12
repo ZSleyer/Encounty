@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
 import type { GradientStop } from "../../../types";
+import { useDialogClose } from "../../../hooks/useDialogClose";
 
 interface TextColorEditorModalProps {
   readonly colorType: "solid" | "gradient";
@@ -33,16 +34,18 @@ export function TextColorEditorModal({
     dialogRef.current?.showModal();
   }, []);
 
+  const handleCancel = useDialogClose(dialogRef, onClose);
+
   // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) onClose();
+      if (e.target === dialog) handleCancel();
     };
     dialog.addEventListener("click", handleBackdropClick);
     return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [onClose]);
+  }, [handleCancel]);
 
   const [colorType, setColorType] = useState<"solid" | "gradient">(initialColorType);
   const [color, setColor] = useState(initialColor);
@@ -63,14 +66,14 @@ export function TextColorEditorModal({
     <dialog
       ref={dialogRef}
       className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm backdrop:bg-black/70"
-      onCancel={onClose}
+      onCancel={handleCancel}
     >
       {/* --- Header --- */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
           Textfarbe bearbeiten
         </h2>
-        <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']" title={t("tooltip.common.close")}>
+        <button onClick={handleCancel} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']" title={t("tooltip.common.close")}>
           <X size={16} />
         </button>
       </div>
@@ -139,14 +142,17 @@ export function TextColorEditorModal({
       <div className="flex gap-3 mt-5">
         <button
           className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
-          onClick={onClose}
+          onClick={handleCancel}
           title={t("tooltip.common.cancel")}
         >
           {t("tooltip.common.cancel")}
         </button>
         <button
           className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
-          onClick={() => onConfirm(colorType, color, gradientStops, gradientAngle)}
+          onClick={() => {
+            onConfirm(colorType, color, gradientStops, gradientAngle);
+            handleCancel();
+          }}
           title={t("tooltip.common.apply")}
         >
           {t("tooltip.common.apply")}

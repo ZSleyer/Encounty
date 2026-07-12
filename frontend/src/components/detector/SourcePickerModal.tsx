@@ -11,6 +11,7 @@ import { X, Monitor, AppWindow, Camera, RefreshCw, Settings as SettingsIcon } fr
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
 import { useCounterStore } from "../../hooks/useCounterState";
+import { useDialogClose } from "../../hooks/useDialogClose";
 import { apiUrl } from "../../utils/api";
 import {
   getLastSource,
@@ -607,10 +608,10 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
 
   // --- Handlers --------------------------------------------------------------
 
+  const closeDialog = useDialogClose(dialogRef, onClose);
   const handleCancel = () => {
     stopAllCameraStreams(cameras);
-    dialogRef.current?.close();
-    onClose();
+    closeDialog();
   };
 
   // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
@@ -715,7 +716,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
-      className="m-auto t-panel anim-t-flicker p-0 w-full max-w-2xl backdrop:bg-black/70"
+      className="m-auto t-panel p-0 w-full max-w-2xl backdrop:bg-black/70"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3">

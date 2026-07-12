@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, userEvent, makeAppState, makePokemon } from "../../test-utils";
+import { render, screen, waitFor, userEvent, makeAppState, makePokemon } from "../../test-utils";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { useCounterStore } from "../../hooks/useCounterState";
 import type { DetectorConfig, DetectorTemplate } from "../../types";
@@ -161,10 +161,13 @@ describe("ImportTemplatesModal", () => {
     if (!closeBtn) throw new Error("Close button not found");
     await user.click(closeBtn);
 
-    expect(onClose).toHaveBeenCalled();
+    // onClose is deferred until the dialog's close transition finishes (or
+    // the hook's fallback timeout fires — jsdom doesn't run real CSS
+    // transitions), not called in the same tick as the click.
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 
-  it("closes modal on Escape key press (native dialog cancel event)", () => {
+  it("closes modal on Escape key press (native dialog cancel event)", async () => {
     const onClose = vi.fn();
     render(
       <ImportTemplatesModal currentPokemonId="current" onImport={vi.fn()} onClose={onClose} />,
@@ -175,8 +178,8 @@ describe("ImportTemplatesModal", () => {
     const dialog = document.querySelector("dialog");
     expect(dialog).not.toBeNull();
     dialog!.dispatchEvent(new Event("cancel", { bubbles: true }));
-    expect(onClose).toHaveBeenCalledTimes(1);
     expect(HTMLDialogElement.prototype.close).toHaveBeenCalled();
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it("shows no search results when search matches nothing", async () => {
@@ -332,7 +335,7 @@ describe("ImportTemplatesModal", () => {
     expect(backdrop).toBeDefined();
     if (backdrop) {
       await user.click(backdrop);
-      expect(onClose).toHaveBeenCalled();
+      await waitFor(() => expect(onClose).toHaveBeenCalled());
     }
   });
 });

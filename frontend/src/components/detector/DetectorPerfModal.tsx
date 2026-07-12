@@ -18,6 +18,7 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import { X, Activity, Cpu, MonitorCog } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { getActiveLoop } from "../../engine/DetectionLoop";
+import { useDialogClose } from "../../hooks/useDialogClose";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -146,10 +147,7 @@ export default function DetectorPerfModal({
   const inElectron = Boolean(window.electronAPI?.isElectron);
   const gpuDevice = describeGpuDevice(gpuInfo);
 
-  const handleCancel = () => {
-    dialogRef.current?.close();
-    onClose();
-  };
+  const handleCancel = useDialogClose(dialogRef, onClose);
 
   // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
   useEffect(() => {
@@ -169,7 +167,7 @@ export default function DetectorPerfModal({
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center m-0 p-0 border-none max-w-none max-h-none w-full h-full"
       aria-label={t("perfModal.title")}
     >
-      <div className="t-panel anim-t-flicker shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+      <div className="t-panel anim-t-crt-in shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
           <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">

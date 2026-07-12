@@ -11,6 +11,7 @@ import { Plus, X, ArrowUp, ArrowDown, Trash2, Check } from "lucide-react";
 import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
+import { useDialogClose } from "../../hooks/useDialogClose";
 import {
   createGroup,
   deleteGroup,
@@ -66,10 +67,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
   }, []);
 
   // Close on Escape (native <dialog> onCancel).
-  const handleCancel = () => {
-    dialogRef.current?.close();
-    onClose();
-  };
+  const handleCancel = useDialogClose(dialogRef, onClose);
 
   // Close on backdrop click.
   useEffect(() => {
@@ -145,7 +143,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
         onCancel={handleCancel}
         aria-modal="true"
         aria-labelledby="group-mgmt-title"
-        className="m-auto t-panel p-6 w-full max-w-lg anim-t-flicker backdrop:bg-black/70"
+        className="m-auto t-panel p-6 w-full max-w-lg backdrop:bg-black/70"
       >
         <div className="flex items-center justify-between mb-5">
           <h2 id="group-mgmt-title" className="text-lg font-bold text-text-primary">

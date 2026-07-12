@@ -1,6 +1,7 @@
 import { useRef, useEffect } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useDialogClose } from "../../hooks/useDialogClose";
 
 interface ConfirmModalProps {
   readonly title: string;
@@ -30,10 +31,7 @@ export function ConfirmModal({
     dialogRef.current?.showModal();
   }, []);
 
-  const handleCancel = () => {
-    dialogRef.current?.close();
-    onClose();
-  };
+  const handleCancel = useDialogClose(dialogRef, onClose);
 
   // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
   useEffect(() => {
@@ -56,7 +54,7 @@ export function ConfirmModal({
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="confirm-modal-title"
-      className={`m-auto t-panel ${isDestructive ? "t-panel--danger " : ""}p-6 w-full max-w-md anim-t-flicker backdrop:bg-black/70`}
+      className={`m-auto t-panel ${isDestructive ? "t-panel--danger " : ""}p-6 w-full max-w-md backdrop:bg-black/70`}
     >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">

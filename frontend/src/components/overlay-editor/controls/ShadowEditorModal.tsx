@@ -6,6 +6,7 @@ import { NumSlider } from "./NumSlider";
 import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
 import type { GradientStop } from "../../../types";
+import { useDialogClose } from "../../../hooks/useDialogClose";
 
 export interface ShadowConfirmParams {
   readonly enabled: boolean;
@@ -58,16 +59,18 @@ export function ShadowEditorModal({
     dialogRef.current?.showModal();
   }, []);
 
+  const handleCancel = useDialogClose(dialogRef, onClose);
+
   // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
     const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) onClose();
+      if (e.target === dialog) handleCancel();
     };
     dialog.addEventListener("click", handleBackdropClick);
     return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [onClose]);
+  }, [handleCancel]);
 
   const [enabled, setEnabled] = useState(initialEnabled);
   const [color, setColor] = useState(initialColor);
@@ -119,15 +122,15 @@ export function ShadowEditorModal({
   return (
     <dialog
       ref={dialogRef}
-      className="m-auto t-panel anim-t-flicker p-6 w-full max-w-sm backdrop:bg-black/70"
-      onCancel={onClose}
+      className="m-auto t-panel p-6 w-full max-w-sm backdrop:bg-black/70"
+      onCancel={handleCancel}
     >
       {/* --- Header --- */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
           Schatten bearbeiten
         </h2>
-        <button title={t("tooltip.common.close")} onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']">
+        <button title={t("tooltip.common.close")} onClick={handleCancel} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']">
           <X size={16} />
         </button>
       </div>
@@ -250,14 +253,17 @@ export function ShadowEditorModal({
         <button
           title={t("tooltip.common.cancel")}
           className="flex-1 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
-          onClick={onClose}
+          onClick={handleCancel}
         >
           {t("tooltip.common.cancel")}
         </button>
         <button
           title={t("tooltip.common.apply")}
           className="flex-1 py-2 t-cut rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors"
-          onClick={() => onConfirm({ enabled, color, colorType, gradientStops, gradientAngle, blur, x: sx, y: sy })}
+          onClick={() => {
+            onConfirm({ enabled, color, colorType, gradientStops, gradientAngle, blur, x: sx, y: sy });
+            handleCancel();
+          }}
         >
           {t("tooltip.common.apply")}
         </button>

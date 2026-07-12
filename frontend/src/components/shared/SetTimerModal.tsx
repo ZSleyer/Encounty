@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useDialogClose } from "../../hooks/useDialogClose";
 
 interface SetTimerModalProps {
   readonly currentMs: number;
@@ -28,10 +29,7 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
     hoursRef.current?.select();
   }, []);
 
-  const handleCancel = () => {
-    dialogRef.current?.close();
-    onClose();
-  };
+  const handleCancel = useDialogClose(dialogRef, onClose);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -56,7 +54,7 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="set-timer-title"
-      className="m-auto t-panel p-6 w-full max-w-sm anim-t-flicker backdrop:bg-black/70"
+      className="m-auto t-panel p-6 w-full max-w-sm backdrop:bg-black/70"
     >
       <div className="flex items-center justify-between mb-4">
         <h2 id="set-timer-title" className="text-lg font-bold text-text-primary">
