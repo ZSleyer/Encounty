@@ -5,6 +5,7 @@ import { useCounterStore, DetectorStatusEntry } from "../../hooks/useCounterStat
 import { useI18n } from "../../contexts/I18nContext";
 import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
 import { SPRITE_FALLBACK } from "../../utils/sprites";
+import { getOddsFractional } from "../../utils/odds";
 import { DetectorPreview } from "../detector/DetectorPreview";
 import { DEFAULT_PRECISION } from "../../engine/detectorDefaults";
 
@@ -130,18 +131,20 @@ export function PokemonCard({
           </div>
         </div>
 
-        {/* Counter — the hero; fluid size mirrors the single-hunt counter. */}
+        {/* Counter — mirrors the single-hunt hero: raw number with the odds
+            micro label below instead of a boxed stat. */}
         <div
           aria-live="polite"
           aria-atomic="true"
-          className={`text-center w-full bg-bg-secondary rounded-none py-4 2xl:py-5 border border-border-subtle transition-colors duration-200 ${isFlashing ? "bg-accent-blue/20 border-accent-blue/50" : ""}`}
+          className={`flex flex-col items-center gap-2 w-full py-2 2xl:py-3 transition-colors duration-200 ${isFlashing ? "bg-accent-blue/15" : ""}`}
         >
           <span className="text-[clamp(32px,4vw,56px)] font-black text-text-primary tabular-nums tracking-tight leading-none">
             {pokemon.encounters}
           </span>
-          <p className="text-[10px] 2xl:text-xs text-text-muted uppercase tracking-widest font-bold mt-0.5">
-            {t("dash.encounters")}
-          </p>
+          <span className="t-label t-label--accent" title={t("aria.odds")}>
+            {t("dash.odds")}{" "}
+            <span className="tabular-nums">{getOddsFractional(pokemon)}</span>
+          </span>
         </div>
 
         {/* Primary Controls: same secondary / primary-cut / ghost hierarchy as the hero. */}
