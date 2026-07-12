@@ -3,6 +3,7 @@ import { render, screen, fireEvent, makePokemon } from "../../test-utils";
 import { PokemonCard } from "./PokemonCard";
 import { useCounterStore } from "../../hooks/useCounterState";
 import type { DetectorConfig } from "../../types";
+import { SPRITE_FALLBACK } from "../../utils/sprites";
 
 // Controllable capture service so preview-related branches can be exercised.
 const captureState = vi.hoisted(() => ({
@@ -118,7 +119,7 @@ describe("PokemonCard", () => {
     const pokemon = makePokemon({ sprite_url: "" });
     render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
     const img = screen.getByAltText("Bisasam");
-    expect(img.getAttribute("src")).toContain("pokemon/0.png");
+    expect(img.getAttribute("src")).toBe(SPRITE_FALLBACK);
   });
 
   it("shows fallback sprite when image fails to load", () => {
@@ -127,7 +128,7 @@ describe("PokemonCard", () => {
     const img = screen.getByAltText("Bisasam");
     // Trigger the error handler
     fireEvent.error(img);
-    expect(img.getAttribute("src")).toContain("pokemon/0.png");
+    expect(img.getAttribute("src")).toBe(SPRITE_FALLBACK);
   });
 
   it("formats game key for display", () => {

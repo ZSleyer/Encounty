@@ -7,8 +7,16 @@ const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
 const POKESPRITE_BASE =
   "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8";
 
-/** Placeholder sprite (PokeAPI's "unknown Pokémon" silhouette) used when a sprite fails to load. */
-export const SPRITE_FALLBACK = `${POKEAPI_BASE}/0.png`;
+const SPRITE_FALLBACK_SVG =
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ` +
+  `stroke="#7a8ea0" stroke-width="1.4" stroke-linecap="round">` +
+  `<circle cx="12" cy="12" r="9.3"/>` +
+  `<path d="M2.7 12h6.6M14.7 12h6.6"/>` +
+  `<circle cx="12" cy="12" r="2.4"/>` +
+  `</svg>`;
+
+/** Placeholder sprite (Tempest pokéball glyph) used when a sprite fails to load or is unset. */
+export const SPRITE_FALLBACK = `data:image/svg+xml,${encodeURIComponent(SPRITE_FALLBACK_SVG)}`;
 
 /** Small default PokeAPI sprite — available for all generations including Gen 9. */
 export function getDefaultSpriteUrl(pokemonId: number | string): string {

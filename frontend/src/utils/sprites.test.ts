@@ -300,8 +300,8 @@ describe("SPRITE_STYLES", () => {
 });
 
 describe("SPRITE_FALLBACK", () => {
-  it("points to PokeAPI's ID 0 sprite", () => {
-    expect(SPRITE_FALLBACK).toBe(`${POKEAPI_BASE}/0.png`);
+  it("is a self-contained inline SVG data URI", () => {
+    expect(SPRITE_FALLBACK).toMatch(/^data:image\/svg\+xml,/);
   });
 });
 

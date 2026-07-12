@@ -977,7 +977,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   }
                   onError={(e) => {
                     const img = e.currentTarget;
-                    if (!img.src.endsWith("/0.png")) {
+                    if (img.src !== SPRITE_FALLBACK) {
                       img.src = SPRITE_FALLBACK;
                     }
                     if (spriteStyle !== "box") markStyleUnavailable(spriteStyle);
@@ -1072,7 +1072,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         }
                         onError={(e) => {
                           const img = e.currentTarget;
-                          if (!img.src.endsWith("/0.png")) {
+                          if (img.src !== SPRITE_FALLBACK) {
                             img.src = SPRITE_FALLBACK;
                           }
                           markStyleUnavailable(s.key);
