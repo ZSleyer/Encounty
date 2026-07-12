@@ -55,7 +55,7 @@ function Toggle({
   enabled,
   onChange,
   label,
-  color = "bg-accent-green/80",
+  color = "bg-accent-blue/80",
 }: Readonly<{
   enabled: boolean;
   onChange: () => void;
@@ -68,12 +68,12 @@ function Toggle({
       role="switch"
       aria-checked={enabled}
       aria-label={label}
-      className={`relative w-12 h-6 2xl:w-14 2xl:h-7 rounded-none transition-colors flex items-center px-1 shrink-0 ${
+      className={`relative w-12 h-6 2xl:w-14 2xl:h-7 rounded-full transition-colors flex items-center px-1 shrink-0 ${
         enabled ? color : "bg-bg-secondary border border-border-subtle"
       }`}
     >
       <div
-        className={`w-4 h-4 bg-white rounded-none shadow-sm transition-transform ${enabled ? "translate-x-6" : "translate-x-0"}`}
+        className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${enabled ? "translate-x-6" : "translate-x-0"}`}
       />
     </button>
   );
@@ -870,7 +870,7 @@ export function Settings() {
                       setSettings({ ...settings, output_enabled: !settings.output_enabled })
                     }
                     label={t("settings.sectionOutput")}
-                    color="bg-accent-yellow/80"
+                    color="bg-accent-blue/80"
                   />
                 </div>
 

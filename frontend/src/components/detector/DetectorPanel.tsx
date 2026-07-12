@@ -874,7 +874,7 @@ export function DetectorPanel({
             ) : (
               <button
                 onClick={startCapture}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
+                className="t-cut flex items-center gap-1.5 px-3 py-1 rounded-none text-xs font-semibold bg-accent-blue text-white hover:bg-accent-blue/90 transition-colors"
                 aria-label={t("detector.connect")}
               >
                 <Video className="w-3.5 h-3.5" />

@@ -1584,7 +1584,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
         <button
           onClick={handleSubmit}
           disabled={!selected}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="t-cut flex-1 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isEdit ? t("modal.save") : t("modal.add")}
         </button>
