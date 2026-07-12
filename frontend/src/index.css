@@ -1,6 +1,18 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
+/* Tempest radius scale: hard corners everywhere. The design language is
+   corner-based (brackets, cuts), so all box radii collapse to 0. Indicator
+   dots and rounded-full elements keep their shape via the full radius. */
+@theme {
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+}
+
 /* ── Z-Index Layers ──────────────────────────────────────────
  *
  * Use these Tailwind utilities consistently to avoid stacking
@@ -24,204 +36,73 @@
 /* ── Theme Variables ─────────────────────────────────────────── */
 :root,
 [data-theme="dark"] {
-  --bg-primary: #0f0f13;
-  --bg-secondary: #1a1a24;
-  --bg-card: #1e1e2e;
-  --bg-hover: #252535;
+  --bg-primary: #0d1117;
+  --bg-secondary: #131922;
+  --bg-card: #161e28;
+  --bg-hover: #1e2836;
   /* --accent-blue is the primary user-themable accent. Its value is driven
-     by [data-accent="..."] selectors below; "blue" is the default. */
-  --accent-blue: #4a9eff;        /* default — ~5.2:1 on #0f0f13 */
-  --accent-green: #34d67a;       /* semantic success — fixed */
-  --accent-yellow: #ffd700;      /* semantic warning — fixed */
-  --accent-red: #f05050;         /* semantic error — fixed */
-  --accent-purple: #b970ff;      /* used in static gradients — fixed */
-  --border-subtle: #333345;
+     by [data-accent="..."] selectors below; "acid" is the default
+     (12.81:1 on #0d1117). */
+  --accent-blue: #c8e04a;
+  --accent-green: #34d67a;       /* semantic success, fixed */
+  --accent-yellow: #ffb020;      /* semantic warning, amber for hue distance from acid */
+  --accent-red: #f05050;         /* semantic error, fixed */
+  --accent-purple: #b970ff;      /* used in static gradients, fixed */
+  --border-subtle: #2a3644;
   --border-active: var(--accent-blue);
   /* WCAG AA compliant text colors on dark backgrounds */
-  --text-primary: #f1f5f9;       /* near-white, crisp */
-  --text-secondary: #b8c9da;     /* ~6.5:1 on #0f0f13 — replaces #94a3b8 (~4.6) */
-  --text-muted: #94aabf;         /* ~4.8:1 on #0f0f13 — replaces #64748b (~2.8) */
-  --text-faint: #7b8fa3;         /* ~4.6:1 on #1e1e2e (bg-card), WCAG AA compliant */
-  --scrollbar-track: #0f0f13;
-  --scrollbar-thumb: #333345;
-  --scrollbar-thumb-hover: #4a5568;
+  --text-primary: #eef3f8;       /* ~15:1 on #0d1117 */
+  --text-secondary: #b7c5d3;     /* 10.76:1 on #0d1117 */
+  --text-muted: #8fa3b5;         /* 6.46:1 on #161e28 (bg-card) */
+  --text-faint: #7a8ea0;         /* 4.96:1 on #161e28 (bg-card) */
+  --scrollbar-track: #0d1117;
+  --scrollbar-thumb: #2a3644;
+  --scrollbar-thumb-hover: #4a5f73;
   color-scheme: dark;
 }
 
 [data-theme="light"] {
-  --bg-primary: #f0f4f8;
-  --bg-secondary: #ffffff;
+  --bg-primary: #eef1f4;
+  --bg-secondary: #f8fafb;
   --bg-card: #ffffff;
-  --bg-hover: #e8edf3;
-  --accent-blue: #1d53cc;        /* default light primary — themed via [data-accent] */
-  --accent-green: #15803d;       /* semantic — fixed */
-  --accent-yellow: #b45309;      /* semantic — fixed */
-  --accent-red: #b91c1c;         /* semantic — fixed */
+  --bg-hover: #e2e7ed;
+  /* Acid olive, 6.22:1 on white. NEVER use raw #c8e04a as text on light
+     surfaces, it fails contrast badly. */
+  --accent-blue: #566800;
+  --accent-green: #15803d;       /* semantic, fixed */
+  --accent-yellow: #b45309;      /* semantic, fixed */
+  --accent-red: #b91c1c;         /* semantic, fixed */
   --accent-purple: #6d28d9;      /* fixed for static gradients */
-  --border-subtle: #c8d3de;      /* stronger than #e2e8f0 — more visible dividers */
+  --border-subtle: #c3ccd6;
   --border-active: var(--accent-blue);
   /* WCAG AA compliant text colors on light backgrounds */
   --text-primary: #0a1628;       /* ~16:1 on white */
   --text-secondary: #2d4059;     /* ~7.8:1 on white — replaces #475569 (~4.3) */
   --text-muted: #4a5f73;         /* ~5.6:1 on white — replaces #94a3b8 (~2.4) */
   --text-faint: #637080;         /* ~4.6:1 on white — replaces #cbd5e1 (~1.5) */
-  --scrollbar-track: #f0f4f8;
-  --scrollbar-thumb: #c8d3de;
-  --scrollbar-thumb-hover: #a0adb8;
+  --scrollbar-track: #eef1f4;
+  --scrollbar-thumb: #c3ccd6;
+  --scrollbar-thumb-hover: #8fa3b5;
   color-scheme: light;
 }
 
 /* ── Accent Color Presets ────────────────────────────────────
    The user picks one of these presets in Settings; JS sets
    `data-accent` on <html> and the matching block below overrides
-   --accent-blue plus the four background tones so the entire UI
-   picks up a subtle tint of the chosen accent (not just buttons).
-   Each preset defines a dark-mode and a light-mode value chosen for
-   WCAG AA contrast against the respective bg.
+   --accent-blue only (surfaces stay neutral, no background tinting).
 
-   The dark backgrounds are very low-saturation shades around the
-   accent's hue; the light backgrounds use even subtler tints so the
-   card/secondary surfaces stay close to white for legibility. */
-[data-accent="blue"] {
-  --accent-blue: #4a9eff;
-  --bg-primary: #0f0f13;
-  --bg-secondary: #1a1a24;
-  --bg-card: #1e1e2e;
-  --bg-hover: #252535;
-  --border-subtle: #333345;
-  --scrollbar-track: #0f0f13;
-  --scrollbar-thumb: #2e2e42;
-  --scrollbar-thumb-hover: #44446a;
-}
-[data-accent="purple"] {
-  --accent-blue: #b970ff;
-  --bg-primary: #110f17;
-  --bg-secondary: #1c1830;
-  --bg-card: #211c3a;
-  --bg-hover: #2a2245;
-  --border-subtle: #3a2f5a;
-  --scrollbar-track: #110f17;
-  --scrollbar-thumb: #322852;
-  --scrollbar-thumb-hover: #4a3c75;
-}
-[data-accent="green"] {
-  --accent-blue: #34d67a;
-  --bg-primary: #0d1310;
-  --bg-secondary: #161f1a;
-  --bg-card: #1c2820;
-  --bg-hover: #232f28;
-  --border-subtle: #2c4035;
-  --scrollbar-track: #0d1310;
-  --scrollbar-thumb: #243528;
-  --scrollbar-thumb-hover: #3a5240;
-}
-[data-accent="cyan"] {
-  --accent-blue: #22d3ee;
-  --bg-primary: #0c1316;
-  --bg-secondary: #151f25;
-  --bg-card: #1b262d;
-  --bg-hover: #222e35;
-  --border-subtle: #2c4048;
-  --scrollbar-track: #0c1316;
-  --scrollbar-thumb: #243440;
-  --scrollbar-thumb-hover: #3a5260;
-}
-[data-accent="pink"] {
-  --accent-blue: #ec4899;
-  --bg-primary: #150f13;
-  --bg-secondary: #211623;
-  --bg-card: #2a1c2c;
-  --bg-hover: #322335;
-  --border-subtle: #432e48;
-  --scrollbar-track: #150f13;
-  --scrollbar-thumb: #382540;
-  --scrollbar-thumb-hover: #553860;
-}
-[data-accent="orange"] {
-  --accent-blue: #fb923c;
-  /* Warm hues at low lightness inevitably read as brown — that's literally
-     what brown is. So orange's dark surfaces stay nearly neutral grey with
-     only a barely-perceptible warm hint, and the vivid #fb923c accent on
-     buttons / borders / active states carries the orange identity. */
-  --bg-primary: #121110;
-  --bg-secondary: #1c1b19;
-  --bg-card: #21201d;
-  --bg-hover: #292724;
-  --border-subtle: #3d3830;
-  --scrollbar-track: #121110;
-  --scrollbar-thumb: #2e2a23;
-  --scrollbar-thumb-hover: #4a4338;
-}
-
-/* Light-mode accent presets. Large background surfaces stay almost
-   neutral (≥97 % lightness, ~3 % saturation) so the accent only really
-   shows up in buttons, borders, active tabs and hover states. */
-[data-theme="light"][data-accent="blue"] {
-  --accent-blue: #1d53cc;
-  --bg-primary: #f6f8fb;
-  --bg-secondary: #ffffff;
-  --bg-card: #ffffff;
-  --bg-hover: #e8edf3;
-  --border-subtle: #c8d3de;
-  --scrollbar-track: #f6f8fb;
-  --scrollbar-thumb: #c5d0dd;
-  --scrollbar-thumb-hover: #95a3b5;
-}
-[data-theme="light"][data-accent="purple"] {
-  --accent-blue: #6d28d9;
-  --bg-primary: #f8f6fc;
-  --bg-secondary: #ffffff;
-  --bg-card: #ffffff;
-  --bg-hover: #ece4f5;
-  --border-subtle: #d6c8e8;
-  --scrollbar-track: #f8f6fc;
-  --scrollbar-thumb: #d2c2e8;
-  --scrollbar-thumb-hover: #a48ac4;
-}
-[data-theme="light"][data-accent="green"] {
-  --accent-blue: #15803d;
-  --bg-primary: #f6faf7;
-  --bg-secondary: #ffffff;
-  --bg-card: #ffffff;
-  --bg-hover: #e3f0e8;
-  --border-subtle: #c5dcce;
-  --scrollbar-track: #f6faf7;
-  --scrollbar-thumb: #c2dccd;
-  --scrollbar-thumb-hover: #8aae98;
-}
-[data-theme="light"][data-accent="cyan"] {
-  --accent-blue: #0e7490;
-  --bg-primary: #f6fafb;
-  --bg-secondary: #ffffff;
-  --bg-card: #ffffff;
-  --bg-hover: #e0eef3;
-  --border-subtle: #c2d8df;
-  --scrollbar-track: #f6fafb;
-  --scrollbar-thumb: #c0d8df;
-  --scrollbar-thumb-hover: #88a8b3;
-}
-[data-theme="light"][data-accent="pink"] {
-  --accent-blue: #be185d;
-  --bg-primary: #fbf7f9;
-  --bg-secondary: #ffffff;
-  --bg-card: #ffffff;
-  --bg-hover: #f3e0eb;
-  --border-subtle: #e5c5d6;
-  --scrollbar-track: #fbf7f9;
-  --scrollbar-thumb: #e5c2d4;
-  --scrollbar-thumb-hover: #b88aa0;
-}
-[data-theme="light"][data-accent="orange"] {
-  --accent-blue: #c2410c;
-  --bg-primary: #fbf8f4;
-  --bg-secondary: #ffffff;
-  --bg-card: #ffffff;
-  --bg-hover: #f3e8d8;
-  --border-subtle: #e3d2b5;
-  --scrollbar-track: #fbf8f4;
-  --scrollbar-thumb: #e3d0b3;
-  --scrollbar-thumb-hover: #b8a07a;
-}
+   Contrast requirements (enforced by the `.bg-accent-blue` rule
+   below, which places var(--bg-primary) text on the accent):
+   each dark value is >= 4.5:1 against #0d1117 and #161e28; each
+   light value is >= 4.5:1 against #eef1f4. */
+[data-accent="acid"]    { --accent-blue: #c8e04a; }
+[data-accent="crimson"] { --accent-blue: #f0507a; }
+[data-accent="cyan"]    { --accent-blue: #3fd4e0; }
+[data-accent="violet"]  { --accent-blue: #a685f0; }
+[data-theme="light"][data-accent="acid"]    { --accent-blue: #566800; }
+[data-theme="light"][data-accent="crimson"] { --accent-blue: #b8144a; }
+[data-theme="light"][data-accent="cyan"]    { --accent-blue: #0e7490; }
+[data-theme="light"][data-accent="violet"]  { --accent-blue: #6d28d9; }
 
 /* ── Background Patterns ───────────────────────────────────── */
 
@@ -732,7 +613,7 @@ code {
 
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar-thumb);
-  border-radius: 4px;
+  border-radius: 0;
 }
 
 ::-webkit-scrollbar-thumb:hover {
