@@ -313,7 +313,7 @@ interface ColorSwatchProps {
   readonly onToggle: () => void;
 }
 
-/** Circular swatch button that reveals/hides the inline palette for a row. */
+/** Square swatch button that reveals/hides the inline palette for a row. */
 function ColorSwatch({ color, expanded, onToggle }: ColorSwatchProps) {
   const { t } = useI18n();
   return (
@@ -322,7 +322,7 @@ function ColorSwatch({ color, expanded, onToggle }: ColorSwatchProps) {
       onClick={onToggle}
       aria-label={t("group.color")}
       aria-expanded={expanded}
-      className="w-6 h-6 rounded-full border border-black/30 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue shrink-0"
+      className="w-6 h-6 rounded-none border border-black/30 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue shrink-0"
       style={{ backgroundColor: color }}
     />
   );
@@ -348,7 +348,7 @@ function ColorPalette({ current, onSelect }: ColorPaletteProps) {
           type="button"
           onClick={() => onSelect(c)}
           aria-label={c}
-          className="w-6 h-6 rounded-full border border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue flex items-center justify-center"
+          className="w-6 h-6 rounded-none border border-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue flex items-center justify-center"
           style={{ backgroundColor: c }}
         >
           {c === current && <Check className="w-3 h-3 text-white drop-shadow" />}

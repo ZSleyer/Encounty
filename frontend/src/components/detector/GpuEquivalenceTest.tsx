@@ -966,9 +966,9 @@ export default function GpuEquivalenceTest({
 
           {/* Progress bar */}
           {running && (
-            <div className="w-full h-2 rounded-full bg-bg-hover overflow-hidden">
+            <div className="w-full h-2 rounded-none bg-bg-hover overflow-hidden">
               <div
-                className="h-full bg-accent rounded-full transition-all duration-200"
+                className="h-full bg-accent rounded-none transition-all duration-200"
                 style={{ width: `${progressPct}%` }}
               />
             </div>

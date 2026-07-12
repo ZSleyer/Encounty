@@ -206,7 +206,7 @@ export function GradientEditorModal({
             aria-valuenow={stop.position}
             aria-valuemin={0}
             aria-valuemax={100}
-            className={`absolute -translate-x-1/2 top-0 w-3 h-3 rounded-full cursor-grab border-2 ${
+            className={`absolute -translate-x-1/2 top-0 w-3 h-3 rounded-none cursor-grab border-2 ${
               selectedIdx === idx ? "border-accent-blue" : "border-border-subtle"
             }`}
             style={{

@@ -772,17 +772,17 @@ export function DetectorPanel({
           {import.meta.env.DEV && (
             <button
               onClick={handleToggleBackend}
-              className="flex items-center gap-0.5 h-5 rounded-full text-[10px] font-medium border shrink-0 transition-colors overflow-hidden"
+              className="flex items-center gap-0.5 h-5 rounded-none text-[10px] font-medium border shrink-0 transition-colors overflow-hidden"
               style={{
                 borderColor: "rgba(148,163,184,0.2)",
                 backgroundColor: "rgba(148,163,184,0.05)",
               }}
               title={`Switch to ${detectorBackend === "gpu" ? "CPU" : "GPU"} backend`}
             >
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
+              <span className={`px-1.5 py-0.5 rounded-none text-[10px] font-semibold transition-colors ${
                 detectorBackend === "gpu" ? "bg-green-500/20 text-green-400" : "text-text-muted"
               }`}>GPU</span>
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold transition-colors ${
+              <span className={`px-1.5 py-0.5 rounded-none text-[10px] font-semibold transition-colors ${
                 detectorBackend === "gpu" ? "text-text-muted" : "bg-yellow-500/20 text-yellow-400"
               }`}>CPU</span>
             </button>
@@ -804,9 +804,9 @@ export function DetectorPanel({
           {/* Confidence bar — only when running */}
           {isRunning && (
             <div className="flex items-center gap-2 flex-1 max-w-xs">
-              <div className="flex-1 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+              <div className="flex-1 h-1.5 bg-bg-primary rounded-none overflow-hidden">
                 <div
-                  className={`h-full rounded-full transition-all duration-150 ${
+                  className={`h-full rounded-none transition-all duration-150 ${
                     confidence >= (activeTemplate?.precision ?? DEFAULT_PRECISION) ? "bg-green-400" : "bg-accent-blue/50"
                   }`}
                   style={{ width: `${Math.min(confidence * 100, 100)}%` }}
@@ -913,7 +913,7 @@ export function DetectorPanel({
                 <span className="text-xs font-semibold text-text-primary whitespace-nowrap">
                   {t("detector.templates")}
                   {templates.length > 0 && (
-                    <span className="ml-1 text-[10px] bg-accent-blue/20 text-accent-blue px-1 py-0.5 rounded-full">
+                    <span className="ml-1 text-[10px] bg-accent-blue/20 text-accent-blue px-1 py-0.5 rounded-none">
                       {templates.length}
                     </span>
                   )}
@@ -1036,7 +1036,7 @@ export function DetectorPanel({
                         >
                           {/* Radio indicator for active selection — disabled for invalid templates */}
                           <div className="absolute top-1 left-1 z-10 pointer-events-none">
-                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center ${
+                            <div className={`w-3.5 h-3.5 rounded-none border-2 flex items-center justify-center ${
                               (() => {
                                 if (tmpl.regions.length === 0) return "border-amber-500/50 bg-transparent";
                                 if (tmpl.enabled === false) return "border-text-muted bg-transparent";
@@ -1057,7 +1057,7 @@ export function DetectorPanel({
                             {/* Invalid template overlay — shown when template has no regions */}
                             {tmpl.regions.length === 0 && (
                               <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center rounded-lg">
-                                <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-full text-xs text-amber-400 font-medium">
+                                <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-none text-xs text-amber-400 font-medium">
                                   <AlertTriangle className="w-3.5 h-3.5" />
                                   {t("templateEditor.templateInvalid")}
                                 </div>

@@ -69,7 +69,7 @@ export function GroupCounterView({
           {/* Group identity with a colour accent bar. */}
           <span
             aria-hidden="true"
-            className="w-1.5 h-7 rounded-full shrink-0"
+            className="w-1.5 h-7 rounded-none shrink-0"
             style={{ backgroundColor: dotColor }}
           />
           <h2 className="text-2xl font-bold text-text-primary truncate min-w-0">
@@ -78,12 +78,12 @@ export function GroupCounterView({
 
           {/* Stat chips: member count + summed encounters. */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums">
+            <span className="text-xs font-medium px-2.5 py-1 rounded-none bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums">
               {t("group.count", { count: members.length })}
             </span>
             <span
               aria-live="polite"
-              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums"
+              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-none bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums"
               title={t("group.totalEncounters", { count: totalEncounters })}
             >
               <Zap className="w-3 h-3 text-accent-yellow" aria-hidden="true" />

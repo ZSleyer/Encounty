@@ -93,7 +93,7 @@ export function TagFilterBar({
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-label={t("tag.add")}
-            className="inline-flex items-center gap-0.5 min-h-[24px] min-w-[24px] px-1.5 py-0.5 rounded-full text-[11px] text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+            className="inline-flex items-center gap-0.5 min-h-[24px] min-w-[24px] px-1.5 py-0.5 rounded-none text-[11px] text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
           >
             <Plus className="w-3 h-3" />
             <span className="sr-only">{t("tag.add")}</span>

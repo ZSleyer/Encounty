@@ -48,11 +48,7 @@ const completedPokemonIds = new Set<string>();
 // Maps accent keys from the pre-Tempest palette to their closest Tempest
 // preset so settings restored from old backups still resolve to a valid value.
 const LEGACY_ACCENTS: Record<string, AccentColor> = {
-  blue: "acid",
-  green: "acid",
   purple: "violet",
-  pink: "crimson",
-  orange: "crimson",
 };
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
@@ -118,7 +114,7 @@ function UpdateNotification({
       className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
-        <div className="w-14 h-14 rounded-full bg-accent-blue/15 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-none bg-accent-blue/15 flex items-center justify-center">
           <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
         </div>
         <div className="text-center space-y-1.5">
@@ -176,7 +172,7 @@ function CloseTabWarning({
       className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
       <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
-        <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
           <AlertTriangle className="w-7 h-7 text-amber-500" />
         </div>
         <div className="text-center space-y-1.5">
@@ -374,10 +370,10 @@ function AppShell() {
   // Tempest presets. The overlay routes use the same accent so the streaming
   // view stays consistent with the rest of the app.
   useEffect(() => {
-    const raw = appState?.settings.accent_color ?? "acid";
+    const raw = appState?.settings.accent_color ?? "violet";
     const accent = (ACCENT_COLORS as readonly string[]).includes(raw)
       ? raw
-      : (LEGACY_ACCENTS[raw] ?? "acid");
+      : (LEGACY_ACCENTS[raw] ?? "violet");
     document.documentElement.dataset.accent = accent;
   }, [appState?.settings.accent_color]);
 
@@ -763,7 +759,7 @@ function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
     <Link
       to={to}
       aria-current={isActive ? "page" : undefined}
-      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs 2xl:text-sm font-medium transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
+      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs 2xl:text-sm font-medium uppercase tracking-[0.18em] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
         isActive
           ? "text-accent-blue"
           : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -772,7 +768,7 @@ function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
       {icon}
       {children}
       {isActive && (
-        <span className="absolute bottom-0 left-2 right-2 h-px bg-accent-blue rounded-full" />
+        <span className="absolute bottom-0 left-2 right-2 h-px bg-accent-blue" />
       )}
     </Link>
   );
@@ -935,7 +931,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
               onClick={handleOnlineSetup}
               className="flex flex-col items-center gap-3 p-6 rounded-2xl border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
             >
-              <div className="w-12 h-12 rounded-full bg-accent-blue/15 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-none bg-accent-blue/15 flex items-center justify-center">
                 <Globe className="w-6 h-6 text-accent-blue" />
               </div>
               <span className="text-sm font-semibold text-text-primary">{t("app.setupOnline")}</span>
@@ -945,7 +941,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
               onClick={handleOfflineSetup}
               className="flex flex-col items-center gap-3 p-6 rounded-2xl border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
             >
-              <div className="w-12 h-12 rounded-full bg-accent-blue/15 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-none bg-accent-blue/15 flex items-center justify-center">
                 <HardDrive className="w-6 h-6 text-accent-blue" />
               </div>
               <span className="text-sm font-semibold text-text-primary">{t("app.setupOffline")}</span>

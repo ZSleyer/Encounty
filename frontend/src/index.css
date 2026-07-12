@@ -41,9 +41,9 @@
   --bg-card: #161e28;
   --bg-hover: #1e2836;
   /* --accent-blue is the primary user-themable accent. Its value is driven
-     by [data-accent="..."] selectors below; "acid" is the default
-     (12.81:1 on #0d1117). */
-  --accent-blue: #c8e04a;
+     by [data-accent="..."] selectors below; "violet" is the default
+     (6.52:1 on #0d1117). */
+  --accent-blue: #a685f0;
   --accent-green: #34d67a;       /* semantic success, fixed */
   --accent-yellow: #ffb020;      /* semantic warning, amber for hue distance from acid */
   --accent-red: #f05050;         /* semantic error, fixed */
@@ -66,9 +66,9 @@
   --bg-secondary: #f8fafb;
   --bg-card: #ffffff;
   --bg-hover: #e2e7ed;
-  /* Acid olive, 6.22:1 on white. NEVER use raw #c8e04a as text on light
-     surfaces, it fails contrast badly. */
-  --accent-blue: #566800;
+  /* Violet default, 7.10:1 on white. For acid, only the olive #566800 is
+     allowed on light surfaces, NEVER raw #c8e04a (fails contrast badly). */
+  --accent-blue: #6d28d9;
   --accent-green: #15803d;       /* semantic, fixed */
   --accent-yellow: #b45309;      /* semantic, fixed */
   --accent-red: #b91c1c;         /* semantic, fixed */
@@ -95,14 +95,113 @@
    below, which places var(--bg-primary) text on the accent):
    each dark value is >= 4.5:1 against #0d1117 and #161e28; each
    light value is >= 4.5:1 against #eef1f4. */
+[data-accent="violet"]  { --accent-blue: #a685f0; }
 [data-accent="acid"]    { --accent-blue: #c8e04a; }
 [data-accent="crimson"] { --accent-blue: #f0507a; }
 [data-accent="cyan"]    { --accent-blue: #3fd4e0; }
-[data-accent="violet"]  { --accent-blue: #a685f0; }
+[data-accent="blue"]    { --accent-blue: #7ab8ff; }
+[data-accent="green"]   { --accent-blue: #3fe08c; }
+[data-accent="pink"]    { --accent-blue: #f47ad0; }
+[data-accent="orange"]  { --accent-blue: #ffa14a; }
+[data-theme="light"][data-accent="violet"]  { --accent-blue: #6d28d9; }
 [data-theme="light"][data-accent="acid"]    { --accent-blue: #566800; }
 [data-theme="light"][data-accent="crimson"] { --accent-blue: #b8144a; }
 [data-theme="light"][data-accent="cyan"]    { --accent-blue: #0e7490; }
-[data-theme="light"][data-accent="violet"]  { --accent-blue: #6d28d9; }
+[data-theme="light"][data-accent="blue"]    { --accent-blue: #1d53cc; }
+[data-theme="light"][data-accent="green"]   { --accent-blue: #14753a; }
+[data-theme="light"][data-accent="pink"]    { --accent-blue: #be185d; }
+[data-theme="light"][data-accent="orange"]  { --accent-blue: #c2410c; }
+
+/* ── Tempest surface utilities ───────────────────────────────
+   Shared vocabulary of the Tempest skin: hairline panels with corner
+   brackets, hatch texture, uppercase micro-labels, dashed frames and
+   corner-cut CTAs. Severity is expressed through the bracket color
+   (via --panel-bracket) OR the border, never both. */
+
+/* Panel: flat card with hairline border and 10px L-brackets in the
+   top-left / bottom-right corners. */
+.t-panel {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+}
+
+.t-panel::before,
+.t-panel::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+
+.t-panel::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+  border-left: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+}
+
+.t-panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+  border-right: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+}
+
+/* Danger panel: severity goes into the brackets only. */
+.t-panel--danger {
+  --panel-bracket: var(--accent-red);
+}
+
+/* Hatch texture: faint 135deg diagonal hairlines. */
+.t-hatch {
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--text-primary) 3%, transparent) 7px 8px
+  );
+}
+
+/* Micro label chip: uppercase spaced-out tag with a hairline border. */
+.t-label {
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 10px;
+  font-weight: 600;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  padding: 1px 6px;
+  color: var(--text-muted);
+}
+
+.t-label--accent {
+  border-color: color-mix(in srgb, var(--accent-blue) 55%, transparent);
+  color: var(--accent-blue);
+}
+
+/* Dashed accent frame for drop zones and highlighted regions. */
+.t-frame {
+  border: 1px dashed color-mix(in srgb, var(--accent-blue) 45%, transparent);
+  border-radius: 0;
+}
+
+/* Corner-cut CTA: clips the top-right corner. The clip-path also clips
+   the outline, so keyboard focus is drawn as a box-shadow ring
+   instead (WCAG 2.4.7). */
+.t-cut {
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+  border-radius: 0;
+}
+
+.t-cut:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--bg-primary),
+    0 0 0 4px var(--accent-blue);
+}
 
 /* ── Background Patterns ───────────────────────────────────── */
 
@@ -110,6 +209,12 @@
   position: relative;
   overflow: hidden;
   background-color: var(--bg-primary);
+  /* Tempest hatch texture, layered under any page tint overlays. */
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--text-primary) 3%, transparent) 7px 8px
+  );
 }
 
 /* ── Native <option> elements — match theme background ─── */
@@ -234,15 +339,16 @@ option {
   border-color: rgba(180, 83, 9, 0.60);       /* amber-700/60 */
 }
 
-/* Static gradient line used as a separator in the main layout (footer / dividers). */
+/* Static gradient line used as a separator in the main layout (footer / dividers).
+   Tempest: accent-monochrome, only mixes of the single user accent. */
 .footer-line,
 .glow-line-h {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--accent-blue) 20%,
-    var(--accent-purple) 50%,
-    var(--accent-red) 80%,
+    color-mix(in srgb, var(--accent-blue) 70%, transparent) 20%,
+    var(--accent-blue) 50%,
+    color-mix(in srgb, var(--accent-blue) 70%, transparent) 80%,
     transparent 100%
   );
   height: 1px;
@@ -254,8 +360,8 @@ option {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    var(--accent-blue) 25%,
-    var(--accent-purple) 75%,
+    color-mix(in srgb, var(--accent-blue) 80%, transparent) 25%,
+    var(--accent-blue) 75%,
     transparent 100%
   );
   width: 1px;
@@ -271,6 +377,12 @@ option {
 .settings-bg {
   position: relative;
   overflow: hidden;
+  /* Tempest hatch texture, layered under the ::before radial tint. */
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--text-primary) 3%, transparent) 7px 8px
+  );
 }
 
 .settings-bg::before {
@@ -323,11 +435,37 @@ option {
   opacity: 0.15;
 }
 
-/* Container cards used on Settings and Hotkeys pages. The base rule keeps a
-   subtle border so the card stands out from the page background; theme rules
-   only override fills. */
+/* Container cards used on Settings and Hotkeys pages. Tempest panel look:
+   hairline border, hard corners and accent L-brackets in the top-left /
+   bottom-right corners (same pseudo-element pattern as .t-panel); theme
+   rules only override fills. */
 .glass-card {
+  position: relative;
   border: 1px solid var(--border-subtle);
+  border-radius: 0;
+}
+
+.glass-card::before,
+.glass-card::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+
+.glass-card::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+  border-left: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+}
+
+.glass-card::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+  border-right: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
 }
 
 [data-theme="dark"] .glass-card {
@@ -339,30 +477,13 @@ option {
   backdrop-filter: none;
 }
 
-/* Toggle OFF state: visible grey pill in light mode */
-[data-theme="light"] button.rounded-full.border.border-border-subtle {
+/* Toggle OFF state: visible grey track in light mode. The white knob would
+   otherwise be invisible on the near-white bg-bg-secondary track. Toggles are
+   square now, so the hook is role="switch" instead of the old rounded-full
+   class. */
+[data-theme="light"] button[role="switch"][aria-checked="false"] {
   background-color: #d1dbe6;
   border-color: #b0bcc8;
-}
-
-/* Action buttons with bg-bg-secondary get a visible fill inside white glass-cards */
-[data-theme="light"] button.rounded-full.bg-bg-secondary {
-  background-color: #e6ecf2 !important;
-  border-color: #bec9d4 !important;
-}
-
-[data-theme="light"] button.rounded-full.bg-bg-secondary:hover {
-  background-color: #d8e1ea !important;
-}
-
-/* Backup-style buttons (not rounded-full) using bg-bg-secondary */
-[data-theme="light"] .glass-card button.border.border-border-subtle:not(.rounded-full):not([class*="bg-accent"]) {
-  background-color: #e8edf4;
-  border-color: #bec9d4;
-}
-
-[data-theme="light"] .glass-card button.border.border-border-subtle:not(.rounded-full):not([class*="bg-accent"]):hover {
-  background-color: #dce4ee;
 }
 
 /* Buttons default to cursor:default in browsers; override to pointer for all

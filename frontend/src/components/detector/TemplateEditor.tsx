@@ -364,14 +364,14 @@ function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
         aria-label={`${label}: ${pct}%`}
       />
       <span className="w-28 truncate text-text-muted text-xs 2xl:text-sm">{label}</span>
-      <div className="relative flex-1 h-2.5 bg-white/6 rounded-full">
+      <div className="relative flex-1 h-2.5 bg-white/6 rounded-none">
         <div
-          className={`h-full rounded-full transition-all ${isMatch ? "bg-green-500" : "bg-white/20"}`}
+          className={`h-full rounded-none transition-all ${isMatch ? "bg-green-500" : "bg-white/20"}`}
           style={{ width: `${score * 100}%` }}
         />
         {/* Precision threshold marker */}
         <div
-          className="absolute -top-1 -bottom-1 w-0.5 bg-green-400/70 rounded-full"
+          className="absolute -top-1 -bottom-1 w-0.5 bg-green-400/70 rounded-none"
           style={{ left: `${threshold * 100}%` }}
           aria-label={`${precisionLabel ?? "Precision"}: ${thresholdPct}%`}
         >
@@ -619,8 +619,8 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
             {step > 1 && (
               <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-white/20"}`} />
             )}
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-colors ${containerStyle}`}>
-              <span className={`w-5 h-5 flex items-center justify-center rounded-full font-bold leading-none ${badgeStyle}`}>
+            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-none text-xs font-medium transition-colors ${containerStyle}`}>
+              <span className={`w-5 h-5 flex items-center justify-center rounded-none font-bold leading-none ${badgeStyle}`}>
                 {isDone ? "✓" : step}
               </span>
               <span className="hidden sm:inline whitespace-nowrap">{stepLabel}</span>
@@ -1749,7 +1749,7 @@ export function TemplateEditor({
     <div className="fixed inset-0 z-100 bg-black/95 flex flex-col items-center justify-center p-4 md:p-6 backdrop-blur-sm overflow-y-auto">
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors z-110"
+        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-none bg-white/10 text-white hover:bg-white/20 transition-colors z-110"
       >
         <X className="w-6 h-6 2xl:w-7 2xl:h-7" />
       </button>
@@ -1793,7 +1793,7 @@ export function TemplateEditor({
             />
             {phase === "video" && replayBuffer.isBuffering && (
               <div
-                className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-mono text-white"
+                className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-none text-xs font-mono text-white"
                 title={t("templateEditor.bufferLoopHint")}
               >
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -1877,8 +1877,8 @@ export function TemplateEditor({
               value={selectedFrameIndex}
               onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
               className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer
-                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
-                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
+                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
             />
             <span className="text-white/60 text-xs 2xl:text-sm shrink-0">
               {selectedFrameIndex + 1} / {replayBuffer.frameCount}
@@ -1929,8 +1929,8 @@ export function TemplateEditor({
                     }
                   }}
                   className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
-                    [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
+                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
+                    [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
                 />
               </div>
             </div>
@@ -1942,8 +1942,8 @@ export function TemplateEditor({
               <div className="flex items-center gap-3 text-sm text-text-muted mb-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span>{t("templateEditor.testRunning")}</span>
-                <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div className="h-full bg-accent-blue rounded-full transition-all" style={{ width: `${templateTest.progress * 100}%` }} />
+                <div className="flex-1 h-1.5 bg-white/10 rounded-none overflow-hidden">
+                  <div className="h-full bg-accent-blue rounded-none transition-all" style={{ width: `${templateTest.progress * 100}%` }} />
                 </div>
               </div>
             )}

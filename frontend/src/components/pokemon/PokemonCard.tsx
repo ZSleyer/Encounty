@@ -135,7 +135,7 @@ export function PokemonCard({
               {pokemon.name}
             </h3>
             <div
-              className="inline-flex items-center gap-1 mt-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-full bg-bg-secondary border border-border-subtle text-text-secondary"
+              className="inline-flex items-center gap-1 mt-1 text-[10px] 2xl:text-xs font-medium px-2 py-0.5 rounded-none bg-bg-secondary border border-border-subtle text-text-secondary"
               title={t("dash.tooltipGameInfo")}
             >
               <Gamepad2 className="w-3 h-3" />

@@ -76,7 +76,7 @@ export function TagChip({
     "data-testid": "tag-chip",
     "data-active": active ? "true" : "false",
     style,
-    className: `inline-flex items-center gap-1 rounded-full font-medium leading-none whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${paddingClass} ${minHeightClass}`,
+    className: `inline-flex items-center gap-1 rounded-none font-medium leading-none whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${paddingClass} ${minHeightClass}`,
   };
 
   const label = `#${tag}`;
@@ -91,7 +91,7 @@ export function TagChip({
             type="button"
             onClick={onClick}
             onKeyDown={handleKeyDown}
-            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-full"
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-none"
             aria-pressed={active}
           >
             {label}
@@ -105,7 +105,7 @@ export function TagChip({
             e.stopPropagation();
             onRemove?.();
           }}
-          className="p-0.5 rounded-full hover:bg-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+          className="p-0.5 rounded-none hover:bg-black/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
           aria-label={t("tag.remove", { tag })}
         >
           <X className="w-3 h-3" />

@@ -123,7 +123,7 @@ function ToastItem({
           const badgeClass = getBadgeClass(badge);
           return (
             <span
-              className={`text-[clamp(0.8125rem,0.9vw,1rem)] font-bold px-3 py-1 rounded-full shrink-0 ${badgeClass}`}
+              className={`text-[clamp(0.8125rem,0.9vw,1rem)] font-bold px-3 py-1 rounded-none shrink-0 ${badgeClass}`}
             >
               {toast.badge || "+1"}
             </span>
