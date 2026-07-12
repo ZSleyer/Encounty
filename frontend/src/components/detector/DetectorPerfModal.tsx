@@ -169,7 +169,7 @@ export default function DetectorPerfModal({
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center m-0 p-0 border-none max-w-none max-h-none w-full h-full"
       aria-label={t("perfModal.title")}
     >
-      <div className="bg-bg-card rounded-xl border border-border-subtle shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+      <div className="t-panel anim-t-flicker shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
           <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
@@ -179,7 +179,7 @@ export default function DetectorPerfModal({
           <button
             ref={closeButtonRef}
             onClick={handleCancel}
-            className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent-blue"
+            className="p-1.5 rounded-none hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent-blue"
             aria-label={t("perfModal.close")}
           >
             <X className="w-5 h-5" />

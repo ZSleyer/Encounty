@@ -111,7 +111,7 @@ export function DetectorTutorial({ onComplete }: Props) {
                 y={rect.top - pad}
                 width={rect.width + pad * 2}
                 height={rect.height + pad * 2}
-                rx={12}
+                rx={0}
                 fill="black"
               />
             )}
@@ -128,7 +128,7 @@ export function DetectorTutorial({ onComplete }: Props) {
       {/* Highlight border */}
       {rect && (
         <div
-          className="absolute border-2 border-accent-blue rounded-xl pointer-events-none"
+          className="absolute border-2 border-accent-blue rounded-none pointer-events-none"
           style={{
             left: rect.left - pad,
             top: rect.top - pad,
@@ -148,7 +148,7 @@ export function DetectorTutorial({ onComplete }: Props) {
           aria-modal="true"
           aria-labelledby="detector-tutorial-title"
           tabIndex={-1}
-          className="bg-bg-secondary border border-border-subtle rounded-xl shadow-lg p-4"
+          className="bg-bg-secondary border border-border-subtle rounded-none shadow-lg p-4"
         >
           <p id="detector-tutorial-title" className="text-sm font-semibold text-text-primary mb-1">
             {t(current.titleKey)}

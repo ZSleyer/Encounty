@@ -62,7 +62,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
       />
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- stops event propagation to backdrop */}
       <div
-        className="bg-bg-card border border-border-subtle rounded-2xl shadow-2xl w-full max-w-lg flex flex-col relative"
+        className="t-panel anim-t-flicker shadow-2xl w-full max-w-lg flex flex-col"
         style={{ maxHeight: "min(80vh, 600px)" }}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
@@ -72,7 +72,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
           <h3 className="text-sm font-semibold text-text-primary">{t("detector.importFromPokemon")}</h3>
           <button
             onClick={handleCancel}
-            className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+            className="p-1.5 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
             aria-label={t("aria.close")}
           >
             <X className="w-4 h-4" />
@@ -89,7 +89,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("detector.searchPokemon")}
-              className="w-full pl-8 pr-3 py-2 text-xs bg-bg-primary border border-border-subtle rounded-lg text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
+              className="w-full pl-8 pr-3 py-2 text-xs bg-bg-primary border border-border-subtle rounded-none text-text-primary placeholder-text-faint outline-none focus:border-accent-blue/50 transition-colors"
               aria-label={t("detector.searchPokemon")}
             />
           </div>
@@ -107,7 +107,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                 const templateCount = p.detector_config?.templates?.length ?? 0;
                 const isExpanded = expandedId === p.id;
                 return (
-                  <div key={p.id} className="rounded-lg border border-border-subtle overflow-hidden">
+                  <div key={p.id} className="rounded-none border border-border-subtle overflow-hidden">
                     {/* Pokemon row */}
                     <div className="flex items-center gap-3 px-3 py-2 hover:bg-bg-hover transition-colors">
                       <button
@@ -130,7 +130,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                       </button>
                       <button
                         onClick={() => onImport(p.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-accent-blue/10 text-accent-blue hover:bg-accent-blue hover:text-white transition-colors shrink-0"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-[11px] font-semibold bg-accent-blue/10 text-accent-blue hover:bg-accent-blue hover:text-bg-primary transition-colors shrink-0"
                         aria-label={`${t("detector.importTemplates")} ${p.name}`}
                       >
                         <Download className="w-3.5 h-3.5" />
@@ -146,7 +146,7 @@ export function ImportTemplatesModal({ currentPokemonId, onImport, onClose }: Im
                             <button
                               key={`preview-${p.id}-${i}`}
                               onClick={() => onImport(p.id, [i])}
-                              className={`relative rounded overflow-hidden bg-black/40 aspect-video group cursor-pointer transition-all hover:ring-2 hover:ring-accent-blue ${
+                              className={`relative rounded-none overflow-hidden bg-black/40 aspect-video group cursor-pointer transition-all hover:ring-2 hover:ring-accent-blue ${
                                 tmpl.enabled === false ? "opacity-70 hover:opacity-100" : "ring-1 ring-accent-blue/50"
                               }`}
                               title={`${tmpl.name || "Template " + (i + 1)} importieren`}

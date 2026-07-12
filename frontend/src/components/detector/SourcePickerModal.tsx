@@ -231,7 +231,7 @@ function ResolutionGear({
         aria-label={t("sourcePicker.resolution")}
         aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); onToggle(); }}
-        className="p-1 rounded-md bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors relative after:absolute after:-inset-2 after:content-['']"
+        className="p-1 rounded-none bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors relative after:absolute after:-inset-2 after:content-['']"
       >
         <SettingsIcon className="w-3.5 h-3.5" />
       </button>
@@ -239,7 +239,7 @@ function ResolutionGear({
         <div
           role="radiogroup"
           aria-label={t("sourcePicker.resolution")}
-          className="absolute top-7 right-0 flex flex-col rounded-lg border border-border-subtle bg-bg-card shadow-lg overflow-hidden"
+          className="absolute top-7 right-0 flex flex-col rounded-none border border-border-subtle bg-bg-card shadow-lg overflow-hidden"
         >
           {RESOLUTION_OPTIONS.map((r) => (
             <button
@@ -303,9 +303,9 @@ function CameraGrid({
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(cam.deviceId); }
           }}
-          className={`relative rounded-xl border-2 overflow-hidden transition-all text-left cursor-pointer ${
+          className={`relative rounded-none border overflow-hidden transition-all text-left cursor-pointer ${
             selectedId === cam.deviceId
-              ? "border-accent-blue ring-2 ring-accent-blue/30"
+              ? "border-accent-blue bg-accent-blue/10"
               : "border-border-subtle hover:border-text-muted"
           }`}
         >
@@ -333,12 +333,12 @@ function CameraGrid({
             </p>
             <div className="flex gap-1 mt-0.5 flex-wrap">
               {isCaptureCard(cam.label) && (
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
+                <span className="inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-emerald-500/20 text-emerald-400">
                   {t("sourcePicker.captureCardHint")}
                 </span>
               )}
               {cam.label.toLowerCase().includes("obs") && (
-                <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-500/20 text-purple-400">
+                <span className="inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-purple-500/20 text-purple-400">
                   {t("sourcePicker.obsHint")}
                 </span>
               )}
@@ -375,9 +375,9 @@ function SourceGrid({
           key={src.id}
           onClick={() => onSelect(src.id)}
           onDoubleClick={() => onDoubleClick(src.id)}
-          className={`relative group rounded-xl border-2 overflow-hidden transition-all ${
+          className={`relative group rounded-none border overflow-hidden transition-all ${
             selectedId === src.id
-              ? "border-accent-blue ring-2 ring-accent-blue/30"
+              ? "border-accent-blue bg-accent-blue/10"
               : "border-border-subtle hover:border-text-muted"
           }`}
         >
@@ -715,7 +715,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
     <dialog
       ref={dialogRef}
       onCancel={handleCancel}
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-0 w-full max-w-2xl animate-slide-in backdrop:bg-black/70"
+      className="m-auto t-panel anim-t-flicker p-0 w-full max-w-2xl backdrop:bg-black/70"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
@@ -735,7 +735,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs font-semibold transition-colors ${
                 activeTab === tab
                   ? "bg-accent-blue text-white"
                   : "bg-bg-primary text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -759,16 +759,16 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
       <div className="flex justify-end gap-3 px-5 pb-5 pt-2 border-t border-border-subtle">
         <button
           onClick={handleCancel}
-          className="px-4 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          className="px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           {t("sourcePicker.cancel")}
         </button>
         <button
           onClick={handleSelect}
           disabled={!selectedId}
-          className={`px-5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+          className={`px-5 py-2 t-cut rounded-none text-sm font-semibold transition-colors ${
             selectedId
-              ? "bg-accent-blue text-white hover:bg-accent-blue/90"
+              ? "bg-accent-blue text-bg-primary hover:bg-accent-blue/90"
               : "bg-bg-hover text-text-muted cursor-not-allowed opacity-60"
           }`}
         >

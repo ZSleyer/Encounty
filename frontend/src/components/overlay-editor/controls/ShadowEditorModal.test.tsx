@@ -155,7 +155,7 @@ describe("ShadowEditorModal", () => {
       <ShadowEditorModal {...defaultProps} onOpenColorPicker={onOpenColorPicker} />,
     );
     // Find the color swatch in the solid color section
-    const swatches = container.querySelectorAll(".w-6.h-4.rounded.cursor-pointer");
+    const swatches = container.querySelectorAll(".w-6.h-4.rounded-none.cursor-pointer");
     if (swatches.length > 0) {
       fireEvent.click(swatches[0]);
       expect(onOpenColorPicker).toHaveBeenCalled();
@@ -175,7 +175,7 @@ describe("ShadowEditorModal", () => {
         onOpenGradientEditor={onOpenGradientEditor}
       />,
     );
-    const swatches = container.querySelectorAll(".w-6.h-4.rounded.cursor-pointer");
+    const swatches = container.querySelectorAll(".w-6.h-4.rounded-none.cursor-pointer");
     if (swatches.length > 0) {
       fireEvent.click(swatches[0]);
       expect(onOpenGradientEditor).toHaveBeenCalled();

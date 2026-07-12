@@ -119,7 +119,7 @@ export function ShadowEditorModal({
   return (
     <dialog
       ref={dialogRef}
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm backdrop:bg-black/70"
+      className="m-auto t-panel anim-t-flicker p-6 w-full max-w-sm backdrop:bg-black/70"
       onCancel={onClose}
     >
       {/* --- Header --- */}
@@ -133,7 +133,7 @@ export function ShadowEditorModal({
       </div>
 
       {/* --- Preview --- */}
-      <div className="w-full h-20 rounded-lg bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
+      <div className="w-full h-20 rounded-none bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
         <span
           className="text-text-primary text-2xl select-none"
           style={{ textShadow: shadowCSS }}
@@ -161,7 +161,7 @@ export function ShadowEditorModal({
             type="button"
             ref={padRef}
             aria-label="Shadow offset picker"
-            className="appearance-none p-0 m-0 block relative bg-bg-primary border border-border-subtle rounded-lg cursor-crosshair"
+            className="appearance-none p-0 m-0 block relative bg-bg-primary border border-border-subtle rounded-none cursor-crosshair"
             style={{ width: PAD_SIZE, height: PAD_SIZE }}
             onMouseDown={startPadDrag}
           >
@@ -202,7 +202,7 @@ export function ShadowEditorModal({
           {([["solid", t("overlay.colorSolid")], ["gradient", t("overlay.colorGradient")]] as const).map(([val, label]) => (
             <button
               key={val}
-              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 py-1.5 rounded-none text-sm font-medium transition-colors ${
                 colorType === val
                   ? "bg-accent-blue/20 text-accent-blue"
                   : "border border-border-subtle text-text-muted hover:text-text-primary"
@@ -221,7 +221,7 @@ export function ShadowEditorModal({
           <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
           <ColorSwatch
             color={color}
-            className="w-6 h-4 rounded cursor-pointer"
+            className="w-6 h-4 rounded-none cursor-pointer"
             onClick={() => onOpenColorPicker(color, (c) => setColor(c))}
           />
         </div>
@@ -234,7 +234,7 @@ export function ShadowEditorModal({
           <ColorSwatch
             color={gradientStops[0]?.color ?? "#ffffff"}
             gradient={{ stops: gradientStops, angle: gradientAngle }}
-            className="w-6 h-4 rounded cursor-pointer"
+            className="w-6 h-4 rounded-none cursor-pointer"
             onClick={() =>
               onOpenGradientEditor(gradientStops, gradientAngle, (stops, angle) => {
                 setGradientStops(stops);
@@ -249,14 +249,14 @@ export function ShadowEditorModal({
       <div className="flex gap-3">
         <button
           title={t("tooltip.common.cancel")}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          className="flex-1 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
           onClick={onClose}
         >
           {t("tooltip.common.cancel")}
         </button>
         <button
           title={t("tooltip.common.apply")}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
+          className="flex-1 py-2 t-cut rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors"
           onClick={() => onConfirm({ enabled, color, colorType, gradientStops, gradientAngle, blur, x: sx, y: sy })}
         >
           {t("tooltip.common.apply")}
