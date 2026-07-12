@@ -111,3 +111,89 @@
     <button class="btn btn-primary t-cut" style="width: 100%; margin-top: 10px; font-size: 12px;">Template speichern</button>
   </div>
 </div>
+
+<style>
+/* --- Proposal: stability modal accent + a scrubber alternative to the
+     blocky per-frame bars, both previewed against the editor's actual
+     near-black backdrop (bg-black/95), not the standard demo surface. */
+.tw-black-stage {
+  background: #000;
+  padding: 28px;
+  margin-top: 24px;
+}
+.tw-timeline {
+  position: relative;
+  height: 34px;
+  border-radius: 0;
+  /* Near-transparent, tinted by the real bg-primary token instead of the
+     lighter bg-secondary/bg-hover card tones — those read as a floating
+     grey box on true black; this just barely lifts off pure black. */
+  background: color-mix(in srgb, var(--bg-primary) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  cursor: pointer;
+  overflow: hidden;
+}
+.tw-timeline .zone {
+  position: absolute; top: 0; bottom: 0;
+  opacity: 0.55;
+}
+.tw-timeline .zone.searching { background: var(--accent-blue, #4a9eff); opacity: 0.35; }
+.tw-timeline .zone.match { background: var(--accent-green); }
+.tw-timeline .zone.hysteresis { background: color-mix(in srgb, var(--accent-green) 60%, #cfe870); }
+.tw-timeline .playhead {
+  position: absolute; top: -3px; bottom: -3px;
+  width: 2px; background: var(--text-primary);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--bg-primary) 80%, transparent);
+}
+.tw-timeline .playhead::after {
+  content: "";
+  position: absolute; top: -4px; left: 50%; translate: -50% 0;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text-primary);
+}
+.tw-timeline-legend {
+  display: flex; align-items: center; gap: 14px;
+  font-size: 11px; color: var(--text-muted); margin-top: 8px;
+}
+.tw-timeline-legend .sw { width: 8px; height: 8px; display: inline-block; margin-right: 4px; vertical-align: -1px; }
+</style>
+<div class="tw-black-stage">
+  <div class="col" style="gap: 16px; max-width: 640px;">
+    <div>
+      <span class="t-label" style="margin-bottom: 8px; display: inline-block;">Vorschlag / Stabilitäts-Modal mit Akzent</span>
+      <div class="t-panel anim-t-crt-in" style="max-width: 380px; padding: 16px;">
+        <div class="row" style="justify-content: space-between; align-items: flex-start;">
+          <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 600; color: var(--accent-green);">
+            <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            Stabilität: Ausgezeichnet
+          </h3>
+          <button class="icon-btn" aria-label="Schließen" style="width: 26px; height: 26px;"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        </div>
+        <p style="font-size: 12px; color: var(--text-muted); margin: 10px 0 0;">Score-Streuung ist niedrig genug für einen zuverlässigen Precision-Threshold.</p>
+        <div class="row" style="justify-content: flex-end; margin-top: 14px;">
+          <button class="btn btn-primary t-cut" style="font-size: 12px;">Kalibrierung anwenden</button>
+        </div>
+      </div>
+      <p style="font-size: 11px; color: var(--text-faint); margin-top: 6px; max-width: 380px;">t-panel (Ecken-Klammern) + anim-t-crt-in statt schmuckloser rounded-none Box. Schließt animiert wie jedes andere Modal (native &lt;dialog&gt; + useDialogClose).</p>
+    </div>
+
+    <div>
+      <span class="t-label" style="margin-bottom: 8px; display: inline-block;">Vorschlag / Zusammengeführte Timeline statt Balken-Sparkline + separatem Slider</span>
+      <div class="tw-timeline" role="slider" aria-label="Frame-Auswahl" aria-valuenow="72" aria-valuemin="0" aria-valuemax="100" tabindex="0">
+        <div class="zone searching" style="left: 0%; width: 38%;"></div>
+        <div class="zone match" style="left: 38%; width: 8%;"></div>
+        <div class="zone hysteresis" style="left: 46%; width: 4%;"></div>
+        <div class="zone searching" style="left: 50%; width: 22%;"></div>
+        <div class="zone match" style="left: 72%; width: 28%;"></div>
+        <div class="playhead" style="left: 72%;"></div>
+      </div>
+      <div class="tw-timeline-legend">
+        <span><span class="sw" style="background: var(--accent-blue, #4a9eff); opacity: 0.35;"></span>Suche</span>
+        <span><span class="sw" style="background: var(--accent-green);"></span>Treffer</span>
+        <span><span class="sw" style="background: color-mix(in srgb, var(--accent-green) 60%, #cfe870);"></span>Anhaltend</span>
+        <span style="margin-left: auto; font-variant-numeric: tabular-nums;">216 / 300</span>
+      </div>
+      <p style="font-size: 11px; color: var(--text-faint); margin-top: 6px; max-width: 640px;">Ein Element statt zwei: zusammenhängende Zustandsabschnitte (kein Balken-pro-Frame-Raster) sind zugleich der Slider — Klick/Drag setzt den Frame direkt. Container fast transparent auf Schwarz statt bg-secondary/bg-hover-Kachel.</p>
+    </div>
+  </div>
+</div>
