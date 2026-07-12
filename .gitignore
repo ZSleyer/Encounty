@@ -49,6 +49,9 @@ Thumbs.db
 !README.md
 !CONTRIBUTING.md
 
+# Generated design-system preview bundle
+design-system/dist/
+
 # Windows Resource Build Files
 *.syso
 dist-linux/

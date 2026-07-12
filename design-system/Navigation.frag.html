@@ -1,0 +1,94 @@
+<style>
+.t-nav {
+  display: flex; gap: 4px; align-items: center;
+  border-bottom: 1px solid var(--border);
+  padding: 0 8px;
+}
+.t-nav-tab {
+  background: none; border: none; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 0.14em;
+  font-size: 11px; font-weight: 600;
+  color: var(--text-muted);
+  padding: 10px 12px 9px;
+  border-bottom: 1px solid transparent;
+  margin-bottom: -1px;
+}
+.t-nav-tab[aria-selected="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.t-nav-tab:hover { color: var(--text-primary); }
+.t-seg {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  overflow: hidden;
+}
+.t-seg button {
+  background: var(--bg-secondary); border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 12px; font-weight: 600;
+  padding: 6px 14px;
+}
+.t-seg button + button { border-left: 1px solid var(--border); }
+.t-seg button[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-secondary));
+  color: var(--accent);
+}
+.t-hunt-item {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  padding: 10px 12px;
+  cursor: pointer;
+  max-width: 340px;
+}
+.t-hunt-item:hover { background: var(--bg-hover); }
+.t-hunt-item.selected { border-left-color: var(--accent); }
+.t-hunt-sprite {
+  width: 36px; height: 36px; flex: none;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border); border-radius: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-faint); font-size: 9px;
+}
+.t-hunt-meta { min-width: 0; flex: 1; }
+.t-hunt-name { font-size: 13px; font-weight: 600; }
+.t-hunt-sub {
+  font-size: 11px; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.t-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 3px; }
+.t-hunt-count { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; }
+</style>
+<h2 class="card-title">Navigation / Tabs, Segmented, Sidebar Items</h2>
+<div class="col">
+  <nav class="t-nav" role="tablist" aria-label="Main">
+    <button class="t-nav-tab" role="tab" aria-selected="true">Dashboard</button>
+    <button class="t-nav-tab" role="tab" aria-selected="false">Hotkeys</button>
+    <button class="t-nav-tab" role="tab" aria-selected="false">Overlay</button>
+    <button class="t-nav-tab" role="tab" aria-selected="false">Settings</button>
+  </nav>
+  <div class="t-seg" role="group" aria-label="Hunt list filter">
+    <button aria-pressed="true">Active</button>
+    <button aria-pressed="false">Archived</button>
+  </div>
+  <div class="t-hunt-item selected">
+    <div class="t-hunt-sprite">img</div>
+    <div class="t-hunt-meta">
+      <div class="t-hunt-name">Ralts</div>
+      <div class="t-hunt-sub"><span class="t-dot" style="background:var(--accent);"></span><span class="t-dot" style="background:var(--accent-red);"></span> Emerald · Route 102</div>
+    </div>
+    <div class="t-hunt-count">1024</div>
+  </div>
+  <div class="t-hunt-item">
+    <div class="t-hunt-sprite">img</div>
+    <div class="t-hunt-meta">
+      <div class="t-hunt-name">Beldum</div>
+      <div class="t-hunt-sub">Emerald · Mossdeep</div>
+    </div>
+    <div class="t-hunt-count">88</div>
+  </div>
+</div>

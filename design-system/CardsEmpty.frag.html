@@ -1,0 +1,69 @@
+<style>
+.t-choice {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 18px;
+  text-align: center;
+  cursor: pointer;
+  width: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+/* Choice cards in one row always share the same height */
+.t-choice-row { display: flex; gap: 16px; align-items: stretch; }
+.t-choice:hover { background: var(--bg-hover); }
+.t-choice.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.t-choice .icon { color: var(--accent); margin-bottom: 8px; }
+.t-choice .tt { font-size: 13px; font-weight: 600; }
+.t-choice .dd { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.t-empty { text-align: center; padding: 28px; }
+.t-empty .icon { width: 40px; height: 40px; color: var(--text-faint); stroke-width: 1.5; }
+.t-empty .tt { font-size: 14px; font-weight: 600; margin-top: 10px; }
+.t-empty .dd { font-size: 12px; color: var(--text-muted); margin-top: 4px; max-width: 360px; margin-inline: auto; }
+.t-thumb {
+  width: 150px; border: 1px solid var(--border); border-radius: 0;
+  overflow: hidden; background: var(--bg-card); position: relative; cursor: pointer;
+}
+.t-thumb.selected { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+.t-thumb .img { height: 70px; background: linear-gradient(135deg, var(--bg-hover), var(--bg-secondary)); display: grid; place-content: center; color: var(--text-faint); font-size: 10px; }
+.t-thumb .cap { padding: 5px 8px; font-size: 11px; border-top: 1px solid var(--border); }
+.t-thumb .sel {
+  position: absolute; top: 6px; left: 6px;
+  width: 12px; height: 12px; border-radius: 0;
+  background: var(--accent); border: 2px solid var(--bg-primary);
+}
+</style>
+<h2 class="card-title">Selection Cards / Empty States / Thumbnails</h2>
+<div class="col">
+  <div class="t-choice-row">
+    <div class="t-choice selected" role="radio" aria-checked="true" tabindex="0">
+      <svg class="icon icon-lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+      <div class="tt">Online-Sync</div>
+      <div class="dd">Daten von PokéAPI laden</div>
+    </div>
+    <div class="t-choice" role="radio" aria-checked="false" tabindex="0">
+      <svg class="icon icon-lg" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M7 16h10"/></svg>
+      <div class="tt">Offline</div>
+      <div class="dd">Eingebettete Daten verwenden</div>
+    </div>
+  </div>
+  <div class="t-panel t-empty">
+    <svg class="icon" viewBox="0 0 24 24" style="width: 40px; height: 40px;"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>
+    <div class="tt">Keine Verbindung</div>
+    <div class="dd">Wähle eine Aufnahmequelle und verbinde den Detector, um Begegnungen automatisch zu zählen.</div>
+    <div class="row" style="justify-content: center; margin-top: 14px;">
+      <button class="btn btn-primary">Verbinden</button>
+      <button class="btn btn-ghost">Mehr erfahren</button>
+    </div>
+  </div>
+  <div class="row">
+    <div class="t-thumb selected"><span class="sel" aria-hidden="true"></span><div class="img">preview</div><div class="cap">Template 1</div></div>
+    <div class="t-thumb"><div class="img">preview</div><div class="cap">Template 2</div></div>
+  </div>
+</div>

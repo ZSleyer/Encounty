@@ -1,0 +1,50 @@
+<style>
+.t-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 0; font-size: 11px; font-weight: 700;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent);
+}
+.t-status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.t-status .dot { width: 8px; height: 8px; border-radius: 50%; }
+.t-tag-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  padding: 1px 6px; border-radius: 0;
+  border: 1px solid var(--border); color: var(--text-muted);
+}
+.t-tag-badge.on { border-color: var(--accent); color: var(--accent); }
+.t-warn {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 0;
+  background: color-mix(in srgb, var(--accent-yellow) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-yellow) 45%, transparent);
+  color: var(--accent-yellow);
+}
+.t-match {
+  display: flex; align-items: center; gap: 10px;
+  background: color-mix(in srgb, var(--accent-green) 8%, var(--bg-card));
+  border: 1px solid color-mix(in srgb, var(--accent-green) 25%, var(--border));
+  border-radius: 0; padding: 6px 12px; font-size: 12px;
+  font-variant-numeric: tabular-nums; max-width: 380px;
+}
+.t-match .pct { color: var(--accent-green); font-weight: 700; }
+.t-match .tag { margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent-green); }
+</style>
+<h2 class="card-title">Badges / Status</h2>
+<div class="col">
+  <div class="row" style="align-items: center; gap: 20px;">
+    <span style="display: inline-flex; gap: 6px; align-items: center; font-size: 13px;">Aktiv <span class="t-badge">2</span></span>
+    <span style="display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--text-muted);">Archiv <span class="t-badge" style="background: var(--bg-hover); color: var(--text-muted);">1</span></span>
+    <span class="t-status"><span class="dot" style="background: var(--accent-green);"></span>Läuft</span>
+    <span class="t-status"><span class="dot" style="background: var(--text-faint);"></span>Gestoppt</span>
+    <span class="t-status"><span class="dot" style="background: var(--accent-red);"></span>Fehler</span>
+  </div>
+  <div class="row" style="align-items: center; gap: 12px;">
+    <span class="t-tag-badge on">GPU</span>
+    <span class="t-tag-badge">CPU</span>
+    <span class="t-warn"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M10 8h.01"/><path d="M12 12h.01"/><path d="M14 8h.01"/><path d="M16 12h.01"/><path d="M18 8h.01"/><path d="M6 8h.01"/><path d="M7 16h10"/><path d="M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></svg>Hotkeys pausiert</span>
+  </div>
+  <div class="t-match"><span class="dot" style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green);"></span><span class="pct">99,7%</span><span style="color: var(--text-muted);">17:39:50</span><span class="tag">MATCH</span></div>
+</div>

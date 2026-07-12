@@ -1,0 +1,25 @@
+<h2 class="card-title">Demo / Hunt Counter Panel</h2>
+<div class="t-panel hatch" style="width:min(100%, clamp(420px, 36vw, 560px));">
+  <div class="row" style="justify-content:space-between;">
+    <span class="t-label t-label--accent">Active Hunt</span>
+    <span class="t-label">02:41:07</span>
+  </div>
+  <div class="row" style="margin-top:16px; align-items:center;">
+    <div style="width:64px; height:64px; border-radius: 0; background:var(--bg-secondary); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text-faint); font-size:11px;">sprite</div>
+    <div class="col" style="gap:2px;">
+      <div style="font-size:16px; font-weight:600;">Ralts</div>
+      <div style="color:var(--text-muted); font-size:12px;">Emerald · Route 102</div>
+    </div>
+  </div>
+  <!-- No thousands separator: digit gaps must be uniform; tabular-nums keeps them equal. Fluid scale for large screens. -->
+  <div style="font-size:clamp(48px, 5vw, 80px); font-weight:700; text-align:center; margin:12px 0; font-variant-numeric:tabular-nums;">1024</div>
+  <div class="row" style="justify-content:center; gap:8px;">
+    <span class="t-label t-label--accent">Odds 1/512</span>
+    <span class="t-label">Phase 1</span>
+  </div>
+  <div class="row" style="margin-top:16px; justify-content:center;">
+    <button class="btn btn-primary t-cut">Caught!</button>
+    <button class="btn btn-secondary">Pause</button>
+    <button class="btn btn-ghost">⋮</button>
+  </div>
+</div>

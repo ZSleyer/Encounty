@@ -1,0 +1,76 @@
+<style>
+.t-toast {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 0;
+  padding: 10px 14px;
+  max-width: 360px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+.t-toast.success { border-left-color: var(--accent-green); }
+.t-toast.error { border-left-color: var(--accent-red); }
+.t-toast .msg { font-size: 13px; color: var(--text-secondary); }
+.t-toast .msg strong { color: var(--text-primary); }
+.t-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 2px 8px;
+  color: var(--text-secondary);
+}
+.t-chip .t-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.t-menu {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  width: 200px;
+  padding: 4px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+.t-menu [role="menuitem"] {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 10px; border-radius: 0;
+  font-size: 13px; color: var(--text-secondary);
+  cursor: pointer; background: none; border: none; width: 100%; text-align: left; font-family: inherit;
+}
+.t-menu [role="menuitem"]:hover { background: var(--bg-hover); color: var(--text-primary); }
+.t-menu [role="menuitem"].danger { color: var(--accent-red); }
+.t-menu .sep { height: 1px; background: var(--border); margin: 4px 6px; }
+.t-menu kbd {
+  font-size: 10px; color: var(--text-faint);
+  border: 1px solid var(--border); border-radius: 0; padding: 0 4px;
+}
+</style>
+<h2 class="card-title">Feedback / Toasts, Tags, Overflow Menu</h2>
+<div class="row" style="align-items: flex-start;">
+  <div class="col">
+    <div class="t-toast success" role="status">
+      <span style="color: var(--accent-green);">✓</span>
+      <span class="msg"><strong>Caught!</strong> Shiny Ralts after 1024 encounters.</span>
+    </div>
+    <div class="t-toast error" role="alert">
+      <span style="color: var(--accent-red);">✕</span>
+      <span class="msg"><strong>Detector lost.</strong> Capture source unavailable.</span>
+    </div>
+    <div class="t-toast" role="status">
+      <span style="color: var(--accent);">i</span>
+      <span class="msg">Backup created.</span>
+    </div>
+    <div class="row" style="gap: 6px;">
+      <span class="t-chip"><span class="t-dot" style="background:var(--accent);"></span>Starter</span>
+      <span class="t-chip"><span class="t-dot" style="background:var(--accent-red);"></span>Full Odds</span>
+      <span class="t-chip"><span class="t-dot" style="background:#3fd4e0;"></span>Masuda</span>
+      <span class="t-chip" style="border-style: dashed; color: var(--text-muted);">+ Add tag</span>
+    </div>
+  </div>
+  <div class="t-menu" role="menu" aria-label="Hunt actions">
+    <button role="menuitem">Edit <kbd>E</kbd></button>
+    <button role="menuitem">Duplicate</button>
+    <button role="menuitem">Archive <kbd>A</kbd></button>
+    <div class="sep" role="separator"></div>
+    <button role="menuitem" class="danger">Delete</button>
+  </div>
+</div>

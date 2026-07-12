@@ -1,0 +1,113 @@
+<style>
+.t-steps { display: flex; gap: 8px; align-items: center; font-size: 12px; }
+.t-step { display: inline-flex; gap: 6px; align-items: center; color: var(--text-faint); }
+.t-step .n {
+  width: 18px; height: 18px; border-radius: 0;
+  border: 1px solid var(--border);
+  display: grid; place-content: center; font-size: 10px; font-weight: 700;
+}
+.t-step.done { color: var(--text-muted); }
+.t-step.done .n { background: var(--accent); border-color: var(--accent); color: var(--bg-primary); }
+.t-step.active { color: var(--accent); }
+.t-step.active .n { border-color: var(--accent); color: var(--accent); }
+.t-step-sep { flex: none; width: 24px; height: 1px; background: var(--border); }
+.t-frame-surface {
+  position: relative; height: 150px; border-radius: 0;
+  border: 1px solid var(--border);
+  background: linear-gradient(160deg, #24404d, #16232b 60%, #101820);
+  overflow: hidden;
+}
+.t-region {
+  position: absolute; border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.t-region.ocr { border-color: #3fd4e0; background: color-mix(in srgb, #3fd4e0 10%, transparent); }
+.t-region .tag {
+  position: absolute; top: -18px; left: -1px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 1px 5px; border-radius: 0;
+  background: var(--accent); color: var(--bg-primary);
+}
+.t-region.ocr .tag { background: #3fd4e0; }
+.t-scrub { display: flex; gap: 4px; align-items: center; margin-top: 8px; }
+.t-scrub .f {
+  flex: 1; height: 28px; border-radius: 0;
+  background: var(--bg-hover); border: 1px solid var(--border); cursor: pointer;
+}
+.t-scrub .f.sel { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+.t-progress {
+  height: 4px; border-radius: 0; background: var(--bg-hover);
+  overflow: hidden; flex: 1;
+}
+.t-progress i { display: block; height: 100%; width: 60%; background: var(--accent); }
+</style>
+<h2 class="card-title">Template Editor / Wizard, Frame Picker, Regionen</h2>
+<div class="t-panel" style="max-width: 560px;">
+  <div class="t-steps" style="margin-bottom: 14px; flex-wrap: wrap;">
+    <span class="t-step done"><span class="n">✓</span>Aufnahme</span>
+    <span class="t-step-sep"></span>
+    <span class="t-step done"><span class="n">✓</span>Frame wählen</span>
+    <span class="t-step-sep"></span>
+    <span class="t-step active"><span class="n">3</span>Regionen</span>
+    <span class="t-step-sep"></span>
+    <span class="t-step"><span class="n">4</span>Test</span>
+    <span class="t-step-sep"></span>
+    <span class="t-step"><span class="n">5</span>Speichern</span>
+    <span style="margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums;">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent-red);"></span>5s / 5s
+    </span>
+  </div>
+  <div class="t-frame-surface" role="img" aria-label="Videoframe mit zwei markierten Regionen">
+    <div class="t-region" style="top: 24px; left: 30px; width: 90px; height: 70px;"><span class="tag">Bild</span></div>
+    <div class="t-region ocr" style="bottom: 16px; left: 140px; width: 220px; height: 30px;"><span class="tag">Text (OCR)</span></div>
+  </div>
+  <div class="t-scrub" aria-label="Frame-Auswahl">
+    <button class="icon-btn" aria-label="Frame zurück" style="width: 26px; height: 26px;"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+    <span class="f"></span><span class="f"></span><span class="f sel"></span><span class="f"></span><span class="f"></span><span class="f"></span>
+    <button class="icon-btn" aria-label="Frame vor" style="width: 26px; height: 26px;"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+  </div>
+  <div class="row" style="align-items: center; margin-top: 12px; gap: 10px;">
+    <span style="font-size: 11px; color: var(--text-muted); white-space: nowrap;">Analysiere Stabilität…</span>
+    <span class="t-progress" role="progressbar" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100" aria-label="Stabilitätsanalyse"><i></i></span>
+    <span style="font-size: 11px; color: var(--text-faint); font-variant-numeric: tabular-nums;">60%</span>
+  </div>
+  <div class="row" style="justify-content: space-between; margin-top: 14px;">
+    <button class="btn btn-ghost">Zurück</button>
+    <div class="row" style="gap: 8px;">
+      <button class="btn btn-secondary">Abbrechen</button>
+      <button class="btn btn-primary">Weiter</button>
+    </div>
+  </div>
+</div>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 16px; max-width: 900px;">
+  <div class="t-panel" style="padding: 14px;">
+    <span class="t-label" style="margin-bottom: 10px; display: inline-block;">Schritt 1 · Aufnahme</span>
+    <div style="height: 64px; border-radius: 0; background: #000; border: 1px solid var(--border); display: grid; place-content: center; color: var(--text-faint); font-size: 11px;">Live-Quelle (5s Puffer)</div>
+    <button class="btn btn-primary" style="width: 100%; margin-top: 10px; display: inline-flex; gap: 8px; align-items: center; justify-content: center;">
+      <svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>Schnappschuss
+    </button>
+  </div>
+  <div class="t-panel" style="padding: 14px;">
+    <span class="t-label" style="margin-bottom: 10px; display: inline-block;">Schritt 4 · Test</span>
+    <div class="row" style="gap: 6px; align-items: center; font-size: 12px; margin-bottom: 8px;">
+      <span style="color: var(--text-muted);">Bester Score</span>
+      <span style="color: var(--accent-green); font-weight: 700; font-variant-numeric: tabular-nums;">97,2%</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; background: color-mix(in srgb, var(--accent-green) 8%, var(--bg-card)); border: 1px solid color-mix(in srgb, var(--accent-green) 25%, var(--border)); border-radius: 0; padding: 5px 10px; font-size: 11px; font-variant-numeric: tabular-nums;">
+      <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent-green);"></span>
+      <span style="color: var(--accent-green); font-weight: 700;">97,2%</span>
+      <span style="color: var(--text-muted);">Frame 3</span>
+      <span style="margin-left: auto; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent-green);">MATCH</span>
+    </div>
+    <button class="btn btn-secondary" style="width: 100%; margin-top: 8px; font-size: 12px; padding: 5px;">Erneut testen</button>
+  </div>
+  <div class="t-panel" style="padding: 14px;">
+    <span class="t-label" style="margin-bottom: 10px; display: inline-block;">Schritt 5 · Speichern</span>
+    <label class="f-label2" style="display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 3px;" for="tw-name">Name</label>
+    <input class="t-input" id="tw-name" value="Encounter-Dialog" style="font-size: 12px; padding: 6px 10px;" />
+    <label class="f-label2" style="display: block; font-size: 11px; color: var(--text-muted); margin: 8px 0 3px;" for="tw-cat">Kategorie</label>
+    <select id="tw-cat" style="font: inherit; font-size: 12px; width: 100%; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); border-radius: 0; padding: 6px 10px;"><option>Begegnung</option><option>Kampf-Start</option></select>
+    <button class="btn btn-primary t-cut" style="width: 100%; margin-top: 10px; font-size: 12px;">Template speichern</button>
+  </div>
+</div>

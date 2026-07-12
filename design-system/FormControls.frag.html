@@ -1,0 +1,110 @@
+<style>
+.f-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+.t-select {
+  font: inherit;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 7px 10px;
+  width: 100%;
+}
+.t-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+.t-check input {
+  appearance: none;
+  width: 16px; height: 16px;
+  border: 1px solid var(--border); border-radius: 0;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  display: grid; place-content: center;
+}
+.t-check input:checked { background: var(--accent); border-color: var(--accent); }
+.t-check input:checked::before {
+  content: "";
+  width: 9px; height: 9px;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  background: var(--bg-primary);
+}
+.t-range { accent-color: var(--accent); width: 160px; }
+.t-stepper {
+  display: inline-flex; align-items: stretch;
+  border: 1px solid var(--border); border-radius: 0; overflow: hidden;
+}
+.t-stepper button {
+  background: var(--bg-secondary); border: none; cursor: pointer;
+  color: var(--text-muted); width: 28px; font-size: 14px;
+}
+.t-stepper button:hover { background: var(--bg-hover); color: var(--text-primary); }
+.t-stepper .val {
+  padding: 6px 12px; font-variant-numeric: tabular-nums; font-size: 13px;
+  border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  background: var(--bg-card); min-width: 48px; text-align: center;
+}
+.t-colorinput {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--border); border-radius: 0;
+  padding: 5px 10px; background: var(--bg-secondary); font-size: 12px;
+}
+.t-colorinput .chip { width: 18px; height: 18px; border-radius: 0; border: 1px solid var(--border); }
+.t-kbd {
+  font-family: monospace; font-size: 12px;
+  border: 1px solid var(--border); border-radius: 0;
+  background: var(--bg-card); padding: 5px 14px;
+  min-width: 48px; text-align: center;
+}
+.t-combo { position: relative; max-width: 320px; }
+.t-combo-list {
+  border: 1px solid var(--border); border-top: none;
+  border-radius: 0; background: var(--bg-card);
+}
+.t-combo-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 7px 10px; font-size: 13px; cursor: pointer;
+}
+.t-combo-item:hover, .t-combo-item[aria-selected="true"] { background: var(--bg-hover); }
+.t-combo-item .num { color: var(--text-faint); font-size: 11px; font-variant-numeric: tabular-nums; width: 30px; }
+.t-combo-item .sub { margin-left: auto; color: var(--text-muted); font-size: 11px; }
+</style>
+<h2 class="card-title">Form Controls</h2>
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 20px;">
+  <div class="col">
+    <div>
+      <label class="f-label" for="fc-sel">Select</label>
+      <select class="t-select" id="fc-sel"><option>Bildschirmaufnahme</option><option>Fenster</option></select>
+    </div>
+    <label class="t-check"><input type="checkbox" checked /> Glow aktivieren</label>
+    <div class="row" style="align-items: center;">
+      <label class="f-label" for="fc-rng" style="margin: 0;">Slider</label>
+      <input class="t-range" id="fc-rng" type="range" min="0" max="100" value="42" />
+      <span style="font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums;">42</span>
+    </div>
+    <div class="row" style="align-items: center;">
+      <span class="f-label" style="margin: 0;">Stepper</span>
+      <span class="t-stepper"><button aria-label="Verringern">−</button><span class="val">180</span><button aria-label="Erhöhen">+</button></span>
+    </div>
+    <div class="row" style="align-items: center;">
+      <span class="f-label" style="margin: 0;">Farbe</span>
+      <span class="t-colorinput"><span class="chip" style="background: #c8e04a;"></span><span style="font-family: monospace;">#c8e04a</span></span>
+    </div>
+  </div>
+  <div class="col">
+    <div class="row" style="align-items: center;">
+      <span style="font-size: 13px;">+1 Encounter</span>
+      <span class="t-kbd">F1</span>
+      <button class="btn btn-secondary" style="padding: 5px 12px; font-size: 12px;">Aufzeichnen</button>
+      <button class="icon-btn" aria-label="Löschen" style="width: 26px; height: 26px;"><svg class="icon icon-sm" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+    </div>
+    <div class="row" style="align-items: center;">
+      <input class="t-input" style="font-family: monospace; font-size: 12px; flex: 1;" readonly value="http://localhost:5173/overlay" />
+      <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; display: inline-flex; gap: 6px; align-items: center;"><svg class="icon icon-sm" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>Kopieren</button>
+    </div>
+    <div class="t-combo">
+      <input class="t-input" style="border-radius: 0;" placeholder="Pokémon suchen…" role="combobox" aria-expanded="true" />
+      <div class="t-combo-list" role="listbox">
+        <div class="t-combo-item" role="option" aria-selected="true"><span class="num">#1</span><span>Bisasam</span><span class="sub">bulbasaur</span></div>
+        <div class="t-combo-item" role="option"><span class="num">#4</span><span>Glumanda</span><span class="sub">charmander</span></div>
+        <div class="t-combo-item" role="option"><span class="num">#7</span><span>Schiggy</span><span class="sub">squirtle</span></div>
+      </div>
+    </div>
+  </div>
+</div>
