@@ -7,6 +7,7 @@ import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServ
 import { SPRITE_FALLBACK } from "../../utils/sprites";
 import { getOddsFractional } from "../../utils/odds";
 import { DetectorPreview } from "../detector/DetectorPreview";
+import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 
 type Props = Readonly<{
   pokemon: Pokemon;
@@ -107,17 +108,27 @@ export function PokemonCard({
             lets the counter stay the hero. pr-8 clears the edit button. */}
         <div className="flex items-center gap-3 pr-8">
           <div className="w-14 h-14 2xl:w-16 2xl:h-16 shrink-0 grid place-items-center bg-bg-secondary border border-border-subtle group">
-            <img
-              src={spriteUrl}
-              alt={pokemon.name}
-              className="w-10 h-10 2xl:w-12 2xl:h-12 object-contain pixelated group-hover:scale-110 transition-transform duration-300"
-              style={
-                (pokemon.sprite_style && pokemon.sprite_style !== "classic" && pokemon.sprite_style !== "box")
-                  ? undefined
-                  : { imageRendering: "pixelated" as const }
-              }
-              onError={() => setImgError(true)}
-            />
+            {(!pokemon.sprite_style || pokemon.sprite_style === "box") ? (
+              /* Box sprites sit off-center in a padded canvas; plain
+                 object-contain shrinks the whole canvas instead of the
+                 visible icon, leaving it tiny and misplaced. Trim the
+                 transparent padding first so it fills the tile like every
+                 other style. */
+              <TrimmedBoxSprite
+                canonicalName={pokemon.canonical_name}
+                spriteType={pokemon.sprite_type}
+                alt={pokemon.name}
+                className="w-10 h-10 2xl:w-12 2xl:h-12 group-hover:scale-110 transition-transform duration-300"
+                fallbackSrc={spriteUrl}
+              />
+            ) : (
+              <img
+                src={spriteUrl}
+                alt={pokemon.name}
+                className="w-10 h-10 2xl:w-12 2xl:h-12 object-contain group-hover:scale-110 transition-transform duration-300"
+                onError={() => setImgError(true)}
+              />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="font-bold text-text-primary text-base 2xl:text-lg truncate capitalize leading-tight">
@@ -205,7 +216,7 @@ export function PokemonCard({
         >
           <DetectorPreview
             pokemon={pokemon}
-            precision={pokemon.detector_config?.templates.find((tmpl) => tmpl.enabled !== false)?.precision}
+            precision={pokemon.detector_config?.templates?.find((tmpl) => tmpl.enabled !== false)?.precision}
             isRunning={!!statusEntry}
             confidence={confidence}
           />

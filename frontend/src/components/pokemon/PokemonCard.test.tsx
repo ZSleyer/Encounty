@@ -116,14 +116,16 @@ describe("PokemonCard", () => {
   });
 
   it("shows fallback sprite when sprite_url is empty", () => {
-    const pokemon = makePokemon({ sprite_url: "" });
+    // Non-box style: renders a plain <img> synchronously instead of routing
+    // through TrimmedBoxSprite's async canvas-trim pipeline.
+    const pokemon = makePokemon({ sprite_url: "", sprite_style: "artwork" });
     render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
     const img = screen.getByAltText("Bisasam");
     expect(img.getAttribute("src")).toBe(SPRITE_FALLBACK);
   });
 
   it("shows fallback sprite when image fails to load", () => {
-    const pokemon = makePokemon({ sprite_url: "http://bad-url.png" });
+    const pokemon = makePokemon({ sprite_url: "http://bad-url.png", sprite_style: "artwork" });
     render(<PokemonCard {...defaultProps} pokemon={pokemon} />);
     const img = screen.getByAltText("Bisasam");
     // Trigger the error handler
