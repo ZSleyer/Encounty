@@ -92,7 +92,7 @@ function ToastItem({
         onMouseLeave={handlePointerResume}
         onFocus={handlePointerPause}
         onBlur={handlePointerResume}
-        className={`pointer-events-auto flex items-center gap-[clamp(0.875rem,1.2vw,1.25rem)] px-[clamp(0.875rem,1.2vw,1.25rem)] py-[clamp(0.625rem,0.9vw,1rem)] rounded-2xl bg-bg-secondary/95 backdrop-blur-md border border-border-subtle shadow-lg ${animClass} w-[clamp(320px,28vw,480px)]`}
+        className={`pointer-events-auto flex items-center gap-[clamp(0.875rem,1.2vw,1.25rem)] px-[clamp(0.875rem,1.2vw,1.25rem)] py-[clamp(0.625rem,0.9vw,1rem)] rounded-none bg-bg-secondary/95 backdrop-blur-md border border-border-subtle border-l-2 border-l-accent-blue shadow-lg ${animClass} w-[clamp(320px,28vw,480px)]`}
       >
         {toast.spriteUrl && (
           <div className="w-[clamp(3rem,3.5vw,4rem)] h-[clamp(3rem,3.5vw,4rem)] flex items-center justify-center shrink-0">
@@ -146,6 +146,13 @@ function ToastItem({
     info: <Info className="w-[clamp(1.375rem,1.6vw,1.75rem)] h-[clamp(1.375rem,1.6vw,1.75rem)] text-accent-blue shrink-0" />,
   };
 
+  // Severity lives in the left border, mirroring the design system's toast.
+  const severityBorder: Record<string, string> = {
+    success: "border-l-accent-green",
+    error: "border-l-accent-red",
+    info: "border-l-accent-blue",
+  };
+
   return (
     <div
       {...liveRegionProps}
@@ -153,7 +160,7 @@ function ToastItem({
       onMouseLeave={handlePointerResume}
       onFocus={handlePointerPause}
       onBlur={handlePointerResume}
-      className={`pointer-events-auto flex items-center gap-[clamp(0.875rem,1.2vw,1.25rem)] px-[clamp(1rem,1.4vw,1.5rem)] py-[clamp(0.75rem,1vw,1rem)] rounded-2xl bg-bg-secondary/95 backdrop-blur-md border border-border-subtle shadow-lg ${animClass} w-[clamp(320px,28vw,480px)]`}
+      className={`pointer-events-auto flex items-center gap-[clamp(0.875rem,1.2vw,1.25rem)] px-[clamp(1rem,1.4vw,1.5rem)] py-[clamp(0.75rem,1vw,1rem)] rounded-none bg-bg-secondary/95 backdrop-blur-md border border-border-subtle border-l-2 ${severityBorder[toast.type] ?? "border-l-accent-blue"} shadow-lg ${animClass} w-[clamp(320px,28vw,480px)]`}
     >
       {icons[toast.type]}
       <div className="flex flex-col min-w-0 flex-1">
