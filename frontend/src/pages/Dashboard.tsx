@@ -2201,9 +2201,13 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       sort_order: 0,
       collapsed: false,
     };
+    // Scoped to the current tab: a group view opened from Active must not leak
+    // completed members in, and vice versa (the group entity itself has no
+    // active/archived state, only its members do).
+    const scopePool = sidebarTab === "active" ? activeHunts : archivedHunts;
     const members = isUngrouped
-      ? allPokemon.filter((p) => !p.group_id)
-      : allPokemon.filter((p) => p.group_id === group.id);
+      ? scopePool.filter((p) => !p.group_id)
+      : scopePool.filter((p) => p.group_id === group.id);
     // ponytail: bulk increment/decrement fan out to per-member messages; there
     // is no dedicated group-increment endpoint. A real group's reset reuses the
     // reset_group message; the ungrouped bucket has no group id, so it fans the
@@ -2714,14 +2718,9 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           ) : (
             /* Grouped view: each group section renders its own <ul> so the
                native list content model stays valid (group headers are not
-               list items). The archive tab has no groups and stays one list. */
-            sidebarTab === "active" ? (
-              <div className="py-1 select-none">{renderGroupedList()}</div>
-            ) : (
-              <ul className="py-1 select-none" aria-label={t("dash.pokemonList")}>
-                {displayList.map((p, idx) => renderPokemonItem(p, idx))}
-              </ul>
-            )
+               list items). Used for both tabs so a group's "view" action
+               scopes correctly to whichever tab it was opened from. */
+            <div className="py-1 select-none">{renderGroupedList()}</div>
           )}
         </div>
 
