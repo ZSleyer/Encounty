@@ -80,3 +80,6 @@ frontend/src/engine/__tests__/ncc-*.test.ts
 # LLM
 .claude/
 graphify-out/
+
+# design-sync local state (project pin, notes) - not shared via git
+.design-sync/
