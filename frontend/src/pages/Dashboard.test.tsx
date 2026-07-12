@@ -785,7 +785,7 @@ describe("Dashboard pokemon list", () => {
 
     // Archive tab badge should show 2
     const archiveTab = screen.getByText("Archiv");
-    const badge = archiveTab.closest("span")?.querySelector(String.raw`.bg-accent-green\/20`);
+    const badge = archiveTab.closest("span")?.querySelector(String.raw`.border-accent-green\/40`);
     expect(badge).toBeTruthy();
   });
 

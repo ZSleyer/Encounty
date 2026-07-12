@@ -189,7 +189,7 @@ export function OverlayEditorPage() {
           onClick={(e) => { if (e.target === e.currentTarget) blocker.reset?.(); }}
         >
           <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full border border-amber-500/40 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />
             </div>
             <div className="text-center space-y-1.5">

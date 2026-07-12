@@ -114,7 +114,7 @@ function UpdateNotification({
       className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
       <div className="t-panel p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-        <div className="w-14 h-14 rounded-none bg-accent-blue/15 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-full border border-accent-blue/40 flex items-center justify-center">
           <ArrowUpCircle className="w-7 h-7 text-accent-blue" />
         </div>
         <div className="text-center space-y-1.5">
@@ -172,7 +172,7 @@ function CloseTabWarning({
       className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
       <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-        <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-full border border-amber-500/40 flex items-center justify-center">
           <AlertTriangle className="w-7 h-7 text-amber-500" />
         </div>
         <div className="text-center space-y-1.5">

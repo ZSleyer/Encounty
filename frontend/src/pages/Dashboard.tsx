@@ -2659,7 +2659,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               <Sparkles className="w-3 h-3" />
               {t("dash.tabActive")}
               {activeHunts.length > 0 && (
-                <span className="bg-accent-blue/20 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
+                <span className="border border-accent-blue/40 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
                   {activeHunts.length}
                 </span>
               )}
@@ -2680,7 +2680,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               <Trophy className="w-3 h-3" />
               {t("dash.tabArchive")}
               {archivedHunts.length > 0 && (
-                <span className="bg-accent-green/20 text-accent-green text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
+                <span className="border border-accent-green/40 text-accent-green text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
                   {archivedHunts.length}
                 </span>
               )}
@@ -2970,7 +2970,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           onClick={(e) => { if (e.target === e.currentTarget) setPendingTab(null); }}
         >
           <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-            <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full border border-amber-500/40 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />
             </div>
             <div className="text-center space-y-1.5">
