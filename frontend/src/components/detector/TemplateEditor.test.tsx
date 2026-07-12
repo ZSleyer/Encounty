@@ -1,8 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, userEvent, waitFor, within } from "../../test-utils";
+import { render, screen, userEvent, waitFor, within, fireEvent } from "../../test-utils";
 import { TemplateEditor } from "./TemplateEditor";
 import type { MatchedRegion } from "../../types";
 import type { SweepResult } from "../../engine/parameterSweep";
+
+// HTMLDialogElement.showModal/close are not implemented in jsdom (the
+// stability-analysis panel is a native <dialog>). Reflect the `open`
+// attribute so the implicit dialog role resolves for role-based queries.
+HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+  this.setAttribute("open", "");
+  this.focus();
+});
+HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+  this.removeAttribute("open");
+});
 
 // Mock useOCR since it uses tesseract.js which is heavy
 vi.mock("../../hooks/useOCR", () => ({
@@ -1368,26 +1379,30 @@ describe("TemplateEditor", () => {
       const button = await screen.findByRole("button", { name: /Stabilitäts-Analyse:/ });
       await user.click(button);
       const dialog = await screen.findByRole("dialog");
-      expect(dialog).toHaveAttribute("aria-modal", "true");
-      // Focus moves into the dialog on open
-      expect(dialog).toHaveFocus();
+      // Native <dialog>.showModal() carries modal semantics implicitly, no
+      // aria-modal attribute needed.
 
-      // Escape closes and returns focus to the trigger button
-      await user.keyboard("{Escape}");
+      // Escape fires a native `cancel` event on an open modal <dialog>;
+      // jsdom doesn't implement this automatically, so simulate it directly.
+      dialog.dispatchEvent(new Event("cancel", { bubbles: true }));
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-      expect(button).toHaveFocus();
+      // The close-to-focus handoff is deferred (useDialogClose waits for the
+      // clip-path transition or its fallback timeout) so it lands slightly
+      // after the dialog itself disappears from the a11y tree.
+      await waitFor(() => expect(button).toHaveFocus());
 
       // Close button closes as well
       await user.click(button);
       const reopened = await screen.findByRole("dialog");
       await user.click(within(reopened).getByRole("button", { name: "Schließen" }));
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-      expect(button).toHaveFocus();
+      await waitFor(() => expect(button).toHaveFocus());
 
-      // Backdrop click closes too
+      // Backdrop click closes too (a click whose target is the dialog
+      // element itself, not its content, per the imperative click-listener).
       await user.click(button);
       const third = await screen.findByRole("dialog");
-      await user.click(third.parentElement!);
+      fireEvent.click(third, { target: third });
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     });
 

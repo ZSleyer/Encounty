@@ -14,6 +14,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle, Check,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useDialogClose } from "../../hooks/useDialogClose";
 import { MatchedRegion, TemplateCalibration } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
 import { useReplayBuffer } from "../../hooks/useReplayBuffer";
@@ -463,98 +464,164 @@ export function simulateDetectionFlow(
   return { states, zones };
 }
 
-/** Score timeline visualizing the detection flow: Searching → Match → Hysteresis → Cooldown → Searching. */
-function ScoreSparkline({ batchResults, frameCount, selectedIndex, settings, t }: Readonly<{
+/** CSS color for a flow state, matching the DetectorPanel runtime dot palette. */
+function flowStateColor(state: FlowState): string {
+  switch (state) {
+    case "match": return "var(--accent-green)";
+    // A visibly more yellow-green than match (still unmistakably "green
+    // family") — the diagonal hatch overlay carries the rest of the
+    // distinction so the two never rely on hue alone.
+    case "hysteresis": return "color-mix(in srgb, var(--accent-green) 45%, #d9f560)";
+    case "cooldown": return "#a855f7";
+    default: return "color-mix(in srgb, var(--accent-blue) 40%, transparent)";
+  }
+}
+
+/**
+ * Builds a hard-stop CSS gradient of contiguous same-state runs, so the
+ * timeline reads as unbroken colored segments instead of a per-frame bar
+ * grid. Returns null when there's nothing to visualize yet.
+ */
+/** Segments narrower than this (in %) get widened so brief hits stay visible. */
+const MIN_SEGMENT_PCT = 1.5;
+
+/**
+ * Widens narrow non-"searching" segments (a single-frame match spike can be
+ * under a pixel wide) by pushing their shared boundary with a neighboring
+ * "searching" run, so a brief hit still reads as a visible band instead of
+ * vanishing into a hairline. Boundaries stay monotonic — segments share
+ * edges by construction, so growing one side always shrinks its neighbor's,
+ * never creating a gap or overlap.
+ */
+function widenNarrowSegments(bounds: number[], states: FlowState[]): number[] {
+  const widened = [...bounds];
+  for (let i = 0; i < states.length; i++) {
+    if (states[i] === "searching") continue;
+    const width = widened[i + 1] - widened[i];
+    if (width >= MIN_SEGMENT_PCT) continue;
+    const grow = (MIN_SEGMENT_PCT - width) / 2;
+    if (i > 0 && states[i - 1] === "searching") {
+      widened[i] = Math.max(widened[i - 1], widened[i] - grow);
+    }
+    if (i + 1 < states.length && states[i + 1] === "searching") {
+      widened[i + 1] = Math.min(widened[i + 2] ?? 100, widened[i + 1] + grow);
+    }
+  }
+  return widened;
+}
+
+function buildFlowGradient(
+  entries: [number, { overallScore: number }][],
+  settings: MatchStateSettings,
+  maxFrame: number,
+): {
+  gradient: string;
+  matchCount: number;
+  hasHysteresis: boolean;
+  hasCooldown: boolean;
+  /** Percent ranges of "hysteresis" segments, for the hatch overlay. */
+  hysteresisRanges: { x1: number; x2: number }[];
+} | null {
+  if (entries.length === 0) return null;
+  const { states } = simulateDetectionFlow(entries, settings);
+  const sorted = Array.from(states.entries()).sort(([a], [b]) => a - b);
+  if (sorted.length === 0) return null;
+
+  // Merge consecutive same-state frames into segments first.
+  const segStates: FlowState[] = [];
+  const segBoundsFrame: number[] = [sorted[0][0]];
+  let segState = sorted[0][1];
+  for (let i = 1; i < sorted.length; i++) {
+    const [idx, state] = sorted[i];
+    if (state !== segState) {
+      segStates.push(segState);
+      segBoundsFrame.push(sorted[i - 1][0]);
+      segState = state;
+    }
+  }
+  segStates.push(segState);
+  segBoundsFrame.push(sorted[sorted.length - 1][0]);
+
+  // segBoundsFrame has one more entry than segStates (shared edges); convert
+  // to percent boundaries, then widen any too-narrow non-searching segment.
+  const boundsPct = segBoundsFrame.map((f) => (f / maxFrame) * 100);
+  boundsPct[0] = 0;
+  boundsPct[boundsPct.length - 1] = 100;
+  const widened = widenNarrowSegments(boundsPct, segStates);
+
+  const stops: string[] = [];
+  const hysteresisRanges: { x1: number; x2: number }[] = [];
+  for (let i = 0; i < segStates.length; i++) {
+    // Hysteresis segments are fully transparent in the gradient itself —
+    // the hatch overlay underneath (painted first, same range) supplies the
+    // actual opaque color *and* the stripe pattern, so it renders pixel-for-
+    // pixel like the legend swatch instead of a washed-out transparent mix.
+    // No z-index/notch tricks needed either: the native thumb (part of the
+    // input's own top layer) is never at risk of being covered.
+    const color = segStates[i] === "hysteresis" ? "transparent" : flowStateColor(segStates[i]);
+    stops.push(`${color} ${widened[i]}%`, `${color} ${widened[i + 1]}%`);
+    if (segStates[i] === "hysteresis") {
+      hysteresisRanges.push({ x1: widened[i], x2: widened[i + 1] });
+    }
+  }
+
+  const stateValues = Array.from(states.values());
+  return {
+    gradient: `linear-gradient(to right, ${stops.join(", ")})`,
+    matchCount: stateValues.filter((s) => s === "match").length,
+    hasHysteresis: stateValues.includes("hysteresis"),
+    hasCooldown: stateValues.includes("cooldown"),
+    hysteresisRanges,
+  };
+}
+
+/** Legend row for the flow timeline: state colors, match count, precision. */
+function FlowLegend({ batchResults, settings, t }: Readonly<{
   batchResults: Map<number, { overallScore: number }>;
-  frameCount: number;
-  selectedIndex: number;
   /** Draft per-template settings driving the flow preview. */
   settings: MatchStateSettings;
   t: (k: string) => string;
 }>) {
   if (batchResults.size === 0) return null;
-  const threshold = settings.precision;
   const entries = Array.from(batchResults.entries()).sort(([a], [b]) => a - b) as [number, { overallScore: number }][];
-  const barWidth = 100 / Math.max(entries.length, 1);
   const { states, zones } = simulateDetectionFlow(entries, settings);
-
   const matchCount = Array.from(states.values()).filter((s) => s === "match").length;
-  const maxFrame = Math.max(frameCount - 1, 1);
   const hasHysteresis = zones.some((z) => z.type === "hysteresis");
   const hasCooldown = zones.some((z) => z.type === "cooldown");
 
   return (
-    <div className="rounded-none bg-bg-secondary border border-border-subtle px-4 py-3 space-y-2">
-      {/* Legend — uses the same palette as DetectorPanel runtime dots so the
-          sparkline and the live detector stay visually in sync. */}
-      <div className="flex items-center justify-between text-[10px] 2xl:text-xs">
-        <div className="flex items-center gap-3 text-text-muted">
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-none bg-blue-400 inline-block" />
-            {t("detector.stateIdle")}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-none bg-green-500 inline-block" />
-            {t("detector.stateMatch")}
-          </span>
-          {hasHysteresis && (
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-none bg-lime-400 inline-block" />
-              {t("detector.stateHysteresis")}
-            </span>
-          )}
-          {hasCooldown && (
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-none bg-purple-500 inline-block" />
-              {t("detector.stateCooldown")}
-            </span>
-          )}
-        </div>
-        <span className="text-text-muted font-mono">
-          {matchCount}× {t("detector.stateMatch")} · {t("detector.precision")} {(threshold * 100).toFixed(0)}%
+    <div className="flex items-center justify-between text-[10px] 2xl:text-xs px-1">
+      <div className="flex items-center gap-3 text-text-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-none inline-block" style={{ backgroundColor: flowStateColor("searching") }} />
+          {t("detector.stateIdle")}
         </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-none inline-block" style={{ backgroundColor: flowStateColor("match") }} />
+          {t("detector.stateMatch")}
+        </span>
+        {hasHysteresis && (
+          <span className="flex items-center gap-1.5">
+            <span
+              className="w-2.5 h-2.5 rounded-none inline-block"
+              style={{
+                backgroundColor: flowStateColor("hysteresis"),
+                backgroundImage: "repeating-linear-gradient(135deg, transparent 0 1.5px, color-mix(in srgb, var(--bg-primary) 55%, transparent) 1.5px 2px)",
+              }}
+            />
+            {t("detector.stateHysteresis")}
+          </span>
+        )}
+        {hasCooldown && (
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-none inline-block" style={{ backgroundColor: flowStateColor("cooldown") }} />
+            {t("detector.stateCooldown")}
+          </span>
+        )}
       </div>
-
-      {/* Chart */}
-      <svg viewBox="0 0 100 40" className="w-full h-12 2xl:h-14" preserveAspectRatio="none" aria-label="Score timeline">
-        {/* Flow zones — background bands. The "sustained match" zone is drawn
-            noticeably more visible than cooldown so the after-match decay
-            window stands out as part of the match itself. */}
-        {zones.map((z) => {
-          const x1 = (z.startIdx / maxFrame) * 100;
-          const x2 = Math.min((z.endIdx / maxFrame) * 100 + barWidth, 100);
-          const isHysteresis = z.type === "hysteresis";
-          const fill = isHysteresis ? "#a3e635" : "#a855f7";
-          return (
-            <rect key={`z-${z.type}-${z.startIdx}-${z.endIdx}`} x={x1} y={0} width={x2 - x1} height={40}
-              fill={fill} opacity={isHysteresis ? 0.22 : 0.12} rx={0.3} />
-          );
-        })}
-
-        {/* Score bars */}
-        {entries.map(([idx, r]) => {
-          const x = (idx / maxFrame) * 100;
-          const h = r.overallScore * 36;
-          const state = states.get(idx) ?? "searching";
-          let fill: string;
-          if (state === "match") fill = "#22c55e";
-          else if (state === "hysteresis") fill = "#a3e635";
-          else if (state === "cooldown") fill = "#a855f7";
-          else fill = "#60a5fa";
-          return (
-            <rect key={idx} x={x} y={40 - h} width={Math.max(barWidth * 0.8, 0.5)} height={h}
-              fill={fill} opacity={state === "searching" ? 0.55 : 0.85} rx={0.3} />
-          );
-        })}
-
-        {/* Selected frame cursor */}
-        <line
-          x1={(selectedIndex / maxFrame) * 100}
-          x2={(selectedIndex / maxFrame) * 100}
-          y1={0} y2={40}
-          stroke="white" strokeWidth={0.6} opacity={0.8}
-        />
-      </svg>
+      <span className="text-text-muted font-mono">
+        {matchCount}× {t("detector.stateMatch")} · {t("detector.precision")} {(settings.precision * 100).toFixed(0)}%
+      </span>
     </div>
   );
 }
@@ -759,25 +826,26 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
   onToggleApply: (v: boolean) => void;
   t: (k: string) => string;
 }>) {
-  const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
   const running = batchRunning || sweepRunning;
   const rating = stats ? ratingPresentation(stats.rating) : null;
   const showApplied = !running && applyCalibration && stats !== null;
 
-  // Move focus into the dialog when it opens (WCAG 2.2 focus management).
-  useEffect(() => {
-    if (open) dialogRef.current?.focus();
-  }, [open]);
+  const close = useDialogClose(dialogRef, () => buttonRef.current?.focus());
 
-  /** Close the modal and return focus to the trigger button. */
-  const close = useCallback(() => {
-    setOpen(false);
-    buttonRef.current?.focus();
-  }, []);
+  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const handleBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) close();
+    };
+    dialog.addEventListener("click", handleBackdropClick);
+    return () => dialog.removeEventListener("click", handleBackdropClick);
+  }, [close]);
 
   // Accessible name carries the full status so the rating icon color and the
   // applied check are not the only carriers of information.
@@ -806,7 +874,7 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
         ref={buttonRef}
         type="button"
         disabled={!stats}
-        onClick={() => setOpen(true)}
+        onClick={() => dialogRef.current?.showModal()}
         aria-label={buttonLabel}
         aria-haspopup="dialog"
         title={showApplied ? t("templateEditor.stabilityApplied") : undefined}
@@ -818,49 +886,37 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
           <Check className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 text-emerald-400 shrink-0" aria-hidden="true" />
         )}
       </button>
-      {open && stats && rating && createPortal(
-        <div
-          className="fixed inset-0 z-120 flex items-center justify-center bg-black/60 p-4"
-          onClick={close}
-          role="presentation"
+      {stats && rating && (
+        <dialog
+          ref={dialogRef}
+          onCancel={close}
+          aria-labelledby={titleId}
+          className="t-panel m-auto max-w-md max-h-[85vh] overflow-y-auto p-4 space-y-2 text-sm 2xl:text-base backdrop:bg-black/60"
         >
-          {/* Escape handling lives on the dialog, which holds focus while open. */}
-          <div
-            ref={dialogRef}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={titleId}
-            tabIndex={-1}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => { if (e.key === "Escape") close(); }}
-            className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-none border border-border-subtle bg-bg-card p-4 space-y-2 text-sm 2xl:text-base outline-none"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <h3 id={titleId} className={`flex items-center gap-2 font-semibold ${rating.colorClass}`}>
-                <rating.Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
-                <span>{t("templateEditor.stabilityTitle")}: {t(rating.labelKey)}</span>
-              </h3>
-              <button
-                type="button"
-                onClick={close}
-                aria-label={t("templateEditor.close")}
-                className="p-1 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors shrink-0"
-              >
-                <X className="w-4 h-4 2xl:w-5 2xl:h-5" aria-hidden="true" />
-              </button>
-            </div>
-            <StabilityDetails
-              stats={stats}
-              polling={polling}
-              sweep={sweep}
-              sweepRunning={sweepRunning}
-              applyCalibration={applyCalibration}
-              onToggleApply={onToggleApply}
-              t={t}
-            />
+          <div className="flex items-start justify-between gap-2">
+            <h3 id={titleId} className={`flex items-center gap-2 font-semibold ${rating.colorClass}`}>
+              <rating.Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
+              <span>{t("templateEditor.stabilityTitle")}: {t(rating.labelKey)}</span>
+            </h3>
+            <button
+              type="button"
+              onClick={close}
+              aria-label={t("templateEditor.close")}
+              className="p-1 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors shrink-0"
+            >
+              <X className="w-4 h-4 2xl:w-5 2xl:h-5" aria-hidden="true" />
+            </button>
           </div>
-        </div>,
-        document.body,
+          <StabilityDetails
+            stats={stats}
+            polling={polling}
+            sweep={sweep}
+            sweepRunning={sweepRunning}
+            applyCalibration={applyCalibration}
+            onToggleApply={onToggleApply}
+            t={t}
+          />
+        </dialog>
       )}
     </>
   );
@@ -1900,12 +1956,10 @@ export function TemplateEditor({
       {/* Test Phase UI */}
       {phase === "test" && (
         <>
-          {/* Score Sparkline */}
-          <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-2 px-8">
-            <ScoreSparkline
+          {/* Flow legend: state colors, match count, precision */}
+          <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-1 px-8">
+            <FlowLegend
               batchResults={templateTest.batchResults}
-              frameCount={replayBuffer.frameCount}
-              selectedIndex={selectedFrameIndex}
               settings={{
                 precision: templateSettings.precision,
                 hysteresisFactor: templateSettings.hysteresisFactor,
@@ -1916,32 +1970,87 @@ export function TemplateEditor({
             />
           </div>
 
-          {/* Timeline Scrubber */}
-          {replayBuffer.frameCount > 0 && (
-            <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-3 px-8">
-              <div className="flex items-center gap-4">
-                <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
-                  {selectedFrameIndex + 1} / {replayBuffer.frameCount}
-                </span>
-                <input
-                  type="range" min={0} max={replayBuffer.frameCount - 1}
-                  value={selectedFrameIndex}
-                  onChange={(e) => {
-                    const idx = Number(e.target.value);
-                    setSelectedFrameIndex(idx);
-                    const frame = replayBuffer.getFrame(idx);
-                    if (frame && canvasRef.current) {
-                      renderReplayFrame(frame, canvasRef.current, setSnapshotWidth, setSnapshotHeight);
-                      templateTest.scoreFrame(canvasRef.current, regions, frame);
-                    }
-                  }}
-                  className="flex-1 h-2 bg-bg-hover border border-border-subtle rounded-none appearance-none cursor-pointer
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]
-                    [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]"
-                />
+          {/* Timeline: a single scrubber whose track paints the contiguous
+              detection-flow segments (searching/match/hysteresis/cooldown)
+              instead of a separate per-frame bar chart above a plain slider.
+              Near-transparent bg-primary tint instead of a bg-secondary/
+              bg-hover tile, which read as a floating grey box against the
+              editor's near-black backdrop. */}
+          {replayBuffer.frameCount > 0 && (() => {
+            // Only paint the flow gradient once scoring has settled — while
+            // templateTest.isRunning, results trickle in frame by frame and
+            // an early, still-incomplete state can register a spurious
+            // one-frame "match" that flashes at the timeline's start before
+            // the batch finishes. The flat track is a better placeholder
+            // than a misleading flicker.
+            const flow = templateTest.isRunning ? null : buildFlowGradient(
+              Array.from(templateTest.batchResults.entries())
+                .sort(([a], [b]) => a - b) as [number, { overallScore: number }][],
+              {
+                precision: templateSettings.precision,
+                hysteresisFactor: templateSettings.hysteresisFactor,
+                consecutiveHits: templateSettings.consecutiveHits,
+                cooldownSec: templateSettings.cooldownSec,
+              },
+              Math.max(replayBuffer.frameCount - 1, 1),
+            );
+            return (
+              <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-3 px-8">
+                <div className="flex items-center gap-4">
+                  <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
+                    {selectedFrameIndex + 1} / {replayBuffer.frameCount}
+                  </span>
+                  <div className="relative flex-1">
+                    {/* Hysteresis hatch: the opaque hysteresis color plus a
+                        diagonal stripe layer — same two-part recipe as the
+                        legend swatch, so the two render identically instead
+                        of the gradient's own (transparent, mixed-with-page-
+                        background) version of the color drifting from it.
+                        One static div per range, painted first (below,
+                        plain DOM order, no z-index needed) so it never has
+                        to move or split around the thumb; the corresponding
+                        gradient stop is fully transparent there (see
+                        buildFlowGradient) so this is the only color drawn.
+                        The thumb itself is part of the input's own top
+                        layer and is never at risk of being covered. */}
+                    {flow?.hysteresisRanges.map(({ x1, x2 }) => (
+                      <div
+                        key={`${x1}-${x2}`}
+                        aria-hidden="true"
+                        className="absolute inset-y-0 pointer-events-none"
+                        style={{
+                          left: `${x1}%`,
+                          width: `${x2 - x1}%`,
+                          backgroundColor: flowStateColor("hysteresis"),
+                          backgroundImage: "repeating-linear-gradient(135deg, transparent 0 3px, color-mix(in srgb, var(--bg-primary) 55%, transparent) 3px 4px)",
+                        }}
+                      />
+                    ))}
+                    <input
+                      type="range" min={0} max={replayBuffer.frameCount - 1}
+                      value={selectedFrameIndex}
+                      onChange={(e) => {
+                        const idx = Number(e.target.value);
+                        setSelectedFrameIndex(idx);
+                        const frame = replayBuffer.getFrame(idx);
+                        if (frame && canvasRef.current) {
+                          renderReplayFrame(frame, canvasRef.current, setSnapshotWidth, setSnapshotHeight);
+                          templateTest.scoreFrame(canvasRef.current, regions, frame);
+                        }
+                      }}
+                      style={{
+                        background: flow?.gradient ?? "color-mix(in srgb, var(--bg-primary) 55%, transparent)",
+                        borderColor: "color-mix(in srgb, var(--border-subtle) 70%, transparent)",
+                      }}
+                      className="relative w-full h-3 border rounded-none appearance-none cursor-pointer
+                        [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-text-primary [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]
+                        [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-text-primary [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--bg-primary)]"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Score Panel */}
           <div className="w-full max-w-lg 2xl:max-w-xl px-4 mb-3 space-y-2">
