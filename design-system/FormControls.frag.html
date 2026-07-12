@@ -1,14 +1,5 @@
 <style>
 .f-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
-.t-select {
-  font: inherit;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border);
-  border-radius: 0;
-  padding: 7px 10px;
-  width: 100%;
-}
 .t-check { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
 .t-check input {
   appearance: none;
@@ -70,7 +61,7 @@
   <div class="col">
     <div>
       <label class="f-label" for="fc-sel">Select</label>
-      <select class="t-select" id="fc-sel"><option>Bildschirmaufnahme</option><option>Fenster</option></select>
+      <span class="t-select-wrap"><select class="t-select" id="fc-sel"><option>Bildschirmaufnahme</option><option>Fenster</option></select></span>
     </div>
     <label class="t-check"><input type="checkbox" checked /> Glow aktivieren</label>
     <div class="row" style="align-items: center;">

@@ -4,7 +4,7 @@
   --bg-secondary: #131922;
   --bg-card: #161e28;
   --bg-hover: #1e2836;
-  --accent: #c8e04a;
+  --accent: #a685f0;
   --accent-green: #34d67a;
   --accent-yellow: #ffb020;
   --accent-red: #f05050;
@@ -20,7 +20,7 @@
   --bg-secondary: #f8fafb;
   --bg-card: #ffffff;
   --bg-hover: #e2e7ed;
-  --accent: #566800;
+  --accent: #6d28d9;
   --accent-green: #15803d;
   --accent-yellow: #92400e;
   --accent-red: #b91c1c;
@@ -175,6 +175,29 @@ body {
   transform: translateX(18px);
   background: var(--accent);
 }
+/* Select: custom chevron so right spacing matches left text padding */
+.t-select-wrap { position: relative; display: block; }
+.t-select-wrap::after {
+  content: "";
+  position: absolute;
+  right: 12px; top: 50%;
+  width: 6px; height: 6px;
+  border-right: 1px solid var(--text-muted);
+  border-bottom: 1px solid var(--text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.t-select {
+  font: inherit;
+  appearance: none;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 7px 30px 7px 10px;
+  width: 100%;
+}
+
 /* Icons: lucide, 2px stroke, currentColor */
 .icon {
   width: 20px; height: 20px;
