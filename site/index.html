@@ -93,21 +93,24 @@
             The modern, open-source auto shiny counter for Pokémon shiny hunting. Capture your
             game, let the GPU detect encounters, and never click a tally counter again.
           </p>
-          <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
+          <div id="download-buttons" class="mt-10 flex flex-wrap items-center justify-center gap-3">
             <a
               href="https://github.com/ZSleyer/Encounty/releases/latest"
-              class="t-cut bg-accent-blue px-6 py-3 font-semibold text-bg-primary transition-opacity hover:opacity-90"
+              data-os="linux"
+              class="dl-btn dl-btn--primary px-6 py-3"
               >Download for Linux</a
             >
             <a
               href="https://github.com/ZSleyer/Encounty/releases/latest"
-              class="border border-border-subtle bg-bg-card px-6 py-3 font-medium text-text-primary transition-colors hover:border-accent-blue"
-              >Windows</a
+              data-os="macos"
+              class="dl-btn px-6 py-3"
+              >Download for macOS</a
             >
             <a
               href="https://github.com/ZSleyer/Encounty/releases/latest"
-              class="border border-border-subtle bg-bg-card px-6 py-3 font-medium text-text-primary transition-colors hover:border-accent-blue"
-              >macOS</a
+              data-os="windows"
+              class="dl-btn px-6 py-3"
+              >Download for Windows</a
             >
           </div>
           <p class="mt-4 text-sm text-text-muted">
@@ -346,6 +349,34 @@
       const year = new Date().getFullYear();
       document.getElementById("copyright-year").textContent =
         "© " + (year === 2026 ? "2026" : "2026–" + year);
+
+      // Promote the download button matching the visitor's OS to primary
+      // and move it to the middle slot. Defaults to the static markup
+      // order (Linux primary, already first) if detection is inconclusive,
+      // so there's never a no-primary-button state.
+      function detectOS() {
+        const ua = navigator.userAgent;
+        if (/Windows/.test(ua)) return "windows";
+        if (/Macintosh|Mac OS X/.test(ua) && !/iPhone|iPad|iPod/.test(ua)) return "macos";
+        if (/Linux/.test(ua) && !/Android/.test(ua)) return "linux";
+        return null;
+      }
+      const detectedOS = detectOS();
+      if (detectedOS) {
+        const container = document.getElementById("download-buttons");
+        const buttons = Array.from(container.querySelectorAll(".dl-btn"));
+        buttons.forEach((btn) => {
+          btn.classList.toggle("dl-btn--primary", btn.dataset.os === detectedOS);
+        });
+        // Base order is [linux, macos, windows], detected macOS is already
+        // in the middle; otherwise pull the detected one out and reinsert
+        // it between the remaining two, keeping their relative order.
+        if (detectedOS !== "macos") {
+          const primaryBtn = buttons.find((btn) => btn.dataset.os === detectedOS);
+          const others = buttons.filter((btn) => btn !== primaryBtn);
+          container.replaceChildren(others[0], primaryBtn, others[1]);
+        }
+      }
     </script>
   </body>
 </html>

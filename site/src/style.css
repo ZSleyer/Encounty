@@ -99,6 +99,41 @@ a.t-label:hover {
   box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
 }
 
+/* Download buttons: one is promoted to --primary by the OS-detection
+   script (index.html) based on the visitor's platform, defaulting to
+   Linux (this project's own primary target) if detection is inconclusive
+   or JS is disabled. */
+.dl-btn {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-weight: 500;
+  border-radius: 0;
+  transition: border-color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
+}
+
+.dl-btn:hover {
+  border-color: var(--accent-blue);
+}
+
+.dl-btn--primary {
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+  border-color: transparent;
+  background: var(--accent-blue);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.dl-btn--primary:hover {
+  border-color: transparent;
+  opacity: 0.9;
+}
+
+.dl-btn--primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
+}
+
 /* Panel with Tempest corner brackets — the app's own card shell. */
 .t-panel {
   position: relative;
