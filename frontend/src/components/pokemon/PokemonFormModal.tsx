@@ -948,17 +948,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
           <div className="flex flex-col items-center gap-2 w-full">
             {selected ? (
               <>
-                <TrimmedBoxSprite
-                  canonicalName={selected.canonical}
-                  spriteType={spriteType}
-                  alt={activeName}
-                  className="h-28 w-auto mx-auto"
-                  hideOnFail
-                />
+                {/* Hero: the style-accurate sprite. Tiny menu icons look
+                    distorted when blown up, so the box icon stays small below. */}
                 <img
                   src={customSprite || selected.sprite}
                   alt={activeName}
-                  className="h-16 w-auto mx-auto pokemon-sprite"
+                  className="h-28 w-auto mx-auto pokemon-sprite object-contain"
                   style={
                     spriteStyle === "box" || spriteStyle === "classic"
                       ? { imageRendering: "pixelated" }
@@ -972,6 +967,15 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     markStyleUnavailable(spriteStyle);
                   }}
                 />
+                {spriteStyle !== "box" && (
+                  <TrimmedBoxSprite
+                    canonicalName={selected.canonical}
+                    spriteType={spriteType}
+                    alt=""
+                    className="h-8 w-auto mx-auto"
+                    hideOnFail
+                  />
+                )}
               </>
             ) : (
               <div className="h-28 flex items-center justify-center">
