@@ -56,10 +56,6 @@ export function GroupCounterView({
   const dotColor = group.color || DEFAULT_GROUP_COLOR;
   const totalEncounters = members.reduce((sum, p) => sum + p.encounters, 0);
 
-  // Shared button styling: visible focus ring + accessible hit area.
-  const bulkButtonClass =
-    "flex items-center justify-center w-9 h-9 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
-
   return (
     <section aria-label={group.name} className="flex flex-col h-full min-h-0">
       {/* --- Header --- fixed bar; only the member grid below scrolls, so the
@@ -78,20 +74,20 @@ export function GroupCounterView({
 
           {/* Stat chips: member count + summed encounters. */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium px-2.5 py-1 rounded-none bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums">
+            <span className="t-label tabular-nums">
               {t("group.count", { count: members.length })}
             </span>
             <span
               aria-live="polite"
-              className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-none bg-bg-secondary border border-border-subtle text-text-secondary tabular-nums"
+              className="t-label flex items-center gap-1 tabular-nums"
               title={t("group.totalEncounters", { count: totalEncounters })}
             >
               <Zap className="w-3 h-3 text-accent-yellow" aria-hidden="true" />
-              {totalEncounters.toLocaleString()}
+              {totalEncounters}
             </span>
           </div>
 
-          {/* Bulk actions */}
+          {/* Bulk actions: same secondary / primary-cut / ghost hierarchy as the hero. */}
           <div
             role="group"
             aria-label={group.name}
@@ -99,27 +95,26 @@ export function GroupCounterView({
           >
             <button
               type="button"
-              onClick={onBulkIncrement}
-              className={bulkButtonClass}
-              title={t("group.bulkIncrement")}
-              aria-label={t("group.bulkIncrement")}
-            >
-              <Plus className="w-4 h-4" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
               onClick={onBulkDecrement}
-              className={bulkButtonClass}
+              className="flex items-center justify-center w-9 h-9 rounded-none bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               title={t("group.bulkDecrement")}
               aria-label={t("group.bulkDecrement")}
             >
               <Minus className="w-4 h-4" aria-hidden="true" />
             </button>
-            <span aria-hidden="true" className="w-px h-5 bg-border-subtle mx-0.5" />
+            <button
+              type="button"
+              onClick={onBulkIncrement}
+              className="t-cut flex items-center justify-center h-9 px-4 rounded-none bg-accent-blue hover:bg-accent-blue/90 text-bg-primary font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              title={t("group.bulkIncrement")}
+              aria-label={t("group.bulkIncrement")}
+            >
+              <Plus className="w-4 h-4 stroke-[2.5px]" aria-hidden="true" />
+            </button>
             <button
               type="button"
               onClick={onBulkReset}
-              className={`${bulkButtonClass} hover:text-red-400`}
+              className="flex items-center justify-center w-9 h-9 rounded-none text-text-muted hover:bg-bg-hover hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               title={t("group.bulkReset")}
               aria-label={t("group.bulkReset")}
             >

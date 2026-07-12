@@ -133,7 +133,7 @@ export function SidebarGroupSection({
           {chevron}
           <span
             aria-hidden="true"
-            className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/20"
+            className="w-2.5 h-2.5 rounded-none shrink-0 border border-black/20"
             style={{ backgroundColor: color }}
           />
           <h3 className="text-[11px] font-semibold uppercase tracking-wider truncate">

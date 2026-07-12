@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Minus, RotateCcw, Star, Edit2, Gamepad2, Video, VideoOff, ChevronDown } from "lucide-react";
+import { Plus, Minus, RotateCcw, Edit2, Gamepad2, Video, VideoOff, ChevronDown } from "lucide-react";
 import { Pokemon } from "../../types";
 import { useCounterStore, DetectorStatusEntry } from "../../hooks/useCounterState";
 import { useI18n } from "../../contexts/I18nContext";
@@ -69,17 +69,8 @@ export function PokemonCard({
 
   return (
     <div
-      className={`relative rounded-xl border transition-all duration-300 overflow-hidden flex flex-col text-left w-full p-0 ${
-        pokemon.is_active
-          ? "border-accent-blue/50 bg-linear-to-b from-bg-card to-accent-blue/5 shadow-[0_0_15px_rgba(59,130,246,0.15)] scale-[1.02]"
-          : "border-border-subtle bg-bg-card hover:border-border-active/40 hover:shadow-lg"
-      } ${isFlashing ? "animate-flash" : ""}`}
+      className={`t-panel t-hatch relative flex flex-col text-left w-full p-0 ${isFlashing ? "animate-flash" : ""}`}
     >
-      {/* Active Top Bar Indicator */}
-      {pokemon.is_active && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-accent-blue" />
-      )}
-
       {/* Detector status indicator — only visible while a detector is active */}
       {statusEntry ? (() => {
         const { cls, pulse, title } = detectorDotClass(statusEntry, t);
@@ -92,36 +83,31 @@ export function PokemonCard({
         );
       })() : null}
 
-      {/* Header logic (edit, active star, delete) */}
-      <div className="absolute top-2 right-2 flex gap-1">
-        {pokemon.is_active && (
-          <div
-            className="bg-accent-blue rounded-md p-1.5 shadow-sm"
-            title={t("dash.tooltipSetActive")}
-            aria-hidden="true"
-          >
-            <Star className="w-3.5 h-3.5 text-white fill-white" />
-          </div>
-        )}
-        <button
-          onClick={() => onEdit(pokemon)}
-          className="p-1.5 rounded-md bg-bg-secondary/80 hover:bg-accent-blue hover:text-white text-text-secondary backdrop-blur-sm transition-colors"
-          title={t("dash.tooltipEdit")}
-          aria-label={t("dash.tooltipEdit")}
-        >
-          <Edit2 className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      <button
+        onClick={() => onEdit(pokemon)}
+        className="absolute top-2 right-2 p-1.5 rounded-none text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors"
+        title={t("dash.tooltipEdit")}
+        aria-label={t("dash.tooltipEdit")}
+      >
+        <Edit2 className="w-3.5 h-3.5" />
+      </button>
 
       <div className="p-4 2xl:p-5 flex-1 flex flex-col gap-3">
+        {/* Status label: mirrors the single-hunt hero panel's status chip. */}
+        {pokemon.is_active && (
+          <span className="t-label t-label--accent w-fit" title={t("dash.tooltipSetActive")}>
+            {t("dash.tabActive")}
+          </span>
+        )}
+
         {/* Identity row: sprite next to name + game keeps the card short and
-            lets the counter stay the hero. pr-14 clears the absolute action cluster. */}
-        <div className="flex items-center gap-3 pr-14">
-          <div className="w-14 h-14 2xl:w-16 2xl:h-16 shrink-0 grid place-items-center rounded-xl bg-bg-secondary/40 border border-border-subtle/50 group">
+            lets the counter stay the hero. pr-8 clears the edit button. */}
+        <div className="flex items-center gap-3 pr-8">
+          <div className="w-14 h-14 2xl:w-16 2xl:h-16 shrink-0 grid place-items-center bg-bg-secondary border border-border-subtle group">
             <img
               src={spriteUrl}
               alt={pokemon.name}
-              className="w-10 h-10 2xl:w-12 2xl:h-12 object-contain pixelated drop-shadow group-hover:scale-110 transition-transform duration-300"
+              className="w-10 h-10 2xl:w-12 2xl:h-12 object-contain pixelated group-hover:scale-110 transition-transform duration-300"
               style={
                 (pokemon.sprite_style && pokemon.sprite_style !== "classic" && pokemon.sprite_style !== "box")
                   ? undefined
@@ -144,13 +130,13 @@ export function PokemonCard({
           </div>
         </div>
 
-        {/* Counter — the hero; scales up on roomier cards. */}
+        {/* Counter — the hero; fluid size mirrors the single-hunt counter. */}
         <div
           aria-live="polite"
           aria-atomic="true"
-          className={`text-center w-full bg-bg-secondary/30 rounded-xl py-4 2xl:py-5 border border-border-subtle/50 transition-all duration-200 ${isFlashing ? "scale-105 bg-accent-blue/20 border-accent-blue/50" : ""}`}
+          className={`text-center w-full bg-bg-secondary rounded-none py-4 2xl:py-5 border border-border-subtle transition-colors duration-200 ${isFlashing ? "bg-accent-blue/20 border-accent-blue/50" : ""}`}
         >
-          <span className="text-4xl 2xl:text-6xl font-black text-text-primary tabular-nums tracking-tight">
+          <span className="text-[clamp(32px,4vw,56px)] font-black text-text-primary tabular-nums tracking-tight leading-none">
             {pokemon.encounters}
           </span>
           <p className="text-[10px] 2xl:text-xs text-text-muted uppercase tracking-widest font-bold mt-0.5">
@@ -158,11 +144,11 @@ export function PokemonCard({
           </p>
         </div>
 
-        {/* Primary Controls */}
+        {/* Primary Controls: same secondary / primary-cut / ghost hierarchy as the hero. */}
         <div className="grid grid-cols-[1fr_2fr_1fr] gap-2 w-full">
           <button
             onClick={() => onDecrement(pokemon.id)}
-            className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
+            className="flex items-center justify-center py-2.5 rounded-none bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors"
             title={t("dash.tooltipDecrement")}
             aria-label={t("dash.tooltipDecrement")}
           >
@@ -170,15 +156,15 @@ export function PokemonCard({
           </button>
           <button
             onClick={() => onIncrement(pokemon.id)}
-            className="flex flex-col items-center justify-center py-2.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+            className="t-cut flex flex-col items-center justify-center py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 text-bg-primary font-bold transition-colors"
             title={t("dash.tooltipIncrement")}
             aria-label={t("dash.tooltipIncrement")}
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-5 h-5 stroke-[2.5px]" />
           </button>
           <button
             onClick={() => onReset(pokemon.id)}
-            className="flex items-center justify-center py-2.5 rounded-lg bg-bg-secondary hover:bg-bg-hover text-text-secondary hover:text-red-400 transition-colors"
+            className="flex items-center justify-center py-2.5 rounded-none text-text-muted hover:bg-bg-hover hover:text-accent-red transition-colors"
             title={t("dash.tooltipReset")}
             aria-label={t("dash.tooltipReset")}
           >
@@ -188,13 +174,13 @@ export function PokemonCard({
 
         {/* Footer — always present so every card reserves the same space: the
             live-preview toggle when a source streams, otherwise a muted note. */}
-        <div className="flex items-center min-h-[30px] mt-auto pt-2 border-t border-border-subtle/50">
+        <div className="flex items-center min-h-[30px] mt-auto pt-2 border-t border-border-subtle">
           {previewAvailable ? (
             <button
               onClick={() => setShowPreview((v) => !v)}
               aria-expanded={showPreview}
               title={t("dash.preview")}
-              className="flex items-center gap-1 py-1 pr-2 pl-1 rounded-md text-[11px] font-medium text-text-muted hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="flex items-center gap-1 py-1 pr-2 pl-1 rounded-none text-[11px] font-medium text-text-muted hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               <Video className="w-3.5 h-3.5" />
               <span>{t("dash.preview")}</span>
@@ -220,7 +206,7 @@ export function PokemonCard({
               onClick={() => onOpenDetector?.(pokemon.id)}
               title={t("dash.openDetector")}
               aria-label={t("dash.openDetector")}
-              className="block w-full aspect-video rounded-lg overflow-hidden border border-border-subtle/50 hover:border-accent-blue/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="block w-full aspect-video rounded-none overflow-hidden border border-border-subtle hover:border-accent-blue/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               <DetectorPreview
                 pokemon={pokemon}
