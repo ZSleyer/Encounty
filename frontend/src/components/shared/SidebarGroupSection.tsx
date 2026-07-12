@@ -247,7 +247,7 @@ export function SidebarGroupSection({
           </div>
         )}
       </div>
-      {!collapsed && <div>{children}</div>}
+      {!collapsed && <ul aria-label={label}>{children}</ul>}
     </section>
   );
 }
