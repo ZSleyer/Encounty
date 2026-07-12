@@ -198,9 +198,14 @@ dialog.t-panel::after {
   );
 }
 
-/* Micro label chip: uppercase spaced-out tag with a hairline border. */
+/* Micro label chip: uppercase spaced-out tag with a hairline border.
+   inline-flex (not inline-block) so icon+text chips lay out horizontally:
+   this is unlayered CSS and Tailwind's utilities live in @layer, so an
+   unlayered `display` here always wins over a `flex`/`inline-flex` utility
+   class regardless of source order — the base rule has to get it right. */
 .t-label {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-size: 10px;

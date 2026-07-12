@@ -11,7 +11,6 @@ import {
   Plus,
   Minus,
   RotateCcw,
-  Zap,
   Edit2,
   Gamepad2,
   Search,
@@ -1147,10 +1146,10 @@ function SidebarQuickActions({
       )}
       {/* Total encounters across all hunts, right-aligned micro label */}
       <span
-        className="t-label flex items-center gap-1 shrink-0 tabular-nums"
+        className="t-label gap-1 shrink-0 tabular-nums"
         title={totalEncountersLabel}
       >
-        <Zap className="w-3 h-3 text-accent-yellow" aria-hidden="true" />
+        <BarChart3 className="w-3 h-3 text-accent-blue" aria-hidden="true" />
         {totalEncounters}
         <span className="sr-only">{totalEncountersLabel}</span>
       </span>
@@ -1535,8 +1534,8 @@ function DashboardCounterTab({
 
         {/* Chips row: odds micro label */}
         <div className="flex flex-wrap items-center justify-center gap-2">
-          <span className="t-label t-label--accent" title={t("aria.odds")}>
-            {t("dash.odds") || "Odds"}{" "}
+          <span className="t-label t-label--accent gap-1" title={t("aria.odds")}>
+            {t("dash.odds") || "Odds"}
             <span className="tabular-nums">{oddsDisplay}</span>
           </span>
         </div>

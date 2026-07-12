@@ -141,8 +141,8 @@ export function PokemonCard({
           <span className="text-[clamp(32px,4vw,56px)] font-black text-text-primary tabular-nums tracking-tight leading-none">
             {pokemon.encounters}
           </span>
-          <span className="t-label t-label--accent" title={t("aria.odds")}>
-            {t("dash.odds")}{" "}
+          <span className="t-label t-label--accent gap-1" title={t("aria.odds")}>
+            {t("dash.odds")}
             <span className="tabular-nums">{getOddsFractional(pokemon)}</span>
           </span>
         </div>
