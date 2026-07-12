@@ -14,6 +14,14 @@ function SettingsWithToasts() {
   );
 }
 
+/** Activate a settings tab by its accessible name (German labels in tests). */
+async function openTab(
+  user: ReturnType<typeof userEvent.setup>,
+  name: RegExp | string,
+) {
+  await user.click(screen.getByRole("tab", { name }));
+}
+
 const mockFetch = vi.fn();
 
 /** Minimal WebSocket stub used to drive the unified sync flow. */
@@ -136,7 +144,9 @@ describe("Settings", () => {
       detectorStatus: {},
     });
 
+    const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // Config path should be displayed
     await waitFor(() => {
@@ -185,18 +195,28 @@ describe("Settings", () => {
     expect(toggleButtons.length).toBeGreaterThan(0);
   });
 
-  it("renders all main section headings", () => {
+  it("renders the section headings owned by each tab", async () => {
+    const user = userEvent.setup();
     render(<Settings />);
 
-    // All section headings should be present (h2 elements)
-    const headings = screen.getAllByRole("heading", { level: 2 });
-    // Expect at least: Display, Output, Data, Backup, About
-    expect(headings.length).toBeGreaterThanOrEqual(5);
+    // Appearance tab is active by default and owns the display section.
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(1);
+
+    // Data tab owns game-name languages, data and backup sections.
+    await openTab(user, /Daten/);
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(3);
+
+    await openTab(user, /OBS/);
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(1);
+
+    await openTab(user, "Über");
+    expect(screen.getAllByRole("heading", { level: 2 }).length).toBe(1);
   });
 
   it("toggles output enabled and enables the directory input", async () => {
     const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /OBS/);
 
     // The output directory text input lives inside the FolderPathInput
     // component and is labelled with the "Ausgabe-Ordner" aria-label.
@@ -235,7 +255,17 @@ describe("Settings", () => {
       detectorStatus: {},
     });
 
+    const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /OBS/);
+
+    // userEvent.setup() installs its own clipboard stub; restore the mock so
+    // the assertion below observes the component's writeText call.
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      value: { writeText: clipboardWriteText },
+      configurable: true,
+      writable: true,
+    });
 
     // The OBS info card uses the German "OBS Dateiausgabe" title.
     expect(screen.getByText("OBS Dateiausgabe")).toBeInTheDocument();
@@ -269,6 +299,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /OBS/);
 
     const dirInput = screen.getByDisplayValue("/initial/path");
     expect(dirInput).toBeInTheDocument();
@@ -320,10 +351,12 @@ describe("Settings", () => {
 
     await user.click(clearBtn);
 
-    // Search should be cleared and all sections visible again
+    // Search should be cleared and the tab view restored
     expect(searchInput).toHaveValue("");
-    const headings = screen.getAllByRole("heading", { level: 2 });
-    expect(headings.length).toBeGreaterThanOrEqual(5);
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("heading", { level: 2 }).length,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("renders theme toggle buttons with correct pressed state for dark mode", () => {
@@ -344,8 +377,10 @@ describe("Settings", () => {
     expect(screen.getByText("EN")).toBeInTheDocument();
   });
 
-  it("renders language pills for Pokemon name languages", () => {
+  it("renders language pills for Pokemon name languages", async () => {
+    const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // Language pills should include Deutsch and English at minimum
     expect(screen.getByText("Deutsch")).toBeInTheDocument();
@@ -355,6 +390,7 @@ describe("Settings", () => {
   it("toggles a Pokemon name language off and back on", async () => {
     const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // French should be available but not active by default (only de, en are active)
     const frenchBtn = screen.getByText("Français").closest("button")!;
@@ -386,6 +422,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // Try to deselect the only active language
     const deBtn = screen.getByText("Deutsch").closest("button")!;
@@ -401,7 +438,9 @@ describe("Settings", () => {
       json: () => Promise.resolve({}),
     });
 
+    const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // Find sync buttons in the Data section
     const syncButtons = screen.getAllByRole("button").filter(
@@ -428,6 +467,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, "Über");
 
     // Find the licenses toggle by its German text "Open-Source-Lizenzen"
     const licensesToggle = screen.getByText(/Open-Source-Lizenzen|Open Source Licenses/i)
@@ -445,6 +485,7 @@ describe("Settings", () => {
   it("renders the data sources toggle and opens the list", async () => {
     const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, "Über");
 
     // Find the data sources toggle
     const dsToggle = screen.getAllByRole("button").find(
@@ -464,8 +505,10 @@ describe("Settings", () => {
     }
   });
 
-  it("renders the data path with a change button", () => {
+  it("renders the data path with a change button", async () => {
+    const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // The data path from makeAppState is /tmp/encounty and is rendered in
     // both the OBS card (output_dir) and the Data section (data_path), so
@@ -479,11 +522,10 @@ describe("Settings", () => {
   it("renders crisp sprites toggle", () => {
     render(<Settings />);
 
-    // Crisp sprites toggle should be in the display section.
-    // After removing ui_animations, the visible switches are at least
-    // output_enabled and crisp_sprites.
+    // Crisp sprites toggle should be in the display section on the
+    // appearance tab; the output toggle lives on the OBS & Output tab.
     const switches = screen.getAllByRole("switch");
-    expect(switches.length).toBeGreaterThanOrEqual(2);
+    expect(switches.length).toBeGreaterThanOrEqual(1);
   });
 
   it("toggles crisp sprites setting", async () => {
@@ -498,18 +540,19 @@ describe("Settings", () => {
     );
     expect(uncheckedSwitches.length).toBeGreaterThanOrEqual(1);
 
-    // Click the first unchecked switch (output_enabled is first unchecked)
+    // Click the first unchecked switch (crisp_sprites on the appearance tab)
     // We just verify no crash occurs
     await user.click(uncheckedSwitches[0]);
   });
 
-  it("renders backup download and restore buttons", () => {
+  it("renders backup download and restore buttons", async () => {
+    const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /Daten/);
 
-    const buttons = screen.getAllByRole("button");
-    // There should be a button with Download icon for backup
-    // and a button with Upload icon for restore
-    expect(buttons.length).toBeGreaterThan(5);
+    // Backup and restore buttons live in the backup section on the data tab.
+    expect(screen.getByText("Backup erstellen")).toBeInTheDocument();
+    expect(screen.getByText("Backup wiederherstellen")).toBeInTheDocument();
   });
 
   it("runs unified sync via /api/setup/online and shows progress", async () => {
@@ -520,6 +563,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     const syncBtn = screen.getByRole("button", { name: /Daten synchronisieren/i });
     expect(syncBtn).not.toBeDisabled();
@@ -581,6 +625,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     const syncBtn = screen.getByRole("button", { name: /Daten synchronisieren/i });
     await user.click(syncBtn);
@@ -598,6 +643,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     const syncBtn = screen.getByRole("button", { name: /Daten synchronisieren/i });
     await user.click(syncBtn);
@@ -621,6 +667,7 @@ describe("Settings", () => {
   it("opens license dialog when show-license button is clicked", async () => {
     const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, "Über");
 
     // Find the button with text "Lizenz anzeigen"
     const licenseBtn = screen.getByText("Lizenz anzeigen").closest("button")!;
@@ -654,6 +701,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, "Über");
 
     // Open licenses section
     const licensesToggle = screen.getByText(/Open-Source-Lizenzen/i).closest("button")!;
@@ -681,8 +729,10 @@ describe("Settings", () => {
     });
   });
 
-  it("renders about section with AGPL link", () => {
+  it("renders about section with AGPL link", async () => {
+    const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, "Über");
 
     const agplLink = screen.getByText("GNU AGPL-3.0");
     expect(agplLink).toBeInTheDocument();
@@ -715,6 +765,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // Find the hidden file input for restore
     const fileInput = document.querySelector("input[type='file'][accept='.zip']") as HTMLInputElement;
@@ -748,6 +799,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     const fileInput = document.querySelector("input[type='file'][accept='.zip']") as HTMLInputElement;
     const file = new File(["bad-data"], "bad-backup.zip", { type: "application/zip" });
@@ -772,6 +824,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     const fileInput = document.querySelector("input[type='file'][accept='.zip']") as HTMLInputElement;
     const file = new File(["data"], "backup.zip", { type: "application/zip" });
@@ -788,6 +841,7 @@ describe("Settings", () => {
   it("renders backup button that can be clicked without crash", async () => {
     const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     const backupBtn = screen.getByText(/Backup erstellen|Create backup/i).closest("button")!;
     expect(backupBtn).toBeTruthy();
@@ -826,6 +880,7 @@ describe("Settings", () => {
     });
 
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // FolderPathInput exposes the DB path input via its aria-label.
     const configInput = screen.getByRole("textbox", {
@@ -864,6 +919,7 @@ describe("Settings", () => {
     });
 
     render(<SettingsWithToasts />);
+    await openTab(user, /Daten/);
 
     const configInput = screen.getByRole("textbox", {
       name: "Datenbank-Speicherort",
@@ -893,6 +949,7 @@ describe("Settings", () => {
     });
 
     render(<SettingsWithToasts />);
+    await openTab(user, /Daten/);
 
     const configInput = screen.getByRole("textbox", {
       name: "Datenbank-Speicherort",
@@ -910,8 +967,10 @@ describe("Settings", () => {
     });
   });
 
-  it("disables the change button when draft equals the current data path", () => {
+  it("disables the change button when draft equals the current data path", async () => {
+    const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, /Daten/);
 
     // The draft input is initialised with appState.data_path, so the button
     // must start out disabled.
@@ -934,6 +993,7 @@ describe("Settings", () => {
   it("renders all data source entries when expanded", async () => {
     const user = userEvent.setup();
     render(<Settings />);
+    await openTab(user, "Über");
 
     const dsToggle = screen.getAllByRole("button").find(
       (b) =>
@@ -950,5 +1010,81 @@ describe("Settings", () => {
         expect(screen.getByText("Pokémon Showdown")).toBeInTheDocument();
       });
     }
+  });
+
+  it("switches tabs via click and updates aria-selected", async () => {
+    const user = userEvent.setup();
+    render(<Settings />);
+
+    // Non-macOS platforms show four tabs (no System tab).
+    expect(screen.getAllByRole("tab").length).toBe(4);
+
+    const appearanceTab = screen.getByRole("tab", { name: "Darstellung" });
+    const dataTab = screen.getByRole("tab", { name: /Daten/ });
+    expect(appearanceTab).toHaveAttribute("aria-selected", "true");
+
+    await user.click(dataTab);
+
+    expect(dataTab).toHaveAttribute("aria-selected", "true");
+    expect(appearanceTab).toHaveAttribute("aria-selected", "false");
+    // The panel is labelled by the active tab and shows data-tab content.
+    expect(screen.getByRole("tabpanel")).toHaveAttribute(
+      "aria-labelledby",
+      "settings-tab-data",
+    );
+    expect(
+      screen.getByRole("button", { name: /Daten synchronisieren/i }),
+    ).toBeInTheDocument();
+    // Appearance-only content (accent radiogroup) is no longer rendered.
+    expect(screen.queryByRole("radiogroup")).not.toBeInTheDocument();
+  });
+
+  it("moves between tabs with arrow keys, Home and End", async () => {
+    const user = userEvent.setup();
+    render(<Settings />);
+
+    const appearanceTab = screen.getByRole("tab", { name: "Darstellung" });
+    const dataTab = screen.getByRole("tab", { name: /Daten/ });
+    const aboutTab = screen.getByRole("tab", { name: "Über" });
+
+    appearanceTab.focus();
+
+    await user.keyboard("{ArrowRight}");
+    expect(dataTab).toHaveFocus();
+    expect(dataTab).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{ArrowLeft}");
+    expect(appearanceTab).toHaveFocus();
+    expect(appearanceTab).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{End}");
+    expect(aboutTab).toHaveFocus();
+    expect(aboutTab).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{Home}");
+    expect(appearanceTab).toHaveFocus();
+    expect(appearanceTab).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("search shows matching sections across tabs and Escape restores the tab view", async () => {
+    const user = userEvent.setup();
+    render(<Settings />);
+
+    const searchInput = screen.getByPlaceholderText(/durchsuchen|search/i);
+    // "api" matches the data section (data tab) and the about section
+    // (about tab), so both render although the appearance tab is active.
+    await user.type(searchInput, "api");
+
+    const headings = screen.getAllByRole("heading", { level: 2 });
+    expect(headings.length).toBe(2);
+    expect(screen.getByText("Datenbank & Sync")).toBeInTheDocument();
+    expect(screen.getByText("Über Encounty")).toBeInTheDocument();
+    // The tab bar is hidden while searching.
+    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
+
+    // Escape clears the search and returns to the tab view.
+    await user.keyboard("{Escape}");
+    expect(searchInput).toHaveValue("");
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
   });
 });
