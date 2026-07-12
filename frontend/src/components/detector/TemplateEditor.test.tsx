@@ -1211,7 +1211,7 @@ describe("TemplateEditor", () => {
 
       // The percentage text should have green styling
       const pctText = screen.getByText("90%");
-      expect(pctText).toHaveClass("text-green-400");
+      expect(pctText).toHaveClass("text-accent-green");
     });
 
     it("shows muted text when score < precision", async () => {

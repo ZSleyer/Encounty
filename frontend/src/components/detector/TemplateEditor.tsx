@@ -104,7 +104,7 @@ function NewTemplateControls({
     return (
       <button
         onClick={onTakeSnapshot}
-        className="flex items-center justify-center gap-2 w-full px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+        className="t-cut flex items-center justify-center gap-2 w-full px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
       >
         <Camera className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
         {t("templateEditor.takeSnapshot")}
@@ -117,14 +117,14 @@ function NewTemplateControls({
       <div className="flex w-full gap-3">
         <button
           onClick={onBackToLive}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
         >
           <Play className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.backToLive")}
         </button>
         <button
           onClick={onUseFrame}
-          className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+          className="t-cut flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
         >
           <Camera className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
           {t("templateEditor.useFrame")}
@@ -138,7 +138,7 @@ function NewTemplateControls({
       <div className="flex w-full gap-3">
         <button
           onClick={onResetSnapshot}
-          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
         >
           <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.retake")}
@@ -146,7 +146,7 @@ function NewTemplateControls({
         <button
           onClick={onGoToTest}
           disabled={!hasRegions}
-          className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+          className="t-cut flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
         >
           <BarChart3 className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
           {t("templateEditor.next")}
@@ -165,21 +165,21 @@ function NewTemplateControls({
         {stabilityStatus}
         <button
           onClick={onPickFrame}
-          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
+          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
         >
           <Camera className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.pickFrame")}
         </button>
         <button
           onClick={onAdjustRegions}
-          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
+          className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
         >
           <RefreshCw className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
           {t("templateEditor.adjustRegions")}
         </button>
         <button
           onClick={onLooksGood}
-          className="flex-1 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all"
+          className="t-cut flex-1 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors"
         >
           {t("templateEditor.next")}
           <ArrowRight className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
@@ -193,7 +193,7 @@ function NewTemplateControls({
     <div className="flex w-full gap-3">
       <button
         onClick={onBackToTest}
-        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all"
+        className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors"
       >
         <ArrowLeft className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" />
         {t("templateEditor.back")}
@@ -201,7 +201,7 @@ function NewTemplateControls({
       <button
         onClick={onSave}
         disabled={isSaving}
-        className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+        className="t-cut flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
       >
         <Save className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
         {isSaving ? t("templateEditor.saving") : t("templateEditor.saveTemplate")}
@@ -299,15 +299,15 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
   chipColor?: string | null;
 }>) {
   const isText = region.type === "text";
-  const borderStyle = isText ? "border-purple-500 bg-purple-500/30" : "border-accent-blue bg-accent-blue/30";
-  const labelColor = isText ? "text-purple-400" : "text-accent-blue";
+  const accent = isText ? "#3fd4e0" : "var(--accent-blue)";
+  const borderStyle = isText ? "border-[#3fd4e0] bg-[#3fd4e0]/10" : "border-accent-blue bg-accent-blue/10";
   const regionIcon = isText
     ? <Type className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
     : <ImageIcon className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />;
 
   return (
     <div
-      className={`absolute border-[3px] pointer-events-none transition-colors ${borderStyle}`}
+      className={`absolute border-2 border-dashed rounded-none pointer-events-none transition-colors ${borderStyle}`}
       style={{
         left: `${(region.rect.x / snapshotWidth) * 100}%`,
         top: `${(region.rect.y / snapshotHeight) * 100}%`,
@@ -315,12 +315,18 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
         height: `${(region.rect.h / snapshotHeight) * 100}%`,
       }}
     >
-      <div className="absolute -top-6 left-0 flex items-center gap-1 bg-black/80 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded text-white font-mono text-xs 2xl:text-sm whitespace-nowrap shadow-lg ring-1 ring-black/30">
-        <strong className={labelColor}>#{index + 1}</strong>
+      {/* Identity tag: solid accent fill (design system's .t-region .tag),
+          dark text for contrast. Carries index, type, category, expected
+          text — richer than the mockup's static label, same visual idiom. */}
+      <div
+        className="absolute -top-6 left-0 flex items-center gap-1 px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-none font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap text-bg-primary"
+        style={{ backgroundColor: accent }}
+      >
+        <strong>#{index + 1}</strong>
         {chipColor && (
           <span
             aria-hidden="true"
-            className="w-2 h-2 rounded-full shrink-0"
+            className="w-2 h-2 rounded-full shrink-0 ring-1 ring-bg-primary/40"
             style={{ backgroundColor: chipColor }}
           />
         )}
@@ -328,18 +334,20 @@ function RegionOverlayMarker({ region, index, snapshotWidth, snapshotHeight, sco
         {isText && region.expected_text ? (
           <span className="opacity-80 ml-1 truncate max-w-15">"{region.expected_text}"</span>
         ) : null}
-        {scoreBadge !== undefined && (() => {
-          let scoreColor: string;
-          if (scoreBadge >= 0.8) scoreColor = "text-green-400";
-          else if (scoreBadge >= 0.5) scoreColor = "text-amber-400";
-          else scoreColor = "text-red-400";
-          return (
-            <span className={`ml-1 font-bold ${scoreColor}`}>
-              {(scoreBadge * 100).toFixed(0)}%
-            </span>
-          );
-        })()}
       </div>
+      {/* Live match score: separate status readout, own semantic color, so
+          it isn't washed out against the identity tag's solid accent fill. */}
+      {scoreBadge !== undefined && (() => {
+        let scoreColor: string;
+        if (scoreBadge >= 0.8) scoreColor = "text-accent-green border-accent-green/40";
+        else if (scoreBadge >= 0.5) scoreColor = "text-accent-yellow border-accent-yellow/40";
+        else scoreColor = "text-accent-red border-accent-red/40";
+        return (
+          <div className={`absolute -top-6 right-0 bg-bg-primary/90 border px-1.5 py-0.5 2xl:px-2 2xl:py-1 rounded-none font-bold font-mono text-xs 2xl:text-sm whitespace-nowrap ${scoreColor}`}>
+            {(scoreBadge * 100).toFixed(0)}%
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -355,7 +363,7 @@ function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
   const pct = (score * 100).toFixed(0);
   const thresholdPct = (threshold * 100).toFixed(0);
   return (
-    <div className="flex items-center gap-3 text-sm text-white">
+    <div className="flex items-center gap-3 text-sm text-text-primary">
       <meter
         className="sr-only"
         value={score * 100}
@@ -364,23 +372,23 @@ function ScoreBar({ label, score, precision, precisionLabel }: Readonly<{
         aria-label={`${label}: ${pct}%`}
       />
       <span className="w-28 truncate text-text-muted text-xs 2xl:text-sm">{label}</span>
-      <div className="relative flex-1 h-2.5 bg-white/6 rounded-none">
+      <div className="relative flex-1 h-2 rounded-none bg-bg-hover border border-border-subtle">
         <div
-          className={`h-full rounded-none transition-all ${isMatch ? "bg-green-500" : "bg-white/20"}`}
+          className={`h-full rounded-none transition-all ${isMatch ? "bg-accent-green" : "bg-accent-blue/60"}`}
           style={{ width: `${score * 100}%` }}
         />
         {/* Precision threshold marker */}
         <div
-          className="absolute -top-1 -bottom-1 w-0.5 bg-green-400/70 rounded-none"
+          className="absolute -top-1 -bottom-1 w-px bg-text-faint"
           style={{ left: `${threshold * 100}%` }}
           aria-label={`${precisionLabel ?? "Precision"}: ${thresholdPct}%`}
         >
-          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[8px] 2xl:text-[9px] text-green-400/70 font-mono whitespace-nowrap pointer-events-none">
+          <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[8px] 2xl:text-[9px] text-text-faint font-mono whitespace-nowrap pointer-events-none">
             {thresholdPct}%
           </div>
         </div>
       </div>
-      <span className={`w-12 text-right font-mono text-xs font-bold ${isMatch ? "text-green-400" : "text-text-muted"}`}>
+      <span className={`w-12 text-right font-mono text-xs font-bold ${isMatch ? "text-accent-green" : "text-text-muted"}`}>
         {pct}%
       </span>
     </div>
@@ -476,28 +484,28 @@ function ScoreSparkline({ batchResults, frameCount, selectedIndex, settings, t }
   const hasCooldown = zones.some((z) => z.type === "cooldown");
 
   return (
-    <div className="bg-white/3 rounded-xl px-4 py-3 space-y-2">
+    <div className="rounded-none bg-bg-secondary border border-border-subtle px-4 py-3 space-y-2">
       {/* Legend — uses the same palette as DetectorPanel runtime dots so the
           sparkline and the live detector stay visually in sync. */}
       <div className="flex items-center justify-between text-[10px] 2xl:text-xs">
         <div className="flex items-center gap-3 text-text-muted">
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-blue-400 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-none bg-blue-400 inline-block" />
             {t("detector.stateIdle")}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-none bg-green-500 inline-block" />
             {t("detector.stateMatch")}
           </span>
           {hasHysteresis && (
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-lime-400 inline-block" />
+              <span className="w-2.5 h-2.5 rounded-none bg-lime-400 inline-block" />
               {t("detector.stateHysteresis")}
             </span>
           )}
           {hasCooldown && (
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm bg-purple-500 inline-block" />
+              <span className="w-2.5 h-2.5 rounded-none bg-purple-500 inline-block" />
               {t("detector.stateCooldown")}
             </span>
           )}
@@ -578,14 +586,18 @@ function getHeadingAndHint(
   };
 }
 
-/** Returns the container class for an inactive step (done vs upcoming). */
-function getStepInactiveStyle(isDone: boolean): string {
-  return isDone ? "bg-white/10 text-white/70" : "bg-white/5 text-white/30";
+/** Returns the label-text classes for a step based on active/done state. */
+function getStepTextStyle(isActive: boolean, isDone: boolean): string {
+  if (isActive) return "text-accent-blue";
+  if (isDone) return "text-text-muted";
+  return "text-text-faint";
 }
 
-/** Returns the badge class for an inactive step (done vs upcoming). */
-function getBadgeInactiveStyle(isDone: boolean): string {
-  return isDone ? "bg-white/20 text-white/70" : "bg-white/10 text-white/30";
+/** Returns the number-badge classes for a step based on active/done state; done steps render as filled checkmarks (`.t-step.done .n` in the design system). */
+function getStepBadgeStyle(isActive: boolean, isDone: boolean): string {
+  if (isActive) return "border-accent-blue text-accent-blue";
+  if (isDone) return "bg-accent-blue border-accent-blue text-bg-primary";
+  return "border-border-subtle text-text-faint";
 }
 
 /** Visual step indicator showing progress through the 5-step template flow. */
@@ -606,21 +618,16 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
         const isDone = step < currentStep;
         const stepLabel = label.replace(/^.*?:\s*/, "");
 
-        const containerStyle = isActive
-          ? "bg-accent-blue/20 text-accent-blue ring-1 ring-accent-blue/40"
-          : getStepInactiveStyle(isDone);
-
-        const badgeStyle = isActive
-          ? "bg-accent-blue text-white"
-          : getBadgeInactiveStyle(isDone);
+        const textStyle = getStepTextStyle(isActive, isDone);
+        const badgeStyle = getStepBadgeStyle(isActive, isDone);
 
         return (
           <React.Fragment key={step}>
             {step > 1 && (
-              <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-white/20"}`} />
+              <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-border-subtle"}`} />
             )}
-            <div className={`flex items-center gap-1.5 px-2 py-1 rounded-none text-xs font-medium transition-colors ${containerStyle}`}>
-              <span className={`w-5 h-5 flex items-center justify-center rounded-none font-bold leading-none ${badgeStyle}`}>
+            <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${textStyle}`}>
+              <span className={`w-[18px] h-[18px] flex items-center justify-center rounded-none border font-bold text-[10px] leading-none shrink-0 ${badgeStyle}`}>
                 {isDone ? "✓" : step}
               </span>
               <span className="hidden sm:inline whitespace-nowrap">{stepLabel}</span>
@@ -803,7 +810,7 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
         aria-label={buttonLabel}
         aria-haspopup="dialog"
         title={showApplied ? t("templateEditor.stabilityApplied") : undefined}
-        className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        className="flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {buttonIcon}
         <span>{running ? t("templateEditor.stabilityAnalyzing") : t("templateEditor.stabilityTitle")}</span>
@@ -826,7 +833,7 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
             tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => { if (e.key === "Escape") close(); }}
-            className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-xl border border-border-subtle bg-bg-card p-4 shadow-xl space-y-2 text-sm 2xl:text-base outline-none"
+            className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-none border border-border-subtle bg-bg-card p-4 space-y-2 text-sm 2xl:text-base outline-none"
           >
             <div className="flex items-start justify-between gap-2">
               <h3 id={titleId} className={`flex items-center gap-2 font-semibold ${rating.colorClass}`}>
@@ -837,7 +844,7 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
                 type="button"
                 onClick={close}
                 aria-label={t("templateEditor.close")}
-                className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/10 transition-colors shrink-0"
+                className="p-1 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors shrink-0"
               >
                 <X className="w-4 h-4 2xl:w-5 2xl:h-5" aria-hidden="true" />
               </button>
@@ -1145,17 +1152,17 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
   categoryNames: string[];
   t: (key: string) => string;
 }>) {
-  const labelColor = r.type === "text" ? "text-purple-400" : "text-accent-blue";
+  const labelColor = r.type === "text" ? "text-[#3fd4e0]" : "text-accent-blue";
   const datalistId = `region-categories-${i}`;
   const chipColor = categoryColor(r.category, categoryNames);
   const [showHelp, setShowHelp] = useState(false);
   return (
-    <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-lg px-3 py-2 shadow-lg transition-colors hover:border-accent-blue/50">
+    <div className="flex items-center gap-2 bg-bg-card border border-border-subtle rounded-none px-3 py-2 transition-colors hover:border-accent-blue/50">
       <span className={`font-mono font-bold w-5 shrink-0 ${labelColor}`}>
         #{i + 1}
       </span>
       <select
-        className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-25 2xl:min-w-30"
+        className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-25 2xl:min-w-30"
         aria-label={t("templateEditor.regionType")}
         value={r.type}
         onChange={(e) => onUpdate(i, { type: e.target.value as "image" | "text" })}
@@ -1170,7 +1177,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
             placeholder={t("templateEditor.expectedText")}
             value={r.expected_text}
             onChange={(e) => onUpdate(i, { expected_text: e.target.value })}
-            className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none min-w-30 2xl:min-w-35 focus:border-purple-400"
+            className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-30 2xl:min-w-35 focus:border-[#3fd4e0]"
           />
           <button
             title="Auto-recognize text (OCR)"
@@ -1202,7 +1209,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
           placeholder={t("templateEditor.category")}
           value={r.category ?? ""}
           onChange={(e) => onUpdate(i, { category: e.target.value })}
-          className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded border border-border-subtle outline-none w-24 2xl:w-28 focus:border-accent-blue"
+          className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none w-24 2xl:w-28 focus:border-accent-blue"
         />
         <datalist id={datalistId}>
           {categoryNames.map((c) => (
@@ -1228,7 +1235,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
               role="dialog"
               aria-modal="true"
               aria-label={t("templateEditor.categoryHelpTitle")}
-              className="max-w-sm bg-bg-card border border-border-subtle rounded-xl p-4 shadow-xl text-left"
+              className="max-w-sm bg-bg-card border border-border-subtle rounded-none p-4 text-left"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 mb-2 text-text-primary font-semibold text-sm">
@@ -1242,7 +1249,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
                 <button
                   type="button"
                   onClick={() => setShowHelp(false)}
-                  className="px-3 py-1.5 rounded-lg bg-accent-blue text-white text-xs font-semibold hover:bg-accent-blue/90 transition-colors"
+                  className="t-cut px-3 py-1.5 rounded-none bg-accent-blue text-bg-primary text-xs font-semibold hover:bg-accent-blue/90 transition-colors"
                 >
                   {t("templateEditor.close")}
                 </button>
@@ -1749,7 +1756,7 @@ export function TemplateEditor({
     <div className="fixed inset-0 z-100 bg-black/95 flex flex-col items-center justify-center p-4 md:p-6 backdrop-blur-sm overflow-y-auto">
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-none bg-white/10 text-white hover:bg-white/20 transition-colors z-110"
+        className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-none text-white hover:bg-white/10 transition-colors z-110"
       >
         <X className="w-6 h-6 2xl:w-7 2xl:h-7" />
       </button>
@@ -1771,7 +1778,7 @@ export function TemplateEditor({
         tabIndex={isSnapshotPhase ? 0 : undefined}
         role={isSnapshotPhase ? "application" : undefined}
         aria-label={isSnapshotPhase ? t("aria.regionDrawSurface") : undefined}
-        className={`relative w-full ${phase === "confirm" ? "max-w-[40vw] max-h-[30vh]" : "max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh]"} aspect-video bg-black rounded-lg overflow-hidden shadow-2xl mb-3 flex items-center justify-center select-none touch-none ${cursorClass}`}
+        className={`relative w-full ${phase === "confirm" ? "max-w-[40vw] max-h-[30vh]" : "max-w-[80vw] 2xl:max-w-[85vw] max-h-[55vh] 2xl:max-h-[60vh]"} aspect-video bg-black rounded-none overflow-hidden shadow-2xl mb-3 flex items-center justify-center select-none touch-none ${cursorClass}`}
         onMouseDown={pointerDown}
         onMouseMove={pointerMove}
         onMouseUp={pointerUp}
@@ -1876,9 +1883,9 @@ export function TemplateEditor({
               max={replayBuffer.frameCount - 1}
               value={selectedFrameIndex}
               onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
-              className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer
-                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
-                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
+              className="flex-1 h-2 bg-bg-hover border border-border-subtle rounded-none appearance-none cursor-pointer
+                [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]
+                [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]"
             />
             <span className="text-white/60 text-xs 2xl:text-sm shrink-0">
               {selectedFrameIndex + 1} / {replayBuffer.frameCount}
@@ -1928,9 +1935,9 @@ export function TemplateEditor({
                       templateTest.scoreFrame(canvasRef.current, regions, frame);
                     }
                   }}
-                  className="flex-1 h-2 bg-white/20 rounded-lg appearance-none cursor-pointer
-                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-lg
-                    [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-lg"
+                  className="flex-1 h-2 bg-bg-hover border border-border-subtle rounded-none appearance-none cursor-pointer
+                    [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]
+                    [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]"
                 />
               </div>
             </div>
@@ -1982,7 +1989,7 @@ export function TemplateEditor({
             onChange={(e) => setTemplateName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleConfirmSave(); }}
             placeholder={t("templateEditor.templateName")}
-            className="w-full px-4 py-3 text-sm bg-white/10 border border-border-subtle rounded-xl text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors"
+            className="w-full px-4 py-3 text-sm bg-bg-secondary border border-border-subtle rounded-none text-text-primary placeholder-text-muted outline-none focus:border-accent-blue/50 transition-colors"
             aria-label={t("templateEditor.templateName")}
           />
 
@@ -2001,7 +2008,7 @@ export function TemplateEditor({
 
       {/* Region List Editor */}
       {phase === "snapshot" && regions.length > 0 && (
-        <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-2 mb-2 max-h-28 2xl:max-h-36 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-lg">
+        <div className="w-full max-w-4xl 2xl:max-w-5xl flex flex-wrap justify-center gap-2 mb-2 max-h-28 2xl:max-h-36 overflow-y-auto px-4 scrollbar-thin scrollbar-thumb-border-subtle hover:scrollbar-thumb-border-strong text-white z-50 rounded-none">
           {regions.map((r, i) => (
             <RegionEditCard
               key={`region-edit-${r.type}-${r.rect.x}-${r.rect.y}-${i}`}
@@ -2046,14 +2053,14 @@ export function TemplateEditor({
             <button
               onClick={onClose}
               disabled={isSaving}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-white/10 text-white hover:bg-white/20 transition-all disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-4 2xl:py-5 rounded-none border border-border-subtle bg-bg-card text-text-primary hover:bg-bg-hover text-sm 2xl:text-base font-bold whitespace-nowrap transition-colors disabled:opacity-50"
             >
               {t("templateEditor.cancel")}
             </button>
             <button
               onClick={handleGoToTestOrConfirm}
               disabled={regions.length === 0}
-              className="flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-xl text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-white shadow-lg shadow-accent-blue/20 hover:bg-accent-blue/90 hover:scale-[1.02] transition-all disabled:opacity-50"
+              className="t-cut flex-2 flex items-center justify-center gap-2 px-6 py-4 2xl:py-5 rounded-none text-sm 2xl:text-base font-bold whitespace-nowrap bg-accent-blue text-bg-primary hover:bg-accent-blue/90 transition-colors disabled:opacity-50"
             >
               <BarChart3 className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
               {t("templateEditor.next")}
@@ -2092,7 +2099,7 @@ export function TemplateEditor({
         )}
 
         {errorMsg && (
-          <div className="w-full px-4 py-3 bg-red-500/10 text-red-500 text-sm 2xl:text-base text-center rounded-lg font-medium border border-red-500/20">
+          <div className="w-full px-4 py-3 bg-red-500/10 text-red-500 text-sm 2xl:text-base text-center rounded-none font-medium border border-red-500/20">
             {errorMsg}
           </div>
         )}
