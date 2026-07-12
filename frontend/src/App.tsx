@@ -27,7 +27,7 @@ import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
-import { WSMessage, AppState } from "./types";
+import { WSMessage, AppState, AccentColor, ACCENT_COLORS } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ToastProvider, useToast } from "./contexts/ToastContext";
@@ -44,6 +44,16 @@ import { useModalA11y } from "./hooks/useModalA11y";
 // Used as a safety net so the detection loop is stopped even if the typed
 // `pokemon_completed` event is missed (e.g. late join, dropped message).
 const completedPokemonIds = new Set<string>();
+
+// Maps accent keys from the pre-Tempest palette to their closest Tempest
+// preset so settings restored from old backups still resolve to a valid value.
+const LEGACY_ACCENTS: Record<string, AccentColor> = {
+  blue: "acid",
+  green: "acid",
+  purple: "violet",
+  pink: "crimson",
+  orange: "crimson",
+};
 
 /** Full-screen blocking overlay shown while an update is being installed or restarting. */
 function UpdateOverlay({
@@ -360,10 +370,14 @@ function AppShell() {
 
   // Apply the user's accent color preset by setting `data-accent` on <html>.
   // CSS in index.css matches `[data-accent="..."]` selectors and overrides
-  // --accent-blue accordingly. The overlay routes use the same accent so the
-  // streaming view stays consistent with the rest of the app.
+  // --accent-blue accordingly. Legacy keys from old backups are mapped to the
+  // Tempest presets. The overlay routes use the same accent so the streaming
+  // view stays consistent with the rest of the app.
   useEffect(() => {
-    const accent = appState?.settings.accent_color ?? "blue";
+    const raw = appState?.settings.accent_color ?? "acid";
+    const accent = (ACCENT_COLORS as readonly string[]).includes(raw)
+      ? raw
+      : (LEGACY_ACCENTS[raw] ?? "acid");
     document.documentElement.dataset.accent = accent;
   }, [appState?.settings.accent_color]);
 

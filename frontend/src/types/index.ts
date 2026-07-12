@@ -372,20 +372,19 @@ export interface TutorialFlags {
 
 /** Settings holds all user-configurable application preferences. */
 /**
- * Accent color preset keys. The actual hex values live in index.css under
- * `:root[data-accent="..."]` selectors. Keep this list in sync with both the
- * CSS palette and the picker UI in pages/Settings.tsx.
+ * Accent color preset keys (Tempest palette). The actual hex values live in
+ * index.css under `[data-accent="..."]` selectors, with separate light-mode
+ * variants for contrast. Keep this list in sync with both the CSS palette and
+ * the picker UI in pages/Settings.tsx.
  */
-export type AccentColor = "blue" | "purple" | "green" | "cyan" | "pink" | "orange";
+export type AccentColor = "acid" | "crimson" | "cyan" | "violet";
 
 /** All accent presets in display order, used by the Settings picker. */
 export const ACCENT_COLORS: readonly AccentColor[] = [
-  "blue",
-  "purple",
-  "green",
+  "acid",
+  "crimson",
   "cyan",
-  "pink",
-  "orange",
+  "violet",
 ] as const;
 
 export interface Settings {

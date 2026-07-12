@@ -1780,7 +1780,7 @@ describe("App", () => {
             Promise.resolve({
               license_accepted: true,
               pokemon: [],
-              settings: { accent_color: "purple" },
+              settings: { accent_color: "violet" },
               hotkeys: {},
             }),
         });
@@ -3647,7 +3647,7 @@ describe("App", () => {
         type: "state_update",
         payload: {
           pokemon: [],
-          settings: { accent_color: "green" },
+          settings: { accent_color: "crimson" },
           hotkeys: {},
           license_accepted: true,
         },
@@ -3655,7 +3655,52 @@ describe("App", () => {
     });
 
     await waitFor(() => {
-      expect(document.documentElement.dataset.accent).toBe("green");
+      expect(document.documentElement.dataset.accent).toBe("crimson");
+    });
+
+    // Clean up
+    delete document.documentElement.dataset.accent;
+  });
+
+  it("maps legacy accent keys from old backups to Tempest presets", async () => {
+    mockAcceptedState();
+
+    let wsHandler: ((msg: unknown) => void) | undefined;
+    let connectCb: (() => void) | undefined;
+    mockUseWebSocket.mockImplementation((handler, onConnect) => {
+      if (onConnect) {
+        wsHandler = handler as (msg: unknown) => void;
+        connectCb = onConnect as () => void;
+      }
+      return { send: vi.fn() } as ReturnType<typeof useWebSocketMock>;
+    });
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => {
+      const links = screen.getAllByRole("link");
+      expect(links.length).toBeGreaterThan(0);
+    });
+
+    act(() => {
+      connectCb!();
+      wsHandler!({
+        type: "state_update",
+        payload: {
+          pokemon: [],
+          settings: { accent_color: "purple" },
+          hotkeys: {},
+          license_accepted: true,
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.accent).toBe("violet");
     });
 
     // Clean up
@@ -4116,7 +4161,7 @@ describe("App", () => {
   });
 
   it("updates data-accent on documentElement when accent_color changes via WS", async () => {
-    document.documentElement.dataset.accent = "blue";
+    document.documentElement.dataset.accent = "acid";
 
     mockAcceptedState();
 
@@ -4147,7 +4192,7 @@ describe("App", () => {
         type: "state_update",
         payload: {
           pokemon: [],
-          settings: { accent_color: "pink" },
+          settings: { accent_color: "cyan" },
           hotkeys: {},
           license_accepted: true,
         },
@@ -4155,7 +4200,7 @@ describe("App", () => {
     });
 
     await waitFor(() => {
-      expect(document.documentElement.dataset.accent).toBe("pink");
+      expect(document.documentElement.dataset.accent).toBe("cyan");
     });
 
     delete document.documentElement.dataset.accent;

@@ -696,12 +696,12 @@ describe("Settings", () => {
     const user = userEvent.setup();
     render(<Settings />);
 
-    // The accent picker exposes one radio per preset; pick "purple".
-    const purple = await screen.findByRole("radio", { name: /purple|lila/i });
-    await user.click(purple);
+    // The accent picker exposes one radio per preset; pick "violet".
+    const violet = await screen.findByRole("radio", { name: /violet/i });
+    await user.click(violet);
 
-    expect(purple.getAttribute("aria-checked")).toBe("true");
-    expect(document.documentElement.dataset.accent).toBe("purple");
+    expect(violet.getAttribute("aria-checked")).toBe("true");
+    expect(document.documentElement.dataset.accent).toBe("violet");
 
     // Cleanup
     delete document.documentElement.dataset.accent;

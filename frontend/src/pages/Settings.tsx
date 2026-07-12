@@ -31,12 +31,10 @@ import { AppState, Settings as SettingsType, AccentColor, ACCENT_COLORS } from "
  * the dark-mode value so the swatch reads well against the card background.
  */
 const ACCENT_SWATCH: Record<AccentColor, string> = {
-  blue: "#4a9eff",
-  purple: "#b970ff",
-  green: "#34d67a",
-  cyan: "#22d3ee",
-  pink: "#ec4899",
-  orange: "#fb923c",
+  acid: "#c8e04a",
+  crimson: "#f0507a",
+  cyan: "#3fd4e0",
+  violet: "#a685f0",
 };
 import { ALL_LANGUAGES } from "../utils/games";
 import { useI18n } from "../contexts/I18nContext";
@@ -391,7 +389,7 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
   toggleLanguage: (code: string) => void;
   t: (key: string) => string;
 }>) {
-  const activeAccent = settings.accent_color ?? "blue";
+  const activeAccent = settings.accent_color ?? "acid";
   return (
     <section className="glass-card rounded-2xl p-6 space-y-5">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
