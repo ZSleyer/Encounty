@@ -1468,8 +1468,27 @@ function DashboardCounterTab({
         </div>
       )}
 
+      {/* Hero identity: large full sprite (never the box-trimmed variant)
+          and name, stacked above the panel instead of inside it. */}
+      <div
+        className="flex flex-col items-center gap-1 mt-8"
+        style={{ width: "min(100%, clamp(420px, 40vw, 620px))" }}
+      >
+        <img
+          src={spriteUrl}
+          alt={pokemon.name}
+          onError={() => onImgError(pokemon.id)}
+          className="pokemon-sprite object-contain"
+          style={{ width: "clamp(160px, 17vw, 216px)", height: "clamp(160px, 17vw, 216px)" }}
+        />
+        <span className="text-[clamp(32px,3.4vw,46px)] font-extrabold text-text-primary capitalize leading-tight text-center">
+          {baseName}
+        </span>
+        {metaLine && <span className="text-sm text-text-muted capitalize truncate">{metaLine}</span>}
+      </div>
+
       <section
-        className="t-panel t-hatch p-5 md:p-6 mt-8"
+        className="t-panel t-hatch p-5 md:p-6 mt-4"
         style={{ width: "min(100%, clamp(420px, 40vw, 620px))" }}
       >
         {/* Header row: hunt status label left, timer controls right */}
@@ -1480,44 +1499,15 @@ function DashboardCounterTab({
           <PokemonTimer pokemon={pokemon} send={send} disabled={isCompleted} timerStartBlocked={timerStartBlocked} />
         </div>
 
-        {/* Identity row: small sprite tile, name, form/game meta line */}
-        <div className="flex items-center gap-3 mt-4">
-          <div className="w-16 h-16 shrink-0 flex items-center justify-center bg-bg-secondary border border-border-subtle">
-            {pokemon.sprite_style === "box" ? (
-              /* Box menu icons are tiny; nearest-neighbour downscaling of the
-                 full sheet cell distorts them, so render the trimmed content
-                 at an integer scale instead. */
-              <TrimmedBoxSprite
-                canonicalName={pokemon.canonical_name}
-                spriteType={pokemon.sprite_type}
-                alt={pokemon.name}
-                fitPx={56}
-                fallbackSrc={spriteUrl}
-              />
-            ) : (
-              <img
-                src={spriteUrl}
-                alt={pokemon.name}
-                onError={() => onImgError(pokemon.id)}
-                className="pokemon-sprite w-14 h-14 object-contain"
-              />
-            )}
-          </div>
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-base font-semibold text-text-primary capitalize truncate">{baseName}</span>
-            {metaLine && <span className="text-xs text-text-muted capitalize truncate">{metaLine}</span>}
-          </div>
-        </div>
-
         {/* Big number. Raw integer on purpose: no thousands separator, fluid clamp size. */}
-        <div className="relative group text-center my-3" aria-live="polite">
+        <div className="relative text-center my-3" aria-live="polite">
           <div className="text-[clamp(48px,5vw,80px)] font-black tabular-nums leading-none tracking-tight text-text-primary">
             {pokemon.encounters}
           </div>
           {!isCompleted && (
             <button
               onClick={() => onSetEncounter(pokemon)}
-              className="absolute top-0 right-0 p-1.5 rounded-none hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+              className="absolute top-0 right-0 p-1.5 rounded-none hover:bg-bg-hover text-text-faint hover:text-text-primary transition-colors"
               title={t("dash.setEncounters")}
               aria-label={t("dash.setEncounters")}
             >
