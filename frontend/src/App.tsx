@@ -6,7 +6,7 @@
  * the global WebSocket connection. The /overlay route renders the bare Overlay
  * page without any chrome so it can be used as an OBS Browser Source.
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Routes, Route, Link, useLocation, useNavigate } from "react-router";
 import {
   LayoutGrid,
@@ -208,6 +208,30 @@ function AppShell() {
   const { push: pushToast } = useToast();
   const { motion } = useMotion();
   const captureService = useCaptureService();
+
+  // Direction-aware route reveal. Nav order defines the wipe direction:
+  // moving to a tab further right wipes in from the right, further left
+  // from the left. Computed at render time so the keyed wrapper below
+  // carries the correct class on its first paint.
+  const revealDirRef = useRef<"ltr" | "rtl">("rtl");
+  const prevPathRef = useRef(location.pathname);
+  if (prevPathRef.current !== location.pathname) {
+    const order = ["/", "/hotkeys", "/overlay-editor", "/settings"];
+    const from = order.indexOf(prevPathRef.current);
+    const to = order.indexOf(location.pathname);
+    revealDirRef.current = to >= from ? "rtl" : "ltr";
+    prevPathRef.current = location.pathname;
+  }
+  const revealClass = revealDirRef.current === "rtl" ? "anim-t-reveal-rtl" : "anim-t-reveal";
+
+  // The always-mounted Dashboard cannot be keyed (remount would drop hunt
+  // UI state), so its reveal class is toggled when navigating back here.
+  const [dashboardReveal, setDashboardReveal] = useState(false);
+  useEffect(() => {
+    if (location.pathname === "/") {
+      setDashboardReveal(true);
+    }
+  }, [location.pathname]);
 
   // Mark non-overlay documents as "app" and mirror the motion preference as a
   // DOM attribute so index.css can gate animations. Overlay routes get neither
@@ -684,20 +708,33 @@ function AppShell() {
       <div className="h-px shrink-0 bg-border-subtle" />
 
       {/* ── Main content ─────────────────────────────────────── */}
-      {/* Dashboard stays mounted when navigating to overlay editor */}
-      <div className={location.pathname === "/" ? "flex-1 overflow-hidden flex flex-col" : "hidden"}>
+      {/* Dashboard stays mounted when navigating to overlay editor. It cannot
+          be keyed for the route reveal (a remount would drop hunt UI state),
+          so the reveal class is toggled instead when navigating back here. */}
+      <div
+        className={
+          location.pathname === "/"
+            ? `flex-1 overflow-hidden flex flex-col${dashboardReveal ? ` ${revealClass}` : ""}`
+            : "hidden"
+        }
+        onAnimationEnd={(e) => {
+          if (e.target === e.currentTarget && e.animationName.startsWith("t-reveal")) {
+            setDashboardReveal(false);
+          }
+        }}
+      >
         <Dashboard isActiveRoute={location.pathname === "/"} />
       </div>
       {location.pathname !== "/" && (
         <div
           key={location.pathname}
-          className="flex-1 overflow-hidden flex flex-col anim-t-reveal"
+          className={`flex-1 overflow-hidden flex flex-col ${revealClass}`}
           onAnimationEnd={(e) => {
             // Drop the reveal class once done: a lingering clip-path would
             // clip fixed-position dialogs rendered inside routed pages and
             // create a stacking context that paints below the z-10 header.
-            if (e.target === e.currentTarget && e.animationName === "t-reveal") {
-              e.currentTarget.classList.remove("anim-t-reveal");
+            if (e.target === e.currentTarget && e.animationName.startsWith("t-reveal")) {
+              e.currentTarget.classList.remove("anim-t-reveal", "anim-t-reveal-rtl");
             }
           }}
         >
