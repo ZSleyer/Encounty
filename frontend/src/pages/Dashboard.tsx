@@ -87,13 +87,14 @@ import { useModalA11y } from "../hooks/useModalA11y";
 /** Tab identifiers for the right content panel. */
 type PanelTab = "counter" | "detector" | "overlay" | "statistics";
 
-/** PokemonTimer renders play/pause/reset controls and a live timer display for the main panel. */
+/** PokemonTimer renders a compact monospace timer with play/pause/reset controls for the hero panel header. */
 function PokemonTimer({ pokemon, send, disabled = false, timerStartBlocked = false }: Readonly<{ pokemon: Pokemon; send: (type: string, payload: unknown) => void; disabled?: boolean; timerStartBlocked?: boolean }>) {
   const { t } = useI18n();
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   const [editOpen, setEditOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const isRunning = !!pokemon.timer_started_at;
+  const timeText = formatTimer(computeTimerMs(pokemon));
 
   useEffect(() => {
     if (!isRunning) return;
@@ -102,21 +103,20 @@ function PokemonTimer({ pokemon, send, disabled = false, timerStartBlocked = fal
   }, [isRunning]);
 
   return (
-    <div className="flex items-center gap-3 mt-6">
-      <Timer className="w-4 h-4 text-text-muted" />
+    <div className="flex items-center gap-1">
       <button
         onClick={() => setEditOpen(true)}
-        className="text-lg font-mono tabular-nums text-text-primary hover:text-accent-blue transition-colors cursor-pointer"
+        className="text-sm font-mono tabular-nums text-text-primary hover:text-accent-blue transition-colors cursor-pointer px-1"
         title={t("timer.editTitle")}
-        aria-label={t("aria.timerEdit")}
+        aria-label={`${t("aria.timerEdit")}: ${timeText}`}
       >
-        {formatTimer(computeTimerMs(pokemon))}
+        {timeText}
       </button>
-      <div className="flex gap-1.5">
+      <div className="flex gap-0.5">
         {isRunning ? (
           <button
             onClick={() => send("timer_stop", { pokemon_id: pokemon.id })}
-            className="p-1.5 rounded-lg bg-accent-yellow/20 hover:bg-accent-yellow/30 text-accent-yellow transition-colors"
+            className="p-1.5 rounded-none text-accent-yellow hover:bg-bg-hover transition-colors"
             title={t("timer.stop")}
             aria-label={t("aria.timerPause")}
           >
@@ -126,7 +126,7 @@ function PokemonTimer({ pokemon, send, disabled = false, timerStartBlocked = fal
           <button
             onClick={() => send("timer_start", { pokemon_id: pokemon.id })}
             disabled={disabled || timerStartBlocked}
-            className="p-1.5 rounded-lg bg-accent-green/20 hover:bg-accent-green/30 text-accent-green transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1.5 rounded-none text-accent-blue hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title={timerStartBlocked ? t("detector.errNoSource") : t("timer.start")}
             aria-label={t("aria.timerStart")}
           >
@@ -136,7 +136,7 @@ function PokemonTimer({ pokemon, send, disabled = false, timerStartBlocked = fal
         <button
           onClick={() => setConfirmResetOpen(true)}
           disabled={disabled}
-          className="p-1.5 rounded-lg bg-bg-card hover:bg-bg-hover text-text-muted hover:text-text-primary border border-border-subtle transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-1.5 rounded-none text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           title={t("timer.reset")}
           aria-label={t("aria.timerReset")}
         >
@@ -976,7 +976,7 @@ function applyCopyOverlay(
   setDirty(true);
 }
 
-/** Sidebar quick actions bar: start/stop hunts, mode selector, selection actions. */
+/** Sidebar quick actions bar: start/stop hunts, mode selector, selection actions, and the total encounter count. */
 function SidebarQuickActions({
   allPokemon, activeHunts, selectedIds, sidebarTab, detectorStatus,
   showHuntMenu, setShowHuntMenu, send, capture,
@@ -1046,6 +1046,8 @@ function SidebarQuickActions({
 
   const sidebarLabel = resolveHuntLabel(allRunning, currentMode, t);
   const sidebarIcon = resolveHuntIcon(allRunning, currentMode);
+  const totalEncounters = allPokemon.reduce((s, p) => s + p.encounters, 0);
+  const totalEncountersLabel = t("group.totalEncounters", { count: String(totalEncounters) });
 
   return (
     <div className="flex items-center gap-1 px-2 py-1 border-b border-border-subtle">
@@ -1143,6 +1145,15 @@ function SidebarQuickActions({
           </button>
         </div>
       )}
+      {/* Total encounters across all hunts, right-aligned micro label */}
+      <span
+        className="t-label flex items-center gap-1 shrink-0 tabular-nums"
+        title={totalEncountersLabel}
+      >
+        <Zap className="w-3 h-3 text-accent-yellow" aria-hidden="true" />
+        {totalEncounters}
+        <span className="sr-only">{totalEncountersLabel}</span>
+      </span>
     </div>
   );
 }
@@ -1425,7 +1436,7 @@ function stepLabel(pokemon: Pokemon): string {
   return pokemon.step && pokemon.step > 1 ? String(pokemon.step) : "1";
 }
 
-/** Counter tab content: sprite, encounter buttons, timer, and stats. */
+/** Counter tab content: one cohesive hero panel with status, identity, big number, chips, and actions. */
 function DashboardCounterTab({
   pokemon, imgError, oddsDisplay, send,
   onImgError, onDecrement, onIncrement, onReset, onSetEncounter, timerStartBlocked = false,
@@ -1447,11 +1458,14 @@ function DashboardCounterTab({
   const step = stepLabel(pokemon);
   const hasCustomStep = pokemon.step && pokemon.step > 1;
   const isCompleted = !!pokemon.completed_at;
+  const [baseName, formName] = getBaseAndFormName(pokemon);
+  // Secondary identity line: form and game, dot-separated, both optional.
+  const metaLine = [formName, pokemon.game ? formatGame(pokemon.game) : ""].filter(Boolean).join(" \u00b7 ");
 
   return (
     <>
       {isCompleted && (
-        <div className="flex items-center gap-2.5 px-6 py-2 rounded-none bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-8">
+        <div className="flex items-center gap-2.5 px-6 py-2 rounded-none bg-accent-green/10 text-accent-green text-sm mb-2 border border-accent-green/30 shadow-sm mt-8">
           <Trophy className="w-4 h-4" />
           <span className="font-bold">{t("dash.caughtBanner")}</span>
           <span className="w-px h-3 bg-accent-green/30" />
@@ -1461,86 +1475,99 @@ function DashboardCounterTab({
         </div>
       )}
 
-      <div className="relative w-full max-h-64 mb-4 mt-8 flex items-center justify-center">
-        <div className="relative z-10 flex flex-col items-center">
-          <img
-            src={spriteUrl}
-            alt={pokemon.name}
-            onError={() => onImgError(pokemon.id)}
-            className="pokemon-sprite w-48 h-48 2xl:w-56 2xl:h-56 object-contain drop-shadow-xl transition-transform duration-300 hover:scale-110"
-          />
+      <section
+        className="t-panel t-hatch p-5 md:p-6 mt-8"
+        style={{ width: "min(100%, clamp(420px, 40vw, 620px))" }}
+      >
+        {/* Header row: hunt status label left, timer controls right */}
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <span className={isCompleted ? "t-label" : "t-label t-label--accent"}>
+            {isCompleted ? t("dash.tabArchive") : t("dash.tabActive")}
+          </span>
+          <PokemonTimer pokemon={pokemon} send={send} disabled={isCompleted} timerStartBlocked={timerStartBlocked} />
         </div>
-      </div>
-      <h2 className="text-3xl 2xl:text-4xl font-black text-text-primary capitalize tracking-wide drop-shadow-md text-center mb-2">
-        {pokemon.name}
-      </h2>
 
-      <PokemonTimer pokemon={pokemon} send={send} disabled={isCompleted} timerStartBlocked={timerStartBlocked} />
+        {/* Identity row: small sprite tile, name, form/game meta line */}
+        <div className="flex items-center gap-3 mt-4">
+          <div className="w-16 h-16 shrink-0 flex items-center justify-center bg-bg-secondary border border-border-subtle">
+            <img
+              src={spriteUrl}
+              alt={pokemon.name}
+              onError={() => onImgError(pokemon.id)}
+              className="pokemon-sprite w-14 h-14 object-contain"
+            />
+          </div>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-base font-semibold text-text-primary capitalize truncate">{baseName}</span>
+            {metaLine && <span className="text-xs text-text-muted capitalize truncate">{metaLine}</span>}
+          </div>
+        </div>
 
-      <div className="flex items-center gap-4 2xl:gap-6 mt-6 w-full justify-center">
-        <button
-          onClick={() => !isCompleted && onDecrement(pokemon.id)}
-          disabled={isCompleted}
-          aria-label={`\u2212${step}`}
-          className="flex items-center justify-center w-14 h-14 2xl:w-18 2xl:h-18 rounded-2xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-muted hover:text-accent-blue transition-all active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          title={`\u2212${step}`}
-        >
-          {hasCustomStep ? (
-            <span className="text-lg font-bold">&minus;{pokemon.step}</span>
-          ) : (
-            <Minus className="w-7 h-7" />
-          )}
-        </button>
-
-        <div className="t-panel t-hatch px-8 py-6 2xl:px-16 2xl:py-8 text-center shadow-lg min-w-72 max-w-full overflow-hidden relative group" aria-live="polite">
-          {/* Raw integer on purpose: no thousands separator, fluid clamp size. */}
+        {/* Big number. Raw integer on purpose: no thousands separator, fluid clamp size. */}
+        <div className="relative group text-center my-3" aria-live="polite">
           <div className="text-[clamp(48px,5vw,80px)] font-black tabular-nums leading-none tracking-tight text-text-primary">
             {pokemon.encounters}
           </div>
           {!isCompleted && (
             <button
               onClick={() => onSetEncounter(pokemon)}
-              className="absolute top-3 right-3 p-1.5 rounded-lg hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100"
+              className="absolute top-0 right-0 p-1.5 rounded-none hover:bg-bg-hover text-text-faint hover:text-text-primary transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
               title={t("dash.setEncounters")}
               aria-label={t("dash.setEncounters")}
             >
               <Pencil className="w-4 h-4" />
             </button>
           )}
+        </div>
+
+        {/* Chips row: odds micro label */}
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          <span className="t-label t-label--accent" title={t("aria.odds")}>
+            {t("dash.odds") || "Odds"}{" "}
+            <span className="tabular-nums">{oddsDisplay}</span>
+          </span>
+        </div>
+
+        {/* Action row: minus (secondary), plus (primary accent), reset (ghost) */}
+        <div className="flex items-center justify-center gap-2 mt-5">
+          <button
+            onClick={() => !isCompleted && onDecrement(pokemon.id)}
+            disabled={isCompleted}
+            aria-label={`\u2212${step}`}
+            className="flex items-center justify-center h-11 w-11 rounded-none bg-bg-card border border-border-subtle text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={`\u2212${step}`}
+          >
+            {hasCustomStep ? (
+              <span className="text-base font-bold">&minus;{pokemon.step}</span>
+            ) : (
+              <Minus className="w-5 h-5" />
+            )}
+          </button>
+          <button
+            onClick={() => !isCompleted && onIncrement(pokemon.id)}
+            disabled={isCompleted}
+            aria-label={`+${step}`}
+            className="t-cut flex items-center justify-center h-11 min-w-32 px-8 rounded-none bg-accent-blue text-bg-primary font-bold hover:bg-accent-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title={`+${step}`}
+          >
+            {hasCustomStep ? (
+              <span className="text-lg font-bold">+{pokemon.step}</span>
+            ) : (
+              <Plus className="w-6 h-6 stroke-[2.5px]" />
+            )}
+          </button>
           {!isCompleted && (
             <button
               onClick={() => onReset(pokemon.id)}
-              className="mt-3 text-[11px] text-text-muted hover:text-text-secondary transition-colors flex items-center gap-1 mx-auto"
+              className="flex items-center justify-center h-11 w-11 rounded-none text-text-muted hover:bg-bg-hover hover:text-text-primary transition-colors"
               title={t("tooltip.common.reset")}
+              aria-label={t("tooltip.common.reset")}
             >
-              <RotateCcw className="w-3 h-3" />
-              {t("tooltip.common.reset")}
+              <RotateCcw className="w-4 h-4" />
             </button>
           )}
         </div>
-
-        <button
-          onClick={() => !isCompleted && onIncrement(pokemon.id)}
-          disabled={isCompleted}
-          aria-label={`+${step}`}
-          className="flex items-center justify-center w-18 h-18 2xl:w-22 2xl:h-22 rounded-2xl bg-accent-green hover:bg-accent-green/90 transition-all active:scale-95 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          title={`+${step}`}
-        >
-          {hasCustomStep ? (
-            <span className="text-2xl font-bold">+{pokemon.step}</span>
-          ) : (
-            <Plus className="w-9 h-9 stroke-[3px]" />
-          )}
-        </button>
-      </div>
-
-      {/* Compact stat strip: uppercase micro-label chips under the counter. */}
-      <div className="flex flex-wrap items-center justify-center gap-2 mt-8 w-full max-w-lg mx-auto">
-        <span className="t-label t-label--accent" title={t("aria.odds")}>
-          {t("dash.odds") || "Odds"}{" "}
-          <span className="tabular-nums">{oddsDisplay}</span>
-        </span>
-      </div>
+      </section>
     </>
   );
 }
@@ -2093,7 +2120,6 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
     new Set(activeHunts.flatMap((p) => p.tags ?? [])),
   ).sort((a, b) => a.localeCompare(b));
   const viewedPokemon = findViewedPokemon(allPokemon, viewedPokemonId);
-  const totalEncounters = allPokemon.reduce((s, p) => s + p.encounters, 0);
   const oddsDisplay = getOddsFractional(viewedPokemon);
 
   // Persist sort + sidebar preferences
@@ -2295,14 +2321,14 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       <Fragment key={p.id}>
         {isDropTarget && !dropAfter && dropSlot}
         <li
-          role="option"
-          aria-selected={isViewed || isSelected}
+          aria-current={isViewed ? "true" : undefined}
           data-sidebar-idx={idx}
           tabIndex={0}
           draggable
           className={`${itemClassName}${dragId === p.id ? " opacity-40" : ""}`}
           onClick={(e) => handleCardClick(e, p.id, idx)}
           onKeyDown={(e) => handleSidebarKeyDown(e, p.id)}
+          data-selected={isSelected || undefined}
           onDragStart={() => setDragId(p.id)}
           onDragOver={(e) => {
             e.preventDefault();
@@ -2313,6 +2339,9 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           onDrop={(e) => e.preventDefault()}
           onDragEnd={() => handleDropReorder()}
         >
+        {/* aria-selected is invalid on a plain li, so the bulk-selection
+            state is announced through visually hidden text instead. */}
+        {isSelected && <span className="sr-only">{t("timer.selected")}</span>}
         <div className="w-8 h-8 2xl:w-10 2xl:h-10 shrink-0 relative self-start mt-0.5">
           <img
             src={src}
@@ -2619,15 +2648,6 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                   {activeHunts.length}
                 </span>
               )}
-              {/* Total encounters across all hunts, kept next to the count badge */}
-              <span
-                className="flex items-center gap-0.5 text-[10px] text-text-muted tabular-nums"
-                title={t("group.totalEncounters", { count: String(totalEncounters) })}
-              >
-                <Zap className="w-3 h-3 text-accent-yellow" aria-hidden="true" />
-                {totalEncounters}
-                <span className="sr-only">{t("group.totalEncounters", { count: String(totalEncounters) })}</span>
-              </span>
             </span>
             {sidebarTab === "active" && (
               <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-blue rounded-none" />
@@ -2692,11 +2712,16 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               <EmptyListPlaceholder query={q} sidebarTab={sidebarTab} onClearAndAdd={handleClearAndAdd} onAdd={handleOpenAdd} />
             </div>
           ) : (
-            <ul className="py-1 select-none" role="listbox" aria-label={t("dash.pokemonList")}>
-              {sidebarTab === "active"
-                ? renderGroupedList()
-                : displayList.map((p, idx) => renderPokemonItem(p, idx))}
-            </ul>
+            /* Grouped view: each group section renders its own <ul> so the
+               native list content model stays valid (group headers are not
+               list items). The archive tab has no groups and stays one list. */
+            sidebarTab === "active" ? (
+              <div className="py-1 select-none">{renderGroupedList()}</div>
+            ) : (
+              <ul className="py-1 select-none" aria-label={t("dash.pokemonList")}>
+                {displayList.map((p, idx) => renderPokemonItem(p, idx))}
+              </ul>
+            )
           )}
         </div>
 
@@ -2706,7 +2731,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
             <button
               onClick={() => setShowAddModal(true)}
               title={t("dash.tooltipAddPokemon")}
-              className="w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 text-white rounded-lg text-xs 2xl:text-sm font-semibold transition-colors"
+              className="t-cut w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-none text-xs 2xl:text-sm font-semibold transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
               {t("dash.addPokemon")}
@@ -2837,7 +2862,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               {!viewedPokemon.completed_at && (
                 <button
                   onClick={() => handleComplete(viewedPokemon.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-green text-white hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 border border-transparent text-xs font-bold transition-colors"
                   aria-label={t("dash.caught")}
                 >
                   <PartyPopper className="w-3.5 h-3.5" />

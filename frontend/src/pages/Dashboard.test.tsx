@@ -262,9 +262,10 @@ describe("Dashboard", () => {
   it("shows active and archived sidebar tabs", async () => {
     render(<Dashboard />);
     await act(async () => {});
-    // Both sidebar tab labels should be present
-    expect(screen.getByText(/Aktiv|Active/i)).toBeInTheDocument();
-    expect(screen.getByText(/Archiv|Archive/i)).toBeInTheDocument();
+    // Both sidebar tab labels should be present. The hero panel repeats
+    // the active-hunt label, so multiple matches are expected.
+    expect(screen.getAllByText(/Aktiv|Active/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Archiv|Archive/i).length).toBeGreaterThan(0);
   });
 
   it("filters pokemon list to archived when archive tab is selected", async () => {
@@ -2021,7 +2022,7 @@ describe("Dashboard reset confirmation", () => {
     render(<Dashboard />);
 
     // Click the reset button in the counter tab
-    const resetBtn = screen.getByText("Zurücksetzen").closest("button")!;
+    const resetBtn = screen.getByRole("button", { name: "Zurücksetzen" });
     await user.click(resetBtn);
 
     // ConfirmModal should open
@@ -3651,17 +3652,18 @@ describe("Dashboard sidebar keyboard navigation", () => {
     expect(document.activeElement).toBe(secondItem);
   });
 
-  it("reflects multi-select state via aria-selected, not just the viewed item", async () => {
+  it("reflects multi-select state via data-selected and sr-only text", async () => {
     render(<Dashboard />);
 
     const items = document.querySelectorAll("[data-sidebar-idx]");
     expect(items.length).toBeGreaterThan(1);
     const second = items[1] as HTMLElement;
-    expect(second.getAttribute("aria-selected")).toBe("false");
+    expect(second.hasAttribute("data-selected")).toBe(false);
 
     fireEvent.click(second, { ctrlKey: true });
 
-    expect(second.getAttribute("aria-selected")).toBe("true");
+    expect(second.hasAttribute("data-selected")).toBe(true);
+    expect(second.textContent).toContain("ausgewählt");
   });
 
   it("selects all with Ctrl+A", async () => {
@@ -5675,7 +5677,7 @@ describe("Dashboard confirm modal close callback", () => {
     render(<Dashboard />);
 
     // Click the reset button to open confirm dialog
-    const resetBtn = screen.getByText("Zurücksetzen").closest("button")!;
+    const resetBtn = screen.getByRole("button", { name: "Zurücksetzen" });
     await user.click(resetBtn);
 
     // ConfirmModal should be open with destructive confirmation
@@ -5859,11 +5861,11 @@ describe("Dashboard counter tab sprite error", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // Find the main panel large sprite
+    // Find the hero panel identity sprite
     const mainSprites = document.querySelectorAll("img.pokemon-sprite");
-    // The main panel sprite is larger and has specific classes
+    // The hero panel sprite uses the 56px identity-row size
     const mainSprite = Array.from(mainSprites).find(img =>
-      img.className.includes("w-48"),
+      img.className.includes("w-14"),
     ) as HTMLImageElement;
 
     if (mainSprite) {
@@ -6289,7 +6291,7 @@ describe("Dashboard group view and manual ordering", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    const options = screen.getAllByRole("option");
+    const options = [...document.querySelectorAll("[data-sidebar-idx]")] as HTMLElement[];
     await act(async () => {
       fireEvent.keyDown(options[0], { key: "ArrowDown", altKey: true });
     });
@@ -6306,7 +6308,7 @@ describe("Dashboard group view and manual ordering", () => {
 
     // Separate act() per event so React commits dragOverId before dragEnd
     // reads it (in the browser dragover fires across many renders).
-    const options = screen.getAllByRole("option");
+    const options = [...document.querySelectorAll("[data-sidebar-idx]")] as HTMLElement[];
     await act(async () => { fireEvent.dragStart(options[0]); });
     await act(async () => { fireEvent.dragOver(options[1], { clientY: 5 }); });
     await act(async () => { fireEvent.dragEnd(options[0]); });
