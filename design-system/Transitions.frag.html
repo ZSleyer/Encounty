@@ -1,4 +1,4 @@
-<h2 class="card-title">Motion / Micro Transitions (150-180ms, gated by reduce-motion)</h2>
+<h2 class="card-title">Motion / Micro Transitions (150-240ms, gated by reduce-motion)</h2>
 <div class="col">
   <div class="row">
     <button class="btn btn-secondary" onclick="replay('r1','anim-reveal')">Replay t-reveal</button>
@@ -6,7 +6,7 @@
   </div>
   <div id="r1" class="t-panel anim-reveal">
     <span class="t-label t-label--accent">t-reveal</span>
-    <p style="color:var(--text-secondary); margin:8px 0 0;">Clip-path wipe, 180ms, cubic-bezier(.9,0,.1,1). Route and panel mounts.</p>
+    <p style="color:var(--text-secondary); margin:8px 0 0;">Clip-path wipe + slide + fade, 240ms, cubic-bezier(.7,0,.2,1), richtungsabhaengig (ltr/rtl je nach Nav-Richtung). Route mounts.</p>
   </div>
   <div id="r2" class="t-panel anim-flicker">
     <span class="t-label t-label--accent">t-flicker-in</span>

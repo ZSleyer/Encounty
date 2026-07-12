@@ -7,11 +7,11 @@ Review gallery for the Tempest design language of the Encounty app, derived from
 - Base: dark desaturated slate blue-gray (#0d1117 to #1e2836), subtle diagonal hatch texture
 - Accents, neon on dark: violet #a685f0 (default), acid #c8e04a, crimson #f0507a, cyan #3fd4e0, plus Tempest-adapted blue #7ab8ff, green #3fe08c, pink #f47ad0, orange #ffa14a; each with an AA-compliant light-mode counterpart (acid maps to olive #566800 on light, never raw acid as text on light surfaces)
 - Vocabulary: hairline borders, corner brackets on panels, dashed frames, uppercase letterspaced micro-label chips, corner-cut primary CTAs (.t-cut) and badges (.t-cut-sm). Geometry rule: all box radii are 0; softness comes from corner cuts, never from rounding. Only toggles (switch pattern recognition) and true indicator dots are round.
-- Motion: 150-180ms clip-path reveals and opacity flickers, hard easing cubic-bezier(.9,0,.1,1), all gated by a global reduce-motion mode
+- Motion: 150-240ms direction-aware clip-path reveals (wipe + slide + fade, cubic-bezier(.7,0,.2,1)) and opacity flickers, all gated by a global reduce-motion mode
 
 ## Accessibility
 
-The design language is WCAG 2.2 Level AA by construction: every text/background token pair meets at least 4.5:1 (ratios annotated on the swatch cards), primary-accent surfaces carry dark text at 5:1 or better in both modes, `:focus-visible` gets a 2px accent outline (box-shadow fallback on clip-path buttons), and all motion is 150-180ms and gated by a global reduce-motion mode honoring `prefers-reduced-motion` (WCAG 2.3.3).
+The design language is WCAG 2.2 Level AA by construction: every text/background token pair meets at least 4.5:1 (ratios annotated on the swatch cards), primary-accent surfaces carry dark text at 5:1 or better in both modes, `:focus-visible` gets a 2px accent outline (box-shadow fallback on clip-path buttons), and all motion is 150-240ms and gated by a global reduce-motion mode honoring `prefers-reduced-motion` (WCAG 2.3.3).
 
 ## Token source of truth
 
