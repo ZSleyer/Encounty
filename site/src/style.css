@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* Design tokens copied from frontend/src/index.css (dark theme). */
+:root {
+  --bg-primary: #0f0f13;
+  --bg-secondary: #1a1a24;
+  --bg-card: #1e1e2e;
+  --bg-hover: #252535;
+  --accent-blue: #4a9eff;
+  --accent-green: #34d67a;
+  --accent-yellow: #ffd700;
+  --accent-red: #f05050;
+  --accent-purple: #b970ff;
+  --border-subtle: #333345;
+  --text-primary: #f1f5f9;
+  --text-secondary: #b8c9da;
+  --text-muted: #94aabf;
+  --text-faint: #7b8fa3;
+}
+
+@theme {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-card: var(--bg-card);
+  --color-bg-hover: var(--bg-hover);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-green: var(--accent-green);
+  --color-accent-red: var(--accent-red);
+  --color-accent-purple: var(--accent-purple);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --font-pixel: "Press Start 2P", monospace;
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Signature gradient divider from the app footer. */
+.glow-line {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent-blue) 20%,
+    var(--accent-purple) 50%,
+    var(--accent-red) 80%,
+    transparent 100%
+  );
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-blue) 18%, transparent);
+}
+
+/* Soft radial accent glow behind the hero. */
+.hero-glow {
+  background:
+    radial-gradient(
+      600px 300px at 50% 0%,
+      color-mix(in srgb, var(--accent-blue) 14%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      500px 260px at 80% 20%,
+      color-mix(in srgb, var(--accent-purple) 9%, transparent),
+      transparent 70%
+    );
+}
+
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 3px;
+  border-radius: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    transition: none !important;
+  }
+}

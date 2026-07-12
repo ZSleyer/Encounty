@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Encounty - Auto Shiny Counter for Pokémon</title>
+    <meta
+      name="description"
+      content="Encounty is a modern, open-source auto shiny counter for Pokémon shiny hunting. GPU-accelerated encounter detection, 60+ hunt methods, OBS overlays, all games Gen 1-9."
+    />
+    <meta property="og:title" content="Encounty - Auto Shiny Counter for Pokémon" />
+    <meta
+      property="og:description"
+      content="Modern open-source auto shiny counter: GPU-accelerated encounter detection, 60+ hunt methods, OBS overlays, all games Gen 1-9."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://zsleyer.github.io/Encounty/" />
+    <meta property="og:image" content="https://zsleyer.github.io/Encounty/screenshots/dashboard.png" />
+    <meta name="theme-color" content="#0f0f13" />
+    <link rel="icon" type="image/png" href="/app-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-bg-card focus:px-4 focus:py-2"
+      >Skip to content</a
+    >
+
+    <header class="border-b border-border-subtle">
+      <nav
+        aria-label="Main"
+        class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3"
+      >
+        <a href="#" class="flex items-center gap-3">
+          <img src="/app-icon.png" alt="" width="32" height="32" class="rounded-lg" />
+          <span class="font-pixel text-xs text-text-primary">Encounty</span>
+        </a>
+        <div class="flex items-center gap-2 text-sm sm:gap-6">
+          <a href="#features" class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >Features</a
+          >
+          <a
+            href="#how-it-works"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >How it works</a
+          >
+          <a
+            href="https://github.com/ZSleyer/Encounty"
+            class="rounded-full border border-border-subtle px-4 py-1.5 text-text-secondary hover:border-accent-blue hover:text-text-primary"
+            >GitHub</a
+          >
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section class="hero-glow px-4 pt-20 pb-16 text-center">
+        <div class="mx-auto max-w-3xl">
+          <img
+            src="/app-icon.png"
+            alt=""
+            width="96"
+            height="96"
+            class="mx-auto mb-8 rounded-2xl shadow-lg"
+          />
+          <h1 class="font-pixel text-2xl leading-relaxed text-text-primary sm:text-3xl">
+            Encounty
+          </h1>
+          <p class="mx-auto mt-6 max-w-xl text-lg text-text-secondary">
+            The modern, open-source auto shiny counter for Pokémon shiny hunting. Capture your
+            game, let the GPU detect encounters, and never click a tally counter again.
+          </p>
+          <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="https://github.com/ZSleyer/Encounty/releases/latest"
+              class="rounded-full bg-accent-blue px-6 py-3 font-medium text-[#0a1628] hover:opacity-90"
+              >Download for Linux</a
+            >
+            <a
+              href="https://github.com/ZSleyer/Encounty/releases/latest"
+              class="rounded-full border border-border-subtle bg-bg-card px-6 py-3 font-medium text-text-primary hover:border-accent-blue"
+              >Windows</a
+            >
+            <a
+              href="https://github.com/ZSleyer/Encounty/releases/latest"
+              class="rounded-full border border-border-subtle bg-bg-card px-6 py-3 font-medium text-text-primary hover:border-accent-blue"
+              >macOS</a
+            >
+          </div>
+          <p class="mt-4 text-sm text-text-muted">
+            AppImage (Linux) · portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · free &
+            AGPL-3.0
+          </p>
+        </div>
+      </section>
+
+      <!-- Screenshots -->
+      <section aria-labelledby="screenshots-heading" class="px-4 pb-20">
+        <h2 id="screenshots-heading" class="sr-only">Screenshots</h2>
+        <div class="mx-auto max-w-6xl">
+          <div class="card overflow-hidden p-2">
+            <img
+              src="/screenshots/dashboard.png"
+              alt="Encounty dashboard showing active shiny hunts with encounter counter, timer and odds"
+              class="w-full rounded-xl"
+              width="2088"
+              height="1305"
+            />
+          </div>
+          <div class="mt-6 grid gap-6 sm:grid-cols-2">
+            <figure class="card overflow-hidden p-2">
+              <img
+                src="/screenshots/new-hunt.png"
+                alt="Add Pokémon dialog with Pokédex search, sprite styles and hunt method selection"
+                class="w-full rounded-xl"
+                width="2088"
+                height="1305"
+              />
+              <figcaption class="px-3 py-2 text-sm text-text-muted">
+                Pick any game from Gen 1-9 and one of 60+ hunt methods.
+              </figcaption>
+            </figure>
+            <figure class="card overflow-hidden p-2">
+              <img
+                src="/screenshots/overlay.png"
+                alt="OBS overlay editor with drag-and-drop layers, sprite, counter and glow properties"
+                class="w-full rounded-xl"
+                width="2088"
+                height="1305"
+              />
+              <figcaption class="px-3 py-2 text-sm text-text-muted">
+                Design your stream overlay with drag & drop and live preview.
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- Features -->
+      <section aria-labelledby="features-heading" id="features" class="px-4 py-20">
+        <div class="mx-auto max-w-6xl">
+          <h2
+            id="features-heading"
+            class="font-pixel text-center text-lg leading-relaxed text-text-primary"
+          >
+            Features
+          </h2>
+          <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <article class="card p-6">
+              <h3 class="font-semibold text-accent-blue">GPU-accelerated auto-detection</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Capture your game window directly in-app. WebGPU compute shaders run template
+                matching in real time and count encounters for you, with a CPU fallback.
+              </p>
+            </article>
+            <article class="card p-6">
+              <h3 class="font-semibold text-accent-blue">All games, Gen 1-9</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Every mainline Pokémon game with game-specific shiny odds, including the Shiny
+                Charm and accurate per-method probabilities.
+              </p>
+            </article>
+            <article class="card p-6">
+              <h3 class="font-semibold text-accent-blue">60+ hunt methods</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts and many
+                more, each with its own odds model.
+              </p>
+            </article>
+            <article class="card p-6">
+              <h3 class="font-semibold text-accent-blue">Unlimited parallel hunts</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Run as many simultaneous hunts as your hardware allows, each with its own
+                independent capture stream.
+              </p>
+            </article>
+            <article class="card p-6">
+              <h3 class="font-semibold text-accent-blue">OBS overlay editor</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Show your counters on stream: drag-and-drop overlay editor with live preview and a
+                browser-source URL for OBS.
+              </p>
+            </article>
+            <article class="card p-6">
+              <h3 class="font-semibold text-accent-blue">Hotkeys, templates & more</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Global hotkeys for manual counting, template import/export, a Pokédex with sprite
+                support, and a UI in 5 languages.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- How it works -->
+      <section aria-labelledby="how-heading" id="how-it-works" class="px-4 py-20">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="how-heading"
+            class="font-pixel text-center text-lg leading-relaxed text-text-primary"
+          >
+            How it works
+          </h2>
+          <ol class="mt-12 grid gap-6 sm:grid-cols-3">
+            <li class="card p-6">
+              <span aria-hidden="true" class="font-pixel text-2xl text-accent-purple">1</span>
+              <h3 class="mt-4 font-semibold">Create a hunt</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Choose your game, target Pokémon and hunt method. Encounty knows the correct
+                odds.
+              </p>
+            </li>
+            <li class="card p-6">
+              <span aria-hidden="true" class="font-pixel text-2xl text-accent-purple">2</span>
+              <h3 class="mt-4 font-semibold">Capture your game</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Select the game window or screen. Mark the encounter with a template, once.
+              </p>
+            </li>
+            <li class="card p-6">
+              <span aria-hidden="true" class="font-pixel text-2xl text-accent-purple">3</span>
+              <h3 class="mt-4 font-semibold">Hunt</h3>
+              <p class="mt-2 text-sm text-text-secondary">
+                Encounters are detected and counted automatically while you play. Until it
+                sparkles.
+              </p>
+            </li>
+          </ol>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-4">
+      <div class="glow-line" role="presentation"></div>
+      <div
+        class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-8 text-center text-sm text-text-muted"
+      >
+        <p>
+          <a href="https://github.com/ZSleyer/Encounty" class="underline hover:text-text-primary"
+            >Source on GitHub</a
+          >
+          · licensed under
+          <a
+            href="https://github.com/ZSleyer/Encounty/blob/main/LICENSE"
+            class="underline hover:text-text-primary"
+            >AGPL-3.0</a
+          >
+        </p>
+        <p>
+          Encounty is a fan project and is not affiliated with Nintendo, Game Freak or The
+          Pokémon Company.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
