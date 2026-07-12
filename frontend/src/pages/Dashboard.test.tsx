@@ -522,17 +522,21 @@ describe("Dashboard", () => {
 
   // --- Header action buttons ---
 
-  it("shows edit, delete and caught buttons in header", async () => {
+  it("shows caught button and overflow menu with edit and delete in header", async () => {
+    const user = userEvent.setup();
     render(<Dashboard />);
     await act(async () => {});
 
-    // All action buttons should have aria-labels (exact match to avoid timer edit button)
+    // Caught stays a visible primary action; Edit and Delete live in the overflow menu
+    expect(screen.getByLabelText(/Gefangen|Caught/i)).toBeInTheDocument();
+    const kebab = screen.getByLabelText(/Weitere Aktionen|More actions/i);
+    await user.click(kebab);
     expect(screen.getByLabelText(/^Bearbeiten$|^Edit$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Löschen|Delete/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Gefangen|Caught/i)).toBeInTheDocument();
   });
 
-  it("shows reactivate button for completed pokemon instead of caught", async () => {
+  it("shows reactivate action in overflow menu for completed pokemon instead of caught", async () => {
+    const user = userEvent.setup();
     const completedPokemon = makePokemon({
       id: "r1",
       name: "ReactivateMon",
@@ -549,6 +553,8 @@ describe("Dashboard", () => {
 
     render(<Dashboard />);
     await act(async () => {});
+    const kebab = screen.getByLabelText(/Weitere Aktionen|More actions/i);
+    await user.click(kebab);
     expect(screen.getByLabelText(/Reaktivieren|Reactivate/i)).toBeInTheDocument();
   });
 
@@ -1093,7 +1099,8 @@ describe("Dashboard action buttons", () => {
     mockSend.mockReset();
   });
 
-  it("shows edit, delete, and caught buttons in the header", async () => {
+  it("shows caught button plus edit and delete inside the overflow menu", async () => {
+    const user = userEvent.setup();
     const pokemon = makePokemon({ id: "p1" });
 
     useCounterStore.setState({
@@ -1106,16 +1113,20 @@ describe("Dashboard action buttons", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // Action buttons exist (may appear in both sidebar and header, so use getAll)
+    const caughtButtons = screen.getAllByRole("button", { name: /Gefangen/ });
+    expect(caughtButtons.length).toBeGreaterThan(0);
+
+    // Edit and Delete moved into the overflow (kebab) menu
+    const kebab = screen.getByRole("button", { name: /Weitere Aktionen/ });
+    await user.click(kebab);
     const editButtons = screen.getAllByRole("button", { name: /Bearbeiten/ });
     expect(editButtons.length).toBeGreaterThan(0);
     const deleteButtons = screen.getAllByRole("button", { name: /Löschen/ });
     expect(deleteButtons.length).toBeGreaterThan(0);
-    const caughtButtons = screen.getAllByRole("button", { name: /Gefangen/ });
-    expect(caughtButtons.length).toBeGreaterThan(0);
   });
 
-  it("shows reactivate button for completed pokemon instead of caught", async () => {
+  it("shows reactivate action in the overflow menu for completed pokemon", async () => {
+    const user = userEvent.setup();
     const pokemon = makePokemon({
       id: "p1",
       completed_at: "2025-01-01T00:00:00Z",
@@ -1131,6 +1142,8 @@ describe("Dashboard action buttons", () => {
     render(<Dashboard />);
     await act(async () => {});
 
+    const kebab = screen.getByRole("button", { name: /Weitere Aktionen/ });
+    await user.click(kebab);
     const reactivateButtons = screen.getAllByRole("button", { name: /Reaktivieren/ });
     expect(reactivateButtons.length).toBeGreaterThan(0);
   });
@@ -1176,7 +1189,9 @@ describe("Dashboard action buttons", () => {
 
     render(<Dashboard />);
 
-    // Click the first "Löschen" button (header action)
+    // Delete lives in the overflow menu now
+    const kebab = screen.getByRole("button", { name: /Weitere Aktionen/ });
+    await user.click(kebab);
     const deleteButtons = screen.getAllByRole("button", { name: /Löschen/ });
     await user.click(deleteButtons[0]);
 
@@ -2428,6 +2443,9 @@ describe("Dashboard reactivate pokemon", () => {
 
     render(<Dashboard />);
 
+    // Reactivate lives in the overflow menu now
+    const kebab = screen.getByRole("button", { name: /Weitere Aktionen/i });
+    await user.click(kebab);
     const reactivateBtns = screen.getAllByRole("button", { name: /Reaktivieren/i });
     await user.click(reactivateBtns[0]);
 
@@ -4235,7 +4253,9 @@ describe("Dashboard confirm modal close", () => {
 
     render(<Dashboard />);
 
-    // Click the delete button in the header
+    // Open the overflow menu, then click the delete action
+    const kebab = screen.getByRole("button", { name: /Weitere Aktionen|More actions/i });
+    await user.click(kebab);
     const deleteBtns = screen.getAllByRole("button", { name: /Löschen|Delete/i });
     await user.click(deleteBtns[0]);
 
@@ -5875,8 +5895,12 @@ describe("Dashboard header edit button", () => {
 
     render(<Dashboard />);
 
-    // Find the edit button specifically inside the header
+    // Open the header overflow menu, then find the edit action inside the header
     const header = document.querySelector("header");
+    const kebab = header?.querySelector("button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']") as HTMLElement;
+    expect(kebab).toBeTruthy();
+    await user.click(kebab);
+
     const headerEditBtn = header?.querySelector("button[aria-label*='Bearbeiten'], button[aria-label*='Edit']") as HTMLElement;
     expect(headerEditBtn).toBeTruthy();
 
@@ -5909,8 +5933,12 @@ describe("Dashboard header delete button", () => {
 
     render(<Dashboard />);
 
-    // Find the delete button specifically inside the header
+    // Open the header overflow menu, then find the delete action inside the header
     const header = document.querySelector("header");
+    const kebab = header?.querySelector("button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']") as HTMLElement;
+    expect(kebab).toBeTruthy();
+    await user.click(kebab);
+
     const headerDeleteBtn = header?.querySelector("button[aria-label*='Löschen'], button[aria-label*='Delete']") as HTMLElement;
     expect(headerDeleteBtn).toBeTruthy();
 
@@ -5978,8 +6006,12 @@ describe("Dashboard header reactivate button", () => {
 
     render(<Dashboard />);
 
-    // Find the reactivate button specifically inside the header
+    // Open the header overflow menu, then find the reactivate action inside the header
     const header = document.querySelector("header");
+    const kebab = header?.querySelector("button[aria-label*='Weitere Aktionen'], button[aria-label*='More actions']") as HTMLElement;
+    expect(kebab).toBeTruthy();
+    await user.click(kebab);
+
     const headerReactivateBtn = header?.querySelector("button[aria-label*='Reaktivieren'], button[aria-label*='Reactivate']") as HTMLElement;
     expect(headerReactivateBtn).toBeTruthy();
 
@@ -5989,6 +6021,74 @@ describe("Dashboard header reactivate button", () => {
       expect.stringContaining("/api/pokemon/p1/uncomplete"),
       expect.objectContaining({ method: "POST" }),
     );
+  });
+});
+
+// --- Header overflow menu behavior ---
+
+describe("Dashboard header overflow menu", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [makePokemon({ id: "p1" })], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+  });
+
+  it("opens on click, closes on Escape, and returns focus to the trigger", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const kebab = screen.getByRole("button", { name: /Weitere Aktionen/ });
+    expect(kebab).toHaveAttribute("aria-expanded", "false");
+
+    // Open: menu actions become visible (getByLabelText matches aria-label only,
+    // so the sidebar pencil button with a title attribute does not interfere)
+    await user.click(kebab);
+    expect(kebab).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText(/^Bearbeiten$/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Löschen$/)).toBeInTheDocument();
+
+    // Escape closes the menu and focus returns to the kebab trigger
+    await user.keyboard("{Escape}");
+    expect(kebab).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText(/^Bearbeiten$/)).not.toBeInTheDocument();
+    expect(kebab).toHaveFocus();
+  });
+});
+
+// --- Sidebar tag filter funnel toggle ---
+
+describe("Dashboard sidebar tag filter toggle", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [makePokemon({ id: "p1", name: "Mon1", tags: ["shiny"] })],
+        active_id: "p1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+  });
+
+  it("hides the tag filter bar until the funnel toggle is pressed", async () => {
+    const user = userEvent.setup();
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const funnel = screen.getByRole("button", { name: /Nach Tag filtern|Filter by tag/i });
+    expect(funnel).toHaveAttribute("aria-pressed", "false");
+    // Bar hidden by default: its add-tag button is not rendered
+    expect(screen.queryByRole("button", { name: /Tag hinzufügen|Add tag/i })).not.toBeInTheDocument();
+
+    await user.click(funnel);
+    expect(funnel).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Tag hinzufügen|Add tag/i })).toBeInTheDocument();
   });
 });
 

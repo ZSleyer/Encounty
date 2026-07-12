@@ -35,8 +35,9 @@ import {
   Timer,
   BarChart3,
   Check,
-  Target,
   Keyboard,
+  MoreVertical,
+  Funnel,
   ArrowUpDown,
   PanelLeftClose,
   PanelLeftOpen,
@@ -175,15 +176,6 @@ function hasDetectorReady(pokemon: Pokemon): boolean {
   return tmpls.some((t) => t.enabled !== false);
 }
 
-/** Returns a responsive font-size class for the main encounter counter based on digit count. */
-function counterFontClass(n: number): string {
-  const digits = n.toLocaleString().length;
-  if (digits <= 7) return "text-6xl 2xl:text-7xl";
-  if (digits <= 11) return "text-5xl 2xl:text-6xl";
-  if (digits <= 15) return "text-4xl 2xl:text-5xl";
-  return "text-3xl 2xl:text-4xl";
-}
-
 /** Returns the base name and form name from Pokemon data, or falls back to parsing the display name. */
 function getBaseAndFormName(p: Pokemon): [string, string | null] {
   if (p.base_name || p.form_name) {
@@ -191,6 +183,18 @@ function getBaseAndFormName(p: Pokemon): [string, string | null] {
   }
   const m = p.name.match(/^(.+?)\s*\((.+)\)$/);
   return m ? [m[1], m[2]] : [p.name, null];
+}
+
+/**
+ * Deterministic dot color for a tag, matching the djb2-derived hue used by
+ * TagChip so the compact sidebar dots and the full chips stay color-consistent.
+ */
+function tagDotColor(tag: string): string {
+  let hash = 5381;
+  for (let i = 0; i < tag.length; i++) {
+    hash = (hash * 33) ^ tag.charCodeAt(i);
+  }
+  return `hsl(${Math.abs(hash) % 360}, 70%, 65%)`;
 }
 
 /** Returns true when the timer start should be blocked because the hunt requires a detector source that is not connected. */
@@ -711,11 +715,16 @@ function EmptyListPlaceholder({
 
 /** Returns the CSS class for a header tab button based on active state. */
 function tabButtonClass(isActive: boolean): string {
-  return `px-4 py-2 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+  return `px-4 py-2 rounded-none text-xs font-semibold transition-all flex items-center gap-1.5 ${
     isActive
       ? "bg-accent-blue text-white shadow"
       : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
   }`;
+}
+
+/** Tempest micro-label shown next to each panel tab icon, visible at all sizes. */
+function tabLabelClass(): string {
+  return "uppercase tracking-[0.14em] text-[10px] font-semibold";
 }
 
 /** Builds the full CSS class for a sidebar Pokemon list item. */
@@ -970,7 +979,7 @@ function applyCopyOverlay(
 /** Sidebar quick actions bar: start/stop hunts, mode selector, selection actions. */
 function SidebarQuickActions({
   allPokemon, activeHunts, selectedIds, sidebarTab, detectorStatus,
-  totalEncounters, showHuntMenu, setShowHuntMenu, send, capture,
+  showHuntMenu, setShowHuntMenu, send, capture,
   setDetectorStatus, clearDetectorStatus, bulkComplete, bulkDelete, setSelectedIds,
   viewedPokemonId,
 }: Readonly<{
@@ -979,7 +988,6 @@ function SidebarQuickActions({
   selectedIds: Set<string>;
   sidebarTab: SidebarTab;
   detectorStatus: Record<string, { state?: string; confidence?: number }>;
-  totalEncounters: number;
   showHuntMenu: boolean;
   setShowHuntMenu: (v: boolean | ((prev: boolean) => boolean)) => void;
   send: (type: string, payload: unknown) => void;
@@ -1040,7 +1048,7 @@ function SidebarQuickActions({
   const sidebarIcon = resolveHuntIcon(allRunning, currentMode);
 
   return (
-    <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border-subtle">
+    <div className="flex items-center gap-1 px-2 py-1 border-b border-border-subtle">
       <div className="relative flex items-center">
         <button
           disabled={!canStart && !someRunning}
@@ -1106,7 +1114,7 @@ function SidebarQuickActions({
 
       <div className="flex-1" />
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-1.5 mr-2">
+        <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-accent-blue font-semibold tabular-nums">{selectedIds.size}</span>
           {sidebarTab === "active" && (
             <button
@@ -1135,10 +1143,6 @@ function SidebarQuickActions({
           </button>
         </div>
       )}
-      <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
-        <Zap className="w-3 h-3 text-accent-yellow" />
-        <span className="tabular-nums">{totalEncounters}</span>
-      </div>
     </div>
   );
 }
@@ -1235,7 +1239,7 @@ function HeaderHuntButton({
 
   return (
     <div className="relative shrink-0" data-detector-tutorial="controls">
-      <div className={`flex items-center rounded-full overflow-hidden ${bgColor}`}>
+      <div className={`flex items-center rounded-none overflow-hidden ${bgColor}`}>
         <button
           onClick={handleToggle}
           disabled={huntBlocked}
@@ -1279,6 +1283,93 @@ function HeaderHuntButton({
                 {huntMode === mode && <Check className="ml-auto w-3 h-3 text-accent-green" />}
               </button>
             ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Overflow menu (kebab) in the hunt header bundling the secondary actions
+ * Edit, Delete, and (for archived hunts) Reactivate. Uses the same
+ * fixed-backdrop dropdown pattern as the sidebar sort menu; Escape closes
+ * the menu and focus always returns to the kebab trigger.
+ */
+function HeaderOverflowMenu({
+  pokemon, onEdit, onDelete, onReactivate,
+}: Readonly<{
+  pokemon: Pokemon;
+  onEdit: () => void;
+  onDelete: () => void;
+  onReactivate: () => void;
+}>) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  /** Closes the menu and restores focus to the kebab trigger (WCAG 2.4.3). */
+  const close = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  /** Closes the menu, then runs the chosen action. */
+  const runAction = (action: () => void) => {
+    close();
+    action();
+  };
+
+  return (
+    <div
+      className="relative shrink-0"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && open) {
+          e.stopPropagation();
+          close();
+        }
+      }}
+    >
+      <button
+        ref={triggerRef}
+        onClick={() => (open ? close() : setOpen(true))}
+        className="flex items-center justify-center min-w-8 min-h-8 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+        title={t("dash.moreActions")}
+        aria-label={t("dash.moreActions")}
+        aria-expanded={open}
+      >
+        <MoreVertical className="w-3.5 h-3.5" />
+      </button>
+      {open && (
+        <>
+          <button className="fixed inset-0 z-40 cursor-default" onClick={close} aria-label={t("aria.close")} />
+          <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
+            <button
+              onClick={() => runAction(onEdit)}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+              aria-label={t("dash.edit")}
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              {t("dash.edit")}
+            </button>
+            {pokemon.completed_at && (
+              <button
+                onClick={() => runAction(onReactivate)}
+                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
+                aria-label={t("dash.reactivate")}
+              >
+                <Undo2 className="w-3.5 h-3.5" />
+                {t("dash.reactivate")}
+              </button>
+            )}
+            <button
+              onClick={() => runAction(onDelete)}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-accent-red hover:bg-bg-primary transition-colors"
+              aria-label={t("dash.delete")}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {t("dash.delete")}
+            </button>
           </div>
         </>
       )}
@@ -1360,7 +1451,7 @@ function DashboardCounterTab({
   return (
     <>
       {isCompleted && (
-        <div className="flex items-center gap-2.5 px-6 py-2 rounded-full bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-8">
+        <div className="flex items-center gap-2.5 px-6 py-2 rounded-none bg-accent-green/10 text-accent-green text-sm mb-6 border border-accent-green/30 shadow-sm mt-8">
           <Trophy className="w-4 h-4" />
           <span className="font-bold">{t("dash.caughtBanner")}</span>
           <span className="w-px h-3 bg-accent-green/30" />
@@ -1401,9 +1492,10 @@ function DashboardCounterTab({
           )}
         </button>
 
-        <div className="bg-bg-card rounded-3xl px-8 py-6 2xl:px-16 2xl:py-8 text-center border border-border-subtle shadow-lg min-w-72 max-w-full overflow-hidden relative group" aria-live="polite">
-          <div className={`${counterFontClass(pokemon.encounters)} font-black tabular-nums leading-none tracking-tight text-text-primary`}>
-            {pokemon.encounters.toLocaleString()}
+        <div className="t-panel t-hatch px-8 py-6 2xl:px-16 2xl:py-8 text-center shadow-lg min-w-72 max-w-full overflow-hidden relative group" aria-live="polite">
+          {/* Raw integer on purpose: no thousands separator, fluid clamp size. */}
+          <div className="text-[clamp(48px,5vw,80px)] font-black tabular-nums leading-none tracking-tight text-text-primary">
+            {pokemon.encounters}
           </div>
           {!isCompleted && (
             <button
@@ -1442,25 +1534,12 @@ function DashboardCounterTab({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mt-10 w-full max-w-lg mx-auto">
-        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors overflow-hidden">
-          <div className="w-10 h-10 rounded-xl bg-accent-blue/10 flex items-center justify-center shrink-0">
-            <Zap className="w-5 h-5 text-accent-blue" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-text-muted text-[10px] font-bold uppercase tracking-widest">{t("dash.phase") || "Encounter"}</div>
-            <div className="text-lg font-black text-text-primary tabular-nums truncate" title={pokemon.encounters.toLocaleString()}>{pokemon.encounters.toLocaleString()}</div>
-          </div>
-        </div>
-        <div className="bg-bg-card border border-border-subtle shadow-sm rounded-2xl p-4 flex items-center gap-3 hover:border-accent-blue/30 transition-colors overflow-hidden" title={t("aria.odds")}>
-          <div className="w-10 h-10 rounded-xl bg-accent-purple/10 flex items-center justify-center shrink-0">
-            <Target className="w-5 h-5 text-accent-purple" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-text-muted text-[10px] font-bold uppercase tracking-widest">{t("dash.odds") || "Odds"}</div>
-            <div className="text-lg font-black text-accent-blue tabular-nums truncate">{oddsDisplay}</div>
-          </div>
-        </div>
+      {/* Compact stat strip: uppercase micro-label chips under the counter. */}
+      <div className="flex flex-wrap items-center justify-center gap-2 mt-8 w-full max-w-lg mx-auto">
+        <span className="t-label t-label--accent" title={t("aria.odds")}>
+          {t("dash.odds") || "Odds"}{" "}
+          <span className="tabular-nums">{oddsDisplay}</span>
+        </span>
       </div>
     </>
   );
@@ -1747,6 +1826,8 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   const [showHeaderHuntMenu, setShowHeaderHuntMenu] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [activeTagFilters, setActiveTagFilters] = useState<string[]>([]);
+  // Funnel toggle: shows the tag filter bar even when no tag filter is active yet.
+  const [showTagFilterBar, setShowTagFilterBar] = useState(false);
   const [ungroupedCollapsed, setUngroupedCollapsed] = useState(false);
   const asideRef = useRef<HTMLElement>(null);
 
@@ -2065,7 +2146,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   /** Renders the right main panel when no Pokemon is selected. */
   const renderNoPokemonPanel = () => (
     <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
-      <div className="w-20 h-20 rounded-full bg-bg-card border border-border-subtle flex items-center justify-center mb-6 shadow-sm">
+      <div className="w-20 h-20 rounded-none bg-bg-card border border-border-subtle flex items-center justify-center mb-6 shadow-sm">
         <Sparkles className="w-8 h-8 text-text-faint" />
       </div>
       <h2 className="text-2xl font-semibold text-text-primary mb-2">
@@ -2194,6 +2275,11 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
     const itemBorderClass = sidebarItemBorderClass(isSelected, isViewed);
     const itemClassName = buildSidebarItemClass(itemBorderClass, focusedIdx === idx, isArchived);
     const [baseName, formName] = getBaseAndFormName(p);
+    const tags = p.tags ?? [];
+    // Full metadata as tooltip since the merged line truncates.
+    const metaTitle = [formName, p.game ? formatGame(p.game) : "", String(p.encounters)]
+      .filter(Boolean)
+      .join(" · ");
     // While dragging, show an empty dashed slot at the drop position so the
     // other items visibly make room (the dragged row itself is dimmed). The
     // slot sits above the hovered item, or below it when the cursor is over the
@@ -2235,7 +2321,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
             className="pokemon-sprite w-full h-full object-contain"
           />
           {isArchived && (
-            <div className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-full p-0.5">
+            <div className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-none p-0.5">
               <Trophy className="w-2 h-2 text-text-primary" />
             </div>
           )}
@@ -2272,13 +2358,28 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               </button>
             </div>
           </div>
-          {/* Row 2: Form · Game + Timer/Play */}
+          {/* Row 2: Form · Game · Count + tag dots + Timer/Play (single merged metadata line) */}
           <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
-            <span className="flex-1 min-w-0 truncate">
+            <span className="flex-1 min-w-0 truncate" title={metaTitle}>
               {formName && <span className="capitalize">{formName}</span>}
               {formName && p.game && <span className="text-text-faint"> · </span>}
               {p.game && <span>{formatGame(p.game)}</span>}
+              {(formName || p.game) && <span className="text-text-faint"> · </span>}
+              <span className="tabular-nums">{p.encounters}</span>
             </span>
+            {!isViewed && tags.length > 0 && (
+              <span className="flex items-center gap-1 shrink-0" title={tags.join(", ")}>
+                {tags.slice(0, 3).map((tag) => (
+                  <span
+                    key={tag}
+                    aria-hidden="true"
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: tagDotColor(tag) }}
+                  />
+                ))}
+                <span className="sr-only">{tags.join(", ")}</span>
+              </span>
+            )}
             <SidebarHuntStatus
               pokemon={p}
               send={send}
@@ -2291,23 +2392,20 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               clearDetectorStatus={clearDetectorStatus}
             />
           </div>
-          {/* Row 3: Encounters + tags */}
-          <div className="flex items-center gap-1.5 text-[11px] 2xl:text-xs text-text-muted">
-            <span className="tabular-nums" title={p.encounters.toLocaleString()}>{p.encounters.toLocaleString()}</span>
-            {(p.tags ?? []).length > 0 && (
-              <span className="flex flex-wrap gap-1 min-w-0">
-                {(p.tags ?? []).slice(0, 3).map((tag) => (
-                  <TagChip
-                    key={tag}
-                    tag={tag}
-                    size="sm"
-                    active={activeTagFilters.includes(tag)}
-                    onClick={() => toggleTagFilter(tag)}
-                  />
-                ))}
-              </span>
-            )}
-          </div>
+          {/* Full tag chips only for the currently viewed hunt */}
+          {isViewed && tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 min-w-0 mt-0.5">
+              {tags.slice(0, 3).map((tag) => (
+                <TagChip
+                  key={tag}
+                  tag={tag}
+                  size="sm"
+                  active={activeTagFilters.includes(tag)}
+                  onClick={() => toggleTagFilter(tag)}
+                />
+              ))}
+            </div>
+          )}
         </div>
         </li>
         {isDropTarget && dropAfter && dropSlot}
@@ -2466,6 +2564,22 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                 </>
               )}
             </div>
+            {/* Tag filter toggle */}
+            {sidebarTab === "active" && availableTags.length > 0 && (
+              <button
+                onClick={() => setShowTagFilterBar(v => !v)}
+                aria-pressed={showTagFilterBar || activeTagFilters.length > 0}
+                className={`p-1.5 rounded-lg bg-bg-primary border transition-colors ${
+                  showTagFilterBar || activeTagFilters.length > 0
+                    ? "border-accent-blue/60 text-accent-blue"
+                    : "border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary"
+                }`}
+                title={t("tag.filter")}
+                aria-label={t("tag.filter")}
+              >
+                <Funnel className="w-3.5 h-3.5" />
+              </button>
+            )}
             {/* Manage groups */}
             <button
               onClick={() => setShowGroupModal(true)}
@@ -2501,13 +2615,22 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               <Sparkles className="w-3 h-3" />
               {t("dash.tabActive")}
               {activeHunts.length > 0 && (
-                <span className="bg-accent-blue/20 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-full tabular-nums">
+                <span className="bg-accent-blue/20 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
                   {activeHunts.length}
                 </span>
               )}
+              {/* Total encounters across all hunts, kept next to the count badge */}
+              <span
+                className="flex items-center gap-0.5 text-[10px] text-text-muted tabular-nums"
+                title={t("group.totalEncounters", { count: String(totalEncounters) })}
+              >
+                <Zap className="w-3 h-3 text-accent-yellow" aria-hidden="true" />
+                {totalEncounters}
+                <span className="sr-only">{t("group.totalEncounters", { count: String(totalEncounters) })}</span>
+              </span>
             </span>
             {sidebarTab === "active" && (
-              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-blue rounded-full" />
+              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-blue rounded-none" />
             )}
           </button>
           <button
@@ -2522,13 +2645,13 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               <Trophy className="w-3 h-3" />
               {t("dash.tabArchive")}
               {archivedHunts.length > 0 && (
-                <span className="bg-accent-green/20 text-accent-green text-[10px] px-1.5 py-0.5 rounded-full tabular-nums">
+                <span className="bg-accent-green/20 text-accent-green text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
                   {archivedHunts.length}
                 </span>
               )}
             </span>
             {sidebarTab === "archived" && (
-              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-green rounded-full" />
+              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-green rounded-none" />
             )}
           </button>
         </div>
@@ -2540,7 +2663,6 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           selectedIds={selectedIds}
           sidebarTab={sidebarTab}
           detectorStatus={detectorStatus}
-          totalEncounters={totalEncounters}
           showHuntMenu={showHuntMenu}
           setShowHuntMenu={setShowHuntMenu}
           send={send}
@@ -2553,8 +2675,8 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           viewedPokemonId={viewedPokemonId}
         />
 
-        {/* Tag filter bar */}
-        {sidebarTab === "active" && (
+        {/* Tag filter bar: only when tags exist and a filter is active or the funnel toggle is on */}
+        {sidebarTab === "active" && availableTags.length > 0 && (activeTagFilters.length > 0 || showTagFilterBar) && (
           <TagFilterBar
             activeTags={activeTagFilters}
             availableTags={availableTags}
@@ -2644,7 +2766,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
 
               {/* Left: Tabs */}
               <div className="flex justify-start min-w-0">
-                <div className="flex bg-bg-card rounded-xl border border-border-subtle p-0.5 shadow-sm min-w-0">
+                <div className="flex bg-bg-card rounded-none border border-border-subtle p-0.5 shadow-sm min-w-0">
                   <button
                     onClick={() => setRightPanelTab("counter")}
                     className={tabButtonClass(rightPanelTab === "counter")}
@@ -2652,7 +2774,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                     aria-label={t("dash.tabCounter")}
                   >
                     <Tally5 className="w-3.5 h-3.5" />
-                    <span className="hidden 2xl:inline">{t("dash.tabCounter")}</span>
+                    <span className={tabLabelClass()}>{t("dash.tabCounter")}</span>
                   </button>
                   {!viewedPokemon.completed_at && (
                     <button
@@ -2662,7 +2784,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                       aria-label={t("dash.tabDetector")}
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      <span className="hidden 2xl:inline">{t("dash.tabDetector")}</span>
+                      <span className={tabLabelClass()}>{t("dash.tabDetector")}</span>
                       {detectorStatus[viewedPokemon.id]?.state === "match" && (
                         <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
                       )}
@@ -2675,7 +2797,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                     aria-label={t("dash.tabOverlay")}
                   >
                     <Layers className="w-3.5 h-3.5" />
-                    <span className="hidden 2xl:inline">{t("dash.tabOverlay")}</span>
+                    <span className={tabLabelClass()}>{t("dash.tabOverlay")}</span>
                   </button>
                   <button
                     onClick={() => setRightPanelTab("statistics")}
@@ -2684,7 +2806,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                     aria-label={t("dash.tabStatistics")}
                   >
                     <BarChart3 className="w-3.5 h-3.5" />
-                    <span className="hidden 2xl:inline">{t("dash.tabStatistics")}</span>
+                    <span className={tabLabelClass()}>{t("dash.tabStatistics")}</span>
                   </button>
                 </div>
               </div>
@@ -2708,43 +2830,14 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                 </div>
               </div>
 
-              {/* Right: Action buttons + Hunt CTA */}
+              {/* Right: primary actions + overflow menu */}
               <div className="flex items-center gap-2 justify-end min-w-0">
 
-              {/* 1. Edit — common utility action */}
-              <button
-                onClick={() => setEditingPokemon(viewedPokemon)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary text-xs font-semibold transition-colors"
-                aria-label={t("dash.edit")}
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span className="hidden 2xl:inline">{t("dash.edit")}</span>
-              </button>
-
-              {/* 2. Delete — destructive */}
-              <button
-                onClick={() => handleDelete(viewedPokemon.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-red/40 text-text-muted hover:text-accent-red text-xs font-semibold transition-colors"
-                aria-label={t("dash.delete")}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span className="hidden 2xl:inline">{t("dash.delete")}</span>
-              </button>
-
-              {/* 3. Caught / Reactivate — positive state change before CTA */}
-              {viewedPokemon.completed_at ? (
-                <button
-                  onClick={() => handleUncomplete(viewedPokemon.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-primary border border-border-subtle hover:border-accent-yellow/40 text-text-muted hover:text-accent-yellow text-xs font-semibold transition-colors"
-                  aria-label={t("dash.reactivate")}
-                >
-                  <Undo2 className="w-3.5 h-3.5" />
-                  <span className="hidden 2xl:inline">{t("dash.reactivate")}</span>
-                </button>
-              ) : (
+              {/* 1. Caught, positive state change before CTA */}
+              {!viewedPokemon.completed_at && (
                 <button
                   onClick={() => handleComplete(viewedPokemon.id)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent-green text-white hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-green text-white hover:bg-accent-green/90 border border-transparent text-xs font-bold transition-colors"
                   aria-label={t("dash.caught")}
                 >
                   <PartyPopper className="w-3.5 h-3.5" />
@@ -2752,7 +2845,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                 </button>
               )}
 
-              {/* 4. Hunt start/stop — primary CTA, rightmost */}
+              {/* 2. Hunt start/stop, primary CTA */}
               {!viewedPokemon.completed_at && (
                 <HeaderHuntButton
                   pokemon={viewedPokemon}
@@ -2765,6 +2858,14 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                   clearDetectorStatus={clearDetectorStatus}
                 />
               )}
+
+              {/* 3. Overflow: Edit / Reactivate / Delete */}
+              <HeaderOverflowMenu
+                pokemon={viewedPokemon}
+                onEdit={() => setEditingPokemon(viewedPokemon)}
+                onDelete={() => handleDelete(viewedPokemon.id)}
+                onReactivate={() => handleUncomplete(viewedPokemon.id)}
+              />
 
               </div>
             </header>
@@ -2837,7 +2938,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           onClick={(e) => { if (e.target === e.currentTarget) setPendingTab(null); }}
         >
           <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-full bg-amber-500/15 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-none bg-amber-500/15 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-amber-500" />
             </div>
             <div className="text-center space-y-1.5">
