@@ -59,6 +59,7 @@
   "dash.pokemonSelected": "Pokémon seleccionados",
   "dash.noActive": "No hay Pokémon activo",
   "dash.noActiveHint": "Selecciona un Pokémon de la lista o agrega uno nuevo.",
+  "dash.orViewGroup": "O ver un grupo",
   "dash.noPokemon": "Aún no hay Pokémon",
   "dash.addFirst": "Agrega tu primer Pokémon →",
   "dash.noMatch": "Sin resultados para",

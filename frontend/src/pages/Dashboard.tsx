@@ -13,6 +13,7 @@ import {
   RotateCcw,
   Edit2,
   Gamepad2,
+  LayoutGrid,
   Search,
   Trophy,
   Undo2,
@@ -2184,15 +2185,33 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   /** Renders the right main panel when no Pokemon is selected. */
   const renderNoPokemonPanel = () => (
     <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
-      <div className="w-20 h-20 rounded-none bg-bg-card border border-border-subtle flex items-center justify-center mb-6 shadow-sm">
-        <Sparkles className="w-8 h-8 text-text-faint" />
-      </div>
+      <Sparkles className="w-8 h-8 text-text-faint mb-6" />
       <h2 className="text-2xl font-semibold text-text-primary mb-2">
         {t("dash.noActive")}
       </h2>
       <p className="text-text-muted text-sm max-w-xs">
         {t("dash.noActiveHint")}
       </p>
+      {groups.length > 0 && (
+        <div className="flex flex-col items-center gap-2 mt-6">
+          <span className="t-label">{t("dash.orViewGroup")}</span>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {groups.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => { setViewedPokemonId(null); setViewedGroupId(g.id); }}
+                title={t("group.viewGroup")}
+                className="flex items-center gap-1.5 pl-2 pr-3 py-1.5 border border-border-subtle text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue transition-colors text-xs font-medium"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
+                <span aria-hidden="true" className="w-2 h-2 shrink-0" style={{ backgroundColor: g.color || "#6b7280" }} />
+                {g.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 
