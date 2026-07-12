@@ -917,22 +917,26 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       ref={dialogRef}
       onCancel={handleCancel}
       aria-labelledby="pokemon-form-title"
-      className="t-panel anim-t-flicker m-auto rounded-none p-6 w-full max-w-2xl backdrop:bg-black/70"
+      className="t-panel anim-t-flicker m-auto rounded-none p-0 w-full max-w-2xl backdrop:bg-black/70"
     >
+      {/* Modal anatomy: hairline-separated header / scrollable body / footer. */}
+      <div className="grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[85vh]">
       {/* --- Header --- */}
-      <div className="flex items-center justify-between mb-5">
-        <h2 id="pokemon-form-title" className="text-lg font-bold text-text-primary">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
+        <h2 id="pokemon-form-title" className="text-[15px] font-semibold text-text-primary">
           {isEdit ? t("modal.editTitle") : t("modal.addTitle")}
         </h2>
         <button
           onClick={handleCancel}
-          className="text-text-muted hover:text-text-primary transition-colors p-1.5"
+          className="text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors p-1.5"
           aria-label={t("aria.close")}
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
+      {/* --- Body (scrolls) --- */}
+      <div className="overflow-y-auto px-6 py-5">
       {missingNames && (
         <div className="flex items-start gap-2 p-3 mb-4 rounded-none bg-accent-yellow/10 border border-accent-yellow/30 text-accent-yellow text-xs">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -948,14 +952,21 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
           <div className="flex flex-col items-center gap-2 w-full">
             {selected ? (
               <>
-                {/* Hero: the style-accurate sprite. Tiny menu icons look
-                    distorted when blown up, so the box icon stays small below. */}
+                {/* Hero: a high-resolution identity sprite. The box style's
+                    tiny menu icon reads as distorted when scaled to hero
+                    size, so it swaps to the home render and stays small
+                    below as the actual output preview. */}
                 <img
-                  src={customSprite || selected.sprite}
+                  src={
+                    customSprite ||
+                    (spriteStyle === "box"
+                      ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical)
+                      : selected.sprite)
+                  }
                   alt={activeName}
                   className="h-28 w-auto mx-auto pokemon-sprite object-contain"
                   style={
-                    spriteStyle === "box" || spriteStyle === "classic"
+                    spriteStyle === "classic"
                       ? { imageRendering: "pixelated" }
                       : undefined
                   }
@@ -964,18 +975,16 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     if (!img.src.endsWith("/0.png")) {
                       img.src = SPRITE_FALLBACK;
                     }
-                    markStyleUnavailable(spriteStyle);
+                    if (spriteStyle !== "box") markStyleUnavailable(spriteStyle);
                   }}
                 />
-                {spriteStyle !== "box" && (
-                  <TrimmedBoxSprite
-                    canonicalName={selected.canonical}
-                    spriteType={spriteType}
-                    alt=""
-                    className="h-8 w-auto mx-auto"
-                    hideOnFail
-                  />
-                )}
+                <TrimmedBoxSprite
+                  canonicalName={selected.canonical}
+                  spriteType={spriteType}
+                  alt=""
+                  className="h-8 w-auto mx-auto"
+                  hideOnFail
+                />
               </>
             ) : (
               <div className="h-28 flex items-center justify-center">
@@ -1585,21 +1594,24 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
         </div>
       </div>
 
+      </div>
+
       {/* --- Footer --- */}
-      <div className="flex gap-3 mt-6">
+      <div className="flex justify-end gap-2 px-6 py-4 border-t border-border-subtle">
         <button
           onClick={handleCancel}
-          className="flex-1 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          className="px-5 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           {t("modal.cancel")}
         </button>
         <button
           onClick={handleSubmit}
           disabled={!selected}
-          className="t-cut flex-1 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="t-cut px-6 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {isEdit ? t("modal.save") : t("modal.add")}
         </button>
+      </div>
       </div>
     </dialog>
   );
