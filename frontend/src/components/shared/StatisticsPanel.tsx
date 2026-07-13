@@ -125,9 +125,9 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
         {/* Chart */}
         <div className="t-panel p-5 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-3 shrink-0">
-            <h3 className="text-sm font-semibold text-text-primary">
+            <h2 className="text-sm font-semibold text-text-primary">
               {t("stats.chartTitle")}
-            </h3>
+            </h2>
             <fieldset className="flex border border-border-subtle rounded-none p-0 m-0" aria-label={t("stats.chartTitle")}>
               {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
                 <button
@@ -189,9 +189,9 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
 
         {/* Recent History */}
         <div className="t-panel p-5 flex flex-col min-h-0">
-          <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
+          <h2 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
             {t("stats.recentHistory")}
-          </h3>
+          </h2>
           {history.length > 0 ? (
             <div className="overflow-y-auto flex-1 min-h-0">
               <table className="w-full text-xs" aria-label={t("stats.recentHistory")}>
@@ -268,9 +268,9 @@ function ProbabilityPanel({
   return (
     <div className="grid grid-cols-[2fr_1fr] gap-4 shrink-0">
       <div className="t-panel p-5 flex flex-col min-h-65">
-        <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
+        <h2 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
           {t("stats.probabilityTitle")}
-        </h3>
+        </h2>
         <div
           role="img"
           aria-label={t("stats.probabilityAria")}
@@ -326,9 +326,9 @@ function ProbabilityPanel({
       </div>
 
       <div className="t-panel p-5 flex flex-col min-h-65">
-        <h3 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
+        <h2 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
           {t("stats.milestonesTitle")}
-        </h3>
+        </h2>
         <table className="w-full text-xs" aria-label={t("stats.milestonesTitle")}>
           <thead>
             <tr className="border-b border-border-subtle text-text-faint">
