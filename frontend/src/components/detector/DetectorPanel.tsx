@@ -1032,7 +1032,7 @@ export function DetectorPanel({
                             if (!isRunning) handleToggleTemplate(index);
                           }}
                           disabled={isRunning && tmpl.regions.length > 0}
-                          aria-label={`${tmpl.name || "Template " + (index + 1)} — ${
+                          aria-label={`${tmpl.name || "Template " + (index + 1)}, ${
                             tmpl.regions.length === 0 ? t("templateEditor.templateInvalid") : t("detector.setActiveTemplate")
                           }`}
                         >
@@ -1060,7 +1060,7 @@ export function DetectorPanel({
                             />
                             {/* Invalid template overlay — shown when template has no regions */}
                             {tmpl.regions.length === 0 && (
-                              <div className="absolute inset-0 bg-accent-yellow/20 flex items-center justify-center rounded-none">
+                              <div aria-hidden="true" className="absolute inset-0 bg-accent-yellow/20 flex items-center justify-center rounded-none">
                                 <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-none text-xs text-accent-yellow font-medium">
                                   <AlertTriangle className="w-3.5 h-3.5" />
                                   {t("templateEditor.templateInvalid")}
