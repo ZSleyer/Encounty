@@ -238,6 +238,8 @@
   "overlay.shadowOffset": "Desplazamiento",
   "overlay.colorBefore": "Antes",
   "overlay.colorAfter": "Después",
+  "overlay.presets": "Preajustes",
+  "overlay.type": "Tipo",
   "overlay.shadow": "Sombra",
   "overlay.angle": "Ángulo",
   "overlay.pop": "Pop",

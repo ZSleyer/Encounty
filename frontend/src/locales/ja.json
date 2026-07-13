@@ -238,6 +238,8 @@
   "overlay.shadowOffset": "オフセット",
   "overlay.colorBefore": "変更前",
   "overlay.colorAfter": "変更後",
+  "overlay.presets": "プリセット",
+  "overlay.type": "タイプ",
   "overlay.shadow": "影",
   "overlay.angle": "角度",
   "overlay.pop": "ポップ",

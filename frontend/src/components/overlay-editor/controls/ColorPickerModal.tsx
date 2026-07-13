@@ -451,7 +451,7 @@ export function ColorPickerModal({
 
       {/* Preset swatches */}
       <div className="mt-3">
-        <span className="text-[10px] text-text-muted block mb-1">Voreinstellungen</span>
+        <span className="text-[10px] text-text-muted block mb-1">{t("overlay.presets")}</span>
         <div className="grid grid-cols-8 gap-1">
           {PRESETS.map((preset) => (
             <button

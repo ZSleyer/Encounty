@@ -66,7 +66,7 @@ export function OutlineEditorModal({
 
       {/* --- Type toggle --- */}
       <div className="mb-4">
-        <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">Typ</p>
+        <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.type")}</p>
         <div className="flex gap-2">
           {([["none", t("overlay.animNone")], ["solid", t("overlay.colorSolid")]] as const).map(([val, label]) => (
             <button
