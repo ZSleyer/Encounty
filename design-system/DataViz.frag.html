@@ -2,20 +2,20 @@
 .stat-strip {
   display: flex; gap: 0;
   background: var(--bg-card);
-  border: 1px solid var(--border); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: 0;
 }
 .stat-tile { flex: 1; display: flex; gap: 10px; align-items: center; padding: 12px 16px; }
-.stat-tile + .stat-tile { border-left: 1px solid var(--border); }
+.stat-tile + .stat-tile { border-left: 1px solid var(--border-subtle); }
 .stat-tile .v { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .stat-tile .l { font-size: 11px; color: var(--text-muted); }
-.stat-tile .icon { color: var(--accent); }
+.stat-tile .icon { color: var(--accent-blue); }
 .t-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .t-table th {
   text-align: left; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em;
   font-size: 10px; color: var(--text-faint);
-  padding: 6px 10px; border-bottom: 1px solid var(--border);
+  padding: 6px 10px; border-bottom: 1px solid var(--border-subtle);
 }
-.t-table td { padding: 6px 10px; border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.t-table td { padding: 6px 10px; border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 50%, transparent); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .t-table .up { color: var(--accent-green); font-weight: 600; }
 </style>
 <h2 class="card-title">Data / Stat Strip, Chart, Table</h2>
@@ -28,25 +28,25 @@
   <div class="t-panel" style="padding: 16px;">
     <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
       <span style="font-size: 13px; font-weight: 600;">Begegnungen im Zeitverlauf</span>
-      <span class="t-seg-mini" style="display: inline-flex; gap: 0; border: 1px solid var(--border); border-radius: 0; overflow: hidden; font-size: 11px;">
+      <span class="t-seg-mini" style="display: inline-flex; gap: 0; border: 1px solid var(--border-subtle); border-radius: 0; overflow: hidden; font-size: 11px;">
         <span style="padding: 3px 10px; color: var(--text-muted);">Stunde</span>
-        <span style="padding: 3px 10px; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); font-weight: 600;">Tag</span>
+        <span style="padding: 3px 10px; background: color-mix(in srgb, var(--accent-blue) 18%, transparent); color: var(--accent-blue); font-weight: 600;">Tag</span>
         <span style="padding: 3px 10px; color: var(--text-muted);">Woche</span>
       </span>
     </div>
     <svg viewBox="0 0 560 150" style="width: 100%; height: auto;" role="img" aria-label="Liniendiagramm: Begegnungen pro Tag, ansteigend von 12 auf 50">
-      <line x1="40" y1="10" x2="40" y2="120" stroke="var(--border)" stroke-width="1"/>
-      <line x1="40" y1="120" x2="550" y2="120" stroke="var(--border)" stroke-width="1"/>
-      <line x1="40" y1="65" x2="550" y2="65" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"/>
-      <line x1="40" y1="10" x2="550" y2="10" stroke="var(--border)" stroke-width="1" stroke-dasharray="2 4"/>
+      <line x1="40" y1="10" x2="40" y2="120" stroke="var(--border-subtle)" stroke-width="1"/>
+      <line x1="40" y1="120" x2="550" y2="120" stroke="var(--border-subtle)" stroke-width="1"/>
+      <line x1="40" y1="65" x2="550" y2="65" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="2 4"/>
+      <line x1="40" y1="10" x2="550" y2="10" stroke="var(--border-subtle)" stroke-width="1" stroke-dasharray="2 4"/>
       <text x="32" y="124" text-anchor="end" font-size="10" fill="var(--text-faint)">0</text>
       <text x="32" y="69" text-anchor="end" font-size="10" fill="var(--text-faint)">30</text>
       <text x="32" y="14" text-anchor="end" font-size="10" fill="var(--text-faint)">60</text>
       <text x="40" y="136" font-size="10" fill="var(--text-faint)">07-08</text>
       <text x="550" y="136" text-anchor="end" font-size="10" fill="var(--text-faint)">07-11</text>
-      <path d="M40 98 L140 88 L240 96 L340 70 L440 52 L550 28 L550 120 L40 120 Z" fill="color-mix(in srgb, var(--accent) 14%, transparent)"/>
-      <path d="M40 98 L140 88 L240 96 L340 70 L440 52 L550 28" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
-      <circle cx="550" cy="28" r="4" fill="var(--accent)" stroke="var(--bg-card)" stroke-width="2"/>
+      <path d="M40 98 L140 88 L240 96 L340 70 L440 52 L550 28 L550 120 L40 120 Z" fill="color-mix(in srgb, var(--accent-blue) 14%, transparent)"/>
+      <path d="M40 98 L140 88 L240 96 L340 70 L440 52 L550 28" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-linejoin="round"/>
+      <circle cx="550" cy="28" r="4" fill="var(--accent-blue)" stroke="var(--bg-card)" stroke-width="2"/>
       <text x="544" y="24" text-anchor="end" font-size="11" font-weight="600" fill="var(--text-primary)">50</text>
     </svg>
     <div style="font-size: 11px; color: var(--text-faint); margin-top: 6px;">Eine Serie im aktiven Accent. Mehrserien-Charts brauchen eine eigene Chart-Ramp, nie die rohen Accent-Presets (Lightness-Band-Fail im Palette-Validator).</div>

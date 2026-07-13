@@ -1,88 +1,65 @@
 <style>
 .demo-backdrop {
   position: relative;
-  background: color-mix(in srgb, #000 55%, var(--bg-primary));
+  background: color-mix(in srgb, #000 70%, var(--bg-primary));
   border-radius: 0;
   padding: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.t-modal {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 0;
-  width: min(100%, 440px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  position: relative;
-}
-.t-modal::before, .t-modal::after {
-  content: "";
-  position: absolute;
-  width: 12px; height: 12px;
-  pointer-events: none;
-}
-.t-modal::before {
-  top: -1px; left: -1px;
-  border-top: 1px solid var(--modal-bracket, var(--accent));
-  border-left: 1px solid var(--modal-bracket, var(--accent));
-}
-.t-modal::after {
-  bottom: -1px; right: -1px;
-  border-bottom: 1px solid var(--modal-bracket, var(--accent));
-  border-right: 1px solid var(--modal-bracket, var(--accent));
-}
-/* Destructive dialogs: red brackets carry the severity, hairline border stays neutral */
-.t-modal.danger { --modal-bracket: var(--accent-red); }
-.t-modal-header {
+/* Mirrors the app's ModalShell anatomy: native <dialog class="t-panel"> with
+   header (title + close), body, and a stretched cancel/confirm footer. */
+.t-modal-demo { width: min(100%, 440px); }
+.t-modal-demo .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
 }
-.t-modal-title { font-size: 15px; font-weight: 600; margin: 0; }
-.t-modal-close {
+.t-modal-demo .modal-title { font-size: 17px; font-weight: 700; margin: 0; }
+.t-modal-demo.danger .modal-title { color: var(--accent-red); }
+.t-modal-demo .modal-close {
   background: none; border: none; cursor: pointer;
   color: var(--text-muted); font-size: 16px; line-height: 1;
   padding: 4px 6px; border-radius: 0;
 }
-.t-modal-close:hover { background: var(--bg-hover); color: var(--text-primary); }
-.t-modal-body { padding: 18px; color: var(--text-secondary); }
-.t-modal-footer {
-  display: flex; justify-content: flex-end; gap: 8px;
-  padding: 14px 18px;
-  border-top: 1px solid var(--border);
+.t-modal-demo .modal-close:hover { color: var(--text-primary); }
+.t-modal-demo .modal-body { color: var(--text-secondary); }
+.t-modal-demo .modal-footer {
+  display: flex; gap: 12px;
+  margin-top: 24px;
 }
+.t-modal-demo .modal-footer .btn { flex: 1; }
 </style>
-<h2 class="card-title">Overlays / Modals (anim: t-flicker-in, focus-trapped, Esc closes)</h2>
+<h2 class="card-title">Overlays / Modals (app: ModalShell.tsx, native &lt;dialog&gt;, CRT close transition, Esc closes)</h2>
 <div class="col">
   <div class="demo-backdrop">
-    <div class="t-modal anim-flicker" role="dialog" aria-modal="true" aria-labelledby="m1t">
-      <div class="t-modal-header">
-        <h3 class="t-modal-title" id="m1t">Edit Hunt</h3>
-        <button class="t-modal-close" aria-label="Close">✕</button>
+    <div class="t-panel t-modal-demo anim-flicker" role="dialog" aria-modal="true" aria-labelledby="m1t">
+      <div class="modal-header">
+        <h3 class="modal-title" id="m1t">Edit Hunt</h3>
+        <button class="modal-close" aria-label="Close">✕</button>
       </div>
-      <div class="t-modal-body">
+      <div class="modal-body">
         <label class="t-label" for="m1n" style="margin-bottom:6px; display:inline-block;">Nickname</label>
         <input class="t-input" id="m1n" value="Shiny Ralts" />
       </div>
-      <div class="t-modal-footer">
-        <button class="btn btn-ghost">Cancel</button>
-        <button class="btn btn-primary">Save</button>
+      <div class="modal-footer">
+        <button class="btn btn-secondary">Cancel</button>
+        <button class="btn btn-primary t-cut">Save</button>
       </div>
     </div>
   </div>
   <div class="demo-backdrop">
-    <div class="t-modal danger" role="alertdialog" aria-modal="true" aria-labelledby="m2t">
-      <div class="t-modal-header">
-        <h3 class="t-modal-title" id="m2t" style="color: var(--accent-red);">Delete Hunt?</h3>
-        <button class="t-modal-close" aria-label="Close">✕</button>
+    <div class="t-panel t-panel--danger t-modal-demo danger" role="alertdialog" aria-modal="true" aria-labelledby="m2t">
+      <div class="modal-header">
+        <h3 class="modal-title" id="m2t">Delete Hunt?</h3>
+        <button class="modal-close" aria-label="Close">✕</button>
       </div>
-      <div class="t-modal-body">This removes "Shiny Ralts" and all 1024 encounters. Cannot be undone.</div>
-      <div class="t-modal-footer">
-        <button class="btn btn-ghost">Cancel</button>
-        <button class="btn" style="background: var(--accent-red); color: #fff; font-weight: 600;">Delete</button>
+      <div class="modal-body">This removes "Shiny Ralts" and all 1024 encounters. Cannot be undone.</div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary">Cancel</button>
+        <button class="btn t-cut" style="background: color-mix(in srgb, var(--accent-red) 80%, transparent); border-color: color-mix(in srgb, var(--accent-red) 50%, transparent); color: #fff; font-weight: 600;">Delete</button>
       </div>
     </div>
   </div>

@@ -2,8 +2,8 @@
 .t-toast {
   display: flex; gap: 10px; align-items: center;
   background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-left: 2px solid var(--accent);
+  border: 1px solid var(--border-subtle);
+  border-left: 2px solid var(--accent-blue);
   border-radius: 0;
   padding: 10px 14px;
   max-width: 360px;
@@ -16,7 +16,7 @@
 .t-chip {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-weight: 600;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 0;
   padding: 2px 8px;
   color: var(--text-secondary);
@@ -24,7 +24,7 @@
 .t-chip .t-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 .t-menu {
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 0;
   width: 200px;
   padding: 4px;
@@ -38,10 +38,10 @@
 }
 .t-menu [role="menuitem"]:hover { background: var(--bg-hover); color: var(--text-primary); }
 .t-menu [role="menuitem"].danger { color: var(--accent-red); }
-.t-menu .sep { height: 1px; background: var(--border); margin: 4px 6px; }
+.t-menu .sep { height: 1px; background: var(--border-subtle); margin: 4px 6px; }
 .t-menu kbd {
   font-size: 10px; color: var(--text-faint);
-  border: 1px solid var(--border); border-radius: 0; padding: 0 4px;
+  border: 1px solid var(--border-subtle); border-radius: 0; padding: 0 4px;
 }
 </style>
 <h2 class="card-title">Feedback / Toasts, Tags, Overflow Menu</h2>
@@ -56,11 +56,11 @@
       <span class="msg"><strong>Detector lost.</strong> Capture source unavailable.</span>
     </div>
     <div class="t-toast" role="status">
-      <span style="color: var(--accent);">i</span>
+      <span style="color: var(--accent-blue);">i</span>
       <span class="msg">Backup created.</span>
     </div>
     <div class="row" style="gap: 6px;">
-      <span class="t-chip"><span class="t-dot" style="background:var(--accent);"></span>Starter</span>
+      <span class="t-chip"><span class="t-dot" style="background:var(--accent-blue);"></span>Starter</span>
       <span class="t-chip"><span class="t-dot" style="background:var(--accent-red);"></span>Full Odds</span>
       <span class="t-chip"><span class="t-dot" style="background:#3fd4e0;"></span>Masuda</span>
       <span class="t-chip" style="border-style: dashed; color: var(--text-muted);">+ Add tag</span>

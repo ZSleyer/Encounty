@@ -4,22 +4,22 @@
 .t-check input {
   appearance: none;
   width: 16px; height: 16px;
-  border: 1px solid var(--border); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: 0;
   background: var(--bg-secondary);
   cursor: pointer;
   display: grid; place-content: center;
 }
-.t-check input:checked { background: var(--accent); border-color: var(--accent); }
+.t-check input:checked { background: var(--accent-blue); border-color: var(--accent-blue); }
 .t-check input:checked::before {
   content: "";
   width: 9px; height: 9px;
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
   background: var(--bg-primary);
 }
-.t-range { accent-color: var(--accent); width: 160px; }
+.t-range { accent-color: var(--accent-blue); width: 160px; }
 .t-stepper {
   display: inline-flex; align-items: stretch;
-  border: 1px solid var(--border); border-radius: 0; overflow: hidden;
+  border: 1px solid var(--border-subtle); border-radius: 0; overflow: hidden;
 }
 .t-stepper button {
   background: var(--bg-secondary); border: none; cursor: pointer;
@@ -28,24 +28,24 @@
 .t-stepper button:hover { background: var(--bg-hover); color: var(--text-primary); }
 .t-stepper .val {
   padding: 6px 12px; font-variant-numeric: tabular-nums; font-size: 13px;
-  border-left: 1px solid var(--border); border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border-subtle); border-right: 1px solid var(--border-subtle);
   background: var(--bg-card); min-width: 48px; text-align: center;
 }
 .t-colorinput {
   display: inline-flex; align-items: center; gap: 8px;
-  border: 1px solid var(--border); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: 0;
   padding: 5px 10px; background: var(--bg-secondary); font-size: 12px;
 }
-.t-colorinput .chip { width: 18px; height: 18px; border-radius: 0; border: 1px solid var(--border); }
+.t-colorinput .chip { width: 18px; height: 18px; border-radius: 0; border: 1px solid var(--border-subtle); }
 .t-kbd {
   font-family: monospace; font-size: 12px;
-  border: 1px solid var(--border); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: 0;
   background: var(--bg-card); padding: 5px 14px;
   min-width: 48px; text-align: center;
 }
 .t-combo { position: relative; max-width: 320px; }
 .t-combo-list {
-  border: 1px solid var(--border); border-top: none;
+  border: 1px solid var(--border-subtle); border-top: none;
   border-radius: 0; background: var(--bg-card);
 }
 .t-combo-item {

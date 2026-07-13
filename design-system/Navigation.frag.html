@@ -1,7 +1,7 @@
 <style>
 .t-nav {
   display: flex; gap: 4px; align-items: center;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-subtle);
   padding: 0 8px;
 }
 .t-nav-tab {
@@ -14,14 +14,14 @@
   margin-bottom: -1px;
 }
 .t-nav-tab[aria-selected="true"] {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
 }
 .t-nav-tab:hover { color: var(--text-primary); }
 .t-seg {
   display: inline-flex;
   align-self: flex-start;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 0;
   overflow: hidden;
 }
@@ -30,15 +30,15 @@
   color: var(--text-muted); font-size: 12px; font-weight: 600;
   padding: 6px 14px;
 }
-.t-seg button + button { border-left: 1px solid var(--border); }
+.t-seg button + button { border-left: 1px solid var(--border-subtle); }
 .t-seg button[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--accent) 18%, var(--bg-secondary));
-  color: var(--accent);
+  background: color-mix(in srgb, var(--accent-blue) 18%, var(--bg-secondary));
+  color: var(--accent-blue);
 }
 .t-hunt-item {
   display: flex; gap: 10px; align-items: center;
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-left: 2px solid transparent;
   border-radius: 0;
   padding: 10px 12px;
@@ -46,11 +46,11 @@
   max-width: 340px;
 }
 .t-hunt-item:hover { background: var(--bg-hover); }
-.t-hunt-item.selected { border-left-color: var(--accent); }
+.t-hunt-item.selected { border-left-color: var(--accent-blue); }
 .t-hunt-sprite {
   width: 36px; height: 36px; flex: none;
   background: var(--bg-secondary);
-  border: 1px solid var(--border); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: 0;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-faint); font-size: 9px;
 }
@@ -79,7 +79,7 @@
     <div class="t-hunt-sprite">img</div>
     <div class="t-hunt-meta">
       <div class="t-hunt-name">Ralts</div>
-      <div class="t-hunt-sub"><span class="t-dot" style="background:var(--accent);"></span><span class="t-dot" style="background:var(--accent-red);"></span> Emerald · Route 102</div>
+      <div class="t-hunt-sub"><span class="t-dot" style="background:var(--accent-blue);"></span><span class="t-dot" style="background:var(--accent-red);"></span> Emerald · Route 102</div>
     </div>
     <div class="t-hunt-count">1024</div>
   </div>

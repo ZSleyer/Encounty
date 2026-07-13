@@ -2,23 +2,23 @@
 .t-rail {
   display: inline-flex; flex-direction: column; gap: 4px;
   background: var(--bg-secondary);
-  border: 1px solid var(--border); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: 0;
   padding: 6px;
 }
 .t-canvas {
   flex: 1; min-width: 260px; height: 190px;
-  border: 1px solid var(--border); border-radius: 0;
+  border: 1px solid var(--border-subtle); border-radius: 0;
   background:
     repeating-conic-gradient(color-mix(in srgb, var(--text-primary) 5%, transparent) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
   position: relative;
 }
 .t-sel {
   position: absolute; top: 40px; left: 40px; width: 120px; height: 90px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--accent-blue);
 }
 .t-sel i {
   position: absolute; width: 8px; height: 8px;
-  background: var(--accent); border: 1px solid var(--bg-primary);
+  background: var(--accent-blue); border: 1px solid var(--bg-primary);
 }
 .t-layer {
   display: flex; align-items: center; gap: 6px;
@@ -26,8 +26,8 @@
   border: 1px solid transparent; max-width: 260px;
 }
 .t-layer.active {
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent-blue) 12%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--accent-blue) 40%, var(--border-subtle));
 }
 .t-layer .nm { flex: 1; }
 .t-layer .icon-btn { width: 24px; height: 24px; }

@@ -4,11 +4,13 @@
   --bg-secondary: #131922;
   --bg-card: #161e28;
   --bg-hover: #1e2836;
-  --accent: #a685f0;
+  --accent-blue: #a685f0;
   --accent-green: #34d67a;
   --accent-yellow: #ffb020;
   --accent-red: #f05050;
-  --border: #2a3644;
+  --accent-purple: #b970ff;
+  --border-subtle: #2a3644;
+  --border-active: var(--accent-blue);
   --text-primary: #eef3f8;
   --text-secondary: #b7c5d3;
   --text-muted: #8fa3b5;
@@ -20,11 +22,13 @@
   --bg-secondary: #f8fafb;
   --bg-card: #ffffff;
   --bg-hover: #e2e7ed;
-  --accent: #6d28d9;
+  --accent-blue: #6d28d9;
   --accent-green: #15803d;
-  --accent-yellow: #92400e;
+  --accent-yellow: #b45309;
   --accent-red: #b91c1c;
-  --border: #c3ccd6;
+  --accent-purple: #6d28d9;
+  --border-subtle: #c3ccd6;
+  --border-active: var(--accent-blue);
   --text-primary: #0a1628;
   --text-secondary: #2d4059;
   --text-muted: #4a5f73;
@@ -56,7 +60,7 @@ body {
 .t-panel {
   position: relative;
   background: var(--bg-card);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 0;
   padding: 20px;
 }
@@ -69,14 +73,16 @@ body {
 }
 .t-panel::before {
   top: -1px; left: -1px;
-  border-top: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  border-left: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-top: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+  border-left: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
 }
 .t-panel::after {
   bottom: -1px; right: -1px;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  border-right: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-bottom: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
+  border-right: 1px solid var(--panel-bracket, color-mix(in srgb, var(--accent-blue) 55%, transparent));
 }
+/* Destructive dialogs: red brackets carry the severity, hairline border stays neutral */
+.t-panel--danger { --panel-bracket: var(--accent-red); }
 /* Micro label chip, the TEMPEST/CONVICTION title-card vocabulary */
 .t-label {
   display: inline-block;
@@ -84,20 +90,25 @@ body {
   letter-spacing: 0.18em;
   font-size: 10px;
   font-weight: 600;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 0;
   padding: 1px 6px;
   color: var(--text-muted);
 }
 .t-label--accent {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent-blue) 55%, transparent);
+  color: var(--accent-blue);
 }
 .t-frame {
-  border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--accent-blue) 45%, transparent);
   border-radius: 0;
   padding: 16px;
 }
+/* ------------------------------------------------------------------ */
+/* Gallery-only vocabulary below: .btn*, .t-input, .t-toggle, .icon*   */
+/* exist for these preview fragments only. The app composes controls   */
+/* from Tailwind utilities instead; do not treat these as app classes. */
+/* ------------------------------------------------------------------ */
 /* Buttons */
 .btn {
   font: inherit;
@@ -109,7 +120,7 @@ body {
   transition: background 150ms, border-color 150ms, color 150ms;
 }
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-blue);
   color: var(--bg-primary);
 }
 .btn-primary.t-cut {
@@ -119,7 +130,7 @@ body {
 .btn-secondary {
   background: var(--bg-card);
   color: var(--text-primary);
-  border-color: var(--border);
+  border-color: var(--border-subtle);
 }
 .btn-secondary:hover { background: var(--bg-hover); }
 .btn-ghost {
@@ -138,21 +149,21 @@ body {
   font: inherit;
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 0;
   padding: 8px 12px;
   width: 100%;
 }
 .t-input:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-blue) 55%, transparent);
 }
 /* Toggle */
 .t-toggle {
   width: 40px; height: 22px;
   border-radius: 11px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   background: var(--bg-secondary);
   position: relative;
   cursor: pointer;
@@ -168,12 +179,12 @@ body {
   transition: transform 150ms, background 150ms;
 }
 .t-toggle[aria-checked="true"] {
-  background: color-mix(in srgb, var(--accent) 30%, var(--bg-secondary));
-  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-blue) 30%, var(--bg-secondary));
+  border-color: var(--accent-blue);
 }
 .t-toggle[aria-checked="true"]::after {
   transform: translateX(18px);
-  background: var(--accent);
+  background: var(--accent-blue);
 }
 /* Select: custom chevron so right spacing matches left text padding */
 .t-select-wrap { position: relative; display: block; }
@@ -192,7 +203,7 @@ body {
   appearance: none;
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-subtle);
   border-radius: 0;
   padding: 7px 30px 7px 10px;
   width: 100%;
@@ -218,17 +229,17 @@ body {
 }
 .icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .icon-btn[aria-pressed="true"], .icon-btn.active {
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--accent-blue) 18%, transparent);
+  color: var(--accent-blue);
 }
 /* Focus (WCAG 2.2 AA: visible focus indicator) */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--accent-blue);
   outline-offset: 2px;
 }
 .btn-primary.t-cut:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
 }
 /* Small corner cut for badges and compact accent chips */
 .t-cut-sm {
@@ -260,6 +271,6 @@ h2.card-title {
   margin: 0 0 16px;
   font-weight: 600;
 }
-.swatch { border-radius: 0; border: 1px solid var(--border); padding: 10px; min-width: 120px; }
+.swatch { border-radius: 0; border: 1px solid var(--border-subtle); padding: 10px; min-width: 120px; }
 .swatch .hex { font-family: monospace; font-size: 11px; color: var(--text-muted); }
 .swatch .name { font-size: 12px; font-weight: 600; }
