@@ -99,7 +99,7 @@
    light value is >= 4.5:1 against #eef1f4. */
 [data-accent="violet"]  { --accent-blue: #a685f0; }
 [data-accent="acid"]    { --accent-blue: #c8e04a; }
-[data-accent="crimson"] { --accent-blue: #f0507a; }
+[data-accent="crimson"] { --accent-blue: #f26389; }
 [data-accent="cyan"]    { --accent-blue: #3fd4e0; }
 [data-accent="blue"]    { --accent-blue: #7ab8ff; }
 [data-accent="green"]   { --accent-blue: #3fe08c; }
@@ -108,11 +108,11 @@
 [data-theme="light"][data-accent="violet"]  { --accent-blue: #6d28d9; }
 [data-theme="light"][data-accent="acid"]    { --accent-blue: #566800; }
 [data-theme="light"][data-accent="crimson"] { --accent-blue: #b8144a; }
-[data-theme="light"][data-accent="cyan"]    { --accent-blue: #0e7490; }
+[data-theme="light"][data-accent="cyan"]    { --accent-blue: #0b6379; }
 [data-theme="light"][data-accent="blue"]    { --accent-blue: #1d53cc; }
 [data-theme="light"][data-accent="green"]   { --accent-blue: #14753a; }
 [data-theme="light"][data-accent="pink"]    { --accent-blue: #be185d; }
-[data-theme="light"][data-accent="orange"]  { --accent-blue: #c2410c; }
+[data-theme="light"][data-accent="orange"]  { --accent-blue: #b03a0b; }
 
 /* ── Tempest surface utilities ───────────────────────────────
    Shared vocabulary of the Tempest skin: hairline panels with corner
