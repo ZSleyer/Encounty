@@ -254,7 +254,11 @@ export function ColorPickerModal({
       <button
         type="button"
         ref={satAreaRef}
+        role="slider"
         aria-label={t("aria.saturationBrightness")}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(v * 100)}
         aria-valuetext={`Saturation ${Math.round(s * 100)}%, Brightness ${Math.round(v * 100)}%`}
         onMouseDown={handleSatMouseDown}
         onKeyDown={(e) => {
@@ -427,6 +431,7 @@ export function ColorPickerModal({
             type="text"
             value={hexInput}
             onChange={(e) => handleHexChange(e.target.value)}
+            aria-label={t("aria.hexColor")}
             maxLength={6}
             className="flex-1 min-w-0 bg-transparent text-xs text-text-primary px-1 py-1.5 outline-none font-mono"
           />

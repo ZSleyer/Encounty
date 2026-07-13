@@ -165,6 +165,7 @@ export function GradientEditorModal({
         <button
           ref={barRef}
           type="button"
+          aria-label={t("aria.gradientBar")}
           className="w-full h-8 rounded-none cursor-crosshair border-0 p-0"
           style={{ background: buildGradientCSS(stops, angle) }}
           onClick={handleBarClick}
@@ -246,6 +247,7 @@ export function GradientEditorModal({
               min={0}
               max={100}
               value={stop.position}
+              aria-label={t("aria.gradientStopPosition")}
               onFocus={() => setSelectedIdx(idx)}
               onChange={(e) => updateStopPosition(idx, Number(e.target.value))}
               className="w-14 bg-bg-primary border border-border-subtle rounded-none px-1.5 py-0.5 text-xs text-text-primary text-center"

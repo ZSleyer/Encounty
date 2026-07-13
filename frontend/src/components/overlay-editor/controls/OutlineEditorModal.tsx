@@ -52,7 +52,7 @@ export function OutlineEditorModal({
       )}
     >
       {/* --- Preview --- */}
-      <div className="w-full h-20 rounded-none bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
+      <div className="canvas-checkered w-full h-20 rounded-none border border-border-subtle flex items-center justify-center mb-4">
         <span
           className="text-white text-[32px] select-none"
           style={{
