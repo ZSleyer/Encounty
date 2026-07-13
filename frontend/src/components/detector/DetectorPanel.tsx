@@ -1008,14 +1008,16 @@ export function DetectorPanel({
               <div className="p-4 overflow-y-auto shrink-0" style={{ height: templatesHeight }}>
                 {templates.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2">
-                    {templates.map((tmpl, index) => (
+                    {templates.map((tmpl, index) => {
+                      const isDimmed = tmpl.regions.length === 0 || tmpl.enabled === false;
+                      return (
                       <div
                         key={`template-${tmpl.image_path}-${index}`}
-                        className={`relative group rounded-none overflow-hidden transition-all w-full ${
+                        className={`relative group rounded-none overflow-hidden transition-all w-full bg-bg-primary ${
                           (() => {
-                            if (tmpl.regions.length === 0) return "ring-1 ring-accent-yellow/50 bg-bg-primary opacity-80";
-                            if (tmpl.enabled === false) return "ring-1 ring-border-subtle bg-bg-primary opacity-60";
-                            return "ring-2 ring-accent-blue bg-bg-primary";
+                            if (tmpl.regions.length === 0) return "ring-1 ring-accent-yellow/50";
+                            if (tmpl.enabled === false) return "ring-1 ring-border-subtle";
+                            return "ring-2 ring-accent-blue";
                           })()
                         }`}
                       >
@@ -1035,7 +1037,7 @@ export function DetectorPanel({
                           }`}
                         >
                           {/* Radio indicator for active selection — disabled for invalid templates */}
-                          <div className="absolute top-1 left-1 z-10 pointer-events-none">
+                          <div className={`absolute top-1 left-1 z-10 pointer-events-none ${isDimmed ? "opacity-60" : ""}`}>
                             <div className={`w-3.5 h-3.5 rounded-none border-2 flex items-center justify-center ${
                               (() => {
                                 if (tmpl.regions.length === 0) return "border-accent-yellow/50 bg-transparent";
@@ -1047,8 +1049,10 @@ export function DetectorPanel({
                             </div>
                           </div>
 
-                          {/* Thumbnail — fixed 16:9 container with centered image */}
-                          <div className="relative w-full aspect-video bg-black/40">
+                          {/* Thumbnail — fixed 16:9 container with centered image. Dimming lives
+                              here (not on the name label below) so the label text keeps full
+                              contrast even when the template is invalid/disabled. */}
+                          <div className={`relative w-full aspect-video bg-black/40 ${isDimmed ? "opacity-60" : ""}`}>
                             <img
                               src={apiUrl(`/api/detector/${pokemon.id}/template/${index}`)}
                               alt={tmpl.name || `Template ${index + 1}`}
@@ -1097,7 +1101,8 @@ export function DetectorPanel({
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-xs text-text-muted text-center py-4">
