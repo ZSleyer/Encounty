@@ -211,7 +211,7 @@ export function OverlayEditorPage() {
               <button
                 type="button"
                 onClick={() => blocker.proceed?.()}
-                className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:bg-accent-red/80 text-white text-sm font-semibold transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:bg-accent-red/80 text-bg-primary text-sm font-semibold transition-colors"
               >
                 {t("overlay.unsavedDiscard")}
               </button>

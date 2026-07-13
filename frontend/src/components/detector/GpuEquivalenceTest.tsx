@@ -924,7 +924,7 @@ export default function GpuEquivalenceTest({
             {running ? (
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-2 px-4 py-2 rounded-none bg-accent-red text-white font-medium hover:bg-accent-red/80 focus-visible:outline-2 focus-visible:outline-accent-blue"
+                className="flex items-center gap-2 px-4 py-2 rounded-none bg-accent-red text-bg-primary font-medium hover:bg-accent-red/80 focus-visible:outline-2 focus-visible:outline-accent-blue"
               >
                 <X className="w-4 h-4" />
                 Cancel
