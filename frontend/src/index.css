@@ -537,8 +537,14 @@ button:not(:disabled) {
 
 /* Native selects: custom chevron with spacing symmetric to the left text
    padding (the UA arrow hugs the edge). Encoded SVG per theme because
-   background-image cannot read CSS variables. */
-select {
+   background-image cannot read CSS variables.
+
+   Scoped to :not(.t-select): .t-select draws its own chevron via
+   .t-select-wrap::after, and its `background` shorthand resets
+   background-repeat/position, which would make this SVG tile into a
+   zig-zag pattern (visible in light mode, where the light rule below
+   still wins for background-image). */
+select:not(.t-select) {
   appearance: none;
   padding-right: 30px !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238fa3b5' stroke-width='1'/%3E%3C/svg%3E");
@@ -546,7 +552,7 @@ select {
   background-position: right 12px center;
 }
 
-[data-theme="light"] select {
+[data-theme="light"] select:not(.t-select) {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%234a5f73' stroke-width='1'/%3E%3C/svg%3E");
 }
 
