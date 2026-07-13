@@ -93,9 +93,9 @@ function stateDotClass(state: string, running: boolean): { dot: string; pulse: b
   // Palette mirrors the TemplateEditor sparkline so users see the same colors
   // for the same detection states across the live detector and the preview.
   switch (state) {
-    case "match": return { dot: "bg-green-500", pulse: false };
-    case "cooldown": return { dot: "bg-purple-500", pulse: false };
-    default: return { dot: "bg-blue-400", pulse: true };
+    case "match": return { dot: "bg-accent-green", pulse: false };
+    case "cooldown": return { dot: "bg-accent-purple", pulse: false };
+    default: return { dot: "bg-accent-blue", pulse: true };
   }
 }
 
@@ -741,7 +741,7 @@ export function DetectorPanel({
           {/* Status indicator */}
           <span className={`inline-block w-2.5 h-2.5 rounded-full shrink-0 ${dotClass} ${pulse || isStarting ? "animate-pulse" : ""}`} />
           <span className={`text-xs font-semibold truncate ${(() => {
-            if (detectorState === "match") return "text-green-400";
+            if (detectorState === "match") return "text-accent-green";
             return showAsRunning ? "text-accent-blue" : "text-text-muted";
           })()}`}>
             {(() => {
@@ -762,7 +762,7 @@ export function DetectorPanel({
 
           {/* CPU fallback badge */}
           {detectorBackend === "cpu" && (
-            <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 shrink-0" title={t("detector.cpuFallbackWarning")}>
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-accent-yellow/10 text-accent-yellow border border-accent-yellow/20 shrink-0" title={t("detector.cpuFallbackWarning")}>
               <AlertTriangle className="w-3 h-3" />
               CPU
             </span>
@@ -780,10 +780,10 @@ export function DetectorPanel({
               title={`Switch to ${detectorBackend === "gpu" ? "CPU" : "GPU"} backend`}
             >
               <span className={`px-1.5 py-0.5 rounded-none text-[10px] font-semibold transition-colors ${
-                detectorBackend === "gpu" ? "bg-green-500/20 text-green-400" : "text-text-muted"
+                detectorBackend === "gpu" ? "bg-accent-green/20 text-accent-green" : "text-text-muted"
               }`}>GPU</span>
               <span className={`px-1.5 py-0.5 rounded-none text-[10px] font-semibold transition-colors ${
-                detectorBackend === "gpu" ? "text-text-muted" : "bg-yellow-500/20 text-yellow-400"
+                detectorBackend === "gpu" ? "text-text-muted" : "bg-accent-yellow/20 text-accent-yellow"
               }`}>CPU</span>
             </button>
           )}
@@ -792,7 +792,7 @@ export function DetectorPanel({
           {errorMsg && (
             <button
               onClick={() => setErrorMsg(null)}
-              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-red-500/10 text-red-400 border border-red-500/20 shrink-0 max-w-xs truncate"
+              className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-accent-red/10 text-accent-red border border-accent-red/20 shrink-0 max-w-xs truncate"
               title={errorMsg}
             >
               <AlertTriangle className="w-3 h-3 shrink-0" />
@@ -807,7 +807,7 @@ export function DetectorPanel({
               <div className="flex-1 h-1.5 bg-bg-primary rounded-none overflow-hidden">
                 <div
                   className={`h-full rounded-none transition-all duration-150 ${
-                    confidence >= (activeTemplate?.precision ?? DEFAULT_PRECISION) ? "bg-green-400" : "bg-accent-blue/50"
+                    confidence >= (activeTemplate?.precision ?? DEFAULT_PRECISION) ? "bg-accent-green" : "bg-accent-blue/50"
                   }`}
                   style={{ width: `${Math.min(confidence * 100, 100)}%` }}
                 />
@@ -838,7 +838,7 @@ export function DetectorPanel({
             {import.meta.env.DEV && (
               <button
                 onClick={() => setShowGpuTest(true)}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-purple-400 hover:border-purple-400/30 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-purple hover:border-accent-purple/30 transition-colors"
                 aria-label="GPU Equivalence Test"
                 title="GPU Equivalence Test"
               >
@@ -864,7 +864,7 @@ export function DetectorPanel({
                 )}
                 <button
                   onClick={handleDisconnect}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-red-400 hover:border-red-400/30 transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-accent-red hover:border-accent-red/30 transition-colors"
                   aria-label={t("detector.disconnect")}
                 >
                   <VideoOff className="w-3.5 h-3.5" />
@@ -984,7 +984,7 @@ export function DetectorPanel({
                                   void fetch(apiUrl(`/api/detector/${pokemon.id}/templates`), { method: "DELETE" }).catch(() => {});
                                   setShowMoreMenu(false);
                                 }}
-                                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-500/10 transition-colors"
+                                className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-accent-red hover:bg-accent-red/10 transition-colors"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                                 {t("detector.clearTemplates")}
@@ -1013,7 +1013,7 @@ export function DetectorPanel({
                         key={`template-${tmpl.image_path}-${index}`}
                         className={`relative group rounded-md overflow-hidden transition-all w-full ${
                           (() => {
-                            if (tmpl.regions.length === 0) return "ring-1 ring-amber-500/50 bg-bg-primary opacity-80";
+                            if (tmpl.regions.length === 0) return "ring-1 ring-accent-yellow/50 bg-bg-primary opacity-80";
                             if (tmpl.enabled === false) return "ring-1 ring-border-subtle bg-bg-primary opacity-60";
                             return "ring-2 ring-accent-blue bg-bg-primary";
                           })()
@@ -1038,7 +1038,7 @@ export function DetectorPanel({
                           <div className="absolute top-1 left-1 z-10 pointer-events-none">
                             <div className={`w-3.5 h-3.5 rounded-none border-2 flex items-center justify-center ${
                               (() => {
-                                if (tmpl.regions.length === 0) return "border-amber-500/50 bg-transparent";
+                                if (tmpl.regions.length === 0) return "border-accent-yellow/50 bg-transparent";
                                 if (tmpl.enabled === false) return "border-text-muted bg-transparent";
                                 return "border-accent-blue bg-accent-blue";
                               })()
@@ -1056,8 +1056,8 @@ export function DetectorPanel({
                             />
                             {/* Invalid template overlay — shown when template has no regions */}
                             {tmpl.regions.length === 0 && (
-                              <div className="absolute inset-0 bg-amber-500/20 flex items-center justify-center rounded-lg">
-                                <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-none text-xs text-amber-400 font-medium">
+                              <div className="absolute inset-0 bg-accent-yellow/20 flex items-center justify-center rounded-lg">
+                                <div className="flex items-center gap-1.5 bg-black/70 px-2 py-1 rounded-none text-xs text-accent-yellow font-medium">
                                   <AlertTriangle className="w-3.5 h-3.5" />
                                   {t("templateEditor.templateInvalid")}
                                 </div>
@@ -1088,7 +1088,7 @@ export function DetectorPanel({
                             <button
                               type="button"
                               onClick={() => setDeleteConfirm({ index, name: tmpl.name || `Template ${index + 1}` })}
-                              className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-red-500 transition-colors pointer-events-auto"
+                              className="p-1.5 rounded-lg bg-white/20 text-white hover:bg-accent-red transition-colors pointer-events-auto"
                               title={t("detector.deleteTemplate")}
                               aria-label={t("detector.deleteTemplate")}
                             >
@@ -1153,7 +1153,7 @@ export function DetectorPanel({
                     }}
                     title={t("detector.clearLog")}
                     aria-label={t("detector.clearLog")}
-                    className="p-1.5 mr-1 text-text-muted hover:text-red-400 transition-colors"
+                    className="p-1.5 mr-1 text-text-muted hover:text-accent-red transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
                   </button>
@@ -1188,23 +1188,23 @@ export function DetectorPanel({
                           <div
                             key={`log-${entry.at}-${i}`}
                             className={`relative rounded-lg px-3 py-2 text-xs transition-colors overflow-hidden ${
-                              isMatch ? "bg-green-500/8 border border-green-500/20" : "bg-bg-primary border border-border-subtle"
+                              isMatch ? "bg-accent-green/8 border border-accent-green/20" : "bg-bg-primary border border-border-subtle"
                             }`}
                           >
                             {/* Confidence bar background */}
                             <div
                               className={`absolute inset-y-0 left-0 transition-all duration-300 ${
-                                isMatch ? "bg-green-500/10" : "bg-accent-blue/5"
+                                isMatch ? "bg-accent-green/10" : "bg-accent-blue/5"
                               }`}
                               style={{ width: `${pct}%` }}
                             />
                             {/* Content */}
                             <div className="relative flex items-center gap-2">
                               {isMatch && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-accent-green shrink-0" />
                               )}
                               <span className={`font-mono font-bold shrink-0 ${
-                                isMatch ? "text-green-400" : "text-text-muted"
+                                isMatch ? "text-accent-green" : "text-text-muted"
                               }`}>
                                 {pct.toFixed(1)}%
                               </span>
@@ -1222,7 +1222,7 @@ export function DetectorPanel({
                               )}
                               <div className="flex-1" />
                               {isMatch && (
-                                <span className="text-[10px] font-bold text-green-400 uppercase tracking-wider">
+                                <span className="text-[10px] font-bold text-accent-green uppercase tracking-wider">
                                   Match
                                 </span>
                               )}

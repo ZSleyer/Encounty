@@ -96,7 +96,7 @@ describe("DetectorPreview", () => {
       precision: 0.8,
     });
 
-    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-green-500\/80`);
+    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-accent-green\/80`);
     expect(badge).toBeInTheDocument();
     expect(badge?.textContent).toBe("85.0%");
   });
@@ -111,7 +111,7 @@ describe("DetectorPreview", () => {
       precision: 0.8,
     });
 
-    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-amber-500\/80`);
+    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-accent-yellow\/80`);
     expect(badge).toBeInTheDocument();
     expect(badge?.textContent).toBe("60.0%");
   });
@@ -152,7 +152,7 @@ describe("DetectorPreview", () => {
       precision: 0.8,
     });
 
-    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-green-500\/80`);
+    const badge = document.querySelector(String.raw`[data-detector-tutorial="preview"] .bg-accent-green\/80`);
     expect(badge).toBeInTheDocument();
   });
 

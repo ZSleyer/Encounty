@@ -172,8 +172,8 @@ function CloseTabWarning({
       className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
     >
       <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-        <div className="w-14 h-14 rounded-full border border-amber-500/40 flex items-center justify-center">
-          <AlertTriangle className="w-7 h-7 text-amber-500" />
+        <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
+          <AlertTriangle className="w-7 h-7 text-accent-yellow" />
         </div>
         <div className="text-center space-y-1.5">
           <p id="close-warning-title" className="text-lg font-semibold text-text-primary">{t("app.closeWarning")}</p>
@@ -681,7 +681,7 @@ function AppShell() {
           {isMachineTranslated && (
             <button
               onClick={() => pushToast({ type: "info", title: t("settings.autoTranslated"), message: t("app.machineTranslationDisclaimer"), duration: 8000 })}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] 2xl:text-xs text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] 2xl:text-xs text-accent-yellow bg-accent-yellow/10 hover:bg-accent-yellow/20 transition-colors"
               title={t("app.machineTranslationDisclaimer")}
             >
               <Bot className="w-3 h-3" />

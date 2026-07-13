@@ -339,7 +339,7 @@ function CameraGrid({
                 </span>
               )}
               {cam.label.toLowerCase().includes("obs") && (
-                <span className="inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-purple-500/20 text-purple-400">
+                <span className="inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-accent-purple/20 text-accent-purple">
                   {t("sourcePicker.obsHint")}
                 </span>
               )}

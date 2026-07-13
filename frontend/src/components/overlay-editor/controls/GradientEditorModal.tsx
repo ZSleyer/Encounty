@@ -256,7 +256,7 @@ export function GradientEditorModal({
                 title={t("modal.tooltipRemoveStop")}
                 onClick={() => deleteStop(idx)}
                 onFocus={() => setSelectedIdx(idx)}
-                className="ml-auto text-text-muted hover:text-red-400 transition-colors"
+                className="ml-auto text-text-muted hover:text-accent-red transition-colors"
               >
                 <X size={12} />
               </button>

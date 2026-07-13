@@ -182,7 +182,7 @@ export default function DetectorPerfModal({
             <p className="text-sm text-text-muted italic">{t("perfModal.electronOnly")}</p>
           )}
           {errorMsg && (
-            <p className="text-sm text-red-400">{errorMsg}</p>
+            <p className="text-sm text-accent-red">{errorMsg}</p>
           )}
           {inElectron && procStats && (
             <>

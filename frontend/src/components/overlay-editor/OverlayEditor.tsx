@@ -1031,7 +1031,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             <button
               onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
               title={t("tooltip.editor.resetLayout")}
-              className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
+              className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
             >
               <RotateCcw className="w-3 h-3" />
             </button>

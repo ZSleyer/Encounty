@@ -191,7 +191,7 @@ export function DetectorSettings({
               const errs = pollErrors;
               const inputBase = "w-full bg-bg-primary border rounded-lg px-2 py-1 text-sm text-text-primary outline-none";
               const okBorder = "border-border-subtle focus:border-accent-blue/50";
-              const errBorder = "border-red-500/60 focus:border-red-500";
+              const errBorder = "border-accent-red/60 focus:border-accent-red";
               return (
                 <>
                   <div className="grid grid-cols-3 gap-3">
@@ -205,7 +205,7 @@ export function DetectorSettings({
                         className={`${inputBase} ${errs.base ? errBorder : okBorder}`}
                       />
                       {errs.base ? (
-                        <p id="det-base-poll-err" className="text-[11px] leading-relaxed text-red-400 mt-0.5">{t(errs.base, { min: minPollMs, max: maxPollMs })}</p>
+                        <p id="det-base-poll-err" className="text-[11px] leading-relaxed text-accent-red mt-0.5">{t(errs.base, { min: minPollMs, max: maxPollMs })}</p>
                       ) : (
                         <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.basePollDesc")}</p>
                       )}
@@ -220,7 +220,7 @@ export function DetectorSettings({
                         className={`${inputBase} ${errs.min ? errBorder : okBorder}`}
                       />
                       {errs.min ? (
-                        <p id="det-min-poll-err" className="text-[11px] leading-relaxed text-red-400 mt-0.5">{t(errs.min, { max: maxPollMs })}</p>
+                        <p id="det-min-poll-err" className="text-[11px] leading-relaxed text-accent-red mt-0.5">{t(errs.min, { max: maxPollMs })}</p>
                       ) : (
                         <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.minPollDesc")}</p>
                       )}
@@ -235,7 +235,7 @@ export function DetectorSettings({
                         className={`${inputBase} ${errs.max ? errBorder : okBorder}`}
                       />
                       {errs.max ? (
-                        <p id="det-max-poll-err" className="text-[11px] leading-relaxed text-red-400 mt-0.5">{t(errs.max, { min: minPollMs })}</p>
+                        <p id="det-max-poll-err" className="text-[11px] leading-relaxed text-accent-red mt-0.5">{t(errs.max, { min: minPollMs })}</p>
                       ) : (
                         <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.maxPollDesc")}</p>
                       )}

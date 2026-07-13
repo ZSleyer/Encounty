@@ -550,7 +550,7 @@ export function OverlayPropertyPanel({
                   <button
                     title={t("tooltip.editor.removeBackground")}
                     onClick={onBgRemove}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-red-500/20 text-text-secondary hover:text-red-400 transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-accent-red/20 text-text-secondary hover:text-accent-red transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
                     {t("overlay.remove")}
@@ -904,7 +904,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("sprite", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1025,7 +1025,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("name", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1146,7 +1146,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("title", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1321,7 +1321,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("counter", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1611,7 +1611,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("odds", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-500/20 hover:bg-red-500/40 text-red-400 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>

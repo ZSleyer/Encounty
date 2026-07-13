@@ -189,8 +189,8 @@ export function OverlayEditorPage() {
           onClick={(e) => { if (e.target === e.currentTarget) blocker.reset?.(); }}
         >
           <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
-            <div className="w-14 h-14 rounded-full border border-amber-500/40 flex items-center justify-center">
-              <AlertTriangle className="w-7 h-7 text-amber-500" />
+            <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-accent-yellow" />
             </div>
             <div className="text-center space-y-1.5">
               <p id="overlay-unsaved-title" className="text-lg font-semibold text-text-primary">
@@ -211,7 +211,7 @@ export function OverlayEditorPage() {
               <button
                 type="button"
                 onClick={() => blocker.proceed?.()}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-red hover:bg-red-500 text-white text-sm font-semibold transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-red hover:bg-accent-red/80 text-white text-sm font-semibold transition-colors"
               >
                 {t("overlay.unsavedDiscard")}
               </button>

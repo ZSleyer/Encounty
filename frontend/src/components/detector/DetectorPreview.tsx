@@ -26,8 +26,8 @@ export type DetectorPreviewProps = Readonly<{
 
 /** Return the Tailwind class for the confidence badge based on threshold. */
 function confidenceBadgeClass(confidence: number, precision: number): string {
-  if (confidence >= precision) return "bg-green-500/80 text-white";
-  if (confidence >= 0.5) return "bg-amber-500/80 text-white";
+  if (confidence >= precision) return "bg-accent-green/80 text-white";
+  if (confidence >= 0.5) return "bg-accent-yellow/80 text-white";
   return "bg-black/60 text-white/70";
 }
 

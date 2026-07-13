@@ -1067,7 +1067,7 @@ describe("Dashboard hunt button", () => {
     const huntButtons = screen.getAllByRole("button", { name: /Hunt stoppen/ });
     expect(huntButtons.length).toBeGreaterThan(0);
     // At least one should have red styling
-    const hasRedButton = huntButtons.some(btn => btn.className.includes("text-red"));
+    const hasRedButton = huntButtons.some(btn => btn.className.includes("text-accent-red"));
     expect(hasRedButton).toBe(true);
   });
 
@@ -3350,7 +3350,7 @@ describe("Dashboard detector match indicator", () => {
     await act(async () => {});
 
     // The detector tab should show a green match dot
-    const matchDot = document.querySelector("header .bg-green-400.rounded-full");
+    const matchDot = document.querySelector("header .bg-accent-green.rounded-full");
     expect(matchDot).toBeTruthy();
   });
 });

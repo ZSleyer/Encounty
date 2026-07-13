@@ -51,7 +51,7 @@ export function WindowControls() {
       </button>
       <button
         onClick={() => api.close()}
-        className="w-12 flex items-center justify-center text-text-muted hover:text-white hover:bg-red-600 transition-colors"
+        className="w-12 flex items-center justify-center text-text-muted hover:text-white hover:bg-accent-red transition-colors"
         title={t("aria.windowClose")}
         aria-label={t("aria.windowClose")}
       >

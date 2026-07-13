@@ -395,9 +395,9 @@ function captureFrame(video: HTMLVideoElement): {
 
 /** Return a Tailwind text color class based on the delta magnitude. */
 function deltaColor(delta: number): string {
-  if (delta < 0.05) return "text-green-400";
-  if (delta < 0.1) return "text-yellow-400";
-  return "text-red-400";
+  if (delta < 0.05) return "text-accent-green";
+  if (delta < 0.1) return "text-accent-yellow";
+  return "text-accent-red";
 }
 
 /** Count total frames across all ground-truth entries. */
@@ -668,17 +668,17 @@ function buildRegionMap(
 
 function StatusIcon({ delta }: Readonly<{ delta: number }>): JSX.Element {
   if (delta < 0.05) {
-    return <Check className="w-4 h-4 text-green-400" aria-label="Pass" />;
+    return <Check className="w-4 h-4 text-accent-green" aria-label="Pass" />;
   }
   if (delta < 0.1) {
     return (
       <AlertTriangle
-        className="w-4 h-4 text-yellow-400"
+        className="w-4 h-4 text-accent-yellow"
         aria-label="Warning"
       />
     );
   }
-  return <XCircle className="w-4 h-4 text-red-400" aria-label="Fail" />;
+  return <XCircle className="w-4 h-4 text-accent-red" aria-label="Fail" />;
 }
 
 // ---------------------------------------------------------------------------
@@ -911,7 +911,7 @@ export default function GpuEquivalenceTest({
           <button
             ref={closeButtonRef}
             onClick={handleDialogClose}
-            className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent"
+            className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent-blue"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -924,7 +924,7 @@ export default function GpuEquivalenceTest({
             {running ? (
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-accent"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-red text-white font-medium hover:bg-accent-red/80 focus-visible:outline-2 focus-visible:outline-accent-blue"
               >
                 <X className="w-4 h-4" />
                 Cancel
@@ -933,7 +933,7 @@ export default function GpuEquivalenceTest({
               <button
                 onClick={runTests}
                 disabled={!gpuAvailable || running}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white font-medium hover:bg-accent/90 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-accent"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-blue text-bg-primary font-medium hover:bg-accent-blue/80 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-accent-blue"
               >
                 <Play className="w-4 h-4" />
                 Run Test
@@ -948,13 +948,13 @@ export default function GpuEquivalenceTest({
             )}
 
             {!running && !gpuAvailable && (
-              <span className="text-sm text-red-400">
+              <span className="text-sm text-accent-red">
                 WebGPU is not available in this browser.
               </span>
             )}
 
             {!running && error && (
-              <span className="text-sm text-red-400">{error}</span>
+              <span className="text-sm text-accent-red">{error}</span>
             )}
 
             {!running && !error && totalTests > 0 && (
@@ -968,7 +968,7 @@ export default function GpuEquivalenceTest({
           {running && (
             <div className="w-full h-2 rounded-none bg-bg-hover overflow-hidden">
               <div
-                className="h-full bg-accent rounded-none transition-all duration-200"
+                className="h-full bg-accent-blue rounded-none transition-all duration-200"
                 style={{ width: `${progressPct}%` }}
               />
             </div>
@@ -982,15 +982,15 @@ export default function GpuEquivalenceTest({
               </span>
               <span>
                 Passed:{" "}
-                <strong className="text-green-400">{passed}</strong>
+                <strong className="text-accent-green">{passed}</strong>
               </span>
               <span>
                 Warned:{" "}
-                <strong className="text-yellow-400">{warned}</strong>
+                <strong className="text-accent-yellow">{warned}</strong>
               </span>
               <span>
                 Failed:{" "}
-                <strong className="text-red-400">{failed}</strong>
+                <strong className="text-accent-red">{failed}</strong>
               </span>
               <span>
                 Avg delta:{" "}
@@ -1046,7 +1046,7 @@ export default function GpuEquivalenceTest({
                       <span
                         className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                           r.type === "match"
-                            ? "bg-green-500/20 text-green-400"
+                            ? "bg-accent-green/20 text-accent-green"
                             : "bg-neutral-500/20 text-neutral-400"
                         }`}
                       >

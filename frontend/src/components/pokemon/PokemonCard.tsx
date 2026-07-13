@@ -26,11 +26,11 @@ type Props = Readonly<{
 function detectorDotClass(entry: DetectorStatusEntry, t: (key: string) => string): { cls: string; pulse: boolean; title: string } {
   switch (entry.state) {
     case "match":
-      return { cls: "bg-green-500", pulse: false, title: t("dash.tooltipDetectorMatch") };
+      return { cls: "bg-accent-green", pulse: false, title: t("dash.tooltipDetectorMatch") };
     case "cooldown":
-      return { cls: "bg-purple-500", pulse: false, title: t("dash.tooltipDetectorCooldown") };
+      return { cls: "bg-accent-purple", pulse: false, title: t("dash.tooltipDetectorCooldown") };
     default:
-      return { cls: "bg-blue-400", pulse: true, title: t("dash.tooltipDetectorRunning") };
+      return { cls: "bg-accent-blue", pulse: true, title: t("dash.tooltipDetectorRunning") };
   }
 }
 

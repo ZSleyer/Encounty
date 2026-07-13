@@ -139,8 +139,8 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
   return (
     <div className="space-y-3">
       {hotkeyAvailable === false ? (
-        <div className="mb-4 p-3 bg-amber-900/20 border border-amber-700/40 rounded-lg">
-          <p className="text-xs text-amber-400">{t("hotkeys.unavailable")}</p>
+        <div className="mb-4 p-3 bg-accent-yellow/10 border border-accent-yellow/40 rounded-lg">
+          <p className="text-xs text-accent-yellow">{t("hotkeys.unavailable")}</p>
           {globalThis.electronAPI?.platform === "linux" && (
             <p className="text-xs text-text-muted mt-1">
               {t("hotkeys.linuxHint").split("{cmd}")[0]}
@@ -209,7 +209,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
                 {currentCombo && !isRecording ? (
                   <button
                     onClick={() => deleteBinding(key)}
-                    className="p-1 rounded text-text-faint hover:text-red-400 transition-colors"
+                    className="p-1 rounded text-text-faint hover:text-accent-red transition-colors"
                     title={t("hotkeys.tooltipDelete")}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -219,7 +219,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
             </div>
 
             {conflictAction && (
-              <p role="status" aria-live="polite" className="text-xs 2xl:text-sm text-amber-400 ml-4">
+              <p role="status" aria-live="polite" className="text-xs 2xl:text-sm text-accent-yellow ml-4">
                 ⚠ {t("hotkeys.conflict", { action: t(conflictAction.labelKey) })}
               </p>
             )}
@@ -241,7 +241,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         </div>
       )}
 
-      {error && <p role="alert" className="text-xs text-red-400 mt-2">{error}</p>}
+      {error && <p role="alert" className="text-xs text-accent-red mt-2">{error}</p>}
     </div>
   )
 }

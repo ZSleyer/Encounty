@@ -180,7 +180,7 @@ describe("DetectorPanel", () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "match", confidence: 0.95 });
     await waitFor(() => {
       // The match state label should be visible with the green-400 color class
-      const matchLabel = container.querySelector(".text-green-400");
+      const matchLabel = container.querySelector(".text-accent-green");
       expect(matchLabel).toBeTruthy();
       expect(matchLabel?.textContent).toBeTruthy();
     });
@@ -201,8 +201,8 @@ describe("DetectorPanel", () => {
   it("does not show CPU fallback badge when backend is GPU", async () => {
     const { container } = renderPanel();
     await waitFor(() => {
-      // The CPU fallback badge has bg-yellow-500/10 styling — should not be present with GPU backend
-      const cpuBadge = container.querySelector(String.raw`.bg-yellow-500\/10`);
+      // The CPU fallback badge has bg-accent-yellow/10 styling — should not be present with GPU backend
+      const cpuBadge = container.querySelector(String.raw`.bg-accent-yellow\/10`);
       expect(cpuBadge).not.toBeInTheDocument();
     });
   });
@@ -215,7 +215,7 @@ describe("DetectorPanel", () => {
     const { container } = renderPanel();
     await act(async () => {});
     // The CPU badge is a span with specific styling and "CPU" text
-    const cpuBadge = container.querySelector(String.raw`.bg-yellow-500\/10`);
+    const cpuBadge = container.querySelector(String.raw`.bg-accent-yellow\/10`);
     expect(cpuBadge).toBeInTheDocument();
     expect(cpuBadge?.textContent).toContain("CPU");
 
@@ -281,7 +281,7 @@ describe("DetectorPanel", () => {
       // Error badge uses AlertTriangle + text; should not be present initially
       const errorBadges = container.querySelectorAll("[title]");
       const errorBadge = Array.from(errorBadges).find(
-        (el) => el.classList.contains("bg-red-500/10"),
+        (el) => el.classList.contains("bg-accent-red/10"),
       );
       expect(errorBadge).toBeUndefined();
     });
@@ -992,8 +992,8 @@ describe("DetectorPanel", () => {
   it("shows green confidence bar when confidence exceeds precision", async () => {
     const { container } = renderPanel({ isRunning: true, confidence: 0.8 });
     await waitFor(() => {
-      // Confidence bar should be green (bg-green-400) when above 0.55 precision
-      const greenBar = container.querySelector(".bg-green-400");
+      // Confidence bar should be green (bg-accent-green) when above 0.55 precision
+      const greenBar = container.querySelector(".bg-accent-green");
       expect(greenBar).toBeInTheDocument();
     });
   });
@@ -1366,17 +1366,17 @@ describe("DetectorPanel", () => {
 
     // Error badge should appear
     await waitFor(() => {
-      const errorBadge = document.querySelector(String.raw`.bg-red-500\/10`);
+      const errorBadge = document.querySelector(String.raw`.bg-accent-red\/10`);
       expect(errorBadge).toBeInTheDocument();
     });
 
     // Click the error badge to dismiss it
-    const errorBtn = document.querySelector(String.raw`.bg-red-500\/10`);
+    const errorBtn = document.querySelector(String.raw`.bg-accent-red\/10`);
     if (errorBtn) {
       await user.click(errorBtn as HTMLElement);
       // Error badge should be removed
       await waitFor(() => {
-        const badge = document.querySelector(String.raw`.bg-red-500\/10`);
+        const badge = document.querySelector(String.raw`.bg-accent-red\/10`);
         expect(badge).not.toBeInTheDocument();
       });
     }
@@ -2054,7 +2054,7 @@ describe("DetectorPanel", () => {
       await user.click(confirmBtn);
       // Error badge should appear
       await waitFor(() => {
-        const errorBadge = document.querySelector(String.raw`.bg-red-500\/10`);
+        const errorBadge = document.querySelector(String.raw`.bg-accent-red\/10`);
         expect(errorBadge).toBeInTheDocument();
       });
     }
@@ -2214,7 +2214,7 @@ describe("DetectorPanel", () => {
   it("shows pulsing blue dot when running in idle state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "idle", confidence: 0 });
     await waitFor(() => {
-      const pulsingDot = container.querySelector(".animate-pulse.bg-blue-400");
+      const pulsingDot = container.querySelector(".animate-pulse.bg-accent-blue");
       expect(pulsingDot).toBeInTheDocument();
     });
   });
@@ -2224,7 +2224,7 @@ describe("DetectorPanel", () => {
   it("shows green dot when in match state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "match", confidence: 0.9 });
     await waitFor(() => {
-      const greenDot = container.querySelector(".bg-green-500:not(.animate-pulse)");
+      const greenDot = container.querySelector(".bg-accent-green:not(.animate-pulse)");
       expect(greenDot).toBeInTheDocument();
     });
   });
@@ -2234,7 +2234,7 @@ describe("DetectorPanel", () => {
   it("shows purple dot when in cooldown state", async () => {
     const { container } = renderPanel({ isRunning: true, detectorState: "cooldown", confidence: 0.5 });
     await waitFor(() => {
-      const purpleDot = container.querySelector(".bg-purple-500:not(.animate-pulse)");
+      const purpleDot = container.querySelector(".bg-accent-purple:not(.animate-pulse)");
       expect(purpleDot).toBeInTheDocument();
     });
   });
@@ -2437,7 +2437,7 @@ describe("DetectorPanel", () => {
     if (confirmBtn) {
       await user.click(confirmBtn);
       await waitFor(() => {
-        const errorBadge = document.querySelector(String.raw`.bg-red-500\/10`);
+        const errorBadge = document.querySelector(String.raw`.bg-accent-red\/10`);
         expect(errorBadge).toBeInTheDocument();
       });
     }
@@ -2469,7 +2469,7 @@ describe("DetectorPanel", () => {
     const { container } = renderPanel({ isRunning: true, confidence: 0.55 });
     await waitFor(() => {
       // At exactly 0.55 (equal to default precision), should be green
-      const greenBar = container.querySelector(".bg-green-400");
+      const greenBar = container.querySelector(".bg-accent-green");
       expect(greenBar).toBeInTheDocument();
     });
   });
@@ -3254,7 +3254,7 @@ describe("DetectorPanel", () => {
     if (confirmBtn) {
       await user.click(confirmBtn);
       await waitFor(() => {
-        const errorBadge = document.querySelector(String.raw`.bg-red-500\/10`);
+        const errorBadge = document.querySelector(String.raw`.bg-accent-red\/10`);
         expect(errorBadge).toBeInTheDocument();
       });
     }
@@ -3400,7 +3400,7 @@ describe("DetectorPanel", () => {
     await act(async () => {});
 
     // Verify the capture error effect runs by checking error badge is not shown initially
-    expect(document.querySelector(String.raw`.bg-red-500\/10`)).not.toBeInTheDocument();
+    expect(document.querySelector(String.raw`.bg-accent-red\/10`)).not.toBeInTheDocument();
   });
 
   // --- stateLabel for idle while running ---
@@ -3704,7 +3704,7 @@ describe("DetectorPanel", () => {
 
     // Error badge should appear since there's no active stream
     await waitFor(() => {
-      const errorBadge = document.querySelector(String.raw`.bg-red-500\/10`);
+      const errorBadge = document.querySelector(String.raw`.bg-accent-red\/10`);
       expect(errorBadge).toBeInTheDocument();
     });
 
@@ -4196,7 +4196,7 @@ describe("DetectorPanel", () => {
 
     // The captureError effect should set errorMsg and show the error badge
     await waitFor(() => {
-      const errorBadge = document.querySelector(String.raw`.bg-red-500\/10`);
+      const errorBadge = document.querySelector(String.raw`.bg-accent-red\/10`);
       expect(errorBadge).toBeInTheDocument();
     });
 

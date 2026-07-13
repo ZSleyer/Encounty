@@ -718,9 +718,9 @@ function ratingPresentation(rating: StabilityStats["rating"]): {
     return { Icon: CheckCircle2, labelKey: "templateEditor.stabilityGood", colorClass: "text-emerald-400" };
   }
   if (rating === "ok") {
-    return { Icon: AlertTriangle, labelKey: "templateEditor.stabilityOk", colorClass: "text-amber-400" };
+    return { Icon: AlertTriangle, labelKey: "templateEditor.stabilityOk", colorClass: "text-accent-yellow" };
   }
-  return { Icon: XCircle, labelKey: "templateEditor.stabilityPoor", colorClass: "text-red-400" };
+  return { Icon: XCircle, labelKey: "templateEditor.stabilityPoor", colorClass: "text-accent-red" };
 }
 
 /**
@@ -789,7 +789,7 @@ function StabilityDetails({ stats, polling, sweep, sweepRunning, applyCalibratio
         </>
       )}
       {sweep && !sweep.perfect && (
-        <p className="text-xs 2xl:text-sm text-amber-400">{t("templateEditor.stabilitySweepImperfect")}</p>
+        <p className="text-xs 2xl:text-sm text-accent-yellow">{t("templateEditor.stabilitySweepImperfect")}</p>
       )}
       <label className="flex items-center gap-2 text-xs 2xl:text-sm text-text-primary cursor-pointer">
         <input
@@ -1263,7 +1263,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
             title="Auto-recognize text (OCR)"
             onClick={() => onRunOCR(i)}
             disabled={isRecognizing}
-            className="text-amber-400 hover:text-amber-300 disabled:opacity-40 transition-colors p-1"
+            className="text-accent-yellow hover:text-accent-yellow/80 disabled:opacity-40 transition-colors p-1"
           >
             {isRecognizing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -1343,7 +1343,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
       <button
         title={t("templateEditor.deleteRegion")}
         onClick={() => onDelete(i)}
-        className="text-text-muted hover:text-red-400 transition-colors p-1"
+        className="text-text-muted hover:text-accent-red transition-colors p-1"
       >
          <Trash2 className="w-4 h-4 2xl:w-5 2xl:h-5" />
       </button>
@@ -1894,7 +1894,7 @@ export function TemplateEditor({
                 className="absolute top-3 right-3 flex items-center gap-2 bg-black/70 backdrop-blur-sm px-3 py-1.5 rounded-none text-xs font-mono text-white"
                 title={t("templateEditor.bufferLoopHint")}
               >
-                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-accent-red animate-pulse" />
                 {Math.floor(replayBuffer.bufferedSeconds)}s / {replayBuffer.maxSeconds}s
                 {replayBuffer.bufferedSeconds >= replayBuffer.maxSeconds && (
                   <RefreshCw className="w-3 h-3 text-white/60 animate-spin" style={{ animationDuration: "3s" }} aria-label={t("templateEditor.bufferLoopHint")} />
@@ -1942,7 +1942,7 @@ export function TemplateEditor({
             {/* Current drawing box */}
             {currentBox && currentBox.w > 0 && currentBox.h > 0 && (
               <div
-                className="absolute border-2 border-yellow-400 border-dashed bg-yellow-400/15 pointer-events-none"
+                className="absolute border-2 border-accent-yellow border-dashed bg-accent-yellow/15 pointer-events-none"
                 style={{
                   left: `${currentBox.x * 100}%`,
                   top: `${currentBox.y * 100}%`,
@@ -2114,7 +2114,7 @@ export function TemplateEditor({
               </>
             )}
             {!templateTest.isRunning && templateTest.bestScore < templateSettings.precision && templateTest.batchResults.size > 0 && (
-              <p className="text-xs 2xl:text-sm text-amber-400 text-center mt-2">
+              <p className="text-xs 2xl:text-sm text-accent-yellow text-center mt-2">
                 {t("templateEditor.testLowScoreHint")}
               </p>
             )}
@@ -2174,17 +2174,17 @@ export function TemplateEditor({
       {phase === "snapshot" && (
         <div className="w-full max-w-4xl px-4 mb-2 flex flex-col items-center gap-1">
           {regions.length === 0 && (
-            <p className="text-xs 2xl:text-sm text-amber-400 text-center">
+            <p className="text-xs 2xl:text-sm text-accent-yellow text-center">
               {t("templateEditor.regionsRequired")}
             </p>
           )}
           {hasTextRegion && (
-            <p className="text-xs 2xl:text-sm text-amber-400 text-center">
+            <p className="text-xs 2xl:text-sm text-accent-yellow text-center">
               {t("templateEditor.ocrHint")}
             </p>
           )}
           {ocrError && (
-            <p className="text-xs 2xl:text-sm text-red-400 text-center">
+            <p className="text-xs 2xl:text-sm text-accent-red text-center">
               {t("templateEditor.ocrError", { error: ocrError })}
             </p>
           )}
@@ -2244,7 +2244,7 @@ export function TemplateEditor({
         )}
 
         {errorMsg && (
-          <div className="w-full px-4 py-3 bg-red-500/10 text-red-500 text-sm 2xl:text-base text-center rounded-none font-medium border border-red-500/20">
+          <div className="w-full px-4 py-3 bg-accent-red/10 text-accent-red text-sm 2xl:text-base text-center rounded-none font-medium border border-accent-red/20">
             {errorMsg}
           </div>
         )}

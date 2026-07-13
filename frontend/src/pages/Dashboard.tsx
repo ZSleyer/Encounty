@@ -297,10 +297,10 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
 }
 
 function huntButtonClass(anyRunning: boolean, canStart: boolean, mode: string): string {
-  if (anyRunning) return "text-red-400 hover:text-red-300 hover:bg-red-500/10";
+  if (anyRunning) return "text-accent-red hover:bg-accent-red/10";
   if (!canStart) return "opacity-30 cursor-not-allowed text-text-muted";
-  if (mode === "detector") return "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10";
-  if (mode === "timer") return "text-accent-green hover:text-accent-green hover:bg-accent-green/10";
+  if (mode === "detector") return "text-accent-purple hover:bg-accent-purple/10";
+  if (mode === "timer") return "text-accent-green hover:bg-accent-green/10";
   return "text-accent-blue hover:text-accent-blue hover:bg-accent-blue/10";
 }
 
@@ -1180,8 +1180,8 @@ function resolveHuntIcon(anyRunning: boolean, mode: string): React.ReactNode {
 
 /** Resolves the hunt button background color based on running state and mode. */
 function resolveHuntBgColor(anyRunning: boolean, mode: string): string {
-  if (anyRunning) return "bg-red-500/15";
-  if (mode === "detector") return "bg-purple-600";
+  if (anyRunning) return "bg-accent-red/15";
+  if (mode === "detector") return "bg-accent-purple";
   if (mode === "timer") return "bg-accent-green";
   return "bg-accent-blue";
 }
@@ -1248,7 +1248,7 @@ function HeaderHuntButton({
           onClick={handleToggle}
           disabled={huntBlocked}
           className={`flex items-center gap-1.5 pl-3 pr-2 py-1.5 text-xs font-bold transition-colors ${
-            huntBlocked ? "opacity-50 cursor-not-allowed text-text-muted" : anyRunning ? "text-red-400 hover:bg-red-500/20" : "hover:bg-white/10"
+            huntBlocked ? "opacity-50 cursor-not-allowed text-text-muted" : anyRunning ? "text-accent-red hover:bg-accent-red/20" : "hover:bg-white/10"
           }`}
           aria-label={buttonLabel}
           title={huntBlocked ? t("detector.errNoSource") : undefined}
@@ -1256,11 +1256,11 @@ function HeaderHuntButton({
           {modeIcon}
           <span className="hidden sm:inline">{buttonLabel}</span>
         </button>
-        <div className={`w-px h-4 ${anyRunning ? "bg-red-400/30" : "bg-white/20"}`} />
+        <div className={`w-px h-4 ${anyRunning ? "bg-accent-red/30" : "bg-white/20"}`} />
         <button
           onClick={() => setShowMenu((v: boolean) => !v)}
           className={`px-1.5 py-1.5 transition-colors ${
-            anyRunning ? "text-red-400 hover:bg-red-500/20" : "hover:bg-white/10"
+            anyRunning ? "text-accent-red hover:bg-accent-red/20" : "hover:bg-white/10"
           }`}
           aria-label={t("sidebar.both")}
         >
@@ -1643,7 +1643,7 @@ function DashboardOverlayTab({
         <OverlayBrowserSourceButton pokemonId={pokemon.id} />
 
         {modeBase === "custom" && overlaySaved && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/20 shrink-0">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-accent-green/10 text-accent-green border border-accent-green/20 shrink-0">
             <Save className="w-3 h-3" />
             {t("overlay.saved")}
           </span>
@@ -1668,7 +1668,7 @@ function DashboardOverlayTab({
           title={t("dash.tooltipOverlayCustom")}
           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
             modeBase === "custom"
-              ? "bg-purple-500/15 text-purple-400"
+              ? "bg-accent-purple/15 text-accent-purple"
               : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
           }`}
         >
@@ -1731,7 +1731,7 @@ function DashboardOverlayTab({
               <button
                 type="button"
                 onClick={() => onModeChange("custom")}
-                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-purple-500/40 hover:bg-purple-500/5 text-text-secondary hover:text-purple-400 transition-colors"
+                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-accent-purple/40 hover:bg-accent-purple/5 text-text-secondary hover:text-accent-purple transition-colors"
               >
                 <Pencil className="w-4 h-4" />
                 <span className="text-[10px] font-medium">{t("overlay.switchToCustom")}</span>
@@ -2821,7 +2821,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                       <Eye className="w-3.5 h-3.5" />
                       <span className={tabLabelClass()}>{t("dash.tabDetector")}</span>
                       {detectorStatus[viewedPokemon.id]?.state === "match" && (
-                        <span className="w-2 h-2 rounded-full bg-green-400 ml-1.5" />
+                        <span className="w-2 h-2 rounded-full bg-accent-green ml-1.5" />
                       )}
                     </button>
                   )}
@@ -2970,8 +2970,8 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           onClick={(e) => { if (e.target === e.currentTarget) setPendingTab(null); }}
         >
           <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
-            <div className="w-14 h-14 rounded-full border border-amber-500/40 flex items-center justify-center">
-              <AlertTriangle className="w-7 h-7 text-amber-500" />
+            <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
+              <AlertTriangle className="w-7 h-7 text-accent-yellow" />
             </div>
             <div className="text-center space-y-1.5">
               <p id="dashboard-unsaved-title" className="text-lg font-semibold text-text-primary">
@@ -2996,7 +2996,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                   setRightPanelTab(pendingTab);
                   setPendingTab(null);
                 }}
-                className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:bg-red-500 text-white text-sm font-semibold transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:bg-accent-red/80 text-white text-sm font-semibold transition-colors"
               >
                 {t("overlay.unsavedDiscard")}
               </button>
