@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, userEvent, makeAppState, makePokemon } from "../../test-utils";
+import { render, screen, waitFor, userEvent, fireEvent, makeAppState, makePokemon } from "../../test-utils";
 import { ImportTemplatesModal } from "./ImportTemplatesModal";
 import { useCounterStore } from "../../hooks/useCounterState";
 import type { DetectorConfig, DetectorTemplate } from "../../types";
@@ -324,18 +324,14 @@ describe("ImportTemplatesModal", () => {
 
   it("closes modal when backdrop is clicked", async () => {
     const onClose = vi.fn();
-    const user = userEvent.setup();
     render(
       <ImportTemplatesModal currentPokemonId="current" onImport={vi.fn()} onClose={onClose} />,
     );
-    // The backdrop is the fixed inset button with aria-label for close
-    const backdrop = screen.getAllByRole("button").find(
-      (btn) => btn.className.includes("fixed") && btn.className.includes("inset-0"),
-    );
-    expect(backdrop).toBeDefined();
-    if (backdrop) {
-      await user.click(backdrop);
-      await waitFor(() => expect(onClose).toHaveBeenCalled());
-    }
+    // On a native <dialog>, a click whose target is the dialog element itself
+    // lands on the ::backdrop area; the shared modal hook closes on it.
+    const dialog = document.querySelector("dialog");
+    expect(dialog).not.toBeNull();
+    fireEvent.click(dialog!);
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
 });

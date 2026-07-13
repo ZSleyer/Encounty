@@ -14,7 +14,7 @@ import {
   CheckCircle2, AlertTriangle, XCircle, Check,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import { useDialogClose } from "../../hooks/useDialogClose";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { MatchedRegion, TemplateCalibration } from "../../types";
 import { useOCR } from "../../hooks/useOCR";
 import { useReplayBuffer } from "../../hooks/useReplayBuffer";
@@ -827,25 +827,11 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
   t: (k: string) => string;
 }>) {
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const running = batchRunning || sweepRunning;
   const rating = stats ? ratingPresentation(stats.rating) : null;
   const showApplied = !running && applyCalibration && stats !== null;
-
-  const close = useDialogClose(dialogRef, () => buttonRef.current?.focus());
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) close();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [close]);
 
   // Accessible name carries the full status so the rating icon color and the
   // applied check are not the only carriers of information.
@@ -874,7 +860,7 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
         ref={buttonRef}
         type="button"
         disabled={!stats}
-        onClick={() => dialogRef.current?.showModal()}
+        onClick={() => setDetailsOpen(true)}
         aria-label={buttonLabel}
         aria-haspopup="dialog"
         title={showApplied ? t("templateEditor.stabilityApplied") : undefined}
@@ -886,39 +872,77 @@ function StabilityStatus({ stats, polling, sweep, sweepRunning, batchRunning, ap
           <Check className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 text-emerald-400 shrink-0" aria-hidden="true" />
         )}
       </button>
-      {stats && rating && (
-        <dialog
-          ref={dialogRef}
-          onCancel={close}
-          aria-labelledby={titleId}
-          className="t-panel m-auto max-w-md max-h-[85vh] overflow-y-auto p-4 space-y-2 text-sm 2xl:text-base backdrop:bg-black/60"
-        >
-          <div className="flex items-start justify-between gap-2">
-            <h3 id={titleId} className={`flex items-center gap-2 font-semibold ${rating.colorClass}`}>
-              <rating.Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
-              <span>{t("templateEditor.stabilityTitle")}: {t(rating.labelKey)}</span>
-            </h3>
-            <button
-              type="button"
-              onClick={close}
-              aria-label={t("templateEditor.close")}
-              className="p-1 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors shrink-0"
-            >
-              <X className="w-4 h-4 2xl:w-5 2xl:h-5" aria-hidden="true" />
-            </button>
-          </div>
-          <StabilityDetails
-            stats={stats}
-            polling={polling}
-            sweep={sweep}
-            sweepRunning={sweepRunning}
-            applyCalibration={applyCalibration}
-            onToggleApply={onToggleApply}
-            t={t}
-          />
-        </dialog>
+      {detailsOpen && stats && rating && (
+        <StabilityDialog
+          rating={rating}
+          stats={stats}
+          polling={polling}
+          sweep={sweep}
+          sweepRunning={sweepRunning}
+          applyCalibration={applyCalibration}
+          onToggleApply={onToggleApply}
+          onClose={() => {
+            setDetailsOpen(false);
+            buttonRef.current?.focus();
+          }}
+          t={t}
+        />
       )}
     </>
+  );
+}
+
+/**
+ * Centered modal with the full stability details, opened from the status
+ * button. Mounted only while open so useModalDialog can drive showModal()
+ * on mount, backdrop click and the CRT close transition.
+ */
+function StabilityDialog({ rating, stats, polling, sweep, sweepRunning, applyCalibration, onToggleApply, onClose, t }: Readonly<{
+  rating: ReturnType<typeof ratingPresentation>;
+  stats: StabilityStats;
+  polling: PollingRecommendation | null;
+  sweep: SweepResult | null;
+  sweepRunning: boolean;
+  applyCalibration: boolean;
+  onToggleApply: (v: boolean) => void;
+  /** Called after the close transition finishes; unmounts the dialog. */
+  onClose: () => void;
+  t: (k: string) => string;
+}>) {
+  const titleId = useId();
+  const { dialogRef, requestClose } = useModalDialog({ onClose });
+
+  return (
+    <dialog
+      ref={dialogRef}
+      onCancel={requestClose}
+      aria-labelledby={titleId}
+      className="t-panel m-auto max-w-md max-h-[85vh] overflow-y-auto p-4 space-y-2 text-sm 2xl:text-base backdrop:bg-black/60"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <h3 id={titleId} className={`flex items-center gap-2 font-semibold ${rating.colorClass}`}>
+          <rating.Icon className="w-4 h-4 2xl:w-5 2xl:h-5 shrink-0" aria-hidden="true" />
+          <span>{t("templateEditor.stabilityTitle")}: {t(rating.labelKey)}</span>
+        </h3>
+        <button
+          type="button"
+          onClick={requestClose}
+          aria-label={t("templateEditor.close")}
+          className="p-1 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors shrink-0"
+        >
+          <X className="w-4 h-4 2xl:w-5 2xl:h-5" aria-hidden="true" />
+        </button>
+      </div>
+      <StabilityDetails
+        stats={stats}
+        polling={polling}
+        sweep={sweep}
+        sweepRunning={sweepRunning}
+        applyCalibration={applyCalibration}
+        onToggleApply={onToggleApply}
+        t={t}
+      />
+    </dialog>
   );
 }
 

@@ -1395,6 +1395,11 @@ describe("TemplateEditor", () => {
       // clip-path transition or its fallback timeout) so it lands slightly
       // after the dialog itself disappears from the a11y tree.
       await waitFor(() => expect(button).toHaveFocus());
+      // The closed dialog stays mounted until that deferred handoff runs;
+      // wait for the unmount so the reopen click mounts a fresh dialog.
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog", { hidden: true })).toBeNull(),
+      );
 
       // Close button closes as well
       await user.click(button);

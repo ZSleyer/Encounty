@@ -1,17 +1,17 @@
 /**
- * SourcePickerModal.tsx — Source picker for browser-native capture.
+ * SourcePickerModal.tsx: Source picker for browser-native capture.
  *
  * Shows live thumbnails for screens and windows (via Electron desktopCapturer)
  * and live camera previews (via getUserMedia per device).
  * On Wayland + Electron display capture, the modal is skipped entirely and the
  * caller falls through to the native PipeWire/xdg-desktop-portal picker.
  */
-import { useState, useEffect, useRef, useCallback, type RefObject } from "react";
+import { useState, useEffect, useRef, useCallback, useId, type RefObject } from "react";
 import { X, Monitor, AppWindow, Camera, RefreshCw, Settings as SettingsIcon } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
 import { useCounterStore } from "../../hooks/useCounterState";
-import { useDialogClose } from "../../hooks/useDialogClose";
+import { useModalDialog } from "../../hooks/useModalDialog";
 import { apiUrl } from "../../utils/api";
 import {
   getLastSource,
@@ -31,7 +31,7 @@ export interface SelectedSource {
   type: "screen" | "window" | "camera";
   sourceId: string;
   label: string;
-  /** Pre-acquired camera stream for reuse — avoids double camera activation. */
+  /** Pre-acquired camera stream for reuse, avoids double camera activation. */
   stream?: MediaStream;
 }
 
@@ -412,12 +412,12 @@ function SourceGrid({
 export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: SourcePickerModalProps) {
   const { t } = useI18n();
   const { push: pushToast } = useToast();
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
   const isElectron = !!globalThis.electronAPI;
   const isWayland = globalThis.electronAPI?.isWayland ?? false;
 
   // Wayland + display capture always goes through the PipeWire portal dialog
-  // which shows its own chooser — there is no stable source ID we could
+  // which shows its own chooser, there is no stable source ID we could
   // restore, so we skip remembering and restoring for that combination.
   const canAutoRestore = !(isWayland && sourceType === "browser_display");
 
@@ -456,10 +456,14 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
   // Track refs for camera video elements
   const videoRefsMap = useRef<Map<string, HTMLVideoElement>>(new Map());
 
-  // Open dialog on mount
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
+  // Shared modal lifecycle: showModal() on mount, backdrop click and the CRT
+  // close transition. Camera preview streams are stopped once the transition
+  // finishes, right before the parent unmounts the modal.
+  const handleClosed = useCallback(() => {
+    stopAllCameraStreams(camerasRef.current);
+    onClose();
+  }, [onClose]);
+  const { dialogRef, requestClose } = useModalDialog({ onClose: handleClosed });
 
   // Fetch capture sources (screens + windows) from Electron
   const fetchSources = useCallback(async () => {
@@ -514,7 +518,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
     }
   }, [sourceType, fetchSources, fetchCameras]);
 
-  // Cleanup camera streams on unmount — skip the stream handed off to the capture service
+  // Cleanup camera streams on unmount, skip the stream handed off to the capture service
   useEffect(() => {
     return () => {
       for (const cam of camerasRef.current) {
@@ -572,7 +576,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
         onSelect({ type, sourceId: fuzzy.id, label: fuzzy.name });
         return;
       }
-      // No match — keep the modal open, pre-select nothing (user must pick)
+      // No match: keep the modal open, pre-select nothing (user must pick)
       // but inform them why they are seeing the picker again.
       pushToast({ type: "info", title: t("capture.sourceNotFound") });
       return;
@@ -607,23 +611,6 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
   });
 
   // --- Handlers --------------------------------------------------------------
-
-  const closeDialog = useDialogClose(dialogRef, onClose);
-  const handleCancel = () => {
-    stopAllCameraStreams(cameras);
-    closeDialog();
-  };
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [handleCancel]);
 
   /** Resolve the selected source and invoke the onSelect callback. */
   const handleSelect = () => {
@@ -715,14 +702,16 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
   return (
     <dialog
       ref={dialogRef}
-      onCancel={handleCancel}
+      onCancel={requestClose}
+      aria-labelledby={titleId}
       className="m-auto t-panel p-0 w-full max-w-2xl backdrop:bg-black/70"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-3">
-        <h2 className="text-base font-bold text-text-primary">{t("sourcePicker.title")}</h2>
+        <h2 id={titleId} className="text-base font-bold text-text-primary">{t("sourcePicker.title")}</h2>
         <button
-          onClick={handleCancel}
+          onClick={requestClose}
+          aria-label={t("aria.close")}
           className="text-text-muted hover:text-text-primary transition-colors"
         >
           <X className="w-5 h-5" />
@@ -759,7 +748,7 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
       {/* Footer buttons */}
       <div className="flex justify-end gap-3 px-5 pb-5 pt-2 border-t border-border-subtle">
         <button
-          onClick={handleCancel}
+          onClick={requestClose}
           className="px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
         >
           {t("sourcePicker.cancel")}
