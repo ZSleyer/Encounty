@@ -215,23 +215,22 @@ function AppShell() {
   // carries the correct class on its first paint.
   const revealDirRef = useRef<"ltr" | "rtl">("rtl");
   const prevPathRef = useRef(location.pathname);
+  // The always-mounted Dashboard cannot be keyed (remount would drop hunt UI
+  // state), so its reveal class is toggled when navigating back here. Set the
+  // flag during render (not in an effect): an effect fires after the first
+  // paint, so the Dashboard would paint fully visible for one frame and then
+  // jump back to the clipped animation start — that backward jump is the
+  // flicker. Setting it here means the reveal class is on the first paint.
+  const [dashboardReveal, setDashboardReveal] = useState(location.pathname === "/");
   if (prevPathRef.current !== location.pathname) {
     const order = ["/", "/hotkeys", "/overlay-editor", "/settings"];
     const from = order.indexOf(prevPathRef.current);
     const to = order.indexOf(location.pathname);
     revealDirRef.current = to >= from ? "rtl" : "ltr";
+    if (location.pathname === "/") setDashboardReveal(true);
     prevPathRef.current = location.pathname;
   }
   const revealClass = revealDirRef.current === "rtl" ? "anim-t-reveal-rtl" : "anim-t-reveal";
-
-  // The always-mounted Dashboard cannot be keyed (remount would drop hunt
-  // UI state), so its reveal class is toggled when navigating back here.
-  const [dashboardReveal, setDashboardReveal] = useState(false);
-  useEffect(() => {
-    if (location.pathname === "/") {
-      setDashboardReveal(true);
-    }
-  }, [location.pathname]);
 
   // Mark non-overlay documents as "app" and mirror the motion preference as a
   // DOM attribute so index.css can gate animations. Overlay routes get neither
