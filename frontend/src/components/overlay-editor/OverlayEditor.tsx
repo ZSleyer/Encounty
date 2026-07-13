@@ -257,7 +257,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
       </div>
       {pokemonUrl ? (
         <>
-          <div className="bg-bg-primary rounded px-2 py-1.5 2xl:px-2.5 2xl:py-2 mb-1.5">
+          <div className="bg-bg-primary rounded-none px-2 py-1.5 2xl:px-2.5 2xl:py-2 mb-1.5">
             <code className="text-[10px] 2xl:text-xs text-accent-blue break-all">
               {pokemonUrl}
             </code>
@@ -265,7 +265,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
           <div className="flex gap-1">
             <button
               onClick={() => copy(pokemonUrl)}
-              className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
+              className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded-none text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
             >
               <Copy className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
               {copied ? t("overlay.copied") : t("overlay.copy")}
@@ -274,7 +274,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
               href={pokemonUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
+              className="flex items-center gap-1 px-2 py-1 2xl:px-2.5 2xl:py-1.5 rounded-none text-[10px] 2xl:text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
             >
               <ExternalLink className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
             </a>
@@ -1014,7 +1014,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               try { localStorage.removeItem("encounty_editor_split"); } catch {}
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-md p-1 text-text-muted hover:text-text-primary transition-opacity z-10 relative after:absolute after:-inset-2 after:content-['']"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-none p-1 text-text-muted hover:text-text-primary transition-opacity z-10 relative after:absolute after:-inset-2 after:content-['']"
             title={t("tooltip.editor.resetLayout")}
             aria-label={t("tooltip.editor.resetLayout")}
           >
@@ -1031,7 +1031,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             <button
               onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
               title={t("tooltip.editor.resetLayout")}
-              className="flex items-center gap-1 px-1 py-0.5 rounded text-[10px] text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
+              className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
             >
               <RotateCcw className="w-3 h-3" />
             </button>
@@ -1043,7 +1043,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               return (
                 <div
                   key={key}
-                  className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full ${
+                  className={`flex items-center justify-between px-2 py-1.5 rounded-none transition-colors w-full ${
                     selectedEl === key
                       ? "bg-accent-blue/20 border border-accent-blue/40"
                       : "hover:bg-bg-hover border border-transparent"
@@ -1103,7 +1103,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
           {/* Canvas layer — always at bottom */}
           <div
-            className={`flex items-center justify-between px-2 py-1.5 rounded transition-colors w-full ${
+            className={`flex items-center justify-between px-2 py-1.5 rounded-none transition-colors w-full ${
               selectedEl === "canvas"
                 ? "bg-accent-blue/20 border border-accent-blue/40"
                 : "hover:bg-bg-hover border border-transparent"

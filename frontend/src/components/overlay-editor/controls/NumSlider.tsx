@@ -29,7 +29,7 @@ export function NumInput({
   };
   return (
     <div
-      className={`flex items-center border border-border-subtle rounded overflow-hidden bg-bg-primary ${className ?? ""}`}
+      className={`flex items-center border border-border-subtle rounded-none overflow-hidden bg-bg-primary ${className ?? ""}`}
     >
       <button
         type="button"

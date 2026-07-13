@@ -397,7 +397,7 @@ export function OverlayCanvas({
       data-tutorial="canvas"
       tabIndex={0}
       aria-label="Overlay canvas"
-      className={`flex-1 rounded-xl border border-border-subtle overflow-auto min-h-0 relative ${canvasBg === "transparent" ? "canvas-checkered" : ""}`}
+      className={`flex-1 rounded-none border border-border-subtle overflow-auto min-h-0 relative ${canvasBg === "transparent" ? "canvas-checkered" : ""}`}
       style={{
         cursor: canvasCursor,
         backgroundColor: canvasBgColor,
@@ -585,7 +585,7 @@ export function OverlayCanvas({
           {/* Drag tooltip showing dimensions */}
           {isDragging && selectedEl && selectedEl !== "canvas" && (
             <div
-              className="absolute pointer-events-none bg-black/80 text-white text-[10px] px-2 py-0.5 rounded font-mono"
+              className="absolute pointer-events-none bg-black/80 text-white text-[10px] px-2 py-0.5 rounded-none font-mono"
               style={{
                 left: (localSettings[selectedEl] as OverlayElementBase).x + (localSettings[selectedEl] as OverlayElementBase).width / 2 - 20,
                 top: Math.max(0, (localSettings[selectedEl] as OverlayElementBase).y - 18),

@@ -128,7 +128,7 @@ export function SidebarGroupSection({
           type="button"
           onClick={onToggleCollapse}
           aria-expanded={!collapsed}
-          className="flex items-center gap-1.5 flex-1 min-w-0 text-left text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded px-0.5 py-0.5"
+          className="flex items-center gap-1.5 flex-1 min-w-0 text-left text-text-secondary hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-none px-0.5 py-0.5"
         >
           {chevron}
           <span
@@ -147,7 +147,7 @@ export function SidebarGroupSection({
           <button
             type="button"
             onClick={onShowGroupView}
-            className="min-w-6 min-h-6 flex items-center justify-center rounded text-text-faint hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+            className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             title={t("group.viewGroup")}
             aria-label={t("group.viewGroup")}
           >
@@ -158,7 +158,7 @@ export function SidebarGroupSection({
           <button
             type="button"
             onClick={onSetHotkeyTarget}
-            className={`min-w-6 min-h-6 flex items-center justify-center rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
+            className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
               isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
             }`}
             title={isHotkeyTarget ? t("group.hotkeyTargetActive") : t("group.hotkeyTarget")}
@@ -177,7 +177,7 @@ export function SidebarGroupSection({
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label={t("group.manage")}
-              className="min-w-6 min-h-6 flex items-center justify-center rounded text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
             >
               <MoreVertical className="w-3.5 h-3.5" />
             </button>
@@ -191,7 +191,7 @@ export function SidebarGroupSection({
                 <div
                   role="menu"
                   aria-label={label}
-                  className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-44"
+                  className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-44"
                   style={{ top: menuPos.top, right: menuPos.right }}
                 >
                   <button

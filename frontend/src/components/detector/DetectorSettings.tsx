@@ -98,7 +98,7 @@ export function DetectorSettings({
   /** No active template to edit — shown instead of the sliders. */
   const emptyState = (
     <div className={embedded ? "" : "px-4 pb-4 border-t border-border-subtle pt-3"}>
-      <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
+      <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-none px-3 py-2 border border-border-subtle">
         {t("detector.noActiveTemplate")}
       </p>
     </div>
@@ -109,7 +109,7 @@ export function DetectorSettings({
     <div className={`${embedded ? "space-y-3" : "px-4 pb-4 space-y-3 border-t border-border-subtle pt-3"} ${disabled ? "opacity-50 pointer-events-none" : ""}`} aria-disabled={disabled || undefined}>
           {/* Header naming the template these settings belong to, so it's
               unambiguous which template is being edited. */}
-          <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
+          <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-none px-3 py-2 border border-border-subtle">
             {t("detector.templateSettingsNote", { name: template?.name || t("detector.unnamedTemplate") })}
           </p>
 
@@ -135,7 +135,7 @@ export function DetectorSettings({
               <input
                 id="det-cooldown" type="number" min={0} max={120} value={cooldownSec}
                 onChange={(e) => onUpdate({ cooldown_sec: Number.parseInt(e.target.value, 10) || 0 })}
-                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                className="w-full bg-bg-primary border border-border-subtle rounded-none px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
               />
               <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.cooldownDesc")}</p>
             </div>
@@ -144,7 +144,7 @@ export function DetectorSettings({
               <input
                 id="det-hits" type="number" min={1} max={10} value={consecutiveHits}
                 onChange={(e) => onUpdate({ consecutive_hits: Number.parseInt(e.target.value, 10) || 1 })}
-                className="w-full bg-bg-primary border border-border-subtle rounded-lg px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
+                className="w-full bg-bg-primary border border-border-subtle rounded-none px-2 py-1 text-sm text-text-primary outline-none focus:border-accent-blue/50"
               />
               <p className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.hitsDesc")}</p>
             </div>
@@ -179,7 +179,7 @@ export function DetectorSettings({
             <p id="det-hysteresis-mode-desc" className="text-[11px] leading-relaxed text-text-muted mt-0.5">{t("detector.hysteresisModeDesc")}</p>
           </div>
           {/* Hysteresis explanation */}
-          <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-lg px-3 py-2 border border-border-subtle">
+          <p className="text-[11px] leading-relaxed text-text-muted bg-bg-primary rounded-none px-3 py-2 border border-border-subtle">
             {t("detector.cooldownHint", { pct: String(Math.round(hysteresisFactor * 100)) })}
           </p>
 
@@ -189,7 +189,7 @@ export function DetectorSettings({
             <p className="text-[11px] leading-relaxed text-text-muted mb-3">{t("detector.adaptivePollingDesc")}</p>
             {(() => {
               const errs = pollErrors;
-              const inputBase = "w-full bg-bg-primary border rounded-lg px-2 py-1 text-sm text-text-primary outline-none";
+              const inputBase = "w-full bg-bg-primary border rounded-none px-2 py-1 text-sm text-text-primary outline-none";
               const okBorder = "border-border-subtle focus:border-accent-blue/50";
               const errBorder = "border-accent-red/60 focus:border-accent-red";
               return (
@@ -263,7 +263,7 @@ export function DetectorSettings({
                 <button
                   onClick={onApplyDefaults}
                   title={t("detector.tooltipApplyDefaults")}
-                  className="px-2 py-0.5 rounded text-xs font-medium border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
+                  className="px-2 py-0.5 rounded-none text-xs font-medium border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
                 >
                   {t("detector.applyDefaults")}
                 </button>
@@ -283,7 +283,7 @@ export function DetectorSettings({
               onClick={onSave}
               disabled={!settingsDirty || hasPollErrors}
               title={hasPollErrors ? t("detector.errPollInvalid") : undefined}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs font-semibold transition-colors ${
                 settingsDirty && !hasPollErrors
                   ? "bg-accent-blue text-white hover:bg-accent-blue/90"
                   : "bg-bg-hover border border-border-subtle text-text-muted cursor-default opacity-60"
@@ -305,7 +305,7 @@ export function DetectorSettings({
   return (
     <div
       data-detector-tutorial="settings"
-      className="bg-bg-card border border-border-subtle rounded-xl shadow-sm overflow-hidden"
+      className="bg-bg-card border border-border-subtle rounded-none shadow-sm overflow-hidden"
     >
       <button
         onClick={() => setShowSettings((v) => !v)}

@@ -84,7 +84,7 @@ function TextStyleEditor({
   const u = (field: keyof TextStyle, value: unknown) =>
     onChange({ ...style, [field]: value });
   return (
-    <div className="space-y-2 border border-border-subtle/50 rounded p-2">
+    <div className="space-y-2 border border-border-subtle/50 rounded-none p-2">
       <p className="text-xs 2xl:text-sm text-text-secondary font-semibold">{label}</p>
 
       {/* --- Font --- */}
@@ -93,7 +93,7 @@ function TextStyleEditor({
         <select
           value={style.font_family}
           onChange={(e) => u("font_family", e.target.value)}
-          className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+          className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
         >
           {POPULAR_FONTS.map((f) => (
             <option key={f} value={f}>{f}</option>
@@ -110,7 +110,7 @@ function TextStyleEditor({
         <select
           value={style.font_weight}
           onChange={(e) => u("font_weight", Number(e.target.value))}
-          className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+          className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
         >
           {[100, 300, 400, 500, 700, 900].map((w) => (
             <option key={w} value={w}>{w}</option>
@@ -121,7 +121,7 @@ function TextStyleEditor({
       {/* --- Alignment --- */}
       <div className="flex items-center gap-1">
         <span className="text-xs text-text-muted w-14 2xl:w-16">{t("overlay.textAlign")}</span>
-        <div className="flex border border-border-subtle rounded overflow-hidden">
+        <div className="flex border border-border-subtle rounded-none overflow-hidden">
           {(["left", "center", "right"] as const).map((align) => {
             const centerOrRight = align === "center" ? t("tooltip.editor.alignCenter") : t("tooltip.editor.alignRight");
             const alignTitle = align === "left" ? t("tooltip.editor.alignLeft") : centerOrRight;
@@ -309,7 +309,7 @@ export function OverlayPropertyPanel({
     update({ ...localSettings, background_animation_config: { ...bgConfig, [key]: value } });
 
   return (
-    <div data-tutorial="properties" className={embedded ? "flex-1 min-h-0" : "bg-bg-secondary rounded-xl border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"}>
+    <div data-tutorial="properties" className={embedded ? "flex-1 min-h-0" : "bg-bg-secondary rounded-none border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"}>
       <div className="mb-4">
         <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-0.5">
           {t("overlay.properties")}
@@ -347,7 +347,7 @@ export function OverlayPropertyPanel({
             <select
               value={localSettings.background_animation ?? "none"}
               onChange={(e) => update({ ...localSettings, background_animation: e.target.value })}
-              className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1"
+              className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="waves">{t("overlay.animWaves")}</option>
@@ -386,7 +386,7 @@ export function OverlayPropertyPanel({
                     <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
                     <input type="color" value={(bgConfig.wavesColor as string) ?? "#ffffff"}
                       onChange={(e) => setBgConfig("wavesColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <NumSlider label={t("overlay.animOpacity")} value={(bgConfig.wavesOpacity as number) ?? 0.18}
                     min={0} max={1} step={0.05}
@@ -401,25 +401,25 @@ export function OverlayPropertyPanel({
                     <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
                     <input type="color" value={(bgConfig.gradientColor1 as string) ?? "#ff6b6b"}
                       onChange={(e) => setBgConfig("gradientColor1", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <label className="block">
                     <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
                     <input type="color" value={(bgConfig.gradientColor2 as string) ?? "#feca57"}
                       onChange={(e) => setBgConfig("gradientColor2", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <label className="block">
                     <span className="text-xs text-text-muted">{t("overlay.animColor")} 3</span>
                     <input type="color" value={(bgConfig.gradientColor3 as string) ?? "#48dbfb"}
                       onChange={(e) => setBgConfig("gradientColor3", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <label className="block">
                     <span className="text-xs text-text-muted">{t("overlay.animColor")} 4</span>
                     <input type="color" value={(bgConfig.gradientColor4 as string) ?? "#ff9ff3"}
                       onChange={(e) => setBgConfig("gradientColor4", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                 </>
               )}
@@ -431,7 +431,7 @@ export function OverlayPropertyPanel({
                     <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
                     <input type="color" value={(bgConfig.shimmerColor as string) ?? "#ffffff"}
                       onChange={(e) => setBgConfig("shimmerColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <NumSlider label={t("overlay.animIntensity")} value={(bgConfig.shimmerIntensity as number) ?? 0.12}
                     min={0} max={1} step={0.05}
@@ -446,19 +446,19 @@ export function OverlayPropertyPanel({
                     <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
                     <input type="color" value={(bgConfig.auroraColor1 as string) ?? "#3A29FF"}
                       onChange={(e) => setBgConfig("auroraColor1", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <label className="block">
                     <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
                     <input type="color" value={(bgConfig.auroraColor2 as string) ?? "#FF94B4"}
                       onChange={(e) => setBgConfig("auroraColor2", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <label className="block">
                     <span className="text-xs text-text-muted">{t("overlay.animColor")} 3</span>
                     <input type="color" value={(bgConfig.auroraColor3 as string) ?? "#FF3232"}
                       onChange={(e) => setBgConfig("auroraColor3", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <NumSlider label={t("overlay.animAmplitude")} value={(bgConfig.auroraAmplitude as number) ?? 1}
                     min={0.1} max={3} step={0.1}
@@ -491,7 +491,7 @@ export function OverlayPropertyPanel({
                     <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
                     <input type="color" value={(bgConfig.silkColor as string) ?? "#5227FF"}
                       onChange={(e) => setBgConfig("silkColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <NumSlider label={t("overlay.animScale")} value={(bgConfig.silkScale as number) ?? 1}
                     min={0.1} max={5} step={0.1}
@@ -509,7 +509,7 @@ export function OverlayPropertyPanel({
                     <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
                     <input type="color" value={(bgConfig.pixelColor as string) ?? "#1a1a2e"}
                       onChange={(e) => setBgConfig("pixelColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded border border-border-subtle cursor-pointer" />
+                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
                   </label>
                   <NumSlider label={t("overlay.animPixelSize")} value={(bgConfig.pixelSize as number) ?? 10}
                     min={3} max={30} step={1}
@@ -518,7 +518,7 @@ export function OverlayPropertyPanel({
                     <span className="text-xs text-text-muted">{t("overlay.animVariant")}</span>
                     <select value={(bgConfig.pixelVariant as string) ?? "circle"}
                       onChange={(e) => setBgConfig("pixelVariant", e.target.value)}
-                      className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1">
+                      className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1">
                       <option value="circle">Circle</option>
                       <option value="square">Square</option>
                       <option value="diamond">Diamond</option>
@@ -541,7 +541,7 @@ export function OverlayPropertyPanel({
                   title={t("tooltip.editor.uploadBackground")}
                   onClick={onBgUpload}
                   disabled={bgUploading}
-                  className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
                 >
                   <Upload className="w-3 h-3" />
                   {bgUploading ? "..." : t("overlay.upload")}
@@ -550,7 +550,7 @@ export function OverlayPropertyPanel({
                   <button
                     title={t("tooltip.editor.removeBackground")}
                     onClick={onBgRemove}
-                    className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-bg-primary hover:bg-accent-red/20 text-text-secondary hover:text-accent-red transition-colors"
+                    className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-bg-primary hover:bg-accent-red/20 text-text-secondary hover:text-accent-red transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
                     {t("overlay.remove")}
@@ -560,7 +560,7 @@ export function OverlayPropertyPanel({
               {localSettings.background_image && bgPreviewUrl && (
                 <>
                   <div
-                    className="mt-1.5 w-full h-12 rounded border border-border-subtle bg-bg-primary overflow-hidden"
+                    className="mt-1.5 w-full h-12 rounded-none border border-border-subtle bg-bg-primary overflow-hidden"
                     style={{
                       backgroundImage: `url(${bgPreviewUrl})`,
                       backgroundSize: "cover",
@@ -575,7 +575,7 @@ export function OverlayPropertyPanel({
                         background_image_fit: e.target.value as "cover" | "contain" | "stretch" | "tile",
                       })
                     }
-                    className="w-full bg-bg-secondary border border-border-subtle rounded px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1"
+                    className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1"
                   >
                     <option value="cover">Cover</option>
                     <option value="contain">Contain</option>
@@ -847,7 +847,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="float">{t("overlay.animFloat")}</option>
@@ -865,7 +865,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("sprite")}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
               >
                 <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -882,7 +882,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="pop">Pop</option>
@@ -904,7 +904,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("sprite", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -921,7 +921,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="pop">Pop</option>
@@ -970,7 +970,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="breathe">{t("overlay.animBreathe")}</option>
@@ -986,7 +986,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("name")}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
               >
                 <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1003,7 +1003,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="fade-in">{t("overlay.animFadeIn")}</option>
@@ -1025,7 +1025,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("name", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1042,7 +1042,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="fade-in">{t("overlay.animFadeIn")}</option>
@@ -1091,7 +1091,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="breathe">{t("overlay.animBreathe")}</option>
@@ -1107,7 +1107,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("title")}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
               >
                 <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1124,7 +1124,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="fade-in">{t("overlay.animFadeIn")}</option>
@@ -1146,7 +1146,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("title", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1163,7 +1163,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="fade-in">{t("overlay.animFadeIn")}</option>
@@ -1227,7 +1227,7 @@ export function OverlayPropertyPanel({
                     },
                   })
                 }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+                className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
                 placeholder="Label-Text"
                 aria-label={t("aria.labelText")}
               />
@@ -1264,7 +1264,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="breathe">{t("overlay.animBreathe")}</option>
@@ -1280,7 +1280,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("counter")}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
               >
                 <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1297,7 +1297,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="pop">Pop</option>
@@ -1321,7 +1321,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("counter", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1338,7 +1338,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="pop">Pop</option>
@@ -1404,7 +1404,7 @@ export function OverlayPropertyPanel({
                     },
                   })
                 }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+                className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
                 placeholder="Label-Text"
                 aria-label={t("aria.labelText")}
               />
@@ -1441,7 +1441,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="breathe">{t("overlay.animBreathe")}</option>
@@ -1485,7 +1485,7 @@ export function OverlayPropertyPanel({
                 })
               }
               aria-label={t("aria.oddsFormat")}
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary mt-1"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary mt-1"
             >
               <option value="fractional">{t("overlay.odds.formatFractional")}</option>
               <option value="percent">{t("overlay.odds.formatPercent")}</option>
@@ -1522,7 +1522,7 @@ export function OverlayPropertyPanel({
                     },
                   })
                 }
-                className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+                className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
                 placeholder="Label"
                 aria-label={t("aria.labelText")}
               />
@@ -1559,7 +1559,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="breathe">{t("overlay.animBreathe")}</option>
@@ -1575,7 +1575,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("odds")}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
               >
                 <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1592,7 +1592,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="fade-in">{t("overlay.animFadeIn")}</option>
@@ -1611,7 +1611,7 @@ export function OverlayPropertyPanel({
               </label>
               <button
                 onClick={() => fireTest("odds", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/20 hover:bg-accent-red/40 text-accent-red transition-colors"
               >
                 <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
               </button>
@@ -1628,7 +1628,7 @@ export function OverlayPropertyPanel({
                   },
                 })
               }
-              className="w-full bg-bg-primary border border-border-subtle rounded px-2.5 py-1.5 text-xs text-text-primary"
+              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
             >
               <option value="none">{t("overlay.animNone")}</option>
               <option value="fade-in">{t("overlay.animFadeIn")}</option>

@@ -902,7 +902,7 @@ export default function GpuEquivalenceTest({
       className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center m-0 p-0 border-none max-w-none max-h-none w-full h-full"
       aria-label="GPU Equivalence Test"
     >
-      <div className="bg-bg-card rounded-xl border border-border-subtle shadow-xl max-w-4xl w-full max-h-[85vh] flex flex-col">
+      <div className="bg-bg-card rounded-none border border-border-subtle shadow-xl max-w-4xl w-full max-h-[85vh] flex flex-col">
         {/* --- Header --- */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
           <h2 className="text-lg font-semibold text-text-primary">
@@ -911,7 +911,7 @@ export default function GpuEquivalenceTest({
           <button
             ref={closeButtonRef}
             onClick={handleDialogClose}
-            className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent-blue"
+            className="p-1.5 rounded-none hover:bg-bg-hover text-text-secondary focus-visible:outline-2 focus-visible:outline-accent-blue"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
@@ -924,7 +924,7 @@ export default function GpuEquivalenceTest({
             {running ? (
               <button
                 onClick={handleCancel}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-red text-white font-medium hover:bg-accent-red/80 focus-visible:outline-2 focus-visible:outline-accent-blue"
+                className="flex items-center gap-2 px-4 py-2 rounded-none bg-accent-red text-white font-medium hover:bg-accent-red/80 focus-visible:outline-2 focus-visible:outline-accent-blue"
               >
                 <X className="w-4 h-4" />
                 Cancel
@@ -933,7 +933,7 @@ export default function GpuEquivalenceTest({
               <button
                 onClick={runTests}
                 disabled={!gpuAvailable || running}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-blue text-bg-primary font-medium hover:bg-accent-blue/80 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-accent-blue"
+                className="flex items-center gap-2 px-4 py-2 rounded-none bg-accent-blue text-bg-primary font-medium hover:bg-accent-blue/80 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-accent-blue"
               >
                 <Play className="w-4 h-4" />
                 Run Test
@@ -1044,7 +1044,7 @@ export default function GpuEquivalenceTest({
                     </td>
                     <td className="py-1.5 pr-3">
                       <span
-                        className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                        className={`inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold ${
                           r.type === "match"
                             ? "bg-accent-green/20 text-accent-green"
                             : "bg-neutral-500/20 text-neutral-400"

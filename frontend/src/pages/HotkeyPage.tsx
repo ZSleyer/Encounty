@@ -60,14 +60,14 @@ export function HotkeyPage() {
     <main id="main-content" className="flex-1 flex flex-col min-h-0 bg-transparent">
       <div className="flex-1 min-h-0 overflow-auto p-6 relative z-10">
         <div className="max-w-xl mx-auto space-y-6">
-          <section className="glass-card rounded-2xl p-6">
+          <section className="glass-card rounded-none p-6">
             <h1 className="text-sm font-semibold text-text-primary mb-6">
               {t("settings.hotkeysTitle")}
             </h1>
             <HotkeySettings hotkeys={hotkeys} onUpdate={setHotkeys} />
           </section>
 
-          <section className="glass-card rounded-2xl p-6" aria-labelledby="obs-card-title">
+          <section className="glass-card rounded-none p-6" aria-labelledby="obs-card-title">
             <h2
               id="obs-card-title"
               className="text-sm font-semibold text-text-primary mb-3"
@@ -88,13 +88,13 @@ export function HotkeyPage() {
                 readOnly
                 value={universalUrl}
                 onFocus={(e) => e.currentTarget.select()}
-                className="flex-1 min-w-0 px-3 py-2 bg-bg-secondary border border-border-subtle rounded-lg text-xs 2xl:text-sm font-mono text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="flex-1 min-w-0 px-3 py-2 bg-bg-secondary border border-border-subtle rounded-none text-xs 2xl:text-sm font-mono text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               />
               <button
                 type="button"
                 onClick={handleCopy}
                 aria-label={t("hotkey.obsCard.copyAria")}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-border-subtle text-xs 2xl:text-sm font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-none border border-border-subtle text-xs 2xl:text-sm font-semibold text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 {copied ? (
                   <Check className="w-3.5 h-3.5 text-accent-green" />

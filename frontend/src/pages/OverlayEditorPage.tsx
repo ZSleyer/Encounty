@@ -137,7 +137,7 @@ export function OverlayEditorPage() {
           <OverlayBrowserSourceButton pokemonId={previewPokemon.id} />
 
           {/* Hotkeys paused badge */}
-          <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border">
+          <span className="hotkeys-paused-badge flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-none border">
             <Keyboard className="w-4 h-4" /> {t("settings.hotkeysPaused")}
           </span>
 
@@ -188,7 +188,7 @@ export function OverlayEditorPage() {
           className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
           onClick={(e) => { if (e.target === e.currentTarget) blocker.reset?.(); }}
         >
-          <div className="bg-bg-secondary border border-border-subtle rounded-2xl p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
+          <div className="bg-bg-secondary border border-border-subtle rounded-none p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
             <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
               <AlertTriangle className="w-7 h-7 text-accent-yellow" />
             </div>
@@ -204,14 +204,14 @@ export function OverlayEditorPage() {
               <button
                 type="button"
                 onClick={() => blocker.reset?.()}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
               >
                 {t("overlay.unsavedStay")}
               </button>
               <button
                 type="button"
                 onClick={() => blocker.proceed?.()}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-accent-red hover:bg-accent-red/80 text-white text-sm font-semibold transition-colors"
+                className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:bg-accent-red/80 text-white text-sm font-semibold transition-colors"
               >
                 {t("overlay.unsavedDiscard")}
               </button>

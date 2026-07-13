@@ -282,7 +282,7 @@ function SidebarHuntStatus({ pokemon, send, detectorRunning, disabled = false, t
       <button
         onClick={handleToggle}
         disabled={!canToggle}
-        className={`p-0.5 rounded transition-colors ${
+        className={`p-0.5 rounded-none transition-colors ${
           !canToggle ? "text-text-faint opacity-50 cursor-not-allowed" :
           anyRunning ? "text-accent-green hover:text-accent-yellow" :
           "text-text-faint hover:text-accent-green"
@@ -1048,7 +1048,7 @@ function SidebarQuickActions({
         <button
           disabled={!canStart && !someRunning}
           onClick={() => { if (allRunning) stopAll(); else startAll(); }}
-          className={`p-1.5 rounded-lg transition-colors ${huntButtonClass(allRunning, canStart, currentMode)}`}
+          className={`p-1.5 rounded-none transition-colors ${huntButtonClass(allRunning, canStart, currentMode)}`}
           title={sidebarLabel}
         >
           {sidebarIcon}
@@ -1063,7 +1063,7 @@ function SidebarQuickActions({
         {showHuntMenu && (
           <>
             <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHuntMenu(false)} aria-label="Close" />
-            <div className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
+            <div className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
               <button
                 onClick={() => setHuntMode("both")}
                 className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
@@ -1114,7 +1114,7 @@ function SidebarQuickActions({
           {sidebarTab === "active" && (
             <button
               onClick={bulkComplete}
-              className="p-1 rounded text-text-faint hover:text-accent-green transition-colors"
+              className="p-1 rounded-none text-text-faint hover:text-accent-green transition-colors"
               title={t("dash.caught")}
               aria-label={t("dash.caught")}
             >
@@ -1123,7 +1123,7 @@ function SidebarQuickActions({
           )}
           <button
             onClick={bulkDelete}
-            className="p-1 rounded text-text-faint hover:text-accent-red transition-colors"
+            className="p-1 rounded-none text-text-faint hover:text-accent-red transition-colors"
             title={t("dash.delete")}
             aria-label={t("dash.delete")}
           >
@@ -1131,7 +1131,7 @@ function SidebarQuickActions({
           </button>
           <button
             onClick={() => setSelectedIds(new Set())}
-            className="p-0.5 rounded text-text-faint hover:text-text-primary transition-colors"
+            className="p-0.5 rounded-none text-text-faint hover:text-text-primary transition-colors"
             title={t("timer.clearSelection")}
           >
             <X className="w-3 h-3" />
@@ -1270,7 +1270,7 @@ function HeaderHuntButton({
       {showMenu && (
         <>
           <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMenu(false)} aria-label={t("aria.close")} />
-          <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-40">
+          <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
             {[
               { mode: "both" as const, icon: <><Timer className="w-3.5 h-3.5" /><Eye className="w-3.5 h-3.5 -ml-1" /></>, label: t("sidebar.both") },
               { mode: "timer" as const, icon: <Timer className="w-3.5 h-3.5" />, label: t("sidebar.timerOnly") },
@@ -1572,7 +1572,7 @@ function DashboardCounterTab({
 function OverlayImportItem({ pokemon, onCopy }: Readonly<{ pokemon: Pokemon; onCopy: (id: string) => void }>) {
   const icon = pokemon.sprite_url
     ? <img src={pokemon.sprite_url} alt="" className="w-4 h-4 object-contain" />
-    : <div className="w-4 h-4 rounded bg-bg-hover" />;
+    : <div className="w-4 h-4 rounded-none bg-bg-hover" />;
   return (
     <button
       onClick={() => onCopy(pokemon.id)}
@@ -1604,7 +1604,7 @@ function ObsUrlCardButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
       onClick={copy}
       title={url}
       aria-label={t("aria.copyObsUrl")}
-      className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
+      className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
     >
       {copied ? <Check className="w-4 h-4 text-accent-green" /> : <Monitor className="w-4 h-4" />}
       <span className="text-[10px] font-medium">{copied ? t("overlay.urlCopied") : t("overlay.obsUrl")}</span>
@@ -1643,7 +1643,7 @@ function DashboardOverlayTab({
         <OverlayBrowserSourceButton pokemonId={pokemon.id} />
 
         {modeBase === "custom" && overlaySaved && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-accent-green/10 text-accent-green border border-accent-green/20 shrink-0">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-none text-[10px] font-medium bg-accent-green/10 text-accent-green border border-accent-green/20 shrink-0">
             <Save className="w-3 h-3" />
             {t("overlay.saved")}
           </span>
@@ -1654,7 +1654,7 @@ function DashboardOverlayTab({
         <button
           onClick={() => onModeChange("default")}
           title={t("dash.tooltipOverlayGlobal")}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold transition-colors shrink-0 ${
             modeBase === "default"
               ? "bg-accent-blue/15 text-accent-blue"
               : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -1666,7 +1666,7 @@ function DashboardOverlayTab({
         <button
           onClick={() => onModeChange("custom")}
           title={t("dash.tooltipOverlayCustom")}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shrink-0 ${
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold transition-colors shrink-0 ${
             modeBase === "custom"
               ? "bg-accent-purple/15 text-accent-purple"
               : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -1678,12 +1678,12 @@ function DashboardOverlayTab({
 
         {modeBase === "custom" && (
           <div className="relative group shrink-0">
-            <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
+            <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
               <Download className="w-3.5 h-3.5" />
               {t("overlay.import")}
               <ChevronDown className="w-3 h-3" />
             </button>
-            <div className="absolute right-0 top-full mt-1 w-52 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 max-h-60 overflow-y-auto">
+            <div className="absolute right-0 top-full mt-1 w-52 bg-bg-secondary border border-border-subtle rounded-none shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 max-h-60 overflow-y-auto">
               <button
                 onClick={() => onCopyFrom("global")}
                 className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors flex items-center gap-2"
@@ -1702,7 +1702,7 @@ function DashboardOverlayTab({
           <button
             onClick={onSave}
             disabled={!overlayDirty || overlaySaving}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold text-xs transition-colors disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
           >
             {saveIcon}
             {t("overlay.save")}
@@ -1723,7 +1723,7 @@ function DashboardOverlayTab({
             <div className="grid grid-cols-3 gap-2 pt-2">
               <Link
                 to="/overlay-editor"
-                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
+                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-text-secondary hover:text-accent-blue transition-colors"
               >
                 <ExternalLink className="w-4 h-4" />
                 <span className="text-[10px] font-medium">{t("overlay.editGlobal")}</span>
@@ -1731,7 +1731,7 @@ function DashboardOverlayTab({
               <button
                 type="button"
                 onClick={() => onModeChange("custom")}
-                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-accent-purple/40 hover:bg-accent-purple/5 text-text-secondary hover:text-accent-purple transition-colors"
+                className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-purple/40 hover:bg-accent-purple/5 text-text-secondary hover:text-accent-purple transition-colors"
               >
                 <Pencil className="w-4 h-4" />
                 <span className="text-[10px] font-medium">{t("overlay.switchToCustom")}</span>
@@ -2330,7 +2330,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
     const dropSlot = (
       <li
         aria-hidden="true"
-        className="h-11 mx-1 my-1 rounded-lg border-2 border-dashed border-accent-blue bg-accent-blue/10 pointer-events-none"
+        className="h-11 mx-1 my-1 rounded-none border-2 border-dashed border-accent-blue bg-accent-blue/10 pointer-events-none"
       />
     );
     return (
@@ -2385,7 +2385,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               )}
               <button
                 onClick={(e) => { e.stopPropagation(); send("set_active", { pokemon_id: p.id }); }}
-                className={`min-w-6 min-h-6 flex items-center justify-center rounded transition-colors hover:text-accent-blue ${
+                className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors hover:text-accent-blue ${
                   isHotkeyTarget ? "text-accent-blue" : "text-text-faint/40"
                 }`}
                 title={isHotkeyTarget ? t("dash.hotkeyTargetActive") : t("dash.hotkeyTarget")}
@@ -2396,7 +2396,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setEditingPokemon(p); }}
-                className="min-w-6 min-h-6 flex items-center justify-center rounded text-text-faint hover:text-text-primary transition-colors"
+                className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-text-primary transition-colors"
                 title={t("dash.edit")}
               >
                 <Pencil className="w-3 h-3 2xl:w-3.5 2xl:h-3.5" />
@@ -2553,7 +2553,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
         {/* Search bar + Sort + Collapse */}
         <div className="p-3 border-b border-border-subtle">
           <div className="flex items-center gap-1.5 2xl:gap-2">
-            <div data-focus-wrapper className="flex-1 min-w-0 flex items-center gap-1.5 bg-bg-primary border border-border-subtle rounded-lg px-2 py-1.5 2xl:px-3 2xl:gap-2 focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors">
+            <div data-focus-wrapper className="flex-1 min-w-0 flex items-center gap-1.5 bg-bg-primary border border-border-subtle rounded-none px-2 py-1.5 2xl:px-3 2xl:gap-2 focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors">
               <Search className="w-3.5 h-3.5 text-text-muted shrink-0" />
               <input
                 ref={searchRef}
@@ -2576,7 +2576,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
             <div className="relative">
               <button
                 onClick={() => setShowSortMenu(v => !v)}
-                className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+                className="p-1.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
                 title={t("sidebar.sortBy")}
                 aria-label={t("sidebar.sortBy")}
               >
@@ -2585,7 +2585,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               {showSortMenu && (
                 <>
                   <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowSortMenu(false)} aria-label={t("aria.close")} />
-                  <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-36">
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-36">
                     {([
                       { mode: "recent" as const, label: t("sidebar.sortRecent") },
                       { mode: "name" as const, label: t("sidebar.sortName") },
@@ -2613,7 +2613,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               <button
                 onClick={() => setShowTagFilterBar(v => !v)}
                 aria-pressed={showTagFilterBar || activeTagFilters.length > 0}
-                className={`p-1.5 rounded-lg bg-bg-primary border transition-colors ${
+                className={`p-1.5 rounded-none bg-bg-primary border transition-colors ${
                   showTagFilterBar || activeTagFilters.length > 0
                     ? "border-accent-blue/60 text-accent-blue"
                     : "border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary"
@@ -2627,7 +2627,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
             {/* Manage groups */}
             <button
               onClick={() => setShowGroupModal(true)}
-              className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+              className="p-1.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
               title={t("group.manage")}
               aria-label={t("group.manage")}
             >
@@ -2636,7 +2636,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
             {/* Collapse sidebar */}
             <button
               onClick={() => setSidebarCollapsed(true)}
-              className="p-1.5 rounded-lg bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
+              className="p-1.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
               title={t("sidebar.collapse")}
               aria-label={t("sidebar.collapse")}
             >
@@ -2779,7 +2779,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               <div className="border-t border-border-subtle mx-2" />
               <button
                 onClick={() => setShowAddModal(true)}
-                className="p-2 mx-auto my-2 text-accent-blue hover:text-white hover:bg-accent-blue rounded-lg transition-colors"
+                className="p-2 mx-auto my-2 text-accent-blue hover:text-white hover:bg-accent-blue rounded-none transition-colors"
                 title={t("dash.addPokemon")}
                 aria-label={t("dash.addPokemon")}
               >

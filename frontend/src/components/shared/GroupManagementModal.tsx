@@ -163,7 +163,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                     type="button"
                     onClick={() => handleMoveUp(idx)}
                     disabled={idx === 0}
-                    className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                    className="p-1.5 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                     aria-label={t("group.moveUp")}
                   >
                     <ArrowUp className="w-3.5 h-3.5" />
@@ -172,7 +172,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                     type="button"
                     onClick={() => handleMoveDown(idx)}
                     disabled={idx === sorted.length - 1}
-                    className="p-1.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                    className="p-1.5 rounded-none text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                     aria-label={t("group.moveDown")}
                   >
                     <ArrowDown className="w-3.5 h-3.5" />
@@ -180,7 +180,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                   <button
                     type="button"
                     onClick={() => setPendingDelete(group)}
-                    className="p-1.5 rounded text-text-faint hover:text-accent-red hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                    className="p-1.5 rounded-none text-text-faint hover:text-accent-red hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
                     aria-label={t("group.delete")}
                   >
                     <Trash2 className="w-3.5 h-3.5" />

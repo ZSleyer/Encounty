@@ -62,7 +62,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
   useLazyLicenses(licensesOpen, licenses.length, setLicenses);
 
   return (
-    <section className="glass-card rounded-2xl p-6 space-y-4">
+    <section className="glass-card rounded-none p-6 space-y-4">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
         <Info className="w-4 h-4 text-text-muted" />
         {t("settings.sectionAbout")}
@@ -82,7 +82,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
         </p>
         <button
           onClick={() => setShowLicenseDialog(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-secondary hover:bg-bg-hover border border-border-subtle text-xs text-text-muted hover:text-text-primary transition-colors shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-bg-secondary hover:bg-bg-hover border border-border-subtle text-xs text-text-muted hover:text-text-primary transition-colors shrink-0"
         >
           <Scale className="w-3 h-3" />
           {t("license.showDialog")}
@@ -117,7 +117,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
               {licenses.map((dep) => (
                 <div
                   key={`${dep.source}-${dep.name}`}
-                  className="bg-bg-secondary/30 border border-border-subtle rounded-lg overflow-hidden"
+                  className="bg-bg-secondary/30 border border-border-subtle rounded-none overflow-hidden"
                 >
                   <button
                     onClick={() =>
@@ -133,7 +133,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
                     <span className="text-[10px] text-text-faint shrink-0">
                       {dep.version}
                     </span>
-                    <span className="inline-block px-1.5 py-0.5 rounded bg-bg-secondary border border-border-subtle text-text-muted font-mono text-[10px] shrink-0">
+                    <span className="inline-block px-1.5 py-0.5 rounded-none bg-bg-secondary border border-border-subtle text-text-muted font-mono text-[10px] shrink-0">
                       {dep.license}
                     </span>
                     <ChevronDown
@@ -173,7 +173,7 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
             {DATA_SOURCES.map((src) => (
               <div
                 key={src.name}
-                className="bg-bg-secondary/30 border border-border-subtle rounded-lg px-3 py-2 flex items-center gap-3"
+                className="bg-bg-secondary/30 border border-border-subtle rounded-none px-3 py-2 flex items-center gap-3"
               >
                 <span className="text-xs text-text-primary font-medium flex-1 min-w-0 truncate">
                   {src.name}

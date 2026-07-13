@@ -139,7 +139,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
   return (
     <div className="space-y-3">
       {hotkeyAvailable === false ? (
-        <div className="mb-4 p-3 bg-accent-yellow/10 border border-accent-yellow/40 rounded-lg">
+        <div className="mb-4 p-3 bg-accent-yellow/10 border border-accent-yellow/40 rounded-none">
           <p className="text-xs text-accent-yellow">{t("hotkeys.unavailable")}</p>
           {globalThis.electronAPI?.platform === "linux" && (
             <p className="text-xs text-text-muted mt-1">
@@ -162,7 +162,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
         return (
           <div key={key} className="space-y-1">
             <div
-              className={`flex items-center justify-between bg-bg-secondary rounded-lg px-4 py-3 border transition-colors ${
+              className={`flex items-center justify-between bg-bg-secondary rounded-none px-4 py-3 border transition-colors ${
                 isRecording ? 'border-accent-blue/50' : 'border-transparent'
               }`}
             >
@@ -180,7 +180,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
 
               <div className="flex items-center gap-2">
                 <kbd
-                  className={`px-2 py-1 border rounded text-xs 2xl:text-sm font-mono min-w-18 2xl:min-w-21 text-center ${
+                  className={`px-2 py-1 border rounded-none text-xs 2xl:text-sm font-mono min-w-18 2xl:min-w-21 text-center ${
                     isRecording
                       ? 'bg-accent-blue/10 border-accent-blue/30 text-accent-blue'
                       : 'bg-bg-primary border-border-subtle text-text-secondary'
@@ -197,7 +197,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
                     isRecording ? cancelRecording() : startRecording(key)
                   }
                   title={isRecording ? t("tooltip.common.cancel") : t("hotkeys.tooltipRecord")}
-                  className={`px-3 py-1 2xl:px-4 2xl:py-1.5 rounded text-xs 2xl:text-sm transition-colors ${
+                  className={`px-3 py-1 2xl:px-4 2xl:py-1.5 rounded-none text-xs 2xl:text-sm transition-colors ${
                     isRecording
                       ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30'
                       : 'bg-bg-hover text-text-secondary hover:text-text-primary'
@@ -209,7 +209,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
                 {currentCombo && !isRecording ? (
                   <button
                     onClick={() => deleteBinding(key)}
-                    className="p-1 rounded text-text-faint hover:text-accent-red transition-colors"
+                    className="p-1 rounded-none text-text-faint hover:text-accent-red transition-colors"
                     title={t("hotkeys.tooltipDelete")}
                   >
                     <X className="w-3.5 h-3.5" />
@@ -228,7 +228,7 @@ export function HotkeySettings({ hotkeys, onUpdate }: Readonly<HotkeySettingsPro
       })}
 
       {recording && (
-        <div role="status" aria-live="polite" className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg">
+        <div role="status" aria-live="polite" className="mt-4 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-none">
           <p className="text-sm 2xl:text-base text-accent-blue">
             ● {t("hotkeys.pressKey", { action: t(ACTIONS.find((a) => a.key === recording)?.labelKey ?? "") })}
             {liveModifiers && (

@@ -72,14 +72,14 @@ export function VerticalToolbar({
   const iconClass = "w-5 h-5";
 
   const toolBtnClass = (active: boolean) =>
-    `p-2 rounded-lg transition-colors ${
+    `p-2 rounded-none transition-colors ${
       active
         ? "text-accent-blue bg-accent-blue/20"
         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
     }`;
 
   const actionBtnClass = (disabled: boolean) =>
-    `p-2 rounded-lg transition-colors ${
+    `p-2 rounded-none transition-colors ${
       disabled
         ? "opacity-30 cursor-not-allowed text-text-muted"
         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -141,7 +141,7 @@ export function VerticalToolbar({
           value={gridSize}
           onChange={(e) => onGridSizeChange(Number(e.target.value))}
           aria-label={t("aria.gridSize")}
-          className="w-8 text-[11px] bg-bg-card border border-border-subtle rounded px-0.5 py-0.5 text-text-primary text-center"
+          className="w-8 text-[11px] bg-bg-card border border-border-subtle rounded-none px-0.5 py-0.5 text-text-primary text-center"
         >
           <option value={8}>8</option>
           <option value={16}>16</option>
@@ -178,7 +178,7 @@ export function VerticalToolbar({
         onClick={onFitToView}
         title={t("tooltip.editor.fitView")}
         aria-label={t("tooltip.editor.fitView")}
-        className="p-1.5 rounded transition-colors text-text-muted hover:text-text-primary hover:bg-bg-hover"
+        className="p-1.5 rounded-none transition-colors text-text-muted hover:text-text-primary hover:bg-bg-hover"
       >
         <Maximize className={iconClass} />
       </button>
@@ -191,7 +191,7 @@ export function VerticalToolbar({
         disabled={!activePokemon}
         title={t("tooltip.editor.previewIncrement")}
         aria-label={t("tooltip.editor.previewIncrement")}
-        className={`p-1.5 rounded transition-colors ${
+        className={`p-1.5 rounded-none transition-colors ${
           activePokemon
             ? "text-accent-green hover:bg-bg-hover"
             : "opacity-30 cursor-not-allowed text-accent-green"
@@ -204,7 +204,7 @@ export function VerticalToolbar({
         disabled={!activePokemon || currentCount <= 0}
         title={t("tooltip.editor.previewDecrement")}
         aria-label={t("tooltip.editor.previewDecrement")}
-        className={`p-1.5 rounded transition-colors ${
+        className={`p-1.5 rounded-none transition-colors ${
           activePokemon && currentCount > 0
             ? "text-accent-yellow hover:bg-bg-hover"
             : "opacity-30 cursor-not-allowed text-accent-yellow"
@@ -217,7 +217,7 @@ export function VerticalToolbar({
         disabled={!activePokemon}
         title={t("tooltip.editor.previewReset")}
         aria-label={t("tooltip.editor.previewReset")}
-        className={`p-1.5 rounded transition-colors ${
+        className={`p-1.5 rounded-none transition-colors ${
           activePokemon
             ? "text-text-muted hover:text-text-primary hover:bg-bg-hover"
             : "opacity-30 cursor-not-allowed text-text-muted"
@@ -243,14 +243,14 @@ export function VerticalToolbar({
               onClick={() => onCanvasBgChange(bg)}
               title={titleMap[bg]}
               aria-label={titleMap[bg]}
-              className={`p-1.5 rounded transition-colors ${
+              className={`p-1.5 rounded-none transition-colors ${
                 canvasBg === bg
                   ? "bg-accent-blue/20 ring-1 ring-accent-blue"
                   : "hover:bg-bg-hover"
               }`}
             >
               <div
-                className="w-5 h-3 rounded-sm border border-border-subtle"
+                className="w-5 h-3 rounded-none border border-border-subtle"
                 style={{
                   background: (() => {
                     if (bg === "transparent") return "repeating-conic-gradient(#666 0% 25%, #999 0% 50%) 50% / 6px 6px";
@@ -281,7 +281,7 @@ export function VerticalToolbar({
         onClick={onShowTutorial}
         title={t("tooltip.editor.showTutorial")}
         aria-label={t("tooltip.editor.showTutorial")}
-        className="p-1.5 rounded transition-colors text-text-muted hover:text-text-primary hover:bg-bg-hover mt-1"
+        className="p-1.5 rounded-none transition-colors text-text-muted hover:text-text-primary hover:bg-bg-hover mt-1"
       >
         <HelpCircle className={iconClass} />
       </button>

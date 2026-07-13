@@ -473,7 +473,7 @@ function GroupAndTagsSection({
             <button
               type="button"
               onClick={onManageGroups}
-              className="text-[11px] text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded px-1"
+              className="text-[11px] text-accent-blue hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-none px-1"
             >
               {t("group.manage")}
             </button>

@@ -55,7 +55,7 @@ export function FolderPathInput(props: FolderPathInputProps): JSX.Element {
         onChange={(e) => props.onChange(e.target.value)}
         placeholder={props.placeholder}
         aria-label={props.ariaLabel}
-        className="flex-1 bg-bg-secondary border border-border-subtle rounded-lg px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+        className="flex-1 bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
       />
       <button
         type="button"
@@ -64,7 +64,7 @@ export function FolderPathInput(props: FolderPathInputProps): JSX.Element {
         aria-disabled={!pickerAvailable}
         aria-label={chooseLabel}
         title={pickerAvailable ? chooseLabel : disabledTooltip}
-        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-none bg-bg-secondary hover:bg-bg-hover text-sm text-text-primary border border-border-subtle transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
       >
         <FolderOpen className="w-4 h-4" />
         {chooseLabel}

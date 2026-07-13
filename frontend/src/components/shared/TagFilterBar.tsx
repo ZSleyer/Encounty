@@ -108,7 +108,7 @@ export function TagFilterBar({
               <div
                 role="menu"
                 aria-label={t("tag.filter")}
-                className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-lg shadow-lg py-1 min-w-36 max-h-60 overflow-y-auto"
+                className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-36 max-h-60 overflow-y-auto"
               >
                 {pickable.map((tag, idx) => (
                   <button
@@ -137,7 +137,7 @@ export function TagFilterBar({
         <button
           type="button"
           onClick={onClear}
-          className="ml-auto inline-flex items-center gap-1 min-h-[24px] text-[10px] text-text-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded"
+          className="ml-auto inline-flex items-center gap-1 min-h-[24px] text-[10px] text-text-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded-none"
           aria-label={t("tag.clearFilters")}
         >
           <X className="w-3 h-3" />

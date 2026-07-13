@@ -46,7 +46,7 @@ export function ColorSwatch({
     >
       {/* Swatch container */}
       <span
-        className="relative w-6 h-4 rounded border border-border-subtle shrink-0 overflow-hidden"
+        className="relative w-6 h-4 rounded-none border border-border-subtle shrink-0 overflow-hidden"
         style={{
           background: checkerboardBg,
           backgroundSize: "8px 8px",

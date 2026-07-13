@@ -151,7 +151,7 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
           ref={menuRef}
           role="menu"
           onKeyDown={handleMenuKeyDown}
-          className="absolute right-0 top-full mt-1 z-50 min-w-[240px] rounded-lg border border-border-subtle bg-bg-secondary shadow-lg py-1"
+          className="absolute right-0 top-full mt-1 z-50 min-w-[240px] rounded-none border border-border-subtle bg-bg-secondary shadow-lg py-1"
         >
           <li role="none">
             <button

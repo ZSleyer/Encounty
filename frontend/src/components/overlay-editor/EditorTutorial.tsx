@@ -164,13 +164,13 @@ export function EditorTutorial({ onComplete }: Props) {
             <div className="flex gap-2">
               <button
                 onClick={skip}
-                className="px-3 py-1 rounded text-xs text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors"
+                className="px-3 py-1 rounded-none text-xs text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors"
               >
                 {t("editorTutorial.skip")}
               </button>
               <button
                 onClick={next}
-                className="px-3 py-1 rounded text-xs bg-accent-blue text-white hover:bg-accent-blue/80 transition-colors"
+                className="px-3 py-1 rounded-none text-xs bg-accent-blue text-white hover:bg-accent-blue/80 transition-colors"
               >
                 {step < STEPS.length - 1 ? t("editorTutorial.next") : t("editorTutorial.finish")}
               </button>

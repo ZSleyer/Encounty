@@ -616,7 +616,7 @@ function AppShell() {
 
   return (
     <div className={`flex flex-col h-screen text-text-primary overflow-hidden relative ${isOverlay ? "bg-transparent" : "bg-bg-primary"}`}>
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:px-4 focus:py-2 focus:bg-accent-blue focus:text-white focus:rounded-lg focus:text-sm">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-100 focus:px-4 focus:py-2 focus:bg-accent-blue focus:text-white focus:rounded-none focus:text-sm">
         {t("aria.skipToContent")}
       </a>
       {/* Close-tab warning modal */}
@@ -660,7 +660,7 @@ function AppShell() {
             <img
               src="/app-icon.png"
               alt="Encounty Logo"
-              className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-md object-contain shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
+              className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-none object-contain shrink-0 mr-3 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
               title="Encounty"
             />
           )}
@@ -681,7 +681,7 @@ function AppShell() {
           {isMachineTranslated && (
             <button
               onClick={() => pushToast({ type: "info", title: t("settings.autoTranslated"), message: t("app.machineTranslationDisclaimer"), duration: 8000 })}
-              className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] 2xl:text-xs text-accent-yellow bg-accent-yellow/10 hover:bg-accent-yellow/20 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded-none text-[10px] 2xl:text-xs text-accent-yellow bg-accent-yellow/10 hover:bg-accent-yellow/20 transition-colors"
               title={t("app.machineTranslationDisclaimer")}
             >
               <Bot className="w-3 h-3" />
@@ -697,7 +697,7 @@ function AppShell() {
             <img
               src="/app-icon.png"
               alt="Encounty Logo"
-              className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-md object-contain mr-2 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
+              className="w-7 h-7 2xl:w-8 2xl:h-8 rounded-none object-contain mr-2 transition-shadow hover:shadow-[0_0_12px_rgba(255,255,255,0.2)]"
               title="Encounty"
             />
           ) : (
@@ -772,7 +772,7 @@ function AppShell() {
               <button
                 onClick={applyUpdate}
                 title={`${t("update.tooltip")} (${updateInfo.latest_version})`}
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-accent-blue/15 text-accent-blue hover:bg-accent-blue/25 transition-colors font-semibold"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-none bg-accent-blue/15 text-accent-blue hover:bg-accent-blue/25 transition-colors font-semibold"
               >
                 <ArrowUpCircle className="w-3 h-3" />
                 <span>{updateInfo.latest_version}</span>
@@ -989,14 +989,14 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
           <img
             src="/app-icon.png"
             alt="Encounty"
-            className="w-16 h-16 rounded-xl object-contain"
+            className="w-16 h-16 rounded-none object-contain"
           />
           <h1 className="text-xl font-bold text-text-primary">{t("app.setupChoiceTitle")}</h1>
           <p className="text-sm text-text-muted">{t("app.setupChoiceDesc")}</p>
           <div className="flex gap-4 mt-2">
             <button
               onClick={handleOnlineSetup}
-              className="flex flex-col items-center gap-3 p-6 rounded-2xl border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
+              className="flex flex-col items-center gap-3 p-6 rounded-none border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
             >
               <div className="w-12 h-12 rounded-none bg-accent-blue/15 flex items-center justify-center">
                 <Globe className="w-6 h-6 text-accent-blue" />
@@ -1006,7 +1006,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
             </button>
             <button
               onClick={handleOfflineSetup}
-              className="flex flex-col items-center gap-3 p-6 rounded-2xl border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
+              className="flex flex-col items-center gap-3 p-6 rounded-none border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
             >
               <div className="w-12 h-12 rounded-none bg-accent-blue/15 flex items-center justify-center">
                 <HardDrive className="w-6 h-6 text-accent-blue" />
@@ -1029,7 +1029,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
         <img
           src="/app-icon.png"
           alt="Encounty"
-          className="w-16 h-16 rounded-xl object-contain mb-2"
+          className="w-16 h-16 rounded-none object-contain mb-2"
         />
         {!error && (
           <div className="w-12 h-12 border-4 border-accent-blue/30 border-t-accent-blue rounded-full animate-spin" />
@@ -1042,13 +1042,13 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
             <div className="flex gap-3 mt-2">
               <button
                 onClick={handleRetry}
-                className="px-4 py-2 rounded-xl border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+                className="px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
               >
                 {t("app.syncRetry")}
               </button>
               <button
                 onClick={handleOfflineFallback}
-                className="px-4 py-2 rounded-xl bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
+                className="px-4 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
               >
                 {t("app.syncErrorFallback")}
               </button>

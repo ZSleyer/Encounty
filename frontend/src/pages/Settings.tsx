@@ -468,7 +468,7 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
   // backend settings payload, hence not part of the auto-save flow.
   const { motion, setMotion } = useMotion();
   return (
-    <section className="glass-card rounded-2xl p-6 space-y-5">
+    <section className="glass-card rounded-none p-6 space-y-5">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
         <Image className="w-4 h-4 text-accent-blue" />
         {t("settings.sectionDisplay")}
@@ -482,7 +482,7 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
             {t("settings.themeDark")} / {t("settings.themeLight")}
           </p>
         </div>
-        <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
+        <div className="flex items-center border border-border-subtle rounded-none overflow-hidden">
           <button
             onClick={() => { if (theme !== "dark") toggleTheme(); }}
             aria-label={t("settings.themeDark")}
@@ -520,7 +520,7 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
             {t("settings.uiLanguage") || "UI Language"}
           </p>
         </div>
-        <div className="flex items-center border border-border-subtle rounded-lg overflow-hidden">
+        <div className="flex items-center border border-border-subtle rounded-none overflow-hidden">
           {LOCALES.map((l) => (
             <button
               key={l.code}
@@ -641,7 +641,7 @@ function LanguagesSection({ settings, toggleLanguage, t }: Readonly<{
   t: (key: string) => string;
 }>) {
   return (
-    <section className="glass-card rounded-2xl p-6 space-y-4">
+    <section className="glass-card rounded-none p-6 space-y-4">
       <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
         <Globe className="w-4 h-4 text-accent-blue" />
         {t("settings.languages")}
@@ -804,7 +804,7 @@ export function Settings() {
               }}
               placeholder={t("settings.search")}
               aria-label={t("settings.search")}
-              className="w-full bg-bg-secondary border border-border-subtle rounded-xl pl-9 pr-4 py-2.5 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
+              className="w-full bg-bg-secondary border border-border-subtle rounded-none pl-9 pr-4 py-2.5 text-sm 2xl:text-base text-text-primary placeholder-text-faint/50 outline-none focus:border-accent-blue/50 transition-colors"
             />
             {search && (
               <button
@@ -858,7 +858,7 @@ export function Settings() {
 
             {/* ── File Output ──────────────────────────────────── */}
             {show("output") && (
-              <section className="glass-card rounded-2xl p-6 space-y-5">
+              <section className="glass-card rounded-none p-6 space-y-5">
                 <div className="flex items-center justify-between">
                   <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
                     <FolderOpen className="w-4 h-4 text-accent-yellow" />
@@ -883,7 +883,7 @@ export function Settings() {
                     onClick={copyObsPath}
                     title={settings.output_dir}
                     aria-label={t("settings.obsCopyPath")}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-none bg-bg-card border border-border-subtle hover:border-accent-blue/40 hover:bg-accent-blue/5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
                   >
                     {obsPathCopied ? (
                       <Check className="w-5 h-5 text-accent-green shrink-0" />
@@ -921,7 +921,7 @@ export function Settings() {
 
             {/* ── Data & Sync ──────────────────────────────────── */}
             {show("data") && (
-              <section className="glass-card rounded-2xl p-6 space-y-5">
+              <section className="glass-card rounded-none p-6 space-y-5">
                 <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
                   <Database className="w-4 h-4 text-accent-blue" />
                   {t("settings.sectionData")}
@@ -991,7 +991,7 @@ export function Settings() {
                         !dbPathDraft.trim() ||
                         dbPathDraft.trim() === appState?.data_path
                       }
-                      className="px-4 py-1.5 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
+                      className="px-4 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--accent-blue)"
                     >
                       {dbPathSaving ? t("settings.syncing") : t("settings.dataLocationChange")}
                     </button>
@@ -1003,7 +1003,7 @@ export function Settings() {
 
             {/* ── Backup & Restore ─────────────────────────────── */}
             {show("backup") && (
-              <section className="glass-card rounded-2xl p-6 space-y-5">
+              <section className="glass-card rounded-none p-6 space-y-5">
                 <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
                   <ArchiveRestore className="w-4 h-4 text-accent-purple" />
                   {t("settings.sectionBackup")}
@@ -1058,7 +1058,7 @@ export function Settings() {
             {/* ── Capture ──────────────────────────────────────── */}
             {/* ── Permissions (macOS only) ─────────────────────── */}
             {show("permissions") && (
-              <section className="glass-card rounded-2xl p-6 space-y-5">
+              <section className="glass-card rounded-none p-6 space-y-5">
                 <h2 className="text-sm 2xl:text-base font-semibold text-text-primary flex items-center gap-2">
                   <Shield className="w-4 h-4 text-accent-green" />
                   {t("settings.sectionPermissions")}
