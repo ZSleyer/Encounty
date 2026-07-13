@@ -1117,9 +1117,12 @@ export function DetectorPanel({
                   type="button"
                   onMouseDown={startDetectorDividerDrag}
                   onKeyDown={handleDetectorDividerKeyDown}
-                  className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block relative after:absolute after:-inset-2 after:content-['']"
+                  className="w-full h-6 cursor-row-resize bg-transparent border-none p-0 flex items-center"
                   aria-label={t("detector.resizeDivider")}
-                />
+                >
+                  {/* 24px tall hit target (WCAG 2.5.8) with a 6px visible bar centered inside */}
+                  <span className="w-full h-1.5 bg-border-subtle group-hover:bg-accent-blue/40 group-active:bg-accent-blue/60 transition-colors" />
+                </button>
                 <button
                   type="button"
                   onClick={(e) => {

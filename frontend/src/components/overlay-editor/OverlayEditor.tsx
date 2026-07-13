@@ -1003,9 +1003,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
             type="button"
             onMouseDown={startDividerDrag}
             onKeyDown={handleDividerKeyDown}
-            className="w-full h-1.5 cursor-row-resize bg-border-subtle hover:bg-accent-blue/40 active:bg-accent-blue/60 transition-colors border-none p-0 block"
+            className="w-full h-6 cursor-row-resize bg-transparent border-none p-0 flex items-center"
             aria-label={t("overlay.resizeDivider")}
-          />
+          >
+            {/* 24px tall hit target (WCAG 2.5.8) with a 6px visible bar centered inside */}
+            <span className="w-full h-1.5 bg-border-subtle group-hover:bg-accent-blue/40 group-active:bg-accent-blue/60 transition-colors" />
+          </button>
           <button
             type="button"
             onClick={(e) => {
