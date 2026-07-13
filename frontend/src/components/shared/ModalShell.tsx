@@ -169,7 +169,7 @@ export function ModalActions({
         disabled={confirmDisabled}
         className={`flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed ${
           destructive
-            ? "bg-accent-red/80 hover:bg-accent-red border border-accent-red/50 text-bg-primary"
+            ? "bg-accent-red hover:brightness-110 border border-accent-red/50 text-bg-primary"
             : "bg-accent-blue hover:bg-accent-blue/80 text-bg-primary"
         }`}
       >
