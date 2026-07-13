@@ -173,17 +173,20 @@ function isFormAvailableForGame(
   return form.generations.includes(game.generation);
 }
 
-/** Build browse-mode suggestions (dex-ordered base forms, capped at 30). */
-function buildBrowseList(allPokemon: PokemonData[]): SearchResult[] {
+/** Number of browse-mode rows revealed per scroll page. */
+const BROWSE_PAGE = 30;
+
+/** Build browse-mode suggestions (dex-ordered base forms, capped at `limit`). */
+function buildBrowseList(allPokemon: PokemonData[], limit: number): SearchResult[] {
   return allPokemon
+    .slice(0, limit)
     .map((p) => ({
       id: p.id,
       canonical: p.canonical,
       names: p.names,
       isForm: false,
       spriteId: p.id,
-    }))
-    .slice(0, 30);
+    }));
 }
 
 /** Filter pokemon data by query string, grouping forms under their base. */
@@ -388,6 +391,7 @@ function computeSuggestions(
   selectedGame: string,
   games: GameEntry[],
   language: string,
+  browseLimit: number,
 ): SearchResult[] {
   if (isEdit && !showSearch) return [];
   // Dropdown only lives while the field has focus. Without this, selecting a
@@ -396,7 +400,7 @@ function computeSuggestions(
   if (!inputFocused) return [];
   const q = query.trim();
   if (!q) {
-    return allPokemon.length > 0 ? buildBrowseList(allPokemon) : [];
+    return allPokemon.length > 0 ? buildBrowseList(allPokemon, browseLimit) : [];
   }
   return filterByQuery(query, allPokemon, selectedGame, games, language);
 }
@@ -599,6 +603,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [language, setLanguage] = useState<string>(defaults.language);
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
+  const [browseLimit, setBrowseLimit] = useState(BROWSE_PAGE);
   const [allPokemon, setAllPokemon] = useState<PokemonData[]>([]);
   const [missingNames, setMissingNames] = useState(false);
   const [showSearch, setShowSearch] = useState(!isEdit);
@@ -701,9 +706,15 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   useEffect(() => {
     setSuggestions(
-      computeSuggestions(isEdit, showSearch, query, inputFocused, allPokemon, selectedGame, games, language),
+      computeSuggestions(isEdit, showSearch, query, inputFocused, allPokemon, selectedGame, games, language, browseLimit),
     );
-  }, [query, allPokemon, showSearch, inputFocused, selectedGame, games, language]);
+  }, [query, allPokemon, showSearch, inputFocused, selectedGame, games, language, browseLimit]);
+
+  // Reset the browse window whenever the query changes so a new browse
+  // session starts at the top instead of a previously scrolled-down offset.
+  useEffect(() => {
+    setBrowseLimit(BROWSE_PAGE);
+  }, [query]);
 
   // --- Select a pokemon from search results ---
   const selectPokemon = (p: SearchResult) => {
@@ -1230,7 +1241,18 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               </div>
 
               {suggestions.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-none overflow-hidden z-10 shadow-xl max-h-52 overflow-y-auto">
+                <div
+                  onScroll={(e) => {
+                    // Browse mode reveals the full dex in pages of BROWSE_PAGE.
+                    // Grow the window when the user nears the bottom.
+                    if (!isBrowseMode) return;
+                    const el = e.currentTarget;
+                    if (el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
+                      setBrowseLimit((l) => Math.min(l + BROWSE_PAGE, allPokemon.length));
+                    }
+                  }}
+                  className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-none overflow-hidden z-10 shadow-xl max-h-52 overflow-y-auto"
+                >
                   {isBrowseMode && (
                     <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">
                       {t("modal.browseDex")}
