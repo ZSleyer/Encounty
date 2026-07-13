@@ -6,18 +6,18 @@
  * WebSocket `state_update` broadcast replaces the Zustand store so this
  * dialog does not need to maintain any derived state of its own.
  */
-import { useEffect, useRef, useState } from "react";
-import { Plus, X, ArrowUp, ArrowDown, Trash2, Check } from "lucide-react";
+import { useRef, useState } from "react";
+import { Plus, ArrowUp, ArrowDown, Trash2, Check } from "lucide-react";
 import type { Group } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import { useDialogClose } from "../../hooks/useDialogClose";
 import {
   createGroup,
   deleteGroup,
   updateGroup,
 } from "../../utils/groupsApi";
 import { ConfirmModal } from "./ConfirmModal";
+import { ModalShell } from "./ModalShell";
 
 interface GroupManagementModalProps {
   readonly groups: readonly Group[];
@@ -48,7 +48,6 @@ async function swap(a: Group, b: Group): Promise<void> {
 export function GroupManagementModal({ groups, onClose }: GroupManagementModalProps) {
   const { t } = useI18n();
   const { push: pushToast } = useToast();
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const newInputRef = useRef<HTMLInputElement>(null);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<string>(COLOR_PALETTE[7]); // blue by default
@@ -60,25 +59,6 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
   // Groups are mirrored into local state only for inline name-edit debouncing.
   // Other mutations go straight to the backend and rely on WS to refresh.
   const [nameDraft, setNameDraft] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-    setTimeout(() => newInputRef.current?.focus(), 50);
-  }, []);
-
-  // Close on Escape (native <dialog> onCancel).
-  const handleCancel = useDialogClose(dialogRef, onClose);
-
-  // Close on backdrop click.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const onBackdrop = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
-    };
-    dialog.addEventListener("click", onBackdrop);
-    return () => dialog.removeEventListener("click", onBackdrop);
-  }, []);
 
   const sorted = [...groups].sort((a, b) => a.sort_order - b.sort_order);
 
@@ -138,26 +118,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
 
   return (
     <>
-      <dialog
-        ref={dialogRef}
-        onCancel={handleCancel}
-        aria-modal="true"
-        aria-labelledby="group-mgmt-title"
-        className="m-auto t-panel p-6 w-full max-w-lg backdrop:bg-black/70"
-      >
-        <div className="flex items-center justify-between mb-5">
-          <h2 id="group-mgmt-title" className="text-lg font-bold text-text-primary">
-            {t("group.title")}
-          </h2>
-          <button
-            onClick={handleCancel}
-            className="p-1.5 text-text-muted hover:text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue rounded"
-            aria-label={t("aria.close")}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
+      <ModalShell title={t("group.title")} onClose={onClose} size="lg">
         {/* Existing groups */}
         <ul className="flex flex-col gap-2 max-h-80 overflow-y-auto overflow-x-visible">
           {sorted.length === 0 && (
@@ -254,6 +215,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
                 }
               />
               <input
+                autoFocus
                 id="new-group-name"
                 ref={newInputRef}
                 type="text"
@@ -290,7 +252,7 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
             )}
           </div>
         </div>
-      </dialog>
+      </ModalShell>
 
       {pendingDelete && (
         <ConfirmModal

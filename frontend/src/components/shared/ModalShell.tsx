@@ -17,7 +17,8 @@ const SIZE_CLASSES = {
   xs: "max-w-xs",
   sm: "max-w-sm",
   md: "max-w-md",
-  lg: "max-w-2xl",
+  lg: "max-w-lg",
+  xl: "max-w-2xl",
 } as const;
 
 /** Props for {@link ModalShell}. */
@@ -30,6 +31,8 @@ export interface ModalShellProps {
   readonly size?: keyof typeof SIZE_CLASSES;
   /** Backdrop close behavior, defaults to "click". */
   readonly backdropClose?: BackdropCloseMode;
+  /** Title text size: "lg" (default) or the compact "sm" used by editor modals. */
+  readonly titleSize?: "sm" | "lg";
   /** Danger styling: t-panel--danger skin and red title. */
   readonly destructive?: boolean;
   /** Rendered before the title (e.g. a warning icon). */
@@ -44,12 +47,12 @@ export interface ModalShellProps {
    * buttons can run their action and then play the close transition.
    */
   readonly footer?: ReactNode | ((requestClose: () => void) => ReactNode);
-  readonly children: ReactNode;
+  /** Body content; pass a function to receive requestClose (e.g. Enter-to-save). */
+  readonly children: ReactNode | ((requestClose: () => void) => ReactNode);
 }
 
 /**
- * Renders a native <dialog> with the Tempest modal anatomy. Small modals
- * (size xs/sm) get a compact title, md/lg the large one. Escape, backdrop
+ * Renders a native <dialog> with the Tempest modal anatomy. Escape, backdrop
  * click, and the X button all route through the CRT close transition.
  */
 export function ModalShell({
@@ -57,6 +60,7 @@ export function ModalShell({
   onClose,
   size = "md",
   backdropClose = "click",
+  titleSize = "lg",
   destructive = false,
   titleIcon,
   structured = false,
@@ -68,7 +72,8 @@ export function ModalShell({
   const { dialogRef, requestClose } = useModalDialog({ onClose, backdropClose });
 
   const footerContent = typeof footer === "function" ? footer(requestClose) : footer;
-  const titleScale = size === "xs" || size === "sm" ? "text-sm" : "text-lg";
+  const bodyContent = typeof children === "function" ? children(requestClose) : children;
+  const titleScale = titleSize === "sm" ? "text-sm" : "text-lg";
   const titleColor = destructive ? "text-accent-red" : "text-text-primary";
 
   const header = (
@@ -106,9 +111,9 @@ export function ModalShell({
     >
       {header}
       {structured ? (
-        <div className="overflow-y-auto px-6 py-4">{children}</div>
+        <div className="overflow-y-auto px-6 py-4">{bodyContent}</div>
       ) : (
-        children
+        bodyContent
       )}
       {footerContent && (
         <div className={structured ? "px-6 py-4 border-t border-border-subtle" : "mt-6"}>

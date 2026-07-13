@@ -1,7 +1,6 @@
-import { useRef, useEffect } from "react";
-import { X, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import { useDialogClose } from "../../hooks/useDialogClose";
+import { ModalShell, ModalActions } from "./ModalShell";
 
 interface ConfirmModalProps {
   readonly title: string;
@@ -13,6 +12,7 @@ interface ConfirmModalProps {
   readonly onClose: () => void;
 }
 
+/** Generic confirmation dialog with optional destructive styling. */
 export function ConfirmModal({
   title,
   message,
@@ -23,80 +23,26 @@ export function ConfirmModal({
   onClose,
 }: Readonly<ConfirmModalProps>) {
   const { t } = useI18n();
-  const resolvedConfirm = confirmLabel ?? t("confirm.confirm");
-  const resolvedCancel = cancelLabel ?? t("confirm.cancel");
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
-
-  const handleCancel = useDialogClose(dialogRef, onClose);
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [handleCancel]);
-
-  const handleConfirm = () => {
-    onConfirm();
-    handleCancel();
-  };
 
   return (
-    <dialog
-      ref={dialogRef}
-      onCancel={handleCancel}
-      aria-labelledby="confirm-modal-title"
-      className={`m-auto t-panel ${isDestructive ? "t-panel--danger " : ""}p-6 w-full max-w-md backdrop:bg-black/70`}
+    <ModalShell
+      title={title}
+      onClose={onClose}
+      destructive={isDestructive}
+      titleIcon={
+        isDestructive ? <AlertTriangle className="w-5 h-5 text-accent-red" /> : undefined
+      }
+      footer={(requestClose) => (
+        <ModalActions
+          onConfirm={onConfirm}
+          requestClose={requestClose}
+          confirmLabel={confirmLabel ?? t("common.confirm")}
+          cancelLabel={cancelLabel ?? t("common.cancel")}
+          destructive={isDestructive}
+        />
+      )}
     >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          {isDestructive && (
-            <AlertTriangle className="w-5 h-5 text-accent-red" />
-          )}
-          <h2
-            id="confirm-modal-title"
-            className={`text-lg font-bold ${isDestructive ? "text-accent-red" : "text-text-primary"}`}
-          >
-            {title}
-          </h2>
-        </div>
-        <button
-          onClick={handleCancel}
-          aria-label={t("aria.close")}
-          className="relative after:absolute after:-inset-2 after:content-[''] text-text-muted hover:text-text-primary transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      <p className="text-sm text-text-secondary mb-6">{message}</p>
-
-      <div className="flex gap-3">
-        <button
-          onClick={handleCancel}
-          className="flex-1 px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
-        >
-          {resolvedCancel}
-        </button>
-        <button
-          onClick={handleConfirm}
-          className={`flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap ${
-            isDestructive
-              ? "bg-accent-red/80 hover:bg-accent-red border border-accent-red/50 text-white"
-              : "bg-accent-blue hover:bg-accent-blue/80 text-bg-primary"
-          }`}
-        >
-          {resolvedConfirm}
-        </button>
-      </div>
-    </dialog>
+      <p className="text-sm text-text-secondary">{message}</p>
+    </ModalShell>
   );
 }

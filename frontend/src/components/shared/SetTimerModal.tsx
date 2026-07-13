@@ -1,7 +1,6 @@
-import { useState, useRef, useEffect } from "react";
-import { X } from "lucide-react";
+import { useState } from "react";
 import { useI18n } from "../../contexts/I18nContext";
-import { useDialogClose } from "../../hooks/useDialogClose";
+import { ModalShell, ModalActions } from "./ModalShell";
 
 interface SetTimerModalProps {
   readonly currentMs: number;
@@ -11,8 +10,6 @@ interface SetTimerModalProps {
 
 /** Modal dialog to set the hunt timer to an exact value. */
 export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerModalProps>) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const hoursRef = useRef<HTMLInputElement>(null);
   const { t } = useI18n();
 
   const initH = Math.floor(currentMs / 3600000);
@@ -23,114 +20,82 @@ export function SetTimerModal({ currentMs, onSave, onClose }: Readonly<SetTimerM
   const [minutes, setMinutes] = useState(initM);
   const [seconds, setSeconds] = useState(initS);
 
-  useEffect(() => {
-    dialogRef.current?.showModal();
-    hoursRef.current?.focus();
-    hoursRef.current?.select();
-  }, []);
-
-  const handleCancel = useDialogClose(dialogRef, onClose);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [handleCancel]);
-
-  const handleSave = () => {
-    const totalMs = Math.max(0, hours * 3600000 + minutes * 60000 + seconds * 1000);
-    onSave(totalMs);
-    handleCancel();
-  };
+  const totalMs = () => Math.max(0, hours * 3600000 + minutes * 60000 + seconds * 1000);
 
   const inputClass = "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-lg text-text-primary outline-none focus:border-accent-blue/50 transition-colors tabular-nums";
 
+  const saveOnEnter = (e: React.KeyboardEvent, requestClose: () => void) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onSave(totalMs());
+      requestClose();
+    }
+  };
+
   return (
-    <dialog
-      ref={dialogRef}
-      onCancel={handleCancel}
-      aria-labelledby="set-timer-title"
-      className="m-auto t-panel p-6 w-full max-w-sm backdrop:bg-black/70"
+    <ModalShell
+      title={t("timer.editTitle")}
+      onClose={onClose}
+      size="sm"
+      footer={(requestClose) => (
+        <ModalActions
+          onConfirm={() => onSave(totalMs())}
+          requestClose={requestClose}
+          confirmLabel={t("common.save")}
+          cancelLabel={t("common.cancel")}
+        />
+      )}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 id="set-timer-title" className="text-lg font-bold text-text-primary">
-          {t("timer.editTitle")}
-        </h2>
-        <button
-          onClick={handleCancel}
-          className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']"
-          aria-label={t("aria.close")}
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <div>
-          <label htmlFor="timer-hours" className="block text-xs text-text-muted mb-1">
-            {t("timer.hours")}
-          </label>
-          <input
-            ref={hoursRef}
-            id="timer-hours"
-            type="number"
-            min={0}
-            value={hours}
-            onChange={(e) => setHours(Math.max(0, Number.parseInt(e.target.value, 10) || 0))}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
-            className={inputClass}
-          />
+      {(requestClose: () => void) => (
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label htmlFor="timer-hours" className="block text-xs text-text-muted mb-1">
+              {t("timer.hours")}
+            </label>
+            <input
+              autoFocus
+              onFocus={(e) => e.target.select()}
+              id="timer-hours"
+              type="number"
+              min={0}
+              value={hours}
+              onChange={(e) => setHours(Math.max(0, Number.parseInt(e.target.value, 10) || 0))}
+              onKeyDown={(e) => saveOnEnter(e, requestClose)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="timer-minutes" className="block text-xs text-text-muted mb-1">
+              {t("timer.minutes")}
+            </label>
+            <input
+              id="timer-minutes"
+              type="number"
+              min={0}
+              max={59}
+              value={minutes}
+              onChange={(e) => setMinutes(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
+              onKeyDown={(e) => saveOnEnter(e, requestClose)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="timer-seconds" className="block text-xs text-text-muted mb-1">
+              {t("timer.seconds")}
+            </label>
+            <input
+              id="timer-seconds"
+              type="number"
+              min={0}
+              max={59}
+              value={seconds}
+              onChange={(e) => setSeconds(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
+              onKeyDown={(e) => saveOnEnter(e, requestClose)}
+              className={inputClass}
+            />
+          </div>
         </div>
-        <div>
-          <label htmlFor="timer-minutes" className="block text-xs text-text-muted mb-1">
-            {t("timer.minutes")}
-          </label>
-          <input
-            id="timer-minutes"
-            type="number"
-            min={0}
-            max={59}
-            value={minutes}
-            onChange={(e) => setMinutes(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
-            className={inputClass}
-          />
-        </div>
-        <div>
-          <label htmlFor="timer-seconds" className="block text-xs text-text-muted mb-1">
-            {t("timer.seconds")}
-          </label>
-          <input
-            id="timer-seconds"
-            type="number"
-            min={0}
-            max={59}
-            value={seconds}
-            onChange={(e) => setSeconds(Math.min(59, Math.max(0, Number.parseInt(e.target.value, 10) || 0)))}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
-            className={inputClass}
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <button
-          onClick={handleCancel}
-          className="flex-1 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
-        >
-          {t("modal.cancel")}
-        </button>
-        <button
-          onClick={handleSave}
-          className="flex-1 py-2 t-cut rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors"
-        >
-          {t("modal.save")}
-        </button>
-      </div>
-    </dialog>
+      )}
+    </ModalShell>
   );
 }
