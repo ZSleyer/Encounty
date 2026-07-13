@@ -3,7 +3,7 @@
 
 /* Tempest radius scale: hard corners everywhere. The design language is
    corner-based (brackets, cuts), so all box radii collapse to 0. Softness
-   comes from corner cuts (.t-cut/.t-cut-sm), not from rounding. The only
+   comes from corner cuts (.t-cut), not from rounding. The only
    rounded controls are toggles (switch pattern recognition) and true
    indicator dots via rounded-full. */
 @theme {
@@ -284,12 +284,6 @@ dialog:not([open])::backdrop {
   color: var(--accent-blue);
 }
 
-/* Dashed accent frame for drop zones and highlighted regions. */
-.t-frame {
-  border: 1px dashed color-mix(in srgb, var(--accent-blue) 45%, transparent);
-  border-radius: 0;
-}
-
 /* Corner-cut CTA: clips the top-right corner. The clip-path also clips
    the outline, so keyboard focus is drawn as a box-shadow ring
    instead (WCAG 2.4.7). */
@@ -299,19 +293,6 @@ dialog:not([open])::backdrop {
 }
 
 .t-cut:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 2px var(--bg-primary),
-    0 0 0 4px var(--accent-blue);
-}
-
-/* Small corner cut for badges and compact accent chips. */
-.t-cut-sm {
-  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
-  border-radius: 0;
-}
-
-.t-cut-sm:focus-visible {
   outline: none;
   box-shadow:
     0 0 0 2px var(--bg-primary),
@@ -353,20 +334,6 @@ dialog:not([open])::backdrop {
 .t-select:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--accent-blue) 50%, transparent);
-}
-
-/* ── Background Patterns ───────────────────────────────────── */
-
-.dash-bg {
-  position: relative;
-  overflow: hidden;
-  background-color: var(--bg-primary);
-  /* Tempest hatch texture, layered under any page tint overlays. */
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0 7px,
-    color-mix(in srgb, var(--text-primary) 3%, transparent) 7px 8px
-  );
 }
 
 /* ── Native <option> elements — match theme background ─── */
@@ -491,73 +458,6 @@ option {
   border-color: rgba(180, 83, 9, 0.60);       /* amber-700/60 */
 }
 
-/* Static gradient line used as a separator in the main layout (footer / dividers).
-   Tempest: accent-monochrome, only mixes of the single user accent. */
-.footer-line,
-.glow-line-h {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--accent-blue) 70%, transparent) 20%,
-    var(--accent-blue) 50%,
-    color-mix(in srgb, var(--accent-blue) 70%, transparent) 80%,
-    transparent 100%
-  );
-  height: 1px;
-  opacity: 0.4;
-}
-
-/* Vertical static gradient line */
-.glow-line-v {
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    color-mix(in srgb, var(--accent-blue) 80%, transparent) 25%,
-    var(--accent-blue) 75%,
-    transparent 100%
-  );
-  width: 1px;
-  opacity: 0.3;
-}
-
-/* Hover glow for list items — follows the chosen accent. */
-.hover-glow:hover {
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-blue) 18%, transparent);
-}
-
-/* Subtle Settings background (no animated orbs) */
-.settings-bg {
-  position: relative;
-  overflow: hidden;
-  /* Tempest hatch texture, layered under the ::before radial tint. */
-  background-image: repeating-linear-gradient(
-    135deg,
-    transparent 0 7px,
-    color-mix(in srgb, var(--text-primary) 3%, transparent) 7px 8px
-  );
-}
-
-.settings-bg::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(
-    ellipse 80% 60% at 50% 20%,
-    color-mix(in srgb, var(--accent-blue) 4%, transparent) 0%,
-    transparent 60%
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
-[data-theme="light"] .settings-bg::before {
-  background: radial-gradient(
-    ellipse 80% 60% at 50% 20%,
-    color-mix(in srgb, var(--accent-blue) 3%, transparent) 0%,
-    transparent 60%
-  );
-}
-
 /* Checkered canvas background (for Overlay Editor).
    Uses theme tokens so the editor backdrop picks up the chosen accent
    tint. The dark squares come from --bg-hover, the base from
@@ -576,15 +476,6 @@ option {
     8px -8px,
     -8px 0;
   background-color: var(--bg-secondary);
-}
-
-/* Light-mode overrides */
-[data-theme="light"] .glow-line-h {
-  opacity: 0.25;
-}
-
-[data-theme="light"] .glow-line-v {
-  opacity: 0.15;
 }
 
 /* Container cards used on Settings and Hotkeys pages. Tempest panel look:
@@ -876,12 +767,6 @@ code {
   }
 }
 
-.p-count {
-  display: inline-block;
-  -webkit-text-stroke: var(--outline-width) var(--outline-color);
-  paint-order: stroke fill;
-}
-
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -910,14 +795,6 @@ code {
 
 ::-webkit-scrollbar-corner {
   background: var(--scrollbar-track);
-}
-
-/* Sharp scaling for preview */
-.sharp-preview {
-  will-change: transform;
-  backface-visibility: hidden;
-  -webkit-font-smoothing: subpixel-antialiased;
-  transform-style: preserve-3d;
 }
 
 /* ── Sprite rendering ──────────────────────────────────────────── */
