@@ -1478,7 +1478,7 @@ function DashboardCounterTab({
           src={spriteUrl}
           alt={pokemon.name}
           onError={() => onImgError(pokemon.id)}
-          className="pokemon-sprite object-contain"
+          className="pokemon-sprite object-contain transition-transform duration-300 hover:scale-110"
           style={{ width: "clamp(160px, 17vw, 216px)", height: "clamp(160px, 17vw, 216px)" }}
         />
         <span className="text-[clamp(32px,3.4vw,46px)] font-extrabold text-text-primary capitalize leading-tight text-center">
