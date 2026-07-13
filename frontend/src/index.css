@@ -71,8 +71,8 @@
   /* Violet default, 7.10:1 on white. For acid, only the olive #566800 is
      allowed on light surfaces, NEVER raw #c8e04a (fails contrast badly). */
   --accent-blue: #6d28d9;
-  --accent-green: #15803d;       /* semantic, fixed */
-  --accent-yellow: #b45309;      /* semantic, fixed */
+  --accent-green: #0c5f2c;       /* semantic, fixed; darkened for 5:1+ on its own /10-/20 tint */
+  --accent-yellow: #854307;      /* semantic, fixed; darkened for 4.8:1+ on its own /10-/20 tint */
   --accent-red: #b91c1c;         /* semantic, fixed */
   --accent-purple: #6d28d9;      /* fixed for static gradients */
   --border-subtle: #c3ccd6;
@@ -81,7 +81,7 @@
   --text-primary: #0a1628;       /* ~16:1 on white */
   --text-secondary: #2d4059;     /* ~7.8:1 on white — replaces #475569 (~4.3) */
   --text-muted: #4a5f73;         /* ~5.6:1 on white — replaces #94a3b8 (~2.4) */
-  --text-faint: #637080;         /* ~4.6:1 on white — replaces #cbd5e1 (~1.5) */
+  --text-faint: #556270;         /* ~5:1 on bg-hover (previous #637080 was 4.06:1 there) */
   --scrollbar-track: #eef1f4;
   --scrollbar-thumb: #c3ccd6;
   --scrollbar-thumb-hover: #8fa3b5;
