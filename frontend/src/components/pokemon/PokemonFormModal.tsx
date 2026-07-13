@@ -390,11 +390,13 @@ function computeSuggestions(
   language: string,
 ): SearchResult[] {
   if (isEdit && !showSearch) return [];
+  // Dropdown only lives while the field has focus. Without this, selecting a
+  // pokemon (which writes its name into `query`) re-triggers the filter and
+  // reopens the list until the next click.
+  if (!inputFocused) return [];
   const q = query.trim();
   if (!q) {
-    return inputFocused && allPokemon.length > 0
-      ? buildBrowseList(allPokemon)
-      : [];
+    return allPokemon.length > 0 ? buildBrowseList(allPokemon) : [];
   }
   return filterByQuery(query, allPokemon, selectedGame, games, language);
 }
