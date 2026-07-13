@@ -1980,8 +1980,13 @@ export function TemplateEditor({
                 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-none [&::-webkit-slider-thumb]:bg-accent-blue [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]
                 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]"
             />
-            <span className="text-white/60 text-xs 2xl:text-sm shrink-0">
-              {selectedFrameIndex + 1} / {replayBuffer.snapshotFrameCount}
+            <span className="text-white/60 text-xs 2xl:text-sm font-mono tabular-nums shrink-0">
+              <span
+                className="inline-block text-right"
+                style={{ minWidth: `${String(replayBuffer.snapshotFrameCount).length}ch` }}
+              >
+                {selectedFrameIndex + 1}
+              </span>{" / "}{replayBuffer.snapshotFrameCount}
             </span>
           </div>
           <p className="text-xs 2xl:text-sm text-text-muted text-center mt-2">
@@ -2034,8 +2039,13 @@ export function TemplateEditor({
             return (
               <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-3 px-8">
                 <div className="flex items-center gap-4">
-                  <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
-                    {selectedFrameIndex + 1} / {replayBuffer.frameCount}
+                  <span className="text-white text-sm 2xl:text-base font-mono tabular-nums shrink-0">
+                    <span
+                      className="inline-block text-right"
+                      style={{ minWidth: `${String(replayBuffer.frameCount).length}ch` }}
+                    >
+                      {selectedFrameIndex + 1}
+                    </span>{" / "}{replayBuffer.frameCount}
                   </span>
                   <div className="relative flex-1 h-3">
                     {/* Hysteresis hatch: the opaque hysteresis color plus a
