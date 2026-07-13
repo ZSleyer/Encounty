@@ -1670,7 +1670,7 @@ describe("TemplateEditor", () => {
 
     /** Reads the current in-progress drawn box's inline percentage style as numbers, or null if absent. */
     function readCurrentBoxStyle(surface: HTMLElement) {
-      const box = surface.querySelector<HTMLElement>(".border-yellow-400");
+      const box = surface.querySelector<HTMLElement>(".border-accent-yellow");
       if (!box) return null;
       return {
         left: parseFloat(box.style.left),
