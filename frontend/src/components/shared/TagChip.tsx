@@ -48,11 +48,13 @@ export function TagChip({
   const { t } = useI18n();
   const hue = hueForTag(tag);
   // Use HSL so we can derive a consistent pair (bg + border + text) from a
-  // single hue; dark mode stays legible because we keep lightness constant.
-  const bgActive = `hsla(${hue}, 70%, 55%, 0.25)`;
-  const bgIdle = `hsla(${hue}, 40%, 45%, 0.18)`;
+  // single hue. Dark keeps the original light pastel text on a soft tint;
+  // light uses a much darker, more saturated text on a lighter tint so the
+  // worst-case hue (yellow-green, ~60°) still clears WCAG AA (verified >=5:1).
+  const bgActive = `light-dark(hsla(${hue}, 55%, 70%, 0.2), hsla(${hue}, 70%, 55%, 0.25))`;
+  const bgIdle = `light-dark(hsla(${hue}, 45%, 40%, 0.12), hsla(${hue}, 40%, 45%, 0.18))`;
   const ringColor = `hsla(${hue}, 70%, 65%, 0.7)`;
-  const textColor = `hsl(${hue}, 80%, 78%)`;
+  const textColor = `light-dark(hsl(${hue}, 90%, 22%), hsl(${hue}, 80%, 78%))`;
 
   const paddingClass = size === "md" ? "px-2.5 py-1 text-xs" : "px-2 py-0.5 text-[11px]";
   // Guarantee WCAG minimum target size (24×24) for clickable/removable chips.
