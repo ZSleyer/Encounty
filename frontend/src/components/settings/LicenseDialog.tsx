@@ -8,6 +8,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Scale, ChevronDown } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useModalA11y } from "../../hooks/useModalA11y";
 import { LOCALES, type Locale } from "../../utils/i18n";
 import { AGPLV3_LICENSE } from "../../utils/agplv3";
 import { apiUrl } from "../../utils/api";
@@ -27,6 +28,10 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
   const { locale, setLocale, t } = useI18n();
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Focus trap for the blocking overlay. Escape is deliberately inert: the
+  // license gate must not be dismissible without acceptance.
+  const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: () => {} });
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -57,6 +62,8 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
 
   return (
     <div
+      ref={containerRef}
+      tabIndex={-1}
       className="fixed inset-0 z-200 bg-bg-primary flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"

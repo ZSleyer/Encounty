@@ -13,6 +13,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { X, Check, RefreshCw } from "lucide-react";
 import { DetectorRect } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
+import { useModalA11y } from "../../hooks/useModalA11y";
 import { apiUrl } from "../../utils/api";
 
 // ── Props ────────────────────────────────────────────────────────────────────
@@ -84,6 +85,9 @@ function resizeSelectionByKey(sel: RawRect, key: string, containerW: number, con
  */
 export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
   const { t } = useI18n();
+
+  // Focus trap + Escape-to-cancel + focus restore for this non-native overlay.
+  const overlayRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onCancel });
 
   // Screenshot blob URL loaded from the server.
   const [screenshotUrl, setScreenshotUrl] = useState<string | null>(null);
@@ -331,7 +335,14 @@ export function RegionPicker({ onConfirm, onCancel }: RegionPickerProps) {
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+    <div
+      ref={overlayRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("regionPicker.instruction")}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 bg-black/90 flex flex-col"
+    >
       {/* ── Top bar: instructions + buttons ─────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 2xl:px-5 2xl:py-4 bg-bg-card/80 backdrop-blur-sm border-b border-border-subtle shrink-0">
         <p className="text-sm 2xl:text-base text-text-secondary">
