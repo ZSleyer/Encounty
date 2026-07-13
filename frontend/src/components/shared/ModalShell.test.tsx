@@ -94,7 +94,7 @@ describe("ModalShell", () => {
       </ModalShell>,
     );
     const dialog = container.querySelector("dialog")!;
-    expect(dialog.className).toContain("grid-rows-[auto_1fr_auto]");
+    expect(dialog.className).toContain("grid-rows-[auto_minmax(0,1fr)_auto]");
     expect(container.querySelector(".overflow-y-auto")).toBeInTheDocument();
   });
 });

@@ -36,7 +36,7 @@ import { gameSupportsCharm } from "../../utils/gameGroups";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
 import { useToast } from "../../contexts/ToastContext";
-import { useDialogClose } from "../../hooks/useDialogClose";
+import { ModalShell } from "../shared/ModalShell";
 
 // --- Exported types ---
 
@@ -587,7 +587,6 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const isEdit = props.mode === "edit";
   const activeLanguages = props.activeLanguages ?? ["de", "en"];
 
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { t, locale } = useI18n();
   const { push } = useToast();
@@ -654,9 +653,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     }
   };
 
-  // --- Open dialog + load pokedex and games on mount ---
+  // --- Focus search + load pokedex and games on mount (ModalShell opens the dialog) ---
   useEffect(() => {
-    dialogRef.current?.showModal();
     inputRef.current?.focus();
 
     fetch(apiUrl("/api/pokedex"))
@@ -857,8 +855,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     }
   };
 
-  // --- Submit handler ---
-  const handleSubmit = () => {
+  // --- Submit handler; receives requestClose from the ModalShell footer so
+  // a successful submit plays the shared close transition ---
+  const handleSubmit = (requestClose: () => void) => {
     if (!selected) return;
     const data: NewPokemonData = {
       name: selected.name,
@@ -879,21 +878,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       group_id: groupId,
       tags,
     };
-    void submitByMode(props, data, handleCancel);
+    void submitByMode(props, data, requestClose);
   };
-
-  const handleCancel = useDialogClose(dialogRef, props.onClose);
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [handleCancel]);
 
   const activeName = selected ? selected.name : "";
   const availableLangs =
@@ -918,30 +904,31 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     props.mode === "edit" && customSprite.startsWith(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`));
 
   return (
-    <dialog
-      ref={dialogRef}
-      onCancel={handleCancel}
-      aria-labelledby="pokemon-form-title"
-      className="t-panel m-auto rounded-none p-0 w-full max-w-2xl backdrop:bg-black/70"
+    <ModalShell
+      title={isEdit ? t("modal.editTitle") : t("modal.addTitle")}
+      onClose={props.onClose}
+      size="xl"
+      titleSize="sm"
+      structured
+      footer={(requestClose) => (
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={requestClose}
+            className="px-5 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
+          >
+            {t("common.cancel")}
+          </button>
+          <button
+            onClick={() => handleSubmit(requestClose)}
+            disabled={!selected}
+            className="t-cut px-6 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {isEdit ? t("common.save") : t("modal.add")}
+          </button>
+        </div>
+      )}
     >
-      {/* Modal anatomy: hairline-separated header / scrollable body / footer. */}
-      <div className="grid grid-rows-[auto_minmax(0,1fr)_auto] max-h-[85vh]">
-      {/* --- Header --- */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border-subtle">
-        <h2 id="pokemon-form-title" className="text-[15px] font-semibold text-text-primary">
-          {isEdit ? t("modal.editTitle") : t("modal.addTitle")}
-        </h2>
-        <button
-          onClick={handleCancel}
-          className="text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors p-1.5"
-          aria-label={t("aria.close")}
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* --- Body (scrolls) --- */}
-      <div className="overflow-y-auto px-6 py-5">
+      <>
       {missingNames && (
         <div className="flex items-start gap-2 p-3 mb-4 rounded-none bg-accent-yellow/10 border border-accent-yellow/30 text-accent-yellow text-xs">
           <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -1598,26 +1585,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
           </div>
         </div>
       </div>
-
-      </div>
-
-      {/* --- Footer --- */}
-      <div className="flex justify-end gap-2 px-6 py-4 border-t border-border-subtle">
-        <button
-          onClick={handleCancel}
-          className="px-5 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
-        >
-          {t("modal.cancel")}
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={!selected}
-          className="t-cut px-6 py-2 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {isEdit ? t("modal.save") : t("modal.add")}
-        </button>
-      </div>
-      </div>
-    </dialog>
+      </>
+    </ModalShell>
   );
 }

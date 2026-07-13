@@ -105,7 +105,7 @@ export function ModalShell({
       aria-labelledby={titleId}
       className={`m-auto t-panel ${destructive ? "t-panel--danger " : ""}${
         structured
-          ? "p-0 max-h-[85vh] grid grid-rows-[auto_1fr_auto]"
+          ? "p-0 max-h-[85vh] grid grid-rows-[auto_minmax(0,1fr)_auto]"
           : "p-6"
       } w-full ${SIZE_CLASSES[size]} backdrop:bg-black/70`}
     >
