@@ -29,6 +29,9 @@ vi.mock("../../hooks/useOCR", () => ({
 const mockReplayBuffer = {
   frames: [] as unknown[],
   frameCount: 0,
+  // Mirror the real hook: snapshotFrameCount equals frameCount until extend()
+  get snapshotFrameCount() { return this.frameCount; },
+  get snapshotSeconds() { return this.frameCount / 60; },
   getFrame: vi.fn().mockReturnValue(null) as ReturnType<typeof vi.fn>,
   isBuffering: false,
   bufferedSeconds: 0,
@@ -36,6 +39,7 @@ const mockReplayBuffer = {
   clear: vi.fn(),
   stop: vi.fn(),
   restart: vi.fn(),
+  extend: vi.fn(() => mockReplayBuffer.frameCount),
 };
 vi.mock("../../hooks/useReplayBuffer", () => ({
   useReplayBuffer: () => mockReplayBuffer,
@@ -223,6 +227,7 @@ describe("TemplateEditor", () => {
     mockReplayBuffer.stop = vi.fn();
     mockReplayBuffer.restart = vi.fn();
     mockReplayBuffer.clear = vi.fn();
+    mockReplayBuffer.extend = vi.fn(() => mockReplayBuffer.frameCount);
   });
 
   afterEach(() => {
