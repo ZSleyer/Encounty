@@ -804,6 +804,7 @@ function resolveTabContent(
   handleDetectorConfigChange: (id: string, cfg: DetectorConfig | null) => void,
   detectorStatus: Record<string, { state?: string; confidence?: number }>,
   onStopHunt?: (pokemonId: string) => void,
+  isActiveRoute = true,
 ): React.ReactNode {
   if (tab === "counter") return renderCounterTab(pokemon);
   if (tab === "overlay") return renderOverlayTab(pokemon);
@@ -823,6 +824,10 @@ function resolveTabContent(
     );
   }
   if (tab === "statistics") {
+    // Dashboard stays mounted but display:none on other routes; an unmeasurable
+    // recharts container there logs "width(0) height(0)". Drop the charts while
+    // hidden, they remount at full size on return.
+    if (!isActiveRoute) return null;
     return (
       <div className="w-full h-full">
         <StatisticsPanel pokemonId={pokemon.id} />
@@ -2294,6 +2299,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
         stopDetectionForPokemon(pokemonId);
         clearDetectorStatus(pokemonId);
       },
+      isActiveRoute,
     );
 
   /** Renders the scrollable inner work area with the active tab content. */
