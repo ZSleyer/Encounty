@@ -61,9 +61,11 @@ function stubCanvas() {
 }
 
 describe("useReplayBuffer", () => {
+  let ctx: ReturnType<typeof stubCanvas>;
+
   beforeEach(() => {
     vi.useFakeTimers();
-    stubCanvas();
+    ctx = stubCanvas();
   });
 
   afterEach(() => {
@@ -268,6 +270,157 @@ describe("useReplayBuffer", () => {
     unmount();
 
     expect(clearIntervalSpy).toHaveBeenCalled();
+  });
+
+  // --- extend ---
+
+  /** Tag each captured frame with a sequence number so order is verifiable. */
+  function tagFrames() {
+    let seq = 0;
+    ctx.getImageData.mockImplementation((_x: number, _y: number, w: number, h: number) => {
+      const frame = new MockImageData(w, h) as MockImageData & { seq: number };
+      frame.seq = seq++;
+      return frame;
+    });
+  }
+
+  const seqOf = (frame: ImageData | null) => (frame as (ImageData & { seq: number }) | null)?.seq;
+
+  it("extend continues capture seamlessly past a partially filled ring and auto-stops", () => {
+    tagFrames();
+    const video = createMockVideo(true);
+    // maxFrames = 5 (1s at 5fps, 200ms interval)
+    const { result } = renderHook(() => useReplayBuffer(video, 1, 5));
+
+    act(() => vi.advanceTimersByTime(600)); // 3 frames: seq 0..2
+    expect(result.current.frameCount).toBe(3);
+
+    act(() => result.current.extend());
+
+    // Capture continues without a gap: next frame is seq 3
+    act(() => vi.advanceTimersByTime(200));
+    expect(result.current.frameCount).toBe(4);
+    expect(seqOf(result.current.getFrame(3))).toBe(3);
+
+    // Auto-stop at 3 + 5 = 8 frames, no overwriting afterwards
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.frameCount).toBe(8);
+    expect(result.current.isBuffering).toBe(false);
+    expect(seqOf(result.current.getFrame(0))).toBe(0);
+    expect(seqOf(result.current.getFrame(7))).toBe(7);
+    expect(result.current.getFrame(8)).toBeNull();
+  });
+
+  it("extend unrolls a wrapped ring oldest-first and keeps indices stable", () => {
+    tagFrames();
+    const video = createMockVideo(true);
+    const { result } = renderHook(() => useReplayBuffer(video, 1, 5));
+
+    // 8 captures into a 5-slot ring: buffer holds seq 3..7 oldest-first
+    act(() => vi.advanceTimersByTime(1600));
+    expect(result.current.frameCount).toBe(5);
+
+    act(() => result.current.extend());
+    expect(seqOf(result.current.getFrame(0))).toBe(3);
+    expect(seqOf(result.current.getFrame(4))).toBe(7);
+
+    // More frames append while index 0 stays stable
+    act(() => vi.advanceTimersByTime(400));
+    expect(result.current.frameCount).toBe(7);
+    expect(seqOf(result.current.getFrame(0))).toBe(3);
+    expect(seqOf(result.current.getFrame(6))).toBe(9);
+
+    // Auto-stop at 5 + 5 = 10 frames
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.frameCount).toBe(10);
+    expect(result.current.isBuffering).toBe(false);
+    expect(result.current.frames.map(seqOf)).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  });
+
+  it("stop during the extension window freezes the buffer immediately", () => {
+    const video = createMockVideo(true);
+    const { result } = renderHook(() => useReplayBuffer(video, 1, 5));
+
+    act(() => vi.advanceTimersByTime(600)); // 3 frames
+    act(() => result.current.extend());
+    act(() => vi.advanceTimersByTime(400)); // 2 more frames, window not full
+    expect(result.current.frameCount).toBe(5);
+
+    act(() => result.current.stop());
+    expect(result.current.isBuffering).toBe(false);
+
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current.frameCount).toBe(5);
+  });
+
+  it("extend is a no-op when already extended", () => {
+    const video = createMockVideo(true);
+    const { result } = renderHook(() => useReplayBuffer(video, 1, 5));
+
+    act(() => vi.advanceTimersByTime(600)); // 3 frames, cap becomes 8
+    act(() => result.current.extend());
+    act(() => vi.advanceTimersByTime(400)); // 5 frames
+    act(() => result.current.extend()); // must not move the cap to 10
+
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.frameCount).toBe(8);
+    expect(result.current.isBuffering).toBe(false);
+  });
+
+  it("restart after extend returns to ring mode with original capacity", () => {
+    const video = createMockVideo(true);
+    const { result } = renderHook(() => useReplayBuffer(video, 1, 5));
+
+    act(() => vi.advanceTimersByTime(1600));
+    act(() => result.current.extend());
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.frameCount).toBe(10);
+
+    act(() => result.current.restart());
+    expect(result.current.frameCount).toBe(0);
+    expect(result.current.isBuffering).toBe(true);
+
+    // Ring caps at maxFrames again
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.frameCount).toBe(5);
+  });
+
+  it("snapshotFrameCount freezes at extend while frameCount keeps growing", () => {
+    const video = createMockVideo(true);
+    const { result } = renderHook(() => useReplayBuffer(video, 1, 5));
+
+    act(() => vi.advanceTimersByTime(600)); // 3 frames
+    expect(result.current.snapshotFrameCount).toBe(3);
+
+    let returned = 0;
+    act(() => { returned = result.current.extend(); });
+    expect(returned).toBe(3);
+
+    act(() => vi.advanceTimersByTime(400)); // 2 more frames
+    expect(result.current.frameCount).toBe(5);
+    expect(result.current.snapshotFrameCount).toBe(3);
+    expect(result.current.snapshotSeconds).toBeCloseTo(0.6);
+
+    // Second extend keeps returning the original snapshot count
+    act(() => { returned = result.current.extend(); });
+    expect(returned).toBe(3);
+
+    act(() => result.current.restart());
+    act(() => vi.advanceTimersByTime(400));
+    expect(result.current.snapshotFrameCount).toBe(result.current.frameCount);
+  });
+
+  it("maxSeconds grows once extended", () => {
+    const video = createMockVideo(true);
+    const { result } = renderHook(() => useReplayBuffer(video, 1, 5));
+
+    expect(result.current.maxSeconds).toBe(1);
+
+    act(() => vi.advanceTimersByTime(1600)); // full ring
+    act(() => result.current.extend());
+    act(() => vi.advanceTimersByTime(200)); // trigger a re-render
+
+    expect(result.current.maxSeconds).toBe(2);
   });
 
   // --- Default parameters ---

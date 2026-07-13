@@ -1586,16 +1586,19 @@ export function TemplateEditor({
     }
   }, [phase, selectedFrameIndex, replayBuffer]);
 
-  // Keyboard navigation in replay and test phases
+  // Keyboard navigation in replay and test phases. The replay phase is scoped
+  // to the frames present at snapshot time; extension frames only become
+  // navigable in the test phase.
+  const navigableFrameCount = phase === "replay" ? replayBuffer.snapshotFrameCount : replayBuffer.frameCount;
   useEffect(() => {
     if (phase !== "replay" && phase !== "test") return;
 
     const handleKeyDown = (e: KeyboardEvent) =>
-      handleReplayKeyDown(e, replayBuffer.frameCount, setSelectedFrameIndex);
+      handleReplayKeyDown(e, navigableFrameCount, setSelectedFrameIndex);
 
     globalThis.addEventListener("keydown", handleKeyDown);
     return () => globalThis.removeEventListener("keydown", handleKeyDown);
-  }, [phase, replayBuffer.frameCount]);
+  }, [phase, navigableFrameCount]);
 
   // Auto-focus the name input when entering the confirm phase
   useEffect(() => {
@@ -1608,11 +1611,16 @@ export function TemplateEditor({
 
   const resetToSnapshot = () => { setRegions([]); setCurrentBox(null); setErrorMsg(null); };
 
-  /** Stop the replay buffer and enter replay phase to browse captured frames. */
+  /**
+   * Enter replay phase to browse captured frames. The buffer keeps recording
+   * seamlessly for up to 5 more seconds past the ring (extend), so the test
+   * step gets up to 10 seconds of footage. Recording stops early if the user
+   * enters the test step before the extension window is full.
+   */
   const handleTakeSnapshot = () => {
-    replayBuffer.stop();
-    if (replayBuffer.frameCount > 0) {
-      setSelectedFrameIndex(replayBuffer.frameCount - 1);
+    const snapshotCount = replayBuffer.extend();
+    if (snapshotCount > 0) {
+      setSelectedFrameIndex(snapshotCount - 1);
       setPhase("replay");
     } else {
       captureVideoFrame(videoEl, canvasRef.current, setSnapshotWidth, setSnapshotHeight, setPhase, resetToSnapshot);
@@ -1746,6 +1754,9 @@ export function TemplateEditor({
 
   const handlePickFrame = () => {
     templateTest.cancel();
+    // The replay phase only exposes the pre-snapshot frames; clamp in case
+    // the user scrubbed into the extension frames during the test phase
+    setSelectedFrameIndex((i) => Math.min(i, Math.max(0, replayBuffer.snapshotFrameCount - 1)));
     setPhase("replay");
   };
 
@@ -1920,14 +1931,15 @@ export function TemplateEditor({
         )}
       </div>
 
-      {/* Replay Timeline (replay phase) */}
-      {phase === "replay" && replayBuffer.frameCount > 0 && (
+      {/* Replay Timeline (replay phase), scoped to the frames present at
+          snapshot time; extension frames stay hidden until the test phase */}
+      {phase === "replay" && replayBuffer.snapshotFrameCount > 0 && (
         <div className="w-full max-w-[80vw] 2xl:max-w-[85vw] mb-4 px-8">
           <div className="flex items-center gap-4">
             <span className="text-white text-sm 2xl:text-base font-mono shrink-0">
               {(() => {
-                const totalSec = replayBuffer.bufferedSeconds;
-                const secPerFrame = totalSec / replayBuffer.frameCount;
+                const totalSec = replayBuffer.snapshotSeconds;
+                const secPerFrame = totalSec / replayBuffer.snapshotFrameCount;
                 const currentSec = selectedFrameIndex * secPerFrame;
                 const relative = currentSec - totalSec;
                 return Math.abs(relative) < 0.1 ? "now" : `${Math.round(relative)}s`;
@@ -1936,7 +1948,7 @@ export function TemplateEditor({
             <input
               type="range"
               min={0}
-              max={replayBuffer.frameCount - 1}
+              max={replayBuffer.snapshotFrameCount - 1}
               value={selectedFrameIndex}
               onChange={(e) => setSelectedFrameIndex(Number(e.target.value))}
               className="flex-1 h-2 bg-bg-hover border border-border-subtle rounded-none appearance-none cursor-pointer
@@ -1944,7 +1956,7 @@ export function TemplateEditor({
                 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-none [&::-moz-range-thumb]:bg-accent-blue [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:shadow-[0_0_0_1px_var(--accent-blue)]"
             />
             <span className="text-white/60 text-xs 2xl:text-sm shrink-0">
-              {selectedFrameIndex + 1} / {replayBuffer.frameCount}
+              {selectedFrameIndex + 1} / {replayBuffer.snapshotFrameCount}
             </span>
           </div>
           <p className="text-xs 2xl:text-sm text-text-muted text-center mt-2">
