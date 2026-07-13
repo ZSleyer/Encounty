@@ -248,6 +248,54 @@ describe("PokemonFormModal", () => {
       });
     });
 
+    it("lists only the base species on a base-name match (forms move to the strip)", async () => {
+      render(
+        <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+      const searchInput = screen.getByPlaceholderText(/pok.mon/i);
+      await userEvent.click(searchInput);
+      await userEvent.type(searchInput, "pikachu");
+
+      await waitFor(() => expect(screen.getByText("Pikachu")).toBeInTheDocument());
+      // The gmax form must not be dumped into the base-name results.
+      expect(screen.queryByText("Pikachu Gmax")).not.toBeInTheDocument();
+    });
+
+    it("keeps forms findable by a form-specific term", async () => {
+      render(
+        <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+      const searchInput = screen.getByPlaceholderText(/pok.mon/i);
+      await userEvent.click(searchInput);
+      await userEvent.type(searchInput, "gmax");
+
+      // "gmax" does not match the base name, so the form stays reachable.
+      await waitFor(() => expect(screen.getByText("Pikachu Gmax")).toBeInTheDocument());
+    });
+
+    it("reveals the form strip with a base entry after selecting a species with forms", async () => {
+      render(
+        <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+      const searchInput = screen.getByPlaceholderText(/pok.mon/i);
+      await userEvent.click(searchInput);
+      await userEvent.type(searchInput, "pikachu");
+      await waitFor(() => expect(screen.getByText("Pikachu")).toBeInTheDocument());
+
+      await userEvent.click(screen.getByText("Pikachu"));
+
+      // The strip lets the user switch between the form and the base.
+      await waitFor(() => expect(screen.getByText("Pikachu Gmax")).toBeInTheDocument());
+      // A base entry ("Pikachu") remains listed so the base is reachable again.
+      expect(screen.getAllByText("Pikachu").length).toBeGreaterThan(0);
+    });
+
     it("fetches pokedex and games data on mount", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,

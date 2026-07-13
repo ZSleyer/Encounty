@@ -213,17 +213,15 @@ function filterByQuery(
   for (const p of allPokemon) {
     const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id };
     const baseMatches = matchesQuery(baseEntry);
-    const availableForms = (p.forms || []).filter((f) => isFormAvailableForGame(f, selectedGame, games));
-    const formEntries: SearchResult[] = availableForms.map((f) => ({
-      id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
-      formName: (f as any).form_names?.[language] || (f as any).form_names?.["en"] || undefined,
-      baseName: p.names?.[language] || p.names?.["en"] || undefined,
-    }));
-    const matchingForms = formEntries.filter(matchesQuery);
+    const matchingForms = formEntriesFor(p, selectedGame, games, language).filter(matchesQuery);
 
     if (baseMatches) {
-      results.push(baseEntry, ...formEntries);
+      // Base hit: list the base only. Its forms are offered by the form strip
+      // after selection, so dumping every form here is just noise.
+      results.push(baseEntry);
     } else if (matchingForms.length > 0) {
+      // Only a form-specific term matched (e.g. "mega", "alolan"): surface the
+      // base plus the matching forms so the form stays findable by its name.
       results.push(baseEntry, ...matchingForms);
     }
     if (results.length >= 20) break;
@@ -307,6 +305,22 @@ function buildSearchList(
     }
   }
   return results;
+}
+
+/** Available forms of a base pokemon as selectable entries (game-filtered). */
+function formEntriesFor(
+  p: PokemonData,
+  selectedGame: string,
+  games: GameEntry[],
+  language: string,
+): SearchResult[] {
+  return (p.forms || [])
+    .filter((f) => isFormAvailableForGame(f, selectedGame, games))
+    .map((f) => ({
+      id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+      formName: (f as any).form_names?.[language] || (f as any).form_names?.["en"] || undefined,
+      baseName: p.names?.[language] || p.names?.["en"] || undefined,
+    }));
 }
 
 interface SelectedState {
@@ -604,6 +618,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [browseLimit, setBrowseLimit] = useState(BROWSE_PAGE);
+  // Forms of the currently selected base species, shown right after selection
+  // so the user can refine to a specific form without reopening the search.
+  const [pendingForms, setPendingForms] = useState<SearchResult[]>([]);
   const [allPokemon, setAllPokemon] = useState<PokemonData[]>([]);
   const [missingNames, setMissingNames] = useState(false);
   const [showSearch, setShowSearch] = useState(!isEdit);
@@ -734,6 +751,19 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     });
     setCustomSprite(sprite);
     if (isEdit) setShowSearch(false);
+
+    // Surface the picked species' forms so the user can toggle between base
+    // and forms. The base itself leads the strip so switching back is possible.
+    // Base and form entries share the base `id`, so the strip stays put
+    // whichever gets picked; it only clears when the query changes.
+    const base = allPokemon.find((x) => x.id === p.id);
+    const forms = base ? formEntriesFor(base, selectedGame, games, language) : [];
+    if (base && forms.length > 0) {
+      const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id };
+      setPendingForms([baseEntry, ...forms]);
+    } else {
+      setPendingForms([]);
+    }
   };
 
   // --- Recalculate sprite URL when dependencies change ---
@@ -1220,6 +1250,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   onChange={(e) => {
                     setQuery(e.target.value);
                     setSelected(null);
+                    setPendingForms([]);
                   }}
                   onFocus={() => setInputFocused(true)}
                   onBlur={() => {
@@ -1306,6 +1337,51 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Forms of the just-selected base species */}
+          {pendingForms.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-text-muted">{t("modal.forms")}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {pendingForms.map((f) => {
+                  const isActive = selected?.canonical === f.canonical;
+                  return (
+                    <button
+                      key={f.canonical}
+                      type="button"
+                      onClick={() => selectPokemon(f)}
+                      aria-pressed={isActive}
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded-none border text-xs transition-colors ${
+                        isActive
+                          ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
+                          : "border-border-subtle text-text-muted hover:text-text-primary"
+                      }`}
+                    >
+                      <img
+                        src={getDefaultSpriteUrl(f.spriteId)}
+                        alt=""
+                        className="h-6 w-6 object-contain shrink-0"
+                        style={{ imageRendering: "pixelated" }}
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          const fallback = getSpriteUrl(f.spriteId.toString(), "", "shiny", "3d", f.canonical);
+                          if (img.src !== fallback) {
+                            img.style.imageRendering = "auto";
+                            img.src = fallback;
+                          } else {
+                            img.style.display = "none";
+                          }
+                        }}
+                      />
+                      <span className="capitalize truncate max-w-[10rem]">
+                        {f.formName || getPkmnName(f, language)}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
