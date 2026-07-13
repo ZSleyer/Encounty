@@ -779,6 +779,7 @@
   "templateEditor.categoryHelpTitle": "What are categories?",
   "templateEditor.categoryHelp": "A category groups regions that are counted together: regions sharing a category are combined (all must match) and trigger one count. Each category is counted independently and adds to the same counter. Leave empty to count everything as a single group.",
   "templateEditor.close": "Close",
+  "templateEditor.closeEditor": "Close editor",
   "templateEditor.templateName": "Template name (optional)",
   "templateEditor.nameDialogTitle": "Name your template",
   "templateEditor.next": "Next",

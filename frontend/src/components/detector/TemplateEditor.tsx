@@ -1242,7 +1242,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
         #{i + 1}
       </span>
       <select
-        className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-25 2xl:min-w-30"
+        className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-25 2xl:min-w-30"
         aria-label={t("templateEditor.regionType")}
         value={r.type}
         onChange={(e) => onUpdate(i, { type: e.target.value as "image" | "text" })}
@@ -1257,7 +1257,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
             placeholder={t("templateEditor.expectedText")}
             value={r.expected_text}
             onChange={(e) => onUpdate(i, { expected_text: e.target.value })}
-            className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-30 2xl:min-w-35 focus:border-[#3fd4e0]"
+            className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none min-w-30 2xl:min-w-35 focus:border-[#3fd4e0]"
           />
           <button
             title="Auto-recognize text (OCR)"
@@ -1289,7 +1289,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
           placeholder={t("templateEditor.category")}
           value={r.category ?? ""}
           onChange={(e) => onUpdate(i, { category: e.target.value })}
-          className="bg-bg-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none w-24 2xl:w-28 focus:border-accent-blue"
+          className="bg-bg-primary text-text-primary text-xs 2xl:text-sm p-1 2xl:p-1.5 rounded-none border border-border-subtle outline-none w-24 2xl:w-28 focus:border-accent-blue"
         />
         <datalist id={datalistId}>
           {categoryNames.map((c) => (
@@ -1847,6 +1847,7 @@ export function TemplateEditor({
     <div className="fixed inset-0 z-100 bg-black/95 flex flex-col items-center justify-center p-4 md:p-6 backdrop-blur-sm overflow-y-auto">
       <button
         onClick={onClose}
+        aria-label={t("templateEditor.closeEditor")}
         className="absolute top-4 right-4 md:top-8 md:right-8 p-3 rounded-none text-white hover:bg-white/10 transition-colors z-110"
       >
         <X className="w-6 h-6 2xl:w-7 2xl:h-7" />

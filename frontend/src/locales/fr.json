@@ -779,6 +779,7 @@
   "templateEditor.categoryHelpTitle": "Que sont les catégories ?",
   "templateEditor.categoryHelp": "Une catégorie regroupe des régions comptées ensemble : les régions d'une même catégorie sont combinées (toutes doivent correspondre) et déclenchent un seul comptage. Chaque catégorie est comptée indépendamment et incrémente le même compteur. Laisser vide pour tout compter comme un seul groupe.",
   "templateEditor.close": "Fermer",
+  "templateEditor.closeEditor": "Fermer l'éditeur",
   "templateEditor.templateName": "Nom du template (optionnel)",
   "templateEditor.nameDialogTitle": "Nommer le template",
   "templateEditor.next": "Suivant",

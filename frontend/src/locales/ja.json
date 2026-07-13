@@ -779,6 +779,7 @@
   "templateEditor.categoryHelpTitle": "カテゴリとは？",
   "templateEditor.categoryHelp": "カテゴリは、まとめてカウントされるリージョンのグループです。同じカテゴリのリージョンは結合され（すべて一致が必要）、1回のカウントになります。各カテゴリは個別にカウントされ、同じカウンターに加算されます。空欄にすると、すべてが1つのグループとしてカウントされます。",
   "templateEditor.close": "閉じる",
+  "templateEditor.closeEditor": "エディターを閉じる",
   "templateEditor.templateName": "Template名（任意）",
   "templateEditor.nameDialogTitle": "Templateに名前を付ける",
   "templateEditor.next": "次へ",
