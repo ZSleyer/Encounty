@@ -47,7 +47,7 @@ describe("ShadowEditorModal", () => {
 
   it("renders XY offset pad", () => {
     render(<ShadowEditorModal {...defaultProps} />);
-    expect(screen.getByLabelText("Shadow offset picker")).toBeInTheDocument();
+    expect(screen.getByLabelText("Schatten-Offset wählen")).toBeInTheDocument();
     expect(screen.getByText(/X: 2/)).toBeInTheDocument();
     expect(screen.getByText(/Y: 2/)).toBeInTheDocument();
   });
@@ -62,7 +62,7 @@ describe("ShadowEditorModal", () => {
   it("calls onClose when cancel button is clicked", () => {
     const onClose = vi.fn();
     render(<ShadowEditorModal {...defaultProps} onClose={onClose} />);
-    const cancelBtn = screen.getByTitle("Abbrechen");
+    const cancelBtn = screen.getByText("Abbrechen");
     fireEvent.click(cancelBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -70,7 +70,7 @@ describe("ShadowEditorModal", () => {
   it("calls onConfirm with current settings when apply is clicked", () => {
     const onConfirm = vi.fn();
     render(<ShadowEditorModal {...defaultProps} onConfirm={onConfirm} />);
-    const applyBtn = screen.getByTitle("Übernehmen");
+    const applyBtn = screen.getByText("Anwenden");
     fireEvent.click(applyBtn);
     expect(onConfirm).toHaveBeenCalledWith({
       enabled: true,
@@ -87,7 +87,7 @@ describe("ShadowEditorModal", () => {
   it("calls onClose when close X button is clicked", () => {
     const onClose = vi.fn();
     render(<ShadowEditorModal {...defaultProps} onClose={onClose} />);
-    const closeBtn = screen.getByTitle("Schließen");
+    const closeBtn = screen.getByLabelText("Schließen");
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -102,7 +102,7 @@ describe("ShadowEditorModal", () => {
     expect(checkbox).toBeChecked();
     fireEvent.click(checkbox);
     // Now apply and check that enabled is false
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ enabled: false }),
     );
@@ -143,7 +143,7 @@ describe("ShadowEditorModal", () => {
     // Click the gradient toggle button (only one instance when colorType is solid)
     fireEvent.click(screen.getAllByText("overlay.colorGradient")[0]);
     // Apply and verify colorType changed
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.objectContaining({ colorType: "gradient" }),
     );
@@ -209,7 +209,7 @@ describe("ShadowEditorModal", () => {
   it("updates XY offset when pad is dragged (mouseDown only)", () => {
     const onConfirm = vi.fn();
     render(<ShadowEditorModal {...defaultProps} x={0} y={0} onConfirm={onConfirm} />);
-    const pad = screen.getByLabelText("Shadow offset picker");
+    const pad = screen.getByLabelText("Schatten-Offset wählen");
 
     vi.spyOn(pad, "getBoundingClientRect").mockReturnValue({
       left: 0, top: 0, width: 120, height: 120, x: 0, y: 0, right: 120, bottom: 120, toJSON: () => {},
@@ -218,14 +218,14 @@ describe("ShadowEditorModal", () => {
     // mouseDown at center (60, 60) -> ratio 0.5 -> value 0
     fireEvent.mouseDown(pad, { clientX: 60, clientY: 60 });
 
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ x: 0, y: 0 }));
   });
 
   it("updates XY offset via mousemove and mouseup during drag", async () => {
     const onConfirm = vi.fn();
     render(<ShadowEditorModal {...defaultProps} x={0} y={0} onConfirm={onConfirm} />);
-    const pad = screen.getByLabelText("Shadow offset picker");
+    const pad = screen.getByLabelText("Schatten-Offset wählen");
 
     vi.spyOn(pad, "getBoundingClientRect").mockReturnValue({
       left: 0, top: 0, width: 120, height: 120, x: 0, y: 0, right: 120, bottom: 120, toJSON: () => {},
@@ -243,7 +243,7 @@ describe("ShadowEditorModal", () => {
       globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     });
 
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     // mousemove to (120, 120) → ratio 1.0 → value 30
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ x: 30, y: 30 }));
   });
@@ -277,7 +277,7 @@ describe("ShadowEditorModal", () => {
     // NumSlider renders a range input with title="overlay.blurPx"
     const blurRange = screen.getByTitle("overlay.blurPx") as HTMLInputElement;
     fireEvent.change(blurRange, { target: { value: "12" } });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ blur: 12 }));
   });
 });

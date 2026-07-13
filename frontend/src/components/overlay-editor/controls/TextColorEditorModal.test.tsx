@@ -52,7 +52,7 @@ describe("TextColorEditorModal", () => {
   it("calls onClose when cancel button is clicked", () => {
     const onClose = vi.fn();
     render(<TextColorEditorModal {...defaultProps} onClose={onClose} />);
-    const cancelBtn = screen.getByTitle("Abbrechen");
+    const cancelBtn = screen.getByText("Abbrechen");
     fireEvent.click(cancelBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -67,7 +67,7 @@ describe("TextColorEditorModal", () => {
         onConfirm={onConfirm}
       />,
     );
-    const applyBtn = screen.getByTitle("Übernehmen");
+    const applyBtn = screen.getByText("Anwenden");
     fireEvent.click(applyBtn);
     expect(onConfirm).toHaveBeenCalledWith("solid", "#ff00ff", [], 0);
   });
@@ -75,7 +75,7 @@ describe("TextColorEditorModal", () => {
   it("calls onClose when close X button is clicked", () => {
     const onClose = vi.fn();
     render(<TextColorEditorModal {...defaultProps} onClose={onClose} />);
-    const closeBtn = screen.getByTitle("Schließen");
+    const closeBtn = screen.getByLabelText("Schließen");
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -89,7 +89,7 @@ describe("TextColorEditorModal", () => {
     const onConfirm = vi.fn();
     render(<TextColorEditorModal {...defaultProps} onConfirm={onConfirm} />);
     fireEvent.click(screen.getByText("Verlauf"));
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith("gradient", expect.any(String), expect.any(Array), expect.any(Number));
     expect(onConfirm.mock.calls[0][0]).toBe("gradient");
   });
@@ -132,7 +132,7 @@ describe("TextColorEditorModal", () => {
     const { container } = render(
       <TextColorEditorModal {...defaultProps} colorType="solid" onOpenColorPicker={onOpenColorPicker} />,
     );
-    const swatch = container.querySelector(".w-6.h-4.rounded.cursor-pointer");
+    const swatch = container.querySelector(".w-6.h-4.rounded-none.cursor-pointer");
     expect(swatch).not.toBeNull();
     fireEvent.click(swatch!);
     expect(onOpenColorPicker).toHaveBeenCalled();
@@ -151,7 +151,7 @@ describe("TextColorEditorModal", () => {
         onOpenGradientEditor={onOpenGradientEditor}
       />,
     );
-    const swatch = container.querySelector(".w-6.h-4.rounded.cursor-pointer");
+    const swatch = container.querySelector(".w-6.h-4.rounded-none.cursor-pointer");
     expect(swatch).not.toBeNull();
     fireEvent.click(swatch!);
     expect(onOpenGradientEditor).toHaveBeenCalled();

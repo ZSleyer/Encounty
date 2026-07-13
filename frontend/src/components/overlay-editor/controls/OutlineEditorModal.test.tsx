@@ -41,7 +41,7 @@ describe("OutlineEditorModal", () => {
   it("calls onClose when cancel button is clicked", () => {
     const onClose = vi.fn();
     render(<OutlineEditorModal {...defaultProps} onClose={onClose} />);
-    const cancelBtn = screen.getByTitle("Abbrechen");
+    const cancelBtn = screen.getByText("Abbrechen");
     fireEvent.click(cancelBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -57,7 +57,7 @@ describe("OutlineEditorModal", () => {
         onConfirm={onConfirm}
       />,
     );
-    const applyBtn = screen.getByTitle("Übernehmen");
+    const applyBtn = screen.getByText("Anwenden");
     fireEvent.click(applyBtn);
     expect(onConfirm).toHaveBeenCalledWith("solid", "#ff0000", 5);
   });
@@ -65,7 +65,7 @@ describe("OutlineEditorModal", () => {
   it("calls onClose when close X button is clicked", () => {
     const onClose = vi.fn();
     render(<OutlineEditorModal {...defaultProps} onClose={onClose} />);
-    const closeBtn = screen.getByTitle("Schließen");
+    const closeBtn = screen.getByLabelText("Schließen");
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });

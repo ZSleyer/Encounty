@@ -48,7 +48,7 @@ describe("GradientEditorModal", () => {
   it("calls onClose when cancel button is clicked", () => {
     const onClose = vi.fn();
     render(<GradientEditorModal {...defaultProps} onClose={onClose} />);
-    const cancelBtn = screen.getByTitle("Abbrechen");
+    const cancelBtn = screen.getByText("Abbrechen");
     fireEvent.click(cancelBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -56,7 +56,7 @@ describe("GradientEditorModal", () => {
   it("calls onConfirm with stops and angle when apply is clicked", () => {
     const onConfirm = vi.fn();
     render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
-    const applyBtn = screen.getByTitle("Übernehmen");
+    const applyBtn = screen.getByText("Anwenden");
     fireEvent.click(applyBtn);
     expect(onConfirm).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -70,7 +70,7 @@ describe("GradientEditorModal", () => {
   it("calls onClose when close X button is clicked", () => {
     const onClose = vi.fn();
     render(<GradientEditorModal {...defaultProps} onClose={onClose} />);
-    const closeBtn = screen.getByTitle("Schließen");
+    const closeBtn = screen.getByLabelText("Schließen");
     fireEvent.click(closeBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -90,7 +90,7 @@ describe("GradientEditorModal", () => {
     expect(posInputs.length).toBeGreaterThanOrEqual(1);
     fireEvent.change(posInputs[0], { target: { value: "25" } });
     // Now apply and check the updated position
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ position: 25 }),
@@ -129,7 +129,7 @@ describe("GradientEditorModal", () => {
     const removeButtons = screen.getAllByTitle("Farbstopp entfernen");
     fireEvent.click(removeButtons[0]);
     // Now apply — should have 2 stops remaining
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(expect.any(Array), 90);
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.length).toBe(2);
@@ -161,7 +161,7 @@ describe("GradientEditorModal", () => {
     container.querySelectorAll("button.flex.items-center");
     // Click the first swatch-like area (ColorSwatch has an onClick)
     // We need to find the actual swatch element
-    const allSmallButtons = container.querySelectorAll(".w-6.h-4.rounded.cursor-pointer");
+    const allSmallButtons = container.querySelectorAll(".w-6.h-4.rounded-none.cursor-pointer");
     if (allSmallButtons.length > 0) {
       fireEvent.click(allSmallButtons[0]);
       expect(onOpenColorPicker).toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe("GradientEditorModal", () => {
     });
     fireEvent.click(bar, { clientX: 100, clientY: 16 });
     // Should now have 3 stops — apply and check
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.length).toBe(3);
   });
@@ -219,7 +219,7 @@ describe("GradientEditorModal", () => {
       globalThis.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
     });
 
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     // Stop 1 position should have been updated to ~50 (100px / 200px * 100)
     expect(stops[0].position).toBe(50);
@@ -234,7 +234,7 @@ describe("GradientEditorModal", () => {
     });
     // Click at 50% (clientX=100)
     fireEvent.click(bar, { clientX: 100 });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.length).toBe(3);
     // Middle stop should be at position 50 with interpolated color
@@ -278,7 +278,7 @@ describe("GradientEditorModal", () => {
     fireEvent.keyDown(handle1, { key: "ArrowRight" });
     // The handle's `key` includes position, so React remounts the node; re-query it.
     expect(screen.getByLabelText("Stop 1").className).toContain("border-accent-blue");
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(1);
   });
@@ -288,7 +288,7 @@ describe("GradientEditorModal", () => {
     render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
     const handle1 = screen.getByLabelText("Stop 1");
     fireEvent.keyDown(handle1, { key: "ArrowLeft" });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(0);
   });
@@ -298,7 +298,7 @@ describe("GradientEditorModal", () => {
     render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
     const handle2 = screen.getByLabelText("Stop 2");
     fireEvent.keyDown(handle2, { key: "ArrowDown" });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.find((s: { position: number; color: string }) => s.color === "#0000ff").position).toBe(99);
   });
@@ -308,7 +308,7 @@ describe("GradientEditorModal", () => {
     render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
     const handle1 = screen.getByLabelText("Stop 1");
     fireEvent.keyDown(handle1, { key: "Enter" });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.find((s: { position: number; color: string }) => s.color === "#ff0000").position).toBe(0);
   });
@@ -320,7 +320,7 @@ describe("GradientEditorModal", () => {
     render(<GradientEditorModal {...defaultProps} onConfirm={onConfirm} />);
     const addBtn = screen.getByTitle("Farbstopp hinzufügen");
     fireEvent.click(addBtn);
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops.length).toBe(3);
     const middleStop = stops.find((s: { position: number }) => s.position === 50);
@@ -335,7 +335,7 @@ describe("GradientEditorModal", () => {
     const { container } = render(
       <GradientEditorModal {...defaultProps} onOpenColorPicker={onOpenColorPicker} onConfirm={onConfirm} />,
     );
-    const swatches = container.querySelectorAll(".w-6.h-4.rounded.cursor-pointer");
+    const swatches = container.querySelectorAll(".w-6.h-4.rounded-none.cursor-pointer");
     fireEvent.click(swatches[0]);
     // onOpenColorPicker receives (currentColor, callback)
     expect(onOpenColorPicker).toHaveBeenCalledWith("#ff0000", expect.any(Function));
@@ -343,7 +343,7 @@ describe("GradientEditorModal", () => {
     const callback = onOpenColorPicker.mock.calls[0][1];
     act(() => { callback("#00ff00"); });
     // Apply and verify the color changed
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     const stops = onConfirm.mock.calls[0][0];
     expect(stops[0].color).toBe("#00ff00");
   });

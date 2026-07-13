@@ -1,11 +1,10 @@
 /** Modal for editing text outline (stroke) properties: type, color, and width. */
 
-import { useRef, useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { useState } from "react";
 import { NumSlider } from "./NumSlider";
 import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
-import { useDialogClose } from "../../../hooks/useDialogClose";
+import { ModalShell, ModalActions } from "../../shared/ModalShell";
 
 interface OutlineEditorModalProps {
   readonly type: "none" | "solid";
@@ -16,6 +15,7 @@ interface OutlineEditorModalProps {
   readonly onOpenColorPicker: (currentColor: string, onPick: (color: string) => void) => void;
 }
 
+/** Modal dialog for editing text outline: stroke type, width, and color. */
 export function OutlineEditorModal({
   type: initialType,
   color: initialColor,
@@ -25,23 +25,6 @@ export function OutlineEditorModal({
   onOpenColorPicker,
 }: OutlineEditorModalProps) {
   const { t } = useI18n();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
-
-  const handleCancel = useDialogClose(dialogRef, onClose);
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [handleCancel]);
 
   const [type, setType] = useState<"none" | "solid">(initialType);
   const [color, setColor] = useState(initialColor);
@@ -55,23 +38,21 @@ export function OutlineEditorModal({
     : undefined;
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm backdrop:bg-black/70"
-      onCancel={handleCancel}
+    <ModalShell
+      title={t("overlay.outlineEditorTitle")}
+      onClose={onClose}
+      size="sm"
+      titleSize="sm"
+      footer={(requestClose) => (
+        <ModalActions
+          onConfirm={() => onConfirm(type, color, width)}
+          requestClose={requestClose}
+          confirmLabel={t("common.apply")}
+        />
+      )}
     >
-      {/* --- Header --- */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
-          Outline bearbeiten
-        </h2>
-        <button title={t("tooltip.common.close")} onClick={handleCancel} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']">
-          <X size={16} />
-        </button>
-      </div>
-
       {/* --- Preview --- */}
-      <div className="w-full h-20 rounded-lg bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
+      <div className="w-full h-20 rounded-none bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
         <span
           className="text-white text-[32px] select-none"
           style={{
@@ -90,7 +71,7 @@ export function OutlineEditorModal({
           {([["none", t("overlay.animNone")], ["solid", t("overlay.colorSolid")]] as const).map(([val, label]) => (
             <button
               key={val}
-              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 py-1.5 rounded-none text-sm font-medium transition-colors ${
                 type === val
                   ? "bg-accent-blue/20 text-accent-blue"
                   : "border border-border-subtle text-text-muted hover:text-text-primary"
@@ -112,36 +93,15 @@ export function OutlineEditorModal({
 
       {/* --- Color (when solid) --- */}
       {isActive && (
-        <div className="mb-5">
+        <div>
           <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
           <ColorSwatch
             color={color}
-            className="w-6 h-4 rounded cursor-pointer"
+            className="w-6 h-4 rounded-none cursor-pointer"
             onClick={() => onOpenColorPicker(color, (c) => setColor(c))}
           />
         </div>
       )}
-
-      {/* --- Buttons --- */}
-      <div className="flex gap-3 mt-5">
-        <button
-          title={t("tooltip.common.cancel")}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
-          onClick={handleCancel}
-        >
-          {t("tooltip.common.cancel")}
-        </button>
-        <button
-          title={t("tooltip.common.apply")}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
-          onClick={() => {
-            onConfirm(type, color, width);
-            handleCancel();
-          }}
-        >
-          {t("tooltip.common.apply")}
-        </button>
-      </div>
-    </dialog>
+    </ModalShell>
   );
 }

@@ -1,13 +1,13 @@
 /** Modal for editing text-shadow properties: offset, blur, color, color type, and enable toggle. */
 
-import { useRef, useEffect, useState, useCallback } from "react";
-import { X } from "lucide-react";
+import { useRef, useState, useCallback } from "react";
 import { NumSlider } from "./NumSlider";
 import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
 import type { GradientStop } from "../../../types";
-import { useDialogClose } from "../../../hooks/useDialogClose";
+import { ModalShell, ModalActions } from "../../shared/ModalShell";
 
+/** Result payload passed to onConfirm when the shadow settings are applied. */
 export interface ShadowConfirmParams {
   readonly enabled: boolean;
   readonly color: string;
@@ -39,6 +39,7 @@ const XY_MIN = -30;
 const XY_MAX = 30;
 const PAD_SIZE = 120;
 
+/** Modal dialog for editing text-shadow: enable toggle, XY offset, blur, and color. */
 export function ShadowEditorModal({
   enabled: initialEnabled,
   color: initialColor,
@@ -54,23 +55,6 @@ export function ShadowEditorModal({
   onOpenGradientEditor,
 }: ShadowEditorModalProps) {
   const { t } = useI18n();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
-
-  const handleCancel = useDialogClose(dialogRef, onClose);
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [handleCancel]);
 
   const [enabled, setEnabled] = useState(initialEnabled);
   const [color, setColor] = useState(initialColor);
@@ -120,21 +104,21 @@ export function ShadowEditorModal({
   const shadowCSS = enabled ? `${sx}px ${sy}px ${blur}px ${previewColor}` : "none";
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="m-auto t-panel p-6 w-full max-w-sm backdrop:bg-black/70"
-      onCancel={handleCancel}
+    <ModalShell
+      title={t("overlay.shadowEditorTitle")}
+      onClose={onClose}
+      size="sm"
+      titleSize="sm"
+      footer={(requestClose) => (
+        <ModalActions
+          onConfirm={() =>
+            onConfirm({ enabled, color, colorType, gradientStops, gradientAngle, blur, x: sx, y: sy })
+          }
+          requestClose={requestClose}
+          confirmLabel={t("common.apply")}
+        />
+      )}
     >
-      {/* --- Header --- */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
-          Schatten bearbeiten
-        </h2>
-        <button title={t("tooltip.common.close")} onClick={handleCancel} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']">
-          <X size={16} />
-        </button>
-      </div>
-
       {/* --- Preview --- */}
       <div className="w-full h-20 rounded-none bg-bg-primary border border-border-subtle flex items-center justify-center mb-4">
         <span
@@ -153,17 +137,17 @@ export function ShadowEditorModal({
           onChange={(e) => setEnabled(e.target.checked)}
           className="accent-accent-blue w-4 h-4"
         />
-        <span className="text-[10px] 2xl:text-xs text-text-muted">Schatten aktiv</span>
+        <span className="text-[10px] 2xl:text-xs text-text-muted">{t("overlay.shadowEnabled")}</span>
       </label>
 
       {/* --- XY Offset pad --- */}
       <div className="mb-4">
-        <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">Offset</p>
+        <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.shadowOffset")}</p>
         <div className="flex flex-col items-center">
           <button
             type="button"
             ref={padRef}
-            aria-label="Shadow offset picker"
+            aria-label={t("aria.shadowOffsetPicker")}
             className="appearance-none p-0 m-0 block relative bg-bg-primary border border-border-subtle rounded-none cursor-crosshair"
             style={{ width: PAD_SIZE, height: PAD_SIZE }}
             onMouseDown={startPadDrag}
@@ -220,7 +204,7 @@ export function ShadowEditorModal({
 
       {/* --- Color (when solid) --- */}
       {colorType === "solid" && (
-        <div className="mb-5">
+        <div>
           <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
           <ColorSwatch
             color={color}
@@ -232,7 +216,7 @@ export function ShadowEditorModal({
 
       {/* --- Gradient swatch (when gradient) --- */}
       {colorType === "gradient" && (
-        <div className="mb-5">
+        <div>
           <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.colorGradient")}</p>
           <ColorSwatch
             color={gradientStops[0]?.color ?? "#ffffff"}
@@ -247,27 +231,6 @@ export function ShadowEditorModal({
           />
         </div>
       )}
-
-      {/* --- Buttons --- */}
-      <div className="flex gap-3">
-        <button
-          title={t("tooltip.common.cancel")}
-          className="flex-1 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
-          onClick={handleCancel}
-        >
-          {t("tooltip.common.cancel")}
-        </button>
-        <button
-          title={t("tooltip.common.apply")}
-          className="flex-1 py-2 t-cut rounded-none bg-accent-blue hover:bg-accent-blue/80 text-bg-primary font-semibold text-sm transition-colors"
-          onClick={() => {
-            onConfirm({ enabled, color, colorType, gradientStops, gradientAngle, blur, x: sx, y: sy });
-            handleCancel();
-          }}
-        >
-          {t("tooltip.common.apply")}
-        </button>
-      </div>
-    </dialog>
+    </ModalShell>
   );
 }

@@ -1,12 +1,12 @@
 /** Modal for editing gradient stops (colors + positions) and angle. */
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useState, useCallback } from "react";
 import { X, Plus } from "lucide-react";
 import { NumSlider } from "./NumSlider";
 import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
 import type { GradientStop } from "../../../types";
-import { useDialogClose } from "../../../hooks/useDialogClose";
+import { ModalShell, ModalActions } from "../../shared/ModalShell";
 
 interface GradientEditorModalProps {
   readonly stops: GradientStop[];
@@ -61,6 +61,7 @@ function colorAtPosition(stops: GradientStop[], pct: number): string {
   return color;
 }
 
+/** Modal dialog for editing a linear gradient: stop colors, positions, and angle. */
 export function GradientEditorModal({
   stops: initialStops,
   angle: initialAngle,
@@ -69,23 +70,6 @@ export function GradientEditorModal({
   onOpenColorPicker,
 }: GradientEditorModalProps) {
   const { t } = useI18n();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
-
-  const handleCancel = useDialogClose(dialogRef, onClose);
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    const handleBackdropClick = (e: MouseEvent) => {
-      if (e.target === dialog) handleCancel();
-    };
-    dialog.addEventListener("click", handleBackdropClick);
-    return () => dialog.removeEventListener("click", handleBackdropClick);
-  }, [handleCancel]);
 
   const [stops, setStops] = useState<GradientStop[]>(() => {
     const s = initialStops.map((s) => ({ ...s }));
@@ -163,27 +147,25 @@ export function GradientEditorModal({
   };
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-sm backdrop:bg-black/70"
-      onCancel={handleCancel}
+    <ModalShell
+      title={t("overlay.gradientEditorTitle")}
+      onClose={onClose}
+      size="sm"
+      titleSize="sm"
+      footer={(requestClose) => (
+        <ModalActions
+          onConfirm={() => onConfirm(stops, angle)}
+          requestClose={requestClose}
+          confirmLabel={t("common.apply")}
+        />
+      )}
     >
-      {/* --- Header --- */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xs 2xl:text-sm text-text-secondary font-semibold">
-          Gradient bearbeiten
-        </h2>
-        <button title={t("tooltip.common.close")} onClick={handleCancel} className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']">
-          <X size={16} />
-        </button>
-      </div>
-
       {/* --- Preview bar --- */}
       <div className="flex items-center gap-2 mb-1">
         <button
           ref={barRef}
           type="button"
-          className="w-full h-8 rounded-lg cursor-crosshair border-0 p-0"
+          className="w-full h-8 rounded-none cursor-crosshair border-0 p-0"
           style={{ background: buildGradientCSS(stops, angle) }}
           onClick={handleBarClick}
         />
@@ -247,13 +229,13 @@ export function GradientEditorModal({
         {stops.map((stop, idx) => (
           <div
             key={`stop-${stop.color}-${stop.position}-${idx}`}
-            className={`flex items-center gap-2 p-1.5 rounded-lg w-full ${
+            className={`flex items-center gap-2 p-1.5 rounded-none w-full ${
               selectedIdx === idx ? "bg-accent-blue/10" : ""
             }`}
           >
             <ColorSwatch
               color={stop.color}
-              className="w-6 h-4 rounded cursor-pointer shrink-0"
+              className="w-6 h-4 rounded-none cursor-pointer shrink-0"
               onClick={() => {
                 setSelectedIdx(idx);
                 onOpenColorPicker(stop.color, (c) => updateStopColor(idx, c));
@@ -266,7 +248,7 @@ export function GradientEditorModal({
               value={stop.position}
               onFocus={() => setSelectedIdx(idx)}
               onChange={(e) => updateStopPosition(idx, Number(e.target.value))}
-              className="w-14 bg-bg-primary border border-border-subtle rounded px-1.5 py-0.5 text-xs text-text-primary text-center"
+              className="w-14 bg-bg-primary border border-border-subtle rounded-none px-1.5 py-0.5 text-xs text-text-primary text-center"
             />
             <span className="text-[10px] 2xl:text-xs text-text-muted">%</span>
             {stops.length > 2 && (
@@ -284,30 +266,9 @@ export function GradientEditorModal({
       </div>
 
       {/* --- Angle --- */}
-      <div className="mb-5">
+      <div>
         <NumSlider label={t("overlay.angleDeg")} value={angle} min={0} max={360} onChange={setAngle} />
       </div>
-
-      {/* --- Buttons --- */}
-      <div className="flex gap-3">
-        <button
-          title={t("tooltip.common.cancel")}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
-          onClick={handleCancel}
-        >
-          {t("tooltip.common.cancel")}
-        </button>
-        <button
-          title={t("tooltip.common.apply")}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors"
-          onClick={() => {
-            onConfirm(stops, angle);
-            handleCancel();
-          }}
-        >
-          {t("tooltip.common.apply")}
-        </button>
-      </div>
-    </dialog>
+    </ModalShell>
   );
 }

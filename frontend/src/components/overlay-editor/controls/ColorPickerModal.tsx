@@ -1,12 +1,11 @@
 /**
  * Full HSV color picker modal styled after Photoshop's picker.
- * Uses the native <dialog> element with .showModal() for proper focus trapping.
+ * Rendered inside the shared ModalShell (native <dialog> with focus trapping).
  */
 
-import { useRef, useEffect, useState, useCallback } from "react";
-import { X } from "lucide-react";
+import { useRef, useState, useCallback } from "react";
 import { useI18n } from "../../../contexts/I18nContext";
-import { useDialogClose } from "../../../hooks/useDialogClose";
+import { ModalShell, ModalActions } from "../../shared/ModalShell";
 
 // --- HSV / RGB / Hex conversion utilities ---
 
@@ -119,7 +118,6 @@ export function ColorPickerModal({
   onClose,
 }: ColorPickerModalProps) {
   const { t } = useI18n();
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const satAreaRef = useRef<HTMLButtonElement>(null);
   const hueBarRef = useRef<HTMLDivElement>(null);
   const opacityBarRef = useRef<HTMLDivElement>(null);
@@ -131,11 +129,6 @@ export function ColorPickerModal({
   const [v, setV] = useState(initV);
   const [opacity, setOpacity] = useState(initialOpacity);
   const [hexInput, setHexInput] = useState(color.replace("#", "").toUpperCase());
-
-  // Open dialog on mount
-  useEffect(() => {
-    dialogRef.current?.showModal();
-  }, []);
 
   // Sync hex input when h/s/v changes (but not when user is typing)
   const syncFromHsv = useCallback(
@@ -234,64 +227,34 @@ export function ColorPickerModal({
     setHexInput(preset.replace("#", "").toUpperCase());
   };
 
-  const handleCancel = useDialogClose(dialogRef, onClose);
-
-  // Close on backdrop click (imperative to avoid onClick on non-interactive <dialog>).
-  // We listen for `mousedown` (not `click`) on the document and only close if the
-  // press *originates* outside the dialog rectangle. This prevents drags that
-  // start inside the sat/hue/opacity sliders and end over the backdrop from
-  // being misinterpreted as a backdrop click — the click event in that case has
-  // `target === dialog`, which would otherwise fire a false-positive close.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const handleDocMouseDown = (e: MouseEvent) => {
-      const rect = dialog.getBoundingClientRect();
-      const inside =
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom;
-      if (!inside) handleCancel();
-    };
-
-    document.addEventListener("mousedown", handleDocMouseDown);
-    return () => document.removeEventListener("mousedown", handleDocMouseDown);
-  }, [handleCancel]);
-
   const handleConfirm = () => {
     const finalHex = hsvToHex(h, s, v);
     onConfirm(finalHex, showOpacity ? opacity : undefined);
-    handleCancel();
   };
 
   const currentHex = hsvToHex(h, s, v);
   const hueColor = `hsl(${h}, 100%, 50%)`;
 
   return (
-    <dialog
-      ref={dialogRef}
-      onCancel={handleCancel}
-      className="m-auto bg-bg-card border border-border-subtle rounded-2xl p-6 w-full max-w-xs backdrop:bg-black/70"
+    <ModalShell
+      title={t("overlay.colorPickerTitle")}
+      onClose={onClose}
+      size="xs"
+      titleSize="sm"
+      backdropClose="mousedown-outside"
+      footer={(requestClose) => (
+        <ModalActions
+          onConfirm={handleConfirm}
+          requestClose={requestClose}
+          confirmLabel={t("common.apply")}
+        />
+      )}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-bold text-text-primary">Farbauswahl</h2>
-        <button
-          title={t("tooltip.common.close")}
-          onClick={handleCancel}
-          className="text-text-muted hover:text-text-primary transition-colors relative after:absolute after:-inset-2 after:content-['']"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
       {/* Saturation / Brightness area */}
       <button
         type="button"
         ref={satAreaRef}
-        aria-label="Color saturation and brightness picker"
+        aria-label={t("aria.saturationBrightness")}
         aria-valuetext={`Saturation ${Math.round(s * 100)}%, Brightness ${Math.round(v * 100)}%`}
         onMouseDown={handleSatMouseDown}
         onKeyDown={(e) => {
@@ -318,7 +281,7 @@ export function ColorPickerModal({
           setV(newV);
           syncFromHsv(h, newS, newV);
         }}
-        className="appearance-none p-0 m-0 block relative w-full rounded border border-border-subtle cursor-crosshair select-none"
+        className="appearance-none p-0 m-0 block relative w-full rounded-none border border-border-subtle cursor-crosshair select-none"
         style={{
           height: 256,
           background: `
@@ -348,7 +311,7 @@ export function ColorPickerModal({
         ref={hueBarRef}
         role="slider"
         tabIndex={0}
-        aria-label="Hue"
+        aria-label={t("aria.hue")}
         aria-valuenow={Math.round(h)}
         aria-valuemin={0}
         aria-valuemax={360}
@@ -371,7 +334,7 @@ export function ColorPickerModal({
           setH(newH);
           syncFromHsv(newH, s, v);
         }}
-        className="relative w-full rounded mt-3 cursor-pointer select-none border border-border-subtle"
+        className="relative w-full rounded-none mt-3 cursor-pointer select-none border border-border-subtle"
         style={{
           height: 16,
           background:
@@ -384,7 +347,7 @@ export function ColorPickerModal({
             left: `${(h / 360) * 100}%`,
             width: 6,
             height: "100%",
-            borderRadius: 2,
+            borderRadius: 0,
             border: "2px solid white",
             boxShadow: "0 0 2px rgba(0,0,0,0.6)",
             transform: "translateX(-50%)",
@@ -398,7 +361,7 @@ export function ColorPickerModal({
           ref={opacityBarRef}
           role="slider"
           tabIndex={0}
-          aria-label="Opacity"
+          aria-label={t("overlay.opacity")}
           aria-valuenow={Math.round(opacity * 100)}
           aria-valuemin={0}
           aria-valuemax={100}
@@ -420,7 +383,7 @@ export function ColorPickerModal({
             e.preventDefault();
             setOpacity(newOpacity);
           }}
-          className="relative w-full rounded mt-2 cursor-pointer select-none border border-border-subtle overflow-hidden"
+          className="relative w-full rounded-none mt-2 cursor-pointer select-none border border-border-subtle overflow-hidden"
           style={{ height: 16 }}
         >
           {/* Checkerboard layer */}
@@ -446,7 +409,7 @@ export function ColorPickerModal({
               left: `${opacity * 100}%`,
               width: 6,
               height: "100%",
-              borderRadius: 2,
+              borderRadius: 0,
               border: "2px solid white",
               boxShadow: "0 0 2px rgba(0,0,0,0.6)",
               transform: "translateX(-50%)",
@@ -458,7 +421,7 @@ export function ColorPickerModal({
       {/* Hex input + old/new preview */}
       <div className="flex items-stretch gap-3 mt-3">
         {/* Hex input */}
-        <div className="flex items-center border border-border-subtle rounded overflow-hidden bg-bg-primary flex-1">
+        <div className="flex items-center border border-border-subtle rounded-none overflow-hidden bg-bg-primary flex-1">
           <span className="pl-2 text-xs text-text-muted select-none">#</span>
           <input
             type="text"
@@ -470,16 +433,16 @@ export function ColorPickerModal({
         </div>
 
         {/* Old vs New preview */}
-        <div className="flex rounded overflow-hidden border border-border-subtle w-16 shrink-0" style={{ height: 32 }}>
-          <div className="flex-1" style={{ background: color }} title="Vorher" />
-          <div className="flex-1" style={{ background: currentHex }} title="Nachher" />
+        <div className="flex rounded-none overflow-hidden border border-border-subtle w-16 shrink-0" style={{ height: 32 }}>
+          <div className="flex-1" style={{ background: color }} title={t("overlay.colorBefore")} />
+          <div className="flex-1" style={{ background: currentHex }} title={t("overlay.colorAfter")} />
         </div>
       </div>
 
       {/* Opacity value display */}
       {showOpacity && (
         <div className="flex items-center justify-between mt-2">
-          <span className="text-[10px] text-text-muted">Deckkraft</span>
+          <span className="text-[10px] text-text-muted">{t("overlay.opacity")}</span>
           <span className="text-[10px] text-text-secondary font-mono">
             {Math.round(opacity * 100)}%
           </span>
@@ -495,31 +458,13 @@ export function ColorPickerModal({
               key={preset}
               type="button"
               onClick={() => handlePreset(preset)}
-              className="w-full aspect-square rounded border border-border-subtle hover:border-text-muted transition-colors"
+              className="w-full aspect-square rounded-none border border-border-subtle hover:border-text-muted transition-colors"
               style={{ background: preset }}
               title={preset}
             />
           ))}
         </div>
       </div>
-
-      {/* Action buttons */}
-      <div className="flex gap-3 mt-4">
-        <button
-          title={t("tooltip.common.cancel")}
-          onClick={handleCancel}
-          className="flex-1 py-2 rounded-lg border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm"
-        >
-          {t("tooltip.common.cancel")}
-        </button>
-        <button
-          title={t("tooltip.common.apply")}
-          onClick={handleConfirm}
-          className="flex-1 py-2 rounded-lg bg-accent-blue hover:bg-accent-blue/80 text-white font-semibold text-sm transition-colors shadow-sm"
-        >
-          {t("tooltip.common.apply")}
-        </button>
-      </div>
-    </dialog>
+    </ModalShell>
   );
 }

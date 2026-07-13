@@ -2947,7 +2947,7 @@ describe("OverlayEditor", () => {
     await user.click(colorSwatches[0]);
 
     // The TextColorEditorModal should have a confirm button
-    const confirmBtn = screen.queryByTitle(/Übernehmen/i);
+    const confirmBtn = screen.queryByText("Anwenden");
     if (confirmBtn) {
       await user.click(confirmBtn);
       // onUpdate should have been called with the updated style
@@ -2976,7 +2976,7 @@ describe("OverlayEditor", () => {
     await user.click(outlineSwatch);
 
     // Confirm button in OutlineEditorModal
-    const confirmBtn = screen.queryByTitle(/Übernehmen/i);
+    const confirmBtn = screen.queryByText("Anwenden");
     if (confirmBtn) {
       await user.click(confirmBtn);
     }
@@ -3002,7 +3002,7 @@ describe("OverlayEditor", () => {
     await user.click(shadowSwatch);
 
     // Confirm in shadow modal
-    const confirmBtn = screen.queryByTitle(/Übernehmen/i);
+    const confirmBtn = screen.queryByText("Anwenden");
     if (confirmBtn) {
       await user.click(confirmBtn);
     }
@@ -3242,8 +3242,8 @@ describe("OverlayEditor", () => {
     // Dialog should be open
     expect(document.querySelector("dialog")).not.toBeNull();
 
-    // Click the confirm/apply button (title="Übernehmen")
-    const applyBtn = screen.getByTitle("Übernehmen");
+    // Click the confirm/apply button
+    const applyBtn = screen.getByText("Anwenden");
     await user.click(applyBtn);
 
     // Modal should be dismissed (colorPickerTarget set to null)
@@ -3271,7 +3271,7 @@ describe("OverlayEditor", () => {
     await user.click(outlineSwatch);
 
     // Click the apply button inside the OutlineEditorModal
-    const applyBtns = screen.getAllByTitle("Übernehmen");
+    const applyBtns = screen.getAllByText("Anwenden");
     await user.click(applyBtns[applyBtns.length - 1]);
 
     // Modal should close and onUpdate should be called
@@ -3297,7 +3297,7 @@ describe("OverlayEditor", () => {
     await user.click(shadowSwatch);
 
     // Click apply in ShadowEditorModal
-    const applyBtns = screen.getAllByTitle("Übernehmen");
+    const applyBtns = screen.getAllByText("Anwenden");
     await user.click(applyBtns[applyBtns.length - 1]);
 
     expect(onUpdate).toHaveBeenCalled();
@@ -3322,7 +3322,7 @@ describe("OverlayEditor", () => {
     await user.click(colorSwatches[0]);
 
     // Click apply in TextColorEditorModal
-    const applyBtns = screen.getAllByTitle("Übernehmen");
+    const applyBtns = screen.getAllByText("Anwenden");
     await user.click(applyBtns[applyBtns.length - 1]);
 
     expect(onUpdate).toHaveBeenCalled();
@@ -3346,8 +3346,8 @@ describe("OverlayEditor", () => {
     const colorSwatch = screen.getByTitle("#000000");
     await user.click(colorSwatch);
 
-    // Click cancel button (title="Abbrechen")
-    const cancelBtn = screen.queryByTitle("Abbrechen");
+    // Click cancel button
+    const cancelBtn = screen.queryByText("Abbrechen");
     if (cancelBtn) {
       await user.click(cancelBtn);
     }
@@ -3373,7 +3373,7 @@ describe("OverlayEditor", () => {
     await user.click(outlineSwatch);
 
     // Click cancel in OutlineEditorModal
-    const cancelBtns = screen.getAllByTitle("Abbrechen");
+    const cancelBtns = screen.getAllByText("Abbrechen");
     await user.click(cancelBtns[cancelBtns.length - 1]);
 
     expect(screen.getAllByText("Name").length).toBeGreaterThan(0);
@@ -3397,7 +3397,7 @@ describe("OverlayEditor", () => {
     await user.click(shadowSwatch);
 
     // Click cancel in ShadowEditorModal
-    const cancelBtns = screen.getAllByTitle("Abbrechen");
+    const cancelBtns = screen.getAllByText("Abbrechen");
     await user.click(cancelBtns[cancelBtns.length - 1]);
 
     expect(screen.getAllByText("Name").length).toBeGreaterThan(0);
@@ -3421,7 +3421,7 @@ describe("OverlayEditor", () => {
     await user.click(colorSwatches[0]);
 
     // Click cancel in TextColorEditorModal
-    const cancelBtns = screen.getAllByTitle("Abbrechen");
+    const cancelBtns = screen.getAllByText("Abbrechen");
     await user.click(cancelBtns[cancelBtns.length - 1]);
 
     expect(screen.getAllByText("Name").length).toBeGreaterThan(0);

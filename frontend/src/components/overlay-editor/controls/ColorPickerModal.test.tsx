@@ -27,7 +27,7 @@ describe("ColorPickerModal", () => {
   it("calls onClose when cancel button is clicked", () => {
     const onClose = vi.fn();
     render(<ColorPickerModal {...defaultProps} onClose={onClose} />);
-    const cancelBtn = screen.getByTitle("Abbrechen");
+    const cancelBtn = screen.getByText("Abbrechen");
     fireEvent.click(cancelBtn);
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -35,7 +35,7 @@ describe("ColorPickerModal", () => {
   it("calls onConfirm with color when apply button is clicked", () => {
     const onConfirm = vi.fn();
     render(<ColorPickerModal {...defaultProps} onConfirm={onConfirm} />);
-    const applyBtn = screen.getByTitle("Übernehmen");
+    const applyBtn = screen.getByText("Anwenden");
     fireEvent.click(applyBtn);
     expect(onConfirm).toHaveBeenCalledWith(expect.stringMatching(/^#/), undefined);
   });
@@ -58,7 +58,7 @@ describe("ColorPickerModal", () => {
   it("shows opacity controls when showOpacity is true", () => {
     render(<ColorPickerModal {...defaultProps} showOpacity />);
     expect(screen.getByText("Deckkraft")).toBeInTheDocument();
-    expect(screen.getByLabelText("Opacity")).toBeInTheDocument();
+    expect(screen.getByLabelText("Deckkraft")).toBeInTheDocument();
   });
 
   it("hides opacity controls by default", () => {
@@ -68,13 +68,13 @@ describe("ColorPickerModal", () => {
 
   it("renders the hue slider", () => {
     render(<ColorPickerModal {...defaultProps} />);
-    expect(screen.getByLabelText("Hue")).toBeInTheDocument();
+    expect(screen.getByLabelText("Farbton")).toBeInTheDocument();
   });
 
   it("renders the saturation/brightness picker area", () => {
     render(<ColorPickerModal {...defaultProps} />);
     expect(
-      screen.getByLabelText("Color saturation and brightness picker"),
+      screen.getByLabelText("Sättigung und Helligkeit wählen"),
     ).toBeInTheDocument();
   });
 
@@ -87,7 +87,7 @@ describe("ColorPickerModal", () => {
     fireEvent.change(hexInput, { target: { value: "ABC" } });
     expect(screen.getByDisplayValue("ABC")).toBeInTheDocument();
     // Confirm should still return the original red-ish color since HSV was not updated
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.stringMatching(/^#[fF]{2}0000$/),
       undefined,
@@ -121,7 +121,7 @@ describe("ColorPickerModal", () => {
     render(<ColorPickerModal {...defaultProps} onConfirm={onConfirm} />);
     const hexInput = screen.getByDisplayValue("FF0000");
     fireEvent.change(hexInput, { target: { value: "80FF00" } });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.stringMatching(/^#/),
       undefined,
@@ -134,7 +134,7 @@ describe("ColorPickerModal", () => {
     fireEvent.change(screen.getByDisplayValue("FF0000"), {
       target: { value: "00FF80" },
     });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.stringMatching(/^#/),
       undefined,
@@ -147,7 +147,7 @@ describe("ColorPickerModal", () => {
     fireEvent.change(screen.getByDisplayValue("FF0000"), {
       target: { value: "0080FF" },
     });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.stringMatching(/^#/),
       undefined,
@@ -160,7 +160,7 @@ describe("ColorPickerModal", () => {
     fireEvent.change(screen.getByDisplayValue("FF0000"), {
       target: { value: "8000FF" },
     });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.stringMatching(/^#/),
       undefined,
@@ -173,7 +173,7 @@ describe("ColorPickerModal", () => {
     fireEvent.change(screen.getByDisplayValue("FF0000"), {
       target: { value: "FF0080" },
     });
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.stringMatching(/^#/),
       undefined,
@@ -185,35 +185,35 @@ describe("ColorPickerModal", () => {
   it("rgbToHsv: max === rn (pure red)", () => {
     const onConfirm = vi.fn();
     render(<ColorPickerModal color="#ff0000" onConfirm={onConfirm} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith("#ff0000", undefined);
   });
 
   it("rgbToHsv: max === gn (pure green)", () => {
     const onConfirm = vi.fn();
     render(<ColorPickerModal color="#00ff00" onConfirm={onConfirm} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith("#00ff00", undefined);
   });
 
   it("rgbToHsv: max === bn (pure blue)", () => {
     const onConfirm = vi.fn();
     render(<ColorPickerModal color="#0000ff" onConfirm={onConfirm} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith("#0000ff", undefined);
   });
 
   it("rgbToHsv: h < 0 wrap (cyan where blue === green)", () => {
     const onConfirm = vi.fn();
     render(<ColorPickerModal color="#00ffff" onConfirm={onConfirm} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(expect.stringMatching(/^#00[fF]{2}[fF]{2}$/), undefined);
   });
 
   it("rgbToHsv: s === 0 when max === 0 (black)", () => {
     const onConfirm = vi.fn();
     render(<ColorPickerModal color="#000000" onConfirm={onConfirm} onClose={vi.fn()} />);
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith("#000000", undefined);
   });
 
@@ -229,7 +229,7 @@ describe("ColorPickerModal", () => {
         onClose={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByTitle("Übernehmen"));
+    fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
       expect.stringMatching(/^#/),
       expect.any(Number),
@@ -240,7 +240,7 @@ describe("ColorPickerModal", () => {
 
   it("handles mouseDown on saturation area without crashing", () => {
     render(<ColorPickerModal {...defaultProps} />);
-    const satArea = screen.getByLabelText("Color saturation and brightness picker");
+    const satArea = screen.getByLabelText("Sättigung und Helligkeit wählen");
     fireEvent.mouseDown(satArea, { clientX: 50, clientY: 50 });
     // Should not throw; jsdom returns zeros for getBoundingClientRect
     expect(satArea).toBeInTheDocument();
@@ -248,14 +248,14 @@ describe("ColorPickerModal", () => {
 
   it("handles mouseDown on hue slider without crashing", () => {
     render(<ColorPickerModal {...defaultProps} />);
-    const hueSlider = screen.getByLabelText("Hue");
+    const hueSlider = screen.getByLabelText("Farbton");
     fireEvent.mouseDown(hueSlider, { clientX: 100, clientY: 0 });
     expect(hueSlider).toBeInTheDocument();
   });
 
   it("handles mouseDown on opacity slider without crashing", () => {
     render(<ColorPickerModal {...defaultProps} showOpacity />);
-    const opacitySlider = screen.getByLabelText("Opacity");
+    const opacitySlider = screen.getByLabelText("Deckkraft");
     fireEvent.mouseDown(opacitySlider, { clientX: 50, clientY: 0 });
     expect(opacitySlider).toBeInTheDocument();
   });
@@ -264,7 +264,7 @@ describe("ColorPickerModal", () => {
 
   it("adjusts saturation and brightness via arrow keys and updates hex", () => {
     render(<ColorPickerModal color="#ff0000" onConfirm={vi.fn()} onClose={vi.fn()} />);
-    const satArea = screen.getByLabelText("Color saturation and brightness picker");
+    const satArea = screen.getByLabelText("Sättigung und Helligkeit wählen");
     const before = screen.getByDisplayValue("FF0000");
     expect(before).toBeInTheDocument();
     fireEvent.keyDown(satArea, { key: "ArrowLeft" });
@@ -278,28 +278,28 @@ describe("ColorPickerModal", () => {
 
   it("adjusts brightness via ArrowUp/ArrowDown on the saturation area", () => {
     render(<ColorPickerModal color="#ff0000" onConfirm={vi.fn()} onClose={vi.fn()} />);
-    const satArea = screen.getByLabelText("Color saturation and brightness picker");
+    const satArea = screen.getByLabelText("Sättigung und Helligkeit wählen");
     fireEvent.keyDown(satArea, { key: "ArrowDown" });
     expect(screen.queryByDisplayValue("FF0000")).not.toBeInTheDocument();
   });
 
   it("ignores non-arrow keys on the saturation area", () => {
     render(<ColorPickerModal {...defaultProps} />);
-    const satArea = screen.getByLabelText("Color saturation and brightness picker");
+    const satArea = screen.getByLabelText("Sättigung und Helligkeit wählen");
     fireEvent.keyDown(satArea, { key: "Enter" });
     expect(screen.getByDisplayValue("FF0000")).toBeInTheDocument();
   });
 
   it("adjusts hue via arrow keys and updates hex", () => {
     render(<ColorPickerModal color="#ff0000" onConfirm={vi.fn()} onClose={vi.fn()} />);
-    const hueSlider = screen.getByLabelText("Hue");
+    const hueSlider = screen.getByLabelText("Farbton");
     fireEvent.keyDown(hueSlider, { key: "ArrowRight" });
     expect(screen.queryByDisplayValue("FF0000")).not.toBeInTheDocument();
   });
 
   it("adjusts hue down via ArrowLeft/ArrowDown, clamped at 0", () => {
     render(<ColorPickerModal color="#ff0000" onConfirm={vi.fn()} onClose={vi.fn()} />);
-    const hueSlider = screen.getByLabelText("Hue");
+    const hueSlider = screen.getByLabelText("Farbton");
     fireEvent.keyDown(hueSlider, { key: "ArrowDown" });
     // Hue was already 0, clamped -> stays FF0000
     expect(screen.getByDisplayValue("FF0000")).toBeInTheDocument();
@@ -309,7 +309,7 @@ describe("ColorPickerModal", () => {
     render(
       <ColorPickerModal color="#ff0000" opacity={0} showOpacity onConfirm={vi.fn()} onClose={vi.fn()} />,
     );
-    const opacitySlider = screen.getByLabelText("Opacity");
+    const opacitySlider = screen.getByLabelText("Deckkraft");
     expect(screen.getByText("0%")).toBeInTheDocument();
     fireEvent.keyDown(opacitySlider, { key: "ArrowRight" });
     expect(screen.getByText("5%")).toBeInTheDocument();
@@ -325,7 +325,7 @@ describe("ColorPickerModal", () => {
     render(
       <ColorPickerModal color="#ff0000" opacity={0} showOpacity onConfirm={vi.fn()} onClose={vi.fn()} />,
     );
-    const opacitySlider = screen.getByLabelText("Opacity");
+    const opacitySlider = screen.getByLabelText("Deckkraft");
     fireEvent.keyDown(opacitySlider, { key: "Tab" });
     expect(screen.getByText("0%")).toBeInTheDocument();
   });
