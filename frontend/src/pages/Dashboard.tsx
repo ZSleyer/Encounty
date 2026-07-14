@@ -1954,11 +1954,13 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
     });
   };
   const handleActivate = (id: string) => {
-    // View-only: show the Pokémon in the main panel. This does NOT change the
-    // hotkey target (active_id) - that is controlled solely by the keyboard
-    // icon. Showing a Pokémon clears any group view.
+    // View-only: show the Pokémon in the main panel, or clear the view when it
+    // is already shown so an empty selection stays reachable even while Pokémon
+    // exist. This does NOT change the hotkey target (active_id) - that is
+    // controlled solely by the keyboard icon. Showing a Pokémon clears any
+    // group view.
     setViewedGroupId(null);
-    setViewedPokemonId(id);
+    setViewedPokemonId((cur) => (cur === id ? null : id));
     setRightPanelTab("counter");
   };
   const handleDelete = (id: string) => {
@@ -2501,7 +2503,8 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           onSetHotkeyTarget={() => {
             send("set_active_group", { group_id: appState.active_group_id === g.id ? "" : g.id });
           }}
-          onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId(g.id); }}
+          isGroupViewed={viewedGroupId === g.id}
+          onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId((cur) => (cur === g.id ? null : g.id)); }}
         >
           {members.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
         </SidebarGroupSection>,
@@ -2518,7 +2521,8 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           count={ungrouped.length}
           collapsed={ungroupedCollapsed}
           onToggleCollapse={() => setUngroupedCollapsed((v) => !v)}
-          onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId(UNGROUPED_VIEW_ID); }}
+          isGroupViewed={viewedGroupId === UNGROUPED_VIEW_ID}
+          onShowGroupView={() => { setViewedPokemonId(null); setViewedGroupId((cur) => (cur === UNGROUPED_VIEW_ID ? null : UNGROUPED_VIEW_ID)); }}
         >
           {ungrouped.map((p) => renderPokemonItem(p, indexOfPokemon(p.id)))}
         </SidebarGroupSection>,

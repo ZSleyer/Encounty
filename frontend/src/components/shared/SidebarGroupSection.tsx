@@ -38,6 +38,8 @@ interface SidebarGroupSectionProps {
   readonly isHotkeyTarget?: boolean;
   /** Called when the user clicks the keyboard icon to set/clear hotkey target. */
   readonly onSetHotkeyTarget?: () => void;
+  /** Whether this group is currently shown in the main panel (group view). */
+  readonly isGroupViewed?: boolean;
   /** Called when the user clicks the grid icon to show this group in the main panel. */
   readonly onShowGroupView?: () => void;
   /** Body content (usually the <li> Pokémon items) rendered inside the section. */
@@ -58,6 +60,7 @@ export function SidebarGroupSection({
   onAction,
   isHotkeyTarget,
   onSetHotkeyTarget,
+  isGroupViewed,
   onShowGroupView,
   children,
 }: SidebarGroupSectionProps) {
@@ -108,6 +111,12 @@ export function SidebarGroupSection({
   }, [menuOpen]);
 
   const color = group?.color || "#6b7280";
+  // The ungrouped bucket (group === null) is not a real group, so it gets an
+  // "overview" label rather than a "group overview" one.
+  const isBucket = group === null;
+  const viewLabelKey = isGroupViewed
+    ? (isBucket ? "group.viewOverviewActive" : "group.viewGroupActive")
+    : (isBucket ? "group.viewOverview" : "group.viewGroup");
   const chevron = collapsed ? (
     <ChevronRight className="w-3 h-3" aria-hidden="true" />
   ) : (
@@ -123,7 +132,13 @@ export function SidebarGroupSection({
     <section aria-label={label} data-testid="sidebar-group-section">
       {/* Header — uses two sibling buttons (toggle + menu) inside a div
           to avoid invalid nested <button> markup. */}
-      <div className="group flex items-center gap-1.5 px-3 py-1.5 bg-bg-primary/30 border-b border-border-subtle/50 sticky top-0 backdrop-blur-sm z-10">
+      <div
+        className={`group flex items-center gap-1.5 px-3 py-1.5 border-b sticky top-0 backdrop-blur-sm z-10 border-l-2 ${
+          isGroupViewed
+            ? "bg-accent-blue/10 border-l-accent-blue border-border-subtle/50"
+            : "bg-bg-primary/30 border-l-transparent border-border-subtle/50"
+        }`}
+      >
         <button
           type="button"
           onClick={onToggleCollapse}
@@ -147,9 +162,12 @@ export function SidebarGroupSection({
           <button
             type="button"
             onClick={onShowGroupView}
-            className="min-w-6 min-h-6 flex items-center justify-center rounded-none text-text-faint hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
-            title={t("group.viewGroup")}
-            aria-label={t("group.viewGroup")}
+            className={`min-w-6 min-h-6 flex items-center justify-center rounded-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue hover:text-accent-blue ${
+              isGroupViewed ? "text-accent-blue" : "text-text-faint"
+            }`}
+            title={t(viewLabelKey)}
+            aria-label={t(viewLabelKey)}
+            aria-pressed={isGroupViewed}
           >
             <LayoutGrid className="w-3.5 h-3.5" />
           </button>
