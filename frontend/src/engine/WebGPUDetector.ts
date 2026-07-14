@@ -271,6 +271,29 @@ export class WebGPUDetector {
   private frameTexture: GPUTexture | null = null;
   private frameTextureW = 0;
   private frameTextureH = 0;
+  /**
+   * Cached default view of the current frame texture. The view depends only on
+   * the (fixed) frame texture identity, so it is rebuilt only when the texture
+   * is recreated, not once per region as texture.createView() would be.
+   */
+  private frameTextureView: GPUTextureView | null = null;
+
+  // Pre-allocated scratch typed arrays reused as queue.writeBuffer sources.
+  // writeBuffer snapshots the source data synchronously at call time, so a
+  // single reused array per fixed shape is safe even across the several writes
+  // that precede one submit in regionHybridMatch.
+  private readonly scratchPreprocessParams = new Uint32Array(8);
+  private readonly scratchMetricParams = new Uint32Array(2);
+  private readonly scratchSsimParams = new Uint32Array(4);
+  private readonly scratchMedianParams = new Uint32Array(1);
+  private readonly scratchReduceParams = new Uint32Array(2);
+  private readonly scratchU32Zero = new Uint32Array(1);
+  private readonly scratchF32Zero1 = new Float32Array(1);
+  private readonly scratchF32Zero4 = new Float32Array(4);
+  private readonly scratchNccParams = new ArrayBuffer(32);
+  private readonly scratchNccParamsU32 = new Uint32Array(this.scratchNccParams);
+  private readonly scratchNccParamsF32 = new Float32Array(this.scratchNccParams);
+  private readonly scratchNccParamsBytes = new Uint8Array(this.scratchNccParams);
 
   /**
    * Serializes detect() calls. Multiple detection loops share this detector,
@@ -413,6 +436,9 @@ export class WebGPUDetector {
           GPUTextureUsage.COPY_DST |
           GPUTextureUsage.RENDER_ATTACHMENT,
       });
+      // The view is tied to this texture; cache it so per-region preprocess
+      // passes reuse it instead of allocating a new view each time.
+      this.frameTextureView = this.frameTexture.createView();
       this.frameTextureW = width;
       this.frameTextureH = height;
     }
@@ -483,16 +509,15 @@ export class WebGPUDetector {
 
     const [dstW, dstH] = fitDimensions(cropW, cropH, maxDim);
 
-    const paramsData = new Uint32Array([
-      srcW,
-      srcH,
-      dstW,
-      dstH,
-      cropX,
-      cropY,
-      cropW,
-      cropH,
-    ]);
+    const paramsData = this.scratchPreprocessParams;
+    paramsData[0] = srcW;
+    paramsData[1] = srcH;
+    paramsData[2] = dstW;
+    paramsData[3] = dstH;
+    paramsData[4] = cropX;
+    paramsData[5] = cropY;
+    paramsData[6] = cropW;
+    paramsData[7] = cropH;
     this.device.queue.writeBuffer(paramsBuf, 0, paramsData);
 
     const outputSize = dstW * dstH * 4; // f32 = 4 bytes
@@ -502,12 +527,19 @@ export class WebGPUDetector {
       "preprocess_output",
     );
 
+    // Reuse the cached view for the frame texture (the only texture ever passed
+    // here); fall back to createView() for any other texture identity.
+    const textureView =
+      texture === this.frameTexture && this.frameTextureView
+        ? this.frameTextureView
+        : texture.createView();
+
     const bindGroup = this.device.createBindGroup({
       label: "preprocess_bg",
       layout: this.preprocessBGL,
       entries: [
         { binding: 0, resource: { buffer: paramsBuf } },
-        { binding: 1, resource: texture.createView() },
+        { binding: 1, resource: textureView },
         { binding: 2, resource: { buffer: outputBuf } },
       ],
     });
@@ -532,11 +564,8 @@ export class WebGPUDetector {
    */
   async pixelDelta(a: GPUBuffer, b: GPUBuffer): Promise<number> {
     // Phase 0D: Reuse persistent result buffer, zero-initialise each cycle
-    this.device.queue.writeBuffer(
-      this.deltaResultBuf,
-      0,
-      new Uint32Array([0]),
-    );
+    // (scratchU32Zero stays 0, so no per-cycle reset is needed).
+    this.device.queue.writeBuffer(this.deltaResultBuf, 0, this.scratchU32Zero);
 
     const bindGroup = this.device.createBindGroup({
       label: "delta_bg",
@@ -582,10 +611,10 @@ export class WebGPUDetector {
 
     if (totalPositions <= 0) return 0;
 
-    // NCC uniform params: 8 values (u32/f32 mix), 32 bytes
-    const paramsArray = new ArrayBuffer(32);
-    const paramsU32 = new Uint32Array(paramsArray);
-    const paramsF32 = new Float32Array(paramsArray);
+    // NCC uniform params: 8 values (u32/f32 mix), 32 bytes. Reuse the scratch
+    // ArrayBuffer + views; writeBuffer snapshots the bytes at call time.
+    const paramsU32 = this.scratchNccParamsU32;
+    const paramsF32 = this.scratchNccParamsF32;
     paramsU32[0] = frameW;
     paramsU32[1] = frameH;
     paramsU32[2] = template.width;
@@ -601,7 +630,7 @@ export class WebGPUDetector {
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       "ncc_params",
     );
-    this.device.queue.writeBuffer(paramsBuf, 0, new Uint8Array(paramsArray));
+    this.device.queue.writeBuffer(paramsBuf, 0, this.scratchNccParamsBytes);
 
     // Phase 0C: Pool the scores buffer
     const scoresSize = totalPositions * 4;
@@ -731,11 +760,9 @@ export class WebGPUDetector {
           GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
           `metric_params_${ri}`,
         );
-        this.device.queue.writeBuffer(
-          metricParamsBuf,
-          0,
-          new Uint32Array([rw, rh]),
-        );
+        this.scratchMetricParams[0] = rw;
+        this.scratchMetricParams[1] = rh;
+        this.device.queue.writeBuffer(metricParamsBuf, 0, this.scratchMetricParams);
         buffersToRelease.push(metricParamsBuf);
 
         // 1. Block-SSIM: per-block scores, median-reduced on GPU below
@@ -788,11 +815,8 @@ export class WebGPUDetector {
             GPUBufferUsage.COPY_DST,
           `fuse_input_${ri}`,
         );
-        this.device.queue.writeBuffer(
-          scoresInputBuf,
-          0,
-          new Float32Array([0, 0, 0, 0]),
-        );
+        // scratchF32Zero4 stays all-zero, so it is a stable reset source.
+        this.device.queue.writeBuffer(scoresInputBuf, 0, this.scratchF32Zero4);
         buffersToRelease.push(scoresInputBuf);
 
         // Block-SSIM median via GPU histogram binning, result copied straight
@@ -1089,7 +1113,9 @@ export class WebGPUDetector {
   ): Promise<Record<string, number>> {
     const { texture } = frame;
     if (regionCrops && regionCrops.length > 0) {
-      return this.regionHybridMatch(texture, { ...tmpl, regionCrops });
+      // regionCrops already equals tmpl.regionCrops, and regionHybridMatch only
+      // reads regionCrops/width/height, so pass tmpl directly (no fresh copy).
+      return this.regionHybridMatch(texture, tmpl);
     }
     return {};
   }
@@ -1110,6 +1136,18 @@ export class WebGPUDetector {
     template.regionCrops = undefined;
   }
 
+  /**
+   * Return a frame buffer produced by detect() to the internal pool for reuse.
+   *
+   * DetectionLoop calls this when it swaps in a newer frame buffer, so the
+   * largest per-frame buffer is recycled instead of destroyed and reallocated
+   * every frame. The buffer must not be used by the caller afterwards.
+   */
+  recycleFrameBuffer(buffer: GPUBuffer): void {
+    if (this.destroyed) return;
+    this.pool.release(buffer);
+  }
+
   /** Release all GPU resources held by this detector. */
   destroy(): void {
     if (this.destroyed) return;
@@ -1121,6 +1159,7 @@ export class WebGPUDetector {
       this.frameTexture.destroy();
       this.frameTexture = null;
     }
+    this.frameTextureView = null;
     this.device.destroy();
   }
 
@@ -1480,11 +1519,9 @@ export class WebGPUDetector {
         GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         "reduce_params",
       );
-      this.device.queue.writeBuffer(
-        rpBuf,
-        0,
-        new Uint32Array([remaining, 0]),
-      );
+      this.scratchReduceParams[0] = remaining;
+      this.scratchReduceParams[1] = 0;
+      this.device.queue.writeBuffer(rpBuf, 0, this.scratchReduceParams);
 
       const bindGroup = this.device.createBindGroup({
         label: "reduce_bg",
@@ -1596,11 +1633,11 @@ export class WebGPUDetector {
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       "ssim_params",
     );
-    this.device.queue.writeBuffer(
-      paramsBuf,
-      0,
-      new Uint32Array([width, height, blockSize, 0]),
-    );
+    this.scratchSsimParams[0] = width;
+    this.scratchSsimParams[1] = height;
+    this.scratchSsimParams[2] = blockSize;
+    this.scratchSsimParams[3] = 0;
+    this.device.queue.writeBuffer(paramsBuf, 0, this.scratchSsimParams);
 
     // Phase 0C: Pool the SSIM scores buffer
     const scoresSize = Math.max(totalBlocks * 4, 4);
@@ -1650,7 +1687,8 @@ export class WebGPUDetector {
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       "ssim_median_params",
     );
-    this.device.queue.writeBuffer(paramsBuf, 0, new Uint32Array([totalBlocks]));
+    this.scratchMedianParams[0] = totalBlocks;
+    this.device.queue.writeBuffer(paramsBuf, 0, this.scratchMedianParams);
 
     // Result buffer: single f32, zero-initialised (pooled, may hold stale data)
     const resultBuf = this.pool.acquire(
@@ -1660,7 +1698,8 @@ export class WebGPUDetector {
         GPUBufferUsage.COPY_DST,
       "ssim_median_result",
     );
-    this.device.queue.writeBuffer(resultBuf, 0, new Float32Array([0]));
+    // scratchF32Zero1 stays 0, so it is a stable reset source.
+    this.device.queue.writeBuffer(resultBuf, 0, this.scratchF32Zero1);
 
     const bindGroup = this.device.createBindGroup({
       layout: this.ssimMedianBGL,

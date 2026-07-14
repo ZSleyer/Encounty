@@ -174,7 +174,24 @@ export class CPUDetector {
     if (this.previousGray?.length === frameGray.gray.length) {
       frameDelta = pixelDelta(this.previousGray, frameGray.gray);
     }
-    this.previousGray = frameGray.gray.slice(); // Must copy since frameGrayBuf is reused
+    // Ping-pong the two grayscale buffers instead of copying the whole frame
+    // every cycle: the current frame becomes previousGray, and the old
+    // previousGray buffer is handed back to captureGrayscale for the next
+    // frame. captureGrayscale reallocates it if the dimensions change.
+    const recycledPrev = this.previousGray;
+    this.previousGray = frameGray.gray;
+    this.frameGrayBuf = recycledPrev;
+
+    // Draw the full-resolution source once per frame, shared across every
+    // template, instead of redrawing it inside matchTemplate per template.
+    const srcW = source instanceof ImageBitmap ? source.width : source.videoWidth;
+    const srcH = source instanceof ImageBitmap ? source.height : source.videoHeight;
+    const needsRegionFrame = templates.some(
+      (t) => t.gray && t.regions.length > 0,
+    );
+    if (needsRegionFrame && srcW > 0 && srcH > 0) {
+      this.drawRegionFrame(source, srcW, srcH);
+    }
 
     // NCC against each template
     let bestScore = 0;
@@ -294,6 +311,22 @@ export class CPUDetector {
   }
 
   /**
+   * Ensure the full-resolution region canvas exists at the source size and
+   * draw the current frame into it once per detection cycle.
+   *
+   * Region matching for every template reads from this single draw, so the
+   * ~33MB (at 4K) full-res draw + canvas allocation happens once per frame
+   * rather than once per template.
+   */
+  drawRegionFrame(source: FrameSource, srcW: number, srcH: number): void {
+    if (this.regionCanvas?.width !== srcW || this.regionCanvas?.height !== srcH) {
+      this.regionCanvas = new OffscreenCanvas(srcW, srcH);
+      this.regionCtx = this.regionCanvas.getContext("2d", { willReadFrequently: true });
+    }
+    this.regionCtx?.drawImage(source, 0, 0, srcW, srcH);
+  }
+
+  /**
    * Read a rectangle from a canvas context at full resolution and convert it
    * to grayscale (0-255 range).
    *
@@ -407,19 +440,15 @@ function matchTemplate(
     return { "": matchWholeTemplate(frameGray, tmpl, maxDim, pool) };
   }
 
-  // We need the full-resolution frame pixels for region cropping.
+  // We need the full-resolution frame pixels for region cropping. The source
+  // was already drawn into the shared region canvas once for this frame by
+  // detect() (via drawRegionFrame), so we only read from it here.
   const srcW = source instanceof ImageBitmap ? source.width : source.videoWidth;
   const srcH = source instanceof ImageBitmap ? source.height : source.videoHeight;
   if (srcW === 0 || srcH === 0) return {};
 
-  // Reuse the cached region canvas when dimensions match (avoids ~33MB alloc per frame at 4K)
-  if (detector.regionCanvas?.width !== srcW || detector.regionCanvas?.height !== srcH) {
-    detector.regionCanvas = new OffscreenCanvas(srcW, srcH);
-    detector.regionCtx = detector.regionCanvas.getContext("2d", { willReadFrequently: true });
-  }
   const tmpCtx = detector.regionCtx;
   if (!tmpCtx) return {};
-  tmpCtx.drawImage(source, 0, 0, srcW, srcH);
 
   const scaleX = srcW / tmpl.width;
   const scaleY = srcH / tmpl.height;

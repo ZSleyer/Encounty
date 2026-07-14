@@ -50,6 +50,12 @@ export interface Detector {
    * DetectionLoop.loadTemplates(), which calls this on replace and stop.
    */
   releaseTemplate?(template: _TemplateData): void;
+  /**
+   * Return a frame buffer produced by a previous detect() cycle to the
+   * detector's internal pool for reuse. Only pooled detectors (WebGPU)
+   * implement this; callers fall back to buffer.destroy() when it is absent.
+   */
+  recycleFrameBuffer?(buffer: unknown): void;
   /** Detector-level diagnostics for the dev perf modal. */
   getStats?(): { queueWaitMsEMA: number };
   destroy(): void;

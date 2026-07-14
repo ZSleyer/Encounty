@@ -570,12 +570,24 @@ export class DetectionLoop {
     );
   }
 
-  /** Replace the previous frame buffer, destroying the old one if applicable. */
+  /**
+   * Replace the previous frame buffer, recycling the old one.
+   *
+   * Prefers returning the old buffer to the detector's pool (so its largest
+   * frame buffer is reused instead of destroyed and reallocated every frame);
+   * falls back to buffer.destroy() for detectors without a pool. The old buffer
+   * is fully consumed by the just-completed detect() cycle before this runs, so
+   * recycling it here cannot race an in-flight read.
+   */
   private recycleFrameBuffer(newBuffer: DetectorResult["frameBuffer"]): void {
     if (newBuffer === undefined) return;
     const old = this.previousFrameBuffer;
-    if (old && typeof old === 'object' && 'destroy' in old && typeof (old as { destroy: unknown }).destroy === 'function') {
-      (old as { destroy(): void }).destroy();
+    if (old) {
+      if (this.detector.recycleFrameBuffer) {
+        this.detector.recycleFrameBuffer(old);
+      } else if (typeof old === 'object' && 'destroy' in old && typeof (old as { destroy: unknown }).destroy === 'function') {
+        (old as { destroy(): void }).destroy();
+      }
     }
     this.previousFrameBuffer = newBuffer;
   }

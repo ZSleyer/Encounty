@@ -209,6 +209,28 @@ export function madSimilarity(a: Float32Array, b: Float32Array): number {
 }
 
 // ---------------------------------------------------------------------------
+// Reusable scratch buffers
+// ---------------------------------------------------------------------------
+//
+// These module-level buffers are reused across calls to avoid per-region /
+// per-window allocations. Reuse is safe because every consumer is synchronous
+// and single-threaded: the buffer is fully filled and read within one call,
+// and blockSSIM / blockSSIMWithStats / the histogram helpers never execute
+// concurrently (JS has no preemption between their synchronous statements).
+
+/** Scratch for per-block SSIM scores before their median reduction. Grown on demand. */
+let ssimBlockScratch = new Float64Array(64);
+
+/** Return the SSIM block scratch, grown to hold at least `n` scores. */
+function ssimBlockBuffer(n: number): Float64Array {
+  if (ssimBlockScratch.length < n) ssimBlockScratch = new Float64Array(n);
+  return ssimBlockScratch;
+}
+
+/** Scratch 64-bin histogram reused for the frame-side histogram in histogramWithStats. */
+const frameHistScratch = new Float64Array(64);
+
+// ---------------------------------------------------------------------------
 // Block SSIM
 // ---------------------------------------------------------------------------
 
@@ -231,7 +253,8 @@ export function blockSSIM(
 
   const blocksX = Math.max(1, Math.floor(w / blockSize));
   const blocksY = Math.max(1, Math.floor(h / blockSize));
-  const scores: number[] = [];
+  const scores = ssimBlockBuffer(blocksX * blocksY);
+  let count = 0;
 
   for (let by = 0; by < blocksY; by++) {
     for (let bx = 0; bx < blocksX; bx++) {
@@ -266,13 +289,16 @@ export function blockSSIM(
       const con = (2 * fStd * tStd + c2) / (fVar + tVar + c2);
       const str = (cov + c2 / 2) / (fStd * tStd + c2 / 2);
 
-      scores.push(Math.max(0, lum * con * str));
+      scores[count++] = Math.max(0, lum * con * str);
     }
   }
 
-  if (scores.length === 0) return 0;
-  scores.sort((a, b) => a - b);
-  return scores[Math.floor(scores.length * 0.5)]; // Median
+  if (count === 0) return 0;
+  // Sort only the filled region; typed-array sort is numeric ascending, so the
+  // median matches the previous scores.sort((a, b) => a - b) result exactly.
+  const filled = scores.subarray(0, count);
+  filled.sort();
+  return filled[Math.floor(count * 0.5)]; // Median
 }
 
 // ---------------------------------------------------------------------------
@@ -501,9 +527,16 @@ export interface RegionTemplateStats {
 /** Histogram bin count shared by the CPU metrics (must match the GPU shaders). */
 const HIST_BINS = 64;
 
-/** Compute the normalised 64-bin histogram of a grayscale buffer (0-255 range). */
-function grayHistogram(data: Float32Array): Float64Array {
-  const hist = new Float64Array(HIST_BINS);
+/**
+ * Compute the normalised 64-bin histogram of a grayscale buffer (0-255 range).
+ *
+ * When `out` is provided it is zeroed and filled in place (avoids allocation
+ * on the per-window path); otherwise a fresh buffer is returned (used for the
+ * template histogram, which must persist beyond the call).
+ */
+function grayHistogram(data: Float32Array, out?: Float64Array): Float64Array {
+  const hist = out ?? new Float64Array(HIST_BINS);
+  if (out) out.fill(0);
   const scale = HIST_BINS / 256;
   for (let i = 0; i < data.length; i++) {
     hist[Math.min(Math.floor(data[i] * scale), HIST_BINS - 1)]++;
@@ -601,7 +634,7 @@ function histogramWithStats(
   frameCrop: Float32Array,
   stats: RegionTemplateStats,
 ): number {
-  const histA = grayHistogram(frameCrop);
+  const histA = grayHistogram(frameCrop, frameHistScratch);
   const histB = stats.tmplHist;
 
   let meanA = 0, meanB = 0;
@@ -638,7 +671,8 @@ function blockSSIMWithStats(
 
   const blocksX = Math.max(1, Math.floor(w / blockSize));
   const blocksY = Math.max(1, Math.floor(h / blockSize));
-  const scores: number[] = [];
+  const scores = ssimBlockBuffer(blocksX * blocksY);
+  let count = 0;
   let blockIdx = 0;
 
   for (let by = 0; by < blocksY; by++) {
@@ -675,13 +709,16 @@ function blockSSIMWithStats(
       const con = (2 * fStd * tStd + c2) / (fVar + tVar + c2);
       const str = (cov + c2 / 2) / (fStd * tStd + c2 / 2);
 
-      scores.push(Math.max(0, lum * con * str));
+      scores[count++] = Math.max(0, lum * con * str);
     }
   }
 
-  if (scores.length === 0) return 0;
-  scores.sort((a, b) => a - b);
-  return scores[Math.floor(scores.length * 0.5)]; // Median
+  if (count === 0) return 0;
+  // Sort only the filled region; typed-array sort is numeric ascending, so the
+  // median matches the previous scores.sort((a, b) => a - b) result exactly.
+  const filled = scores.subarray(0, count);
+  filled.sort();
+  return filled[Math.floor(count * 0.5)]; // Median
 }
 
 /**
