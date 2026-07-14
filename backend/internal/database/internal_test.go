@@ -315,20 +315,20 @@ func TestLoadPokemonEmpty(t *testing.T) {
 
 func TestLoadDetectorConfigNoRow(t *testing.T) {
 	d := openInternalTestDB(t)
-	dc, err := loadDetectorConfig(d.db, "nonexistent")
+	configs, err := loadAllDetectorConfigs(d.db)
 	if err != nil {
-		t.Fatalf("loadDetectorConfig: %v", err)
+		t.Fatalf("loadAllDetectorConfigs: %v", err)
 	}
-	if dc != nil {
-		t.Error("loadDetectorConfig should return nil for nonexistent pokemon")
+	if len(configs) != 0 {
+		t.Errorf("loadAllDetectorConfigs len = %d, want 0", len(configs))
 	}
 }
 
 func TestLoadDetectorTemplatesEmpty(t *testing.T) {
 	d := openInternalTestDB(t)
-	templates, err := loadDetectorTemplates(d.db, "nonexistent")
+	templates, err := loadAllDetectorTemplates(d.db, map[int64][]state.MatchedRegion{})
 	if err != nil {
-		t.Fatalf("loadDetectorTemplates: %v", err)
+		t.Fatalf("loadAllDetectorTemplates: %v", err)
 	}
 	if templates == nil {
 		t.Error(errNonNilEmptySlice)
@@ -340,9 +340,9 @@ func TestLoadDetectorTemplatesEmpty(t *testing.T) {
 
 func TestLoadTemplateRegionsEmpty(t *testing.T) {
 	d := openInternalTestDB(t)
-	regions, err := loadTemplateRegions(d.db, 99999)
+	regions, err := loadAllTemplateRegions(d.db)
 	if err != nil {
-		t.Fatalf("loadTemplateRegions: %v", err)
+		t.Fatalf("loadAllTemplateRegions: %v", err)
 	}
 	if regions == nil {
 		t.Error(errNonNilEmptySlice)
@@ -351,9 +351,9 @@ func TestLoadTemplateRegionsEmpty(t *testing.T) {
 
 func TestLoadDetectionLogEmpty(t *testing.T) {
 	d := openInternalTestDB(t)
-	entries, err := loadDetectionLog(d.db, "nonexistent")
+	entries, err := loadAllDetectionLogs(d.db)
 	if err != nil {
-		t.Fatalf("loadDetectionLog: %v", err)
+		t.Fatalf("loadAllDetectionLogs: %v", err)
 	}
 	if entries == nil {
 		t.Error(errNonNilEmptySlice)
@@ -373,22 +373,19 @@ func TestLoadSessionsEmpty(t *testing.T) {
 
 func TestLoadOverlayNoRow(t *testing.T) {
 	d := openInternalTestDB(t)
-	ov, err := loadOverlay(d.db, "global", "default")
+	overlays, err := loadAllOverlays(d.db)
 	if err != nil {
-		t.Fatalf("loadOverlay: %v", err)
+		t.Fatalf("loadAllOverlays: %v", err)
 	}
-	if ov != nil {
-		t.Error("loadOverlay should return nil for no-row case")
+	if overlays[overlayKey("global", "default")] != nil {
+		t.Error("loadAllOverlays should not contain a global overlay when no row exists")
 	}
 }
 
 func TestLoadTextStyleNoRow(t *testing.T) {
-	d := openInternalTestDB(t)
-	ts, err := loadTextStyle(d.db, 99999, "main")
-	if err != nil {
-		t.Fatalf("loadTextStyle: %v", err)
-	}
-	// Should return zero-value with initialized slices.
+	// emptyTextStyle models a text_styles row that does not exist; its gradient
+	// slices must be non-nil so JSON serialisation emits [] rather than null.
+	ts := emptyTextStyle()
 	if ts.GradientStops == nil {
 		t.Error("GradientStops should be non-nil")
 	}
@@ -402,9 +399,9 @@ func TestLoadTextStyleNoRow(t *testing.T) {
 
 func TestLoadGradientStopsEmpty(t *testing.T) {
 	d := openInternalTestDB(t)
-	stops, err := loadGradientStops(d.db, 99999, "color")
+	stops, err := loadAllGradientStops(d.db)
 	if err != nil {
-		t.Fatalf("loadGradientStops: %v", err)
+		t.Fatalf("loadAllGradientStops: %v", err)
 	}
 	if stops == nil {
 		t.Error(errNonNilEmptySlice)
@@ -626,22 +623,23 @@ func TestLoadSessionsError(t *testing.T) {
 
 func TestLoadOverlayError(t *testing.T) {
 	d := openInternalTestDB(t)
-	// First insert a row, then drop overlay_elements.
+	// First insert a row, then drop overlay_elements so the batched element
+	// load fails while overlay bases still exist.
 	_, _ = d.db.Exec(`INSERT INTO overlay_settings (owner_type, owner_id) VALUES ('global', 'default')`)
 	_, _ = d.db.Exec(`DROP TABLE text_styles`)
 	_, _ = d.db.Exec(`DROP TABLE overlay_elements`)
-	_, err := loadOverlay(d.db, "global", "default")
+	_, err := loadAllOverlays(d.db)
 	if err == nil {
-		t.Error("loadOverlay with dropped table should fail")
+		t.Error("loadAllOverlays with dropped table should fail")
 	}
 }
 
 func TestLoadGradientStopsError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
-	_, err := loadGradientStops(d.db, 1, "color")
+	_, err := loadAllGradientStops(d.db)
 	if err == nil {
-		t.Error("loadGradientStops with dropped table should fail")
+		t.Error("loadAllGradientStops with dropped table should fail")
 	}
 }
 
@@ -649,36 +647,36 @@ func TestLoadDetectorTemplatesError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE template_regions`)
 	_, _ = d.db.Exec(`DROP TABLE detector_templates`)
-	_, err := loadDetectorTemplates(d.db, "p1")
+	_, err := loadAllDetectorTemplates(d.db, map[int64][]state.MatchedRegion{})
 	if err == nil {
-		t.Error("loadDetectorTemplates with dropped table should fail")
+		t.Error("loadAllDetectorTemplates with dropped table should fail")
 	}
 }
 
 func TestLoadTemplateRegionsError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE template_regions`)
-	_, err := loadTemplateRegions(d.db, 1)
+	_, err := loadAllTemplateRegions(d.db)
 	if err == nil {
-		t.Error("loadTemplateRegions with dropped table should fail")
+		t.Error("loadAllTemplateRegions with dropped table should fail")
 	}
 }
 
 func TestLoadDetectionLogError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE detection_log`)
-	_, err := loadDetectionLog(d.db, "p1")
+	_, err := loadAllDetectionLogs(d.db)
 	if err == nil {
-		t.Error("loadDetectionLog with dropped table should fail")
+		t.Error("loadAllDetectionLogs with dropped table should fail")
 	}
 }
 
 func TestLoadTextStyleError(t *testing.T) {
 	d := openInternalTestDB(t)
 	_, _ = d.db.Exec(`DROP TABLE text_styles`)
-	_, err := loadTextStyle(d.db, 1, "main")
+	_, err := loadAllTextStyles(d.db)
 	if err == nil {
-		t.Error("loadTextStyle with dropped table should fail")
+		t.Error("loadAllTextStyles with dropped table should fail")
 	}
 }
 
@@ -1070,9 +1068,9 @@ func TestLoadOverlayNameStyleError(t *testing.T) {
 	// Drop text_styles to cause error for name/title/counter style loading.
 	_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
 	_, _ = d.db.Exec(`DROP TABLE text_styles`)
-	_, err := loadOverlay(d.db, "global", "default")
+	_, err := loadAllOverlays(d.db)
 	if err == nil {
-		t.Error("loadOverlay should fail when text_styles is dropped")
+		t.Error("loadAllOverlays should fail when text_styles is dropped")
 	}
 }
 
@@ -1536,11 +1534,11 @@ func TestLoadDetectorTemplatesRegionError(t *testing.T) {
 		Settings: state.Settings{Languages: []string{}, Overlay: state.OverlaySettings{BackgroundAnimation: "none"}},
 	}
 	_ = d.SaveFullState(st)
-	// Drop template_regions so loadTemplateRegions fails.
+	// Drop template_regions so the batched region load inside attachDetectors fails.
 	_, _ = d.db.Exec(`DROP TABLE template_regions`)
-	_, err := loadDetectorTemplates(d.db, "p1")
+	err := attachDetectors(d.db, st.Pokemon)
 	if err == nil {
-		t.Error("loadDetectorTemplates should fail when template_regions is dropped")
+		t.Error("attachDetectors should fail when template_regions is dropped")
 	}
 }
 

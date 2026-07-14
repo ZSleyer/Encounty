@@ -156,9 +156,9 @@ func TestLoadOverlayBaseError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE text_styles`)
 	_, _ = d.db.Exec(`DROP TABLE overlay_elements`)
 	_, _ = d.db.Exec(`DROP TABLE overlay_settings`)
-	_, _, err := loadOverlayBase(d.db, "global", "default")
+	_, _, err := loadAllOverlayBases(d.db)
 	if err == nil {
-		t.Error("loadOverlayBase should fail when overlay_settings is dropped")
+		t.Error("loadAllOverlayBases should fail when overlay_settings is dropped")
 	}
 }
 
@@ -209,9 +209,9 @@ func TestScanOverlayElementsError(t *testing.T) {
 	// The only reliable way is to close the DB during iteration.
 	// Let's just verify the query-error path instead.
 	_, _ = d.db.Exec(`DROP TABLE overlay_elements`)
-	_, err := scanOverlayElements(d.db, overlayID)
+	_, err := loadAllOverlayElements(d.db)
 	if err == nil {
-		t.Error("scanOverlayElements should fail when overlay_elements is dropped")
+		t.Error("loadAllOverlayElements should fail when overlay_elements is dropped")
 	}
 }
 
@@ -938,9 +938,9 @@ func TestLoadDetectionLogScanError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE detection_log`)
 	_, _ = d.db.Exec(`CREATE TABLE detection_log (id INTEGER PRIMARY KEY, pokemon_id TEXT)`)
 	_, _ = d.db.Exec(`INSERT INTO detection_log (pokemon_id) VALUES ('p1')`)
-	_, err := loadDetectionLog(d.db, "p1")
+	_, err := loadAllDetectionLogs(d.db)
 	if err == nil {
-		t.Error("loadDetectionLog should fail with incompatible schema")
+		t.Error("loadAllDetectionLogs should fail with incompatible schema")
 	}
 }
 
@@ -956,9 +956,9 @@ func TestLoadTemplateRegionsScanError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE template_regions`)
 	_, _ = d.db.Exec(`CREATE TABLE template_regions (id INTEGER PRIMARY KEY, template_id INTEGER, sort_order INTEGER DEFAULT 0)`)
 	_, _ = d.db.Exec(`INSERT INTO template_regions (template_id, sort_order) VALUES (1, 0)`)
-	_, err := loadTemplateRegions(d.db, 1)
+	_, err := loadAllTemplateRegions(d.db)
 	if err == nil {
-		t.Error("loadTemplateRegions should fail with incompatible schema")
+		t.Error("loadAllTemplateRegions should fail with incompatible schema")
 	}
 }
 
@@ -1012,9 +1012,9 @@ func TestLoadGradientStopsScanError(t *testing.T) {
 	_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
 	_, _ = d.db.Exec(`CREATE TABLE gradient_stops (id INTEGER PRIMARY KEY, text_style_id INTEGER, gradient_type TEXT, sort_order INTEGER DEFAULT 0)`)
 	_, _ = d.db.Exec(`INSERT INTO gradient_stops (text_style_id, gradient_type, sort_order) VALUES (1, 'color', 0)`)
-	_, err := loadGradientStops(d.db, 1, "color")
+	_, err := loadAllGradientStops(d.db)
 	if err == nil {
-		t.Error("loadGradientStops should fail with incompatible schema")
+		t.Error("loadAllGradientStops should fail with incompatible schema")
 	}
 }
 
@@ -1156,12 +1156,12 @@ func TestSaveTextStyleShadowGradientError(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// loadTextStyle gradient load error paths
+// Batched text style / overlay load error paths
 // ---------------------------------------------------------------------------
 
-// TestLoadTextStyleGradientError verifies that loadTextStyle returns an error
-// when loading gradient stops fails.
-func TestLoadTextStyleGradientError(t *testing.T) {
+// TestLoadAllTextStylesGradientError verifies that loadAllTextStyles returns an
+// error when loading gradient stops fails.
+func TestLoadAllTextStylesGradientError(t *testing.T) {
 	d := openInternalTestDB(t)
 
 	// Save state with a style that has gradient stops.
@@ -1189,143 +1189,56 @@ func TestLoadTextStyleGradientError(t *testing.T) {
 	}
 	_ = d.SaveFullState(st)
 
-	// Get the text_style ID for the name element.
-	var styleID int64
-	_ = d.db.QueryRow(`SELECT ts.id FROM text_styles ts
-		JOIN overlay_elements oe ON ts.element_id = oe.id
-		WHERE oe.element_type = 'name' AND ts.style_role = 'main' LIMIT 1`).Scan(&styleID)
-
-	if styleID > 0 {
-		// Drop gradient_stops to trigger error during loadTextStyle.
-		_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
-		_, err := loadTextStyle(d.db, styleID, "main")
-		// This won't match since loadTextStyle uses element_id not style_id.
-		// The error will come from loadGradientStops. Let's get the element_id instead.
-		_ = err
+	// Drop gradient_stops to trigger the error while loading gradient stops
+	// (loadAllTextStyles loads gradient stops before the text styles).
+	_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
+	if _, err := loadAllTextStyles(d.db); err == nil {
+		t.Error("loadAllTextStyles should fail when gradient_stops is dropped")
 	}
+}
 
-	// More direct approach: get the element_id.
-	var elemID int64
-	_ = d.db.QueryRow(`SELECT id FROM overlay_elements WHERE element_type = 'name' LIMIT 1`).Scan(&elemID)
-	if elemID > 0 {
-		_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
-		_, err := loadTextStyle(d.db, elemID, "main")
-		if err == nil {
-			t.Error("loadTextStyle should fail when gradient_stops is dropped")
+// TestLoadAllTextStylesDropError verifies that loadAllTextStyles returns an
+// error when the text_styles table is dropped (gradient_stops intact).
+func TestLoadAllTextStylesDropError(t *testing.T) {
+	d := openInternalTestDB(t)
+	_, _ = d.db.Exec(`DROP TABLE text_styles`)
+	if _, err := loadAllTextStyles(d.db); err == nil {
+		t.Error("loadAllTextStyles should fail when text_styles is dropped")
+	}
+}
+
+// TestLoadAllOverlaysElementError verifies that loadAllOverlays propagates the
+// error when overlay_elements is dropped but overlay bases still exist.
+func TestLoadAllOverlaysElementError(t *testing.T) {
+	d := openInternalTestDB(t)
+	// Ensure at least one overlay_settings row exists so byID is non-empty and
+	// the element load actually runs.
+	_, _ = d.db.Exec(`INSERT INTO overlay_settings (owner_type, owner_id) VALUES ('global', 'default')`)
+	_, _ = d.db.Exec(`DROP TABLE overlay_elements`)
+	if _, err := loadAllOverlays(d.db); err == nil {
+		t.Error("loadAllOverlays should fail when overlay_elements is dropped")
+	}
+}
+
+// TestApplyOverlayElementDispatch verifies that applyOverlayElement assigns each
+// element type onto the OverlaySettings and defaults the odds format.
+func TestApplyOverlayElementDispatch(t *testing.T) {
+	styleLookup := func(int64, string) state.TextStyle { return emptyTextStyle() }
+	ov := &state.OverlaySettings{}
+	for _, elemType := range []string{"sprite", "name", "title", "counter", "timer", "odds"} {
+		e := elemRow{
+			id:       1,
+			elemType: elemType,
+			base:     state.OverlayElementBase{Visible: true, Width: 10, Height: 10},
 		}
+		applyOverlayElement(ov, e, styleLookup)
 	}
-}
-
-// ---------------------------------------------------------------------------
-// applyOverlayElement: title error path, counter label error path
-// ---------------------------------------------------------------------------
-
-// TestApplyOverlayElementTitleError verifies applyOverlayElement fails for
-// the "title" element type when loadTextStyle fails.
-func TestApplyOverlayElementTitleError(t *testing.T) {
-	d := openInternalTestDB(t)
-
-	// Save state with all overlay elements.
-	st := &state.AppState{
-		Pokemon:  []state.Pokemon{},
-		Sessions: []state.Session{},
-		Settings: state.Settings{
-			Languages: []string{},
-			Overlay: state.OverlaySettings{
-				BackgroundAnimation: "none",
-				Sprite:              state.SpriteElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
-				Name:                state.NameElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
-				Title:               state.TitleElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
-				Counter:             state.CounterElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
-			},
-		},
+	if !ov.Sprite.Visible || !ov.Name.Visible || !ov.Title.Visible ||
+		!ov.Counter.Visible || !ov.Timer.Visible || !ov.Odds.Visible {
+		t.Error("applyOverlayElement should mark every dispatched element visible")
 	}
-	_ = d.SaveFullState(st)
-
-	// Drop text_styles to force errors when loading any text style.
-	_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
-	_, _ = d.db.Exec(`DROP TABLE text_styles`)
-
-	// Create a fake elemRow for the title element type.
-	e := elemRow{
-		id:       999, // Non-existent, will cause loadTextStyle to return zero-value, not error.
-		elemType: "title",
-		base:     state.OverlayElementBase{Visible: true, Width: 10, Height: 10},
-	}
-
-	ov := &state.OverlaySettings{}
-	err := applyOverlayElement(d.db, ov, e)
-	if err == nil {
-		t.Error("applyOverlayElement should fail for title when text_styles is dropped")
-	}
-}
-
-// TestApplyOverlayElementCounterError verifies applyOverlayElement fails for
-// the "counter" element type when loadTextStyle fails.
-func TestApplyOverlayElementCounterError(t *testing.T) {
-	d := openInternalTestDB(t)
-
-	_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
-	_, _ = d.db.Exec(`DROP TABLE text_styles`)
-
-	e := elemRow{
-		id:       999,
-		elemType: "counter",
-		base:     state.OverlayElementBase{Visible: true, Width: 10, Height: 10},
-	}
-
-	ov := &state.OverlaySettings{}
-	err := applyOverlayElement(d.db, ov, e)
-	if err == nil {
-		t.Error("applyOverlayElement should fail for counter when text_styles is dropped")
-	}
-}
-
-// TestApplyOverlayElementCounterLabelError verifies applyOverlayElement fails
-// for the "counter" element when the label text style load fails, but the
-// main text style load succeeds.
-func TestApplyOverlayElementCounterLabelError(t *testing.T) {
-	d := openInternalTestDB(t)
-
-	// Save state with counter element to create text_styles rows.
-	st := &state.AppState{
-		Pokemon:  []state.Pokemon{},
-		Sessions: []state.Session{},
-		Settings: state.Settings{
-			Languages: []string{},
-			Overlay: state.OverlaySettings{
-				BackgroundAnimation: "none",
-				Sprite:              state.SpriteElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
-				Name:                state.NameElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
-				Title:               state.TitleElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
-				Counter:             state.CounterElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
-			},
-		},
-	}
-	_ = d.SaveFullState(st)
-
-	// Get the counter element's DB ID.
-	var counterElemID int64
-	_ = d.db.QueryRow(`SELECT id FROM overlay_elements WHERE element_type='counter' LIMIT 1`).Scan(&counterElemID)
-
-	// Delete only the label style row, leaving the main style intact.
-	_, _ = d.db.Exec(`DELETE FROM text_styles WHERE element_id = ? AND style_role = 'label'`, counterElemID)
-	// Drop gradient_stops to trigger the error when loadTextStyle tries to
-	// read gradient stops for the label style.
-	_, _ = d.db.Exec(`DROP TABLE gradient_stops`)
-
-	e := elemRow{
-		id:       counterElemID,
-		elemType: "counter",
-		base:     state.OverlayElementBase{Visible: true, Width: 10, Height: 10},
-	}
-
-	ov := &state.OverlaySettings{}
-	err := applyOverlayElement(d.db, ov, e)
-	// With label style deleted and gradient_stops dropped, the main style
-	// load might fail on gradient stops. This should trigger an error.
-	if err == nil {
-		t.Error("applyOverlayElement should fail for counter when gradient_stops is dropped")
+	if ov.Odds.Format != "fractional" {
+		t.Errorf("odds format = %q, want fractional", ov.Odds.Format)
 	}
 }
 
