@@ -129,8 +129,11 @@ export function pearsonCorrelation(a: Float32Array, b: Float32Array): number {
     sumAB += a[i] * b[i];
   }
   const meanA = sumA / n, meanB = sumB / n;
-  const varA = sumA2 / n - meanA * meanA;
-  const varB = sumB2 / n - meanB * meanB;
+  // Clamp variances at 0: float rounding can push them slightly negative, and
+  // Math.sqrt(negative) = NaN slips past the denom guard and propagates a NaN
+  // score into fusion. The GPU shader (pearson_ncc.wgsl) clamps identically.
+  const varA = Math.max(0, sumA2 / n - meanA * meanA);
+  const varB = Math.max(0, sumB2 / n - meanB * meanB);
   const cov = sumAB / n - meanA * meanB;
   const denom = Math.sqrt(varA) * Math.sqrt(varB);
   if (denom < 1e-6) return 0;
@@ -584,8 +587,9 @@ function pearsonWithStats(
     sumAB += frameCrop[i] * tmplCrop[i];
   }
   const meanA = sumA / n, meanB = stats.tmplSum / n;
-  const varA = sumA2 / n - meanA * meanA;
-  const varB = stats.tmplSum2 / n - meanB * meanB;
+  // Clamp at 0 to keep Math.sqrt from returning NaN on tiny negative rounding.
+  const varA = Math.max(0, sumA2 / n - meanA * meanA);
+  const varB = Math.max(0, stats.tmplSum2 / n - meanB * meanB);
   const cov = sumAB / n - meanA * meanB;
   const denom = Math.sqrt(varA) * Math.sqrt(varB);
   if (denom < 1e-6) return 0;

@@ -168,6 +168,20 @@ describe("pearsonCorrelation", () => {
     for (let i = 0; i < a.length; i++) b[i] = a[i] * 2 + 10;
     expect(pearsonCorrelation(a, b)).toBeCloseTo(1, 4);
   });
+
+  it("never returns NaN when variance rounds negative (constant / large-magnitude crops)", () => {
+    // sum2/n - mean*mean can go slightly negative from float rounding, which
+    // used to make Math.sqrt return NaN. Constant and large near-constant
+    // buffers are the worst case; the result must stay a finite [0,1] score.
+    const constant = makeGray(16, 16, () => 250);
+    const large = makeGray(16, 16, (x) => 1e6 + (x % 2));
+    for (const buf of [constant, large]) {
+      const r = pearsonCorrelation(buf, buf);
+      expect(Number.isNaN(r)).toBe(false);
+      expect(r).toBeGreaterThanOrEqual(0);
+      expect(r).toBeLessThanOrEqual(1);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
