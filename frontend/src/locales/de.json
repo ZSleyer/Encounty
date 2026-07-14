@@ -73,6 +73,7 @@
   "dash.hotkeyHint": "Hotkeys gelten nur für das aktive Pokémon.",
   "dash.detectorHint": "Auto-Erkennung kann für mehrere Pokémon gleichzeitig laufen.",
   "dash.tabActive": "Aktiv",
+  "dash.hotkeyBadge": "Hotkeys",
   "dash.tabArchive": "Archiv",
   "dash.noArchive": "Noch keine Hunts archiviert",
   "dash.noArchiveHint": "Markiere gefundene Shinys als Gefangen!",

@@ -73,6 +73,7 @@
   "dash.hotkeyHint": "Hotkeysはアクティブなポケモンにのみ適用されます。",
   "dash.detectorHint": "自動検出は複数のポケモンに対して同時に実行できます。",
   "dash.tabActive": "アクティブ",
+  "dash.hotkeyBadge": "ホットキー",
   "dash.tabArchive": "アーカイブ",
   "dash.noArchive": "まだアーカイブされたHuntはありません",
   "dash.noArchiveHint": "見つけたShinyを「捕獲！」でマークしてください",

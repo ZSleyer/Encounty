@@ -103,7 +103,7 @@ export function PokemonCard({
           title={pokemon.is_active ? t("dash.tooltipSetActive") : undefined}
           aria-hidden={!pokemon.is_active}
         >
-          {t("dash.tabActive")}
+          {t("dash.hotkeyBadge")}
         </span>
 
         {/* Identity row: sprite next to name + game keeps the card short and

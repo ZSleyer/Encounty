@@ -73,6 +73,7 @@
   "dash.hotkeyHint": "Los hotkeys solo afectan al Pokémon activo.",
   "dash.detectorHint": "La auto-detección puede ejecutarse para múltiples Pokémon simultáneamente.",
   "dash.tabActive": "Activo",
+  "dash.hotkeyBadge": "Hotkeys",
   "dash.tabArchive": "Archivo",
   "dash.noArchive": "Aún no hay hunts archivados",
   "dash.noArchiveHint": "Marca los shinys encontrados con \"Atrapado!\"",

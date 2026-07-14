@@ -73,6 +73,7 @@
   "dash.hotkeyHint": "Hotkeys only affect the active Pokémon.",
   "dash.detectorHint": "Auto-detection can run for multiple Pokémon simultaneously.",
   "dash.tabActive": "Active",
+  "dash.hotkeyBadge": "Hotkeys",
   "dash.tabArchive": "Archive",
   "dash.noArchive": "No archived hunts yet",
   "dash.noArchiveHint": "Mark found shinies with \"Caught!\"",

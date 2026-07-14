@@ -1498,9 +1498,17 @@ function DashboardCounterTab({
       >
         {/* Header row: hunt status label left, timer controls right */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <span className={isCompleted ? "t-label" : "t-label t-label--accent"}>
-            {isCompleted ? t("dash.tabArchive") : t("dash.tabActive")}
-          </span>
+          {isCompleted ? (
+            <span className="t-label">{t("dash.tabArchive")}</span>
+          ) : (
+            <span
+              className={`t-label t-label--accent ${pokemon.is_active ? "" : "invisible"}`}
+              title={pokemon.is_active ? t("dash.tooltipSetActive") : undefined}
+              aria-hidden={!pokemon.is_active}
+            >
+              {t("dash.hotkeyBadge")}
+            </span>
+          )}
           <PokemonTimer pokemon={pokemon} send={send} disabled={isCompleted} timerStartBlocked={timerStartBlocked} />
         </div>
 
