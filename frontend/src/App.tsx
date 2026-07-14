@@ -26,7 +26,7 @@ import { Settings } from "./pages/Settings";
 import { HotkeyPage } from "./pages/HotkeyPage";
 import { OverlayEditorPage } from "./pages/OverlayEditorPage";
 import { Overlay } from "./pages/Overlay";
-import { useWebSocket } from "./hooks/useWebSocket";
+import { useWebSocket, WebSocketProvider } from "./hooks/useWebSocket";
 import { useCounterStore, DetectorStatusEntry } from "./hooks/useCounterState";
 import { WSMessage, AppState, AccentColor, ACCENT_COLORS } from "./types";
 import { I18nProvider, useI18n } from "./contexts/I18nContext";
@@ -205,8 +205,16 @@ function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const isOverlay = location.pathname === "/overlay" || location.pathname.startsWith("/overlay/");
-  const { setAppState, setConnected, flashPokemon, isConnected, appState, setDetectorStatus, clearDetectorStatus } =
-    useCounterStore();
+  // Narrow selectors: subscribe only to the fields this shell actually reads.
+  // A bare useCounterStore() would re-render the whole tree on every
+  // detectorStatus / flashingIds change (several times per second per hunt).
+  const setAppState = useCounterStore((s) => s.setAppState);
+  const setConnected = useCounterStore((s) => s.setConnected);
+  const flashPokemon = useCounterStore((s) => s.flashPokemon);
+  const isConnected = useCounterStore((s) => s.isConnected);
+  const appState = useCounterStore((s) => s.appState);
+  const setDetectorStatus = useCounterStore((s) => s.setDetectorStatus);
+  const clearDetectorStatus = useCounterStore((s) => s.clearDetectorStatus);
   const { t, isMachineTranslated } = useI18n();
   const { push: pushToast } = useToast();
   const { motion } = useMotion();
@@ -1138,7 +1146,9 @@ function LicenseGate() {
   if (isOverlay) {
     return (
       <CaptureServiceProvider>
-        <AppShell />
+        <WebSocketProvider>
+          <AppShell />
+        </WebSocketProvider>
       </CaptureServiceProvider>
     );
   }
@@ -1186,8 +1196,10 @@ function LicenseGate() {
 
   return (
     <CaptureServiceProvider>
-      <AppShell />
-      <ToastContainer />
+      <WebSocketProvider>
+        <AppShell />
+        <ToastContainer />
+      </WebSocketProvider>
     </CaptureServiceProvider>
   );
 }

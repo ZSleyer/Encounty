@@ -44,12 +44,14 @@ export function PokemonCard({
   onOpenDetector,
 }: Readonly<Props>) {
   const { t } = useI18n();
-  const { flashingIds, detectorStatus } = useCounterStore();
+  // Narrow selectors keyed by this card's pokemon id: a bare useCounterStore()
+  // re-renders every card on any store change; these re-render a card only when
+  // its own flash membership or detector entry changes.
+  const isFlashing = useCounterStore((s) => s.flashingIds.has(pokemon.id));
+  const statusEntry = useCounterStore((s) => s.detectorStatus[pokemon.id]);
   const capture = useCaptureService();
   useCaptureVersion(); // re-render when capture streams change
-  const isFlashing = flashingIds?.has(pokemon.id) ?? false;
   const [imgError, setImgError] = useState(false);
-  const statusEntry = detectorStatus[pokemon.id];
   // A live preview is offered whenever a detection source is actually streaming
   // for this Pokémon, independent of whether match templates are configured.
   const previewAvailable = capture.isCapturing(pokemon.id) && !!pokemon.detector_config;

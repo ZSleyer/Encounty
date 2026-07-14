@@ -1,6 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useWebSocket } from "./useWebSocket";
+import { renderHook as renderHookBase, act } from "@testing-library/react";
+import { createElement, type ReactNode } from "react";
+import { useWebSocket, WebSocketProvider } from "./useWebSocket";
+
+/** Mounts the hook under test inside the shared WebSocketProvider. */
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(WebSocketProvider, null, children);
+
+/** renderHook variant that always wraps in the provider that owns the socket. */
+function renderHook<T>(callback: () => T) {
+  return renderHookBase(callback, { wrapper });
+}
 
 /** Minimal mock WebSocket that exposes handlers for manual triggering. */
 class MockWebSocket {
@@ -68,11 +78,14 @@ describe("useWebSocket", () => {
     vi.useFakeTimers();
     MockWebSocket.clear();
     vi.stubGlobal("WebSocket", MockWebSocket);
+    // Remove reconnect jitter so backoff delays are deterministic in tests.
+    vi.spyOn(Math, "random").mockReturnValue(0);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("connects on mount", () => {
@@ -117,18 +130,43 @@ describe("useWebSocket", () => {
     expect(onDisconnect).toHaveBeenCalledTimes(1);
   });
 
-  it("reconnects after RECONNECT_DELAY ms on close", () => {
+  it("reconnects with exponential backoff on close", () => {
     const onMessage = vi.fn();
     renderHook(() => useWebSocket(onMessage));
 
     const ws = MockWebSocket.latest();
     act(() => ws.simulateOpen());
     act(() => ws.simulateClose());
-
     expect(MockWebSocket.instances).toHaveLength(1);
 
-    act(() => vi.advanceTimersByTime(2000));
+    // First retry fires after the base delay (jitter is stubbed to 0).
+    act(() => vi.advanceTimersByTime(999));
+    expect(MockWebSocket.instances).toHaveLength(1);
+    act(() => vi.advanceTimersByTime(1));
     expect(MockWebSocket.instances).toHaveLength(2);
+
+    // A second consecutive failure backs off to 2x the base delay.
+    act(() => MockWebSocket.latest().simulateClose());
+    act(() => vi.advanceTimersByTime(1999));
+    expect(MockWebSocket.instances).toHaveLength(2);
+    act(() => vi.advanceTimersByTime(1));
+    expect(MockWebSocket.instances).toHaveLength(3);
+  });
+
+  it("resets the backoff after a successful open", () => {
+    const onMessage = vi.fn();
+    renderHook(() => useWebSocket(onMessage));
+
+    // Fail once so the backoff advances, then reconnect and open successfully.
+    act(() => MockWebSocket.latest().simulateClose());
+    act(() => vi.advanceTimersByTime(1000));
+    expect(MockWebSocket.instances).toHaveLength(2);
+    act(() => MockWebSocket.latest().simulateOpen());
+
+    // After a healthy open, the next drop retries again at the base delay.
+    act(() => MockWebSocket.latest().simulateClose());
+    act(() => vi.advanceTimersByTime(1000));
+    expect(MockWebSocket.instances).toHaveLength(3);
   });
 
   it("send() transmits JSON when socket is open", () => {

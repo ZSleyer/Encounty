@@ -1826,7 +1826,14 @@ interface DashboardProps {
 }
 
 export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {}) {
-  const { appState, flashPokemon, detectorStatus, setDetectorStatus, clearDetectorStatus } = useCounterStore();
+  // Narrow selectors: avoid re-rendering on isConnected / flashingIds /
+  // lastEncounterPokemonId changes, which the Dashboard does not read. The
+  // detectorStatus map is genuinely consumed here (passed to sidebar/cards).
+  const appState = useCounterStore((s) => s.appState);
+  const flashPokemon = useCounterStore((s) => s.flashPokemon);
+  const detectorStatus = useCounterStore((s) => s.detectorStatus);
+  const setDetectorStatus = useCounterStore((s) => s.setDetectorStatus);
+  const clearDetectorStatus = useCounterStore((s) => s.clearDetectorStatus);
   const { t } = useI18n();
   const capture = useCaptureService();
   useCaptureVersion(); // Re-render when capture sources connect/disconnect

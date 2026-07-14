@@ -134,8 +134,15 @@ export function DetectorPanel({
 }: DetectorPanelProps) {
   const { t, locale } = useI18n();
   const { push: pushToast } = useToast();
-  const { appState, setDetectorStatus, clearDetectorStatus, detectorStatus: detStatus } = useCounterStore();
-  const cooldownRemaining = detStatus[pokemon.id]?.cooldown_remaining_ms ?? null;
+  // Narrow selectors: subscribe only to this Pokemon's cooldown and the fields
+  // used here, instead of the whole store, which changes several times per
+  // second while any hunt is active.
+  const appState = useCounterStore((s) => s.appState);
+  const setDetectorStatus = useCounterStore((s) => s.setDetectorStatus);
+  const clearDetectorStatus = useCounterStore((s) => s.clearDetectorStatus);
+  const cooldownRemaining = useCounterStore(
+    (s) => s.detectorStatus[pokemon.id]?.cooldown_remaining_ms ?? null,
+  );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [isStarting] = useState(false);

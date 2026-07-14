@@ -32,9 +32,14 @@ vi.mock("./components/backgrounds/PixelBlast", () => ({
   default: () => <div data-testid="pixel-blast" />,
 }));
 
-vi.mock("./hooks/useWebSocket", () => ({
-  useWebSocket: vi.fn(() => ({ send: vi.fn() })),
-}));
+vi.mock("./hooks/useWebSocket", async () => {
+  const React = await import("react");
+  return {
+    useWebSocket: vi.fn(() => ({ send: vi.fn() })),
+    WebSocketProvider: ({ children }: { children: React.ReactNode }) =>
+      React.createElement(React.Fragment, null, children),
+  };
+});
 
 vi.mock("./engine/startDetection", () => ({
   stopDetectionForPokemon: vi.fn(),
