@@ -40,6 +40,9 @@ export class WorkerDetector {
    */
   private readonly captureVideos = new Map<HTMLVideoElement, HTMLVideoElement>();
 
+  /** Origin stream each capture element was cloned from, so a changed source re-clones. */
+  private readonly clonedFrom = new WeakMap<HTMLVideoElement, MediaStream>();
+
   private constructor(worker: Worker) {
     this.worker = worker;
 
@@ -252,10 +255,18 @@ export class WorkerDetector {
 
     for (const el of this.captureVideos.values()) {
       el.pause();
+      this.stopClonedTracks(el);
       el.srcObject = null;
       el.removeAttribute("src");
     }
     this.captureVideos.clear();
+  }
+
+  /** Stop the tracks of a cloned capture stream so hardware capture is released. */
+  private stopClonedTracks(el: HTMLVideoElement): void {
+    if (el.srcObject instanceof MediaStream) {
+      for (const track of el.srcObject.getTracks()) track.stop();
+    }
   }
 
   // --- Private helpers -------------------------------------------------------
@@ -289,9 +300,13 @@ export class WorkerDetector {
     const stream = source.srcObject as MediaStream | null;
 
     if (stream) {
-      // MediaStream: clone to isolate from the preview element
-      if (el.srcObject !== stream && !(el.srcObject instanceof MediaStream)) {
+      // MediaStream: clone to isolate from the preview element. Re-clone when the
+      // source stream identity changes, stopping the previous clone's tracks so
+      // the old capture/camera hardware is released instead of leaking.
+      if (this.clonedFrom.get(el) !== stream) {
+        this.stopClonedTracks(el);
         el.srcObject = stream.clone();
+        this.clonedFrom.set(el, stream);
       }
     } else if (source.src) {
       if (el.src !== source.src) {
