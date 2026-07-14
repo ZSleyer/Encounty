@@ -2178,7 +2178,12 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   const handleOpenAdd = () => setShowAddModal(true);
 
   /** Renders the right main panel when no Pokemon is selected. */
-  const renderNoPokemonPanel = () => (
+  const renderNoPokemonPanel = () => {
+    // The inline overview shortcut opens the ungrouped bucket, so only offer it
+    // when ungrouped Pokémon actually exist. Scoped to the active/archived tab.
+    const scopePool = sidebarTab === "active" ? activeHunts : archivedHunts;
+    const hasUngrouped = scopePool.some((p) => !p.group_id);
+    return (
     <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
       <Sparkles className="w-8 h-8 text-text-faint mb-6" />
       <h2 className="text-2xl font-semibold text-text-primary mb-2">
@@ -2187,28 +2192,24 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       <p className="text-text-muted text-sm max-w-xs">
         {t("dash.noActiveHint")}
       </p>
-      {groups.length > 0 && (
-        <div className="flex flex-col items-center gap-2 mt-6">
-          <span className="t-label">{t("dash.orViewGroup")}</span>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {groups.map((g) => (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => { setViewedPokemonId(null); setViewedGroupId(g.id); }}
-                title={t("group.viewGroup")}
-                className="flex items-center gap-1.5 pl-2 pr-3 py-1.5 border border-border-subtle text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue transition-colors text-xs font-medium"
-              >
-                <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
-                <span aria-hidden="true" className="w-2 h-2 shrink-0" style={{ backgroundColor: g.color || "#6b7280" }} />
-                {g.name}
-              </button>
-            ))}
-          </div>
-        </div>
+      {hasUngrouped && (
+      <p className="flex items-center flex-wrap justify-center gap-x-1.5 gap-y-1 text-text-faint text-xs mt-6">
+        {t("dash.overviewHintBefore")}
+        <button
+          type="button"
+          onClick={() => { setViewedPokemonId(null); setViewedGroupId(UNGROUPED_VIEW_ID); }}
+          title={t("group.viewOverview")}
+          aria-label={t("group.viewOverview")}
+          className="inline-flex items-center justify-center min-w-6 min-h-6 border border-border-subtle text-text-secondary hover:border-accent-blue/50 hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue align-middle"
+        >
+          <LayoutGrid className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+        {t("dash.overviewHintAfter")}
+      </p>
       )}
     </div>
-  );
+    );
+  };
 
   /**
    * Renders the main panel when no single Pokémon is selected: the viewed
@@ -2231,9 +2232,11 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
     // completed members in, and vice versa (the group entity itself has no
     // active/archived state, only its members do).
     const scopePool = sidebarTab === "active" ? activeHunts : archivedHunts;
-    const members = isUngrouped
+    const rawMembers = isUngrouped
       ? scopePool.filter((p) => !p.group_id)
       : scopePool.filter((p) => p.group_id === group.id);
+    // Mirror the sidebar's sort so the overview order matches the list.
+    const members = sortPokemonList(rawMembers, sortMode, sortDir);
     // ponytail: bulk increment/decrement fan out to per-member messages; there
     // is no dedicated group-increment endpoint. A real group's reset reuses the
     // reset_group message; the ungrouped bucket has no group id, so it fans the
