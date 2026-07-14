@@ -13,8 +13,18 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
+)
+
+const (
+	// writeWait bounds a single write so a stuck client cannot block the write
+	// pump forever. pongWait is how long we wait for a pong before considering
+	// the peer dead; pingPeriod (< pongWait) is how often we ping.
+	writeWait  = 10 * time.Second
+	pongWait   = 60 * time.Second
+	pingPeriod = (pongWait * 9) / 10
 )
 
 // upgrader promotes HTTP connections to WebSocket. CheckOrigin always returns
@@ -48,18 +58,37 @@ type wsClient struct {
 const sendBufSize = 256
 
 // writePump runs in its own goroutine and serialises all writes to conn.
-// It supports both text and binary message types via the wsPayload envelope.
+// It supports both text and binary message types via the wsPayload envelope,
+// applies a write deadline to every write, and sends periodic pings so a
+// half-open peer is detected and the connection torn down instead of leaking.
 func (c *wsClient) writePump() {
-	defer func() { _ = c.conn.Close() }()
-	for msg := range c.send {
-		if err := c.conn.WriteMessage(msg.msgType, msg.data); err != nil {
-			slog.Debug("WebSocket write error", "error", err)
-			return
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		_ = c.conn.Close()
+	}()
+	for {
+		select {
+		case msg, ok := <-c.send:
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				// Channel closed — send a close frame.
+				_ = c.conn.WriteMessage(websocket.CloseMessage,
+					websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"))
+				return
+			}
+			if err := c.conn.WriteMessage(msg.msgType, msg.data); err != nil {
+				slog.Debug("WebSocket write error", "error", err)
+				return
+			}
+		case <-ticker.C:
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				slog.Debug("WebSocket ping error", "error", err)
+				return
+			}
 		}
 	}
-	// Channel closed — send a close frame.
-	_ = c.conn.WriteMessage(websocket.CloseMessage,
-		websocket.FormatCloseMessage(websocket.CloseNormalClosure, "server shutting down"))
 }
 
 // Hub tracks all active WebSocket connections. A read/write mutex guards the
@@ -146,6 +175,14 @@ func (h *Hub) ServeWS(srv *Server, w http.ResponseWriter, r *http.Request) {
 
 	// Start the write goroutine.
 	go c.writePump()
+
+	// Read deadline + pong handler: if the peer stops responding to pings the
+	// read deadline expires, ReadMessage errors, and the loop below exits so the
+	// reader goroutine and client entry are cleaned up instead of leaking.
+	_ = conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
 
 	defer func() {
 		h.mu.Lock()
