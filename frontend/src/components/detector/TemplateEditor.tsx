@@ -532,7 +532,7 @@ function buildFlowGradient(
   const segBoundsFrame: number[] = [sorted[0][0]];
   let segState = sorted[0][1];
   for (let i = 1; i < sorted.length; i++) {
-    const [idx, state] = sorted[i];
+    const [, state] = sorted[i];
     if (state !== segState) {
       segStates.push(segState);
       segBoundsFrame.push(sorted[i - 1][0]);
@@ -694,7 +694,7 @@ function StepIndicator({ phase, t }: Readonly<{ phase: Phase; t: (k: string) => 
               <div className={`hidden sm:block w-6 h-px ${isDone ? "bg-accent-blue" : "bg-border-subtle"}`} />
             )}
             <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${textStyle}`}>
-              <span className={`w-[18px] h-[18px] flex items-center justify-center rounded-none border font-bold text-[10px] leading-none shrink-0 ${badgeStyle}`}>
+              <span className={`w-4.5 h-4.5 flex items-center justify-center rounded-none border font-bold text-[10px] leading-none shrink-0 ${badgeStyle}`}>
                 {isDone ? "✓" : step}
               </span>
               <span className="hidden sm:inline whitespace-nowrap">{stepLabel}</span>
@@ -1306,7 +1306,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
         </button>
         {showHelp && createPortal(
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4"
+            className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4"
             onClick={() => setShowHelp(false)}
             onKeyDown={(e) => { if (e.key === "Escape") setShowHelp(false); }}
             role="presentation"

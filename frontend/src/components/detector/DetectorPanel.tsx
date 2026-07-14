@@ -127,7 +127,6 @@ const INTERFACE_LOCALE_TO_TESSERACT: Record<string, string> = {
 
 export function DetectorPanel({
   pokemon,
-  onConfigChange,
   isRunning,
   confidence,
   detectorState,

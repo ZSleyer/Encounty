@@ -128,9 +128,6 @@ export class DetectionLoop {
    */
   private readonly regionSnapshots = new Map<string, { frozen: RegionGray[]; exitStreak: number; templateIndex: number }>();
 
-  /** Region delta of the leading category this poll, driving adaptive polling in region mode (null when not computed). */
-  private lastRegionDelta: number | null = null;
-
   /** Opaque frame buffer from the previous detection cycle (for GPU-level deduplication). */
   private previousFrameBuffer: unknown = null;
 
@@ -213,7 +210,6 @@ export class DetectionLoop {
     this.lastVideoTime = -1;
     this.previousFrameBuffer = null;
     this.regionSnapshots.clear();
-    this.lastRegionDelta = null;
     this.runLoop(getVideo);
   }
 
@@ -243,7 +239,6 @@ export class DetectionLoop {
       this.previousFrameBuffer = null;
     }
     this.regionSnapshots.clear();
-    this.lastRegionDelta = null;
   }
 
   // --- Category state helpers ------------------------------------------------
@@ -435,7 +430,6 @@ export class DetectionLoop {
         leaderRegionDelta = regionDelta;
       }
     }
-    this.lastRegionDelta = leaderRegionDelta;
 
     // Periodic score logging for debugging (every ~2s)
     if (Math.random() < 0.1) {
