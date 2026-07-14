@@ -11,6 +11,7 @@ export class GoProcessManager extends EventEmitter {
   private restartCount = 0;
   private readonly MAX_RESTARTS = 3;
   private readonly RESTART_DELAY = 2000;
+  private readonly MAX_RESTART_DELAY = 30000;
   private readonly pidFilePath: string;
 
   constructor() {
@@ -35,7 +36,7 @@ export class GoProcessManager extends EventEmitter {
 
       // Check if server is ready
       if (output.includes('Server listening')) {
-        this.emit('ready');
+        this.handleReady();
       }
     });
 
@@ -45,7 +46,7 @@ export class GoProcessManager extends EventEmitter {
 
       // slog writes to stderr; check for server ready signal
       if (output.includes('Server listening')) {
-        this.emit('ready');
+        this.handleReady();
       }
     });
 
@@ -67,6 +68,13 @@ export class GoProcessManager extends EventEmitter {
     }
   }
 
+  /** Marks the backend healthy: clears the crash budget so restarts hours apart
+   * do not accumulate toward MAX_RESTARTS, then signals readiness. */
+  private handleReady(): void {
+    this.restartCount = 0;
+    this.emit('ready');
+  }
+
   private handleCrash(_exitCode: number | null): void {
     if (this.restartCount >= this.MAX_RESTARTS) {
       console.error('[GoProcessManager] Max restart attempts reached');
@@ -75,13 +83,16 @@ export class GoProcessManager extends EventEmitter {
     }
 
     this.restartCount++;
-    console.log(`[GoProcessManager] Restarting (attempt ${this.restartCount}/${this.MAX_RESTARTS})...`);
+    // Exponential backoff (2s, 4s, 8s ...) capped, so a crash-looping backend
+    // is not hammered every 2s.
+    const delay = Math.min(this.RESTART_DELAY * 2 ** (this.restartCount - 1), this.MAX_RESTART_DELAY);
+    console.log(`[GoProcessManager] Restarting in ${delay}ms (attempt ${this.restartCount}/${this.MAX_RESTARTS})...`);
 
     setTimeout(() => {
       this.start().catch((err) => {
         console.error('[GoProcessManager] Restart failed:', err);
       });
-    }, this.RESTART_DELAY);
+    }, delay);
   }
 
   /** Returns the path to the frontend dist directory for overlay serving. */
