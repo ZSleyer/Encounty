@@ -4,10 +4,12 @@
  * trademark notice. License data is fetched lazily on first expand.
  */
 import { useEffect, useState } from "react";
-import { AlertTriangle, ChevronDown, Globe, Info, Scale } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, Globe, Info, Scale, Share2, Star } from "lucide-react";
 
 import { LicenseDialog } from "./LicenseDialog";
 import { apiUrl } from "../../utils/api";
+import { useToast } from "../../contexts/ToastContext";
+import { REPO_URL, isStarDone, markStarDone, shareEncounty } from "../../utils/supportPrompt";
 
 /** Single third-party dependency license entry served by /api/licenses. */
 interface LicenseEntry {
@@ -58,8 +60,15 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
   const [licenses, setLicenses] = useState<LicenseEntry[]>([]);
   const [expandedLicense, setExpandedLicense] = useState<string | null>(null);
   const [showLicenseDialog, setShowLicenseDialog] = useState(false);
+  const [supported, setSupported] = useState(isStarDone);
+  const { push: pushToast } = useToast();
 
   useLazyLicenses(licensesOpen, licenses.length, setLicenses);
+
+  const recommend = async () => {
+    const result = await shareEncounty(t("support.recommendBody"));
+    if (result === "copied") pushToast({ type: "info", title: t("support.copied") });
+  };
 
   return (
     <section className="glass-card rounded-none p-6 space-y-4">
@@ -67,6 +76,45 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
         <Info className="w-4 h-4 text-text-muted" />
         {t("settings.sectionAbout")}
       </h2>
+
+      {/* Support block — always available, non-nagging */}
+      <div className="bg-bg-secondary/30 border border-border-subtle rounded-none p-4 space-y-3">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-text-primary">{t("support.title")}</p>
+          <p className="text-xs text-text-muted leading-relaxed">{t("support.tagline")}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={t("aria.supportStar")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-xs font-semibold transition-colors"
+          >
+            <Star className="w-3.5 h-3.5" />
+            {t("support.star")}
+          </a>
+          <button
+            onClick={recommend}
+            aria-label={t("aria.supportRecommend")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-bg-secondary hover:bg-bg-hover border border-border-subtle text-xs text-text-muted hover:text-text-primary transition-colors"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            {t("support.recommend")}
+          </button>
+          <button
+            onClick={() => {
+              markStarDone();
+              setSupported(true);
+            }}
+            disabled={supported}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs text-text-muted enabled:hover:text-text-primary enabled:hover:bg-bg-hover disabled:text-accent-green transition-colors ml-auto"
+          >
+            {supported && <Check className="w-3.5 h-3.5" />}
+            {supported ? t("support.alreadySupported") : t("support.alreadyDone")}
+          </button>
+        </div>
+      </div>
 
       <div className="flex items-center justify-between gap-4">
         <p className="text-xs text-text-muted">
