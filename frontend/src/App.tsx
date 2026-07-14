@@ -19,6 +19,7 @@ import {
   Bot,
   Globe,
   HardDrive,
+  Star,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
 import { Settings } from "./pages/Settings";
@@ -37,8 +38,10 @@ import { LicenseDialog } from "./components/settings/LicenseDialog";
 import { apiUrl, wsUrl } from "./utils/api";
 import { CaptureServiceProvider, useCaptureService } from "./contexts/CaptureServiceContext";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
+import { SupportPrompt } from "./components/shared/SupportPrompt";
 import { startDetectionForPokemon, stopDetectionForPokemon } from "./engine/startDetection";
 import { useModalA11y } from "./hooks/useModalA11y";
+import { recordEncounter, takePendingPrompt, clearPendingPrompt, REPO_URL, type PromptVariant } from "./utils/supportPrompt";
 
 // Tracks which pokemon were already marked as completed in the last state_update.
 // Used as a safety net so the detection loop is stopped even if the typed
@@ -261,6 +264,8 @@ function AppShell() {
   const [updateState, setUpdateState] = useState<"idle" | "installing" | "restarting">("idle");
   const [showUpdateNotification, setShowUpdateNotification] = useState(false);
   const [showCloseWarning, setShowCloseWarning] = useState(false);
+  const [supportVariant, setSupportVariant] = useState<PromptVariant | null>(null);
+  const supportEvaluatedRef = useRef(false);
 
   const [buildDate, setBuildDate] = useState("");
 
@@ -419,6 +424,22 @@ function AppShell() {
     document.documentElement.dataset.accent = accent;
   }, [appState?.settings.accent_color]);
 
+  // --- Support nudge (startup only) ---
+  // Evaluate once, when the first app state arrives. A deferred prompt is shown
+  // only right after a clean start; if a hunt is already running we skip it for
+  // this session so the nudge never interrupts an ongoing hunt.
+  useEffect(() => {
+    if (supportEvaluatedRef.current || !appState) return;
+    supportEvaluatedRef.current = true;
+    const huntRunning = appState.pokemon.some((p) => p.timer_started_at && !p.completed_at);
+    if (huntRunning) return;
+    const pending = takePendingPrompt();
+    if (pending) {
+      clearPendingPrompt();
+      setSupportVariant(pending);
+    }
+  }, [appState]);
+
   const quitApp = useCallback(async () => {
     if (!confirm(t("app.confirmQuit"))) return;
     setQuitting(true);
@@ -562,6 +583,10 @@ function AppShell() {
   }
 
   function handleEncounterAdded(p: { pokemon_id: string; count: number }) {
+    // Count only genuine encounters (hotkey / detector) toward the support
+    // nudge. Manual "set encounters" broadcasts `encounter_set`, which never
+    // reaches this handler, so it is naturally excluded.
+    recordEncounter();
     flashPokemon(p.pokemon_id);
     const step = appState?.pokemon.find((x) => x.id === p.pokemon_id)?.step;
     const effectiveStep = step && step > 0 ? step : 1;
@@ -642,6 +667,9 @@ function AppShell() {
             sessionStorage.setItem("update_dismissed", "1");
           }}
         />
+      )}
+      {supportVariant && (
+        <SupportPrompt variant={supportVariant} onClose={() => setSupportVariant(null)} />
       )}
       {/* ── Horizontal Header + Nav ──────────────────────────── */}
       <header
@@ -767,6 +795,16 @@ function AppShell() {
             {buildDate && (
               <span className="text-text-muted">({buildDate})</span>
             )}
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t("aria.supportStar")}
+              title={t("support.star")}
+              className="flex items-center text-text-muted hover:text-accent-blue transition-colors"
+            >
+              <Star className="w-3 h-3" />
+            </a>
             {updateInfo && updateState === "idle" && (
               <button
                 onClick={applyUpdate}
