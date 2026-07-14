@@ -423,6 +423,13 @@ type Manager struct {
 	onChange     []func(AppState)
 	dirty        chan struct{}
 	stopNotifier chan struct{}
+
+	// Debounced-save state (guarded by saveMu, per-instance so multiple
+	// Managers never cancel each other's saves). saveDeadline caps how long a
+	// continuous stream of mutations can defer a flush.
+	saveMu       sync.Mutex
+	saveTimer    *time.Timer
+	saveDeadline time.Time
 }
 
 // NewManager creates a Manager with sensible defaults for all settings.

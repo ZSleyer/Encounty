@@ -7,18 +7,13 @@ package state
 
 import (
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 )
 
 const stateFile = "state.json"
-
-var (
-	saveMu    sync.Mutex
-	saveTimer *time.Timer
-)
 
 // Load reads state from the database when available, falling back to the
 // JSON file on disk. If neither source contains data, Load returns nil and
@@ -313,14 +308,38 @@ func (m *Manager) Reload() error {
 	return nil
 }
 
-// ScheduleSave debounces saves to at most once per 500ms.
+// Save debounce timing: coalesce bursts of mutations, but never defer a flush
+// longer than saveMaxDelay so a sustained stream (e.g. auto-detection) still
+// persists and a crash loses at most saveMaxDelay of progress.
+const (
+	saveDebounce = 500 * time.Millisecond
+	saveMaxDelay = 5 * time.Second
+)
+
+// ScheduleSave debounces saves by saveDebounce, capped at saveMaxDelay so a
+// continuous mutation stream cannot starve persistence indefinitely.
 func (m *Manager) ScheduleSave() {
-	saveMu.Lock()
-	defer saveMu.Unlock()
-	if saveTimer != nil {
-		saveTimer.Stop()
+	m.saveMu.Lock()
+	defer m.saveMu.Unlock()
+
+	if m.saveTimer == nil {
+		// Start of a new debounce window: set the hard flush deadline.
+		m.saveDeadline = time.Now().Add(saveMaxDelay)
+	} else {
+		m.saveTimer.Stop()
 	}
-	saveTimer = time.AfterFunc(500*time.Millisecond, func() {
-		_ = m.Save()
+
+	delay := saveDebounce
+	if remaining := time.Until(m.saveDeadline); remaining < delay {
+		delay = max(remaining, 0)
+	}
+
+	m.saveTimer = time.AfterFunc(delay, func() {
+		m.saveMu.Lock()
+		m.saveTimer = nil
+		m.saveMu.Unlock()
+		if err := m.Save(); err != nil {
+			slog.Error("scheduled state save failed", "error", err)
+		}
 	})
 }
