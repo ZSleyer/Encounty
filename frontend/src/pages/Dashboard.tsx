@@ -606,6 +606,17 @@ function loadSortDir(): SortDir {
   return (localStorage.getItem("encounty-sort-dir") as SortDir) || "asc";
 }
 
+/**
+ * Font size for the hero counter that shrinks as the number grows so extreme
+ * encounter counts never overflow the panel.
+ */
+function heroCounterFontSize(value: number): string {
+  const len = String(value).length;
+  if (len > 9) return "clamp(24px, 3vw, 40px)";
+  if (len > 6) return "clamp(34px, 4vw, 56px)";
+  return "clamp(48px, 5vw, 80px)";
+}
+
 /** Sorts a Pokemon list by the given mode and direction. */
 function sortPokemonList(list: Pokemon[], mode: SortMode, dir: SortDir): Pokemon[] {
   if (mode === "recent") return dir === "asc" ? list : [...list].reverse();
@@ -1514,7 +1525,10 @@ function DashboardCounterTab({
 
         {/* Big number. Raw integer on purpose: no thousands separator, fluid clamp size. */}
         <div className="relative text-center my-3" aria-live="polite">
-          <div className="text-[clamp(48px,5vw,80px)] font-black tabular-nums leading-none tracking-tight text-text-primary">
+          <div
+            className="font-black tabular-nums leading-none tracking-tight text-text-primary break-all"
+            style={{ fontSize: heroCounterFontSize(pokemon.encounters) }}
+          >
             {pokemon.encounters}
           </div>
           {!isCompleted && (

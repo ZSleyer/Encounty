@@ -35,6 +35,17 @@ function detectorDotClass(entry: DetectorStatusEntry, t: (key: string) => string
 }
 
 
+/**
+ * Font size for the card counter that shrinks as the number grows so extreme
+ * encounter counts never overflow the card.
+ */
+function cardCounterFontSize(value: number): string {
+  const len = String(value).length;
+  if (len > 9) return "clamp(18px, 2.4vw, 30px)";
+  if (len > 6) return "clamp(24px, 3vw, 42px)";
+  return "clamp(32px, 4vw, 56px)";
+}
+
 export function PokemonCard({
   pokemon,
   onIncrement,
@@ -153,7 +164,10 @@ export function PokemonCard({
           aria-atomic="true"
           className={`flex flex-col items-center gap-2 w-full py-2 2xl:py-3 transition-colors duration-200 ${isFlashing ? "bg-accent-blue/15" : ""}`}
         >
-          <span className="text-[clamp(32px,4vw,56px)] font-black text-text-primary tabular-nums tracking-tight leading-none">
+          <span
+            className="font-black text-text-primary tabular-nums tracking-tight leading-none break-all min-w-0"
+            style={{ fontSize: cardCounterFontSize(pokemon.encounters) }}
+          >
             {pokemon.encounters}
           </span>
           <span className="t-label t-label--accent gap-1" title={t("aria.odds")}>
