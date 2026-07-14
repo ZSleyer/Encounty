@@ -393,6 +393,17 @@ type AppState struct {
 	LicenseAccepted bool      `json:"license_accepted"`
 }
 
+// PokemonCounters carries the scalar counter and timer fields that the fast
+// persistence path updates without rewriting the entire Pokémon row. It is used
+// by the counter-only save path taken for hot-path mutations (increment,
+// decrement, timer ticks) that touch no structural data.
+type PokemonCounters struct {
+	ID                 string
+	Encounters         int
+	TimerStartedAt     *time.Time
+	TimerAccumulatedMs int64
+}
+
 // StateStore abstracts the database operations needed for state persistence.
 // The database.DB type satisfies this interface implicitly.
 type StateStore interface {
@@ -400,6 +411,11 @@ type StateStore interface {
 	SaveFullState(st *AppState) error
 	LoadFullState() (*AppState, error)
 	HasState() bool
+
+	// UpdatePokemonCounters writes only the encounter and timer columns for the
+	// given Pokémon rows. It is the fast path used when a mutation changed only
+	// counter or timer scalars and no structural data.
+	UpdatePokemonCounters(counters []PokemonCounters) error
 
 	// Template image BLOB operations (used by detector API).
 	SaveTemplateImage(pokemonID string, imageData []byte, sortOrder int) (int64, error)
@@ -427,9 +443,17 @@ type Manager struct {
 	// Debounced-save state (guarded by saveMu, per-instance so multiple
 	// Managers never cancel each other's saves). saveDeadline caps how long a
 	// continuous stream of mutations can defer a flush.
-	saveMu       sync.Mutex
-	saveTimer    *time.Timer
-	saveDeadline time.Time
+	//
+	// structuralDirty forces the next flush to rewrite the full state;
+	// counterDirty accumulates the IDs of Pokémon whose counter/timer scalars
+	// changed and are eligible for the fast UpdatePokemonCounters path. When
+	// structuralDirty is set the counter set is ignored and a full save runs,
+	// so correctness never depends on the fast path being taken.
+	saveMu          sync.Mutex
+	saveTimer       *time.Timer
+	saveDeadline    time.Time
+	structuralDirty bool
+	counterDirty    map[string]struct{}
 }
 
 // NewManager creates a Manager with sensible defaults for all settings.
@@ -613,15 +637,43 @@ func (m *Manager) OnChange(fn func(AppState)) {
 	m.onChange = append(m.onChange, fn)
 }
 
-// markDirty signals the notifier goroutine that state has changed.
+// notifyChange signals the notifier goroutine that state has changed.
 // Multiple rapid calls are coalesced into a single notification cycle.
 // Safe to call without holding any lock.
-func (m *Manager) markDirty() {
+func (m *Manager) notifyChange() {
 	select {
 	case m.dirty <- struct{}{}:
 	default:
 		// Already marked dirty — coalescing
 	}
+}
+
+// markDirty records a structural state change: it schedules a broadcast and
+// forces the next scheduled save to rewrite the full state. It is the default
+// signal for every mutation; the counter/timer hot path calls markCounterDirty
+// instead to stay eligible for the fast counter-only save path. Safe to call
+// without holding m.mu.
+func (m *Manager) markDirty() {
+	m.saveMu.Lock()
+	m.structuralDirty = true
+	m.saveMu.Unlock()
+	m.notifyChange()
+}
+
+// markCounterDirty records a counter/timer-only change to the given Pokémon
+// IDs, scheduling a broadcast while keeping the change eligible for the fast
+// counter-only save path. It never sets structuralDirty, so if a structural
+// change is also pending the next flush still performs a full save.
+func (m *Manager) markCounterDirty(ids ...string) {
+	m.saveMu.Lock()
+	if m.counterDirty == nil {
+		m.counterDirty = make(map[string]struct{})
+	}
+	for _, id := range ids {
+		m.counterDirty[id] = struct{}{}
+	}
+	m.saveMu.Unlock()
+	m.notifyChange()
 }
 
 // StartNotifier launches the background goroutine that coalesces rapid
@@ -941,7 +993,7 @@ func (m *Manager) Increment(id string) (int, bool) {
 			}
 			m.state.Pokemon[i].Encounters += step
 			count := m.state.Pokemon[i].Encounters
-			m.markDirty()
+			m.markCounterDirty(id)
 			return count, true
 		}
 	}
@@ -966,7 +1018,7 @@ func (m *Manager) Decrement(id string) (int, bool) {
 				m.state.Pokemon[i].Encounters = 0
 			}
 			count := m.state.Pokemon[i].Encounters
-			m.markDirty()
+			m.markCounterDirty(id)
 			return count, true
 		}
 	}
@@ -981,7 +1033,7 @@ func (m *Manager) Reset(id string) bool {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].Encounters = 0
-			m.markDirty()
+			m.markCounterDirty(id)
 			return true
 		}
 	}
@@ -992,6 +1044,7 @@ func (m *Manager) Reset(id string) bool {
 func (m *Manager) IncrementGroup(groupID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	var changed []string
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].GroupID != groupID {
 			continue
@@ -1001,8 +1054,9 @@ func (m *Manager) IncrementGroup(groupID string) {
 			step = 1
 		}
 		m.state.Pokemon[i].Encounters += step
+		changed = append(changed, m.state.Pokemon[i].ID)
 	}
-	m.markDirty()
+	m.markCounterDirty(changed...)
 }
 
 // DecrementGroup decrements all Pokémon in the given group by their step value,
@@ -1010,6 +1064,7 @@ func (m *Manager) IncrementGroup(groupID string) {
 func (m *Manager) DecrementGroup(groupID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	var changed []string
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].GroupID != groupID {
 			continue
@@ -1023,20 +1078,23 @@ func (m *Manager) DecrementGroup(groupID string) {
 		} else {
 			m.state.Pokemon[i].Encounters = 0
 		}
+		changed = append(changed, m.state.Pokemon[i].ID)
 	}
-	m.markDirty()
+	m.markCounterDirty(changed...)
 }
 
 // ResetGroup resets the encounter count of all Pokémon in the given group to 0.
 func (m *Manager) ResetGroup(groupID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	var changed []string
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].GroupID == groupID {
 			m.state.Pokemon[i].Encounters = 0
+			changed = append(changed, m.state.Pokemon[i].ID)
 		}
 	}
-	m.markDirty()
+	m.markCounterDirty(changed...)
 }
 
 // SetEncounters sets the encounter counter for the given Pokémon to an exact
@@ -1050,7 +1108,7 @@ func (m *Manager) SetEncounters(id string, count int) (int, bool) {
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].Encounters = count
-			m.markDirty()
+			m.markCounterDirty(id)
 			return count, true
 		}
 	}
@@ -1068,7 +1126,7 @@ func (m *Manager) StartTimer(id string) bool {
 				now := time.Now()
 				m.state.Pokemon[i].TimerStartedAt = &now
 			}
-			m.markDirty()
+			m.markCounterDirty(id)
 			return true
 		}
 	}
@@ -1087,7 +1145,7 @@ func (m *Manager) StopTimer(id string) bool {
 				m.state.Pokemon[i].TimerAccumulatedMs += elapsed.Milliseconds()
 				m.state.Pokemon[i].TimerStartedAt = nil
 			}
-			m.markDirty()
+			m.markCounterDirty(id)
 			return true
 		}
 	}
@@ -1117,13 +1175,13 @@ func (m *Manager) ToggleHunt(id string) (running bool, huntMode string, ok bool)
 			m.state.Pokemon[i].TimerAccumulatedMs += elapsed.Milliseconds()
 			m.state.Pokemon[i].TimerStartedAt = nil
 			m.mu.Unlock()
-			m.markDirty()
+			m.markCounterDirty(id)
 			return false, mode, true
 		}
 		now := time.Now()
 		m.state.Pokemon[i].TimerStartedAt = &now
 		m.mu.Unlock()
-		m.markDirty()
+		m.markCounterDirty(id)
 		return true, mode, true
 	}
 	m.mu.Unlock()
@@ -1153,7 +1211,7 @@ func (m *Manager) ResetTimer(id string) bool {
 		if m.state.Pokemon[i].ID == id {
 			m.state.Pokemon[i].TimerStartedAt = nil
 			m.state.Pokemon[i].TimerAccumulatedMs = 0
-			m.markDirty()
+			m.markCounterDirty(id)
 			return true
 		}
 	}
@@ -1173,7 +1231,7 @@ func (m *Manager) SetTimer(id string, ms int64) bool {
 				ms = 0
 			}
 			m.state.Pokemon[i].TimerAccumulatedMs = ms
-			m.markDirty()
+			m.markCounterDirty(id)
 			return true
 		}
 	}

@@ -338,8 +338,68 @@ func (m *Manager) ScheduleSave() {
 		m.saveMu.Lock()
 		m.saveTimer = nil
 		m.saveMu.Unlock()
-		if err := m.Save(); err != nil {
+		if err := m.flushSave(); err != nil {
 			slog.Error("scheduled state save failed", "error", err)
 		}
 	})
+}
+
+// flushSave persists the pending changes accumulated since the last flush. It
+// takes the fast UpdatePokemonCounters path only when a database is present and
+// no structural change is pending; otherwise it falls back to a full Save. The
+// dirty flags are read and cleared under saveMu before any persistence work, so
+// a mutation arriving mid-flush simply re-arms the flags for the next cycle.
+func (m *Manager) flushSave() error {
+	m.saveMu.Lock()
+	structural := m.structuralDirty
+	var ids []string
+	if !structural {
+		ids = make([]string, 0, len(m.counterDirty))
+		for id := range m.counterDirty {
+			ids = append(ids, id)
+		}
+	}
+	m.structuralDirty = false
+	m.counterDirty = nil
+	m.saveMu.Unlock()
+
+	// Fall back to a full save whenever the fast path cannot guarantee
+	// correctness: no database (JSON file), a pending structural change, or no
+	// counter-only changes to apply.
+	if m.db == nil || structural || len(ids) == 0 {
+		return m.Save()
+	}
+	return m.saveCounters(ids)
+}
+
+// saveCounters writes only the counter and timer scalars for the given Pokémon
+// IDs via the database fast path. Values are snapshotted under RLock; the
+// pointer fields are replaced wholesale by mutations rather than mutated in
+// place, so the snapshot is safe to persist after the lock is released.
+func (m *Manager) saveCounters(ids []string) error {
+	want := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		want[id] = struct{}{}
+	}
+
+	m.mu.RLock()
+	counters := make([]PokemonCounters, 0, len(want))
+	for i := range m.state.Pokemon {
+		p := &m.state.Pokemon[i]
+		if _, ok := want[p.ID]; !ok {
+			continue
+		}
+		counters = append(counters, PokemonCounters{
+			ID:                 p.ID,
+			Encounters:         p.Encounters,
+			TimerStartedAt:     p.TimerStartedAt,
+			TimerAccumulatedMs: p.TimerAccumulatedMs,
+		})
+	}
+	m.mu.RUnlock()
+
+	if len(counters) == 0 {
+		return nil
+	}
+	return m.db.UpdatePokemonCounters(counters)
 }

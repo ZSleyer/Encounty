@@ -100,6 +100,34 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	return tx.Commit()
 }
 
+// UpdatePokemonCounters writes only the encounter and timer columns for the
+// given Pokémon rows inside one transaction. It is the fast persistence path
+// for counter/timer-only mutations, avoiding the full-state rewrite performed
+// by SaveFullState. Rows whose id no longer exists are left untouched.
+func (d *DB) UpdatePokemonCounters(counters []state.PokemonCounters) error {
+	if len(counters) == 0 {
+		return nil
+	}
+	tx, err := d.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin counter tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	stmt, err := tx.Prepare(`UPDATE pokemon SET encounters = ?, timer_started_at = ?, timer_accumulated_ms = ? WHERE id = ?`)
+	if err != nil {
+		return fmt.Errorf("prepare counter update: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+
+	for _, c := range counters {
+		if _, err := stmt.Exec(c.Encounters, nullTimeStr(c.TimerStartedAt), c.TimerAccumulatedMs, c.ID); err != nil {
+			return fmt.Errorf("update counters for %q: %w", c.ID, err)
+		}
+	}
+	return tx.Commit()
+}
+
 // saveGroups replaces the pokemon_groups rows with the given slice. A full
 // delete+insert is used because groups are a small set and this avoids having
 // to track renames or reordering as diff operations.

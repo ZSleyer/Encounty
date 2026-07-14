@@ -32,6 +32,72 @@ const (
 	titleSpookyHunt    = "Spooky Hunt"
 )
 
+// TestUpdatePokemonCounters verifies that the fast counter-only save path
+// persists the new encounter count and timer fields without rewriting the row,
+// so a subsequent LoadFullState reflects the update.
+func TestUpdatePokemonCounters(t *testing.T) {
+	db := openTestDB(t)
+	now := time.Now().UTC().Truncate(time.Second)
+	timerStart := now.Add(-10 * time.Minute)
+
+	st := state.AppState{
+		ActiveID: "p1",
+		Pokemon: []state.Pokemon{
+			{ID: "p1", Name: "Pikachu", CreatedAt: now, OverlayMode: "default", Encounters: 5, TimerAccumulatedMs: 1000},
+			{ID: "p2", Name: "Eevee", CreatedAt: now, OverlayMode: "default", Encounters: 0},
+		},
+		Sessions: []state.Session{},
+		Settings: state.Settings{Languages: []string{"en"}, Overlay: makeTestOverlay()},
+	}
+	if err := db.SaveFullState(&st); err != nil {
+		t.Fatalf(edgeFmtSaveErr, err)
+	}
+
+	// Fast path: bump p1's counter and start its timer, leave p2 untouched.
+	if err := db.UpdatePokemonCounters([]state.PokemonCounters{
+		{ID: "p1", Encounters: 6, TimerStartedAt: &timerStart, TimerAccumulatedMs: 2000},
+	}); err != nil {
+		t.Fatalf("UpdatePokemonCounters: %v", err)
+	}
+
+	got, err := db.LoadFullState()
+	if err != nil {
+		t.Fatalf(edgeFmtLoadErr, err)
+	}
+	if got == nil {
+		t.Fatal(edgeLoadNil)
+	}
+	byID := map[string]state.Pokemon{}
+	for _, p := range got.Pokemon {
+		byID[p.ID] = p
+	}
+	if byID["p1"].Encounters != 6 {
+		t.Errorf("p1 encounters = %d, want 6", byID["p1"].Encounters)
+	}
+	if byID["p1"].TimerAccumulatedMs != 2000 {
+		t.Errorf("p1 timer accumulated = %d, want 2000", byID["p1"].TimerAccumulatedMs)
+	}
+	if byID["p1"].TimerStartedAt == nil || !byID["p1"].TimerStartedAt.Equal(timerStart) {
+		t.Errorf("p1 timer started = %v, want %v", byID["p1"].TimerStartedAt, timerStart)
+	}
+	// p2 must be unchanged and other p1 fields preserved (name not rewritten).
+	if byID["p2"].Encounters != 0 {
+		t.Errorf("p2 encounters = %d, want 0 (untouched)", byID["p2"].Encounters)
+	}
+	if byID["p1"].Name != "Pikachu" {
+		t.Errorf("p1 name = %q, want Pikachu (fast path must not touch name)", byID["p1"].Name)
+	}
+}
+
+// TestUpdatePokemonCountersEmpty verifies the fast path is a no-op for an empty
+// slice.
+func TestUpdatePokemonCountersEmpty(t *testing.T) {
+	db := openTestDB(t)
+	if err := db.UpdatePokemonCounters(nil); err != nil {
+		t.Fatalf("UpdatePokemonCounters(nil): %v", err)
+	}
+}
+
 // TestLoadFullStateEmptyDB verifies that LoadFullState returns nil (without error)
 // when called on a fresh database with no app_config row.
 func TestLoadFullStateEmptyDB(t *testing.T) {

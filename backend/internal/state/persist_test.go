@@ -9,6 +9,75 @@ import (
 
 const stateJSONFile = "state.json"
 
+// fakeStore is an in-memory StateStore used to observe which persistence path
+// flushSave selects (fast counter update vs full save) without a real database.
+type fakeStore struct {
+	fullSaves    int
+	counterCalls int
+	lastCounters []PokemonCounters
+}
+
+func (f *fakeStore) SaveFullState(*AppState) error     { f.fullSaves++; return nil }
+func (f *fakeStore) LoadFullState() (*AppState, error) { return nil, nil }
+func (f *fakeStore) HasState() bool                    { return false }
+func (f *fakeStore) UpdatePokemonCounters(c []PokemonCounters) error {
+	f.counterCalls++
+	f.lastCounters = c
+	return nil
+}
+func (f *fakeStore) SaveTemplateImage(string, []byte, int) (int64, error) { return 0, nil }
+func (f *fakeStore) LoadTemplateImage(int64) ([]byte, error)              { return nil, nil }
+func (f *fakeStore) DeleteTemplateImage(int64) error                      { return nil }
+func (f *fakeStore) LoadAppState() ([]byte, error)                        { return nil, nil }
+func (f *fakeStore) HasAppState() bool                                    { return false }
+
+// TestFlushSaveRouting verifies that a counter-only mutation flushes through the
+// fast UpdatePokemonCounters path, while a structural mutation forces a full
+// SaveFullState.
+func TestFlushSaveRouting(t *testing.T) {
+	f := &fakeStore{}
+	m := NewManager(t.TempDir())
+	m.SetDB(f)
+
+	// AddPokemon is structural; flush it to establish a clean baseline.
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+	if err := m.flushSave(); err != nil {
+		t.Fatalf("flushSave (structural add): %v", err)
+	}
+	if f.fullSaves != 1 || f.counterCalls != 0 {
+		t.Fatalf("after add: fullSaves=%d counterCalls=%d, want 1/0", f.fullSaves, f.counterCalls)
+	}
+
+	// A counter-only increment must take the fast path.
+	m.Increment("p1")
+	if err := m.flushSave(); err != nil {
+		t.Fatalf("flushSave (counter): %v", err)
+	}
+	if f.counterCalls != 1 {
+		t.Fatalf("counterCalls = %d, want 1", f.counterCalls)
+	}
+	if f.fullSaves != 1 {
+		t.Errorf("fullSaves = %d, want 1 (increment must not trigger full save)", f.fullSaves)
+	}
+	if len(f.lastCounters) != 1 || f.lastCounters[0].ID != "p1" || f.lastCounters[0].Encounters != 1 {
+		t.Errorf("lastCounters = %+v, want [{p1 enc=1}]", f.lastCounters)
+	}
+
+	// A structural change (rename) must force a full save even though a counter
+	// change may also be pending.
+	m.Increment("p1")
+	m.UpdatePokemon("p1", Pokemon{Name: "Raichu"})
+	if err := m.flushSave(); err != nil {
+		t.Fatalf("flushSave (structural update): %v", err)
+	}
+	if f.fullSaves != 2 {
+		t.Errorf("fullSaves = %d, want 2 (structural update forces full save)", f.fullSaves)
+	}
+	if f.counterCalls != 1 {
+		t.Errorf("counterCalls = %d, want 1 (structural pending suppresses fast path)", f.counterCalls)
+	}
+}
+
 // TestSaveLoadRoundtrip exercises JSON-only persistence (no DB wired).
 func TestSaveLoadRoundtrip(t *testing.T) {
 	dir := t.TempDir()
