@@ -280,7 +280,7 @@ func migrateOddsElement(o *OverlaySettings) {
 func (m *Manager) Save() error {
 	if m.db != nil {
 		m.mu.RLock()
-		st := m.state
+		st := cloneState(m.state)
 		m.mu.RUnlock()
 		return m.db.SaveFullState(&st)
 	}

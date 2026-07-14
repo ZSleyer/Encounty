@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/json"
 	"sync"
 	"testing"
 	"time"
@@ -50,6 +51,53 @@ func makePokemon(id, name string) Pokemon {
 		Name:      name,
 		CreatedAt: time.Now(),
 	}
+}
+
+// TestGetStateSnapshotRace exercises the A1 fix: a snapshot returned by
+// GetState must be safe to marshal after the lock is released while the live
+// state is still being mutated. With the shallow copy this failed under -race
+// (aliased Pokemon slice) and could panic on the CaptureResolutions map
+// (concurrent map read/write). Run with `go test -race`.
+func TestGetStateSnapshotRace(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	// Writers: hot counter path + the map mutator.
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+				m.Increment("p1")
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; ; i++ {
+			select {
+			case <-stop:
+				return
+			default:
+				m.SetCaptureResolution("cam", []string{"auto", "720", "1080"}[i%3])
+			}
+		}
+	}()
+
+	// Reader: snapshot then marshal after the lock is gone.
+	for i := 0; i < 2000; i++ {
+		if _, err := json.Marshal(m.GetState()); err != nil {
+			t.Fatalf("marshal snapshot: %v", err)
+		}
+	}
+	close(stop)
+	wg.Wait()
 }
 
 func TestAddPokemonSingle(t *testing.T) {

@@ -7,8 +7,10 @@ package state
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -656,7 +658,7 @@ func (m *Manager) coalesceAndDispatch() {
 		case <-timer.C:
 			// 50 ms elapsed with no new mutations — dispatch now
 			m.mu.RLock()
-			state := m.state
+			state := cloneState(m.state)
 			callbacks := m.onChange
 			m.mu.RUnlock()
 
@@ -684,16 +686,30 @@ func (m *Manager) StopNotifier() {
 func (m *Manager) GetState() AppState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	st := m.state
-	if len(m.state.Pokemon) > 1 {
-		pokemon := make([]Pokemon, len(m.state.Pokemon))
-		copy(pokemon, m.state.Pokemon)
-		sort.SliceStable(pokemon, func(i, j int) bool {
-			return pokemon[i].SortOrder < pokemon[j].SortOrder
-		})
-		st.Pokemon = pokemon
-	}
+	st := cloneState(m.state)
+	sort.SliceStable(st.Pokemon, func(i, j int) bool {
+		return st.Pokemon[i].SortOrder < st.Pokemon[j].SortOrder
+	})
 	return st
+}
+
+// cloneState returns a snapshot of s that is safe to read (marshal, persist)
+// after the caller releases the state lock, without racing in-place mutations
+// of the live state. The slices that are mutated in place (Pokemon and each
+// Pokemon's Tags) and the CaptureResolutions map receive fresh backing storage;
+// Sessions, Groups and Languages are also cloned since they are appended to.
+// Pointer fields (Overlay, DetectorConfig, *time.Time) are replaced wholesale
+// under Lock rather than mutated in place, so sharing those pointers is safe.
+func cloneState(s AppState) AppState {
+	s.Pokemon = slices.Clone(s.Pokemon)
+	for i := range s.Pokemon {
+		s.Pokemon[i].Tags = slices.Clone(s.Pokemon[i].Tags)
+	}
+	s.Sessions = slices.Clone(s.Sessions)
+	s.Groups = slices.Clone(s.Groups)
+	s.Settings.Languages = slices.Clone(s.Settings.Languages)
+	s.Settings.CaptureResolutions = maps.Clone(s.Settings.CaptureResolutions)
+	return s
 }
 
 // GetActivePokemon returns a pointer to a copy of the currently active
