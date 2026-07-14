@@ -6,6 +6,7 @@
  * the app locale. Acceptance is persisted via the backend state.
  */
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Scale, ChevronDown } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useModalA11y } from "../../hooks/useModalA11y";
@@ -60,7 +61,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
     setLocale(code);
   };
 
-  return (
+  return createPortal(
     <div
       ref={containerRef}
       tabIndex={-1}
@@ -162,6 +163,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
           </p>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
