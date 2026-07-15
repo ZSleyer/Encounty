@@ -1043,7 +1043,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
               onClick={handleOnlineSetup}
               className="flex flex-col items-center gap-3 p-6 rounded-none border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
             >
-              <div className="w-12 h-12 rounded-none bg-accent-blue/15 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-none flex items-center justify-center">
                 <Globe className="w-6 h-6 text-accent-blue" />
               </div>
               <span className="text-sm font-semibold text-text-primary">{t("app.setupOnline")}</span>
@@ -1053,7 +1053,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
               onClick={handleOfflineSetup}
               className="flex flex-col items-center gap-3 p-6 rounded-none border border-border-subtle bg-bg-secondary hover:bg-bg-hover transition-colors w-52"
             >
-              <div className="w-12 h-12 rounded-none bg-accent-blue/15 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-none flex items-center justify-center">
                 <HardDrive className="w-6 h-6 text-accent-blue" />
               </div>
               <span className="text-sm font-semibold text-text-primary">{t("app.setupOffline")}</span>
