@@ -156,13 +156,12 @@ describe("OverlayBrowserSourceButton", () => {
     expect(getChevronButton()).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("closes menu on outside mousedown", async () => {
-    const { fireEvent } = await import("../../test-utils");
+  it("closes menu on backdrop click", async () => {
     const user = userEvent.setup();
     render(<OverlayBrowserSourceButton pokemonId="poke-1" />);
     await user.click(getChevronButton());
     expect(screen.getByRole("menu")).toBeInTheDocument();
-    fireEvent.mouseDown(document.body);
+    await user.click(screen.getByRole("button", { name: "Schließen" }));
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 

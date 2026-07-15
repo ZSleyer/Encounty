@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, Monitor } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { apiUrl } from "../../utils/api";
@@ -17,6 +18,7 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<UrlMode>("pokemon");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLUListElement>(null);
   const chevronRef = useRef<HTMLButtonElement>(null);
@@ -45,16 +47,31 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
     chevronRef.current?.focus();
   };
 
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onDocMouseDown = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
+  // Anchor the portalled menu to the split button. The menu escapes the overlay
+  // editor's stacking/overflow context via createPortal + fixed positioning so it
+  // sits above the sidebar and scrolled content, without boosting the navigation
+  // z-index globally.
+  useLayoutEffect(() => {
+    if (!menuOpen) {
+      setMenuPos(null);
+      return;
+    }
+    const update = () => {
+      const r = containerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      // mt-1 in the previous absolute markup ≈ 4 px.
+      setMenuPos({ top: r.bottom + 4, right: globalThis.innerWidth - r.right });
     };
-    document.addEventListener("mousedown", onDocMouseDown);
-    return () => document.removeEventListener("mousedown", onDocMouseDown);
+    update();
+    // Capture-phase scroll listener catches the editor's overflow-auto container;
+    // closing on scroll is more predictable than continuous repositioning.
+    const onScroll = () => setMenuOpen(false);
+    globalThis.addEventListener("scroll", onScroll, true);
+    globalThis.addEventListener("resize", update);
+    return () => {
+      globalThis.removeEventListener("scroll", onScroll, true);
+      globalThis.removeEventListener("resize", update);
+    };
   }, [menuOpen]);
 
   // Close on Escape + keyboard navigation inside menu
@@ -145,14 +162,26 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${menuOpen ? "rotate-180" : ""}`} />
       </button>
 
-      {/* Dropdown menu */}
-      {menuOpen && (
-        <ul
-          ref={menuRef}
-          role="menu"
-          onKeyDown={handleMenuKeyDown}
-          className="absolute right-0 top-full mt-1 z-50 min-w-[240px] rounded-none border border-border-subtle bg-bg-secondary shadow-lg py-1"
-        >
+      {/* Dropdown menu — portalled to body so it escapes the editor's
+          stacking/overflow context (see index.css z-index notes). */}
+      {menuOpen && menuPos && createPortal(
+        <>
+          {/* Backdrop closes on outside click. Replaces a document mousedown
+              listener, which would fire before the portalled item's click and
+              swallow the selection. */}
+          <button
+            type="button"
+            className="fixed inset-0 z-40 cursor-default"
+            onClick={() => setMenuOpen(false)}
+            aria-label={t("aria.close")}
+          />
+          <ul
+            ref={menuRef}
+            role="menu"
+            onKeyDown={handleMenuKeyDown}
+            style={{ top: menuPos.top, right: menuPos.right }}
+            className="fixed z-50 min-w-[240px] rounded-none border border-border-subtle bg-bg-secondary shadow-lg py-1"
+          >
           <li role="none">
             <button
               type="button"
@@ -183,7 +212,9 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
               </div>
             </button>
           </li>
-        </ul>
+          </ul>
+        </>,
+        document.body,
       )}
     </div>
   );
