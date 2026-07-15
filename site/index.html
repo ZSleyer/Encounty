@@ -73,6 +73,9 @@
             class="hidden text-text-secondary hover:text-text-primary sm:block"
             >How it works</a
           >
+          <a href="#changelog" class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >Changelog</a
+          >
           <a href="https://github.com/ZSleyer/Encounty" class="t-label">GitHub</a>
         </div>
       </nav>
@@ -180,6 +183,37 @@
                 Design your stream overlay with drag & drop and live preview.
               </figcaption>
             </figure>
+          </div>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- Changelog -->
+      <section aria-labelledby="changelog-heading" id="changelog" class="px-4 py-20">
+        <div class="mx-auto max-w-4xl">
+          <div class="flex flex-wrap items-center justify-center gap-3">
+            <h2 id="changelog-heading" class="t-heading text-center text-2xl text-text-primary">
+              Changelog
+            </h2>
+            <span id="changelog-version" class="t-label t-label--accent"></span>
+          </div>
+          <div class="t-panel mt-8 p-6">
+            <div id="changelog-wrap" class="changelog-clamp relative overflow-hidden">
+              <div id="changelog-content" aria-live="polite">
+                <p class="text-sm text-text-muted">Loading latest release&hellip;</p>
+              </div>
+              <div class="changelog-fade" aria-hidden="true"></div>
+            </div>
+            <button
+              id="changelog-toggle"
+              type="button"
+              class="dl-btn mt-4 px-4 py-2 text-sm"
+              aria-expanded="false"
+              aria-controls="changelog-content"
+            >
+              Show full changelog
+            </button>
           </div>
         </div>
       </section>
@@ -426,6 +460,93 @@
           }
         });
       }
+
+      // Changelog: fetch the latest stable GitHub release at runtime and
+      // render its notes. GET /releases/latest never returns a pre-release,
+      // matching what the in-app auto-updater considers "latest" too.
+      function escapeHtml(str) {
+        return str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      // Renders a small, safe Markdown subset (headings, bold, links, lists,
+      // paragraphs). Input must already be HTML-escaped; only well-formed
+      // http(s) links are turned into anchors, everything else stays text.
+      function renderChangelogMarkdown(escaped) {
+        const withInlines = escaped
+          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+          .replace(
+            /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+            '<a href="$2" class="underline hover:text-text-primary" rel="noopener">$1</a>',
+          );
+
+        const lines = withInlines.split("\n");
+        let html = "";
+        let listOpen = false;
+        const closeList = () => {
+          if (listOpen) {
+            html += "</ul>";
+            listOpen = false;
+          }
+        };
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          const heading = line.match(/^(#{2,3})\s+(.*)/);
+          const item = line.match(/^[-*]\s+(.*)/);
+          if (heading) {
+            closeList();
+            const tag = heading[1].length === 2 ? "h3" : "h4";
+            html += `<${tag} class="mt-4 font-semibold text-accent-blue">${heading[2]}</${tag}>`;
+          } else if (item) {
+            if (!listOpen) {
+              html += '<ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-text-secondary">';
+              listOpen = true;
+            }
+            html += `<li>${item[1]}</li>`;
+          } else if (line === "") {
+            closeList();
+          } else {
+            closeList();
+            html += `<p class="mt-2 text-sm text-text-secondary">${line}</p>`;
+          }
+        }
+        closeList();
+        return html;
+      }
+
+      async function loadChangelog() {
+        const content = document.getElementById("changelog-content");
+        const versionBadge = document.getElementById("changelog-version");
+        try {
+          const res = await fetch(
+            "https://api.github.com/repos/ZSleyer/Encounty/releases/latest",
+          );
+          if (!res.ok) throw new Error("GitHub API request failed");
+          const release = await res.json();
+          versionBadge.textContent = release.tag_name;
+          const body = (release.body || "").trim();
+          content.innerHTML = body
+            ? renderChangelogMarkdown(escapeHtml(body))
+            : '<p class="text-sm text-text-muted">No release notes provided.</p>';
+        } catch {
+          content.innerHTML =
+            '<p class="text-sm text-text-muted">Could not load the changelog right now. <a href="https://github.com/ZSleyer/Encounty/releases/latest" class="underline hover:text-text-primary">View it on GitHub</a>.</p>';
+        }
+      }
+      loadChangelog();
+
+      // Changelog toggle: expands the clamped preview and hides its fade.
+      const changelogToggle = document.getElementById("changelog-toggle");
+      const changelogWrap = document.getElementById("changelog-wrap");
+      changelogToggle.addEventListener("click", () => {
+        const expanded = changelogWrap.classList.toggle("is-expanded");
+        changelogToggle.setAttribute("aria-expanded", String(expanded));
+        changelogToggle.textContent = expanded ? "Show less" : "Show full changelog";
+      });
     </script>
   </body>
 </html>

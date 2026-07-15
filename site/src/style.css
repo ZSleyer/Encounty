@@ -287,6 +287,29 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
+/* Changelog: clamped preview with a bottom fade, expanded via #changelog-toggle. */
+.changelog-clamp {
+  max-height: 220px;
+  transition: max-height 0.3s ease;
+}
+
+.changelog-clamp.is-expanded {
+  max-height: 4000px;
+}
+
+.changelog-fade {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 72px;
+  background: linear-gradient(to bottom, transparent, var(--bg-card));
+}
+
+.changelog-clamp.is-expanded .changelog-fade {
+  display: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
