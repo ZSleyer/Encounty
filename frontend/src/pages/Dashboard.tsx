@@ -460,7 +460,6 @@ interface SidebarKeyboardContext {
   setFocusedIdx: React.Dispatch<React.SetStateAction<number | null>>;
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
-  handleActivate: (id: string) => void;
   bulkDelete: () => void;
 }
 
@@ -477,20 +476,20 @@ function handleSidebarArrow(e: KeyboardEvent, ctx: SidebarKeyboardContext): void
   el?.focus();
 }
 
-/** Handles Enter (activate) and Space (toggle select) on focused sidebar item. */
+/**
+ * Toggles selection of the focused sidebar item on Space. Enter (activate) is
+ * handled by the item's own onKeyDown so it fires exactly once; routing it here
+ * too would double-invoke handleActivate and cancel its view toggle.
+ */
 function handleSidebarFocusedAction(e: KeyboardEvent, ctx: SidebarKeyboardContext): void {
   if (ctx.focusedIdx === null || !ctx.displayList[ctx.focusedIdx]) return;
   e.preventDefault();
   const item = ctx.displayList[ctx.focusedIdx];
-  if (e.key === "Enter") {
-    ctx.handleActivate(item.id);
-  } else {
-    ctx.setSelectedIds(prev => {
-      const n = new Set(prev);
-      if (n.has(item.id)) { n.delete(item.id); } else { n.add(item.id); }
-      return n;
-    });
-  }
+  ctx.setSelectedIds(prev => {
+    const n = new Set(prev);
+    if (n.has(item.id)) { n.delete(item.id); } else { n.add(item.id); }
+    return n;
+  });
 }
 
 /** Dispatches sidebar keyboard events for navigation and selection. */
@@ -499,7 +498,7 @@ function handleSidebarKeyboard(e: KeyboardEvent, ctx: SidebarKeyboardContext): v
 
   if (e.key === "ArrowDown" || e.key === "ArrowUp") {
     handleSidebarArrow(e, ctx);
-  } else if (e.key === "Enter" || e.key === " ") {
+  } else if (e.key === " ") {
     handleSidebarFocusedAction(e, ctx);
   } else if (e.key === "a" && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();
@@ -2171,7 +2170,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   // --- Sidebar keyboard navigation ---
   useSidebarKeyboard(asideRef, {
     displayList, focusedIdx, selectedIds, searchQuery,
-    setFocusedIdx, setSelectedIds, setSearchQuery, handleActivate, bulkDelete,
+    setFocusedIdx, setSelectedIds, setSearchQuery, bulkDelete,
   });
 
   // Scroll focused item into view
