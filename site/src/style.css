@@ -134,6 +134,73 @@ a.t-label:hover {
   box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
 }
 
+/* Windows split button: primary installer download + a caret revealing the
+   portable .exe in a dropdown. The wrapper carries the .dl-btn chrome; padding
+   lives on the inner parts so the caret can own its own hit area. */
+.dl-split {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  padding: 0;
+}
+
+.dl-split__main {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+}
+
+.dl-split__toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.7rem;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dl-btn--primary .dl-split__toggle {
+  border-left-color: rgba(0, 0, 0, 0.25);
+}
+
+.dl-split__toggle svg {
+  transition: transform 0.15s ease;
+}
+
+.dl-split__toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.dl-split__toggle:focus-visible,
+.dl-split__item:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: -2px;
+}
+
+.dl-split__menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  z-index: 10;
+}
+
+.dl-split__item {
+  display: block;
+  padding: 0.6rem 1rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.dl-split__item:hover {
+  background: var(--bg-primary);
+  color: var(--accent-blue);
+}
+
 /* Panel with Tempest corner brackets — the app's own card shell. */
 .t-panel {
   position: relative;

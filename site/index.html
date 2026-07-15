@@ -106,22 +106,36 @@
               class="dl-btn px-6 py-3"
               >Download for macOS</a
             >
-            <a
-              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup.exe"
-              data-os="windows"
-              class="dl-btn px-6 py-3"
-              >Download for Windows</a
-            >
+            <div data-os="windows" class="dl-btn dl-split">
+              <a
+                href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup.exe"
+                class="dl-split__main px-6 py-3"
+                >Download for Windows</a
+              >
+              <button
+                id="win-more"
+                type="button"
+                class="dl-split__toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-controls="win-portable-menu"
+                aria-label="More Windows download options"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                  <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+              </button>
+              <div id="win-portable-menu" class="dl-split__menu" role="menu" hidden>
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty.exe"
+                  class="dl-split__item"
+                  role="menuitem"
+                  >Portable .exe (no install)</a
+                >
+              </div>
+            </div>
           </div>
-          <p class="mt-3 text-sm text-text-muted">
-            Prefer no install? Grab the
-            <a
-              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty.exe"
-              class="underline hover:text-text-primary"
-              >portable Windows .exe</a
-            >.
-          </p>
-          <p class="mt-2 text-sm text-text-muted">
+          <p class="mt-4 text-sm text-text-muted">
             AppImage (Linux) · installer + portable .exe (Windows 11) · DMG (macOS, Apple
             Silicon) · free & AGPL-3.0
           </p>
@@ -384,6 +398,33 @@
           const others = buttons.filter((btn) => btn !== primaryBtn);
           container.replaceChildren(others[0], primaryBtn, others[1]);
         }
+      }
+
+      // Windows split button: toggle the portable-download dropdown.
+      const winToggle = document.getElementById("win-more");
+      const winMenu = document.getElementById("win-portable-menu");
+      if (winToggle && winMenu) {
+        const closeWinMenu = () => {
+          winMenu.hidden = true;
+          winToggle.setAttribute("aria-expanded", "false");
+        };
+        winToggle.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const isOpen = winToggle.getAttribute("aria-expanded") === "true";
+          winMenu.hidden = isOpen;
+          winToggle.setAttribute("aria-expanded", String(!isOpen));
+        });
+        document.addEventListener("click", (e) => {
+          if (!winMenu.hidden && !winMenu.contains(e.target) && e.target !== winToggle) {
+            closeWinMenu();
+          }
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && !winMenu.hidden) {
+            closeWinMenu();
+            winToggle.focus();
+          }
+        });
       }
     </script>
   </body>
