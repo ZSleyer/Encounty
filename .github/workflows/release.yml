@@ -144,6 +144,8 @@ jobs:
           echo "body<<${EOF_MARKER}" >> "$GITHUB_OUTPUT"
           echo "> **Note:** Pre-releases are overwritten on every build. Compare the commit hash to check if you have the latest version." >> "$GITHUB_OUTPUT"
           echo ">" >> "$GITHUB_OUTPUT"
+          echo "> The in-app auto-updater only picks up stable releases, so an installer downloaded from a pre-release will not update itself. To move to a newer pre-release build, download and install it manually from this page." >> "$GITHUB_OUTPUT"
+          echo ">" >> "$GITHUB_OUTPUT"
           echo "> Commit: \`${GITHUB_SHA::7}\`" >> "$GITHUB_OUTPUT"
           echo "${EOF_MARKER}" >> "$GITHUB_OUTPUT"
 
