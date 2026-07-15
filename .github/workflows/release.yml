@@ -203,6 +203,7 @@ jobs:
           files: |
             electron/release/Encounty.AppImage
             electron/release/Encounty.exe
+            electron/release/Encounty-Setup.exe
 
   release-macos:
     name: Build & Publish macOS

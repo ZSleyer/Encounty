@@ -151,7 +151,7 @@ electron-package-windows: build-windows frontend-build electron-build
 		cd electron && jq --arg v "$$ELECTRON_VER" '.version = $$v' package.json > package.json.tmp && mv package.json.tmp package.json
 	cd electron && yarn package:win
 	@cd electron && jq '.version = "0.0.1"' package.json > package.json.tmp && mv package.json.tmp package.json
-	@echo "Done: ./electron/release/Encounty Windows portable"
+	@echo "Done: ./electron/release/ Windows installer (Encounty-Setup.exe) + portable (Encounty.exe)"
 
 electron-package-all: build-linux build-windows build-darwin frontend-build electron-build
 	@echo "Building Electron packages for Linux, Windows, and macOS..."
