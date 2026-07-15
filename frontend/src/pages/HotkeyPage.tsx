@@ -4,6 +4,7 @@ import { HotkeySettings } from "../components/settings/HotkeySettings";
 import { useCounterStore } from "../hooks/useCounterState";
 import { HotkeyMap } from "../types";
 import { useI18n } from "../contexts/I18nContext";
+import { useToast } from "../contexts/ToastContext";
 import { apiUrl } from "../utils/api";
 
 /**
@@ -15,6 +16,7 @@ import { apiUrl } from "../utils/api";
  */
 export function HotkeyPage() {
   const { t } = useI18n();
+  const { push, dismissByKey } = useToast();
   const { appState } = useCounterStore();
   const [hotkeys, setHotkeys] = useState<HotkeyMap | null>(appState?.hotkeys ?? null);
   const [initialised, setInitialised] = useState(!!appState);
@@ -50,10 +52,11 @@ export function HotkeyPage() {
 
   const handleCopy = () => {
     navigator.clipboard.writeText(universalUrl).then(() => {
+      dismissByKey("clipboard-copy");
       setCopied(true);
       // Short visual feedback window; matches OverlayBrowserSourceButton.
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }));
   };
 
   return (

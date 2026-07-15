@@ -133,7 +133,7 @@ export function DetectorPanel({
   onStopHunt,
 }: DetectorPanelProps) {
   const { t, locale } = useI18n();
-  const { push: pushToast } = useToast();
+  const { push: pushToast, dismissByKey } = useToast();
   // Narrow selectors: subscribe only to this Pokemon's cooldown and the fields
   // used here, instead of the whole store, which changes several times per
   // second while any hunt is active.
@@ -310,10 +310,16 @@ export function DetectorPanel({
     if (interfaceLang !== "eng") preloadOcrLang("eng");
   }, [locale]);
 
-  // Propagate capture errors from the shared service
+  // Propagate capture errors from the shared service. captureError is an i18n
+  // key, so translate it here to match the other errorMsg values.
   useEffect(() => {
-    if (capture.captureError) setErrorMsg(capture.captureError);
-  }, [capture.captureError]);
+    if (capture.captureError) setErrorMsg(t(capture.captureError));
+  }, [capture.captureError, t]);
+
+  // Once a capture source is active, clear the persistent "no source" error.
+  useEffect(() => {
+    if (isCapturing) dismissByKey("capture-source");
+  }, [isCapturing, dismissByKey]);
 
   // Re-sync config settings when switching to a different pokemon.
   useEffect(() => {
@@ -465,6 +471,7 @@ export function DetectorPanel({
     if (res.ok) {
       setErrorMsg(null);
       setShowAddTemplate(false);
+      dismissByKey("detector-templates");
     } else {
       const body = await res.json().catch(() => ({})) as { error?: string };
       throw new Error(body.error ?? t("detector.errCaptureFailed"));
@@ -557,11 +564,12 @@ export function DetectorPanel({
       if (res.ok) {
         const data = await res.json() as { imported: number };
         pushToast({ type: "success", title: t("detector.importSuccess", { count: data.imported }) });
+        dismissByKey("detector-templates");
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
-        pushToast({ type: "error", title: body.error ?? "Import failed" });
+        pushToast({ type: "error", title: body.error ?? t("detector.errImportFailed") });
       }
-    } catch { pushToast({ type: "error", title: "Import failed" }); }
+    } catch { pushToast({ type: "error", title: t("detector.errImportFailed") }); }
     setShowImportModal(false);
   };
 
@@ -584,6 +592,7 @@ export function DetectorPanel({
       if (res.ok) {
         const data = await res.json() as { imported: number };
         pushToast({ type: "success", title: t("detector.importFileSuccess", { count: data.imported }) });
+        dismissByKey("detector-templates");
       } else {
         const body = await res.json().catch(() => ({})) as { error?: string };
         pushToast({ type: "error", title: body.error ?? t("detector.errInvalidFile") });

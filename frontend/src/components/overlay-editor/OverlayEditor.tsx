@@ -20,6 +20,7 @@ import type { Pokemon } from "../../types";
 import { useHistory } from "../../hooks/useHistory";
 import { Guide } from "../../hooks/useSnapping";
 import { useI18n } from "../../contexts/I18nContext";
+import { useToast } from "../../contexts/ToastContext";
 import { ColorPickerModal } from "./controls/ColorPickerModal";
 import { GradientEditorModal } from "./controls/GradientEditorModal";
 import { ShadowEditorModal, type ShadowConfirmParams } from "./controls/ShadowEditorModal";
@@ -238,15 +239,17 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
 
 export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   const { t } = useI18n();
+  const { push, dismissByKey } = useToast();
   const [copied, setCopied] = useState(false);
   const baseUrl = apiUrl("") || globalThis.location.origin;
   const pokemonUrl = pokemonId ? `${baseUrl}/overlay/${pokemonId}` : null;
 
   const copy = (url: string) => {
     navigator.clipboard.writeText(url).then(() => {
+      dismissByKey("clipboard-copy");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }));
   };
 
   return (
@@ -289,6 +292,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
 
 export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId: _overlayTargetId, readOnly, compact }: Readonly<Props>) {
   const { t } = useI18n();
+  const { push } = useToast();
   const ELEMENT_LABELS: Record<ElementKey, string> = {
     sprite: "Sprite",
     name: "Name",
@@ -838,12 +842,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image_base64: base64 }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        update({ ...localSettings, background_image: data.filename, background_image_fit: localSettings.background_image_fit || "cover" });
-      }
+      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+      const data = await res.json();
+      update({ ...localSettings, background_image: data.filename, background_image_fit: localSettings.background_image_fit || "cover" });
     } catch (err) {
       console.error("Background upload failed:", err);
+      push({ type: "error", title: t("overlay.errUploadFailed"), key: "overlay-bg-upload" });
     }
     setBgUploading(false);
   };
@@ -862,7 +866,9 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   const handleBgRemove = async () => {
     if (localSettings.background_image) {
-      await fetch(apiUrl(`/api/backgrounds/${localSettings.background_image}`), { method: "DELETE" }).catch(() => {});
+      await fetch(apiUrl(`/api/backgrounds/${localSettings.background_image}`), { method: "DELETE" }).catch(
+        () => push({ type: "error", title: t("overlay.errUploadFailed"), key: "overlay-bg-upload" }),
+      );
       update({ ...localSettings, background_image: "", background_image_fit: "cover" });
     }
   };

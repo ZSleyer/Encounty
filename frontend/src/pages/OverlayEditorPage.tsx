@@ -19,6 +19,7 @@ import { OverlayBrowserSourceButton } from "../components/shared/OverlayBrowserS
 import { useCounterStore } from "../hooks/useCounterState";
 import { OverlaySettings, Pokemon } from "../types";
 import { useI18n } from "../contexts/I18nContext";
+import { useToast } from "../contexts/ToastContext";
 import { getSpriteUrl } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
 import { useModalA11y } from "../hooks/useModalA11y";
@@ -48,6 +49,7 @@ function makePreviewPokemon(): Pokemon {
 
 export function OverlayEditorPage() {
   const { t } = useI18n();
+  const { push, dismissByKey } = useToast();
   const { appState } = useCounterStore();
 
   const [currentOverlay, setCurrentOverlay] = useState<OverlaySettings | null>(
@@ -109,16 +111,19 @@ export function OverlayEditorPage() {
     setOverlaySaving(true);
     try {
       const newSettings = { ...appState.settings, overlay: currentOverlay };
-      await fetch(apiUrl("/api/settings"), {
+      const res = await fetch(apiUrl("/api/settings"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newSettings),
       });
+      if (!res.ok) throw new Error(`Save failed: ${res.status}`);
+      dismissByKey("overlay-save");
       setOverlayDirty(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error(err);
+      push({ type: "error", title: t("overlay.errSaveFailed"), key: "overlay-save" });
     }
     setOverlaySaving(false);
   };

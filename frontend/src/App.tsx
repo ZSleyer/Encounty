@@ -487,6 +487,7 @@ function AppShell() {
       pushToast({
         type: "error",
         title: reason === "no_templates" ? t("detector.errNoTemplates") : t("detector.errNoSource"),
+        key: reason === "no_templates" ? "detector-templates" : "capture-source",
       });
     } else if (msg.type === "hunt_stop_requested") {
       const stopId = (msg.payload as { pokemon_id: string }).pokemon_id;

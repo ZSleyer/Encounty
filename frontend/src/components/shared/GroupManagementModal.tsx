@@ -47,7 +47,7 @@ async function swap(a: Group, b: Group): Promise<void> {
  */
 export function GroupManagementModal({ groups, onClose }: GroupManagementModalProps) {
   const { t } = useI18n();
-  const { push: pushToast } = useToast();
+  const { push: pushToast, dismissByKey: dismissToastByKey } = useToast();
   const newInputRef = useRef<HTMLInputElement>(null);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<string>(COLOR_PALETTE[7]); // blue by default
@@ -68,10 +68,11 @@ export function GroupManagementModal({ groups, onClose }: GroupManagementModalPr
     setSaving(true);
     try {
       await createGroup(name, newColor);
+      dismissToastByKey("group-create");
       setNewName("");
       newInputRef.current?.focus();
     } catch {
-      pushToast({ type: "error", title: t("group.new") });
+      pushToast({ type: "error", title: t("group.errCreateFailed"), key: "group-create" });
     } finally {
       setSaving(false);
     }

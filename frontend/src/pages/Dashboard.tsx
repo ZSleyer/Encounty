@@ -1232,11 +1232,11 @@ function HeaderHuntButton({
     const needsDetector = huntMode !== "timer";
 
     if (needsDetector && !hasDetectorReady(pokemon)) {
-      pushToast({ type: "error", title: t("detector.errNoTemplates") });
+      pushToast({ type: "error", title: t("detector.errNoTemplates"), key: "detector-templates" });
       return;
     }
     if (needsDetector && !capture.isCapturing(pokemon.id)) {
-      pushToast({ type: "error", title: t("detector.errNoSource") });
+      pushToast({ type: "error", title: t("detector.errNoSource"), key: "capture-source" });
       return;
     }
 
@@ -1613,15 +1613,17 @@ function OverlayImportItem({ pokemon, onCopy }: Readonly<{ pokemon: Pokemon; onC
 /** Card-style OBS URL copy button for the global overlay placeholder. */
 function ObsUrlCardButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
   const { t } = useI18n();
+  const { push, dismissByKey } = useToast();
   const [copied, setCopied] = useState(false);
   const baseUrl = apiUrl("") || globalThis.location.origin;
   const url = `${baseUrl}/overlay/${pokemonId}`;
 
   const copy = () => {
     navigator.clipboard.writeText(url).then(() => {
+      dismissByKey("clipboard-copy");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }));
   };
 
   return (
@@ -1790,6 +1792,8 @@ function useOverlayUpdate(
   setOverlaySaved: (saved: boolean) => void,
   setOverlaySaving: (saving: boolean) => void,
 ) {
+  const { push: pushToast, dismissByKey } = useToast();
+  const { t } = useI18n();
   return async (pokemonId: string, mode: OverlayMode, overlay: OverlaySettings | null) => {
     const p = appState.pokemon.find((x) => x.id === pokemonId);
     if (!p) return;
@@ -1809,16 +1813,19 @@ function useOverlayUpdate(
         overlay_mode: mode,
         overlay,
       };
-      await fetch(apiUrl(`/api/pokemon/${p.id}`), {
+      const res = await fetch(apiUrl(`/api/pokemon/${p.id}`), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) throw new Error("overlay save failed");
+      dismissByKey("overlay-save");
       setOverlayDirty(false);
       setOverlaySaved(true);
       setTimeout(() => setOverlaySaved(false), 2000);
     } catch (err) {
       console.error(err);
+      pushToast({ type: "error", title: t("overlay.errSaveFailed"), key: "overlay-save" });
     }
     setOverlaySaving(false);
   };

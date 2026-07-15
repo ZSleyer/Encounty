@@ -411,7 +411,7 @@ function SourceGrid({
 /** Modal for selecting a browser capture source (screen, window, or camera). */
 export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: SourcePickerModalProps) {
   const { t } = useI18n();
-  const { push: pushToast } = useToast();
+  const { push: pushToast, dismissByKey: dismissToastByKey } = useToast();
   const titleId = useId();
   const isElectron = !!globalThis.electronAPI;
   const isWayland = globalThis.electronAPI?.isWayland ?? false;
@@ -503,11 +503,19 @@ export function SourcePickerModal({ sourceType, onSelect, onClose, pokemonId }: 
         if (entry) cameraEntries.push(entry);
       }
       setCameras(cameraEntries);
-    } catch {
-      // Permission denied or no cameras
+      // Permission was granted and enumeration succeeded: clear any lingering
+      // permission-denied toast so it disappears once the user grants access.
+      dismissToastByKey("camera-permission");
+    } catch (err) {
+      // Surface an explicit permission denial as a persistent error toast.
+      // Other enumeration failures (e.g. no camera present) keep the existing
+      // silent empty-state behavior to avoid false positives.
+      if (err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "SecurityError")) {
+        pushToast({ type: "error", title: t("capture.errPermissionDenied"), key: "camera-permission" });
+      }
     }
     setLoading(false);
-  }, [sourceType]);
+  }, [sourceType, pushToast, dismissToastByKey, t]);
 
   // Initial fetch
   useEffect(() => {

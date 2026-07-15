@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Monitor } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useToast } from "../../contexts/ToastContext";
 import { apiUrl } from "../../utils/api";
 
 type UrlMode = "pokemon" | "universal";
@@ -15,6 +16,7 @@ type UrlMode = "pokemon" | "universal";
  */
 export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: string }>) {
   const { t } = useI18n();
+  const { push, dismissByKey } = useToast();
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<UrlMode>("pokemon");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -31,9 +33,10 @@ export function OverlayBrowserSourceButton({ pokemonId }: Readonly<{ pokemonId: 
 
   const copyUrl = (url: string) => {
     navigator.clipboard.writeText(url).then(() => {
+      dismissByKey("clipboard-copy");
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }).catch(() => push({ type: "error", title: t("overlay.errCopyFailed"), key: "clipboard-copy" }));
   };
 
   const handlePrimaryClick = () => {
