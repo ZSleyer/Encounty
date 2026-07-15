@@ -13,6 +13,13 @@ let mainWindow: BrowserWindow | null = null;
 let goProcess: GoProcessManager | null = null;
 const isDev = process.argv.includes('--dev');
 
+// In-app auto-update capability, kept in sync with preload.ts: Linux (AppImage)
+// always, Windows only for the installed (NSIS) build. Portable Windows sets
+// PORTABLE_EXECUTABLE_DIR and has no install target; macOS is unsigned so
+// Squirrel.Mac refuses updates.
+const autoUpdateSupported = process.platform === 'linux' ||
+  (process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_DIR);
+
 // Set app name early so macOS menu bar shows "Encounty" instead of "Electron".
 app.setName('Encounty');
 
@@ -417,8 +424,10 @@ async function startApp(): Promise<void> {
       } catch { /* non-critical — About panel keeps empty version */ }
     }
 
-    // Auto-updater: skip in dev mode (app.version is not valid semver)
-    if (!isDev) {
+    // Auto-updater: skip in dev mode (app.version is not valid semver) and on
+    // builds that cannot self-update (portable Windows, unsigned macOS), where
+    // electron-updater would only error.
+    if (!isDev && autoUpdateSupported) {
       setupAutoUpdater();
     }
 

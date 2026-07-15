@@ -29,6 +29,9 @@ linux:
   icon: ../frontend/public/app-icon.png
 win:
   target:
+    - target: nsis
+      arch:
+        - x64
     - target: portable
       arch:
         - x64
@@ -36,6 +39,14 @@ win:
     - from: ../encounty-backend-windows.exe
       to: encounty-backend-windows.exe
   icon: ../frontend/public/app-icon.png
+nsis:
+  # Distinct name so the installer does not collide with the portable Encounty.exe.
+  artifactName: "Encounty-Setup.${ext}"
+  oneClick: true
+  perMachine: false
+  allowToChangeInstallationDirectory: false
+  # Keep hunts and config across updates.
+  deleteAppDataOnUninstall: false
 mac:
   target:
     - target: dmg

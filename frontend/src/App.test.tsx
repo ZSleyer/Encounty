@@ -1119,6 +1119,7 @@ describe("App", () => {
     const maximizeMock = vi.fn();
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: maximizeMock,
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: () => () => {},
@@ -1151,6 +1152,7 @@ describe("App", () => {
     mockAcceptedState();
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       minimize: vi.fn(),
       close: vi.fn(),
@@ -1935,6 +1937,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn(() => cleanupFns.available),
@@ -1977,6 +1980,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -2028,6 +2032,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -2165,6 +2170,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -2221,6 +2227,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -2282,6 +2289,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -2337,6 +2345,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -2387,6 +2396,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -2460,6 +2470,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -2502,9 +2513,9 @@ describe("App", () => {
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
   });
 
-  // --- Update on Windows opens external link ---
+  // --- Update on portable Windows opens external link ---
 
-  it("opens GitHub release page when update now clicked on Windows", async () => {
+  it("opens GitHub release page when update now clicked on portable Windows", async () => {
     vi.stubGlobal("sessionStorage", {
       getItem: () => null,
       setItem: vi.fn(),
@@ -2515,6 +2526,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "win32",
+      autoUpdate: false,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn(() => () => {}),
@@ -2523,7 +2535,7 @@ describe("App", () => {
       onUpdateError: vi.fn(() => () => {}),
     };
 
-    // Windows uses the REST API path for update checks
+    // Portable Windows uses the REST API path for update checks
     mockFetch.mockImplementation((url: string) => {
       if (url === "/api/status/ready") {
         return Promise.resolve({
@@ -2580,6 +2592,53 @@ describe("App", () => {
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
   }, 10000);
+
+  // --- Update now on installed (NSIS) Windows triggers IPC download ---
+
+  it("triggers download on installed Windows when update now is clicked", async () => {
+    vi.stubGlobal("sessionStorage", {
+      getItem: () => null,
+      setItem: vi.fn(),
+    });
+
+    mockAcceptedState();
+
+    const downloadMock = vi.fn().mockResolvedValue(undefined);
+    let updateAvailableCb: ((info: { version: string }) => void) | undefined;
+
+    (globalThis as Record<string, unknown>).electronAPI = {
+      platform: "win32",
+      autoUpdate: true,
+      maximize: vi.fn(),
+      onMaximizedChange: vi.fn(() => () => {}),
+      onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
+        updateAvailableCb = cb;
+        return () => {};
+      }),
+      onUpdateProgress: vi.fn(() => () => {}),
+      onUpdateDownloaded: vi.fn(() => () => {}),
+      onUpdateError: vi.fn(() => () => {}),
+      downloadUpdate: downloadMock,
+    };
+
+    render(
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>,
+    );
+
+    await waitFor(() => { expect(updateAvailableCb).toBeDefined(); });
+    act(() => { updateAvailableCb!({ version: "10.0.0" }); });
+
+    // Click the "Update now" button in the notification (rendered in the German test locale)
+    const updateNowBtn = await screen.findByText(/Jetzt aktualisieren/i);
+    act(() => { fireEvent.click(updateNowBtn); });
+
+    // downloadUpdate should have been called via IPC (no external link)
+    await waitFor(() => { expect(downloadMock).toHaveBeenCalled(); });
+
+    delete (globalThis as { electronAPI?: unknown }).electronAPI;
+  });
 
   // --- WebSocket message handlers ---
 
@@ -3344,6 +3403,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn(() => () => {}),
@@ -3427,6 +3487,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -3526,6 +3587,7 @@ describe("App", () => {
 
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn((cb: (info: { version: string }) => void) => {
@@ -3718,6 +3780,7 @@ describe("App", () => {
     const syncHotkeysMock = vi.fn();
     (globalThis as Record<string, unknown>).electronAPI = {
       platform: "linux",
+      autoUpdate: true,
       maximize: vi.fn(),
       onMaximizedChange: vi.fn(() => () => {}),
       onUpdateAvailable: vi.fn(() => () => {}),

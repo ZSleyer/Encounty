@@ -303,10 +303,10 @@ function AppShell() {
   }, []);
 
   // --- Update check ---
-  // Linux Electron: electron-updater handles updates via AppImage IPC.
-  // Windows/macOS Electron + browser: check via Go backend REST API.
+  // Auto-update builds (Linux AppImage, Windows NSIS install): electron-updater IPC.
+  // Portable Windows / macOS DMG / browser: check via Go backend REST API.
   useEffect(() => {
-    if (globalThis.electronAPI?.platform === "linux") {
+    if (globalThis.electronAPI?.autoUpdate) {
       const cleanupAvailable = globalThis.electronAPI.onUpdateAvailable((info) => {
         setUpdateInfo({
           available: true,
@@ -364,8 +364,9 @@ function AppShell() {
   const applyUpdate = async () => {
     if (!updateInfo) return;
 
-    // Windows portable + macOS DMG: open the GitHub release page for manual download.
-    if (globalThis.electronAPI?.platform === "win32" || globalThis.electronAPI?.platform === "darwin") {
+    // Builds without in-app auto-update (portable Windows, macOS DMG, browser):
+    // open the GitHub release page for a manual download.
+    if (!globalThis.electronAPI?.autoUpdate) {
       const tag = updateInfo.latest_version.startsWith("v") ? updateInfo.latest_version : `v${updateInfo.latest_version}`;
       globalThis.open(
         `https://github.com/ZSleyer/Encounty/releases/tag/${tag}`,
@@ -375,7 +376,7 @@ function AppShell() {
       return;
     }
 
-    // Linux/macOS: download via electron-updater IPC (auto-installs on completion)
+    // Auto-update builds: download via electron-updater IPC (auto-installs on completion)
     setUpdateState("installing");
     if (globalThis.electronAPI) {
       try {
@@ -666,7 +667,7 @@ function AppShell() {
       {showUpdateNotification && updateInfo && updateState === "idle" && (
         <UpdateNotification
           version={updateInfo.latest_version}
-          manualDownload={globalThis.electronAPI?.platform === "win32" || globalThis.electronAPI?.platform === "darwin"}
+          manualDownload={!globalThis.electronAPI?.autoUpdate}
           onUpdate={() => {
             setShowUpdateNotification(false);
             applyUpdate();

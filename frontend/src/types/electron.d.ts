@@ -45,6 +45,8 @@ interface ElectronAPI {
   apiBaseUrl: string;
   isWayland: boolean;
   platform: 'win32' | 'linux' | 'darwin';
+  /** True when this build supports in-app auto-update (Linux, Windows NSIS install). */
+  autoUpdate: boolean;
   minimize(): void;
   maximize(): void;
   close(): void;
