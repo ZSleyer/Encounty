@@ -24,6 +24,33 @@ import { resolutionConstraints, effectiveResolution } from "../utils/captureReso
 import { apiUrl } from "../utils/api";
 
 /**
+ * captureErrorKey maps a getUserMedia/getDisplayMedia failure to a translatable
+ * i18n key, so the UI never surfaces a raw (English) browser error message such
+ * as "OverconstrainedError" or "Invalid capture constraints".
+ */
+export function captureErrorKey(err: unknown): string {
+  const name = err instanceof Error ? err.name : "";
+  const message = err instanceof Error ? err.message : String(err);
+  switch (name) {
+    case "OverconstrainedError":
+      return "capture.errOverconstrained";
+    case "NotReadableError":
+    case "TrackStartError":
+      return "capture.errNotReadable";
+    case "NotFoundError":
+    case "DevicesNotFoundError":
+      return "capture.errNotFound";
+    case "NotAllowedError":
+    case "SecurityError":
+    case "PermissionDeniedError":
+      return "capture.errNotAllowed";
+  }
+  if (message.includes("Ensure context is secure")) return "capture.errInsecureContext";
+  if (message === "No video file selected") return "capture.errNoVideoFile";
+  return "capture.errStartFailed";
+}
+
+/**
  * Notify the backend that a Pokémon currently has (or no longer has) an
  * attached browser capture stream. The backend uses this to gate the
  * hunt-toggle hotkey: without a registered source the timer is refused
@@ -80,7 +107,7 @@ interface CaptureServiceContextValue {
   /** Get the display label of the connected source for a pokemon. */
   getSourceLabel: (pokemonId: string) => string | null;
 
-  /** Last capture error message. */
+  /** Last capture error as an i18n key (see captureErrorKey); null when clear. */
   captureError: string | null;
 
   /** Subscribe to stream changes for a specific pokemon. Returns a version counter. */
@@ -336,8 +363,8 @@ export function CaptureServiceProvider({ children }: Readonly<{ children: React.
 
       notify();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      captureErrorRef.current = message || "Failed to start capture";
+      // Store a translatable i18n key, not the raw browser message.
+      captureErrorRef.current = captureErrorKey(err);
       notify();
     }
   }, [cleanupEntry, notify]);

@@ -5,6 +5,7 @@ import {
   CaptureServiceProvider,
   useCaptureService,
   useCaptureVersion,
+  captureErrorKey,
 } from "./CaptureServiceContext";
 
 /* Mock the Zustand store to avoid pulling in the real app state. */
@@ -160,9 +161,7 @@ describe("CaptureServiceProvider", () => {
 
     await result.current.startCapture("poke-1", "browser_display");
 
-    expect(result.current.captureError).toBe(
-      "getDisplayMedia not available. Ensure context is secure (HTTPS/localhost).",
-    );
+    expect(result.current.captureError).toBe("capture.errInsecureContext");
 
     // Restore
     Object.defineProperty(navigator, "mediaDevices", {
@@ -186,9 +185,7 @@ describe("CaptureServiceProvider", () => {
 
     await result.current.startCapture("poke-1", "browser_camera");
 
-    expect(result.current.captureError).toBe(
-      "getUserMedia not available. Ensure context is secure (HTTPS/localhost).",
-    );
+    expect(result.current.captureError).toBe("capture.errInsecureContext");
 
     Object.defineProperty(navigator, "mediaDevices", {
       value: original,
@@ -309,6 +306,30 @@ describe("CaptureServiceProvider", () => {
 
     await result.current.startCapture("poke-1", "dev_video");
 
-    expect(result.current.captureError).toBe("No video file selected");
+    expect(result.current.captureError).toBe("capture.errNoVideoFile");
+  });
+});
+
+describe("captureErrorKey", () => {
+  it.each([
+    ["OverconstrainedError", "capture.errOverconstrained"],
+    ["NotReadableError", "capture.errNotReadable"],
+    ["NotFoundError", "capture.errNotFound"],
+    ["NotAllowedError", "capture.errNotAllowed"],
+    ["SecurityError", "capture.errNotAllowed"],
+  ])("maps DOMException %s to %s", (name, key) => {
+    const err = new Error("raw browser text");
+    err.name = name;
+    expect(captureErrorKey(err)).toBe(key);
+  });
+
+  it("maps the insecure-context message", () => {
+    expect(captureErrorKey(new Error("getUserMedia not available. Ensure context is secure (HTTPS/localhost)."))).toBe(
+      "capture.errInsecureContext",
+    );
+  });
+
+  it("falls back to a generic key for unknown errors", () => {
+    expect(captureErrorKey(new Error("something odd"))).toBe("capture.errStartFailed");
   });
 });
