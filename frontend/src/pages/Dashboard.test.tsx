@@ -6264,9 +6264,8 @@ describe("Dashboard group view and manual ordering", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // First "Gruppe anzeigen" is the real group, second is the ungrouped bucket.
-    const viewButtons = screen.getAllByLabelText("Gruppe anzeigen");
-    await user.click(viewButtons[0]);
+    // The real group exposes the "Gruppenübersicht anzeigen" label (the bucket uses "Übersicht anzeigen").
+    await user.click(screen.getByLabelText("Gruppenübersicht anzeigen"));
 
     // Bulk action button only exists in the group counter view.
     mockSend.mockClear();
@@ -6279,8 +6278,12 @@ describe("Dashboard group view and manual ordering", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    const viewButtons = screen.getAllByLabelText("Gruppe anzeigen");
-    await user.click(viewButtons[viewButtons.length - 1]);
+    // The ungrouped bucket uses the "Übersicht anzeigen" label (the empty-state
+    // shortcut shares it), so pick the one inside the sidebar group section.
+    const bucketButton = screen
+      .getAllByLabelText("Übersicht anzeigen")
+      .find((el) => el.closest('[data-testid="sidebar-group-section"]'));
+    await user.click(bucketButton!);
 
     mockSend.mockClear();
     await user.click(screen.getByLabelText("Alle Encounter verringern"));

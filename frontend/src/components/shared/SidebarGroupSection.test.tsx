@@ -217,7 +217,7 @@ describe("SidebarGroupSection", () => {
         <li>c</li>
       </SidebarGroupSection>,
     );
-    expect(screen.queryByRole("button", { name: /gruppe anzeigen/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /gruppenübersicht anzeigen/i })).toBeNull();
   });
 
   it("invokes onShowGroupView when the view-group button is clicked", async () => {
@@ -236,7 +236,7 @@ describe("SidebarGroupSection", () => {
         <li>c</li>
       </SidebarGroupSection>,
     );
-    await user.click(screen.getByRole("button", { name: /gruppe anzeigen/i }));
+    await user.click(screen.getByRole("button", { name: /gruppenübersicht anzeigen/i }));
     expect(onShowGroupView).toHaveBeenCalled();
   });
 
