@@ -29,11 +29,17 @@ function AllProviders({ children }: Readonly<{ children: React.ReactNode }>) {
  * Uses createMemoryRouter so useBlocker and other data-router hooks work.
  */
 function customRender(ui: ReactElement, options?: Omit<RenderOptions, "wrapper">) {
-  const router = createMemoryRouter(
-    [{ path: "*", element: <AllProviders>{ui}</AllProviders> }],
-    { initialEntries: ["/"] },
-  );
-  return render(<RouterProvider router={router} />, options);
+  const wrap = (node: ReactElement) => {
+    const router = createMemoryRouter(
+      [{ path: "*", element: <AllProviders>{node}</AllProviders> }],
+      { initialEntries: ["/"] },
+    );
+    return <RouterProvider router={router} />;
+  };
+  const result = render(wrap(ui), options);
+  // RTL's default rerender would replace the whole tree with the bare node,
+  // dropping the providers; re-wrap so rerender keeps them (e.g. useToast).
+  return { ...result, rerender: (next: ReactElement) => result.rerender(wrap(next)) };
 }
 
 /** Minimal default OverlaySettings fixture. */

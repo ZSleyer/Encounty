@@ -33,11 +33,14 @@ function ToastItem({
   // the current countdown segment began. Hovering/focusing pauses the
   // countdown by freezing `remaining`; leaving resumes it from there, so a
   // toast that is never touched dismisses at exactly its original duration.
-  const remainingRef = useRef(toast.duration ?? (toast.type === "encounter" ? 3000 : 2000));
+  // The provider resolves `duration` on every toast; 0 means persistent.
+  const remainingRef = useRef(toast.duration ?? 0);
+  const isPersistent = remainingRef.current <= 0;
   const segmentStartRef = useRef(0);
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const scheduleExit = () => {
+    if (isPersistent) return; // persistent toast: only manual close / dismissByKey
     segmentStartRef.current = Date.now();
     const delay = remainingRef.current - 350;
     if (delay > 0) {

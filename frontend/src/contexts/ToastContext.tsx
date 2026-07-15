@@ -1,14 +1,26 @@
 /**
  * ToastContext.tsx — Toast notification system.
  *
- * Toasts auto-dismiss after a configurable duration (default 2 s; 3 s for
- * "encounter" type). When an encounter toast for the same sprite already
- * exists it is replaced in-place rather than stacked, so rapid increments
- * only show one toast per Pokémon at a time. The stack is capped at 5.
+ * Non-error toasts auto-dismiss after a per-type duration (see DURATIONS).
+ * Error toasts are persistent: they have no auto-dismiss timer and stay until
+ * the user closes them manually or the underlying condition is resolved via
+ * dismissByKey(). When a toast carrying a `key` (or an encounter toast for the
+ * same sprite) already exists it is replaced in-place rather than stacked, so
+ * repeated identical statuses only show one toast at a time. The stack is
+ * capped at 5.
  */
 import { createContext, useContext, useState, useCallback, useRef, useMemo } from "react";
 
 export type ToastType = "success" | "error" | "info" | "encounter";
+
+/** Default auto-dismiss duration per type, in milliseconds. A value of 0 means
+ * the toast is persistent (no timer): errors stay until resolved or closed. */
+const DURATIONS: Record<ToastType, number> = {
+  success: 3000,
+  info: 4000,
+  encounter: 3000,
+  error: 0,
+};
 
 export interface Toast {
   id: string;
@@ -18,12 +30,19 @@ export interface Toast {
   spriteUrl?: string;
   badge?: string;
   duration?: number;
+  /** Stable identity for a status: pushing another toast with the same key
+   * replaces this one, and dismissByKey(key) removes it once the underlying
+   * condition is resolved (e.g. a capture source finally selected). */
+  key?: string;
 }
 
 interface ToastContextType {
   toasts: Toast[];
   push: (toast: Omit<Toast, "id">) => void;
   dismiss: (id: string) => void;
+  /** dismissByKey removes every toast carrying the given key, used to clear a
+   * persistent error once the user has fixed its cause. */
+  dismissByKey: (key: string) => void;
   /** pause suspends a toast's auto-dismiss timer, e.g. while hovered or focused. */
   pause: (id: string) => void;
   /** resume restarts a paused toast's auto-dismiss timer for its remaining duration. */
@@ -50,6 +69,18 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
     if (entry?.handle) clearTimeout(entry.handle);
     timers.current.delete(id);
     setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const dismissByKey = useCallback((key: string) => {
+    setToasts((prev) => {
+      for (const t of prev) {
+        if (t.key !== key) continue;
+        const entry = timers.current.get(t.id);
+        if (entry?.handle) clearTimeout(entry.handle);
+        timers.current.delete(t.id);
+      }
+      return prev.filter((t) => t.key !== key);
+    });
   }, []);
 
   const scheduleTimer = useCallback(
@@ -84,7 +115,13 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
   const push = useCallback(
     (toast: Omit<Toast, "id">) => {
       const id = crypto.randomUUID();
-      const duration = toast.duration ?? (toast.type === "encounter" ? 3000 : 2000);
+      const duration = toast.duration ?? DURATIONS[toast.type];
+      // Resolve duration onto the toast so the container never recomputes it.
+      const resolved: Toast = { ...toast, id, duration };
+      // duration <= 0 means persistent: no auto-dismiss timer is scheduled.
+      const scheduleIfTimed = (toastId: string) => {
+        if (duration > 0) scheduleTimer(toastId, duration);
+      };
 
       // Show system notification when the page is hidden (minimized / background tab)
       if (document.hidden && "Notification" in globalThis) {
@@ -106,33 +143,36 @@ export function ToastProvider({ children }: Readonly<{ children: React.ReactNode
       }
 
       setToasts((prev) => {
-        // For encounter toasts: replace existing encounter toast for same sprite
-        if (toast.type === "encounter") {
-          const existing = prev.find(
-            (t) => t.type === "encounter" && t.spriteUrl === toast.spriteUrl,
-          );
-          if (existing) {
-            const oldEntry = timers.current.get(existing.id);
-            if (oldEntry?.handle) clearTimeout(oldEntry.handle);
-            timers.current.delete(existing.id);
-            scheduleTimer(id, duration);
-            return prev.map((t) =>
-              t.id === existing.id ? { ...toast, id } : t,
-            );
-          }
+        // Replace an existing toast that shares this one's identity, so repeated
+        // statuses do not stack: an explicit `key`, or an encounter for the same
+        // sprite (its implicit key).
+        const existing = prev.find((t) =>
+          toast.key !== undefined
+            ? t.key === toast.key
+            : toast.type === "encounter" &&
+              t.type === "encounter" &&
+              t.spriteUrl === toast.spriteUrl,
+        );
+        if (existing) {
+          const oldEntry = timers.current.get(existing.id);
+          if (oldEntry?.handle) clearTimeout(oldEntry.handle);
+          timers.current.delete(existing.id);
+          scheduleIfTimed(id);
+          return prev.map((t) => (t.id === existing.id ? resolved : t));
         }
-        // Keep max 5 toasts
+        // ponytail: max 5 toasts; a persistent error can be evicted when the
+        // stack overflows. Acceptable ceiling, raise only if it bites.
         const next = prev.length >= 5 ? prev.slice(1) : prev;
-        scheduleTimer(id, duration);
-        return [...next, { ...toast, id }];
+        scheduleIfTimed(id);
+        return [...next, resolved];
       });
     },
     [scheduleTimer],
   );
 
   const value = useMemo(
-    () => ({ toasts, push, dismiss, pause, resume }),
-    [toasts, push, dismiss, pause, resume],
+    () => ({ toasts, push, dismiss, dismissByKey, pause, resume }),
+    [toasts, push, dismiss, dismissByKey, pause, resume],
   );
 
   return (

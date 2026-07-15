@@ -212,8 +212,8 @@ describe("ToastContainer", () => {
     renderWithProvider();
     act(() => screen.getByTestId("push-info").click());
 
-    // Info toast has 2000ms duration; exit animation starts at duration - 350 = 1650ms
-    act(() => vi.advanceTimersByTime(1650));
+    // Info toast has 4000ms duration; exit animation starts at duration - 350 = 3650ms
+    act(() => vi.advanceTimersByTime(3650));
     // Toast should still be in the DOM (leaving animation in progress)
     expect(screen.getByText("Info")).toBeInTheDocument();
 
@@ -267,8 +267,8 @@ describe("ToastContainer", () => {
     renderWithProvider();
     act(() => screen.getByTestId("push-info").click());
 
-    // Info toast duration is 2000ms; must still be present just before, gone right after.
-    act(() => vi.advanceTimersByTime(1999));
+    // Info toast duration is 4000ms; must still be present just before, gone right after.
+    act(() => vi.advanceTimersByTime(3999));
     expect(screen.getByText("Info")).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(1));
@@ -305,7 +305,7 @@ describe("ToastContainer", () => {
     act(() => screen.getByTestId("push-info").click());
     const toastEl = screen.getByRole("status");
 
-    // 500ms elapse before hovering, leaving 1500ms remaining.
+    // 500ms elapse before hovering, leaving 3500ms remaining.
     act(() => vi.advanceTimersByTime(500));
     act(() => fireEvent.mouseEnter(toastEl));
 
@@ -315,8 +315,8 @@ describe("ToastContainer", () => {
 
     act(() => fireEvent.mouseLeave(toastEl));
 
-    // Remaining 1500ms should still apply from the moment of resume, not a fresh 2000ms.
-    act(() => vi.advanceTimersByTime(1499));
+    // Remaining 3500ms should still apply from the moment of resume, not a fresh 4000ms.
+    act(() => vi.advanceTimersByTime(3499));
     expect(screen.getByText("Info")).toBeInTheDocument();
 
     act(() => vi.advanceTimersByTime(1));
@@ -334,7 +334,7 @@ describe("ToastContainer", () => {
     expect(screen.getByText("Info")).toBeInTheDocument();
 
     act(() => fireEvent.blur(toastEl));
-    act(() => vi.advanceTimersByTime(1500));
+    act(() => vi.advanceTimersByTime(3500));
     expect(screen.queryByText("Info")).not.toBeInTheDocument();
   });
 

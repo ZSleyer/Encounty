@@ -97,13 +97,13 @@ describe("ToastContext", () => {
     expect(screen.getByTestId("count").textContent).toBe("0");
   });
 
-  it("auto-dismisses info toast after 2000ms", () => {
+  it("auto-dismisses info toast after 4000ms", () => {
     renderToastTester();
 
     act(() => screen.getByTestId("push-info").click());
     expect(screen.getByTestId("count").textContent).toBe("1");
 
-    act(() => vi.advanceTimersByTime(1999));
+    act(() => vi.advanceTimersByTime(3999));
     expect(screen.getByTestId("count").textContent).toBe("1");
 
     act(() => vi.advanceTimersByTime(1));
