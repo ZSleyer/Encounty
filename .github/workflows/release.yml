@@ -180,11 +180,11 @@ jobs:
           prerelease: ${{ steps.prerelease.outputs.is_pre == 'true' }}
           body: ${{ steps.prebody.outputs.body || steps.tagmsg.outputs.body || '' }}
 
-      - name: Package & Publish Electron Linux
+      - name: Package & Publish Electron Linux (x64)
         working-directory: electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn package:linux --publish ${{ steps.prerelease.outputs.publish_flag }}
+        run: yarn package:linux --x64 --publish ${{ steps.prerelease.outputs.publish_flag }}
 
       - name: Install Wine for Windows cross-build
         run: |
@@ -192,20 +192,161 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y wine64 wine32
 
-      - name: Package & Publish Electron Windows
+      - name: Package & Publish Electron Windows (x64)
         working-directory: electron
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn package:win --publish ${{ steps.prerelease.outputs.publish_flag }}
+        run: yarn package:win --x64 --publish ${{ steps.prerelease.outputs.publish_flag }}
+
+      - name: Build Linux Binary (arm64)
+        working-directory: backend
+        env:
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-linux main.go
+          rm -rf ./frontend
+
+      - name: Package & Publish Electron Linux (arm64)
+        working-directory: electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Linux arm64 gets its own latest-linux-arm64.yml, so publishing does not
+        # clobber the x64 update feed; auto-update works for arm64 Linux users.
+        run: yarn package:linux --arm64 --publish ${{ steps.prerelease.outputs.publish_flag }}
+
+      # Windows arm64 is built natively in the release-windows-arm64 job below:
+      # cross-building the nsis installer on Linux via wine produced an installer whose
+      # x86 extraction stub fails to unpack the arm64 payload on Windows-on-ARM.
+
+      - name: Legacy transition aliases (one-time)
+        # ponytail: one-time transition aliases so bookmarked old download URLs keep
+        # working while users migrate to the arch-suffixed names; remove after this release.
+        working-directory: electron/release
+        run: |
+          cp Encounty-x64.AppImage Encounty.AppImage
+          cp Encounty-x64.exe Encounty.exe
+          cp Encounty-Setup-x64.exe Encounty-Setup.exe
+
+      - name: Upload legacy aliases to release
+        if: steps.prerelease.outputs.is_pre != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          # The one-time legacy-named x64 copies are not handled by electron-builder's
+          # publish (which uses the arch-suffixed names), so upload them explicitly.
+          files: |
+            electron/release/Encounty.AppImage
+            electron/release/Encounty.exe
+            electron/release/Encounty-Setup.exe
 
       - name: Upload Electron artifacts to pre-release
         if: steps.prerelease.outputs.is_pre == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          # Windows arm64 (Encounty-arm64.exe / Encounty-Setup-arm64.exe) is uploaded by
+          # the native release-windows-arm64 job, not here.
           files: |
+            electron/release/Encounty-x64.AppImage
+            electron/release/Encounty-arm64.AppImage
+            electron/release/Encounty-x64.exe
+            electron/release/Encounty-Setup-x64.exe
             electron/release/Encounty.AppImage
             electron/release/Encounty.exe
             electron/release/Encounty-Setup.exe
+
+  release-windows-arm64:
+    name: Build & Publish Windows arm64
+    # Native Windows-on-ARM runner: cross-building the nsis installer on Linux via wine
+    # produces an x86 stub that fails to unpack the arm64 payload on the target, so the
+    # installed Encounty.exe ends up missing. Building natively avoids that entirely.
+    runs-on: windows-11-arm
+    needs: [test, lint]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set version from tag
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/}
+          CLEAN_VERSION=$(echo "$TAG_VERSION" | sed 's/^v//' | sed 's/-.*//')
+          if [[ "$CLEAN_VERSION" != *.*.* ]]; then
+            CLEAN_VERSION="${CLEAN_VERSION}.0"
+          fi
+          WIN_VER=$(echo "$CLEAN_VERSION" | awk -F. '{if(NF==2) print $0".0"; else print $0}')
+          echo "VERSION=$TAG_VERSION" >> $GITHUB_ENV
+          echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
+          echo "WIN_VER=$WIN_VER" >> $GITHUB_ENV
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: yarn install
+
+      - name: Set Frontend Version
+        working-directory: frontend
+        run: npm pkg set version="$CLEAN_VERSION"
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: yarn build
+
+      - name: Generate Icons
+        working-directory: backend
+        run: go run ../scripts/generate_icons.go
+
+      - name: Build Windows Binary (arm64, native)
+        working-directory: backend
+        env:
+          GOOS: windows
+          GOARCH: arm64
+          CGO_ENABLED: '0'
+        run: |
+          sed -i "s/0\.2\.0\.0/${WIN_VER}.0/g" winres/winres.json
+          go run github.com/tc-hib/go-winres@latest make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows.exe main.go
+          rm -rf ./frontend
+          rm -f *.syso
+
+      - name: Build Electron
+        working-directory: electron
+        run: |
+          yarn install
+          npm pkg set version="$CLEAN_VERSION"
+          yarn build
+
+      - name: Package Electron Windows (arm64)
+        working-directory: electron
+        # Published never: Windows x64 and arm64 would share one latest.yml
+        # (electron-builder limitation), so arm64 ships as plain assets and updates
+        # manually for now.
+        # ponytail: win-arm64 shares latest.yml with x64; add a per-arch feed if demand appears.
+        run: yarn package:win --arm64 --publish never
+
+      - name: Upload Windows arm64 artifacts to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            electron/release/Encounty-arm64.exe
+            electron/release/Encounty-Setup-arm64.exe
 
   release-macos:
     name: Build & Publish macOS
@@ -297,7 +438,14 @@ jobs:
           yarn build
           yarn package:mac --publish never
 
+      - name: Legacy dmg alias (one-time)
+        # ponytail: one-time transition alias so bookmarked old dmg URLs keep working; remove after this release.
+        working-directory: electron/release
+        run: cp Encounty-arm64.dmg Encounty.dmg
+
       - name: Upload macOS artifacts to release
         uses: softprops/action-gh-release@v2
         with:
-          files: electron/release/Encounty.dmg
+          files: |
+            electron/release/Encounty-arm64.dmg
+            electron/release/Encounty.dmg
