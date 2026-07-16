@@ -45,6 +45,21 @@ Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. 
 
 - [macOS](docs/macOS.md)
 
+### Linux: `error while loading shared libraries: libz.so`
+
+The AppImage runtime links the **unversioned** `libz.so`. The base zlib package only
+provides `libz.so.1`; the unversioned symlink ships in the zlib development package.
+Install it for your distribution:
+
+| Distribution                         | Package        |
+|--------------------------------------|----------------|
+| Debian / Ubuntu (and derivatives)    | `zlib1g-dev`   |
+| Fedora / RHEL / openSUSE             | `zlib-devel`   |
+| Arch (and derivatives)               | `zlib`         |
+
+For example, on Debian: `sudo apt install zlib1g-dev`. On Arch, `zlib` already provides
+`libz.so`, so reinstall it (`sudo pacman -S zlib`) only if the file is missing.
+
 ## Contributing
 
 Pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture, and build instructions. Encounty was built with the help of LLM coding assistants, without them a project of this scope wouldn't have been possible to build solo in this timeframe, so PRs created with the help of LLM agents are explicitly welcome too.
