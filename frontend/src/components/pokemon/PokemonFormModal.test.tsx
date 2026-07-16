@@ -939,6 +939,40 @@ describe("PokemonFormModal", () => {
       await waitFor(() => expect(screen.getByText("#pikachu-gmax")).toBeInTheDocument());
       expect(searchInput).toHaveValue("Pikachu");
     });
+
+    it("shows the form strip with the stored form pre-pressed in edit mode", async () => {
+      const gmaxPokemon: ExistingPokemonData = {
+        ...basePokemon,
+        name: "Pikachu Gmax",
+        canonical_name: "pikachu-gmax",
+      };
+      render(
+        <PokemonFormModal
+          mode="edit"
+          pokemon={gmaxPokemon}
+          onSubmit={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByText("#pikachu-gmax")).toBeInTheDocument());
+
+      // The strip is built on load: the stored form is the pressed toggle,
+      // the base entry stays available for switching back.
+      const findStripButton = (label: string) =>
+        screen
+          .getAllByText(label)
+          .map((el) => el.closest("button"))
+          .find((b) => b?.getAttribute("aria-pressed") != null);
+
+      const gmaxBtn = findStripButton("Pikachu Gmax");
+      expect(gmaxBtn).toBeTruthy();
+      expect(gmaxBtn).toHaveAttribute("aria-pressed", "true");
+
+      const baseBtn = findStripButton("Pikachu");
+      expect(baseBtn).toBeTruthy();
+      expect(baseBtn).toHaveAttribute("aria-pressed", "false");
+    });
   });
 
   describe("search by pokemon ID", () => {

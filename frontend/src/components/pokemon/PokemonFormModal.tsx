@@ -323,6 +323,23 @@ function formEntriesFor(
     }));
 }
 
+/**
+ * Build the form-strip entries for a base species: the base itself followed by
+ * its game-filtered forms. Returns an empty array when the species has no
+ * selectable forms so the strip stays hidden.
+ */
+function buildFormStrip(
+  base: PokemonData,
+  selectedGame: string,
+  games: GameEntry[],
+  language: string,
+): SearchResult[] {
+  const forms = formEntriesFor(base, selectedGame, games, language);
+  if (forms.length === 0) return [];
+  const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id };
+  return [baseEntry, ...forms];
+}
+
 interface SelectedState {
   id: number;
   canonical: string;
@@ -338,16 +355,19 @@ function applyEditModeMatch(
   data: PokemonData[],
   pokemon: ExistingPokemonData,
   selectedGame: string,
+  games: GameEntry[],
   spriteType: SpriteType,
   spriteStyle: SpriteStyle,
   setSelected: (s: SelectedState) => void,
   setQuery: (q: string) => void,
+  setPendingForms: (f: SearchResult[]) => void,
 ) {
   const matchBase = data.find((p) => p.canonical === pokemon.canonical_name);
   if (matchBase) {
     const sprite = getSpriteUrl(matchBase.id.toString(), selectedGame, spriteType, spriteStyle, matchBase.canonical);
     setSelected({ id: matchBase.id, canonical: matchBase.canonical, name: getPkmnName(matchBase, pokemon.language), sprite, spriteId: matchBase.id });
     setQuery(getPkmnName(matchBase, pokemon.language));
+    setPendingForms(buildFormStrip(matchBase, selectedGame, games, pokemon.language));
     return;
   }
   for (const p of data) {
@@ -361,6 +381,7 @@ function applyEditModeMatch(
       });
       // The search field always shows the base species name, not the form name.
       setQuery(p.names?.[pokemon.language] || p.names?.["en"] || p.canonical);
+      setPendingForms(buildFormStrip(p, selectedGame, games, pokemon.language));
       return;
     }
   }
@@ -674,7 +695,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     setAllPokemon(data);
     setMissingNames(!data.some((p) => p.names && Object.keys(p.names).length > 0));
     if (isEdit) {
-      applyEditModeMatch(data, props.pokemon, selectedGame, spriteType, spriteStyle, setSelected, setQuery);
+      applyEditModeMatch(data, props.pokemon, selectedGame, games, spriteType, spriteStyle, setSelected, setQuery, setPendingForms);
     }
   };
 
@@ -734,6 +755,16 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     setBrowseLimit(BROWSE_PAGE);
   }, [query]);
 
+  // Rebuild the form strip when its filter inputs arrive or change: the games
+  // list loads in parallel with the pokedex (so the edit-mode strip may have
+  // been built before game generations were known), and a later game or
+  // language switch must re-filter and relabel the strip entries.
+  useEffect(() => {
+    if (!selected) return;
+    const base = allPokemon.find((x) => x.id === selected.id);
+    if (base) setPendingForms(buildFormStrip(base, selectedGame, games, language));
+  }, [games, selectedGame, language, allPokemon]);
+
   // --- Select a pokemon from search results ---
   const selectPokemon = (p: SearchResult) => {
     setSuggestions([]);
@@ -760,13 +791,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     // Base and form entries share the base `id`, so the strip stays put
     // whichever gets picked; it only clears when the query changes.
     const base = allPokemon.find((x) => x.id === p.id);
-    const forms = base ? formEntriesFor(base, selectedGame, games, language) : [];
-    if (base && forms.length > 0) {
-      const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id };
-      setPendingForms([baseEntry, ...forms]);
-    } else {
-      setPendingForms([]);
-    }
+    setPendingForms(base ? buildFormStrip(base, selectedGame, games, language) : []);
   };
 
   // --- Recalculate sprite URL when dependencies change ---
