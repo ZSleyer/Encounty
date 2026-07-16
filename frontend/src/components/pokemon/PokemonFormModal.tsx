@@ -359,7 +359,8 @@ function applyEditModeMatch(
         formName: (form as any).form_names?.[pokemon.language] || (form as any).form_names?.["en"] || undefined,
         baseName: p.names?.[pokemon.language] || p.names?.["en"] || undefined,
       });
-      setQuery(getPkmnName(form, pokemon.language));
+      // The search field always shows the base species name, not the form name.
+      setQuery(p.names?.[pokemon.language] || p.names?.["en"] || p.canonical);
       return;
     }
   }
@@ -737,7 +738,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const selectPokemon = (p: SearchResult) => {
     setSuggestions([]);
     setInputFocused(false);
-    setQuery(getPkmnName(p, language));
+    // The search field always shows the base species name; form entries carry
+    // it in baseName, base entries fall back to their own display name.
+    setQuery(p.baseName ?? getPkmnName(p, language));
 
     const effectiveStyle = resolveEffectiveStyle(p.id, spriteStyle, setSpriteStyle);
     const sprite = getSpriteUrl(
@@ -812,7 +815,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       (p) => p.spriteId === selected.spriteId && p.canonical === selected.canonical,
     );
     if (!fullP) return;
-    setQuery(getPkmnName(fullP, lang));
+    setQuery(fullP.baseName ?? getPkmnName(fullP, lang));
     setSelected({ ...selected, name: getPkmnName(fullP, lang), formName: fullP.formName, baseName: fullP.baseName });
   };
 

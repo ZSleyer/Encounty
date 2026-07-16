@@ -901,6 +901,46 @@ describe("PokemonFormModal", () => {
     });
   });
 
+  describe("base species name in the search field", () => {
+    it("keeps the base name after picking a form from the search results", async () => {
+      render(
+        <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+      const searchInput = screen.getByPlaceholderText(/pok.mon/i);
+      await userEvent.click(searchInput);
+      await userEvent.type(searchInput, "gmax");
+      await waitFor(() => expect(screen.getByText("Pikachu Gmax")).toBeInTheDocument());
+
+      await userEvent.click(screen.getByText("Pikachu Gmax"));
+
+      // The form is selected, but the search field shows the base name.
+      await waitFor(() => expect(screen.getByText("#pikachu-gmax")).toBeInTheDocument());
+      expect(searchInput).toHaveValue("Pikachu");
+    });
+
+    it("keeps the base name after switching to a form via the form strip", async () => {
+      render(
+        <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+      const searchInput = screen.getByPlaceholderText(/pok.mon/i);
+      await userEvent.click(searchInput);
+      await userEvent.type(searchInput, "pikachu");
+      await waitFor(() => expect(screen.getByText("Pikachu")).toBeInTheDocument());
+      await userEvent.click(screen.getByText("Pikachu"));
+
+      // The strip appears with the gmax form; switch to it.
+      await waitFor(() => expect(screen.getByText("Pikachu Gmax")).toBeInTheDocument());
+      await userEvent.click(screen.getByText("Pikachu Gmax"));
+
+      await waitFor(() => expect(screen.getByText("#pikachu-gmax")).toBeInTheDocument());
+      expect(searchInput).toHaveValue("Pikachu");
+    });
+  });
+
   describe("search by pokemon ID", () => {
     it("finds pokemon by dex number", async () => {
       render(
