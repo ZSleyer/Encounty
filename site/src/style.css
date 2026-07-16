@@ -310,6 +310,74 @@ button:focus-visible {
   display: none;
 }
 
+/* Update page OS switcher tabs — square chips that share the download-button
+   chrome, with the accent used for the active platform. */
+.os-tab {
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-weight: 500;
+  border-radius: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.os-tab:hover {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+}
+
+.os-tab[aria-selected="true"] {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+/* Command block: a monospace terminal snippet with an inline copy button,
+   used for the few places the update page asks for a terminal command. */
+.copy-block {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+}
+
+.copy-block code {
+  flex: 1 1 auto;
+  padding: 0.6rem 0.85rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.copy-block__btn {
+  flex-shrink: 0;
+  padding: 0 0.85rem;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.copy-block__btn:hover {
+  color: var(--accent-blue);
+}
+
+.copy-block__btn:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: -2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

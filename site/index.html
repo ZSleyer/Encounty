@@ -226,15 +226,20 @@
               </div>
               <div class="changelog-fade" aria-hidden="true"></div>
             </div>
-            <button
-              id="changelog-toggle"
-              type="button"
-              class="dl-btn mt-4 px-4 py-2 text-sm"
-              aria-expanded="false"
-              aria-controls="changelog-content"
-            >
-              Show full changelog
-            </button>
+            <div class="mt-4 flex flex-wrap gap-3">
+              <button
+                id="changelog-toggle"
+                type="button"
+                class="dl-btn px-4 py-2 text-sm"
+                aria-expanded="false"
+                aria-controls="changelog-content"
+              >
+                Show full changelog
+              </button>
+              <a href="/Encounty/changelog.html" class="dl-btn px-4 py-2 text-sm">
+                View all releases
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -404,7 +409,10 @@
         </p>
       </div>
     </footer>
-    <script>
+    <script type="module">
+      import { detectOS } from "/src/os-detect.js";
+      import { escapeHtml, renderChangelogMarkdown } from "/src/changelog.js";
+
       const demo = document.getElementById("demo-video");
       // WCAG 2.2.2: auto-playing motion needs a pause mechanism and must
       // respect the user's reduced-motion preference.
@@ -431,13 +439,6 @@
       // and move it to the middle slot. Defaults to the static markup
       // order (Linux primary, already first) if detection is inconclusive,
       // so there's never a no-primary-button state.
-      function detectOS() {
-        const ua = navigator.userAgent;
-        if (/Windows/.test(ua)) return "windows";
-        if (/Macintosh|Mac OS X/.test(ua) && !/iPhone|iPad|iPod/.test(ua)) return "macos";
-        if (/Linux/.test(ua) && !/Android/.test(ua)) return "linux";
-        return null;
-      }
       const detectedOS = detectOS();
       if (detectedOS) {
         const container = document.getElementById("download-buttons");
@@ -485,60 +486,6 @@
       // Changelog: fetch the latest stable GitHub release at runtime and
       // render its notes. GET /releases/latest never returns a pre-release,
       // matching what the in-app auto-updater considers "latest" too.
-      function escapeHtml(str) {
-        return str
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&#39;");
-      }
-
-      // Renders a small, safe Markdown subset (headings, bold, links, lists,
-      // paragraphs). Input must already be HTML-escaped; only well-formed
-      // http(s) links are turned into anchors, everything else stays text.
-      function renderChangelogMarkdown(escaped) {
-        const withInlines = escaped
-          .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-          .replace(
-            /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
-            '<a href="$2" class="underline hover:text-text-primary" rel="noopener">$1</a>',
-          );
-
-        const lines = withInlines.split("\n");
-        let html = "";
-        let listOpen = false;
-        const closeList = () => {
-          if (listOpen) {
-            html += "</ul>";
-            listOpen = false;
-          }
-        };
-        for (const rawLine of lines) {
-          const line = rawLine.trim();
-          const heading = line.match(/^(#{2,3})\s+(.*)/);
-          const item = line.match(/^[-*]\s+(.*)/);
-          if (heading) {
-            closeList();
-            const tag = heading[1].length === 2 ? "h3" : "h4";
-            html += `<${tag} class="mt-4 font-semibold text-accent-blue">${heading[2]}</${tag}>`;
-          } else if (item) {
-            if (!listOpen) {
-              html += '<ul class="mt-2 list-disc space-y-1 pl-5 text-sm text-text-secondary">';
-              listOpen = true;
-            }
-            html += `<li>${item[1]}</li>`;
-          } else if (line === "") {
-            closeList();
-          } else {
-            closeList();
-            html += `<p class="mt-2 text-sm text-text-secondary">${line}</p>`;
-          }
-        }
-        closeList();
-        return html;
-      }
-
       async function loadChangelog() {
         const content = document.getElementById("changelog-content");
         const versionBadge = document.getElementById("changelog-version");

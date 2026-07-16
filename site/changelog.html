@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Changelog - Encounty</title>
+    <meta
+      name="description"
+      content="Full release history for Encounty, the open-source auto shiny counter for Pokémon shiny hunting."
+    />
+    <meta name="theme-color" content="#0f0f13" />
+    <link rel="icon" type="image/png" href="/app-icon.png" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-none focus:bg-bg-card focus:px-4 focus:py-2"
+      >Skip to content</a
+    >
+
+    <header class="border-b border-border-subtle">
+      <nav
+        aria-label="Main"
+        class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3"
+      >
+        <a href="/Encounty/" class="flex items-center gap-3">
+          <img src="/app-icon.png" alt="" width="32" height="32" />
+          <span class="t-heading text-sm text-text-primary">Encounty</span>
+        </a>
+        <div class="flex items-center gap-2 text-sm sm:gap-6">
+          <a href="/Encounty/#demo" class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >Demo</a
+          >
+          <a
+            href="/Encounty/#features"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >Features</a
+          >
+          <a
+            href="/Encounty/#how-it-works"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >How it works</a
+          >
+          <a
+            href="/Encounty/changelog.html"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            aria-current="page"
+            >Changelog</a
+          >
+          <a href="https://github.com/ZSleyer/Encounty" class="t-label">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section aria-labelledby="changelog-heading" class="px-4 pt-16 pb-20">
+        <div class="mx-auto max-w-4xl">
+          <div class="flex flex-wrap items-center justify-center gap-3">
+            <h1 id="changelog-heading" class="t-heading text-center text-3xl text-text-primary">
+              Changelog
+            </h1>
+          </div>
+          <p class="mx-auto mt-4 max-w-xl text-center text-text-secondary">
+            Every Encounty release, newest first. Want the latest download?
+            <a href="/Encounty/update.html" class="underline hover:text-text-primary"
+              >Head to the update page</a
+            >.
+          </p>
+          <div class="t-panel mt-10 p-6 sm:p-8">
+            <div id="release-list" aria-live="polite">
+              <p class="text-sm text-text-muted">Loading releases&hellip;</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-4">
+      <div class="glow-line" role="presentation"></div>
+      <div
+        class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-8 text-center text-sm text-text-muted"
+      >
+        <p>
+          <a href="https://github.com/ZSleyer/Encounty" class="underline hover:text-text-primary"
+            >Source on GitHub</a
+          >
+          · licensed under
+          <a
+            href="https://github.com/ZSleyer/Encounty/blob/main/LICENSE"
+            class="underline hover:text-text-primary"
+            >AGPL-3.0</a
+          >
+        </p>
+        <p>
+          Encounty is a fan project and is not affiliated with Nintendo, Game Freak or The
+          Pokémon Company.
+        </p>
+        <p>
+          <span id="copyright-year">© 2026</span>
+          <a href="https://youtube.com/@ZSleyer" class="underline hover:text-text-primary"
+            >ZSleyer</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script type="module">
+      import { renderReleaseList } from "/src/changelog.js";
+
+      // Same copyright range logic as the Encounty app footer.
+      const year = new Date().getFullYear();
+      document.getElementById("copyright-year").textContent =
+        "© " + (year === 2026 ? "2026" : "2026–" + year);
+
+      // Fetch the full release history in a single call and render it,
+      // newest first (the GitHub API already returns releases in that order).
+      async function loadReleases() {
+        const list = document.getElementById("release-list");
+        try {
+          const res = await fetch("https://api.github.com/repos/ZSleyer/Encounty/releases");
+          if (!res.ok) throw new Error("GitHub API request failed");
+          const releases = await res.json();
+          if (!Array.isArray(releases) || releases.length === 0) {
+            list.innerHTML =
+              '<p class="text-sm text-text-muted">No releases have been published yet.</p>';
+            return;
+          }
+          list.innerHTML = renderReleaseList(releases);
+        } catch {
+          list.innerHTML =
+            '<p class="text-sm text-text-muted">Could not load the changelog right now. <a href="https://github.com/ZSleyer/Encounty/releases" class="underline hover:text-text-primary">View all releases on GitHub</a>.</p>';
+        }
+      }
+      loadReleases();
+    </script>
+  </body>
+</html>

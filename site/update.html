@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Update &amp; Install - Encounty</title>
+    <meta
+      name="description"
+      content="Download and update Encounty on macOS, Windows and Linux. Simple step-by-step instructions with direct downloads, no GitHub detour."
+    />
+    <meta name="theme-color" content="#0f0f13" />
+    <link rel="icon" type="image/png" href="/app-icon.png" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-none focus:bg-bg-card focus:px-4 focus:py-2"
+      >Skip to content</a
+    >
+
+    <header class="border-b border-border-subtle">
+      <nav
+        aria-label="Main"
+        class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3"
+      >
+        <a href="/Encounty/" class="flex items-center gap-3">
+          <img src="/app-icon.png" alt="" width="32" height="32" />
+          <span class="t-heading text-sm text-text-primary">Encounty</span>
+        </a>
+        <div class="flex items-center gap-2 text-sm sm:gap-6">
+          <a href="/Encounty/#demo" class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >Demo</a
+          >
+          <a
+            href="/Encounty/#features"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >Features</a
+          >
+          <a
+            href="/Encounty/#how-it-works"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >How it works</a
+          >
+          <a
+            href="/Encounty/changelog.html"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            >Changelog</a
+          >
+          <a href="https://github.com/ZSleyer/Encounty" class="t-label">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero-glow px-4 pt-16 pb-10 text-center">
+        <div class="mx-auto max-w-3xl">
+          <span class="t-label t-label--accent">Download &amp; update</span>
+          <h1 class="t-heading mt-6 text-3xl text-text-primary sm:text-4xl">
+            Get the latest Encounty
+          </h1>
+          <p class="mx-auto mt-6 max-w-xl text-lg text-text-secondary">
+            Pick your system below for step-by-step instructions. I have preselected the one
+            that matches your device, you can switch anytime.
+          </p>
+        </div>
+      </section>
+
+      <section aria-labelledby="os-switcher-heading" class="px-4 pb-20">
+        <div class="mx-auto max-w-3xl">
+          <h2 id="os-switcher-heading" class="sr-only">Choose your operating system</h2>
+
+          <!-- OS switcher tabs -->
+          <div
+            role="tablist"
+            aria-label="Operating system"
+            class="flex flex-wrap justify-center gap-2"
+          >
+            <button
+              type="button"
+              role="tab"
+              id="tab-macos"
+              aria-controls="panel-macos"
+              aria-selected="false"
+              tabindex="-1"
+              class="os-tab px-5 py-2 text-sm"
+            >
+              macOS
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-windows"
+              aria-controls="panel-windows"
+              aria-selected="false"
+              tabindex="-1"
+              class="os-tab px-5 py-2 text-sm"
+            >
+              Windows
+            </button>
+            <button
+              type="button"
+              role="tab"
+              id="tab-linux"
+              aria-controls="panel-linux"
+              aria-selected="false"
+              tabindex="-1"
+              class="os-tab px-5 py-2 text-sm"
+            >
+              Linux
+            </button>
+          </div>
+
+          <!-- macOS -->
+          <div
+            role="tabpanel"
+            id="panel-macos"
+            aria-labelledby="tab-macos"
+            tabindex="0"
+            hidden
+            class="mt-8"
+          >
+            <div class="t-panel p-6 sm:p-8">
+              <h3 class="t-heading text-xl text-text-primary">macOS (Apple Silicon)</h3>
+              <p class="mt-3 text-text-secondary">
+                Does Encounty update itself on macOS? No. On macOS you download the new version
+                manually and drop it into your Applications folder. It only takes a minute.
+              </p>
+
+              <div class="mt-6" data-dl-group>
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.dmg"
+                  data-arch="arm64"
+                  class="dl-btn dl-btn--primary inline-block px-8 py-4 text-lg"
+                  >Download Encounty for macOS</a
+                >
+                <p class="mt-2 text-sm text-text-muted">
+                  Encounty-arm64.dmg · for Apple Silicon (M1 and newer)
+                </p>
+              </div>
+
+              <ol class="mt-8 space-y-6">
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">1</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Download the file</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Use the button above. Your browser saves Encounty-arm64.dmg to your
+                      Downloads folder.
+                    </p>
+                  </div>
+                </li>
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">2</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Open the .dmg</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Double-click the downloaded file. A window opens showing the Encounty icon
+                      and your Applications folder.
+                    </p>
+                  </div>
+                </li>
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">3</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Drag it into Applications</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Drag the Encounty icon onto the Applications folder. If macOS asks, choose
+                      Replace to overwrite your old version.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div class="t-panel mt-6 p-6 sm:p-8">
+              <h3 class="t-heading text-lg text-text-primary">
+                If macOS says the app is damaged
+              </h3>
+              <p class="mt-3 text-sm text-text-secondary">
+                macOS may warn that Encounty is damaged or comes from an unidentified developer,
+                and refuse to open it. Nothing is actually wrong: this happens because Encounty
+                is free and open source and is not signed with a paid Apple certificate. Here are
+                two ways to allow it.
+              </p>
+
+              <h4 class="mt-6 font-semibold text-accent-blue">
+                Option 1: run one command (recommended)
+              </h4>
+              <p class="mt-1 text-sm text-text-secondary">
+                Open the Terminal app and paste this command, then press Enter. It removes the
+                quarantine flag macOS put on the download.
+              </p>
+              <div class="copy-block mt-3">
+                <code>xattr -rd com.apple.quarantine /Applications/Encounty.app</code>
+                <button
+                  type="button"
+                  class="copy-block__btn"
+                  data-copy="xattr -rd com.apple.quarantine /Applications/Encounty.app"
+                  aria-label="Copy command to clipboard"
+                >
+                  Copy
+                </button>
+              </div>
+
+              <h4 class="mt-6 font-semibold text-accent-blue">
+                Option 2: allow it in System Settings
+              </h4>
+              <ol class="mt-2 list-decimal space-y-1 pl-5 text-sm text-text-secondary">
+                <li>Try to open Encounty once (the warning appears).</li>
+                <li>Open System Settings, then Privacy &amp; Security.</li>
+                <li>Scroll down and click "Open Anyway" next to Encounty.</li>
+              </ol>
+
+              <p class="mt-6 text-sm text-text-muted">
+                This is safe: Encounty is open source and you can
+                <a
+                  href="https://github.com/ZSleyer/Encounty"
+                  class="underline hover:text-text-primary"
+                  >read the full code on GitHub</a
+                >.
+              </p>
+            </div>
+          </div>
+
+          <!-- Windows -->
+          <div
+            role="tabpanel"
+            id="panel-windows"
+            aria-labelledby="tab-windows"
+            tabindex="0"
+            hidden
+            class="mt-8"
+          >
+            <div class="t-panel p-6 sm:p-8">
+              <h3 class="t-heading text-xl text-text-primary">Windows 11</h3>
+              <p class="mt-3 text-text-secondary">
+                Want automatic updates? Install the Setup version once and Encounty keeps itself
+                up to date from then on. No more manual downloads.
+              </p>
+              <p class="mt-3 text-sm text-text-muted">
+                Honest heads-up: this automatic update currently works on x64 (Intel or AMD)
+                only. On Windows ARM64 the Setup does not auto-update yet, so there you replace
+                the file manually like the portable version below.
+              </p>
+
+              <div class="mt-6" data-dl-group>
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup-x64.exe"
+                  data-arch="x64"
+                  class="dl-btn dl-btn--primary inline-block px-8 py-4 text-lg"
+                  >Download the Setup (auto-updating)</a
+                >
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup-arm64.exe"
+                  data-arch="arm64"
+                  class="dl-btn ml-0 mt-3 inline-block px-6 py-3 sm:ml-3 sm:mt-0"
+                  >Setup for ARM64</a
+                >
+                <p class="mt-2 text-sm text-text-muted">
+                  Encounty-Setup-x64.exe · run it once, then Encounty updates itself.
+                </p>
+              </div>
+
+              <ol class="mt-8 space-y-6">
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">1</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Download and run the Setup</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Double-click the downloaded file. Windows installs Encounty for you.
+                    </p>
+                  </div>
+                </li>
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">2</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">
+                      If Windows shows a blue "Windows protected your PC" box
+                    </h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Click "More info", then "Run anyway". This appears because Encounty is a
+                      small open-source app, not because anything is wrong.
+                    </p>
+                  </div>
+                </li>
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">3</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">You are done</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Future updates install themselves in the background (x64). Just keep using
+                      Encounty.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div class="t-panel mt-6 p-6 sm:p-8">
+              <h3 class="t-heading text-lg text-text-primary">Using the portable version?</h3>
+              <p class="mt-3 text-sm text-text-secondary">
+                The portable .exe does not install and does not update itself. To update, download
+                the new portable file and replace your old one with it. Your hunts and settings
+                are stored separately and stay intact.
+              </p>
+
+              <div class="mt-6" data-dl-group>
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-x64.exe"
+                  data-arch="x64"
+                  class="dl-btn dl-btn--primary inline-block px-6 py-3"
+                  >Portable .exe (x64)</a
+                >
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.exe"
+                  data-arch="arm64"
+                  class="dl-btn ml-0 mt-3 inline-block px-6 py-3 sm:ml-3 sm:mt-0"
+                  >Portable .exe (ARM64)</a
+                >
+              </div>
+
+              <ol class="mt-8 space-y-6">
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">1</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Download the new portable .exe</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Pick the button that matches your PC (x64 for most, ARM64 for Windows on
+                      ARM).
+                    </p>
+                  </div>
+                </li>
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">2</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Replace your old file</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Delete or overwrite the old Encounty .exe with the new one, then open it as
+                      usual.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Linux -->
+          <div
+            role="tabpanel"
+            id="panel-linux"
+            aria-labelledby="tab-linux"
+            tabindex="0"
+            hidden
+            class="mt-8"
+          >
+            <div class="t-panel p-6 sm:p-8">
+              <h3 class="t-heading text-xl text-text-primary">Linux</h3>
+              <p class="mt-3 text-text-secondary">
+                Good news: the AppImage updates itself automatically. You only need to download
+                it once. If you have not installed Encounty yet, grab it below.
+              </p>
+
+              <div class="mt-6" data-dl-group>
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-x64.AppImage"
+                  data-arch="x64"
+                  class="dl-btn dl-btn--primary inline-block px-8 py-4 text-lg"
+                  >Download Encounty for Linux</a
+                >
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.AppImage"
+                  data-arch="arm64"
+                  class="dl-btn ml-0 mt-3 inline-block px-6 py-3 sm:ml-3 sm:mt-0"
+                  >AppImage for ARM64</a
+                >
+                <p class="mt-2 text-sm text-text-muted">
+                  Encounty-x64.AppImage · updates itself from then on.
+                </p>
+              </div>
+
+              <ol class="mt-8 space-y-6">
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">1</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Download the AppImage</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Use the button above for your architecture (x64 for most PCs).
+                    </p>
+                  </div>
+                </li>
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">2</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Make it executable</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Right-click the file, then Properties, and allow "Execute", or run this in a
+                      terminal in the download folder:
+                    </p>
+                    <div class="copy-block mt-3">
+                      <code>chmod +x Encounty-x64.AppImage</code>
+                      <button
+                        type="button"
+                        class="copy-block__btn"
+                        data-copy="chmod +x Encounty-x64.AppImage"
+                        aria-label="Copy command to clipboard"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </li>
+                <li class="flex gap-4">
+                  <span aria-hidden="true" class="t-step-n shrink-0">3</span>
+                  <div>
+                    <h4 class="font-semibold text-text-primary">Open it</h4>
+                    <p class="mt-1 text-sm text-text-secondary">
+                      Double-click the AppImage to launch Encounty. From here on it keeps itself
+                      updated.
+                    </p>
+                  </div>
+                </li>
+              </ol>
+            </div>
+
+            <div class="t-panel mt-6 p-6 sm:p-8">
+              <h3 class="t-heading text-lg text-text-primary">
+                If it will not start (libz.so error)
+              </h3>
+              <p class="mt-3 text-sm text-text-secondary">
+                On a minimal Linux install Encounty may exit right away with a message like
+                <code class="text-text-primary">error while loading shared libraries: libz.so</code>.
+                The app needs the standard compression library "zlib", which some systems do not
+                include by default. Installing the package below fixes it.
+              </p>
+
+              <div class="mt-6 overflow-x-auto">
+                <table class="w-full border-collapse text-sm">
+                  <caption class="sr-only">
+                    zlib package name and install command per Linux distribution
+                  </caption>
+                  <thead>
+                    <tr class="border-b border-border-subtle text-left text-text-muted">
+                      <th scope="col" class="py-2 pr-4 font-semibold">Distribution</th>
+                      <th scope="col" class="py-2 font-semibold">Install command</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-b border-border-subtle">
+                      <th scope="row" class="py-3 pr-4 text-left font-normal text-text-secondary">
+                        Debian / Ubuntu
+                        <span class="block text-text-muted">zlib1g-dev</span>
+                      </th>
+                      <td class="py-3">
+                        <div class="copy-block">
+                          <code>sudo apt install zlib1g-dev</code>
+                          <button
+                            type="button"
+                            class="copy-block__btn"
+                            data-copy="sudo apt install zlib1g-dev"
+                            aria-label="Copy Debian or Ubuntu command to clipboard"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr class="border-b border-border-subtle">
+                      <th scope="row" class="py-3 pr-4 text-left font-normal text-text-secondary">
+                        Fedora / RHEL / openSUSE
+                        <span class="block text-text-muted">zlib-devel</span>
+                      </th>
+                      <td class="py-3">
+                        <div class="copy-block">
+                          <code>sudo dnf install zlib-devel</code>
+                          <button
+                            type="button"
+                            class="copy-block__btn"
+                            data-copy="sudo dnf install zlib-devel"
+                            aria-label="Copy Fedora, RHEL or openSUSE command to clipboard"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row" class="py-3 pr-4 text-left font-normal text-text-secondary">
+                        Arch
+                        <span class="block text-text-muted">zlib</span>
+                      </th>
+                      <td class="py-3">
+                        <div class="copy-block">
+                          <code>sudo pacman -S zlib</code>
+                          <button
+                            type="button"
+                            class="copy-block__btn"
+                            data-copy="sudo pacman -S zlib"
+                            aria-label="Copy Arch command to clipboard"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <p class="mt-10 text-center text-sm text-text-muted">
+            Advanced user or need a different build?
+            <a
+              href="https://github.com/ZSleyer/Encounty/releases/latest"
+              class="underline hover:text-text-primary"
+              >All downloads on GitHub</a
+            >.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-4">
+      <div class="glow-line" role="presentation"></div>
+      <div
+        class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-8 text-center text-sm text-text-muted"
+      >
+        <p>
+          <a href="https://github.com/ZSleyer/Encounty" class="underline hover:text-text-primary"
+            >Source on GitHub</a
+          >
+          · licensed under
+          <a
+            href="https://github.com/ZSleyer/Encounty/blob/main/LICENSE"
+            class="underline hover:text-text-primary"
+            >AGPL-3.0</a
+          >
+        </p>
+        <p>
+          Encounty is a fan project and is not affiliated with Nintendo, Game Freak or The
+          Pokémon Company.
+        </p>
+        <p>
+          <span id="copyright-year">© 2026</span>
+          <a href="https://youtube.com/@ZSleyer" class="underline hover:text-text-primary"
+            >ZSleyer</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script type="module">
+      import { detectOS } from "/src/os-detect.js";
+
+      // Same copyright range logic as the Encounty app footer.
+      const year = new Date().getFullYear();
+      document.getElementById("copyright-year").textContent =
+        "© " + (year === 2026 ? "2026" : "2026–" + year);
+
+      // --- OS tabs ---
+      const OS_LIST = ["macos", "windows", "linux"];
+      const tabs = OS_LIST.map((os) => document.getElementById(`tab-${os}`));
+      const panels = OS_LIST.map((os) => document.getElementById(`panel-${os}`));
+
+      /**
+       * Shows the panel for the given OS and marks its tab selected, hiding
+       * the others. Optionally moves keyboard focus to the active tab.
+       */
+      function selectOS(os, focusTab = false) {
+        OS_LIST.forEach((name, i) => {
+          const active = name === os;
+          tabs[i].setAttribute("aria-selected", String(active));
+          tabs[i].tabIndex = active ? 0 : -1;
+          panels[i].hidden = !active;
+        });
+        if (focusTab) {
+          const idx = OS_LIST.indexOf(os);
+          if (idx >= 0) tabs[idx].focus();
+        }
+      }
+
+      tabs.forEach((tab, i) => {
+        tab.addEventListener("click", () => selectOS(OS_LIST[i]));
+        tab.addEventListener("keydown", (e) => {
+          let next = null;
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") next = (i + 1) % OS_LIST.length;
+          else if (e.key === "ArrowLeft" || e.key === "ArrowUp")
+            next = (i - 1 + OS_LIST.length) % OS_LIST.length;
+          else if (e.key === "Home") next = 0;
+          else if (e.key === "End") next = OS_LIST.length - 1;
+          if (next !== null) {
+            e.preventDefault();
+            selectOS(OS_LIST[next], true);
+          }
+        });
+      });
+
+      // Initial selection: URL hash wins (#macos|#windows|#linux), then the
+      // detected OS, defaulting to Windows so there is always an open panel.
+      const hashOS = location.hash.replace("#", "").toLowerCase();
+      const initialOS = OS_LIST.includes(hashOS) ? hashOS : detectOS() || "windows";
+      selectOS(initialOS);
+
+      // --- Best-effort architecture preselection ---
+      // Default to x64; promote arm64 buttons only when the device clearly
+      // reports an ARM platform. Kept intentionally simple.
+      function detectArch() {
+        const platform = navigator.userAgentData?.platform || "";
+        const ua = navigator.userAgent;
+        if (/arm64|aarch64|arm/i.test(platform) || /arm64|aarch64/i.test(ua)) return "arm64";
+        return "x64";
+      }
+      if (detectArch() === "arm64") {
+        document.querySelectorAll("[data-dl-group]").forEach((group) => {
+          const x64 = group.querySelector('[data-arch="x64"]');
+          const arm = group.querySelector('[data-arch="arm64"]');
+          if (x64 && arm) {
+            x64.classList.remove("dl-btn--primary");
+            arm.classList.add("dl-btn--primary");
+          }
+        });
+      }
+
+      // --- Copy-to-clipboard for command blocks ---
+      document.querySelectorAll(".copy-block__btn").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const text = btn.dataset.copy || "";
+          try {
+            await navigator.clipboard.writeText(text);
+            const original = btn.textContent;
+            btn.textContent = "Copied";
+            setTimeout(() => {
+              btn.textContent = original;
+            }, 1500);
+          } catch {
+            // Clipboard may be blocked (no permission or insecure context);
+            // the command stays visible for manual copying.
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
