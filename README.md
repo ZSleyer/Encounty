@@ -43,8 +43,8 @@ Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. 
 
 ## Troubleshooting
 
-- [Linux](docs/Linux.md)
-- [macOS](docs/macOS.md)
+- [Linux](https://zsleyer.github.io/Encounty/update.html#linux)
+- [macOS](https://zsleyer.github.io/Encounty/update.html#macos)
 
 ## Contributing
 
