@@ -25,11 +25,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-          cache-dependency-path: site/package-lock.json
-      - run: npm ci
+          cache: yarn
+          cache-dependency-path: site/yarn.lock
+      - run: yarn install --frozen-lockfile
         working-directory: site
-      - run: npm run build
+      - run: yarn build
         working-directory: site
       - uses: actions/upload-pages-artifact@v3
         with:
