@@ -975,6 +975,46 @@ describe("PokemonFormModal", () => {
     });
   });
 
+  describe("PokemonThumb fallback chain", () => {
+    it("walks default sprite, Home 3D, box sprite, then the placeholder", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+      const searchInput = screen.getByPlaceholderText(/pok.mon/i);
+      await userEvent.click(searchInput);
+      await userEvent.type(searchInput, "bulba");
+      await waitFor(() => expect(screen.getByText("Bisasam")).toBeInTheDocument());
+
+      const img = screen.getByAltText("Bisasam") as HTMLImageElement;
+      expect(img).toHaveAttribute(
+        "src",
+        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/1.png",
+      );
+
+      fireEvent.error(img);
+      expect(img).toHaveAttribute(
+        "src",
+        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/home/shiny/1.png",
+      );
+
+      fireEvent.error(img);
+      expect(img).toHaveAttribute(
+        "src",
+        "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8/shiny/bulbasaur.png",
+      );
+
+      fireEvent.error(img);
+      expect(img.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
+
+      // Terminal candidate: further errors keep the placeholder.
+      fireEvent.error(img);
+      expect(img.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
+    });
+  });
+
   describe("search by pokemon ID", () => {
     it("finds pokemon by dex number", async () => {
       render(

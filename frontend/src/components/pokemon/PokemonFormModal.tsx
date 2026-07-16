@@ -20,6 +20,7 @@ import { GameEntry } from "../../types";
 import {
   getSpriteUrl,
   getDefaultSpriteUrl,
+  getBoxSpriteUrl,
   SpriteType,
   SpriteStyle,
   SPRITE_STYLES,
@@ -338,6 +339,58 @@ function buildFormStrip(
   if (forms.length === 0) return [];
   const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id };
   return [baseEntry, ...forms];
+}
+
+interface PokemonThumbProps {
+  readonly spriteId: number;
+  readonly canonical: string;
+  readonly alt: string;
+  readonly className?: string;
+}
+
+/**
+ * Small thumbnail sprite with a resilient fallback chain: the PokeAPI default
+ * pixel sprite, then the 3D Home render, then the Pokésprite box sprite
+ * (which covers form IDs missing from both PokeAPI sets, e.g.
+ * pikachu-starter), and finally the neutral placeholder glyph so the slot
+ * stays layout-stable instead of collapsing.
+ */
+function PokemonThumb({ spriteId, canonical, alt, className }: PokemonThumbProps) {
+  // Candidate URLs in fallback order, deduplicated so onError always advances
+  // to a genuinely different source. Pixel-art candidates render pixelated.
+  const candidates: { src: string; pixelated: boolean }[] = [];
+  const seen = new Set<string>();
+  for (const c of [
+    { src: getDefaultSpriteUrl(spriteId), pixelated: true },
+    { src: getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical), pixelated: false },
+    { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
+    { src: SPRITE_FALLBACK, pixelated: false },
+  ]) {
+    if (!seen.has(c.src)) {
+      seen.add(c.src);
+      candidates.push(c);
+    }
+  }
+
+  const [candidateIndex, setCandidateIndex] = useState(0);
+
+  // Restart the fallback chain when this instance is reused for a different
+  // Pokemon: the surrounding lists key their buttons, not the thumb itself,
+  // so React keeps the component instance (and its state) alive across items.
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [spriteId, canonical]);
+
+  const current = candidates[Math.min(candidateIndex, candidates.length - 1)];
+  return (
+    <img
+      src={current.src}
+      alt={alt}
+      className={className}
+      style={{ imageRendering: current.pixelated ? "pixelated" : "auto" }}
+      onError={() => setCandidateIndex((i) => Math.min(i + 1, candidates.length - 1))}
+    />
+  );
 }
 
 interface SelectedState {
@@ -1323,30 +1376,11 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       onClick={() => selectPokemon(s)}
                       className={`w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-2.5 ${s.isForm ? "pl-6" : ""}`}
                     >
-                      <img
-                        src={getDefaultSpriteUrl(s.spriteId)}
+                      <PokemonThumb
+                        spriteId={s.spriteId}
+                        canonical={s.canonical}
                         alt={getPkmnName(s, language)}
                         className="h-7 w-7 object-contain shrink-0"
-                        style={{ imageRendering: "pixelated" }}
-                        onError={(e) => {
-                          // PokeAPI default sprite missing (typical for newer
-                          // forms). Swap to the 3D Home render so users still
-                          // get a recognizable image instead of an empty slot.
-                          const img = e.currentTarget;
-                          const fallback = getSpriteUrl(
-                            s.spriteId.toString(),
-                            "",
-                            "shiny",
-                            "3d",
-                            s.canonical,
-                          );
-                          if (img.src !== fallback) {
-                            img.style.imageRendering = "auto";
-                            img.src = fallback;
-                          } else {
-                            img.style.display = "none";
-                          }
-                        }}
                       />
                       {!s.isForm && (
                         <span className="w-10 text-xs text-text-faint tabular-nums shrink-0">
@@ -1387,21 +1421,11 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                           : "border-border-subtle text-text-muted hover:text-text-primary"
                       }`}
                     >
-                      <img
-                        src={getDefaultSpriteUrl(f.spriteId)}
+                      <PokemonThumb
+                        spriteId={f.spriteId}
+                        canonical={f.canonical}
                         alt=""
                         className="h-6 w-6 object-contain shrink-0"
-                        style={{ imageRendering: "pixelated" }}
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          const fallback = getSpriteUrl(f.spriteId.toString(), "", "shiny", "3d", f.canonical);
-                          if (img.src !== fallback) {
-                            img.style.imageRendering = "auto";
-                            img.src = fallback;
-                          } else {
-                            img.style.display = "none";
-                          }
-                        }}
                       />
                       <span className="capitalize truncate max-w-[10rem]">
                         {f.formName || getPkmnName(f, language)}
