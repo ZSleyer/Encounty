@@ -2,6 +2,8 @@
 // the dedicated changelog page (full release list). Renders a small, safe
 // Markdown subset from GitHub release notes.
 
+import { t, getLang, dateLocale } from "./i18n.js";
+
 /**
  * Escapes HTML-significant characters so untrusted release notes can be
  * injected as text before the Markdown subset is applied.
@@ -70,13 +72,13 @@ export function renderChangelogMarkdown(escaped) {
  * Formats an ISO date string into a human-readable date, falling back to the
  * raw value when parsing fails.
  * @param {string} iso ISO 8601 date string.
- * @returns {string} Localized date, e.g. "16 July 2026".
+ * @returns {string} Localized date in the active language, e.g. "16 July 2026".
  */
 function formatReleaseDate(iso) {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleDateString("en-GB", {
+  return date.toLocaleDateString(dateLocale(getLang()), {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -92,7 +94,7 @@ function formatReleaseDate(iso) {
  */
 export function renderReleaseList(releases) {
   if (!Array.isArray(releases) || releases.length === 0) {
-    return '<p class="text-sm text-text-muted">No releases found.</p>';
+    return `<p class="text-sm text-text-muted">${escapeHtml(t("changelog.noReleasesFound"))}</p>`;
   }
   return releases
     .map((release) => {
@@ -101,7 +103,7 @@ export function renderReleaseList(releases) {
       const body = (release.body || "").trim();
       const notes = body
         ? renderChangelogMarkdown(escapeHtml(body))
-        : '<p class="mt-2 text-sm text-text-muted">No release notes provided.</p>';
+        : `<p class="mt-2 text-sm text-text-muted">${escapeHtml(t("changelog.noNotes"))}</p>`;
       return `<article class="border-b border-border-subtle pb-8 last:border-b-0 last:pb-0">
         <div class="flex flex-wrap items-baseline gap-3">
           <h2 class="t-heading text-lg text-text-primary">${tag}</h2>

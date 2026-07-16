@@ -45,10 +45,11 @@
     <link rel="icon" type="image/png" href="/app-icon.png" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body>
+  <body data-page="index">
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-none focus:bg-bg-card focus:px-4 focus:py-2"
+      data-i18n="a11y.skip"
       >Skip to content</a
     >
 
@@ -62,21 +63,44 @@
           <span class="t-heading text-sm text-text-primary">Encounty</span>
         </a>
         <div class="flex items-center gap-2 text-sm sm:gap-6">
-          <a href="#demo" class="hidden text-text-secondary hover:text-text-primary sm:block"
+          <a
+            href="#demo"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.demo"
             >Demo</a
           >
-          <a href="#features" class="hidden text-text-secondary hover:text-text-primary sm:block"
+          <a
+            href="#features"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.features"
             >Features</a
           >
           <a
             href="#how-it-works"
             class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.howItWorks"
             >How it works</a
           >
-          <a href="#changelog" class="hidden text-text-secondary hover:text-text-primary sm:block"
+          <a
+            href="#changelog"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.changelog"
             >Changelog</a
           >
-          <a href="https://github.com/ZSleyer/Encounty" class="t-label">GitHub</a>
+          <a href="https://github.com/ZSleyer/Encounty" class="t-label" data-i18n="nav.github"
+            >GitHub</a
+          >
+          <select
+            id="lang-select"
+            class="lang-select"
+            data-i18n-attr="aria-label:lang.switcherAria"
+          >
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="ja">日本語</option>
+          </select>
         </div>
       </nav>
     </header>
@@ -86,13 +110,13 @@
       <section class="hero-glow px-4 pt-20 pb-16 text-center">
         <div class="mx-auto max-w-3xl">
           <img src="/app-icon.png" alt="" width="96" height="96" class="mx-auto mb-8" />
-          <span class="t-label t-label--accent">Open source · AGPL-3.0</span>
+          <span class="t-label t-label--accent" data-i18n="hero.badge">Open source · AGPL-3.0</span>
           <h1
             class="t-heading mt-6 text-4xl leading-tight text-text-primary sm:text-5xl"
           >
             Encounty
           </h1>
-          <p class="mx-auto mt-6 max-w-xl text-lg text-text-secondary">
+          <p class="mx-auto mt-6 max-w-xl text-lg text-text-secondary" data-i18n="hero.tagline">
             The modern, open-source auto shiny counter for Pokémon shiny hunting. Capture your
             game, let the GPU detect encounters, and never click a tally counter again.
           </p>
@@ -101,18 +125,21 @@
               href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-x64.AppImage"
               data-os="linux"
               class="dl-btn dl-btn--primary px-6 py-3"
+              data-i18n="dl.linux"
               >Download for Linux</a
             >
             <a
               href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.dmg"
               data-os="macos"
               class="dl-btn px-6 py-3"
+              data-i18n="dl.macos"
               >Download for macOS</a
             >
             <div data-os="windows" class="dl-btn dl-split">
               <a
                 href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup.exe"
                 class="dl-split__main px-6 py-3"
+                data-i18n="dl.windows"
                 >Download for Windows</a
               >
               <button
@@ -123,6 +150,7 @@
                 aria-expanded="false"
                 aria-controls="win-portable-menu"
                 aria-label="More Windows download options"
+                data-i18n-attr="aria-label:dl.winMoreAria"
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
                   <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" />
@@ -133,20 +161,24 @@
                   href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty.exe"
                   class="dl-split__item"
                   role="menuitem"
+                  data-i18n="dl.portable"
                   >Portable .exe (no install)</a
                 >
               </div>
             </div>
           </div>
-          <p class="mt-4 text-sm text-text-muted">
+          <p class="mt-4 text-sm text-text-muted" data-i18n="dl.formats">
             AppImage (Linux) · installer + portable .exe (Windows 11) · DMG (macOS, Apple
             Silicon) · free & AGPL-3.0
           </p>
           <p class="mt-2 text-sm text-text-muted">
-            On ARM64? The Windows download already works on ARM. Linux ARM64:
+            <span data-i18n="dl.armPre"
+              >On ARM64? The Windows download already works on ARM. Linux ARM64:</span
+            >
             <a
               href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.AppImage"
               class="underline hover:text-text-primary"
+              data-i18n="dl.armLink"
               >AppImage (arm64)</a
             >.
           </p>
@@ -155,12 +187,13 @@
 
       <!-- Screenshots -->
       <section aria-labelledby="screenshots-heading" class="px-4 pb-20">
-        <h2 id="screenshots-heading" class="sr-only">Screenshots</h2>
+        <h2 id="screenshots-heading" class="sr-only" data-i18n="screens.heading">Screenshots</h2>
         <div class="mx-auto max-w-6xl">
           <div class="t-panel overflow-hidden p-2">
             <img
               src="/screenshots/dashboard.png"
               alt="Encounty dashboard showing active shiny hunts with encounter counter, timer and odds"
+              data-i18n-attr="alt:screens.dashboardAlt"
               class="w-full"
               width="2088"
               height="1305"
@@ -171,11 +204,12 @@
               <img
                 src="/screenshots/new-hunt.png"
                 alt="Add Pokémon dialog with Pokédex search, sprite styles and hunt method selection"
+                data-i18n-attr="alt:screens.newHuntAlt"
                 class="w-full"
                 width="2088"
                 height="1305"
               />
-              <figcaption class="px-3 py-2 text-sm text-text-muted">
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.newHuntCap">
                 Pick any game from Gen 1-9 and one of 60+ hunt methods.
               </figcaption>
             </figure>
@@ -183,11 +217,12 @@
               <img
                 src="/screenshots/overlay.png"
                 alt="OBS overlay editor with drag-and-drop layers, sprite, counter and glow properties"
+                data-i18n-attr="alt:screens.overlayAlt"
                 class="w-full"
                 width="2088"
                 height="1305"
               />
-              <figcaption class="px-3 py-2 text-sm text-text-muted">
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.overlayCap">
                 Design your stream overlay with drag & drop and live preview.
               </figcaption>
             </figure>
@@ -201,7 +236,11 @@
       <section aria-labelledby="changelog-heading" id="changelog" class="px-4 py-20">
         <div class="mx-auto max-w-4xl">
           <div class="flex flex-wrap items-center justify-center gap-3">
-            <h2 id="changelog-heading" class="t-heading text-center text-2xl text-text-primary">
+            <h2
+              id="changelog-heading"
+              class="t-heading text-center text-2xl text-text-primary"
+              data-i18n="changelog.heading"
+            >
               Changelog
             </h2>
             <span id="changelog-version" class="t-label t-label--accent"></span>
@@ -209,7 +248,9 @@
           <div class="t-panel mt-8 p-6">
             <div id="changelog-wrap" class="changelog-clamp relative overflow-hidden">
               <div id="changelog-content" aria-live="polite">
-                <p class="text-sm text-text-muted">Loading latest release&hellip;</p>
+                <p class="text-sm text-text-muted" data-i18n="changelog.loadingLatest">
+                  Loading latest release&hellip;
+                </p>
               </div>
               <div class="changelog-fade" aria-hidden="true"></div>
             </div>
@@ -220,10 +261,15 @@
                 class="dl-btn px-4 py-2 text-sm"
                 aria-expanded="false"
                 aria-controls="changelog-content"
+                data-i18n="changelog.showFull"
               >
                 Show full changelog
               </button>
-              <a href="/Encounty/changelog.html" class="dl-btn px-4 py-2 text-sm">
+              <a
+                href="/Encounty/changelog.html"
+                class="dl-btn px-4 py-2 text-sm"
+                data-i18n="changelog.viewAll"
+              >
                 View all releases
               </a>
             </div>
@@ -239,10 +285,14 @@
           <h2
             id="demo-heading"
             class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="demo.heading"
           >
             See it in action
           </h2>
-          <p class="mx-auto mt-4 max-w-xl text-center text-text-secondary">
+          <p
+            class="mx-auto mt-4 max-w-xl text-center text-text-secondary"
+            data-i18n="demo.text"
+          >
             Creating a detection template takes under a minute: snapshot your game, mark the
             encounter text, test the match, done.
           </p>
@@ -262,9 +312,10 @@
               class="w-full cursor-pointer"
               tabindex="0"
               aria-label="Demo video: creating an auto-detection template in Encounty. Click or press Enter to pause or resume."
+              data-i18n-attr="aria-label:demo.videoAria"
             >
               <source src="/template-demo.mp4" type="video/mp4" />
-              Your browser does not support the video tag.
+              <span data-i18n="demo.noVideo">Your browser does not support the video tag.</span>
             </video>
           </div>
         </div>
@@ -278,48 +329,61 @@
           <h2
             id="features-heading"
             class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="features.heading"
           >
             Features
           </h2>
           <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue">GPU-accelerated auto-detection</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="font-semibold text-accent-blue" data-i18n="features.gpu.title">
+                GPU-accelerated auto-detection
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.gpu.desc">
                 Capture your game window directly in-app. WebGPU compute shaders run template
                 matching in real time and count encounters for you, with a CPU fallback.
               </p>
             </article>
             <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue">All games, Gen 1-9</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="font-semibold text-accent-blue" data-i18n="features.games.title">
+                All games, Gen 1-9
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.games.desc">
                 Every mainline Pokémon game with game-specific shiny odds, including the Shiny
                 Charm and accurate per-method probabilities.
               </p>
             </article>
             <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue">60+ hunt methods</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="font-semibold text-accent-blue" data-i18n="features.methods.title">
+                60+ hunt methods
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.methods.desc">
                 Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts and many
                 more, each with its own odds model.
               </p>
             </article>
             <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue">Unlimited parallel hunts</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="font-semibold text-accent-blue" data-i18n="features.parallel.title">
+                Unlimited parallel hunts
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.parallel.desc">
                 Run as many simultaneous hunts as your hardware allows, each with its own
                 independent capture stream.
               </p>
             </article>
             <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue">OBS overlay editor</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="font-semibold text-accent-blue" data-i18n="features.overlay.title">
+                OBS overlay editor
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.overlay.desc">
                 Show your counters on stream: drag-and-drop overlay editor with live preview and a
                 browser-source URL for OBS.
               </p>
             </article>
             <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue">Hotkeys, templates & more</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="font-semibold text-accent-blue" data-i18n="features.more.title">
+                Hotkeys, templates & more
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.more.desc">
                 Global hotkeys for manual counting, template import/export, a Pokédex with sprite
                 support, and a UI in 5 languages.
               </p>
@@ -336,29 +400,30 @@
           <h2
             id="how-heading"
             class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="how.heading"
           >
             How it works
           </h2>
           <ol class="mt-12 grid gap-6 sm:grid-cols-3">
             <li class="t-panel p-6">
               <span aria-hidden="true" class="t-step-n">1</span>
-              <h3 class="mt-4 font-semibold">Create a hunt</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="mt-4 font-semibold" data-i18n="how.step1.title">Create a hunt</h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="how.step1.desc">
                 Choose your game, target Pokémon and hunt method. Encounty knows the correct
                 odds.
               </p>
             </li>
             <li class="t-panel p-6">
               <span aria-hidden="true" class="t-step-n">2</span>
-              <h3 class="mt-4 font-semibold">Capture your game</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="mt-4 font-semibold" data-i18n="how.step2.title">Capture your game</h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="how.step2.desc">
                 Select the game window or screen. Mark the encounter with a template, once.
               </p>
             </li>
             <li class="t-panel p-6">
               <span aria-hidden="true" class="t-step-n">3</span>
-              <h3 class="mt-4 font-semibold">Hunt</h3>
-              <p class="mt-2 text-sm text-text-secondary">
+              <h3 class="mt-4 font-semibold" data-i18n="how.step3.title">Hunt</h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="how.step3.desc">
                 Encounters are detected and counted automatically while you play. Until it
                 sparkles.
               </p>
@@ -374,17 +439,20 @@
         class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-8 text-center text-sm text-text-muted"
       >
         <p>
-          <a href="https://github.com/ZSleyer/Encounty" class="underline hover:text-text-primary"
+          <a
+            href="https://github.com/ZSleyer/Encounty"
+            class="underline hover:text-text-primary"
+            data-i18n="footer.source"
             >Source on GitHub</a
           >
-          · licensed under
+          · <span data-i18n="footer.licensedUnder">licensed under</span>
           <a
             href="https://github.com/ZSleyer/Encounty/blob/main/LICENSE"
             class="underline hover:text-text-primary"
             >AGPL-3.0</a
           >
         </p>
-        <p>
+        <p data-i18n="footer.disclaimer">
           Encounty is a fan project and is not affiliated with Nintendo, Game Freak or The
           Pokémon Company.
         </p>
@@ -399,6 +467,11 @@
     <script type="module">
       import { detectOS } from "/src/os-detect.js";
       import { escapeHtml, renderChangelogMarkdown } from "/src/changelog.js";
+      import { applyI18n, initLangSwitcher, t } from "/src/i18n.js";
+
+      // Localize the static markup and wire the header language switcher.
+      applyI18n();
+      initLangSwitcher();
 
       const demo = document.getElementById("demo-video");
       // WCAG 2.2.2: auto-playing motion needs a pause mechanism and must
@@ -486,10 +559,13 @@
           const body = (release.body || "").trim();
           content.innerHTML = body
             ? renderChangelogMarkdown(escapeHtml(body))
-            : '<p class="text-sm text-text-muted">No release notes provided.</p>';
+            : `<p class="text-sm text-text-muted">${escapeHtml(t("changelog.noNotes"))}</p>`;
         } catch {
-          content.innerHTML =
-            '<p class="text-sm text-text-muted">Could not load the changelog right now. <a href="https://github.com/ZSleyer/Encounty/releases/latest" class="underline hover:text-text-primary">View it on GitHub</a>.</p>';
+          content.innerHTML = `<p class="text-sm text-text-muted">${escapeHtml(
+            t("changelog.loadErrorPre"),
+          )} <a href="https://github.com/ZSleyer/Encounty/releases/latest" class="underline hover:text-text-primary">${escapeHtml(
+            t("changelog.viewOnGithub"),
+          )}</a>.</p>`;
         }
       }
       loadChangelog();
@@ -500,7 +576,9 @@
       changelogToggle.addEventListener("click", () => {
         const expanded = changelogWrap.classList.toggle("is-expanded");
         changelogToggle.setAttribute("aria-expanded", String(expanded));
-        changelogToggle.textContent = expanded ? "Show less" : "Show full changelog";
+        changelogToggle.textContent = expanded
+          ? t("changelog.showLess")
+          : t("changelog.showFull");
       });
     </script>
   </body>

@@ -12,10 +12,11 @@
     <link rel="icon" type="image/png" href="/app-icon.png" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body>
+  <body data-page="changelog">
     <a
       href="#main"
       class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-none focus:bg-bg-card focus:px-4 focus:py-2"
+      data-i18n="a11y.skip"
       >Skip to content</a
     >
 
@@ -29,26 +30,45 @@
           <span class="t-heading text-sm text-text-primary">Encounty</span>
         </a>
         <div class="flex items-center gap-2 text-sm sm:gap-6">
-          <a href="/Encounty/#demo" class="hidden text-text-secondary hover:text-text-primary sm:block"
+          <a
+            href="/Encounty/#demo"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.demo"
             >Demo</a
           >
           <a
             href="/Encounty/#features"
             class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.features"
             >Features</a
           >
           <a
             href="/Encounty/#how-it-works"
             class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.howItWorks"
             >How it works</a
           >
           <a
             href="/Encounty/changelog.html"
             class="hidden text-text-secondary hover:text-text-primary sm:block"
             aria-current="page"
+            data-i18n="nav.changelog"
             >Changelog</a
           >
-          <a href="https://github.com/ZSleyer/Encounty" class="t-label">GitHub</a>
+          <a href="https://github.com/ZSleyer/Encounty" class="t-label" data-i18n="nav.github"
+            >GitHub</a
+          >
+          <select
+            id="lang-select"
+            class="lang-select"
+            data-i18n-attr="aria-label:lang.switcherAria"
+          >
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="ja">日本語</option>
+          </select>
         </div>
       </nav>
     </header>
@@ -57,19 +77,30 @@
       <section aria-labelledby="changelog-heading" class="px-4 pt-16 pb-20">
         <div class="mx-auto max-w-4xl">
           <div class="flex flex-wrap items-center justify-center gap-3">
-            <h1 id="changelog-heading" class="t-heading text-center text-3xl text-text-primary">
+            <h1
+              id="changelog-heading"
+              class="t-heading text-center text-3xl text-text-primary"
+              data-i18n="changelog.pageHeading"
+            >
               Changelog
             </h1>
           </div>
           <p class="mx-auto mt-4 max-w-xl text-center text-text-secondary">
-            Every Encounty release, newest first. Want the latest download?
-            <a href="/Encounty/update.html" class="underline hover:text-text-primary"
+            <span data-i18n="changelog.pageIntroPre"
+              >Every Encounty release, newest first. Want the latest download?</span
+            >
+            <a
+              href="/Encounty/update.html"
+              class="underline hover:text-text-primary"
+              data-i18n="changelog.pageIntroLink"
               >Head to the update page</a
             >.
           </p>
           <div class="t-panel mt-10 p-6 sm:p-8">
             <div id="release-list" aria-live="polite">
-              <p class="text-sm text-text-muted">Loading releases&hellip;</p>
+              <p class="text-sm text-text-muted" data-i18n="changelog.loadingList">
+                Loading releases&hellip;
+              </p>
             </div>
           </div>
         </div>
@@ -82,17 +113,20 @@
         class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-8 text-center text-sm text-text-muted"
       >
         <p>
-          <a href="https://github.com/ZSleyer/Encounty" class="underline hover:text-text-primary"
+          <a
+            href="https://github.com/ZSleyer/Encounty"
+            class="underline hover:text-text-primary"
+            data-i18n="footer.source"
             >Source on GitHub</a
           >
-          · licensed under
+          · <span data-i18n="footer.licensedUnder">licensed under</span>
           <a
             href="https://github.com/ZSleyer/Encounty/blob/main/LICENSE"
             class="underline hover:text-text-primary"
             >AGPL-3.0</a
           >
         </p>
-        <p>
+        <p data-i18n="footer.disclaimer">
           Encounty is a fan project and is not affiliated with Nintendo, Game Freak or The
           Pokémon Company.
         </p>
@@ -107,6 +141,11 @@
 
     <script type="module">
       import { renderReleaseList } from "/src/changelog.js";
+      import { applyI18n, initLangSwitcher, t } from "/src/i18n.js";
+
+      // Localize the static markup and wire the header language switcher.
+      applyI18n();
+      initLangSwitcher();
 
       // Same copyright range logic as the Encounty app footer.
       const year = new Date().getFullYear();
@@ -122,14 +161,16 @@
           if (!res.ok) throw new Error("GitHub API request failed");
           const releases = await res.json();
           if (!Array.isArray(releases) || releases.length === 0) {
-            list.innerHTML =
-              '<p class="text-sm text-text-muted">No releases have been published yet.</p>';
+            list.innerHTML = `<p class="text-sm text-text-muted">${t("changelog.noReleases")}</p>`;
             return;
           }
           list.innerHTML = renderReleaseList(releases);
         } catch {
-          list.innerHTML =
-            '<p class="text-sm text-text-muted">Could not load the changelog right now. <a href="https://github.com/ZSleyer/Encounty/releases" class="underline hover:text-text-primary">View all releases on GitHub</a>.</p>';
+          list.innerHTML = `<p class="text-sm text-text-muted">${t(
+            "changelog.loadErrorPre",
+          )} <a href="https://github.com/ZSleyer/Encounty/releases" class="underline hover:text-text-primary">${t(
+            "changelog.viewAllOnGithub",
+          )}</a>.</p>`;
         }
       }
       loadReleases();
