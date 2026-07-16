@@ -38,8 +38,8 @@ var pokeAPILangMap = map[string]string{
 }
 
 // ProgressFn reports sync progress. step describes the current phase
-// (e.g. "species", "forms", "names", "form_names") and detail provides
-// optional extra information.
+// (e.g. "species", "forms", "cosmetic_forms", "names", "form_names") and
+// detail provides optional extra information.
 type ProgressFn func(step string, detail string)
 
 // SyncFromPokeAPI downloads the latest species, forms, and localized names
@@ -67,6 +67,18 @@ func SyncFromPokeAPI(current []Entry, progress ProgressFn) (SyncResult, []Entry,
 		slog.Warn("Pokédex sync: forms fetch failed, continuing", "error", err)
 	} else {
 		added = append(added, formAdded...)
+	}
+
+	// Fetch and merge cosmetic-only forms via GraphQL. These forms have no
+	// dedicated pokemon entry (ID > 10000) and are therefore invisible to the
+	// forms phase above. Running before the form-names phase lets the newly
+	// added canonicals pick up their localized names automatically.
+	callProgress(progress, "cosmetic_forms", "")
+	cosmeticAdded, err := fetchAndMergeCosmeticForms(&current)
+	if err != nil {
+		slog.Warn("Pokédex sync: cosmetic forms fetch failed, continuing", "error", err)
+	} else {
+		added = append(added, cosmeticAdded...)
 	}
 
 	// Fetch and apply localized species names via GraphQL.
@@ -260,6 +272,111 @@ func collectFormGenerations(forms []pokemonFormRow) []int {
 		}
 	}
 	return out
+}
+
+// cosmeticFormRow is a single pokemonform record returned by the GraphQL
+// query in fetchAndMergeCosmeticForms. These rows describe purely cosmetic
+// form variants (Unown letters, Vivillon patterns, Furfrou trims, etc.) that
+// are attached to the default pokemon entry and have no own pokemon ID.
+type cosmeticFormRow struct {
+	Name      string `json:"name"`
+	FormName  string `json:"form_name"`
+	PokemonID int    `json:"pokemon_id"`
+	Pokemon   struct {
+		SpeciesID int `json:"pokemon_species_id"`
+	} `json:"pokemon"`
+	VersionGroup           formVGRow    `json:"versiongroup"`
+	PokemonFormGenerations []formGenRow `json:"pokemonformgenerations"`
+}
+
+// fetchAndMergeCosmeticForms fetches non-default, non-battle-only pokemonform
+// records attached to base pokemon entries (ID <= 10000) from the PokéAPI
+// GraphQL endpoint and merges them into current as additional forms of their
+// species. Unlike the variant forms handled by fetchAndMergeForms, these
+// cosmetic forms have no numeric sprite ID; they are addressed by a
+// name-based sprite slug instead. Returns canonical names of newly added forms.
+func fetchAndMergeCosmeticForms(current *[]Entry) ([]string, error) {
+	q := `{"query":"query{pokemonform(where:{is_default:{_eq:false},pokemon_id:{_lte:10000},is_battle_only:{_eq:false}}){name form_name pokemon_id pokemon{pokemon_species_id} versiongroup{generation_id} pokemonformgenerations{generation_id}}}"}`
+
+	var glResp struct {
+		Data struct {
+			PokemonForm []cosmeticFormRow `json:"pokemonform"`
+		} `json:"data"`
+	}
+	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &glResp); err != nil {
+		return nil, fmt.Errorf("fetch cosmetic forms: %w", err)
+	}
+
+	return mergeCosmeticFormRows(current, glResp.Data.PokemonForm), nil
+}
+
+// mergeCosmeticFormRows merges cosmetic pokemonform rows into current.
+// Rows without a form_name, rows of unknown species, and "-totem" forms
+// (identical appearance, only larger) are skipped. Because
+// pokedex_forms.canonical is UNIQUE across the whole table, a row whose name
+// collides with any existing species canonical is skipped, and a row whose
+// name matches an existing form is only used to refresh that form's sprite
+// slug and generations when it belongs to the same species. Returns the
+// canonical names of newly added forms.
+func mergeCosmeticFormRows(current *[]Entry, rows []cosmeticFormRow) []string {
+	specIndex := make(map[int]int, len(*current))
+	speciesCanonicals := make(map[string]bool, len(*current))
+	// formLoc maps an existing form canonical to its entry and form indices.
+	type formPos struct{ entryIdx, formIdx int }
+	formLoc := make(map[string]formPos)
+	for i := range *current {
+		specIndex[(*current)[i].ID] = i
+		speciesCanonicals[(*current)[i].Canonical] = true
+		for j := range (*current)[i].Forms {
+			formLoc[(*current)[i].Forms[j].Canonical] = formPos{entryIdx: i, formIdx: j}
+		}
+	}
+
+	var added []string
+	for _, row := range rows {
+		if row.FormName == "" || strings.Contains(row.Name, "-totem") {
+			continue
+		}
+		speciesID := row.Pokemon.SpeciesID
+		entryIdx, ok := specIndex[speciesID]
+		if !ok {
+			continue
+		}
+		if speciesCanonicals[row.Name] {
+			continue
+		}
+		slug := fmt.Sprintf("%d-%s", speciesID, row.FormName)
+		gens := collectCosmeticFormGenerations(row)
+		if pos, exists := formLoc[row.Name]; exists {
+			// Refresh sprite slug and generations only when the existing
+			// form belongs to the same species; otherwise the row would
+			// hijack another species' form.
+			if (*current)[pos.entryIdx].ID == speciesID {
+				(*current)[pos.entryIdx].Forms[pos.formIdx].SpriteSlug = slug
+				(*current)[pos.entryIdx].Forms[pos.formIdx].Generations = gens
+			}
+			continue
+		}
+		(*current)[entryIdx].Forms = append((*current)[entryIdx].Forms, Form{
+			Canonical:   row.Name,
+			SpriteID:    0,
+			SpriteSlug:  slug,
+			Generations: gens,
+		})
+		formLoc[row.Name] = formPos{entryIdx: entryIdx, formIdx: len((*current)[entryIdx].Forms) - 1}
+		added = append(added, row.Name)
+	}
+	return added
+}
+
+// collectCosmeticFormGenerations adapts a cosmeticFormRow to the shared
+// collectFormGenerations helper; versiongroup and pokemonformgenerations are
+// structurally identical between the two GraphQL queries.
+func collectCosmeticFormGenerations(row cosmeticFormRow) []int {
+	return collectFormGenerations([]pokemonFormRow{{
+		VersionGroup:           row.VersionGroup,
+		PokemonFormGenerations: row.PokemonFormGenerations,
+	}})
 }
 
 // fetchAndApplySpeciesNames fetches localized species names from the PokéAPI

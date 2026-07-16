@@ -742,3 +742,218 @@ func TestCollectFormGenerationsSorted(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// mergeCosmeticFormRows
+// ---------------------------------------------------------------------------
+
+// cosmeticRow builds a cosmeticFormRow fixture for merge tests. gens fills
+// pokemonformgenerations; vgGen fills the versiongroup fallback.
+func cosmeticRow(name, formName string, speciesID int, gens []int, vgGen int) cosmeticFormRow {
+	row := cosmeticFormRow{Name: name, FormName: formName, PokemonID: speciesID}
+	row.Pokemon.SpeciesID = speciesID
+	row.VersionGroup = formVGRow{GenerationID: vgGen}
+	for _, g := range gens {
+		row.PokemonFormGenerations = append(row.PokemonFormGenerations, formGenRow{GenerationID: g})
+	}
+	return row
+}
+
+// cosmeticFixtureEntries returns a small Pokédex with one bare species, one
+// species carrying an existing cosmetic form, and one species carrying a
+// regular variant form.
+func cosmeticFixtureEntries() []Entry {
+	return []Entry{
+		{ID: 201, Canonical: "unown"},
+		{ID: 666, Canonical: "vivillon", Forms: []Form{
+			{Canonical: "vivillon-fancy", SpriteID: 0, SpriteSlug: "666-old", Generations: []int{6}},
+		}},
+		{ID: 25, Canonical: "pikachu", Forms: []Form{
+			{Canonical: testFormName, SpriteID: 10100},
+		}},
+	}
+}
+
+// findForm returns the form with the given canonical, or nil.
+func findForm(entries []Entry, canonical string) *Form {
+	for i := range entries {
+		for j := range entries[i].Forms {
+			if entries[i].Forms[j].Canonical == canonical {
+				return &entries[i].Forms[j]
+			}
+		}
+	}
+	return nil
+}
+
+// countForms returns the total number of forms across all entries.
+func countForms(entries []Entry) int {
+	n := 0
+	for i := range entries {
+		n += len(entries[i].Forms)
+	}
+	return n
+}
+
+// TestMergeCosmeticFormRowsAddsNew verifies that a fresh cosmetic form is
+// appended to its species with sprite ID 0, a slug built from species ID and
+// form_name, and the explicit generations list.
+func TestMergeCosmeticFormRowsAddsNew(t *testing.T) {
+	entries := cosmeticFixtureEntries()
+	added := mergeCosmeticFormRows(&entries, []cosmeticFormRow{
+		cosmeticRow("unown-b", "b", 201, []int{2, 3}, 2),
+	})
+
+	if len(added) != 1 || added[0] != "unown-b" {
+		t.Fatalf("added = %v, want [unown-b]", added)
+	}
+	f := findForm(entries, "unown-b")
+	if f == nil {
+		t.Fatal("unown-b not attached to any entry")
+	}
+	if f.SpriteID != 0 {
+		t.Errorf("SpriteID = %d, want 0", f.SpriteID)
+	}
+	if f.SpriteSlug != "201-b" {
+		t.Errorf("SpriteSlug = %q, want 201-b", f.SpriteSlug)
+	}
+	if len(f.Generations) != 2 || f.Generations[0] != 2 || f.Generations[1] != 3 {
+		t.Errorf("Generations = %v, want [2 3]", f.Generations)
+	}
+	if len(entries[0].Forms) != 1 {
+		t.Errorf("unown forms = %d, want 1", len(entries[0].Forms))
+	}
+}
+
+// TestMergeCosmeticFormRowsSkips checks all row-level skip conditions:
+// missing form_name, unknown species, totem forms, and collisions with an
+// existing species canonical.
+func TestMergeCosmeticFormRowsSkips(t *testing.T) {
+	tests := []struct {
+		name string
+		row  cosmeticFormRow
+	}{
+		{"empty form_name", cosmeticRow("unown-b", "", 201, []int{2}, 2)},
+		{"unknown species", cosmeticRow("missingno-x", "x", 999, []int{1}, 1)},
+		{"totem suffix", cosmeticRow("gumshoos-totem", "totem", 201, []int{7}, 7)},
+		{"totem infix", cosmeticRow("raticate-totem-alola", "totem-alola", 201, []int{7}, 7)},
+		{"species canonical collision", cosmeticRow("pikachu", "weird", 25, []int{1}, 1)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries := cosmeticFixtureEntries()
+			before := countForms(entries)
+			added := mergeCosmeticFormRows(&entries, []cosmeticFormRow{tt.row})
+			if len(added) != 0 {
+				t.Errorf("added = %v, want empty", added)
+			}
+			if got := countForms(entries); got != before {
+				t.Errorf("form count = %d, want %d", got, before)
+			}
+		})
+	}
+}
+
+// TestMergeCosmeticFormRowsUpdatesExisting verifies the update path: a row
+// matching an existing form of the same species refreshes only sprite slug
+// and generations, leaves the sprite ID untouched, and is not reported as
+// newly added.
+func TestMergeCosmeticFormRowsUpdatesExisting(t *testing.T) {
+	entries := cosmeticFixtureEntries()
+	added := mergeCosmeticFormRows(&entries, []cosmeticFormRow{
+		cosmeticRow("vivillon-fancy", "fancy", 666, []int{6, 7}, 6),
+	})
+
+	if len(added) != 0 {
+		t.Fatalf("added = %v, want empty for update", added)
+	}
+	if got := countForms(entries); got != 2 {
+		t.Fatalf("form count = %d, want 2", got)
+	}
+	f := findForm(entries, "vivillon-fancy")
+	if f == nil {
+		t.Fatal("vivillon-fancy missing after update")
+	}
+	if f.SpriteSlug != "666-fancy" {
+		t.Errorf("SpriteSlug = %q, want 666-fancy", f.SpriteSlug)
+	}
+	if len(f.Generations) != 2 || f.Generations[0] != 6 || f.Generations[1] != 7 {
+		t.Errorf("Generations = %v, want [6 7]", f.Generations)
+	}
+	if f.SpriteID != 0 {
+		t.Errorf("SpriteID = %d, want unchanged 0", f.SpriteID)
+	}
+}
+
+// TestMergeCosmeticFormRowsSkipsFormOfOtherSpecies verifies that a row whose
+// name collides with a form of a different species neither adds a duplicate
+// canonical (which would break the UNIQUE constraint) nor touches the
+// existing form.
+func TestMergeCosmeticFormRowsSkipsFormOfOtherSpecies(t *testing.T) {
+	entries := cosmeticFixtureEntries()
+	// pikachu-alola exists under species 25; the row claims species 666.
+	added := mergeCosmeticFormRows(&entries, []cosmeticFormRow{
+		cosmeticRow(testFormName, "alola", 666, []int{7}, 7),
+	})
+
+	if len(added) != 0 {
+		t.Fatalf("added = %v, want empty", added)
+	}
+	if got := countForms(entries); got != 2 {
+		t.Fatalf("form count = %d, want 2", got)
+	}
+	f := findForm(entries, testFormName)
+	if f == nil {
+		t.Fatal("pikachu-alola missing")
+	}
+	if f.SpriteSlug != "" || f.SpriteID != 10100 {
+		t.Errorf("pikachu-alola modified: slug=%q sprite_id=%d", f.SpriteSlug, f.SpriteID)
+	}
+}
+
+// TestMergeCosmeticFormRowsGenerationsFallback verifies that a row without
+// pokemonformgenerations entries falls back to the version group generation,
+// mirroring collectFormGenerations semantics.
+func TestMergeCosmeticFormRowsGenerationsFallback(t *testing.T) {
+	entries := cosmeticFixtureEntries()
+	added := mergeCosmeticFormRows(&entries, []cosmeticFormRow{
+		cosmeticRow("unown-question", "question", 201, nil, 3),
+	})
+
+	if len(added) != 1 {
+		t.Fatalf("added = %v, want 1 entry", added)
+	}
+	f := findForm(entries, "unown-question")
+	if f == nil {
+		t.Fatal("unown-question missing")
+	}
+	if len(f.Generations) != 1 || f.Generations[0] != 3 {
+		t.Errorf("Generations = %v, want [3]", f.Generations)
+	}
+	if f.SpriteSlug != "201-question" {
+		t.Errorf("SpriteSlug = %q, want 201-question", f.SpriteSlug)
+	}
+}
+
+// TestMergeCosmeticFormRowsDuplicateWithinBatch verifies that a canonical
+// appearing twice in the same response is added only once; the second row
+// takes the update path instead of creating a UNIQUE-violating duplicate.
+func TestMergeCosmeticFormRowsDuplicateWithinBatch(t *testing.T) {
+	entries := cosmeticFixtureEntries()
+	added := mergeCosmeticFormRows(&entries, []cosmeticFormRow{
+		cosmeticRow("unown-b", "b", 201, []int{2}, 2),
+		cosmeticRow("unown-b", "b", 201, []int{2, 3}, 2),
+	})
+
+	if len(added) != 1 {
+		t.Fatalf("added = %v, want exactly 1", added)
+	}
+	if got := len(entries[0].Forms); got != 1 {
+		t.Fatalf("unown forms = %d, want 1", got)
+	}
+	// The second row refreshed the generations of the freshly added form.
+	f := findForm(entries, "unown-b")
+	if len(f.Generations) != 2 {
+		t.Errorf("Generations = %v, want [2 3]", f.Generations)
+	}
+}
