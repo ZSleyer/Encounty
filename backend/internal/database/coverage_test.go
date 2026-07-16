@@ -41,6 +41,7 @@ func TestSaveAndLoadPokedex(t *testing.T) {
 	forms := []database.PokedexFormRow{
 		{SpeciesID: 25, Canonical: "pikachu-gmax", SpriteID: 10025, NamesJSON: []byte(`{"en":"Gigantamax Pikachu"}`)},
 		{SpeciesID: 4, Canonical: "charmander-default", SpriteID: 4, NamesJSON: []byte(`{"en":"Charmander"}`)},
+		{SpeciesID: 25, Canonical: "pikachu-cosmetic", SpriteID: 0, SpriteSlug: "25-cosmetic", NamesJSON: []byte(`{}`)},
 	}
 
 	if err := db.SavePokedex(species, forms); err != nil {
@@ -70,8 +71,8 @@ func TestSaveAndLoadPokedex(t *testing.T) {
 	}
 
 	// Forms are ordered by species_id, then id.
-	if len(gotForms) != 2 {
-		t.Fatalf("forms len = %d, want 2", len(gotForms))
+	if len(gotForms) != 3 {
+		t.Fatalf("forms len = %d, want 3", len(gotForms))
 	}
 	if gotForms[0].SpeciesID != 4 {
 		t.Errorf("forms[0].SpeciesID = %d, want 4", gotForms[0].SpeciesID)
@@ -81,6 +82,20 @@ func TestSaveAndLoadPokedex(t *testing.T) {
 	}
 	if gotForms[1].SpriteID != 10025 {
 		t.Errorf("forms[1].SpriteID = %d, want 10025", gotForms[1].SpriteID)
+	}
+	// Regular forms round-trip with an empty sprite slug.
+	if gotForms[1].SpriteSlug != "" {
+		t.Errorf("forms[1].SpriteSlug = %q, want empty", gotForms[1].SpriteSlug)
+	}
+	// Cosmetic forms round-trip sprite_slug and keep sprite_id 0.
+	if gotForms[2].Canonical != "pikachu-cosmetic" {
+		t.Fatalf("forms[2].Canonical = %q, want pikachu-cosmetic", gotForms[2].Canonical)
+	}
+	if gotForms[2].SpriteSlug != "25-cosmetic" {
+		t.Errorf("forms[2].SpriteSlug = %q, want 25-cosmetic", gotForms[2].SpriteSlug)
+	}
+	if gotForms[2].SpriteID != 0 {
+		t.Errorf("forms[2].SpriteID = %d, want 0", gotForms[2].SpriteID)
 	}
 }
 
@@ -191,8 +206,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 28 {
-		t.Errorf("MigrationVersion = %d, want 28", v)
+	if v != 30 {
+		t.Errorf("MigrationVersion = %d, want 30", v)
 	}
 }
 

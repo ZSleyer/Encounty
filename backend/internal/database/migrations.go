@@ -159,6 +159,16 @@ var migrations = []migration{
 		description: "remap accent color presets to new palette",
 		fn:          migrateRemapAccentColorPresets,
 	},
+	{
+		version:     29,
+		description: "add sprite_slug column to pokedex_forms",
+		fn:          migrateAddFormSpriteSlug,
+	},
+	{
+		version:     30,
+		description: "force pokedex re-sync to populate cosmetic forms",
+		fn:          migrateForcePokedexResync,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -549,6 +559,16 @@ func migrateRemoveNegativeAndFullFrameRegions(tx *sql.Tx) error {
 // because SQLite does not support IF NOT EXISTS for ADD COLUMN.
 func migrateAddFormGenerations(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE pokedex_forms ADD COLUMN generations TEXT NOT NULL DEFAULT '[]'`)
+	return nil
+}
+
+// migrateAddFormSpriteSlug adds the sprite_slug column to pokedex_forms.
+// The column stores the name-based sprite identifier (e.g. "201-b") for
+// cosmetic forms that have no dedicated pokemon entry in PokéAPI and thus
+// no numeric sprite ID. Errors are ignored for idempotency because SQLite
+// does not support IF NOT EXISTS for ADD COLUMN.
+func migrateAddFormSpriteSlug(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_forms ADD COLUMN sprite_slug TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

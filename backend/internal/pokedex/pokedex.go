@@ -34,6 +34,9 @@ type Entry struct {
 
 // Form represents an alternate form of a Pokémon species.
 // SpriteID is the numeric PokéAPI ID used to construct the sprite URL.
+// SpriteSlug is the name-based sprite identifier for cosmetic forms that
+// have no dedicated pokemon entry in PokéAPI (e.g. "201-b", "666-icy-snow");
+// such forms carry SpriteID 0 and a non-empty SpriteSlug instead.
 // Generations lists the generation IDs in which this form is available;
 // an empty slice means "unknown/unconstrained" and the form is shown for
 // any selected game.
@@ -42,6 +45,7 @@ type Form struct {
 	Names       map[string]string `json:"names,omitempty"`
 	FormNames   map[string]string `json:"form_names,omitempty"`
 	SpriteID    int               `json:"sprite_id"`
+	SpriteSlug  string            `json:"sprite_slug,omitempty"`
 	Generations []int             `json:"generations,omitempty"`
 }
 
@@ -167,6 +171,7 @@ func RowsToEntries(species []database.PokedexSpeciesRow, forms []database.Pokede
 		entries[idx].Forms = append(entries[idx].Forms, Form{
 			Canonical:   f.Canonical,
 			SpriteID:    f.SpriteID,
+			SpriteSlug:  f.SpriteSlug,
 			Names:       names,
 			FormNames:   formNames,
 			Generations: gens,
@@ -213,6 +218,7 @@ func EntriesToRows(entries []Entry) ([]database.PokedexSpeciesRow, []database.Po
 				SpeciesID:       e.ID,
 				Canonical:       f.Canonical,
 				SpriteID:        f.SpriteID,
+				SpriteSlug:      f.SpriteSlug,
 				NamesJSON:       fNamesJSON,
 				FormNamesJSON:   fFormNamesJSON,
 				GenerationsJSON: fGensJSON,

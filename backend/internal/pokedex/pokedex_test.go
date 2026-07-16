@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/zsleyer/encounty/backend/internal/database"
@@ -319,6 +320,86 @@ func TestEntriesToRowsGenerationsRoundTrip(t *testing.T) {
 	}
 	if g := gotByName["pikachu-base"]; len(g) != 0 {
 		t.Errorf("base generations = %v, want empty", g)
+	}
+}
+
+// TestEntriesToRowsSpriteSlugRoundTrip ensures the SpriteSlug field survives
+// a full conversion cycle through the database row layer, both for cosmetic
+// forms (slug set, sprite ID 0) and regular forms (slug empty).
+func TestEntriesToRowsSpriteSlugRoundTrip(t *testing.T) {
+	entries := []Entry{
+		{
+			ID:        201,
+			Canonical: "unown",
+			Forms: []Form{
+				{Canonical: "unown-b", SpriteID: 0, SpriteSlug: "201-b", Generations: []int{2}},
+				{Canonical: "unown-question", SpriteID: 0, SpriteSlug: "201-question"},
+			},
+		},
+		{
+			ID:        25,
+			Canonical: "pikachu",
+			Forms: []Form{
+				{Canonical: testFormName, SpriteID: 10100}, // regular form, no slug
+			},
+		},
+	}
+	species, forms := EntriesToRows(entries)
+	if len(forms) != 3 {
+		t.Fatalf("expected 3 form rows, got %d", len(forms))
+	}
+	if forms[0].SpriteSlug != "201-b" {
+		t.Errorf("forms[0].SpriteSlug = %q, want 201-b", forms[0].SpriteSlug)
+	}
+	if forms[2].SpriteSlug != "" {
+		t.Errorf("forms[2].SpriteSlug = %q, want empty", forms[2].SpriteSlug)
+	}
+
+	rt := RowsToEntries(species, forms)
+	if len(rt) != 2 {
+		t.Fatalf("roundtrip: expected 2 entries, got %d", len(rt))
+	}
+	slugByName := map[string]string{}
+	spriteByName := map[string]int{}
+	for _, e := range rt {
+		for _, f := range e.Forms {
+			slugByName[f.Canonical] = f.SpriteSlug
+			spriteByName[f.Canonical] = f.SpriteID
+		}
+	}
+	if slugByName["unown-b"] != "201-b" {
+		t.Errorf("unown-b slug = %q, want 201-b", slugByName["unown-b"])
+	}
+	if spriteByName["unown-b"] != 0 {
+		t.Errorf("unown-b sprite_id = %d, want 0", spriteByName["unown-b"])
+	}
+	if slugByName["unown-question"] != "201-question" {
+		t.Errorf("unown-question slug = %q, want 201-question", slugByName["unown-question"])
+	}
+	if slugByName[testFormName] != "" {
+		t.Errorf("%s slug = %q, want empty", testFormName, slugByName[testFormName])
+	}
+	if spriteByName[testFormName] != 10100 {
+		t.Errorf("%s sprite_id = %d, want 10100", testFormName, spriteByName[testFormName])
+	}
+}
+
+// TestFormSpriteSlugJSONOmitEmpty verifies the sprite_slug JSON tag: present
+// when set, omitted when empty.
+func TestFormSpriteSlugJSONOmitEmpty(t *testing.T) {
+	withSlug, err := json.Marshal(Form{Canonical: "unown-b", SpriteSlug: "201-b"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(withSlug); !strings.Contains(got, `"sprite_slug":"201-b"`) {
+		t.Errorf("marshalled form missing sprite_slug: %s", got)
+	}
+	withoutSlug, err := json.Marshal(Form{Canonical: testFormName, SpriteID: 10100})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := string(withoutSlug); strings.Contains(got, "sprite_slug") {
+		t.Errorf("empty sprite_slug should be omitted: %s", got)
 	}
 }
 

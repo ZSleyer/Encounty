@@ -413,10 +413,13 @@ type PokedexSpeciesRow struct {
 }
 
 // PokedexFormRow represents one alternate form in the pokedex_forms table.
+// SpriteSlug carries the name-based sprite identifier for cosmetic forms
+// without a dedicated PokéAPI pokemon entry; it is empty for regular forms.
 type PokedexFormRow struct {
 	SpeciesID       int
 	Canonical       string
 	SpriteID        int
+	SpriteSlug      string
 	NamesJSON       []byte
 	FormNamesJSON   []byte
 	GenerationsJSON []byte
@@ -449,7 +452,7 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		}
 	}
 
-	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, names_json, form_names_json, generations) VALUES (?, ?, ?, ?, ?, ?)`)
+	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, sprite_slug, names_json, form_names_json, generations) VALUES (?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -463,7 +466,7 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		if formNamesStr == "" {
 			formNamesStr = "{}"
 		}
-		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, string(f.NamesJSON), formNamesStr, string(gens)); err != nil {
+		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, f.SpriteSlug, string(f.NamesJSON), formNamesStr, string(gens)); err != nil {
 			return err
 		}
 	}
@@ -492,7 +495,7 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 		return nil, nil, err
 	}
 
-	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, names_json, form_names_json, generations FROM pokedex_forms ORDER BY species_id, id`)
+	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, sprite_slug, names_json, form_names_json, generations FROM pokedex_forms ORDER BY species_id, id`)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -501,7 +504,7 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 	for formRows.Next() {
 		var f PokedexFormRow
 		var names, formNames, gens string
-		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &names, &formNames, &gens); err != nil {
+		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &f.SpriteSlug, &names, &formNames, &gens); err != nil {
 			return nil, nil, err
 		}
 		f.NamesJSON = []byte(names)

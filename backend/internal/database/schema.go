@@ -300,6 +300,7 @@ var schemaV2 = []string{
 		species_id      INTEGER NOT NULL,
 		canonical       TEXT    NOT NULL UNIQUE,
 		sprite_id       INTEGER NOT NULL DEFAULT 0,
+		sprite_slug     TEXT    NOT NULL DEFAULT '',
 		names_json      TEXT    NOT NULL DEFAULT '{}',
 		form_names_json TEXT    NOT NULL DEFAULT '{}',
 		generations     TEXT    NOT NULL DEFAULT '[]',
