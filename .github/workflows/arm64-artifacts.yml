@@ -3,10 +3,6 @@ name: arm64 build artifacts
 # Test-only build of the arm64 packages for Linux and Windows. Pushes to the arm64
 # feature branch (or a manual dispatch) produce downloadable workflow artifacts instead
 # of a release, so both arches can be verified before the changes reach main.
-#
-# The frontend is built once on Linux and shared with both packaging jobs: it is a
-# static, arch-independent bundle, and one of its dev dependencies (node-canvas) has no
-# prebuilt binary for Windows arm64 and cannot compile there.
 on:
   push:
     branches:
@@ -17,36 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  frontend:
-    name: Build frontend bundle
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Build Frontend
-        working-directory: frontend
-        run: |
-          yarn install
-          npm pkg set version="0.0.0"
-          yarn build
-
-      - name: Upload frontend bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          if-no-files-found: error
-          path: frontend/dist
-
   linux-arm64:
     name: Linux arm64 (AppImage)
     runs-on: ubuntu-latest
-    needs: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,14 +31,15 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Download frontend bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist
-
       - name: Set dev version
         run: echo "VERSION=dev-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          yarn install
+          npm pkg set version="0.0.0"
+          yarn build
 
       - name: Generate Icons
         working-directory: backend
@@ -106,11 +76,7 @@ jobs:
 
   windows-arm64:
     name: Windows arm64 (installer + portable)
-    runs-on: windows-11-arm
-    needs: frontend
-    defaults:
-      run:
-        shell: bash
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -126,22 +92,32 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Download frontend bundle
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: frontend/dist
+      - name: Install go-winres
+        run: go install github.com/tc-hib/go-winres@latest
+
+      - name: Install Wine for Windows cross-build
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y wine64 wine32
 
       - name: Set dev version
         run: |
           echo "VERSION=dev-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
           echo "WIN_VER=0.0.0" >> $GITHUB_ENV
 
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          yarn install
+          npm pkg set version="0.0.0"
+          yarn build
+
       - name: Generate Icons
         working-directory: backend
         run: go run ../scripts/generate_icons.go
 
-      - name: Build Windows Binary (arm64, native)
+      - name: Build Windows Binary (arm64)
         working-directory: backend
         env:
           GOOS: windows
@@ -149,7 +125,7 @@ jobs:
           CGO_ENABLED: '0'
         run: |
           sed -i "s/0\.2\.0\.0/${WIN_VER}.0/g" winres/winres.json
-          go run github.com/tc-hib/go-winres@latest make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
+          $(go env GOPATH)/bin/go-winres make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
           mkdir -p ./frontend
           cp -r ../frontend/dist ./frontend/
           go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows.exe main.go
@@ -165,6 +141,10 @@ jobs:
 
       - name: Package Electron Windows (arm64)
         working-directory: electron
+        env:
+          # Disable the 7z ARM64 branch filter that the NSIS install stub cannot unpack
+          # (otherwise the installed exe and native DLLs are silently skipped).
+          ELECTRON_BUILDER_7ZIP_PATH: ${{ github.workspace }}/scripts/7za-nofilter.sh
         run: yarn package:win --arm64 --publish never
 
       - name: Upload artifact
