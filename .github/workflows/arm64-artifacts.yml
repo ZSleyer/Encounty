@@ -3,6 +3,10 @@ name: arm64 build artifacts
 # Test-only build of the arm64 packages for Linux and Windows. Pushes to the arm64
 # feature branch (or a manual dispatch) produce downloadable workflow artifacts instead
 # of a release, so both arches can be verified before the changes reach main.
+#
+# The frontend is built once on Linux and shared with both packaging jobs: it is a
+# static, arch-independent bundle, and one of its dev dependencies (node-canvas) has no
+# prebuilt binary for Windows arm64 and cannot compile there.
 on:
   push:
     branches:
@@ -13,9 +17,36 @@ permissions:
   contents: read
 
 jobs:
+  frontend:
+    name: Build frontend bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          yarn install
+          npm pkg set version="0.0.0"
+          yarn build
+
+      - name: Upload frontend bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          if-no-files-found: error
+          path: frontend/dist
+
   linux-arm64:
     name: Linux arm64 (AppImage)
     runs-on: ubuntu-latest
+    needs: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,22 +62,14 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Download frontend bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
       - name: Set dev version
-        run: |
-          echo "VERSION=dev-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "CLEAN_VERSION=0.0.0" >> $GITHUB_ENV
-
-      - name: Install Frontend Dependencies
-        working-directory: frontend
-        run: yarn install
-
-      - name: Set Frontend Version
-        working-directory: frontend
-        run: npm pkg set version="$CLEAN_VERSION"
-
-      - name: Build Frontend
-        working-directory: frontend
-        run: yarn build
+        run: echo "VERSION=dev-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Generate Icons
         working-directory: backend
@@ -67,7 +90,7 @@ jobs:
         working-directory: electron
         run: |
           yarn install
-          npm pkg set version="$CLEAN_VERSION"
+          npm pkg set version="0.0.0"
           yarn build
 
       - name: Package Electron Linux (arm64)
@@ -84,6 +107,7 @@ jobs:
   windows-arm64:
     name: Windows arm64 (installer + portable)
     runs-on: windows-11-arm
+    needs: frontend
     defaults:
       run:
         shell: bash
@@ -102,23 +126,16 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Download frontend bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
       - name: Set dev version
         run: |
           echo "VERSION=dev-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-          echo "CLEAN_VERSION=0.0.0" >> $GITHUB_ENV
           echo "WIN_VER=0.0.0" >> $GITHUB_ENV
-
-      - name: Install Frontend Dependencies
-        working-directory: frontend
-        run: yarn install
-
-      - name: Set Frontend Version
-        working-directory: frontend
-        run: npm pkg set version="$CLEAN_VERSION"
-
-      - name: Build Frontend
-        working-directory: frontend
-        run: yarn build
 
       - name: Generate Icons
         working-directory: backend
@@ -143,7 +160,7 @@ jobs:
         working-directory: electron
         run: |
           yarn install
-          npm pkg set version="$CLEAN_VERSION"
+          npm pkg set version="0.0.0"
           yarn build
 
       - name: Package Electron Windows (arm64)

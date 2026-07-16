@@ -66,6 +66,16 @@ jobs:
         working-directory: frontend
         run: yarn build
 
+      - name: Upload frontend bundle
+        # Shared with the native release-windows-arm64 job: node-canvas (a frontend dev
+        # dependency) has no Windows arm64 prebuilt and cannot compile there, so the
+        # arch-independent frontend bundle is built once here and reused.
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          if-no-files-found: error
+          path: frontend/dist
+
       - name: Install go-winres
         run: go install github.com/tc-hib/go-winres@latest
 
@@ -262,7 +272,9 @@ jobs:
     # produces an x86 stub that fails to unpack the arm64 payload on the target, so the
     # installed Encounty.exe ends up missing. Building natively avoids that entirely.
     runs-on: windows-11-arm
-    needs: [test, lint]
+    # Depends on the release job for the shared frontend bundle (node-canvas cannot
+    # compile on Windows arm64), which also serializes this after the release exists.
+    needs: [release]
     defaults:
       run:
         shell: bash
@@ -295,17 +307,11 @@ jobs:
           echo "CLEAN_VERSION=$CLEAN_VERSION" >> $GITHUB_ENV
           echo "WIN_VER=$WIN_VER" >> $GITHUB_ENV
 
-      - name: Install Frontend Dependencies
-        working-directory: frontend
-        run: yarn install
-
-      - name: Set Frontend Version
-        working-directory: frontend
-        run: npm pkg set version="$CLEAN_VERSION"
-
-      - name: Build Frontend
-        working-directory: frontend
-        run: yarn build
+      - name: Download frontend bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
 
       - name: Generate Icons
         working-directory: backend
