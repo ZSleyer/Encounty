@@ -1,6 +1,6 @@
 appId: com.encounty.app
 productName: Encounty
-artifactName: "Encounty.${ext}"
+artifactName: "Encounty-${arch}.${ext}"
 icon: ../frontend/public/app-icon.png
 directories:
   output: release
@@ -18,30 +18,28 @@ publish:
   repo: Encounty
   releaseType: release
 linux:
+  # No arch listed on purpose: the packaging arch is driven per invocation via the
+  # electron-builder CLI flag (--x64 / --arm64). A configured arch here would be
+  # additive to the CLI flag and produce both arches sharing one sidecar binary.
   target:
     - target: AppImage
-      arch:
-        - x64
   category: Utility
   extraResources:
     - from: ../encounty-backend-linux
       to: encounty-backend-linux
   icon: ../frontend/public/app-icon.png
 win:
+  # Arch is driven per invocation via the CLI flag (--x64 / --arm64); see the linux note.
   target:
     - target: nsis
-      arch:
-        - x64
     - target: portable
-      arch:
-        - x64
   extraResources:
     - from: ../encounty-backend-windows.exe
       to: encounty-backend-windows.exe
   icon: ../frontend/public/app-icon.png
 nsis:
-  # Distinct name so the installer does not collide with the portable Encounty.exe.
-  artifactName: "Encounty-Setup.${ext}"
+  # Distinct name so the installer does not collide with the portable Encounty-<arch>.exe.
+  artifactName: "Encounty-Setup-${arch}.${ext}"
   oneClick: true
   perMachine: false
   allowToChangeInstallationDirectory: false

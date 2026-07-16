@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-windows build-linux build-darwin build-macos frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-windows electron-package-darwin electron-package-macos electron-package-all swagger icons
+.PHONY: dev build build-all build-windows build-windows-arm64 build-linux build-linux-arm64 build-darwin build-macos frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-linux-arm64 electron-package-windows electron-package-windows-arm64 electron-package-darwin electron-package-macos electron-package-all swagger icons
 
 BINARY = encounty
 BACKEND_DIR = backend
@@ -78,6 +78,23 @@ build-windows: icons
 	@command -v upx >/dev/null 2>&1 && upx --best --compress-icons=0 $(BINARY)-windows.exe || true
 	@echo "Done: ./$(BINARY)-windows.exe"
 
+build-linux-arm64: icons
+	@echo "Building Encounty $(VERSION) ($(COMMIT)) for Linux arm64..."
+	@cd $(BACKEND_DIR) && GOOS=linux GOARCH=arm64 go build $(LDFLAGS) -o ../$(BINARY)-linux-arm64 main.go
+	@command -v upx >/dev/null 2>&1 && upx --best $(BINARY)-linux-arm64 || true
+	@echo "Done: ./$(BINARY)-linux-arm64"
+
+build-windows-arm64: icons
+	$(eval WINRES := $(shell go env GOPATH)/bin/go-winres)
+	@command -v $(WINRES) >/dev/null 2>&1 || (echo "Installing go-winres..." && go install github.com/tc-hib/go-winres@latest)
+	$(eval WIN_VER := $(shell echo $(VERSION) | sed 's/v//' | grep -oE '^[0-9]+\.[0-9]+(\.[0-9]+)?' | awk -F. '{if(NF==2) print $$0".0"; else print $$0}' || echo "0.3.0"))
+	@echo "Generating Windows resources (Version: $(WIN_VER).0)..."
+	@cd $(BACKEND_DIR) && $(WINRES) make --product-version "$(WIN_VER).0" --file-version "$(WIN_VER).0"
+	@cd $(BACKEND_DIR) && CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build $(LDFLAGS_WINDOWS) -o ../$(BINARY)-windows-arm64.exe .
+	@rm -f $(BACKEND_DIR)/*.syso
+	@command -v upx >/dev/null 2>&1 && upx --best --compress-icons=0 $(BINARY)-windows-arm64.exe || true
+	@echo "Done: ./$(BINARY)-windows-arm64.exe"
+
 build-darwin: icons
 	@echo "Building Encounty $(VERSION) ($(COMMIT)) for macOS arm64..."
 	@cd $(BACKEND_DIR) && CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o ../$(BINARY)-darwin main.go
@@ -125,7 +142,7 @@ coverage:
 	@rm -f $(BACKEND_DIR)/coverage.out $(BACKEND_DIR)/coverage_filtered.out
 
 clean:
-	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-darwin $(BINARY)-windows.exe *.syso
+	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-linux-arm64 $(BINARY)-darwin $(BINARY)-windows.exe $(BINARY)-windows-arm64.exe *.syso
 	rm -rf $(FRONTEND_DIR)/dist $(LINUX_DIST)
 
 # ── Electron Targets ─────────────────────────────────────────────────────────
@@ -142,16 +159,34 @@ electron-dev: build-linux
 
 electron-package-linux: build-linux frontend-build electron-build
 	@ln -sf $(BINARY)-linux $(BINARY)-backend-linux
-	cd electron && yarn package:linux
+	cd electron && yarn package:linux --x64
+
+electron-package-linux-arm64: build-linux-arm64 frontend-build electron-build
+	@# Sidecar name is arch-neutral; point it at the arm64 backend for this run.
+	@ln -sf $(BINARY)-linux-arm64 $(BINARY)-backend-linux
+	cd electron && yarn package:linux --arm64
 
 electron-package-windows: build-windows frontend-build electron-build
 	@ln -sf $(BINARY)-windows.exe $(BINARY)-backend-windows.exe
 	@ELECTRON_VER=$(if $(filter dev,$(VERSION)),0.0.1,$(VERSION)); \
 		echo "Setting Electron version to $$ELECTRON_VER..."; \
 		cd electron && jq --arg v "$$ELECTRON_VER" '.version = $$v' package.json > package.json.tmp && mv package.json.tmp package.json
-	cd electron && yarn package:win
+	cd electron && yarn package:win --x64
 	@cd electron && jq '.version = "0.0.1"' package.json > package.json.tmp && mv package.json.tmp package.json
-	@echo "Done: ./electron/release/ Windows installer (Encounty-Setup.exe) + portable (Encounty.exe)"
+	@echo "Done: ./electron/release/ Windows installer (Encounty-Setup-x64.exe) + portable (Encounty-x64.exe)"
+
+# NOTE: run this ON Windows-on-ARM (e.g. the win VM). Built on a Linux host via wine,
+# the nsis installer's x86 stub fails to unpack the arm64 payload on the target and the
+# installed Encounty.exe ends up missing. CI builds this natively (release-windows-arm64).
+electron-package-windows-arm64: build-windows-arm64 frontend-build electron-build
+	@# Sidecar name is arch-neutral; point it at the arm64 backend for this run.
+	@ln -sf $(BINARY)-windows-arm64.exe $(BINARY)-backend-windows.exe
+	@ELECTRON_VER=$(if $(filter dev,$(VERSION)),0.0.1,$(VERSION)); \
+		echo "Setting Electron version to $$ELECTRON_VER..."; \
+		cd electron && jq --arg v "$$ELECTRON_VER" '.version = $$v' package.json > package.json.tmp && mv package.json.tmp package.json
+	cd electron && yarn package:win --arm64
+	@cd electron && jq '.version = "0.0.1"' package.json > package.json.tmp && mv package.json.tmp package.json
+	@echo "Done: ./electron/release/ Windows installer (Encounty-Setup-arm64.exe) + portable (Encounty-arm64.exe)"
 
 electron-package-all: build-linux build-windows build-darwin frontend-build electron-build
 	@echo "Building Electron packages for Linux, Windows, and macOS..."

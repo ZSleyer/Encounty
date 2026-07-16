@@ -103,6 +103,8 @@ export class GoProcessManager extends EventEmitter {
     return path.join(__dirname, '..', '..', 'frontend', 'dist');
   }
 
+  // No process.arch branch: each per-arch package (x64/arm64) bundles the matching
+  // Go backend under this same fixed name, so the platform check alone resolves it.
   private getBinaryPath(): string {
     let binaryName: string;
     if (process.platform === 'win32') {
