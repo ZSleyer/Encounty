@@ -1,6 +1,9 @@
 # Linux Troubleshooting
 
-## AppImage fails with `error while loading shared libraries: libz.so`
+## AppImage fails to start (missing libz.so)
+
+The app exits immediately with `error while loading shared libraries: libz.so: cannot
+open shared object file`.
 
 The AppImage runtime links the **unversioned** `libz.so`. The base zlib package only
 provides `libz.so.1`; the unversioned symlink ships in the zlib development package, so a
