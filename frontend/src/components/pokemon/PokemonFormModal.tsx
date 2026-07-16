@@ -220,14 +220,12 @@ function filterByQuery(
     const baseMatches = matchesQuery(baseEntry);
     const matchingForms = formEntriesFor(p, selectedGame, games, language).filter(matchesQuery);
 
-    if (baseMatches) {
-      // Base hit: list the base only. Its forms are offered by the form strip
-      // after selection, so dumping every form here is just noise.
+    // The search lists base species only; forms are picked from the strip
+    // after selecting the base. Form names still count as matches (e.g.
+    // "kappe" or "mega" surfaces the species owning such a form), but never
+    // produce their own rows.
+    if (baseMatches || matchingForms.length > 0) {
       results.push(baseEntry);
-    } else if (matchingForms.length > 0) {
-      // Only a form-specific term matched (e.g. "mega", "alolan"): surface the
-      // base plus the matching forms so the form stays findable by its name.
-      results.push(baseEntry, ...matchingForms);
     }
     if (results.length >= 20) break;
   }

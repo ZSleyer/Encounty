@@ -265,7 +265,7 @@ describe("PokemonFormModal", () => {
       expect(screen.queryByText("Pikachu Gmax")).not.toBeInTheDocument();
     });
 
-    it("keeps forms findable by a form-specific term", async () => {
+    it("lists the base species when only a form-specific term matches", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
@@ -275,8 +275,11 @@ describe("PokemonFormModal", () => {
       await userEvent.click(searchInput);
       await userEvent.type(searchInput, "gmax");
 
-      // "gmax" does not match the base name, so the form stays reachable.
-      await waitFor(() => expect(screen.getByText("Pikachu Gmax")).toBeInTheDocument());
+      // "gmax" does not match the base name, but the owning species is listed
+      // so the form stays reachable via the strip. The form itself never
+      // appears as a search row.
+      await waitFor(() => expect(screen.getByText("Pikachu")).toBeInTheDocument());
+      expect(screen.queryByText("Pikachu Gmax")).not.toBeInTheDocument();
     });
 
     it("reveals the form strip with a base entry after selecting a species with forms", async () => {
@@ -904,17 +907,21 @@ describe("PokemonFormModal", () => {
   });
 
   describe("base species name in the search field", () => {
-    it("keeps the base name after picking a form from the search results", async () => {
+    it("keeps the base name after reaching a form through a form-term search", async () => {
       render(
         <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
       );
       await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
 
+      // A form-term search lists the owning base species; the form itself is
+      // then picked from the strip.
       const searchInput = screen.getByPlaceholderText(/pok.mon/i);
       await userEvent.click(searchInput);
       await userEvent.type(searchInput, "gmax");
-      await waitFor(() => expect(screen.getByText("Pikachu Gmax")).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText("Pikachu")).toBeInTheDocument());
+      await userEvent.click(screen.getByText("Pikachu"));
 
+      await waitFor(() => expect(screen.getByText("Pikachu Gmax")).toBeInTheDocument());
       await userEvent.click(screen.getByText("Pikachu Gmax"));
 
       // The form is selected, but the search field shows the base name.
@@ -1023,12 +1030,18 @@ describe("PokemonFormModal", () => {
       );
       await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
 
+      // Reach the cosmetic form via the strip; forms have no search rows.
       const searchInput = screen.getByPlaceholderText(/pok.mon/i);
       await userEvent.click(searchInput);
-      await userEvent.type(searchInput, "muster");
+      await userEvent.type(searchInput, "pikachu");
+      await waitFor(() => expect(screen.getByText("Pikachu")).toBeInTheDocument());
+      await userEvent.click(screen.getByText("Pikachu"));
       await waitFor(() => expect(screen.getByText("Pikachu Muster")).toBeInTheDocument());
 
-      const img = screen.getByAltText("Pikachu Muster") as HTMLImageElement;
+      const img = screen
+        .getByText("Pikachu Muster")
+        .closest("button")!
+        .querySelector("img") as HTMLImageElement;
       expect(img).toHaveAttribute(
         "src",
         "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25-muster.png",
