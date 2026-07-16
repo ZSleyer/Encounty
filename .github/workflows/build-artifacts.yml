@@ -1,0 +1,217 @@
+name: Build artifacts (manual)
+
+# On-demand build of every distributable, uploaded as workflow artifacts instead of a
+# release. Manual only: use the Actions tab -> "Run workflow" to produce installers for
+# testing on any branch without cutting a tag.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux-windows:
+    name: Linux + Windows (x64 + arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set dev version
+        run: |
+          echo "VERSION=dev-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+          echo "CLEAN_VERSION=0.0.0" >> $GITHUB_ENV
+          echo "WIN_VER=0.0.0" >> $GITHUB_ENV
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          yarn install
+          npm pkg set version="0.0.0"
+          yarn build
+
+      - name: Install go-winres
+        run: go install github.com/tc-hib/go-winres@latest
+
+      - name: Generate Icons
+        working-directory: backend
+        run: go run ../scripts/generate_icons.go
+
+      - name: Build Linux Binary (x64)
+        working-directory: backend
+        env:
+          GOOS: linux
+          GOARCH: amd64
+        run: |
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-linux main.go
+          rm -rf ./frontend
+
+      - name: Build Windows Binary (x64)
+        working-directory: backend
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: '0'
+        run: |
+          sed -i "s/0\.2\.0\.0/${WIN_VER}.0/g" winres/winres.json
+          $(go env GOPATH)/bin/go-winres make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows.exe main.go
+          rm -rf ./frontend
+          rm -f *.syso
+
+      - name: Build Electron
+        working-directory: electron
+        run: |
+          yarn install
+          npm pkg set version="0.0.0"
+          yarn build
+
+      - name: Install Wine for Windows cross-build
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y wine64 wine32
+
+      - name: Package Electron Linux (x64)
+        working-directory: electron
+        run: yarn package:linux --x64 --publish never
+
+      - name: Package Electron Windows (x64)
+        working-directory: electron
+        run: yarn package:win --x64 --publish never
+
+      - name: Build Linux Binary (arm64)
+        working-directory: backend
+        env:
+          GOOS: linux
+          GOARCH: arm64
+        run: |
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-linux main.go
+          rm -rf ./frontend
+
+      - name: Package Electron Linux (arm64)
+        working-directory: electron
+        run: yarn package:linux --arm64 --publish never
+
+      - name: Build Windows Binary (arm64)
+        working-directory: backend
+        env:
+          GOOS: windows
+          GOARCH: arm64
+          CGO_ENABLED: '0'
+        run: |
+          $(go env GOPATH)/bin/go-winres make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows.exe main.go
+          rm -rf ./frontend
+          rm -f *.syso
+
+      - name: Package Electron Windows (arm64)
+        working-directory: electron
+        env:
+          # Disable the 7z ARM64 branch filter that the NSIS install stub cannot unpack.
+          ELECTRON_BUILDER_7ZIP_PATH: ${{ github.workspace }}/scripts/7za-nofilter.sh
+        run: yarn package:win --arm64 --publish never
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: encounty-linux-windows
+          if-no-files-found: error
+          path: |
+            electron/release/Encounty-x64.AppImage
+            electron/release/Encounty-arm64.AppImage
+            electron/release/Encounty-x64.exe
+            electron/release/Encounty-arm64.exe
+            electron/release/Encounty-Setup-x64.exe
+            electron/release/Encounty-Setup-arm64.exe
+
+  macos:
+    name: macOS (arm64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set dev version
+        run: echo "VERSION=dev-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Build Frontend
+        working-directory: frontend
+        run: |
+          yarn install
+          npm pkg set version="0.0.0"
+          yarn build
+
+      - name: Generate Icons
+        working-directory: backend
+        run: go run ../scripts/generate_icons.go
+
+      - name: Generate macOS ICNS
+        run: |
+          mkdir -p electron/build/icon.iconset
+          for size in 16 32 64 128 256 512; do
+            sips -z $size $size frontend/public/app-icon.png --out "electron/build/icon.iconset/icon_${size}x${size}.png"
+          done
+          for size in 16 32 128 256; do
+            double=$((size*2))
+            sips -z $double $double frontend/public/app-icon.png --out "electron/build/icon.iconset/icon_${size}x${size}@2x.png"
+          done
+          iconutil -c icns electron/build/icon.iconset -o electron/build/icon.icns
+          rm -rf electron/build/icon.iconset
+
+      - name: Build macOS Binary (arm64)
+        working-directory: backend
+        env:
+          CGO_ENABLED: '1'
+          GOOS: darwin
+          GOARCH: arm64
+        run: |
+          mkdir -p ./frontend
+          cp -r ../frontend/dist ./frontend/
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y)" -o ../encounty-backend-darwin main.go
+          rm -rf ./frontend
+
+      - name: Build Electron and Package macOS (arm64)
+        working-directory: electron
+        run: |
+          yarn install
+          npm pkg set version="0.0.0"
+          yarn build
+          yarn package:mac --publish never
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: encounty-macos-arm64
+          if-no-files-found: error
+          path: electron/release/Encounty-arm64.dmg
