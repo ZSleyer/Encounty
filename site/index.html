@@ -98,20 +98,20 @@
           </p>
           <div id="download-buttons" class="mt-10 flex flex-wrap items-center justify-center gap-3">
             <a
-              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty.AppImage"
+              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-x64.AppImage"
               data-os="linux"
               class="dl-btn dl-btn--primary px-6 py-3"
               >Download for Linux</a
             >
             <a
-              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty.dmg"
+              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.dmg"
               data-os="macos"
               class="dl-btn px-6 py-3"
               >Download for macOS</a
             >
             <div data-os="windows" class="dl-btn dl-split">
               <a
-                href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup.exe"
+                href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup-x64.exe"
                 class="dl-split__main px-6 py-3"
                 >Download for Windows</a
               >
@@ -130,10 +130,22 @@
               </button>
               <div id="win-portable-menu" class="dl-split__menu" role="menu" hidden>
                 <a
-                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty.exe"
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-x64.exe"
                   class="dl-split__item"
                   role="menuitem"
-                  >Portable .exe (no install)</a
+                  >Portable .exe (x64, no install)</a
+                >
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup-arm64.exe"
+                  class="dl-split__item"
+                  role="menuitem"
+                  >Installer (arm64)</a
+                >
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.exe"
+                  class="dl-split__item"
+                  role="menuitem"
+                  >Portable .exe (arm64, no install)</a
                 >
               </div>
             </div>
@@ -141,6 +153,15 @@
           <p class="mt-4 text-sm text-text-muted">
             AppImage (Linux) · installer + portable .exe (Windows 11) · DMG (macOS, Apple
             Silicon) · free & AGPL-3.0
+          </p>
+          <p class="mt-2 text-sm text-text-muted">
+            On ARM64?
+            <a
+              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.AppImage"
+              class="underline hover:text-text-primary"
+              >Linux AppImage (arm64)</a
+            >
+            · Windows arm64 lives in the download menu above.
           </p>
         </div>
       </section>
