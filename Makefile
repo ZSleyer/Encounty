@@ -175,16 +175,14 @@ electron-package-windows: build-windows frontend-build electron-build
 	@cd electron && jq '.version = "0.0.1"' package.json > package.json.tmp && mv package.json.tmp package.json
 	@echo "Done: ./electron/release/ Windows installer (Encounty-Setup-x64.exe) + portable (Encounty-x64.exe)"
 
-# NOTE: run this ON Windows-on-ARM (e.g. the win VM). Built on a Linux host via wine,
-# the nsis installer's x86 stub fails to unpack the arm64 payload on the target and the
-# installed Encounty.exe ends up missing. CI builds this natively (release-windows-arm64).
 electron-package-windows-arm64: build-windows-arm64 frontend-build electron-build
 	@# Sidecar name is arch-neutral; point it at the arm64 backend for this run.
 	@ln -sf $(BINARY)-windows-arm64.exe $(BINARY)-backend-windows.exe
 	@ELECTRON_VER=$(if $(filter dev,$(VERSION)),0.0.1,$(VERSION)); \
 		echo "Setting Electron version to $$ELECTRON_VER..."; \
 		cd electron && jq --arg v "$$ELECTRON_VER" '.version = $$v' package.json > package.json.tmp && mv package.json.tmp package.json
-	cd electron && yarn package:win --arm64
+	@# ELECTRON_BUILDER_7ZIP_PATH: disable the 7z ARM64 branch filter the NSIS stub cannot unpack.
+	cd electron && ELECTRON_BUILDER_7ZIP_PATH=$(CURDIR)/scripts/7za-nofilter.sh yarn package:win --arm64
 	@cd electron && jq '.version = "0.0.1"' package.json > package.json.tmp && mv package.json.tmp package.json
 	@echo "Done: ./electron/release/ Windows installer (Encounty-Setup-arm64.exe) + portable (Encounty-arm64.exe)"
 
