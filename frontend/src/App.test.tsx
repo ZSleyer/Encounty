@@ -2079,7 +2079,7 @@ describe("App", () => {
 
   // --- Update now button on win32/darwin opens external link ---
 
-  it("opens GitHub release page when update now clicked on macOS", async () => {
+  it("opens the Pages download page when update now clicked on macOS", async () => {
     vi.stubGlobal("sessionStorage", {
       getItem: () => null,
       setItem: vi.fn(),
@@ -2149,7 +2149,7 @@ describe("App", () => {
     // Should open external URL
     await waitFor(() => {
       expect(mockOpen).toHaveBeenCalledWith(
-        expect.stringContaining("github.com/ZSleyer/Encounty/releases"),
+        expect.stringContaining("zsleyer.github.io/Encounty/update.html"),
         "_blank",
       );
     });
@@ -2375,9 +2375,9 @@ describe("App", () => {
       expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
-    // Changelog link should point to the release page with v prefix
+    // Changelog link should point to the GitHub Pages changelog page
     const changelogLink = screen.getByText(/Änderungen ansehen/i);
-    expect(changelogLink.closest("a")?.getAttribute("href")).toContain("releases/tag/v3.2.1");
+    expect(changelogLink.closest("a")?.getAttribute("href")).toContain("zsleyer.github.io/Encounty/changelog.html");
 
     delete (globalThis as { electronAPI?: unknown }).electronAPI;
   });
@@ -2515,7 +2515,7 @@ describe("App", () => {
 
   // --- Update on portable Windows opens external link ---
 
-  it("opens GitHub release page when update now clicked on portable Windows", async () => {
+  it("opens the Pages download page when update now clicked on portable Windows", async () => {
     vi.stubGlobal("sessionStorage", {
       getItem: () => null,
       setItem: vi.fn(),
@@ -2585,7 +2585,7 @@ describe("App", () => {
 
     await waitFor(() => {
       expect(mockOpen).toHaveBeenCalledWith(
-        expect.stringContaining("github.com/ZSleyer/Encounty/releases/tag/v11.0.0"),
+        expect.stringContaining("zsleyer.github.io/Encounty/update.html"),
         "_blank",
       );
     });

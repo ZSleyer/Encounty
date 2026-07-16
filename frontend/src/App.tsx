@@ -42,6 +42,7 @@ import { SupportPrompt } from "./components/shared/SupportPrompt";
 import { startDetectionForPokemon, stopDetectionForPokemon } from "./engine/startDetection";
 import { useModalA11y } from "./hooks/useModalA11y";
 import { recordEncounter, takePendingPrompt, clearPendingPrompt, REPO_URL, type PromptVariant } from "./utils/supportPrompt";
+import { PAGES_UPDATE_URL, PAGES_CHANGELOG_URL } from "./utils/links";
 
 // Tracks which pokemon were already marked as completed in the last state_update.
 // Used as a safety net so the detection loop is stopped even if the typed
@@ -105,7 +106,6 @@ function UpdateNotification({
   manualDownload?: boolean;
 }>) {
   const { t } = useI18n();
-  const versionTag = version.startsWith("v") ? version : `v${version}`;
   const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onDismiss });
   return (
     <div
@@ -128,7 +128,7 @@ function UpdateNotification({
             {version}
           </p>
           <a
-            href={`https://github.com/ZSleyer/Encounty/releases/tag/${versionTag}`}
+            href={PAGES_CHANGELOG_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-accent-blue hover:underline"
@@ -365,13 +365,17 @@ function AppShell() {
     if (!updateInfo) return;
 
     // Builds without in-app auto-update (portable Windows, macOS DMG, browser):
-    // open the GitHub release page for a manual download.
+    // open the GitHub Pages download page with per-OS instructions. An OS
+    // anchor jumps straight to the matching section when the platform is known.
     if (!globalThis.electronAPI?.autoUpdate) {
-      const tag = updateInfo.latest_version.startsWith("v") ? updateInfo.latest_version : `v${updateInfo.latest_version}`;
-      globalThis.open(
-        `https://github.com/ZSleyer/Encounty/releases/tag/${tag}`,
-        "_blank",
-      );
+      const platform = globalThis.electronAPI?.platform;
+      let anchor = "";
+      if (platform === "darwin") {
+        anchor = "#macos";
+      } else if (platform === "win32") {
+        anchor = "#windows";
+      }
+      globalThis.open(`${PAGES_UPDATE_URL}${anchor}`, "_blank");
       setShowUpdateNotification(false);
       return;
     }
