@@ -2,6 +2,9 @@ appId: com.encounty.app
 productName: Encounty
 artifactName: "Encounty-${arch}.${ext}"
 icon: ../frontend/public/app-icon.png
+# Swaps the arch-correct Go backend into resources for the Windows arm64 pack, so both
+# Windows arches can be built in one invocation and share a single auto-update feed.
+afterPack: build/after-pack.js
 directories:
   output: release
   buildResources: build
@@ -29,7 +32,11 @@ linux:
       to: encounty-backend-linux
   icon: ../frontend/public/app-icon.png
 win:
-  # Arch is driven per invocation via the CLI flag (--x64 / --arm64); see the linux note.
+  # Windows ships one universal build per target that carries both x64 and arm64 and
+  # picks the arch at install time. Both arches are packaged in a single invocation
+  # (see the afterPack hook for the per-arch backend swap); omitting ${arch} from the
+  # name keeps electron-builder from also emitting redundant per-arch installers.
+  artifactName: "Encounty.${ext}"
   target:
     - target: nsis
     - target: portable
@@ -38,8 +45,8 @@ win:
       to: encounty-backend-windows.exe
   icon: ../frontend/public/app-icon.png
 nsis:
-  # Distinct name so the installer does not collide with the portable Encounty-<arch>.exe.
-  artifactName: "Encounty-Setup-${arch}.${ext}"
+  # Distinct name so the installer does not collide with the portable Encounty.exe.
+  artifactName: "Encounty-Setup.${ext}"
   oneClick: true
   perMachine: false
   allowToChangeInstallationDirectory: false

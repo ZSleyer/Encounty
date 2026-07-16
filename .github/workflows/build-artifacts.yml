@@ -91,10 +91,6 @@ jobs:
         working-directory: electron
         run: yarn package:linux --x64 --publish never
 
-      - name: Package Electron Windows (x64)
-        working-directory: electron
-        run: yarn package:win --x64 --publish never
-
       - name: Build Linux Binary (arm64)
         working-directory: backend
         env:
@@ -120,16 +116,17 @@ jobs:
           $(go env GOPATH)/bin/go-winres make --product-version "${WIN_VER}.0" --file-version "${WIN_VER}.0"
           mkdir -p ./frontend
           cp -r ../frontend/dist ./frontend/
-          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows.exe main.go
+          go build -ldflags="-s -w -X main.version=$VERSION -X main.commit=$(git rev-parse --short HEAD) -X main.buildDate=$(date -u +%d.%m.%y) -H=windowsgui" -o ../encounty-backend-windows-arm64.exe main.go
           rm -rf ./frontend
           rm -f *.syso
 
-      - name: Package Electron Windows (arm64)
+      - name: Package Electron Windows (x64 + arm64)
         working-directory: electron
         env:
           # Disable the 7z ARM64 branch filter that the NSIS install stub cannot unpack.
           ELECTRON_BUILDER_7ZIP_PATH: ${{ github.workspace }}/scripts/7za-nofilter.sh
-        run: yarn package:win --arm64 --publish never
+        # Both arches in one invocation; the afterPack hook swaps the arch-correct backend.
+        run: yarn package:win --x64 --arm64 --publish never
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -139,10 +136,8 @@ jobs:
           path: |
             electron/release/Encounty-x64.AppImage
             electron/release/Encounty-arm64.AppImage
-            electron/release/Encounty-x64.exe
-            electron/release/Encounty-arm64.exe
-            electron/release/Encounty-Setup-x64.exe
-            electron/release/Encounty-Setup-arm64.exe
+            electron/release/Encounty.exe
+            electron/release/Encounty-Setup.exe
 
   macos:
     name: macOS (arm64)

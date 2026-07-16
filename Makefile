@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-windows build-windows-arm64 build-linux build-linux-arm64 build-darwin build-macos frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-linux-arm64 electron-package-windows electron-package-windows-arm64 electron-package-darwin electron-package-macos electron-package-all swagger icons
+.PHONY: dev build build-all build-windows build-windows-arm64 build-linux build-linux-arm64 build-darwin build-macos frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-linux-arm64 electron-package-windows electron-package-darwin electron-package-macos electron-package-all swagger icons
 
 BINARY = encounty
 BACKEND_DIR = backend
@@ -142,7 +142,7 @@ coverage:
 	@rm -f $(BACKEND_DIR)/coverage.out $(BACKEND_DIR)/coverage_filtered.out
 
 clean:
-	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-linux-arm64 $(BINARY)-darwin $(BINARY)-windows.exe $(BINARY)-windows-arm64.exe *.syso
+	rm -f $(BINARY) $(BINARY)-linux $(BINARY)-linux-arm64 $(BINARY)-darwin $(BINARY)-windows.exe $(BINARY)-windows-arm64.exe $(BINARY)-backend-windows.exe $(BINARY)-backend-windows-arm64.exe *.syso
 	rm -rf $(FRONTEND_DIR)/dist $(LINUX_DIST)
 
 # ── Electron Targets ─────────────────────────────────────────────────────────
@@ -166,25 +166,19 @@ electron-package-linux-arm64: build-linux-arm64 frontend-build electron-build
 	@ln -sf $(BINARY)-linux-arm64 $(BINARY)-backend-linux
 	cd electron && yarn package:linux --arm64
 
-electron-package-windows: build-windows frontend-build electron-build
-	@ln -sf $(BINARY)-windows.exe $(BINARY)-backend-windows.exe
-	@ELECTRON_VER=$(if $(filter dev,$(VERSION)),0.0.1,$(VERSION)); \
-		echo "Setting Electron version to $$ELECTRON_VER..."; \
-		cd electron && jq --arg v "$$ELECTRON_VER" '.version = $$v' package.json > package.json.tmp && mv package.json.tmp package.json
-	cd electron && yarn package:win --x64
-	@cd electron && jq '.version = "0.0.1"' package.json > package.json.tmp && mv package.json.tmp package.json
-	@echo "Done: ./electron/release/ Windows installer (Encounty-Setup-x64.exe) + portable (Encounty-x64.exe)"
-
-electron-package-windows-arm64: build-windows-arm64 frontend-build electron-build
-	@# Sidecar name is arch-neutral; point it at the arm64 backend for this run.
-	@ln -sf $(BINARY)-windows-arm64.exe $(BINARY)-backend-windows.exe
+electron-package-windows: build-windows build-windows-arm64 frontend-build electron-build
+	@# Provide both arch sidecars: extraResources reads the x64 one, the afterPack hook
+	@# swaps in the arm64 one. Building both arches in one invocation makes them share a
+	@# single auto-update feed (latest.yml).
+	@cp $(BINARY)-windows.exe $(BINARY)-backend-windows.exe
+	@cp $(BINARY)-windows-arm64.exe $(BINARY)-backend-windows-arm64.exe
 	@ELECTRON_VER=$(if $(filter dev,$(VERSION)),0.0.1,$(VERSION)); \
 		echo "Setting Electron version to $$ELECTRON_VER..."; \
 		cd electron && jq --arg v "$$ELECTRON_VER" '.version = $$v' package.json > package.json.tmp && mv package.json.tmp package.json
 	@# ELECTRON_BUILDER_7ZIP_PATH: disable the 7z ARM64 branch filter the NSIS stub cannot unpack.
-	cd electron && ELECTRON_BUILDER_7ZIP_PATH=$(CURDIR)/scripts/7za-nofilter.sh yarn package:win --arm64
+	cd electron && ELECTRON_BUILDER_7ZIP_PATH=$(CURDIR)/scripts/7za-nofilter.sh yarn package:win --x64 --arm64
 	@cd electron && jq '.version = "0.0.1"' package.json > package.json.tmp && mv package.json.tmp package.json
-	@echo "Done: ./electron/release/ Windows installer (Encounty-Setup-arm64.exe) + portable (Encounty-arm64.exe)"
+	@echo "Done: ./electron/release/ Windows x64 + arm64 (Setup + portable)"
 
 electron-package-all: build-linux build-windows build-darwin frontend-build electron-build
 	@echo "Building Electron packages for Linux, Windows, and macOS..."
