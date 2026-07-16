@@ -15,7 +15,7 @@ Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. 
 
 | Platform                   | Architecture | File                          |
 |----------------------------|--------------|-------------------------------|
-| Linux (Wayland)            | x64          | `Encounty-x64.AppImage`       |
+| Linux (Wayland)            | x64          | `Encounty-x86_64.AppImage`       |
 | Linux (Wayland)            | arm64        | `Encounty-arm64.AppImage`     |
 | macOS (26+)                | arm64        | `Encounty-arm64.dmg`          |
 | Windows 11 (26H1+)         | x64 + arm64  | `Encounty-Setup.exe`          |
