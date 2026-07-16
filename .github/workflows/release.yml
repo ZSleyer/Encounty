@@ -243,27 +243,15 @@ jobs:
         # ponytail: win-arm64 shares latest.yml with x64; add a per-arch feed if demand appears.
         run: yarn package:win --arm64 --publish never
 
-      - name: Legacy transition aliases (one-time)
-        # ponytail: one-time transition aliases so bookmarked old download URLs keep
-        # working while users migrate to the arch-suffixed names; remove after this release.
-        working-directory: electron/release
-        run: |
-          cp Encounty-x64.AppImage Encounty.AppImage
-          cp Encounty-x64.exe Encounty.exe
-          cp Encounty-Setup-x64.exe Encounty-Setup.exe
-
-      - name: Upload arm64 Windows + legacy aliases to release
+      - name: Upload arm64 Windows to release
         if: steps.prerelease.outputs.is_pre != 'true'
         uses: softprops/action-gh-release@v2
         with:
-          # arm64 Windows (published never) and the one-time legacy-named x64 copies are
-          # not handled by electron-builder's publish, so upload them explicitly.
+          # arm64 Windows is published never (shares latest.yml with x64), so upload it
+          # explicitly; everything else is handled by electron-builder's publish.
           files: |
             electron/release/Encounty-arm64.exe
             electron/release/Encounty-Setup-arm64.exe
-            electron/release/Encounty.AppImage
-            electron/release/Encounty.exe
-            electron/release/Encounty-Setup.exe
 
       - name: Upload Electron artifacts to pre-release
         if: steps.prerelease.outputs.is_pre == 'true'
@@ -276,9 +264,6 @@ jobs:
             electron/release/Encounty-arm64.exe
             electron/release/Encounty-Setup-x64.exe
             electron/release/Encounty-Setup-arm64.exe
-            electron/release/Encounty.AppImage
-            electron/release/Encounty.exe
-            electron/release/Encounty-Setup.exe
 
   release-macos:
     name: Build & Publish macOS
@@ -370,14 +355,7 @@ jobs:
           yarn build
           yarn package:mac --publish never
 
-      - name: Legacy dmg alias (one-time)
-        # ponytail: one-time transition alias so bookmarked old dmg URLs keep working; remove after this release.
-        working-directory: electron/release
-        run: cp Encounty-arm64.dmg Encounty.dmg
-
       - name: Upload macOS artifacts to release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            electron/release/Encounty-arm64.dmg
-            electron/release/Encounty.dmg
+          files: electron/release/Encounty-arm64.dmg
