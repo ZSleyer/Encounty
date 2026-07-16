@@ -918,6 +918,8 @@ function stepKey(step: string): string {
       return "app.syncStepSpecies";
     case "forms":
       return "app.syncStepForms";
+    case "cosmetic_forms":
+      return "app.syncStepCosmeticForms";
     case "names":
       return "app.syncStepNames";
     case "form_names":

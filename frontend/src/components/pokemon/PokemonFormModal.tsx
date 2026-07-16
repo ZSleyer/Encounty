@@ -127,6 +127,8 @@ interface PokemonForm {
   names?: Record<string, string>;
   form_names?: Record<string, string>;
   sprite_id: number;
+  /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
+  sprite_slug?: string;
   generations?: number[];
 }
 
@@ -143,6 +145,8 @@ interface SearchResult {
   names?: Record<string, string>;
   isForm: boolean;
   spriteId: number;
+  /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
+  spriteSlug?: string;
   formName?: string;
   baseName?: string;
 }
@@ -299,6 +303,7 @@ function buildSearchList(
         if (!isFormAvailableForGame(f, selectedGame, games)) continue;
         results.push({
           id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+          spriteSlug: f.sprite_slug,
           formName: (f as any).form_names?.[language] || (f as any).form_names?.["en"] || undefined,
           baseName: p.names?.[language] || p.names?.["en"] || undefined,
         });
@@ -319,6 +324,7 @@ function formEntriesFor(
     .filter((f) => isFormAvailableForGame(f, selectedGame, games))
     .map((f) => ({
       id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+      spriteSlug: f.sprite_slug,
       formName: (f as any).form_names?.[language] || (f as any).form_names?.["en"] || undefined,
       baseName: p.names?.[language] || p.names?.["en"] || undefined,
     }));
@@ -346,6 +352,8 @@ interface PokemonThumbProps {
   readonly canonical: string;
   readonly alt: string;
   readonly className?: string;
+  /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
+  readonly spriteSlug?: string;
 }
 
 /**
@@ -354,18 +362,29 @@ interface PokemonThumbProps {
  * (which covers form IDs missing from both PokeAPI sets, e.g.
  * pikachu-starter), and finally the neutral placeholder glyph so the slot
  * stays layout-stable instead of collapsing.
+ *
+ * Cosmetic-only forms (spriteSlug set) have no numeric PokeAPI ID and no 3D
+ * Home render, so their chain starts at the slug-based default sprite and
+ * skips straight to the Pokésprite box sprite.
  */
-function PokemonThumb({ spriteId, canonical, alt, className }: PokemonThumbProps) {
+function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug }: PokemonThumbProps) {
   // Candidate URLs in fallback order, deduplicated so onError always advances
   // to a genuinely different source. Pixel-art candidates render pixelated.
+  const sources = spriteSlug
+    ? [
+        { src: getDefaultSpriteUrl(spriteSlug), pixelated: true },
+        { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
+        { src: SPRITE_FALLBACK, pixelated: false },
+      ]
+    : [
+        { src: getDefaultSpriteUrl(spriteId), pixelated: true },
+        { src: getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical), pixelated: false },
+        { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
+        { src: SPRITE_FALLBACK, pixelated: false },
+      ];
   const candidates: { src: string; pixelated: boolean }[] = [];
   const seen = new Set<string>();
-  for (const c of [
-    { src: getDefaultSpriteUrl(spriteId), pixelated: true },
-    { src: getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical), pixelated: false },
-    { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
-    { src: SPRITE_FALLBACK, pixelated: false },
-  ]) {
+  for (const c of sources) {
     if (!seen.has(c.src)) {
       seen.add(c.src);
       candidates.push(c);
@@ -379,7 +398,7 @@ function PokemonThumb({ spriteId, canonical, alt, className }: PokemonThumbProps
   // so React keeps the component instance (and its state) alive across items.
   useEffect(() => {
     setCandidateIndex(0);
-  }, [spriteId, canonical]);
+  }, [spriteId, canonical, spriteSlug]);
 
   const current = candidates[Math.min(candidateIndex, candidates.length - 1)];
   return (
@@ -399,6 +418,8 @@ interface SelectedState {
   name: string;
   sprite: string;
   spriteId: number;
+  /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
+  spriteSlug?: string;
   formName?: string;
   baseName?: string;
 }
@@ -426,9 +447,10 @@ function applyEditModeMatch(
   for (const p of data) {
     const form = p.forms?.find((f) => f.canonical === pokemon.canonical_name);
     if (form) {
-      const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical);
+      const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical, form.sprite_slug);
       setSelected({
         id: p.id, canonical: form.canonical, name: getPkmnName(form, pokemon.language), sprite, spriteId: form.sprite_id,
+        spriteSlug: form.sprite_slug,
         formName: (form as any).form_names?.[pokemon.language] || (form as any).form_names?.["en"] || undefined,
         baseName: p.names?.[pokemon.language] || p.names?.["en"] || undefined,
       });
@@ -828,11 +850,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
     const effectiveStyle = resolveEffectiveStyle(p.id, spriteStyle, setSpriteStyle);
     const sprite = getSpriteUrl(
-      p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical,
+      p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical, p.spriteSlug,
     );
     setSelected({
       id: p.id, canonical: p.canonical,
       name: getPkmnName(p, language), sprite, spriteId: p.spriteId,
+      spriteSlug: p.spriteSlug,
       formName: p.formName,
       baseName: p.baseName,
     });
@@ -848,22 +871,26 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   };
 
   // --- Recalculate sprite URL when dependencies change ---
+  // selected?.canonical is a dependency because cosmetic forms of the same
+  // species all share spriteId 0, so switching between them would otherwise
+  // never trigger a recalc.
   useEffect(() => {
     if (!selected) return;
     const newSprite = getSpriteUrl(
-      selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical,
+      selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical, selected.spriteSlug,
     );
     // Preserve a user-set custom sprite (local upload or manual URL): only
     // resync customSprite when it still mirrors the auto-computed sprite.
     const overridden = customSpriteRef.current !== selected.sprite;
     setSelected((prev) => (prev ? { ...prev, sprite: newSprite } : null));
     if (!overridden) setCustomSprite(newSprite);
-  }, [selectedGame, spriteType, spriteStyle, selected?.spriteId]);
+  }, [selectedGame, spriteType, spriteStyle, selected?.spriteId, selected?.canonical]);
 
   // --- Reset per-pokemon unavailable-style cache when the relevant inputs change ---
+  // Keyed on canonical too: cosmetic forms of one species all share spriteId 0.
   useEffect(() => {
     setUnavailableStyles(new Set());
-  }, [selected?.spriteId, selectedGame, spriteType]);
+  }, [selected?.spriteId, selected?.canonical, selectedGame, spriteType]);
 
   /**
    * Mark a sprite style as unavailable for the current Pokemon. If the active
@@ -1076,7 +1103,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   src={
                     customSprite ||
                     (spriteStyle === "box"
-                      ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical)
+                      ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug)
                       : selected.sprite)
                   }
                   alt={activeName}
@@ -1139,6 +1166,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       spriteType,
                       s.key,
                       selected.canonical,
+                      selected.spriteSlug,
                     )
                   : "";
                 // Last item in an odd-length list spans full width
@@ -1298,6 +1326,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   spriteType,
                   "3d",
                   selected.canonical,
+                  selected.spriteSlug,
                 )}
               />
               <div className="flex-1 min-w-0">
@@ -1379,6 +1408,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       <PokemonThumb
                         spriteId={s.spriteId}
                         canonical={s.canonical}
+                        spriteSlug={s.spriteSlug}
                         alt={getPkmnName(s, language)}
                         className="h-7 w-7 object-contain shrink-0"
                       />
@@ -1424,6 +1454,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       <PokemonThumb
                         spriteId={f.spriteId}
                         canonical={f.canonical}
+                        spriteSlug={f.spriteSlug}
                         alt=""
                         className="h-6 w-6 object-contain shrink-0"
                       />

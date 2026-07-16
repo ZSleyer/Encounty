@@ -30,6 +30,8 @@ const POKEDEX_DATA = [
     names: { de: "Pikachu", en: "Pikachu" },
     forms: [
       { canonical: "pikachu-gmax", names: { de: "Pikachu Gmax", en: "Pikachu Gmax" }, sprite_id: 10199 },
+      // Cosmetic-only form: no own PokeAPI id, sprites live under a slug path.
+      { canonical: "pikachu-muster", names: { de: "Pikachu Muster", en: "Pikachu Pattern" }, sprite_id: 0, sprite_slug: "25-muster" },
     ],
   },
 ];
@@ -1010,6 +1012,34 @@ describe("PokemonFormModal", () => {
       expect(img.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
 
       // Terminal candidate: further errors keep the placeholder.
+      fireEvent.error(img);
+      expect(img.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
+    });
+
+    it("starts cosmetic forms at the slug sprite and skips the Home 3D render", async () => {
+      const { fireEvent } = await import("../../test-utils");
+      render(
+        <PokemonFormModal mode="add" onSubmit={vi.fn()} onClose={vi.fn()} />,
+      );
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+      const searchInput = screen.getByPlaceholderText(/pok.mon/i);
+      await userEvent.click(searchInput);
+      await userEvent.type(searchInput, "muster");
+      await waitFor(() => expect(screen.getByText("Pikachu Muster")).toBeInTheDocument());
+
+      const img = screen.getByAltText("Pikachu Muster") as HTMLImageElement;
+      expect(img).toHaveAttribute(
+        "src",
+        "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25-muster.png",
+      );
+
+      fireEvent.error(img);
+      expect(img).toHaveAttribute(
+        "src",
+        "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8/shiny/pikachu-muster.png",
+      );
+
       fireEvent.error(img);
       expect(img.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
     });

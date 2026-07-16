@@ -19,6 +19,7 @@
   "app.syncPhasePokedex": "Synchronisation du Pokédex...",
   "app.syncStepSpecies": "Chargement des espèces Pokémon...",
   "app.syncStepForms": "Chargement des formes alternatives...",
+  "app.syncStepCosmeticForms": "Chargement des variantes cosmétiques...",
   "app.syncStepNames": "Chargement des noms localisés...",
   "app.syncStepFormNames": "Chargement des noms de formes...",
   "app.syncError": "Échec de la synchronisation",

@@ -204,6 +204,12 @@ export function bestAvailableStyle(
  * - animated: Pokémon Showdown animated GIFs (all Pokémon)
  * - 3d:       Pokémon Home 3D renders (high-quality PNG)
  * - artwork:  Official Ken Sugimori / official artwork from PokeAPI
+ *
+ * `spriteSlug` marks a purely cosmetic form (sprite_id 0) whose PokeAPI assets
+ * live under a slug path such as "201-b" or "666-icy-snow". These forms have
+ * no 3D Home render and no official artwork; the slug-based default pixel
+ * sprite is the only PokeAPI asset available, so the 3d/artwork/classic styles
+ * all resolve to it. Box and animated stay canonical-name based.
  */
 export function getSpriteUrl(
   pokemonId: number | string,
@@ -211,8 +217,21 @@ export function getSpriteUrl(
   spriteType: SpriteType = "shiny",
   spriteStyle: SpriteStyle = "box",
   canonicalName?: string,
+  spriteSlug?: string,
 ): string {
   const shiny = spriteType === "shiny";
+
+  // Slug handling must run before any numeric ID resolution:
+  // Number.parseInt("201-b") would silently truncate to 201.
+  if (
+    spriteSlug &&
+    (spriteStyle === "3d" || spriteStyle === "artwork" || spriteStyle === "classic")
+  ) {
+    return shiny
+      ? `${POKEAPI_BASE}/shiny/${spriteSlug}.png`
+      : `${POKEAPI_BASE}/${spriteSlug}.png`;
+  }
+
   const resolvedId = resolvePokeApiId(pokemonId, canonicalName);
 
   // ── Classic (game-specific pixel sprites) ────────────────────────────

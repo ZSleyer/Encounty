@@ -19,6 +19,7 @@
   "app.syncPhasePokedex": "ポケデックスを同期中...",
   "app.syncStepSpecies": "ポケモンの種族を読み込み中...",
   "app.syncStepForms": "別フォームを読み込み中...",
+  "app.syncStepCosmeticForms": "見た目のすがたを読み込み中...",
   "app.syncStepNames": "ローカライズされた名前を読み込み中...",
   "app.syncStepFormNames": "フォーム名を読み込み中...",
   "app.syncError": "同期に失敗しました",

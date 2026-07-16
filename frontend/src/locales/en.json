@@ -19,6 +19,7 @@
   "app.syncPhasePokedex": "Syncing Pokédex…",
   "app.syncStepSpecies": "Loading Pokémon species…",
   "app.syncStepForms": "Loading alternate forms…",
+  "app.syncStepCosmeticForms": "Loading cosmetic variants…",
   "app.syncStepNames": "Loading localized names…",
   "app.syncStepFormNames": "Loading form names…",
   "app.syncError": "Sync failed",

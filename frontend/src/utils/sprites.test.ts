@@ -58,6 +58,33 @@ describe("getSpriteUrl", () => {
     });
   });
 
+  describe("cosmetic form sprite slug", () => {
+    it("resolves the 3d style to the shiny slug sprite", () => {
+      const url = getSpriteUrl(0, "", "shiny", "3d", "unown-b", "201-b");
+      expect(url).toBe(`${POKEAPI_BASE}/shiny/201-b.png`);
+    });
+
+    it("resolves the artwork style to the normal slug sprite", () => {
+      const url = getSpriteUrl(0, "", "normal", "artwork", "unown-b", "201-b");
+      expect(url).toBe(`${POKEAPI_BASE}/201-b.png`);
+    });
+
+    it("resolves the classic style to the slug sprite", () => {
+      const url = getSpriteUrl(0, "pokemon-gold", "shiny", "classic", "unown-b", "201-b");
+      expect(url).toBe(`${POKEAPI_BASE}/shiny/201-b.png`);
+    });
+
+    it("keeps the box style canonical-name based", () => {
+      const url = getSpriteUrl(0, "", "shiny", "box", "vivillon-icy-snow", "666-icy-snow");
+      expect(url).toBe(`${POKESPRITE_BASE}/shiny/vivillon-icy-snow.png`);
+    });
+
+    it("keeps the animated style canonical-name based", () => {
+      const url = getSpriteUrl(0, "", "shiny", "animated", "vivillon-icy-snow", "666-icy-snow");
+      expect(url).toBe(`${SHOWDOWN_BASE}/ani-shiny/vivillonicysnow.gif`);
+    });
+  });
+
   describe("box style (legacy fallback) — Gen 1", () => {
     it("returns Gen 1 red/blue sprite (ignores shiny flag)", () => {
       const url = getSpriteUrl(25, "pokemon-red", "shiny", "box");
