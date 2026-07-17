@@ -129,6 +129,18 @@ a.t-label:hover {
   opacity: 0.9;
 }
 
+/* On a split primary button the wrapper hosts the open dropdown as a child,
+   so dimming the wrapper's opacity would make the menu translucent too.
+   Keep the wrapper opaque and dim only the interactive parts instead. */
+.dl-btn--primary.dl-split:hover {
+  opacity: 1;
+}
+
+.dl-btn--primary .dl-split__main:hover,
+.dl-btn--primary .dl-split__toggle:hover {
+  opacity: 0.9;
+}
+
 .dl-btn--primary:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
@@ -161,8 +173,17 @@ a.t-label:hover {
   cursor: pointer;
 }
 
+/* On a primary split button the wrapper's clip-path would also clip the
+   absolutely-positioned dropdown menu (clip-path clips all descendants),
+   hiding it. Move the Tempest corner cut onto the toggle (the top-right
+   part), which is not an ancestor of the menu, so the menu stays visible. */
+.dl-btn--primary.dl-split {
+  clip-path: none;
+}
+
 .dl-btn--primary .dl-split__toggle {
   border-left-color: rgba(0, 0, 0, 0.25);
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
 }
 
 .dl-split__toggle svg {
