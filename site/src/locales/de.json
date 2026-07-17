@@ -29,8 +29,8 @@
   "dl.winMoreAria": "Weitere Windows-Download-Optionen",
   "dl.portable": "Encounty Portable",
   "dl.formats": "AppImage (Linux) · Installer + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · kostenlos & AGPL-3.0",
-  "dl.armPre": "Auf ARM64 unterwegs? Der Windows-Download läuft bereits auf ARM. Linux ARM64:",
-  "dl.armLink": "AppImage (arm64)",
+  "dl.linuxMoreAria": "Weitere Linux-Download-Optionen",
+  "dl.linuxArm": "AppImage (arm64)",
 
   "screens.heading": "Screenshots",
   "screens.dashboardAlt": "Encounty-Dashboard mit aktiven Shiny-Hunts, Encounter-Zähler, Timer und Odds",

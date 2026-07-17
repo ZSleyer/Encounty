@@ -29,8 +29,8 @@
   "dl.winMoreAria": "More Windows download options",
   "dl.portable": "Encounty Portable",
   "dl.formats": "AppImage (Linux) · installer + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · free & AGPL-3.0",
-  "dl.armPre": "On ARM64? The Windows download already works on ARM. Linux ARM64:",
-  "dl.armLink": "AppImage (arm64)",
+  "dl.linuxMoreAria": "More Linux download options",
+  "dl.linuxArm": "AppImage (arm64)",
 
   "screens.heading": "Screenshots",
   "screens.dashboardAlt": "Encounty dashboard showing active shiny hunts with encounter counter, timer and odds",

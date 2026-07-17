@@ -121,13 +121,37 @@
             game, let the GPU detect encounters, and never click a tally counter again.
           </p>
           <div id="download-buttons" class="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <a
-              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-x86_64.AppImage"
-              data-os="linux"
-              class="dl-btn dl-btn--primary px-6 py-3"
-              data-i18n="dl.linux"
-              >Download for Linux</a
-            >
+            <div data-os="linux" class="dl-btn dl-btn--primary dl-split">
+              <a
+                href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-x86_64.AppImage"
+                class="dl-split__main px-6 py-3"
+                data-i18n="dl.linux"
+                >Download for Linux</a
+              >
+              <button
+                id="linux-more"
+                type="button"
+                class="dl-split__toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+                aria-controls="linux-arch-menu"
+                aria-label="More Linux download options"
+                data-i18n-attr="aria-label:dl.linuxMoreAria"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
+                  <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" />
+                </svg>
+              </button>
+              <div id="linux-arch-menu" class="dl-split__menu" role="menu" hidden>
+                <a
+                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.AppImage"
+                  class="dl-split__item"
+                  role="menuitem"
+                  data-i18n="dl.linuxArm"
+                  >AppImage (arm64)</a
+                >
+              </div>
+            </div>
             <a
               href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.dmg"
               data-os="macos"
@@ -170,17 +194,6 @@
           <p class="mt-4 text-sm text-text-muted" data-i18n="dl.formats">
             AppImage (Linux) · installer + portable .exe (Windows 11) · DMG (macOS, Apple
             Silicon) · free & AGPL-3.0
-          </p>
-          <p class="mt-2 text-sm text-text-muted">
-            <span data-i18n="dl.armPre"
-              >On ARM64? The Windows download already works on ARM. Linux ARM64:</span
-            >
-            <a
-              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.AppImage"
-              class="underline hover:text-text-primary"
-              data-i18n="dl.armLink"
-              >AppImage (arm64)</a
-            >.
           </p>
         </div>
       </section>
@@ -468,32 +481,41 @@
         }
       }
 
-      // Windows split button: toggle the portable-download dropdown.
-      const winToggle = document.getElementById("win-more");
-      const winMenu = document.getElementById("win-portable-menu");
-      if (winToggle && winMenu) {
-        const closeWinMenu = () => {
-          winMenu.hidden = true;
-          winToggle.setAttribute("aria-expanded", "false");
+      // Split download buttons: wire each toggle to its dropdown menu.
+      const wireSplitMenu = (toggleId, menuId) => {
+        const toggle = document.getElementById(toggleId);
+        const menu = document.getElementById(menuId);
+        if (!toggle || !menu) return;
+        // Lift the whole wrapper (not just the menu) above the sibling
+        // download buttons while open. z-index only on the absolute menu is
+        // not reliably honored against a later-sibling wrapper in Firefox.
+        const wrapper = toggle.closest(".dl-split");
+        const close = () => {
+          menu.hidden = true;
+          toggle.setAttribute("aria-expanded", "false");
+          wrapper.style.zIndex = "";
         };
-        winToggle.addEventListener("click", (e) => {
+        toggle.addEventListener("click", (e) => {
           e.stopPropagation();
-          const isOpen = winToggle.getAttribute("aria-expanded") === "true";
-          winMenu.hidden = isOpen;
-          winToggle.setAttribute("aria-expanded", String(!isOpen));
+          const isOpen = toggle.getAttribute("aria-expanded") === "true";
+          menu.hidden = isOpen;
+          toggle.setAttribute("aria-expanded", String(!isOpen));
+          wrapper.style.zIndex = isOpen ? "" : "20";
         });
         document.addEventListener("click", (e) => {
-          if (!winMenu.hidden && !winMenu.contains(e.target) && e.target !== winToggle) {
-            closeWinMenu();
+          if (!menu.hidden && !menu.contains(e.target) && e.target !== toggle) {
+            close();
           }
         });
         document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape" && !winMenu.hidden) {
-            closeWinMenu();
-            winToggle.focus();
+          if (e.key === "Escape" && !menu.hidden) {
+            close();
+            toggle.focus();
           }
         });
-      }
+      };
+      wireSplitMenu("win-more", "win-portable-menu");
+      wireSplitMenu("linux-more", "linux-arch-menu");
     </script>
   </body>
 </html>

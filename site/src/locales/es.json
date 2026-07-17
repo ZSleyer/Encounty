@@ -29,8 +29,8 @@
   "dl.winMoreAria": "Más opciones de descarga para Windows",
   "dl.portable": "Encounty Portable",
   "dl.formats": "AppImage (Linux) · instalador + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · gratis y AGPL-3.0",
-  "dl.armPre": "¿En ARM64? La descarga de Windows ya funciona en ARM. Linux ARM64:",
-  "dl.armLink": "AppImage (arm64)",
+  "dl.linuxMoreAria": "Más opciones de descarga para Linux",
+  "dl.linuxArm": "AppImage (arm64)",
 
   "screens.heading": "Capturas de pantalla",
   "screens.dashboardAlt": "Panel de Encounty mostrando cazas de shinies activas con contador de encuentros, temporizador y probabilidades",

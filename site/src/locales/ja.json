@@ -29,8 +29,8 @@
   "dl.winMoreAria": "Windows のダウンロードオプションをさらに表示",
   "dl.portable": "Encounty Portable",
   "dl.formats": "AppImage (Linux) · インストーラー + ポータブル .exe (Windows 11) · DMG (macOS、Apple Silicon) · 無料 & AGPL-3.0",
-  "dl.armPre": "ARM64 をお使いですか? Windows 版はすでに ARM で動作します。Linux ARM64:",
-  "dl.armLink": "AppImage (arm64)",
+  "dl.linuxMoreAria": "Linux のダウンロードオプションをさらに表示",
+  "dl.linuxArm": "AppImage (arm64)",
 
   "screens.heading": "スクリーンショット",
   "screens.dashboardAlt": "遭遇カウンター、タイマー、確率とともに進行中の色違い厳選を表示する Encounty のダッシュボード",
