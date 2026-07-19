@@ -53,7 +53,7 @@ jobs:
           echo "total=$total" >> "$GITHUB_OUTPUT"
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: backend-coverage
           path: |
@@ -91,7 +91,7 @@ jobs:
           echo "total=$total" >> "$GITHUB_OUTPUT"
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: frontend-coverage
           path: frontend/coverage/
