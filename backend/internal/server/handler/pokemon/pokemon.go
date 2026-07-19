@@ -5,12 +5,12 @@ package pokemon
 import (
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
+	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
@@ -267,7 +267,11 @@ func (h *handler) handleDeletePokemon(w http.ResponseWriter, _ *http.Request, id
 	if ds := h.deps.DetectorStopper(); ds != nil {
 		ds.Stop(id)
 	}
-	_ = os.RemoveAll(filepath.Join(h.deps.ConfigDir(), "templates", id))
+	// id is a URL path param; contain it so it cannot delete outside the
+	// templates directory (e.g. id = "../../..").
+	if dir, err := pathsafe.Join(h.deps.ConfigDir(), "templates", id); err == nil {
+		_ = os.RemoveAll(dir)
+	}
 	if db := h.deps.PokemonDB(); db != nil {
 		_ = db.DeleteSprite(id)
 	}

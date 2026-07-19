@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
+	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
@@ -131,7 +132,11 @@ func (h *handler) handleTemplateGet(w http.ResponseWriter, r *http.Request, id s
 		w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 		_, _ = w.Write(data)
 	} else if tmpl.ImagePath != "" {
-		absPath := filepath.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath)
+		absPath, err := pathsafe.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath)
+		if err != nil {
+			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "invalid template path"})
+			return
+		}
 		http.ServeFile(w, r, absPath)
 	} else {
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: "no image data available"})
@@ -145,8 +150,9 @@ func (h *handler) handleTemplateDelete(w http.ResponseWriter, id string, n int, 
 	if tmpl.TemplateDBID > 0 && db != nil {
 		_ = db.DeleteTemplateImage(tmpl.TemplateDBID)
 	} else if tmpl.ImagePath != "" {
-		absPath := filepath.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath)
-		_ = os.Remove(absPath)
+		if absPath, err := pathsafe.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath); err == nil {
+			_ = os.Remove(absPath)
+		}
 	}
 	cfg.Templates = append(cfg.Templates[:n], cfg.Templates[n+1:]...)
 	sm := h.deps.StateManager()
@@ -430,7 +436,10 @@ func (h *handler) storeTemplateImage(pokemonID string, pngBytes []byte, sortOrde
 		tmpl.TemplateDBID = dbID
 		return nil
 	}
-	templatesDir := filepath.Join(h.deps.ConfigDir(), "templates", pokemonID)
+	templatesDir, err := pathsafe.Join(h.deps.ConfigDir(), "templates", pokemonID)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(templatesDir, 0755); err != nil {
 		return err
 	}
@@ -487,8 +496,9 @@ func (h *handler) handleClearAllTemplates(w http.ResponseWriter, r *http.Request
 		if tmpl.TemplateDBID > 0 && db != nil {
 			_ = db.DeleteTemplateImage(tmpl.TemplateDBID)
 		} else if tmpl.ImagePath != "" {
-			absPath := filepath.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath)
-			_ = os.Remove(absPath)
+			if absPath, err := pathsafe.Join(h.deps.ConfigDir(), "templates", id, tmpl.ImagePath); err == nil {
+				_ = os.Remove(absPath)
+			}
 		}
 	}
 

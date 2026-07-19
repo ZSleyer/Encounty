@@ -18,6 +18,7 @@ import (
 
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
+	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 )
 
 const dbFilename = "encounty.db"
@@ -134,7 +135,12 @@ func extractZipEntry(f *zip.File, configDir string) bool {
 		return false
 	}
 
-	dest := filepath.Join(configDir, f.Name)
+	// Containment check defeats zip-slip: a crafted entry name like
+	// "templates/../../../etc/x" must not write outside configDir.
+	dest, err := pathsafe.Join(configDir, f.Name)
+	if err != nil {
+		return false
+	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
 		return false
 	}

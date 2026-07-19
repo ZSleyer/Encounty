@@ -21,6 +21,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/fileoutput"
 	"github.com/zsleyer/encounty/backend/internal/gamesync"
 	"github.com/zsleyer/encounty/backend/internal/hotkeys"
+	"github.com/zsleyer/encounty/backend/internal/pathsafe"
 	"github.com/zsleyer/encounty/backend/internal/pokedex"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/backgrounds"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/backup"
@@ -172,11 +173,13 @@ func (s *Server) serveFrontend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Try to serve the exact file from the frontend directory.
-	filePath := filepath.Join(s.frontendDir, filepath.Clean(r.URL.Path))
-	if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
-		http.ServeFile(w, r, filePath)
-		return
+	// Try to serve the exact file from the frontend directory. Contain the
+	// request path so "../" sequences cannot escape frontendDir.
+	if filePath, err := pathsafe.Join(s.frontendDir, r.URL.Path); err == nil {
+		if info, statErr := os.Stat(filePath); statErr == nil && !info.IsDir() {
+			http.ServeFile(w, r, filePath)
+			return
+		}
 	}
 
 	// SPA fallback: read index.html once and inject <base href="/"> so that
