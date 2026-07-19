@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
       - name: Set up Node.js
@@ -259,7 +259,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
       - name: Set up Node.js
