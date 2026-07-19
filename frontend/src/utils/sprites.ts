@@ -18,6 +18,32 @@ const SPRITE_FALLBACK_SVG =
 /** Placeholder sprite (Tempest pokéball glyph) used when a sprite fails to load or is unset. */
 export const SPRITE_FALLBACK = `data:image/svg+xml,${encodeURIComponent(SPRITE_FALLBACK_SVG)}`;
 
+/**
+ * Guards a user-supplied sprite URL before it is used as an <img src>.
+ *
+ * The custom-sprite field lets the user paste an arbitrary URL that is also
+ * persisted and later re-rendered, so a hostile value like "javascript:..."
+ * or "data:text/html,..." must never reach the DOM. Only image-safe schemes
+ * (http, https, blob, data:image/*) and same-origin relative paths pass;
+ * anything else collapses to SPRITE_FALLBACK.
+ * @param url The candidate sprite URL, possibly user-controlled or empty.
+ * @returns The url unchanged when safe, otherwise SPRITE_FALLBACK.
+ */
+export function safeSpriteSrc(url: string | null | undefined): string {
+  if (!url) return SPRITE_FALLBACK;
+  // Relative/same-origin paths (e.g. "/api/pokemon/…/sprite") carry no scheme.
+  if (url.startsWith("/") && !url.startsWith("//")) return url;
+  let scheme: string;
+  try {
+    scheme = new URL(url, "http://localhost").protocol;
+  } catch {
+    return SPRITE_FALLBACK;
+  }
+  if (scheme === "http:" || scheme === "https:" || scheme === "blob:") return url;
+  if (scheme === "data:" && /^data:image\//i.test(url)) return url;
+  return SPRITE_FALLBACK;
+}
+
 /** Small default PokeAPI sprite — available for all generations including Gen 9. */
 export function getDefaultSpriteUrl(pokemonId: number | string): string {
   return `${POKEAPI_BASE}/${pokemonId}.png`;

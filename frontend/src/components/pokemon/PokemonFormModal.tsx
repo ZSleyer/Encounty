@@ -25,6 +25,7 @@ import {
   SpriteStyle,
   SPRITE_STYLES,
   SPRITE_FALLBACK,
+  safeSpriteSrc,
   isSpriteStyleAvailable,
   bestAvailableStyle,
   getPokemonGeneration,
@@ -1098,12 +1099,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     size, so it swaps to the home render and stays small
                     below as the actual output preview. */}
                 <img
-                  src={
+                  src={safeSpriteSrc(
                     customSprite ||
-                    (spriteStyle === "box"
-                      ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug)
-                      : selected.sprite)
-                  }
+                      (spriteStyle === "box"
+                        ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug)
+                        : selected.sprite),
+                  )}
                   alt={activeName}
                   className="h-28 w-auto mx-auto pokemon-sprite object-contain"
                   style={
@@ -1732,7 +1733,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                     <div className="flex gap-2">
                       {isUploadedSprite && (
                         <img
-                          src={customSprite}
+                          src={safeSpriteSrc(customSprite)}
                           alt=""
                           className="w-10 h-10 object-contain rounded-none border border-border-subtle pokemon-sprite"
                         />

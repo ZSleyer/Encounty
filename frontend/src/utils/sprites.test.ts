@@ -8,6 +8,7 @@ import {
   bestAvailableStyle,
   SPRITE_STYLES,
   SPRITE_FALLBACK,
+  safeSpriteSrc,
 } from "./sprites";
 
 const POKEAPI_BASE =
@@ -15,6 +16,27 @@ const POKEAPI_BASE =
 const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
 const POKESPRITE_BASE =
   "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8";
+
+describe("safeSpriteSrc", () => {
+  it("passes through http, https, blob and data:image URLs", () => {
+    expect(safeSpriteSrc("https://x/y.png")).toBe("https://x/y.png");
+    expect(safeSpriteSrc("http://x/y.png")).toBe("http://x/y.png");
+    expect(safeSpriteSrc("blob:http://localhost/abc")).toBe("blob:http://localhost/abc");
+    expect(safeSpriteSrc("data:image/png;base64,AAAA")).toBe("data:image/png;base64,AAAA");
+  });
+
+  it("passes through same-origin relative paths", () => {
+    expect(safeSpriteSrc("/api/pokemon/1/sprite?v=2")).toBe("/api/pokemon/1/sprite?v=2");
+  });
+
+  it("rejects dangerous schemes and empties with the fallback", () => {
+    expect(safeSpriteSrc("javascript:alert(1)")).toBe(SPRITE_FALLBACK);
+    expect(safeSpriteSrc("data:text/html,<script>alert(1)</script>")).toBe(SPRITE_FALLBACK);
+    expect(safeSpriteSrc("vbscript:msgbox(1)")).toBe(SPRITE_FALLBACK);
+    expect(safeSpriteSrc("")).toBe(SPRITE_FALLBACK);
+    expect(safeSpriteSrc(null)).toBe(SPRITE_FALLBACK);
+  });
+});
 
 describe("getSpriteUrl", () => {
   describe("animated style", () => {
