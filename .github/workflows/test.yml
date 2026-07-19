@@ -10,6 +10,9 @@ on:
         description: Frontend test coverage percentage
         value: ${{ jobs.frontend.outputs.coverage }}
 
+permissions:
+  contents: read
+
 jobs:
   backend:
     name: Go Backend
