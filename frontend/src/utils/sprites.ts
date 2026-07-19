@@ -1,10 +1,12 @@
+import { apiUrl } from "./api";
+
 export type SpriteType = "normal" | "shiny";
 export type SpriteStyle = "box" | "animated" | "3d" | "artwork" | "classic";
 
-const POKEAPI_BASE =
+export const POKEAPI_BASE =
   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
-const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
-const POKESPRITE_BASE =
+export const SHOWDOWN_BASE = "https://play.pokemonshowdown.com/sprites";
+export const POKESPRITE_BASE =
   "https://raw.githubusercontent.com/msikma/pokesprite/master/pokemon-gen8";
 
 const SPRITE_FALLBACK_SVG =
@@ -42,6 +44,38 @@ export function safeSpriteSrc(url: string | null | undefined): string {
   if (scheme === "http:" || scheme === "https:" || scheme === "blob:") return url;
   if (scheme === "data:" && /^data:image\//i.test(url)) return url;
   return SPRITE_FALLBACK;
+}
+
+/**
+ * Resolves a stored sprite URL into a browser-loadable <img src>.
+ *
+ * Uploaded custom sprites are persisted as an app-relative backend path
+ * ("/api/pokemon/<id>/sprite?v=…"). That path resolves fine behind the Vite
+ * dev proxy, but in the packaged Electron app a bare "/api/…" resolves against
+ * the renderer origin instead of the backend port and 404s. Prefixing the
+ * backend base (via apiUrl) makes it load in both. External and data: URLs are
+ * already absolute and pass through unchanged. The scheme guard from
+ * safeSpriteSrc is always applied first.
+ * @param url The stored sprite URL, possibly relative, external, or empty.
+ * @returns An absolute, scheme-safe URL, or SPRITE_FALLBACK when unusable.
+ */
+export function resolveSpriteSrc(url: string | null | undefined): string {
+  if (!url) return SPRITE_FALLBACK;
+  const safe = safeSpriteSrc(url);
+  return safe.startsWith("/") && !safe.startsWith("//") ? apiUrl(safe) : safe;
+}
+
+/**
+ * Reports whether a sprite URL is a user-custom sprite rather than an
+ * auto-generated default. Custom means an uploaded backend path or a pasted
+ * foreign URL; defaults always point at one of the three known sprite hosts.
+ * Used to decide whether to show the sprite directly instead of the trimmed
+ * box art derived from the canonical name.
+ * @param url The stored sprite URL to classify.
+ * @returns True when the URL is not one of the default sprite hosts.
+ */
+export function isCustomSprite(url: string | null | undefined): boolean {
+  return !!url && ![POKEAPI_BASE, SHOWDOWN_BASE, POKESPRITE_BASE].some((base) => url.startsWith(base));
 }
 
 /** Small default PokeAPI sprite — available for all generations including Gen 9. */

@@ -9,7 +9,10 @@ import {
   SPRITE_STYLES,
   SPRITE_FALLBACK,
   safeSpriteSrc,
+  resolveSpriteSrc,
+  isCustomSprite,
 } from "./sprites";
+import { apiUrl } from "./api";
 
 const POKEAPI_BASE =
   "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon";
@@ -35,6 +38,45 @@ describe("safeSpriteSrc", () => {
     expect(safeSpriteSrc("vbscript:msgbox(1)")).toBe(SPRITE_FALLBACK);
     expect(safeSpriteSrc("")).toBe(SPRITE_FALLBACK);
     expect(safeSpriteSrc(null)).toBe(SPRITE_FALLBACK);
+  });
+});
+
+describe("resolveSpriteSrc", () => {
+  it("prefixes the backend base for app-relative upload paths", () => {
+    // apiUrl("") is the backend base ("" under the Vite proxy, an absolute
+    // origin in Electron); the resolved src must be exactly that path routed
+    // through apiUrl so it loads in the packaged app instead of 404ing.
+    const path = "/api/pokemon/1/sprite?v=2";
+    expect(resolveSpriteSrc(path)).toBe(apiUrl(path));
+  });
+
+  it("passes through absolute external and data URLs unchanged", () => {
+    expect(resolveSpriteSrc("https://foo/x.png")).toBe("https://foo/x.png");
+    expect(resolveSpriteSrc("data:image/png;base64,AAAA")).toBe("data:image/png;base64,AAAA");
+  });
+
+  it("collapses dangerous or empty URLs to the fallback", () => {
+    expect(resolveSpriteSrc("javascript:alert(1)")).toBe(SPRITE_FALLBACK);
+    expect(resolveSpriteSrc("")).toBe(SPRITE_FALLBACK);
+    expect(resolveSpriteSrc(null)).toBe(SPRITE_FALLBACK);
+  });
+});
+
+describe("isCustomSprite", () => {
+  it("treats the known default hosts as non-custom", () => {
+    expect(isCustomSprite(`${POKEAPI_BASE}/1.png`)).toBe(false);
+    expect(isCustomSprite(`${SHOWDOWN_BASE}/ani/pikachu.gif`)).toBe(false);
+    expect(isCustomSprite(`${POKESPRITE_BASE}/shiny/pikachu.png`)).toBe(false);
+  });
+
+  it("treats uploads and foreign URLs as custom", () => {
+    expect(isCustomSprite("/api/pokemon/1/sprite?v=2")).toBe(true);
+    expect(isCustomSprite("https://example.com/my.png")).toBe(true);
+  });
+
+  it("treats empty as non-custom", () => {
+    expect(isCustomSprite("")).toBe(false);
+    expect(isCustomSprite(null)).toBe(false);
   });
 });
 
