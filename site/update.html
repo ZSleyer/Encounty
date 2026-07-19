@@ -506,14 +506,15 @@
               <h3 class="t-heading text-lg text-text-primary" data-i18n="update.linux.libz.title">
                 If it will not start (libz.so error)
               </h3>
-              <p
-                class="mt-3 text-sm text-text-secondary"
-                data-i18n-html="update.linux.libz.text"
-              >
-                On a minimal Linux install Encounty may exit right away with a message like
-                <code class="text-text-primary">error while loading shared libraries: libz.so</code>.
-                The app needs the standard compression library "zlib", which some systems do not
-                include by default. Installing the package below fixes it.
+              <p class="mt-3 text-sm text-text-secondary">
+                <span data-i18n="update.linux.libz.textBefore"
+                  >On a minimal Linux install Encounty may exit right away with a message like</span
+                >
+                <code class="text-text-primary">error while loading shared libraries: libz.so</code
+                ><span data-i18n="update.linux.libz.textAfter"
+                  >. The app needs the standard compression library "zlib", which some systems do not
+                  include by default. Installing the package below fixes it.</span
+                >
               </p>
 
               <div class="mt-6 overflow-x-auto">

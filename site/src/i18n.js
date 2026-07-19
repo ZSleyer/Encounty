@@ -1,7 +1,9 @@
 // Client-side i18n for the static marketing site (landing, update, changelog).
 // System-language detection with a persisted manual override, applied to the
-// DOM via [data-i18n] / [data-i18n-attr] / [data-i18n-html] hooks. Dictionaries
-// are flat key -> string maps that mirror the app's frontend/src/locales style.
+// DOM via [data-i18n] / [data-i18n-attr] hooks. Translations only ever set
+// textContent or attributes, never innerHTML, so a dictionary string can never
+// be reinterpreted as markup. Dictionaries are flat key -> string maps that
+// mirror the app's frontend/src/locales style.
 
 import en from "./locales/en.json";
 import de from "./locales/de.json";
@@ -80,9 +82,9 @@ export function t(key) {
 
 /**
  * Applies the current language across a DOM subtree: sets the document
- * language, fills [data-i18n] text, [data-i18n-html] markup and
- * [data-i18n-attr] attributes, updates the page title and meta description
- * from the body's data-page, and syncs the language switcher value.
+ * language, fills [data-i18n] text and [data-i18n-attr] attributes, updates
+ * the page title and meta description from the body's data-page, and syncs the
+ * language switcher value.
  * @param {Document|Element} [root=document] Subtree to translate.
  */
 export function applyI18n(root = document) {
@@ -90,10 +92,6 @@ export function applyI18n(root = document) {
 
   root.querySelectorAll("[data-i18n]").forEach((el) => {
     el.textContent = t(el.getAttribute("data-i18n"));
-  });
-
-  root.querySelectorAll("[data-i18n-html]").forEach((el) => {
-    el.innerHTML = t(el.getAttribute("data-i18n-html"));
   });
 
   root.querySelectorAll("[data-i18n-attr]").forEach((el) => {
