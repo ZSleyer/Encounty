@@ -4,7 +4,7 @@ import { Pokemon } from "../../types";
 import { useCounterStore, DetectorStatusEntry } from "../../hooks/useCounterState";
 import { useI18n } from "../../contexts/I18nContext";
 import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
-import { SPRITE_FALLBACK } from "../../utils/sprites";
+import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite } from "../../utils/sprites";
 import { getOddsFractional } from "../../utils/odds";
 import { DetectorPreview } from "../detector/DetectorPreview";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
@@ -62,14 +62,14 @@ export function PokemonCard({
   const statusEntry = useCounterStore((s) => s.detectorStatus[pokemon.id]);
   const capture = useCaptureService();
   useCaptureVersion(); // re-render when capture streams change
-  const [imgError, setImgError] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
   // A live preview is offered whenever a detection source is actually streaming
   // for this Pokémon, independent of whether match templates are configured.
   const previewAvailable = capture.isCapturing(pokemon.id) && !!pokemon.detector_config;
   const confidence = statusEntry?.confidence;
 
-  const spriteUrl =
-    (imgError || !pokemon.sprite_url) ? SPRITE_FALLBACK : pokemon.sprite_url;
+  const resolved = resolveSpriteSrc(pokemon.sprite_url);
+  const spriteUrl = failedSrc === resolved ? SPRITE_FALLBACK : resolved;
 
   // Helper to get a generic short name for the Game since we don't have the full games.json loaded here
   const formatGame = (game: string) => {
@@ -121,7 +121,7 @@ export function PokemonCard({
             lets the counter stay the hero. pr-8 clears the edit button. */}
         <div className="flex items-center gap-3 pr-8">
           <div className="w-14 h-14 2xl:w-16 2xl:h-16 shrink-0 grid place-items-center bg-bg-secondary border border-border-subtle group">
-            {(!pokemon.sprite_style || pokemon.sprite_style === "box") ? (
+            {((!pokemon.sprite_style || pokemon.sprite_style === "box") && !isCustomSprite(pokemon.sprite_url)) ? (
               /* Box sprites sit off-center in a padded canvas; plain
                  object-contain shrinks the whole canvas instead of the
                  visible icon, leaving it tiny and misplaced. Trim the
@@ -139,7 +139,7 @@ export function PokemonCard({
                 src={spriteUrl}
                 alt={pokemon.name}
                 className="w-10 h-10 2xl:w-12 2xl:h-12 object-contain group-hover:scale-110 transition-transform duration-300"
-                onError={() => setImgError(true)}
+                onError={() => setFailedSrc(resolved)}
               />
             )}
           </div>

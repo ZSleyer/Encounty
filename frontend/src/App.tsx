@@ -36,6 +36,7 @@ import { ToastContainer } from "./components/shared/ToastContainer";
 import { WindowControls } from "./components/settings/WindowControls";
 import { LicenseDialog } from "./components/settings/LicenseDialog";
 import { apiUrl, wsUrl } from "./utils/api";
+import { resolveSpriteSrc } from "./utils/sprites";
 import { CaptureServiceProvider, useCaptureService } from "./contexts/CaptureServiceContext";
 import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { SupportPrompt } from "./components/shared/SupportPrompt";
@@ -613,7 +614,7 @@ function AppShell() {
     pushToast({
       type: "encounter",
       badge,
-      spriteUrl: pokemon.sprite_url || undefined,
+      spriteUrl: pokemon.sprite_url ? resolveSpriteSrc(pokemon.sprite_url) : undefined,
       title: pokemon.name,
       message: `${p.count} ${t("settings.encounterToast")}`,
     });
@@ -625,7 +626,7 @@ function AppShell() {
     pushToast({
       type: "encounter",
       badge,
-      spriteUrl: pokemon.sprite_url || undefined,
+      spriteUrl: pokemon.sprite_url ? resolveSpriteSrc(pokemon.sprite_url) : undefined,
       title: pokemon.name,
       message,
     });

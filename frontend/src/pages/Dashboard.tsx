@@ -73,7 +73,7 @@ import { useCaptureService, useCaptureVersion } from "../contexts/CaptureService
 import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
 import { getOddsFractional } from "../utils/odds";
-import { SPRITE_FALLBACK } from "../utils/sprites";
+import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 
 import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
@@ -747,8 +747,9 @@ function handleActivateKeyDown(e: React.KeyboardEvent, pokemonId: string, onActi
 }
 
 /** Resolves the sprite URL for a Pokemon, falling back if there's an error or no URL. */
-function resolveSpriteUrl(pokemonId: string, spriteUrl: string | undefined, imgError: Record<string, boolean>): string {
-  return imgError[pokemonId] || !spriteUrl ? SPRITE_FALLBACK : spriteUrl;
+function resolveSpriteUrl(pokemonId: string, spriteUrl: string | undefined, imgError: Record<string, string>): string {
+  const src = resolveSpriteSrc(spriteUrl);
+  return imgError[pokemonId] === src ? SPRITE_FALLBACK : src;
 }
 
 /** Returns the border class for a sidebar Pokemon item based on selection state. */
@@ -1403,9 +1404,9 @@ function CollapsedSidebarItem({
   pokemon: Pokemon;
   isViewed: boolean;
   detectorStatus: Record<string, { state?: string; confidence?: number }>;
-  imgError: Record<string, boolean>;
+  imgError: Record<string, string>;
   onActivate: (id: string) => void;
-  onImgError: (id: string) => void;
+  onImgError: (id: string, src: string) => void;
   t: (key: string) => string;
 }>) {
   const src = resolveSpriteUrl(pokemon.id, pokemon.sprite_url, imgError);
@@ -1423,7 +1424,7 @@ function CollapsedSidebarItem({
           src={src}
           alt={pokemon.name}
           className="pokemon-sprite w-full h-full object-contain"
-          onError={() => onImgError(pokemon.id)}
+          onError={() => onImgError(pokemon.id, resolveSpriteSrc(pokemon.sprite_url))}
         />
         {showDot && (() => {
           const { dotClass, title } = resolveDetectorDot(detectorStatus, pokemon.id, t);
@@ -1450,10 +1451,10 @@ function DashboardCounterTab({
   onImgError, onDecrement, onIncrement, onReset, onSetEncounter, timerStartBlocked = false,
 }: Readonly<{
   pokemon: Pokemon;
-  imgError: Record<string, boolean>;
+  imgError: Record<string, string>;
   oddsDisplay: string;
   send: (type: string, payload: unknown) => void;
-  onImgError: (id: string) => void;
+  onImgError: (id: string, src: string) => void;
   onDecrement: (id: string) => void;
   onIncrement: (id: string) => void;
   onReset: (id: string) => void;
@@ -1461,8 +1462,7 @@ function DashboardCounterTab({
   timerStartBlocked?: boolean;
 }>) {
   const { t } = useI18n();
-  const FALLBACK = SPRITE_FALLBACK;
-  const spriteUrl = imgError[pokemon.id] || !pokemon.sprite_url ? FALLBACK : pokemon.sprite_url;
+  const spriteUrl = resolveSpriteUrl(pokemon.id, pokemon.sprite_url, imgError);
   const step = stepLabel(pokemon);
   const hasCustomStep = pokemon.step && pokemon.step > 1;
   const isCompleted = !!pokemon.completed_at;
@@ -1492,7 +1492,7 @@ function DashboardCounterTab({
         <img
           src={spriteUrl}
           alt={pokemon.name}
-          onError={() => onImgError(pokemon.id)}
+          onError={() => onImgError(pokemon.id, resolveSpriteSrc(pokemon.sprite_url))}
           className="pokemon-sprite object-contain transition-transform duration-300 hover:scale-110"
           style={{ width: "clamp(160px, 17vw, 216px)", height: "clamp(160px, 17vw, 216px)" }}
         />
@@ -1867,7 +1867,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   useCaptureVersion(); // Re-render when capture sources connect/disconnect
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPokemon, setEditingPokemon] = useState<Pokemon | null>(null);
-  const [imgError, setImgError] = useState<Record<string, boolean>>({});
+  const [imgError, setImgError] = useState<Record<string, string>>({});
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("active");
   const [searchQuery, setSearchQuery] = useState("");
@@ -2318,7 +2318,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       imgError={imgError}
       oddsDisplay={oddsDisplay}
       send={send}
-      onImgError={(id) => setImgError((prev) => ({ ...prev, [id]: true }))}
+      onImgError={(id, src) => setImgError((prev) => ({ ...prev, [id]: src }))}
       onDecrement={handleDecrement}
       onIncrement={handleIncrement}
       onReset={handleReset}
@@ -2408,7 +2408,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           <img
             src={src}
             alt={p.name}
-            onError={() => setImgError((prev) => ({ ...prev, [p.id]: true }))}
+            onError={() => setImgError((prev) => ({ ...prev, [p.id]: resolveSpriteSrc(p.sprite_url) }))}
             className="pokemon-sprite w-full h-full object-contain"
           />
           {isArchived && (
@@ -2817,7 +2817,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                 detectorStatus={detectorStatus}
                 imgError={imgError}
                 onActivate={handleActivate}
-                onImgError={(id) => setImgError((prev) => ({ ...prev, [id]: true }))}
+                onImgError={(id, src) => setImgError((prev) => ({ ...prev, [id]: src }))}
                 t={t}
               />
             ))}
@@ -2896,13 +2896,22 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
 
               {/* Center: Pokemon sprite + name + game badge — always centered via grid */}
               <div className="flex items-center gap-2 justify-center min-w-0">
-                <TrimmedBoxSprite
-                  canonicalName={viewedPokemon.canonical_name}
-                  spriteType={viewedPokemon.sprite_type}
-                  alt={viewedPokemon.name}
-                  className="h-10 w-auto shrink-0"
-                  fallbackSrc={viewedPokemon.sprite_url}
-                />
+                {isCustomSprite(viewedPokemon.sprite_url) ? (
+                  <img
+                    src={resolveSpriteUrl(viewedPokemon.id, viewedPokemon.sprite_url, imgError)}
+                    alt={viewedPokemon.name}
+                    className="h-10 w-auto shrink-0 object-contain"
+                    onError={() => setImgError((prev) => ({ ...prev, [viewedPokemon.id]: resolveSpriteSrc(viewedPokemon.sprite_url) }))}
+                  />
+                ) : (
+                  <TrimmedBoxSprite
+                    canonicalName={viewedPokemon.canonical_name}
+                    spriteType={viewedPokemon.sprite_type}
+                    alt={viewedPokemon.name}
+                    className="h-10 w-auto shrink-0"
+                    fallbackSrc={resolveSpriteSrc(viewedPokemon.sprite_url)}
+                  />
+                )}
                 <div className="flex flex-col gap-0.5 min-w-0">
                   <span className="text-sm font-bold text-text-primary leading-tight truncate">{viewedPokemon.name}</span>
                   {viewedPokemon.game && (

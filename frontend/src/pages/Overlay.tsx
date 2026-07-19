@@ -3,7 +3,7 @@ import { useParams } from "react-router";
 import { Pokemon, OverlaySettings, TextStyle } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 import { resolveOverlay } from "../utils/overlay";
-import { SPRITE_FALLBACK } from "../utils/sprites";
+import { resolveSpriteSrc } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
 import { formatTimer, computeTimerMs } from "../utils/timer";
 import { computeOddsDisplay } from "../utils/odds";
@@ -824,7 +824,7 @@ export function Overlay({
               />
             )}
             <img
-              src={activePokemon.sprite_url || SPRITE_FALLBACK}
+              src={resolveSpriteSrc(activePokemon.sprite_url)}
               alt=""
               className="pokemon-sprite"
               style={{
