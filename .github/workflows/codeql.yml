@@ -27,10 +27,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # build-mode none analyzes Go source directly. It skips the autobuild
-          # step that hung on incremental analysis and needs no go:embed stub.
+          # Go cannot use build-mode none; the manual build below is a plain
+          # `go build` (far cheaper than autobuild's incremental analysis that
+          # stalled the default setup) after stubbing the go:embed dist dir.
           - language: go
-            build-mode: none
+            build-mode: manual
           - language: javascript-typescript
             build-mode: none
           - language: actions
@@ -39,13 +40,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache-dependency-path: backend/go.sum
+
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
 
+      - name: Build Go
+        if: matrix.language == 'go'
+        working-directory: backend
+        run: |
+          # frontend/dist is go:embed-ed; a stub lets the build compile in CI.
+          mkdir -p frontend/dist && touch frontend/dist/.gitkeep
+          go build ./...
+
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: '/language:${{ matrix.language }}'
