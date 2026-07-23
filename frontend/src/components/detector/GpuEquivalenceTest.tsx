@@ -32,6 +32,12 @@ import {
   newCategoryState,
   updateMatchState,
 } from "../../engine/matchStateMachine";
+import {
+  analyzeStability,
+  type StabilityRating,
+  type StabilitySample,
+} from "../../engine/templateStability";
+import { runParameterSweep } from "../../engine/parameterSweep";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -215,17 +221,69 @@ interface TestResult {
   delta: number;
 }
 
+/** Scoring backend used by the full scan and the stability sweep. */
+type ScanBackend = "gpu" | "cpu";
+
+/** State-machine settings variant used by the full scan. */
+type SettingsVariant = "defaults" | "auto";
+
+/** State-machine settings fed into countEncounters. */
+interface MatchSettings {
+  precision: number;
+  hysteresisFactor: number;
+  consecutiveHits: number;
+  cooldownSec: number;
+}
+
+/** The node suite's default full-scan settings (noise-floor adjusted scale). */
+function defaultScanSettings(): MatchSettings {
+  return {
+    precision: applyNoiseFloor(SCAN_THRESHOLD),
+    hysteresisFactor: 0.7,
+    consecutiveHits: 1,
+    cooldownSec: 5,
+  };
+}
+
 /** One row of the full-video scan results (one template scanned end to end). */
 interface FullScanResult {
   pokemonName: string;
   templateId: number;
   videoName: string;
+  backend: ScanBackend;
+  settingsVariant: SettingsVariant;
   encountersFound: number;
   encountersExpected: number;
   matchFrames: number;
   sampledFrames: number;
   maxScore: number;
   scanSeconds: number;
+}
+
+/**
+ * Sweep cases ported verbatim from SWEEP_CASES in ncc-detection.test.ts:
+ * one 3D case where only the text box is stable, one wide 2D battle window.
+ */
+const SWEEP_CASES = [
+  { videoName: "SwSh_Runaway", templateId: 15, pokemonName: "Picochilla (3D)", scanStart: 0, scanEnd: 600, matchFrame: 229 },
+  { videoName: "FRLG_SoftReset", templateId: 25, pokemonName: "Mewtu (battle)", scanStart: 400, scanEnd: 900, matchFrame: 626 },
+] as const;
+
+/** One row of the stability/sweep results. */
+interface SweepUiResult {
+  pokemonName: string;
+  templateId: number;
+  backend: ScanBackend;
+  rating: StabilityRating;
+  precision: number;
+  hysteresisFactor: number;
+  consecutiveHits: number;
+  pollIntervalMs: number;
+  cleanPhases: number;
+  totalPhases: number;
+  robustnessMargin: number;
+  perfect: boolean;
+  sweepSeconds: number;
 }
 
 /** A single sampled score at a video timestamp. */
@@ -519,7 +577,24 @@ async function loadVideoElement(
   video.muted = true;
   video.crossOrigin = "anonymous";
   video.src = `/test-fixtures/${videoName}.mp4`;
-  await waitForVideoReady(video, signal);
+  // A detached (or display:none) video is never composited, so seeks do not
+  // present new frames: captures keep reading the first frame and
+  // requestVideoFrameCallback never fires. Keep it in the DOM, invisible but
+  // composited.
+  video.style.position = "fixed";
+  video.style.left = "0";
+  video.style.bottom = "0";
+  video.style.width = "4px";
+  video.style.height = "4px";
+  video.style.opacity = "0.01";
+  video.style.pointerEvents = "none";
+  document.body.appendChild(video);
+  try {
+    await waitForVideoReady(video, signal);
+  } catch (e) {
+    video.remove();
+    throw e;
+  }
   return video;
 }
 
@@ -528,6 +603,7 @@ function cleanupVideo(video: HTMLVideoElement): void {
   video.pause();
   video.removeAttribute("src");
   video.load();
+  video.remove();
 }
 
 /** Load a template PNG and return its bitmap and grayscale data. */
@@ -611,12 +687,13 @@ async function scoreBestMatchFromOffsets(
   return { bestCpu, bestGpu };
 }
 
-/** Load test config and create the GPU detector. */
+/** Load test config and, when needed, create the GPU detector. */
 async function initTestEnvironment(
   setProgress: (msg: string) => void,
+  needGpu = true,
 ): Promise<{
   regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>;
-  detector: WebGPUDetector;
+  detector: WebGPUDetector | null;
 }> {
   setProgress("Loading test-config.json...");
   const configResp = await fetch("/test-fixtures/test-config.json");
@@ -629,6 +706,7 @@ async function initTestEnvironment(
   const testConfig: TestConfigEntry[] = await configResp.json();
   const regionMap = buildRegionMap(testConfig);
 
+  if (!needGpu) return { regionMap, detector: null };
   setProgress("Creating WebGPU detector...");
   const detector = await WebGPUDetector.create();
   return { regionMap, detector };
@@ -881,41 +959,104 @@ interface FullScanRunContext {
 }
 
 /**
- * Seek the video to a timestamp and score the frame on the GPU using the
- * same region scoring path as the equivalence test. Returns null when the
+ * Seeks to a timestamp and scores the frame on one backend. Returns the score
+ * plus the pure scoring cost in ms (seek time excluded), or null when the
  * seek fails (including on abort; callers check the signal afterwards).
  */
-async function gpuScoreAtTime(
+type FrameScorer = (timeSec: number) => Promise<{ score: number; scoreMs: number } | null>;
+
+/** Builds a FrameScorer for the WebGPU pipeline. */
+function makeGpuScorer(
   video: HTMLVideoElement,
   gpuDetector: WebGPUDetector,
   gpuTemplate: NonNullable<Awaited<ReturnType<WebGPUDetector["loadTemplate"]>>>,
-  timeSec: number,
   signal: AbortSignal,
-): Promise<number | null> {
-  try {
-    await seekVideo(video, timeSec, signal);
-  } catch {
-    return null;
+): FrameScorer {
+  return async (timeSec) => {
+    try {
+      await seekVideo(video, timeSec, signal);
+    } catch {
+      return null;
+    }
+    const t0 = performance.now();
+    const result = await gpuDetector.detect(video, [gpuTemplate], { precision: 0 });
+    return { score: result.bestScore, scoreMs: performance.now() - t0 };
+  };
+}
+
+/** Builds a FrameScorer for the CPU pipeline (math.ts scoring path). */
+function makeCpuScorer(
+  video: HTMLVideoElement,
+  tmplGray: Float32Array,
+  tmplW: number,
+  tmplH: number,
+  regions: Array<{ x: number; y: number; w: number; h: number }>,
+  signal: AbortSignal,
+): FrameScorer {
+  return async (timeSec) => {
+    try {
+      await seekVideo(video, timeSec, signal);
+    } catch {
+      return null;
+    }
+    const t0 = performance.now();
+    const captured = captureFrame(video);
+    const frameGray = toGrayscale(captured.pixels, captured.width, captured.height);
+    const score = cpuScoreFrame(
+      frameGray, captured.width, captured.height, tmplGray, tmplW, tmplH, regions,
+    );
+    return { score, scoreMs: performance.now() - t0 };
+  };
+}
+
+/**
+ * Loads the template for one ground-truth entry and returns a FrameScorer for
+ * the requested backend plus a dispose callback for the template resources.
+ */
+async function buildScorer(
+  backend: ScanBackend,
+  gt: TemplateGT,
+  regions: Array<{ x: number; y: number; w: number; h: number }>,
+  video: HTMLVideoElement,
+  gpuDetector: WebGPUDetector | null,
+  signal: AbortSignal,
+): Promise<{ scorer: FrameScorer; dispose: () => void } | null> {
+  const tmplData = await loadTemplatePng(gt);
+  if (!tmplData) return null;
+  const tmplW = tmplData.bitmap.width;
+  const tmplH = tmplData.bitmap.height;
+
+  if (backend === "gpu") {
+    if (!gpuDetector) {
+      tmplData.bitmap.close();
+      return null;
+    }
+    const gpuRegions = regions.map((r) => ({ type: "image" as const, rect: r }));
+    const gpuTemplate = await gpuDetector.loadTemplate(tmplData.bitmap, gpuRegions);
+    if (!gpuTemplate) {
+      tmplData.bitmap.close();
+      return null;
+    }
+    return {
+      scorer: makeGpuScorer(video, gpuDetector, gpuTemplate, signal),
+      dispose: () => tmplData.bitmap.close(),
+    };
   }
-  const result = await gpuDetector.detect(video, [gpuTemplate], { precision: 0 });
-  return result.bestScore;
+
+  return {
+    scorer: makeCpuScorer(video, tmplData.gray, tmplW, tmplH, regions, signal),
+    dispose: () => tmplData.bitmap.close(),
+  };
 }
 
 /**
  * Count encounters as hysteresis entries by feeding the sampled scores
- * through the runtime state machine, using the exact call sequence and
- * settings of the node suite's full-video scan: noise-floor adjusted scores,
- * precision equal to applyNoiseFloor(SCAN_THRESHOLD), hysteresisFactor 0.7,
- * consecutiveHits 1, cooldownSec 5, and sample time (ms) as the clock.
+ * through the runtime state machine, using the exact call sequence of the
+ * node suite's full-video scan: noise-floor adjusted scores against the
+ * given settings, with the sample time (ms) as the clock.
  */
-function countEncounters(scores: TimedScore[]): number {
+function countEncounters(scores: TimedScore[], settings: MatchSettings): number {
   const state = newCategoryState();
-  const settings = {
-    precision: applyNoiseFloor(SCAN_THRESHOLD),
-    hysteresisFactor: 0.7,
-    consecutiveHits: 1,
-    cooldownSec: 5,
-  };
   let encounters = 0;
   for (const s of scores) {
     const wasInHysteresis = state.inHysteresis;
@@ -926,6 +1067,59 @@ function countEncounters(scores: TimedScore[]): number {
 }
 
 /**
+ * Samples every 5th frame in the given range (like useTemplateTest.runBatch)
+ * and returns the stability samples plus the measured average scoring cost.
+ */
+async function sweepSamplesForRange(
+  scorer: FrameScorer,
+  startFrame: number,
+  endFrame: number,
+  signal: AbortSignal,
+  onFraction?: (fraction: number) => void,
+): Promise<{ samples: StabilitySample[]; avgScoreMs: number }> {
+  const samples: StabilitySample[] = [];
+  let cost = 0;
+  for (let f = startFrame; f <= endFrame; f += 5) {
+    if (signal.aborted) break;
+    onFraction?.((f - startFrame) / Math.max(1, endFrame - startFrame));
+    const r = await scorer(f / FPS);
+    if (!r) continue;
+    samples.push({ frameIndex: f, overallScore: r.score });
+    cost += r.scoreMs;
+  }
+  return { samples, avgScoreMs: samples.length ? cost / samples.length : 1 };
+}
+
+/**
+ * Derives auto-calibrated state-machine settings for one template by running
+ * the stability analysis and parameter sweep on samples around its first
+ * encounter window (plus a 5 second margin on both sides). Returns null when
+ * the analysis cannot produce a recommendation.
+ */
+async function autoSettingsForTemplate(
+  gt: TemplateGT,
+  scorer: FrameScorer,
+  signal: AbortSignal,
+  setProgress: (msg: string) => void,
+): Promise<MatchSettings | null> {
+  const enc = gt.encounters[0];
+  const start = Math.max(0, enc.windowStart - 300);
+  const end = enc.windowEnd + 300;
+  setProgress(`${gt.pokemonName} (${gt.templateId}) -- Calibrating (frames ${start}-${end})...`);
+  const { samples, avgScoreMs } = await sweepSamplesForRange(scorer, start, end, signal);
+  const stats = analyzeStability(samples);
+  if (!stats) return null;
+  const sweep = runParameterSweep({ samples, stats, avgScoreMs, cooldownSec: 5 });
+  if (!sweep) return null;
+  return {
+    precision: sweep.precision,
+    hysteresisFactor: sweep.hysteresisFactor,
+    consecutiveHits: sweep.consecutiveHits,
+    cooldownSec: 5,
+  };
+}
+
+/**
  * Adaptive re-sampling pass mirroring the node suite: densely check around
  * samples with elevated scores, skipping timestamps already sampled nearby.
  * Returns the extra samples (not yet merged into the input array).
@@ -933,9 +1127,7 @@ function countEncounters(scores: TimedScore[]): number {
 async function resampleElevatedScores(
   scores: TimedScore[],
   duration: number,
-  video: HTMLVideoElement,
-  gpuDetector: WebGPUDetector,
-  gpuTemplate: NonNullable<Awaited<ReturnType<WebGPUDetector["loadTemplate"]>>>,
+  scorer: FrameScorer,
   signal: AbortSignal,
 ): Promise<TimedScore[]> {
   const resampleScores: TimedScore[] = [];
@@ -949,40 +1141,51 @@ async function resampleElevatedScores(
       // Skip if already sampled nearby
       if (scores.some((e) => Math.abs(e.time - rt) < RESAMPLE_MIN_GAP)) continue;
       if (resampleScores.some((e) => Math.abs(e.time - rt) < RESAMPLE_MIN_GAP)) continue;
-      const score = await gpuScoreAtTime(video, gpuDetector, gpuTemplate, rt, signal);
-      if (score === null) continue;
-      resampleScores.push({ time: rt, score });
+      const r = await scorer(rt);
+      if (r === null) continue;
+      resampleScores.push({ time: rt, score: r.score });
     }
   }
   return resampleScores;
 }
 
+/** Options shared by the full scan and sweep runs. */
+interface ScanOptions {
+  backend: ScanBackend;
+  settingsVariant: SettingsVariant;
+}
+
 /**
- * Scan one template across the whole video on the GPU: sample every
- * SCAN_INTERVAL seconds, adaptively re-sample around elevated scores, then
- * count encounters via the runtime state machine. Returns null when the
- * template could not be loaded.
+ * Scan one template across the whole video: sample every SCAN_INTERVAL
+ * seconds, adaptively re-sample around elevated scores, then count
+ * encounters via the runtime state machine with either the default or the
+ * auto-calibrated settings. Returns null when the template could not be
+ * loaded.
  */
 async function fullScanTemplate(
   gt: TemplateGT,
   expected: number,
   regions: Array<{ x: number; y: number; w: number; h: number }>,
   video: HTMLVideoElement,
-  gpuDetector: WebGPUDetector,
+  gpuDetector: WebGPUDetector | null,
+  opts: ScanOptions,
   ctx: FullScanRunContext,
 ): Promise<FullScanResult | null> {
-  const tmplData = await loadTemplatePng(gt);
-  if (!tmplData) return null;
-
-  const gpuRegions = regions.map((r) => ({ type: "image" as const, rect: r }));
-  const gpuTemplate = await gpuDetector.loadTemplate(tmplData.bitmap, gpuRegions);
-  if (!gpuTemplate) {
-    tmplData.bitmap.close();
-    return null;
-  }
+  const built = await buildScorer(opts.backend, gt, regions, video, gpuDetector, ctx.signal);
+  if (!built) return null;
+  const { scorer, dispose } = built;
 
   try {
     const started = performance.now();
+
+    // Auto variant: calibrate per template first, falling back to defaults
+    // when the analysis cannot produce a recommendation.
+    let settings = defaultScanSettings();
+    if (opts.settingsVariant === "auto") {
+      const auto = await autoSettingsForTemplate(gt, scorer, ctx.signal, ctx.setProgress);
+      if (auto) settings = auto;
+    }
+
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
     const scores: TimedScore[] = [];
 
@@ -993,21 +1196,19 @@ async function fullScanTemplate(
         `${gt.pokemonName} (${gt.templateId}) -- Scanning ${t.toFixed(1)}s / ${duration.toFixed(1)}s`,
       );
       ctx.reportFraction(Math.min(0.95, t / duration));
-      const score = await gpuScoreAtTime(video, gpuDetector, gpuTemplate, t, ctx.signal);
-      if (score === null) continue;
-      scores.push({ time: t, score });
+      const r = await scorer(t);
+      if (r === null) continue;
+      scores.push({ time: t, score: r.score });
     }
 
     // Adaptive re-sampling around elevated scores, then merge and sort
     ctx.setProgress(`${gt.pokemonName} (${gt.templateId}) -- Re-sampling...`);
     ctx.reportFraction(0.95);
-    const resampled = await resampleElevatedScores(
-      scores, duration, video, gpuDetector, gpuTemplate, ctx.signal,
-    );
+    const resampled = await resampleElevatedScores(scores, duration, scorer, ctx.signal);
     scores.push(...resampled);
     scores.sort((a, b) => a.time - b.time);
 
-    const encountersFound = countEncounters(scores);
+    const encountersFound = countEncounters(scores, settings);
     const matchFrames = scores.filter((s) => s.score >= SCAN_THRESHOLD).length;
     const maxScore = scores.length > 0 ? Math.max(...scores.map((s) => s.score)) : 0;
 
@@ -1015,6 +1216,8 @@ async function fullScanTemplate(
       pokemonName: gt.pokemonName,
       templateId: gt.templateId,
       videoName: gt.videoName,
+      backend: opts.backend,
+      settingsVariant: opts.settingsVariant,
       encountersFound,
       encountersExpected: expected,
       matchFrames,
@@ -1023,7 +1226,7 @@ async function fullScanTemplate(
       scanSeconds: (performance.now() - started) / 1000,
     };
   } finally {
-    tmplData.bitmap.close();
+    dispose();
   }
 }
 
@@ -1032,7 +1235,8 @@ async function fullScanVideoGroup(
   videoName: string,
   gtEntries: TemplateGT[],
   regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>,
-  gpuDetector: WebGPUDetector,
+  gpuDetector: WebGPUDetector | null,
+  opts: ScanOptions,
   ctx: FullScanRunContext,
 ): Promise<void> {
   const expectedForVideo = EXPECTED_ENCOUNTER_COUNTS[videoName];
@@ -1064,13 +1268,87 @@ async function fullScanVideoGroup(
       }
 
       const result = await fullScanTemplate(
-        gt, expectedForVideo[gt.templateId], regions, video, gpuDetector, ctx,
+        gt, expectedForVideo[gt.templateId], regions, video, gpuDetector, opts, ctx,
       );
       if (result && !ctx.signal.aborted) ctx.publish(result);
       ctx.advanceTemplate();
     }
   } finally {
     cleanupVideo(video);
+  }
+}
+
+/**
+ * Runs the stability analysis and parameter sweep for every ported sweep
+ * case on the selected backend, publishing one row per case.
+ */
+async function runSweepCases(
+  regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>,
+  gpuDetector: WebGPUDetector | null,
+  backend: ScanBackend,
+  signal: AbortSignal,
+  setProgress: (msg: string) => void,
+  reportFraction: (fraction: number) => void,
+  publish: (row: SweepUiResult) => void,
+): Promise<void> {
+  for (let i = 0; i < SWEEP_CASES.length; i++) {
+    if (signal.aborted) break;
+    const sc = SWEEP_CASES[i];
+    const gt = GROUND_TRUTH.find(
+      (g) => g.videoName === sc.videoName && g.templateId === sc.templateId,
+    );
+    const regions = regionMap.get(sc.templateId);
+    if (!gt || !regions || regions.length === 0) continue;
+
+    setProgress(`Sweep: loading ${sc.videoName}.mp4...`);
+    let video: HTMLVideoElement;
+    try {
+      video = await loadVideoElement(sc.videoName, signal);
+    } catch {
+      continue;
+    }
+
+    try {
+      const built = await buildScorer(backend, gt, regions, video, gpuDetector, signal);
+      if (!built) continue;
+      try {
+        const started = performance.now();
+        const { samples, avgScoreMs } = await sweepSamplesForRange(
+          built.scorer, sc.scanStart, sc.scanEnd, signal,
+          (f) => {
+            setProgress(
+              `Sweep: ${sc.pokemonName} (${sc.templateId}) -- frames ${sc.scanStart}-${sc.scanEnd}`,
+            );
+            reportFraction((i + f) / SWEEP_CASES.length);
+          },
+        );
+        if (signal.aborted) break;
+
+        const stats = analyzeStability(samples);
+        const sweep = stats
+          ? runParameterSweep({ samples, stats, avgScoreMs, cooldownSec: 5 })
+          : null;
+        publish({
+          pokemonName: sc.pokemonName,
+          templateId: sc.templateId,
+          backend,
+          rating: stats?.rating ?? "poor",
+          precision: sweep?.precision ?? 0,
+          hysteresisFactor: sweep?.hysteresisFactor ?? 0,
+          consecutiveHits: sweep?.consecutiveHits ?? 0,
+          pollIntervalMs: sweep?.pollIntervalMs ?? 0,
+          cleanPhases: sweep?.cleanPhases ?? 0,
+          totalPhases: sweep?.totalPhases ?? 0,
+          robustnessMargin: sweep?.robustnessMargin ?? 0,
+          perfect: sweep?.perfect === true,
+          sweepSeconds: (performance.now() - started) / 1000,
+        });
+      } finally {
+        built.dispose();
+      }
+    } finally {
+      cleanupVideo(video);
+    }
   }
 }
 
@@ -1081,6 +1359,9 @@ export default function GpuEquivalenceTest({
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<TestResult[]>([]);
   const [fullScanResults, setFullScanResults] = useState<FullScanResult[]>([]);
+  const [sweepResults, setSweepResults] = useState<SweepUiResult[]>([]);
+  const [backend, setBackend] = useState<ScanBackend>("gpu");
+  const [settingsVariant, setSettingsVariant] = useState<SettingsVariant>("defaults");
   const [progress, setProgress] = useState<string>("");
   const [progressPct, setProgressPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -1122,6 +1403,7 @@ export default function GpuEquivalenceTest({
 
     try {
       const { regionMap, detector } = await initTestEnvironment(setProgress);
+      if (!detector) throw new Error("WebGPU is not available.");
       gpuDetector = detector;
 
       const totalFrames = countTotalFrames(GROUND_TRUTH);
@@ -1141,7 +1423,7 @@ export default function GpuEquivalenceTest({
 
       for (const [videoName, gtEntries] of groupByVideo(GROUND_TRUTH)) {
         if (signal.aborted) break;
-        await processVideoGroup(videoName, gtEntries, regionMap, gpuDetector, ctx);
+        await processVideoGroup(videoName, gtEntries, regionMap, detector, ctx);
       }
 
       setProgress(signal.aborted ? "Cancelled." : "Complete.");
@@ -1161,10 +1443,10 @@ export default function GpuEquivalenceTest({
   }, []);
 
   /**
-   * Runs the full-video scan on the GPU: mirrors the node suite's
-   * "Full Video Scan" (sample every 0.2s, adaptive re-sampling, encounters
-   * counted as hysteresis entries of the runtime state machine), but scores
-   * every frame with the WebGPU detector instead of the CPU path.
+   * Runs the full-video scan on the selected backend and settings variant:
+   * mirrors the node suite's "Full Video Scan" (sample every 0.2s, adaptive
+   * re-sampling, encounters counted as hysteresis entries of the runtime
+   * state machine).
    */
   const runFullScan = useCallback(async () => {
     setRunning(true);
@@ -1180,7 +1462,10 @@ export default function GpuEquivalenceTest({
     let gpuDetector: WebGPUDetector | null = null;
 
     try {
-      const { regionMap, detector } = await initTestEnvironment(setProgress);
+      const { regionMap, detector } = await initTestEnvironment(
+        setProgress, backend === "gpu",
+      );
+      if (backend === "gpu" && !detector) throw new Error("WebGPU is not available.");
       gpuDetector = detector;
 
       const totalTemplates = GROUND_TRUTH.filter(
@@ -1205,9 +1490,10 @@ export default function GpuEquivalenceTest({
         },
       };
 
+      const opts: ScanOptions = { backend, settingsVariant };
       for (const [videoName, gtEntries] of groupByVideo(GROUND_TRUTH)) {
         if (signal.aborted) break;
-        await fullScanVideoGroup(videoName, gtEntries, regionMap, gpuDetector, ctx);
+        await fullScanVideoGroup(videoName, gtEntries, regionMap, gpuDetector, opts, ctx);
       }
 
       setProgress(signal.aborted ? "Cancelled." : "Complete.");
@@ -1224,7 +1510,58 @@ export default function GpuEquivalenceTest({
       gpuDetector?.destroy();
       setRunning(false);
     }
-  }, []);
+  }, [backend, settingsVariant]);
+
+  /**
+   * Runs the stability analysis and parameter sweep for the ported sweep
+   * cases on the selected backend (mirrors the node suite's "Parameter Sweep
+   * on Real Captures").
+   */
+  const runSweep = useCallback(async () => {
+    setRunning(true);
+    setSweepResults([]);
+    setError(null);
+    setProgress("Initializing...");
+    setProgressPct(0);
+
+    const abort = new AbortController();
+    abortRef.current = abort;
+    const { signal } = abort;
+
+    let gpuDetector: WebGPUDetector | null = null;
+
+    try {
+      const { regionMap, detector } = await initTestEnvironment(
+        setProgress, backend === "gpu",
+      );
+      if (backend === "gpu" && !detector) throw new Error("WebGPU is not available.");
+      gpuDetector = detector;
+
+      const rows: SweepUiResult[] = [];
+      await runSweepCases(
+        regionMap, gpuDetector, backend, signal, setProgress,
+        (fraction) => setProgressPct(fraction * 100),
+        (row) => {
+          rows.push(row);
+          setSweepResults([...rows]);
+        },
+      );
+
+      setProgress(signal.aborted ? "Cancelled." : "Complete.");
+      if (!signal.aborted) setProgressPct(100);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") {
+        setProgress("Cancelled.");
+      } else {
+        const msg = e instanceof Error ? e.message : String(e);
+        setError(msg);
+        setProgress("Failed.");
+      }
+    } finally {
+      gpuDetector?.destroy();
+      setRunning(false);
+    }
+  }, [backend]);
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort();
@@ -1258,6 +1595,18 @@ export default function GpuEquivalenceTest({
           },
         }
       : {};
+    const sweepSection = sweepResults.length > 0
+      ? {
+          stabilitySweep: {
+            summary: {
+              cases: sweepResults.length,
+              passed: sweepResults.filter((r) => r.perfect).length,
+              failed: sweepResults.filter((r) => !r.perfect).length,
+            },
+            results: sweepResults,
+          },
+        }
+      : {};
     const report = {
       exportedAt: new Date().toISOString(),
       backend: "webgpu-vs-cpu",
@@ -1271,6 +1620,7 @@ export default function GpuEquivalenceTest({
       },
       results,
       ...fullScanSection,
+      ...sweepSection,
     };
     const json = JSON.stringify(report, null, 2);
     navigator.clipboard?.writeText(json).catch(() => {
@@ -1283,17 +1633,18 @@ export default function GpuEquivalenceTest({
     a.download = `gpu-equivalence-${new Date().toISOString().slice(0, 10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [results, fullScanResults]);
+  }, [results, fullScanResults, sweepResults]);
 
-  // Dev console access: __gpuEquivalence.run() / .runFullScan() / .export()
-  // while the modal is open, so runs can be scripted from DevTools.
+  // Dev console access: __gpuEquivalence.run() / .runFullScan() / .runSweep()
+  // / .export() while the modal is open, so runs can be scripted from
+  // DevTools. Full scan and sweep honor the backend/settings toggles.
   useEffect(() => {
     const g = globalThis as unknown as { __gpuEquivalence?: unknown };
-    g.__gpuEquivalence = { run: runTests, runFullScan, export: exportResults };
+    g.__gpuEquivalence = { run: runTests, runFullScan, runSweep, export: exportResults };
     return () => {
       delete g.__gpuEquivalence;
     };
-  }, [runTests, runFullScan, exportResults]);
+  }, [runTests, runFullScan, runSweep, exportResults]);
 
   /** Close the dialog natively and notify the parent. */
   const handleDialogClose = useCallback(() => {
@@ -1365,6 +1716,43 @@ export default function GpuEquivalenceTest({
 
         {/* --- Controls --- */}
         <div className="px-6 py-3 border-b border-border-subtle space-y-3">
+          {/* Options for full scan and sweep runs */}
+          <div className="flex flex-wrap items-center gap-4 text-xs text-text-secondary">
+            <span className="font-semibold uppercase tracking-wider">Backend</span>
+            <div className="flex border border-border-subtle rounded-none overflow-hidden">
+              {(["gpu", "cpu"] as const).map((b) => (
+                <button
+                  key={b}
+                  onClick={() => setBackend(b)}
+                  disabled={running}
+                  className={`px-3 py-1 font-medium uppercase ${
+                    backend === b
+                      ? "bg-accent-blue/15 text-accent-blue"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  {b.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <span className="font-semibold uppercase tracking-wider">Settings</span>
+            <div className="flex border border-border-subtle rounded-none overflow-hidden">
+              {(["defaults", "auto"] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setSettingsVariant(v)}
+                  disabled={running}
+                  className={`px-3 py-1 font-medium capitalize ${
+                    settingsVariant === v
+                      ? "bg-accent-blue/15 text-accent-blue"
+                      : "text-text-muted hover:text-text-primary"
+                  }`}
+                >
+                  {v === "auto" ? "Auto (sweep)" : "Defaults"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="flex items-center gap-3">
             {running ? (
               <button
@@ -1386,11 +1774,19 @@ export default function GpuEquivalenceTest({
                 </button>
                 <button
                   onClick={runFullScan}
-                  disabled={!gpuAvailable || running}
+                  disabled={(backend === "gpu" && !gpuAvailable) || running}
                   className="flex items-center gap-2 px-4 py-2 rounded-none border border-accent-blue text-accent-blue font-medium hover:bg-accent-blue/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-accent-blue"
                 >
                   <Play className="w-4 h-4" />
-                  Full Scan (GPU)
+                  Full Scan
+                </button>
+                <button
+                  onClick={runSweep}
+                  disabled={(backend === "gpu" && !gpuAvailable) || running}
+                  className="flex items-center gap-2 px-4 py-2 rounded-none border border-accent-blue text-accent-blue font-medium hover:bg-accent-blue/10 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-accent-blue"
+                >
+                  <Play className="w-4 h-4" />
+                  Stability &amp; Sweep
                 </button>
               </>
             )}
@@ -1412,7 +1808,7 @@ export default function GpuEquivalenceTest({
               <span className="text-sm text-accent-red">{error}</span>
             )}
 
-            {!running && (totalTests > 0 || scanTotal > 0) && (
+            {!running && (totalTests > 0 || scanTotal > 0 || sweepResults.length > 0) && (
               <button
                 onClick={exportResults}
                 className="flex items-center gap-2 px-4 py-2 rounded-none border border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-blue focus-visible:outline-2 focus-visible:outline-accent-blue"
@@ -1422,7 +1818,7 @@ export default function GpuEquivalenceTest({
               </button>
             )}
 
-            {!running && !error && (totalTests > 0 || scanTotal > 0) && (
+            {!running && !error && (totalTests > 0 || scanTotal > 0 || sweepResults.length > 0) && (
               <span className="text-sm text-text-secondary">
                 {progress}
               </span>
@@ -1499,10 +1895,11 @@ export default function GpuEquivalenceTest({
 
         {/* --- Results tables --- */}
         <div className="flex-1 overflow-auto px-6 py-3">
-          {totalTests === 0 && scanTotal === 0 && !running ? (
+          {totalTests === 0 && scanTotal === 0 && sweepResults.length === 0 && !running ? (
             <div className="flex items-center justify-center h-40 text-text-faint text-sm">
-              Press &quot;Run Test&quot; for the frame equivalence test or
-              &quot;Full Scan (GPU)&quot; for the full-video encounter scan.
+              Press &quot;Run Test&quot; for the frame equivalence test, &quot;Full
+              Scan&quot; for the full-video encounter scan, or &quot;Stability &amp;
+              Sweep&quot; for the calibration check.
               Fixture files must be served at /test-fixtures/.
             </div>
           ) : (
@@ -1575,13 +1972,15 @@ export default function GpuEquivalenceTest({
               {scanTotal > 0 && (
                 <section aria-label="Full video scan results">
                   <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
-                    Full Video Scan (GPU)
+                    Full Video Scan
                   </h3>
                   <table className="w-full text-xs font-mono">
                     <thead>
                       <tr className="text-left text-text-secondary border-b border-border-subtle">
                         <th className="py-2 pr-3">Pokemon (ID)</th>
                         <th className="py-2 pr-3">Video</th>
+                        <th className="py-2 pr-3">Backend</th>
+                        <th className="py-2 pr-3">Settings</th>
                         <th className="py-2 pr-3 text-right">Encounters</th>
                         <th className="py-2 pr-3 text-right">Match Frames</th>
                         <th className="py-2 pr-3 text-right">Sampled</th>
@@ -1605,6 +2004,12 @@ export default function GpuEquivalenceTest({
                             </td>
                             <td className="py-1.5 pr-3 text-text-secondary">
                               {r.videoName}
+                            </td>
+                            <td className="py-1.5 pr-3 text-text-secondary uppercase">
+                              {r.backend}
+                            </td>
+                            <td className="py-1.5 pr-3 text-text-secondary">
+                              {r.settingsVariant}
                             </td>
                             <td
                               className={`py-1.5 pr-3 text-right ${
@@ -1641,6 +2046,85 @@ export default function GpuEquivalenceTest({
                           </tr>
                         );
                       })}
+                    </tbody>
+                  </table>
+                </section>
+              )}
+
+              {sweepResults.length > 0 && (
+                <section aria-label="Stability and sweep results">
+                  <h3 className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
+                    Stability &amp; Parameter Sweep
+                  </h3>
+                  <table className="w-full text-xs font-mono">
+                    <thead>
+                      <tr className="text-left text-text-secondary border-b border-border-subtle">
+                        <th className="py-2 pr-3">Pokemon (ID)</th>
+                        <th className="py-2 pr-3">Backend</th>
+                        <th className="py-2 pr-3">Rating</th>
+                        <th className="py-2 pr-3 text-right">Precision</th>
+                        <th className="py-2 pr-3 text-right">Hysteresis</th>
+                        <th className="py-2 pr-3 text-right">Hits</th>
+                        <th className="py-2 pr-3 text-right">Poll (ms)</th>
+                        <th className="py-2 pr-3 text-right">Clean</th>
+                        <th className="py-2 pr-3 text-right">Margin</th>
+                        <th className="py-2 pr-3 text-right">Sweep (s)</th>
+                        <th className="py-2 pr-3 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sweepResults.map((r, i) => (
+                        <tr
+                          key={`sweep-${r.templateId}-${r.backend}`}
+                          className={
+                            i % 2 === 0 ? "bg-transparent" : "bg-bg-hover/50"
+                          }
+                        >
+                          <td className="py-1.5 pr-3 text-text-primary">
+                            {r.pokemonName} ({r.templateId})
+                          </td>
+                          <td className="py-1.5 pr-3 text-text-secondary uppercase">
+                            {r.backend}
+                          </td>
+                          <td className="py-1.5 pr-3 text-text-secondary">
+                            {r.rating}
+                          </td>
+                          <td className="py-1.5 pr-3 text-right text-text-primary">
+                            {r.precision.toFixed(3)}
+                          </td>
+                          <td className="py-1.5 pr-3 text-right text-text-primary">
+                            {r.hysteresisFactor.toFixed(2)}
+                          </td>
+                          <td className="py-1.5 pr-3 text-right text-text-secondary">
+                            {r.consecutiveHits}
+                          </td>
+                          <td className="py-1.5 pr-3 text-right text-text-secondary">
+                            {r.pollIntervalMs}
+                          </td>
+                          <td className="py-1.5 pr-3 text-right text-text-primary">
+                            {r.cleanPhases}/{r.totalPhases}
+                          </td>
+                          <td className="py-1.5 pr-3 text-right text-text-primary">
+                            {r.robustnessMargin.toFixed(3)}
+                          </td>
+                          <td className="py-1.5 pr-3 text-right text-text-secondary">
+                            {r.sweepSeconds.toFixed(1)}
+                          </td>
+                          <td className="py-1.5 pr-3 text-center">
+                            {r.perfect ? (
+                              <Check
+                                className="w-4 h-4 text-accent-green inline-block"
+                                aria-label="Pass"
+                              />
+                            ) : (
+                              <XCircle
+                                className="w-4 h-4 text-accent-red inline-block"
+                                aria-label="Fail"
+                              />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </section>
