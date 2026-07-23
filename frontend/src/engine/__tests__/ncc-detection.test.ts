@@ -23,6 +23,7 @@ import {
   newCategoryState,
   updateMatchState,
 } from "../matchStateMachine";
+import { DEFAULT_COOLDOWN_SEC, DEFAULT_HYSTERESIS_FACTOR } from "../detectorDefaults";
 import { analyzeStability, type StabilitySample } from "../templateStability";
 import { runParameterSweep, simulateCombo, buildTimeline } from "../parameterSweep";
 import { regionSetDelta, type RegionGray } from "../regionDelta";
@@ -648,7 +649,7 @@ describe("Full Video Scan", () => {
         // Precision on the adjusted scale equivalent to SCAN_THRESHOLD on the
         // raw scale, so both counters measure at the same effective threshold
         // and the comparison isolates the state machine mechanics.
-        const simSettings = { precision: applyNoiseFloor(SCAN_THRESHOLD), hysteresisFactor: 0.7, consecutiveHits: 1, cooldownSec: 5 };
+        const simSettings = { precision: applyNoiseFloor(SCAN_THRESHOLD), hysteresisFactor: DEFAULT_HYSTERESIS_FACTOR, consecutiveHits: 1, cooldownSec: DEFAULT_COOLDOWN_SEC };
         let simEncounters = 0;
         for (const s of scores) {
           const wasInHysteresis = simState.inHysteresis;
@@ -730,7 +731,7 @@ describe("Parameter Sweep on Real Captures", () => {
       const stats = analyzeStability(samples);
       expect(stats).not.toBeNull();
 
-      const sweep = runParameterSweep({ samples, stats: stats!, avgScoreMs, cooldownSec: 5 });
+      const sweep = runParameterSweep({ samples, stats: stats!, avgScoreMs, cooldownSec: DEFAULT_COOLDOWN_SEC });
       expect(sweep).not.toBeNull();
 
       console.log(

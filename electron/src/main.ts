@@ -42,6 +42,8 @@ const ELECTRON_KEY_MAP: Record<string, string> = {
   'escape': 'Escape', 'enter': 'Enter', 'backspace': 'Backspace', 'delete': 'Delete',
   'tab': 'Tab', 'space': 'Space', 'home': 'Home', 'end': 'End',
   'pageup': 'PageUp', 'pagedown': 'PageDown',
+  // numpaddivide maps to numdiv (NOT numdec, which is the decimal key);
+  // a copy-paste slip here once broke numpad-slash hotkeys on macOS.
   'numpadadd': 'numadd', 'numpadsubtract': 'numsub',
   'numpadmultiply': 'nummult', 'numpaddivide': 'numdiv',
   'numpadenter': 'Enter', 'numpaddecimal': 'numdec',
