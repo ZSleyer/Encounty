@@ -365,9 +365,31 @@ function seekVideo(
       reject(new Error(`Seek timeout at ${timeSec.toFixed(3)}s`));
     }, 5000);
 
+    // "seeked" alone is not enough: it can fire before the new frame is
+    // actually presented, so canvas/WebGPU capture would still read the old
+    // frame (in practice: every sample scores the very first frame). Wait for
+    // both the seeked event and a presented video frame; a short fallback
+    // covers seeks that land on the already-presented frame.
+    let seeked = false;
+    let framed = false;
+    let frameFallback: ReturnType<typeof setTimeout> | null = null;
+
+    const tryFinish = () => {
+      if (!seeked) return;
+      if (framed) {
+        cleanup();
+        resolve();
+      } else if (frameFallback === null) {
+        frameFallback = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, 150);
+      }
+    };
+
     const onSeeked = () => {
-      cleanup();
-      resolve();
+      seeked = true;
+      tryFinish();
     };
 
     const onAbort = () => {
@@ -377,12 +399,21 @@ function seekVideo(
 
     const cleanup = () => {
       clearTimeout(timeout);
+      if (frameFallback !== null) clearTimeout(frameFallback);
       video.removeEventListener("seeked", onSeeked);
       signal.removeEventListener("abort", onAbort);
     };
 
     video.addEventListener("seeked", onSeeked, { once: true });
     signal.addEventListener("abort", onAbort, { once: true });
+    if (typeof video.requestVideoFrameCallback === "function") {
+      video.requestVideoFrameCallback(() => {
+        framed = true;
+        tryFinish();
+      });
+    } else {
+      framed = true;
+    }
     video.currentTime = timeSec;
   });
 }
