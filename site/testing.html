@@ -279,30 +279,38 @@
             Current results
           </h2>
           <p class="mt-4 text-center text-sm text-text-muted">
-            <span data-i18n="testing.results.lastRun">Last run</span>: v0.19.1 · 2026-07-23
+            <span data-i18n="testing.results.lastRun">Last run</span>: <span id="results-runstamp">…</span>
+          </p>
+          <p
+            id="results-error"
+            class="mt-4 text-center text-sm text-accent-yellow"
+            data-i18n="testing.results.error"
+            hidden
+          >
+            The latest results could not be loaded right now.
           </p>
 
           <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="t-panel p-5 text-center">
-              <p class="text-3xl font-bold text-text-primary">32/32</p>
+              <p id="stat-scenarios" class="text-3xl font-bold text-text-primary">…</p>
               <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.scenarios">
                 scenarios passed
               </p>
             </div>
             <div class="t-panel p-5 text-center">
-              <p class="text-3xl font-bold text-text-primary">22/22</p>
+              <p id="stat-encounters" class="text-3xl font-bold text-text-primary">…</p>
               <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.encounters">
                 encounters counted exactly
               </p>
             </div>
             <div class="t-panel p-5 text-center">
-              <p class="text-3xl font-bold text-text-primary">0</p>
-              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.doubles">
-                double counts
+              <p id="stat-hard" class="text-3xl font-bold text-text-primary">…</p>
+              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.hardCases">
+                deliberate hard cases
               </p>
             </div>
             <div class="t-panel p-5 text-center">
-              <p class="text-3xl font-bold text-text-primary">5</p>
+              <p id="stat-games" class="text-3xl font-bold text-text-primary">…</p>
               <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.games">
                 game generations covered
               </p>
@@ -358,70 +366,7 @@
               >
             </div>
             <div class="overflow-x-auto">
-              <svg viewBox="0 0 560 480" role="img" width="100%" aria-label="Grouped bar chart: for each of the 13 scenarios, the weakest real encounter score is far above the strongest false candidate score." font-size="11">
-              <line x1="170.0" y1="10" x2="170.0" y2="462" stroke="#2a3644" stroke-width="1" />
-              <text x="170.0" y="475" fill="#8fa3b5" text-anchor="middle">0</text>
-              <line x1="256.5" y1="10" x2="256.5" y2="462" stroke="#2a3644" stroke-width="1" />
-              <text x="256.5" y="475" fill="#8fa3b5" text-anchor="middle">0.25</text>
-              <line x1="343.0" y1="10" x2="343.0" y2="462" stroke="#2a3644" stroke-width="1" />
-              <text x="343.0" y="475" fill="#8fa3b5" text-anchor="middle">0.5</text>
-              <line x1="429.5" y1="10" x2="429.5" y2="462" stroke="#2a3644" stroke-width="1" />
-              <text x="429.5" y="475" fill="#8fa3b5" text-anchor="middle">0.75</text>
-              <line x1="516.0" y1="10" x2="516.0" y2="462" stroke="#2a3644" stroke-width="1" />
-              <text x="516.0" y="475" fill="#8fa3b5" text-anchor="middle">1</text>
-              <text x="162" y="29.0" fill="#b7c5d3" text-anchor="end">Mewtu · FRLG Soft Reset</text>
-              <path d="M 170 14 h 340.6 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -340.6 Z" fill="#8a5fe6" />
-              <path d="M 170 26 h 18.5 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -18.5 Z" fill="#1fa85f" />
-              <text x="520.6" y="29.0" fill="#8fa3b5">+0.93</text>
-              <text x="162" y="63.0" fill="#b7c5d3" text-anchor="end">Mewtu · FRLG Soft Reset</text>
-              <path d="M 170 48 h 342.0 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -342.0 Z" fill="#8a5fe6" />
-              <path d="M 170 60 h 35.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -35.4 Z" fill="#1fa85f" />
-              <text x="522.0" y="63.0" fill="#8fa3b5">+0.89</text>
-              <text x="162" y="97.0" fill="#b7c5d3" text-anchor="end">Glumanda · FRLG Starter</text>
-              <path d="M 170 82 h 338.5 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -338.5 Z" fill="#8a5fe6" />
-              <path d="M 170 94 h 39.6 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -39.6 Z" fill="#1fa85f" />
-              <text x="518.5" y="97.0" fill="#8fa3b5">+0.86</text>
-              <text x="162" y="131.0" fill="#b7c5d3" text-anchor="end">Goldini · FRLG Fishing</text>
-              <path d="M 170 116 h 305.3 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -305.3 Z" fill="#8a5fe6" />
-              <path d="M 170 128 h 60.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -60.4 Z" fill="#1fa85f" />
-              <text x="485.3" y="131.0" fill="#8fa3b5">+0.71</text>
-              <text x="162" y="165.0" fill="#b7c5d3" text-anchor="end">Picochilla · Runaway</text>
-              <path d="M 170 150 h 318.1 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -318.1 Z" fill="#8a5fe6" />
-              <path d="M 170 162 h 95.3 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -95.3 Z" fill="#1fa85f" />
-              <text x="498.1" y="165.0" fill="#8fa3b5">+0.64</text>
-              <text x="162" y="199.0" fill="#b7c5d3" text-anchor="end">Relicanth · Breeding</text>
-              <path d="M 170 184 h 332.3 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -332.3 Z" fill="#8a5fe6" />
-              <path d="M 170 196 h 116.1 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -116.1 Z" fill="#1fa85f" />
-              <text x="512.3" y="199.0" fill="#8fa3b5">+0.62</text>
-              <text x="162" y="233.0" fill="#b7c5d3" text-anchor="end">Bluzuk · FRLG Runaway</text>
-              <path d="M 170 218 h 312.2 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -312.2 Z" fill="#8a5fe6" />
-              <path d="M 170 230 h 97.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -97.4 Z" fill="#1fa85f" />
-              <text x="492.2" y="233.0" fill="#8fa3b5">+0.62</text>
-              <text x="162" y="267.0" fill="#b7c5d3" text-anchor="end">Bisasam · FRLG Starter</text>
-              <path d="M 170 252 h 335.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -335.4 Z" fill="#8a5fe6" />
-              <path d="M 170 264 h 126.8 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -126.8 Z" fill="#1fa85f" />
-              <text x="515.4" y="267.0" fill="#8fa3b5">+0.60</text>
-              <text x="162" y="301.0" fill="#b7c5d3" text-anchor="end">Schiggy · FRLG Starter</text>
-              <path d="M 170 286 h 339.9 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -339.9 Z" fill="#8a5fe6" />
-              <path d="M 170 298 h 134.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -134.4 Z" fill="#1fa85f" />
-              <text x="519.9" y="301.0" fill="#8fa3b5">+0.59</text>
-              <text x="162" y="335.0" fill="#b7c5d3" text-anchor="end">Giratina · DS Soft Reset</text>
-              <path d="M 170 320 h 321.2 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -321.2 Z" fill="#8a5fe6" />
-              <path d="M 170 332 h 119.2 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -119.2 Z" fill="#1fa85f" />
-              <text x="501.2" y="335.0" fill="#8fa3b5">+0.58</text>
-              <text x="162" y="369.0" fill="#b7c5d3" text-anchor="end">Kyurem · DS Soft Reset</text>
-              <path d="M 170 354 h 273.5 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -273.5 Z" fill="#8a5fe6" />
-              <path d="M 170 366 h 109.5 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -109.5 Z" fill="#1fa85f" />
-              <text x="453.5" y="369.0" fill="#8fa3b5">+0.47</text>
-              <text x="162" y="403.0" fill="#b7c5d3" text-anchor="end">Chaneira · FRLG Runaway</text>
-              <path d="M 170 388 h 273.8 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -273.8 Z" fill="#8a5fe6" />
-              <path d="M 170 400 h 129.9 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -129.9 Z" fill="#1fa85f" />
-              <text x="453.8" y="403.0" fill="#8fa3b5">+0.42</text>
-              <text x="162" y="437.0" fill="#b7c5d3" text-anchor="end">Mewtu · FRLG Soft Reset</text>
-              <path d="M 170 422 h 215.7 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -215.7 Z" fill="#8a5fe6" />
-              <path d="M 170 434 h 125.8 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -125.8 Z" fill="#1fa85f" />
-              <text x="395.7" y="437.0" fill="#8fa3b5">+0.26</text>
-              </svg>
+              <div id="gap-chart" data-i18n-attr="aria-label:testing.results.loading"></div>
             </div>
           </div>
         </div>
@@ -496,91 +441,7 @@
                   <th scope="col" class="compare-col" data-i18n="testing.coverage.colResult">Result</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <th scope="row">Schiggy · FRLG Starter</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Bisasam · FRLG Starter</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Glumanda · FRLG Starter</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Mewtu · FRLG Soft Reset</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Mewtu · FRLG Soft Reset</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Mewtu · FRLG Soft Reset</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Bluzuk · FRLG Runaway</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Chaneira · FRLG Runaway</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Goldini · FRLG Fishing</th>
-                  <td>Fire Red/Leaf Green</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Kyurem · DS Soft Reset</th>
-                  <td>Gen 4/5 (DS)</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Giratina · DS Soft Reset</th>
-                  <td>Gen 4/5 (DS)</td>
-                  <td>2D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Dartiri · Breeding</th>
-                  <td>Scarlet/Violet</td>
-                  <td>3D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Picochilla · Runaway</th>
-                  <td>Sword/Shield</td>
-                  <td>3D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
-                <tr>
-                  <th scope="row">Relicanth · Breeding</th>
-                  <td>Sword/Shield</td>
-                  <td>3D</td>
-                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
-                </tr>
+              <tbody id="coverage-body">
               </tbody>
             </table>
             </div>
@@ -647,11 +508,13 @@
     <script type="module">
       import { initMobileNav } from "/src/nav.js";
       import { applyI18n, initLangSwitcher } from "/src/i18n.js";
+      import { initTestingResults } from "/src/testing.js";
 
       // Localize the static markup and wire the header language switcher.
       applyI18n();
       initLangSwitcher();
       initMobileNav();
+      initTestingResults();
 
       // Same copyright range logic as the Encounty app footer.
       const year = new Date().getFullYear();

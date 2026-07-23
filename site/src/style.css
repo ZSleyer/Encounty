@@ -529,6 +529,29 @@ button:focus-visible {
   white-space: nowrap;
 }
 
+/* Hard-case and fail badges share the pass badge chrome with their own hue. */
+.hard-badge,
+.fail-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.hard-badge {
+  color: var(--accent-yellow);
+  background: color-mix(in srgb, var(--accent-yellow) 10%, transparent);
+}
+
+.fail-badge {
+  color: var(--accent-red);
+  background: color-mix(in srgb, var(--accent-red) 10%, transparent);
+}
+
 .pass-badge::before {
   content: "";
   width: 10px;

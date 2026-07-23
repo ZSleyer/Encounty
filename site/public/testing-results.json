@@ -1,0 +1,738 @@
+{
+  "generatedAt": "2026-07-23T23:06:28Z",
+  "version": "v0.19.1",
+  "commit": null,
+  "scenarios": [
+    {
+      "templateId": 23,
+      "pokemonName": "Kyurem",
+      "label": "Text",
+      "videoName": "Dual_SoftReset",
+      "game": "Gen 4/5 (DS)",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 3,
+      "quality": {
+        "matchMin": 0.998,
+        "negMax": 0.182,
+        "gap": 0.816
+      },
+      "scan": {
+        "simulated": 3,
+        "polled": 124,
+        "precision": 0.95,
+        "minPollMs": 60,
+        "maxPollMs": 650,
+        "matchFrames": 40,
+        "sampledFrames": 899,
+        "maxScore": 0.998,
+        "spans": [
+          {
+            "startFrame": 195,
+            "endFrame": 280,
+            "peakScore": 0.998
+          },
+          {
+            "startFrame": 2411,
+            "endFrame": 2496,
+            "peakScore": 0.998
+          },
+          {
+            "startFrame": 4434,
+            "endFrame": 4519,
+            "peakScore": 0.998
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 25,
+      "pokemonName": "Goldini",
+      "label": "Name unten",
+      "videoName": "FRLG_Fishing",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 2,
+      "quality": {
+        "matchMin": 0.852,
+        "negMax": 0.28,
+        "gap": 0.571
+      },
+      "scan": {
+        "simulated": 2,
+        "polled": 188,
+        "precision": 0.824,
+        "minPollMs": 60,
+        "maxPollMs": 200,
+        "matchFrames": 16,
+        "sampledFrames": 466,
+        "maxScore": 0.854,
+        "spans": [
+          {
+            "startFrame": 648,
+            "endFrame": 679,
+            "peakScore": 0.854
+          },
+          {
+            "startFrame": 2371,
+            "endFrame": 2438,
+            "peakScore": 0.852
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 26,
+      "pokemonName": "Bluzuk",
+      "label": "Name unten",
+      "videoName": "FRLG_Runaway",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 1,
+      "quality": {
+        "matchMin": 0.862,
+        "negMax": 0.199,
+        "gap": 0.664
+      },
+      "scan": {
+        "simulated": 1,
+        "polled": 29,
+        "precision": 0.832,
+        "minPollMs": 60,
+        "maxPollMs": 900,
+        "matchFrames": 19,
+        "sampledFrames": 287,
+        "maxScore": 0.863,
+        "spans": [
+          {
+            "startFrame": 486,
+            "endFrame": 598,
+            "peakScore": 0.862
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 28,
+      "pokemonName": "Giratina",
+      "label": "Text",
+      "videoName": "Dual_SoftReset",
+      "game": "Gen 4/5 (DS)",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 3,
+      "quality": {
+        "matchMin": 0.909,
+        "negMax": 0.319,
+        "gap": 0.591
+      },
+      "scan": {
+        "simulated": 3,
+        "polled": 103,
+        "precision": 0.824,
+        "minPollMs": 60,
+        "maxPollMs": 800,
+        "matchFrames": 48,
+        "sampledFrames": 899,
+        "maxScore": 0.912,
+        "spans": [
+          {
+            "startFrame": 192,
+            "endFrame": 292,
+            "peakScore": 0.911
+          },
+          {
+            "startFrame": 1998,
+            "endFrame": 2094,
+            "peakScore": 0.912
+          },
+          {
+            "startFrame": 3688,
+            "endFrame": 3791,
+            "peakScore": 0.912
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 35,
+      "pokemonName": "Mewtu",
+      "label": "Wow!",
+      "videoName": "FRLG_SoftReset",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 2,
+      "quality": {
+        "matchMin": 0.992,
+        "negMax": 0.077,
+        "gap": 0.915
+      },
+      "scan": {
+        "simulated": 2,
+        "polled": 94,
+        "precision": 0.807,
+        "minPollMs": 60,
+        "maxPollMs": 350,
+        "matchFrames": 138,
+        "sampledFrames": 415,
+        "maxScore": 0.996,
+        "spans": [
+          {
+            "startFrame": 126,
+            "endFrame": 256,
+            "peakScore": 0.993
+          },
+          {
+            "startFrame": 1521,
+            "endFrame": 2091,
+            "peakScore": 0.993
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 38,
+      "pokemonName": "Mewtu",
+      "label": "Battle",
+      "videoName": "FRLG_SoftReset",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "unrealistic",
+      "loopTestable": false,
+      "expectedEncounters": 2,
+      "quality": {
+        "matchMin": 0.987,
+        "negMax": 0.282,
+        "gap": 0.705
+      },
+      "scan": {
+        "simulated": 2,
+        "polled": 112,
+        "precision": 0.84,
+        "minPollMs": 60,
+        "maxPollMs": 300,
+        "matchFrames": 48,
+        "sampledFrames": 415,
+        "maxScore": 0.988,
+        "spans": [
+          {
+            "startFrame": 374,
+            "endFrame": 377,
+            "peakScore": 0.987
+          },
+          {
+            "startFrame": 2211,
+            "endFrame": 2233,
+            "peakScore": 0.987
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 39,
+      "pokemonName": "Mewtu",
+      "label": "Copyright",
+      "videoName": "FRLG_SoftReset",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 2,
+      "quality": {
+        "matchMin": 0.999,
+        "negMax": 0.019,
+        "gap": 0.98
+      },
+      "scan": {
+        "simulated": 2,
+        "polled": 32,
+        "precision": 0.876,
+        "minPollMs": 60,
+        "maxPollMs": 1300,
+        "matchFrames": 51,
+        "sampledFrames": 415,
+        "maxScore": 1.0,
+        "spans": [
+          {
+            "startFrame": 648,
+            "endFrame": 808,
+            "peakScore": 1.0
+          },
+          {
+            "startFrame": 2348,
+            "endFrame": 2429,
+            "peakScore": 0.999
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 40,
+      "pokemonName": "Kyurem",
+      "label": "Nintendo",
+      "videoName": "Dual_SoftReset",
+      "game": "Gen 4/5 (DS)",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 3,
+      "quality": {
+        "matchMin": 0.999,
+        "negMax": 0.164,
+        "gap": 0.835
+      },
+      "scan": {
+        "simulated": 3,
+        "polled": 119,
+        "precision": 0.621,
+        "minPollMs": 60,
+        "maxPollMs": 700,
+        "matchFrames": 37,
+        "sampledFrames": 899,
+        "maxScore": 0.999,
+        "spans": [
+          {
+            "startFrame": 1218,
+            "endFrame": 1263,
+            "peakScore": 0.999
+          },
+          {
+            "startFrame": 3285,
+            "endFrame": 3331,
+            "peakScore": 0.999
+          },
+          {
+            "startFrame": 5310,
+            "endFrame": 5356,
+            "peakScore": 0.999
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 41,
+      "pokemonName": "Giratina",
+      "label": "Copyright",
+      "videoName": "Dual_SoftReset",
+      "game": "Gen 4/5 (DS)",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 3,
+      "quality": {
+        "matchMin": 0.998,
+        "negMax": 0.331,
+        "gap": 0.666
+      },
+      "scan": {
+        "simulated": 3,
+        "polled": 49,
+        "precision": 0.68,
+        "minPollMs": 60,
+        "maxPollMs": 2000,
+        "matchFrames": 171,
+        "sampledFrames": 899,
+        "maxScore": 0.998,
+        "spans": [
+          {
+            "startFrame": 1280,
+            "endFrame": 1651,
+            "peakScore": 0.997
+          },
+          {
+            "startFrame": 2930,
+            "endFrame": 3293,
+            "peakScore": 0.998
+          },
+          {
+            "startFrame": 4538,
+            "endFrame": 4909,
+            "peakScore": 0.997
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 42,
+      "pokemonName": "Goldini",
+      "label": "Name Oben",
+      "videoName": "FRLG_Fishing",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 2,
+      "quality": {
+        "matchMin": 0.945,
+        "negMax": 0.168,
+        "gap": 0.777
+      },
+      "scan": {
+        "simulated": 2,
+        "polled": 28,
+        "precision": 0.915,
+        "minPollMs": 60,
+        "maxPollMs": 1900,
+        "matchFrames": 85,
+        "sampledFrames": 466,
+        "maxScore": 0.953,
+        "spans": [
+          {
+            "startFrame": 684,
+            "endFrame": 923,
+            "peakScore": 0.945
+          },
+          {
+            "startFrame": 2474,
+            "endFrame": 2709,
+            "peakScore": 0.95
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 43,
+      "pokemonName": "Bluzuk",
+      "label": "Name Oben",
+      "videoName": "FRLG_Runaway",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 1,
+      "quality": {
+        "matchMin": 0.953,
+        "negMax": 0.556,
+        "gap": 0.398
+      },
+      "scan": {
+        "simulated": 1,
+        "polled": 17,
+        "precision": 0.923,
+        "minPollMs": 60,
+        "maxPollMs": 2000,
+        "matchFrames": 115,
+        "sampledFrames": 287,
+        "maxScore": 0.959,
+        "spans": [
+          {
+            "startFrame": 480,
+            "endFrame": 895,
+            "peakScore": 0.958
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 44,
+      "pokemonName": "Picochilla",
+      "label": "Name",
+      "videoName": "SwSh_Runaway",
+      "game": "Sword/Shield",
+      "style": "3D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 2,
+      "quality": {
+        "matchMin": 0.998,
+        "negMax": 0.56,
+        "gap": 0.438
+      },
+      "scan": {
+        "simulated": 2,
+        "polled": 33,
+        "precision": 0.95,
+        "minPollMs": 60,
+        "maxPollMs": 1150,
+        "matchFrames": 53,
+        "sampledFrames": 404,
+        "maxScore": 1.0,
+        "spans": [
+          {
+            "startFrame": 276,
+            "endFrame": 352,
+            "peakScore": 0.999
+          },
+          {
+            "startFrame": 1342,
+            "endFrame": 1487,
+            "peakScore": 0.998
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 45,
+      "pokemonName": "Relicanth",
+      "label": "Oh?",
+      "videoName": "SwSh_Breeding",
+      "game": "Sword/Shield",
+      "style": "3D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 1,
+      "quality": {
+        "matchMin": 0.997,
+        "negMax": 0.175,
+        "gap": 0.822
+      },
+      "scan": {
+        "simulated": 1,
+        "polled": 78,
+        "precision": 0.902,
+        "minPollMs": 60,
+        "maxPollMs": 300,
+        "matchFrames": 6,
+        "sampledFrames": 276,
+        "maxScore": 0.997,
+        "spans": [
+          {
+            "startFrame": 485,
+            "endFrame": 510,
+            "peakScore": 0.997
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 46,
+      "pokemonName": "Dartiri",
+      "label": "Oh?",
+      "videoName": "SV_Breeding",
+      "game": "Scarlet/Violet",
+      "style": "3D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 4,
+      "quality": {
+        "matchMin": 0.849,
+        "negMax": 0.156,
+        "gap": 0.693
+      },
+      "scan": {
+        "simulated": 4,
+        "polled": 300,
+        "precision": 0.823,
+        "minPollMs": 60,
+        "maxPollMs": 250,
+        "matchFrames": 108,
+        "sampledFrames": 894,
+        "maxScore": 0.863,
+        "spans": [
+          {
+            "startFrame": 270,
+            "endFrame": 297,
+            "peakScore": 0.854
+          },
+          {
+            "startFrame": 1469,
+            "endFrame": 1758,
+            "peakScore": 0.85
+          },
+          {
+            "startFrame": 2897,
+            "endFrame": 2931,
+            "peakScore": 0.852
+          },
+          {
+            "startFrame": 4142,
+            "endFrame": 4413,
+            "peakScore": 0.863
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 47,
+      "pokemonName": "Schiggy",
+      "label": "Name",
+      "videoName": "FRLG_Starter",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 1,
+      "quality": {
+        "matchMin": 0.877,
+        "negMax": 0.468,
+        "gap": 0.41
+      },
+      "scan": {
+        "simulated": 1,
+        "polled": 99,
+        "precision": 0.847,
+        "minPollMs": 60,
+        "maxPollMs": 950,
+        "matchFrames": 18,
+        "sampledFrames": 960,
+        "maxScore": 0.878,
+        "spans": [
+          {
+            "startFrame": 1254,
+            "endFrame": 1372,
+            "peakScore": 0.877
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 48,
+      "pokemonName": "Bisasam",
+      "label": "Name",
+      "videoName": "FRLG_Starter",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 1,
+      "quality": {
+        "matchMin": 0.913,
+        "negMax": 0.168,
+        "gap": 0.746
+      },
+      "scan": {
+        "simulated": 1,
+        "polled": 86,
+        "precision": 0.881,
+        "minPollMs": 60,
+        "maxPollMs": 1100,
+        "matchFrames": 37,
+        "sampledFrames": 960,
+        "maxScore": 0.913,
+        "spans": [
+          {
+            "startFrame": 3552,
+            "endFrame": 3688,
+            "peakScore": 0.913
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 49,
+      "pokemonName": "Glumanda",
+      "label": "Name",
+      "videoName": "FRLG_Starter",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 1,
+      "quality": {
+        "matchMin": 0.907,
+        "negMax": 0.104,
+        "gap": 0.802
+      },
+      "scan": {
+        "simulated": 1,
+        "polled": 106,
+        "precision": 0.876,
+        "minPollMs": 60,
+        "maxPollMs": 900,
+        "matchFrames": 17,
+        "sampledFrames": 960,
+        "maxScore": 0.907,
+        "spans": [
+          {
+            "startFrame": 5486,
+            "endFrame": 5598,
+            "peakScore": 0.906
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 50,
+      "pokemonName": "Chaneira",
+      "label": "Name Oben",
+      "videoName": "FRLG_Runaway",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 1,
+      "quality": {
+        "matchMin": 0.921,
+        "negMax": 0.348,
+        "gap": 0.573
+      },
+      "scan": {
+        "simulated": 1,
+        "polled": 18,
+        "precision": 0.891,
+        "minPollMs": 60,
+        "maxPollMs": 2000,
+        "matchFrames": 52,
+        "sampledFrames": 287,
+        "maxScore": 0.927,
+        "spans": [
+          {
+            "startFrame": 1296,
+            "endFrame": 1667,
+            "peakScore": 0.927
+          }
+        ],
+        "pass": true
+      }
+    },
+    {
+      "templateId": 51,
+      "pokemonName": "Chaneira",
+      "label": "Name unten",
+      "videoName": "FRLG_Runaway",
+      "game": "Fire Red/Leaf Green",
+      "style": "2D",
+      "difficulty": "easy",
+      "loopTestable": true,
+      "expectedEncounters": 1,
+      "quality": {
+        "matchMin": 0.87,
+        "negMax": 0.14,
+        "gap": 0.73
+      },
+      "scan": {
+        "simulated": 1,
+        "polled": 30,
+        "precision": 0.84,
+        "minPollMs": 60,
+        "maxPollMs": 850,
+        "matchFrames": 17,
+        "sampledFrames": 287,
+        "maxScore": 0.871,
+        "spans": [
+          {
+            "startFrame": 1317,
+            "endFrame": 1423,
+            "peakScore": 0.87
+          }
+        ],
+        "pass": true
+      }
+    }
+  ]
+}
