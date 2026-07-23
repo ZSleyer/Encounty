@@ -514,6 +514,50 @@ button:focus-visible {
   color: var(--accent-yellow);
 }
 
+/* FAQ: native disclosure widgets in Tempest chrome. */
+.faq-item summary {
+  list-style: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-item summary svg {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--text-muted);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.faq-item summary:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: -2px;
+}
+
+.faq-item[open] summary {
+  color: var(--accent-blue);
+}
+
+.faq-item[open] summary svg {
+  transform: rotate(180deg);
+  color: var(--accent-blue);
+}
+
+.faq-a {
+  padding: 0 1.25rem 1rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

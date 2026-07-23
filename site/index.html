@@ -666,6 +666,77 @@
           </ol>
         </div>
       </section>
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- FAQ -->
+      <section aria-labelledby="faq-heading" id="faq" class="px-4 py-20">
+        <div class="mx-auto max-w-3xl">
+          <h2
+            id="faq-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="faq.heading"
+          >
+            FAQ
+          </h2>
+          <div class="mt-12 space-y-4">
+            <details class="faq-item t-panel">
+              <summary class="faq-q">
+                <span data-i18n="faq.llm.q">Was Encounty built with the help of AI?</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
+              </summary>
+              <p class="faq-a" data-i18n="faq.llm.a">
+                Yes. Encounty is developed with the help of LLM coding assistants. A free application of this scope would simply not be possible as a solo project without them. Every change is reviewed, covered by automated tests and CI, and the complete source code is open on GitHub.
+              </p>
+            </details>
+            <details class="faq-item t-panel">
+              <summary class="faq-q">
+                <span data-i18n="faq.free.q">Is Encounty really free?</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
+              </summary>
+              <p class="faq-a" data-i18n="faq.free.a">
+                Yes, completely. No ads, no pro tier, no paywall. Encounty is a hobby project, free under the AGPL-3.0 license.
+              </p>
+            </details>
+            <details class="faq-item t-panel">
+              <summary class="faq-q">
+                <span data-i18n="faq.offline.q">Do I need an account or an internet connection?</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
+              </summary>
+              <p class="faq-a" data-i18n="faq.offline.a">
+                No. Encounty runs entirely on your machine and works offline. Internet is only used for optional things like app updates and sprite downloads. Your hunts stay local.
+              </p>
+            </details>
+            <details class="faq-item t-panel">
+              <summary class="faq-q">
+                <span data-i18n="faq.ban.q">Can using Encounty get me banned?</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
+              </summary>
+              <p class="faq-a" data-i18n="faq.ban.a">
+                Encounty only watches: it reads your screen or capture card, never touches the game, sends no inputs and automates nothing. It is a smarter tally counter, not a cheat tool.
+              </p>
+            </details>
+            <details class="faq-item t-panel">
+              <summary class="faq-q">
+                <span data-i18n="faq.games.q">Which games and setups work?</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
+              </summary>
+              <p class="faq-a" data-i18n="faq.games.a">
+                Anything you can show on your screen: PC releases or a console through a capture card. Hunt tracking covers every mainline game from Gen 1 to 9, and auto-detection works wherever an encounter is visually recognizable.
+              </p>
+            </details>
+            <details class="faq-item t-panel">
+              <summary class="faq-q">
+                <span data-i18n="faq.performance.q">How much performance does the detection cost?</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
+              </summary>
+              <p class="faq-a" data-i18n="faq.performance.a">
+                Very little. Matching runs as WebGPU compute shaders on your GPU with adaptive polling, so the CPU stays free for your game. Systems without WebGPU fall back to a CPU pipeline automatically.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
 
       <div class="glow-line" role="presentation"></div>
 
@@ -735,8 +806,7 @@
           >
         </p>
         <p data-i18n="footer.disclaimer">
-          Encounty is a fan project and is not affiliated with Nintendo, Game Freak or The
-          Pokémon Company.
+          Encounty is a fan project and is not affiliated with Nintendo, Game Freak or The Pokémon Company.
         </p>
         <p>
           <span id="copyright-year">© 2026</span>
