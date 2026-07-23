@@ -2,7 +2,7 @@ import { defineConfig, type Plugin } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve, basename } from "node:path";
-import { createReadStream, existsSync, mkdirSync, copyFileSync, readdirSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from "node:fs";
 
 /** Backend port — must match backend/internal/server/port.go DefaultPort. */
 const BACKEND_PORT = 8192;
@@ -24,6 +24,29 @@ function serveTestFixtures(): Plugin {
         if (!filePath.startsWith(fixturesDir) || !existsSync(filePath)) return next();
         const ext = filePath.slice(filePath.lastIndexOf("."));
         if (mimeTypes[ext]) res.setHeader("Content-Type", mimeTypes[ext]);
+
+        // Range support is mandatory for the mp4 fixtures: without 206
+        // responses Chrome cannot seek, the video silently stays on its
+        // first frame and every scored sample sees the same image.
+        const { size } = statSync(filePath);
+        res.setHeader("Accept-Ranges", "bytes");
+        const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
+        if (range) {
+          const start = range[1] ? Number.parseInt(range[1], 10) : 0;
+          const end = range[2] ? Math.min(Number.parseInt(range[2], 10), size - 1) : size - 1;
+          if (Number.isNaN(start) || start >= size || start > end) {
+            res.statusCode = 416;
+            res.setHeader("Content-Range", `bytes */${size}`);
+            res.end();
+            return;
+          }
+          res.statusCode = 206;
+          res.setHeader("Content-Range", `bytes ${start}-${end}/${size}`);
+          res.setHeader("Content-Length", end - start + 1);
+          createReadStream(filePath, { start, end }).pipe(res);
+          return;
+        }
+        res.setHeader("Content-Length", size);
         createReadStream(filePath).pipe(res);
       });
     },
