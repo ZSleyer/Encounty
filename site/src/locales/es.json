@@ -21,6 +21,8 @@
   "nav.download": "Descargar y actualizar",
 
   "footer.source": "Código en GitHub",
+
+  "footer.reportBug": "Reportar un error",
   "footer.licensedUnder": "con licencia",
   "footer.disclaimer": "Encounty es una aplicación no oficial hecha por fans y no está afiliada, respaldada ni conectada con Nintendo, Creatures Inc., GAME FREAK inc. ni The Pokémon Company. Pokémon y todas las marcas y derechos de autor relacionados son propiedad de sus respectivos titulares.",
 
@@ -48,7 +50,7 @@
   "changelog.viewAllOnGithub": "Ver todas las versiones en GitHub",
 
   "demo.heading": "Míralo en acción",
-  "demo.text": "Crear una plantilla de detección lleva menos de un minuto: haz una captura del juego, marca el texto del encuentro, prueba la coincidencia y listo.",
+  "demo.text": "Del template de detección al primer encounter contado automáticamente en menos de un minuto: haz un snapshot de tu juego, marca el texto del encounter, prueba la detección y a cazar.",
   "demo.videoAria": "Vídeo de demostración: creación de una plantilla de detección automática en Encounty. Haz clic o pulsa Intro para pausar o reanudar.",
   "demo.noVideo": "Tu navegador no admite la etiqueta de vídeo.",
 
@@ -69,7 +71,7 @@
   "features.overlay.title": "Editor de overlay para OBS",
   "features.overlay.desc": "Muestra tus contadores en el stream: editor de overlay de arrastrar y soltar con vista previa en vivo y una URL de fuente de navegador para OBS.",
   "features.hysteresis.title": "Sin recuentos dobles",
-  "features.hysteresis.desc": "Una lógica de histéresis garantiza que cada encuentro se cuente exactamente una vez, sin importar cuánto tiempo permanezca en pantalla.",
+  "features.hysteresis.desc": "Una máquina de estados de tres fases (histéresis, cooldown y conteo), tolerante a frames inestables sueltos, garantiza que cada encounter se cuente exactamente una vez.",
   "features.replay.title": "Capturas basadas en repetición",
   "features.stability.title": "Análisis de estabilidad automático",
   "features.hotkeys.title": "Atajos globales",
@@ -124,8 +126,11 @@
   "faq.ban.a": "Encounty solo observa: lee tu pantalla o tu tarjeta de captura, nunca toca el juego, no envía pulsaciones y no automatiza nada. Es un contador manual más inteligente, no una herramienta de trampas.",
   "faq.games.q": "¿Qué juegos y configuraciones funcionan?",
   "faq.games.a": "Todo lo que puedas mostrar en tu pantalla: versiones de PC o una consola mediante una tarjeta de captura. El seguimiento de hunts cubre todos los juegos principales de la Gen 1 a la 9, y la detección automática funciona siempre que un encounter sea reconocible visualmente.",
+  "faq.odds.q": "¿De dónde vienen los datos de odds?",
+  "faq.odds.a": "Los datos de odds y métodos provienen de un hilo de investigación de la comunidad en r/pokemon que documenta los métodos de caza de todos los juegos; la app cita esta fuente en Ajustes, Acerca de.",
+  "faq.odds.link": "Leer el hilo de investigación",
   "faq.performance.q": "¿Cuánto rendimiento consume la detección?",
-  "faq.performance.a": "Muy poco. La comparación se ejecuta como compute shaders de WebGPU en tu GPU con sondeo adaptativo, así que la CPU queda libre para tu juego. Los sistemas sin WebGPU pasan automáticamente a un pipeline de CPU.",
+  "faq.performance.a": "Muy poco. La comparación se ejecuta como compute shaders de WebGPU en tu GPU con sondeo adaptativo, así que la CPU queda libre para tu juego. Los sistemas sin WebGPU pasan automáticamente a un pipeline de CPU. Una GPU integrada es suficiente.",
 
   "update.hero.badge": "Descargar y actualizar",
   "update.hero.title": "Consigue el último Encounty",
@@ -157,8 +162,8 @@
   "update.win.dlNoteSuffix": "ejecútalo una vez y luego Encounty se actualiza solo.",
   "update.win.step1.title": "Descarga y ejecuta el Setup",
   "update.win.step1.desc": "Haz doble clic en el archivo descargado. Windows instala Encounty por ti.",
-  "update.win.step2.title": "Si Windows muestra un cuadro azul \"Windows protegió tu PC\"",
-  "update.win.step2.desc": "Haz clic en \"Más información\" y luego en \"Ejecutar de todas formas\". Aparece porque Encounty es una app pequeña de código abierto, no porque algo esté mal.",
+  "update.win.step2.title": "Si Windows SmartScreen muestra un aviso azul \"Windows protegió tu PC\"",
+  "update.win.step2.desc": "Haz clic en \"Más información\" y luego en \"Ejecutar de todas formas\". SmartScreen avisa porque Encounty es una pequeña app de código abierto sin certificado de firma de pago, no porque algo vaya mal.",
   "update.win.step3.title": "Ya está",
   "update.win.step3.desc": "Las futuras actualizaciones se instalan solas en segundo plano. Tú sigue usando Encounty.",
   "update.win.portable.title": "¿Usas la versión portable?",

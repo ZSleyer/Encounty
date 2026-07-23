@@ -340,8 +340,7 @@
             class="mx-auto mt-4 max-w-xl text-center text-text-secondary"
             data-i18n="demo.text"
           >
-            Creating a detection template takes under a minute: snapshot your game, mark the
-            encounter text, test the match, done.
+            From creating a detection template to the first automatically counted encounter in under a minute: snapshot your game, mark the encounter text, test the match, hunt.
           </p>
           <div class="t-panel mt-8 overflow-hidden p-2">
             <video
@@ -463,7 +462,7 @@
                   No double counting
                 </h3>
                 <p class="mt-1 text-sm text-text-secondary" data-i18n="features.hysteresis.desc">
-                  Hysteresis logic makes sure each encounter is counted exactly once, no matter how long it stays on screen.
+                  A three-phase state machine (hysteresis, cooldown, counting) with tolerance for single shaky frames makes sure each encounter is counted exactly once.
                 </p>
               </li>
               <li>
@@ -670,11 +669,21 @@
             </details>
             <details class="faq-item t-panel">
               <summary class="faq-q">
+                <span data-i18n="faq.odds.q">Where does the odds data come from?</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
+              </summary>
+              <p class="faq-a">
+                <span data-i18n="faq.odds.a">The odds and method data come from a community research thread on r/pokemon that documents the hunting methods of every game; the app credits this source under Settings, About.</span>
+                <a href="https://www.reddit.com/r/pokemon/comments/10wzzt9/these_are_all_the_hunting_methods_of_every_game/" class="underline hover:text-text-primary" data-i18n="faq.odds.link">Read the research thread</a>.
+              </p>
+            </details>
+            <details class="faq-item t-panel">
+              <summary class="faq-q">
                 <span data-i18n="faq.performance.q">How much performance does the detection cost?</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
               </summary>
               <p class="faq-a" data-i18n="faq.performance.a">
-                Very little. Matching runs as WebGPU compute shaders on your GPU with adaptive polling, so the CPU stays free for your game. Systems without WebGPU fall back to a CPU pipeline automatically.
+                Very little. Matching runs as WebGPU compute shaders on your GPU with adaptive polling, so the CPU stays free for your game. Systems without WebGPU fall back to a CPU pipeline automatically. An integrated GPU is enough.
               </p>
             </details>
           </div>
@@ -746,6 +755,14 @@
             href="https://github.com/ZSleyer/Encounty/blob/main/LICENSE"
             class="underline hover:text-text-primary"
             >AGPL-3.0</a
+          >
+        </p>
+        <p>
+          <a
+            href="https://github.com/ZSleyer/Encounty/issues"
+            class="underline hover:text-text-primary"
+            data-i18n="footer.reportBug"
+            >Report a bug</a
           >
         </p>
         <p data-i18n="footer.disclaimer">

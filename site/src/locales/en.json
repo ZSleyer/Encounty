@@ -21,6 +21,8 @@
   "nav.download": "Download & Update",
 
   "footer.source": "Source on GitHub",
+
+  "footer.reportBug": "Report a bug",
   "footer.licensedUnder": "licensed under",
   "footer.disclaimer": "Encounty is an unofficial, fan-made application and is not affiliated with, endorsed by, or connected to Nintendo, Creatures Inc., GAME FREAK inc., or The Pokémon Company. Pokémon and all related trademarks and copyrights are the property of their respective owners.",
 
@@ -48,7 +50,7 @@
   "changelog.viewAllOnGithub": "View all releases on GitHub",
 
   "demo.heading": "See it in action",
-  "demo.text": "Creating a detection template takes under a minute: snapshot your game, mark the encounter text, test the match, done.",
+  "demo.text": "From creating a detection template to the first automatically counted encounter in under a minute: snapshot your game, mark the encounter text, test the match, hunt.",
   "demo.videoAria": "Demo video: creating an auto-detection template in Encounty. Click or press Enter to pause or resume.",
   "demo.noVideo": "Your browser does not support the video tag.",
 
@@ -69,7 +71,7 @@
   "features.overlay.title": "OBS overlay editor",
   "features.overlay.desc": "Show your counters on stream: drag-and-drop overlay editor with live preview and a browser-source URL for OBS.",
   "features.hysteresis.title": "No double counting",
-  "features.hysteresis.desc": "Hysteresis logic makes sure each encounter is counted exactly once, no matter how long it stays on screen.",
+  "features.hysteresis.desc": "A three-phase state machine (hysteresis, cooldown, counting) with tolerance for single shaky frames makes sure each encounter is counted exactly once.",
   "features.replay.title": "Replay-based screenshots",
   "features.stability.title": "Automatic stability analysis",
   "features.hotkeys.title": "Global hotkeys",
@@ -124,8 +126,11 @@
   "faq.ban.a": "Encounty only watches: it reads your screen or capture card, never touches the game, sends no inputs and automates nothing. It is a smarter tally counter, not a cheat tool.",
   "faq.games.q": "Which games and setups work?",
   "faq.games.a": "Anything you can show on your screen: PC releases or a console through a capture card. Hunt tracking covers every mainline game from Gen 1 to 9, and auto-detection works wherever an encounter is visually recognizable.",
+  "faq.odds.q": "Where does the odds data come from?",
+  "faq.odds.a": "The odds and method data come from a community research thread on r/pokemon that documents the hunting methods of every game; the app credits this source under Settings, About.",
+  "faq.odds.link": "Read the research thread",
   "faq.performance.q": "How much performance does the detection cost?",
-  "faq.performance.a": "Very little. Matching runs as WebGPU compute shaders on your GPU with adaptive polling, so the CPU stays free for your game. Systems without WebGPU fall back to a CPU pipeline automatically.",
+  "faq.performance.a": "Very little. Matching runs as WebGPU compute shaders on your GPU with adaptive polling, so the CPU stays free for your game. Systems without WebGPU fall back to a CPU pipeline automatically. An integrated GPU is enough.",
 
   "update.hero.badge": "Download & update",
   "update.hero.title": "Get the latest Encounty",
@@ -157,8 +162,8 @@
   "update.win.dlNoteSuffix": "run it once, then Encounty updates itself.",
   "update.win.step1.title": "Download and run the Setup",
   "update.win.step1.desc": "Double-click the downloaded file. Windows installs Encounty for you.",
-  "update.win.step2.title": "If Windows shows a blue \"Windows protected your PC\" box",
-  "update.win.step2.desc": "Click \"More info\", then \"Run anyway\". This appears because Encounty is a small open-source app, not because anything is wrong.",
+  "update.win.step2.title": "If Windows SmartScreen shows a blue \"Windows protected your PC\" box",
+  "update.win.step2.desc": "Click \"More info\", then \"Run anyway\". SmartScreen warns because Encounty is a small open-source app without a paid code-signing certificate, not because anything is wrong.",
   "update.win.step3.title": "You are done",
   "update.win.step3.desc": "Future updates install themselves in the background. Just keep using Encounty.",
   "update.win.portable.title": "Using the portable version?",

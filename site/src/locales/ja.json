@@ -21,6 +21,8 @@
   "nav.download": "ダウンロードとアップデート",
 
   "footer.source": "GitHub のソースコード",
+
+  "footer.reportBug": "バグを報告",
   "footer.licensedUnder": "ライセンス:",
   "footer.disclaimer": "Encountyは非公式のファンメイドアプリケーションであり、Nintendo、Creatures Inc.、GAME FREAK inc.、The Pokémon Companyとは一切関係がなく、これらの企業による承認・提携もありません。Pokémonおよび関連するすべての商標と著作権は、それぞれの権利者に帰属します。",
 
@@ -48,7 +50,7 @@
   "changelog.viewAllOnGithub": "GitHub ですべてのリリースを見る",
 
   "demo.heading": "実際の動きを見る",
-  "demo.text": "検出テンプレートの作成は 1 分もかかりません。ゲームのスナップショットを撮り、遭遇テキストを指定し、マッチをテストすれば完了です。",
+  "demo.text": "検出テンプレートの作成から最初の自動カウントまで1分以内。ゲームのスナップショットを撮り、エンカウントのテキストを指定して、マッチをテストするだけです。",
   "demo.videoAria": "デモ動画: Encounty で自動検出テンプレートを作成する様子。クリックまたは Enter キーで一時停止・再生します。",
   "demo.noVideo": "お使いのブラウザは video タグに対応していません。",
 
@@ -69,7 +71,7 @@
   "features.overlay.title": "OBS オーバーレイエディター",
   "features.overlay.desc": "配信でカウンターを表示: ライブプレビュー付きのドラッグ＆ドロップ式オーバーレイエディターと、OBS 用のブラウザソース URL を用意しています。",
   "features.hysteresis.title": "二重カウントなし",
-  "features.hysteresis.desc": "ヒステリシスロジックにより、遭遇が画面にどれだけ長く表示されていても、それぞれ正確に 1 回だけカウントされます。",
+  "features.hysteresis.desc": "ヒステリシス、クールダウン、カウントの3段階ステートマシンが、単発の乱れたフレームを許容しつつ、各エンカウントを正確に1回だけカウントします。",
   "features.replay.title": "リプレイベースのスクリーンショット",
   "features.stability.title": "自動安定性分析",
   "features.hotkeys.title": "グローバルホットキー",
@@ -124,8 +126,11 @@
   "faq.ban.a": "Encounty は見ているだけです。画面やキャプチャーボードを読み取るだけで、ゲームには一切触れず、入力も送らず、何も自動化しません。賢くなった手動カウンターであって、チートツールではありません。",
   "faq.games.q": "どのゲームや環境で使えますか？",
   "faq.games.a": "画面に映せるものなら何でも対応します。PC 版のゲームや、キャプチャーボード経由の家庭用ゲーム機でも利用できます。厳選のトラッキングは第 1 世代から第 9 世代までの全本編作品に対応し、自動検出はエンカウントが視覚的に判別できる場面ならどこでも機能します。",
+  "faq.odds.q": "オッズのデータはどこから来ていますか？",
+  "faq.odds.a": "オッズとメソッドのデータは、全作品のハントメソッドをまとめた r/pokemon のコミュニティ調査スレッドに基づいています。アプリ内の設定（About）にも出典を記載しています。",
+  "faq.odds.link": "調査スレッドを読む",
   "faq.performance.q": "検出はどれくらいパフォーマンスを消費しますか？",
-  "faq.performance.a": "ごくわずかです。マッチングは WebGPU のコンピュートシェーダーとして GPU 上で実行され、適応的なポーリングを行うため、CPU はゲームのために空いたままです。WebGPU が使えない環境では、自動的に CPU パイプラインにフォールバックします。",
+  "faq.performance.a": "ごくわずかです。マッチングは WebGPU のコンピュートシェーダーとして GPU 上で実行され、適応的なポーリングを行うため、CPU はゲームのために空いたままです。WebGPU が使えない環境では、自動的に CPU パイプラインにフォールバックします。 内蔵GPUで十分です。",
 
   "update.hero.badge": "ダウンロードとアップデート",
   "update.hero.title": "最新の Encounty を入手",
@@ -157,8 +162,8 @@
   "update.win.dlNoteSuffix": "一度実行すれば、あとは Encounty が自動で更新します。",
   "update.win.step1.title": "Setup をダウンロードして実行",
   "update.win.step1.desc": "ダウンロードしたファイルをダブルクリックします。Windows が Encounty をインストールします。",
-  "update.win.step2.title": "青い「Windows によって PC が保護されました」画面が出た場合",
-  "update.win.step2.desc": "「詳細情報」をクリックし、次に「実行」をクリックします。これは Encounty が小さなオープンソースアプリだからで、問題があるわけではありません。",
+  "update.win.step2.title": "Windows SmartScreen が「WindowsによってPCが保護されました」と表示した場合",
+  "update.win.step2.desc": "「詳細情報」をクリックし、「実行」を選択してください。SmartScreen が警告するのは、Encounty が有料のコード署名証明書を持たない小さなオープンソースアプリだからで、問題があるわけではありません。",
   "update.win.step3.title": "完了です",
   "update.win.step3.desc": "今後のアップデートはバックグラウンドで自動的にインストールされます。そのまま Encounty を使い続けてください。",
   "update.win.portable.title": "ポータブル版を使っていますか?",
