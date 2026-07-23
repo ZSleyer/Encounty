@@ -1,0 +1,82 @@
+# Runs the NCC detection quality suite against the real gameplay fixtures.
+#
+# The fixtures (game footage) live as release assets in the private repo
+# ZSleyer/encounty-test-fixtures and cannot be published with the code, so
+# this workflow needs the FIXTURES_TOKEN secret (a fine-grained PAT with read
+# access to that repo's contents). Without the secret the job skips cleanly,
+# which also covers forks and external pull requests.
+name: NCC Quality Suite
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly sanity run (Mondays 04:30 UTC); releases should trigger it manually.
+    - cron: "30 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ncc-suite
+  cancel-in-progress: true
+
+jobs:
+  ncc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      FIXTURES_TOKEN: ${{ secrets.FIXTURES_TOKEN }}
+    steps:
+      - name: Check fixtures token
+        id: gate
+        run: |
+          if [ -n "$FIXTURES_TOKEN" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "FIXTURES_TOKEN not set; skipping the NCC suite." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Checkout
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: steps.gate.outputs.enabled == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Install ffmpeg
+        if: steps.gate.outputs.enabled == 'true'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install dependencies
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Restore fixtures cache
+        if: steps.gate.outputs.enabled == 'true'
+        id: fixtures-cache
+        uses: actions/cache@v4
+        with:
+          path: frontend/src/engine/__tests__/fixtures
+          key: ncc-fixtures-v1
+
+      - name: Download fixtures
+        if: steps.gate.outputs.enabled == 'true' && steps.fixtures-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.FIXTURES_TOKEN }}
+        run: |
+          mkdir -p frontend/src/engine/__tests__/fixtures
+          gh release download fixtures-v1 \
+            --repo ZSleyer/encounty-test-fixtures \
+            --dir frontend/src/engine/__tests__/fixtures
+
+      - name: Run NCC quality suite
+        if: steps.gate.outputs.enabled == 'true'
+        working-directory: frontend
+        run: yarn test:ncc
