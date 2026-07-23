@@ -199,6 +199,17 @@ export function DetectorPanel({
   const [rightTab, setRightTab] = useState<"log" | "settings">("log");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Dev console access: __openGpuEquivalence() opens the GPU equivalence
+  // modal, whose own __gpuEquivalence global then exposes run()/export().
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const g = globalThis as unknown as { __openGpuEquivalence?: unknown };
+    g.__openGpuEquivalence = () => setShowGpuTest(true);
+    return () => {
+      delete g.__openGpuEquivalence;
+    };
+  }, []);
+
   // Right panel split — draggable divider between templates and log/settings
   const [templatesHeight, setTemplatesHeight] = useState(() => {
     try {

@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   XCircle,
   Loader2,
+  Download,
 } from "lucide-react";
 import { WebGPUDetector } from "../../engine/WebGPUDetector";
 import {
@@ -864,6 +865,48 @@ export default function GpuEquivalenceTest({
     abortRef.current?.abort();
   }, []);
 
+  /**
+   * Downloads the current results as a JSON report (and copies it to the
+   * clipboard) so a run can be archived or shared without manual copy-paste.
+   */
+  const exportResults = useCallback(() => {
+    const deltas = results.map((r) => r.delta);
+    const report = {
+      exportedAt: new Date().toISOString(),
+      backend: "webgpu-vs-cpu",
+      summary: {
+        total: results.length,
+        passed: results.filter((r) => r.delta < 0.05).length,
+        warned: results.filter((r) => r.delta >= 0.05 && r.delta < 0.1).length,
+        failed: results.filter((r) => r.delta >= 0.1).length,
+        avgDelta: deltas.length ? deltas.reduce((a, b) => a + b, 0) / deltas.length : 0,
+        maxDelta: deltas.length ? Math.max(...deltas) : 0,
+      },
+      results,
+    };
+    const json = JSON.stringify(report, null, 2);
+    navigator.clipboard?.writeText(json).catch(() => {
+      // Clipboard may be blocked; the download below still works.
+    });
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gpu-equivalence-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [results]);
+
+  // Dev console access: __gpuEquivalence.run() / .export() while the modal is
+  // open, so a full run can be scripted from DevTools without clicking.
+  useEffect(() => {
+    const g = globalThis as unknown as { __gpuEquivalence?: unknown };
+    g.__gpuEquivalence = { run: runTests, export: exportResults };
+    return () => {
+      delete g.__gpuEquivalence;
+    };
+  }, [runTests, exportResults]);
+
   /** Close the dialog natively and notify the parent. */
   const handleDialogClose = useCallback(() => {
     dialogRef.current?.close();
@@ -955,6 +998,16 @@ export default function GpuEquivalenceTest({
 
             {!running && error && (
               <span className="text-sm text-accent-red">{error}</span>
+            )}
+
+            {!running && totalTests > 0 && (
+              <button
+                onClick={exportResults}
+                className="flex items-center gap-2 px-4 py-2 rounded-none border border-border-subtle text-text-secondary hover:text-text-primary hover:border-accent-blue focus-visible:outline-2 focus-visible:outline-accent-blue"
+              >
+                <Download className="w-4 h-4" />
+                Export JSON
+              </button>
             )}
 
             {!running && !error && totalTests > 0 && (
