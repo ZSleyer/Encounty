@@ -49,140 +49,48 @@ interface GpuEquivalenceTestProps {
 }
 
 // ---------------------------------------------------------------------------
-// Ground-truth data (matches ncc-detection.test.ts exactly)
+// Ground-truth data (loaded from the generated fixture ground-truth.json)
 // ---------------------------------------------------------------------------
 
 const FPS = 60;
 
-interface EncounterGT {
-  matchFrame: number;
-  windowStart: number;
-  windowEnd: number;
+/** One expected encounter window in a fixture video (60 fps frame indices). */
+interface EncounterWindow {
+  start: number;
+  end: number;
+  /** Extended window end for entries whose match lingers past `end`. */
+  maxEnd?: number;
 }
 
-interface TemplateGT {
+/** Scan range and reference frame for entries that join the parameter sweep. */
+interface SweepCase {
+  scanStart: number;
+  scanEnd: number;
+  matchFrame: number;
+}
+
+/** One entry of the generated ground-truth fixture (ground-truth.json). */
+interface GroundTruthEntry {
   videoName: string;
   templateId: number;
   pokemonName: string;
-  encounters: EncounterGT[];
+  label: string;
+  difficulty: string;
+  loopTestable: boolean;
+  expectedEncounters: number;
+  encounters: EncounterWindow[];
   negativeFrames: number[];
+  sweepCase?: SweepCase;
 }
 
-const GROUND_TRUTH: TemplateGT[] = [
-  {
-    videoName: "Dual_SoftReset", templateId: 29, pokemonName: "Kyurem",
-    encounters: [
-      { matchFrame: 613, windowStart: 613, windowEnd: 613 },
-      { matchFrame: 2800, windowStart: 2800, windowEnd: 2800 },
-      { matchFrame: 4854, windowStart: 4854, windowEnd: 4854 },
-    ],
-    negativeFrames: [1, 300, 1500, 3500],
-  },
-  {
-    videoName: "Dual_SoftReset", templateId: 30, pokemonName: "Giratina",
-    encounters: [
-      { matchFrame: 627, windowStart: 627, windowEnd: 627 },
-      { matchFrame: 2436, windowStart: 2436, windowEnd: 2436 },
-      { matchFrame: 4124, windowStart: 4124, windowEnd: 4124 },
-    ],
-    negativeFrames: [1, 300, 1500, 3500],
-  },
-  {
-    videoName: "FRLG_Fishing", templateId: 28, pokemonName: "Goldini",
-    encounters: [
-      { matchFrame: 658, windowStart: 658, windowEnd: 658 },
-      { matchFrame: 2376, windowStart: 2376, windowEnd: 2376 },
-    ],
-    negativeFrames: [1, 300, 1500],
-  },
-  {
-    videoName: "FRLG_Runaway", templateId: 26, pokemonName: "Bluzuk",
-    encounters: [{ matchFrame: 359, windowStart: 359, windowEnd: 359 }],
-    negativeFrames: [1, 180, 800, 1400],
-  },
-  {
-    videoName: "FRLG_Runaway", templateId: 27, pokemonName: "Chaneira",
-    encounters: [{ matchFrame: 1187, windowStart: 1187, windowEnd: 1187 }],
-    negativeFrames: [1, 60, 800, 1500],
-  },
-  {
-    videoName: "FRLG_SoftReset", templateId: 23, pokemonName: "Mewtu",
-    encounters: [
-      { matchFrame: 151, windowStart: 111, windowEnd: 308 },
-      { matchFrame: 1599, windowStart: 1511, windowEnd: 2158 },
-    ],
-    negativeFrames: [1, 60, 500, 1000],
-  },
-  {
-    videoName: "FRLG_SoftReset", templateId: 24, pokemonName: "Mewtu",
-    encounters: [
-      { matchFrame: 417, windowStart: 400, windowEnd: 550 },
-      { matchFrame: 2266, windowStart: 2250, windowEnd: 2300 },
-    ],
-    negativeFrames: [1, 60, 800, 1500],
-  },
-  {
-    videoName: "FRLG_SoftReset", templateId: 25, pokemonName: "Mewtu",
-    encounters: [
-      { matchFrame: 626, windowStart: 613, windowEnd: 767 },
-      { matchFrame: 2330, windowStart: 2313, windowEnd: 2469 },
-    ],
-    negativeFrames: [1, 60, 900, 1500],
-  },
-  {
-    videoName: "FRLG_Starter", templateId: 21, pokemonName: "Bisasam",
-    encounters: [{ matchFrame: 3521, windowStart: 3508, windowEnd: 3643 }],
-    negativeFrames: [1, 1000, 2000, 4000, 5000],
-  },
-  {
-    videoName: "FRLG_Starter", templateId: 22, pokemonName: "Glumanda",
-    encounters: [{ matchFrame: 5474, windowStart: 5468, windowEnd: 5576 }],
-    negativeFrames: [1, 1000, 2000, 3000, 4000],
-  },
-  {
-    videoName: "FRLG_Starter", templateId: 20, pokemonName: "Schiggy",
-    encounters: [{ matchFrame: 1240, windowStart: 1199, windowEnd: 1319 }],
-    negativeFrames: [1, 500, 2000, 3000, 5000],
-  },
-  {
-    videoName: "SwSh_Breeding", templateId: 16, pokemonName: "Relicanth",
-    encounters: [{ matchFrame: 1149, windowStart: 1149, windowEnd: 1149 }],
-    negativeFrames: [1, 300, 600, 1500],
-  },
-  {
-    videoName: "SwSh_Runaway", templateId: 15, pokemonName: "Picochilla",
-    encounters: [
-      { matchFrame: 229, windowStart: 229, windowEnd: 229 },
-      { matchFrame: 1338, windowStart: 1338, windowEnd: 1338 },
-    ],
-    negativeFrames: [1, 100, 600, 1800],
-  },
-];
+/** Center of an encounter window, used as the canonical match frame. */
+function encounterMatchFrame(enc: EncounterWindow): number {
+  return Math.round((enc.start + enc.end) / 2);
+}
 
 // ---------------------------------------------------------------------------
 // Full-scan constants (mirror the node suite's "Full Video Scan" describe)
 // ---------------------------------------------------------------------------
-
-/** Expected encounter count: an exact number or an inclusive [min, max] range. */
-type ExpectedEncounters = number | { range: [number, number] };
-
-/**
- * Expected encounter counts for the full-video scan, ported from
- * EXPECTED_ENCOUNTER_COUNTS in ncc-detection.test.ts. Template 24 is an
- * intentionally weak "name region" template (stability rating GOOD) kept as
- * a hard case: the loop-faithful browser scan may legitimately land on 2 or
- * 3 hysteresis entries, so it accepts a range here while the node suite
- * stays strict.
- */
-const EXPECTED_ENCOUNTER_COUNTS: Record<string, Record<number, ExpectedEncounters>> = {
-  Dual_SoftReset: { 29: 3, 30: 3 },
-  FRLG_Fishing: { 28: 2 },
-  FRLG_Runaway: { 26: 1, 27: 1 },
-  FRLG_SoftReset: { 23: 2, 24: { range: [2, 3] }, 25: 2 },
-  FRLG_Starter: { 20: 1, 21: 1, 22: 1 },
-  SwSh_Breeding: { 16: 1 },
-  SwSh_Runaway: { 15: 2 },
-};
 
 /** Raw-score match threshold used by the node suite's full scan. */
 const SCAN_THRESHOLD = 0.55;
@@ -254,34 +162,33 @@ interface FullScanResult {
   videoName: string;
   backend: ScanBackend;
   settingsVariant: SettingsVariant;
+  difficulty: string;
+  /** False marks a deliberate hard case that gets no pass/fail verdict. */
+  loopTestable: boolean;
   encountersFound: number;
   encountersExpected: number;
-  /** Inclusive tolerance range for encountersFound, when the ground truth allows one. */
-  expectedRange?: [number, number];
   matchFrames: number;
   sampledFrames: number;
   /** Samples the simulated adaptive loop actually scored. */
   polledSamples: number;
+  /** Frame spans of each simulated encounter, for triaging miscounts. */
+  encounterSpans: Array<{ startFrame: number; endFrame: number; peakScore: number }>;
   maxScore: number;
   scanSeconds: number;
 }
 
-/** Whether a full-scan row's found count satisfies its expected value or range. */
-function scanRowPasses(r: FullScanResult): boolean {
-  if (r.expectedRange) {
-    return (
-      r.encountersFound >= r.expectedRange[0] &&
-      r.encountersFound <= r.expectedRange[1]
-    );
-  }
-  return r.encountersFound === r.encountersExpected;
+/**
+ * Whether a full-scan row is a deliberate hard case (loopTestable === false).
+ * Hard cases are excluded from the passed/failed verdict but still count
+ * toward the GPU==CPU parity comparison.
+ */
+function isHardCase(r: FullScanResult): boolean {
+  return !r.loopTestable;
 }
 
-/** Formats the expected encounter count of a row (single value or range). */
-function formatExpected(r: FullScanResult): string {
-  return r.expectedRange
-    ? `${r.expectedRange[0]}-${r.expectedRange[1]}`
-    : String(r.encountersExpected);
+/** Whether a full-scan row's found count matches the expected count exactly. */
+function scanRowPasses(r: FullScanResult): boolean {
+  return r.encountersFound === r.encountersExpected;
 }
 
 /** GPU vs CPU parity for one settings variant of the full scan. */
@@ -321,15 +228,6 @@ function computeParitySummaries(rows: FullScanResult[]): ParitySummary[] {
   }
   return summaries;
 }
-
-/**
- * Sweep cases ported verbatim from SWEEP_CASES in ncc-detection.test.ts:
- * one 3D case where only the text box is stable, one wide 2D battle window.
- */
-const SWEEP_CASES = [
-  { videoName: "SwSh_Runaway", templateId: 15, pokemonName: "Picochilla (3D)", scanStart: 0, scanEnd: 600, matchFrame: 229 },
-  { videoName: "FRLG_SoftReset", templateId: 25, pokemonName: "Mewtu (battle)", scanStart: 400, scanEnd: 900, matchFrame: 626 },
-] as const;
 
 /** One row of the stability/sweep results. */
 interface SweepUiResult {
@@ -626,7 +524,7 @@ function deltaColor(delta: number): string {
 }
 
 /** Count total frames across all ground-truth entries. */
-function countTotalFrames(groundTruth: TemplateGT[]): number {
+function countTotalFrames(groundTruth: GroundTruthEntry[]): number {
   let total = 0;
   for (const gt of groundTruth) {
     total += gt.encounters.length + gt.negativeFrames.length;
@@ -635,8 +533,8 @@ function countTotalFrames(groundTruth: TemplateGT[]): number {
 }
 
 /** Group ground-truth entries by video name. */
-function groupByVideo(groundTruth: TemplateGT[]): Map<string, TemplateGT[]> {
-  const byVideo = new Map<string, TemplateGT[]>();
+function groupByVideo(groundTruth: GroundTruthEntry[]): Map<string, GroundTruthEntry[]> {
+  const byVideo = new Map<string, GroundTruthEntry[]>();
   for (const gt of groundTruth) {
     const list = byVideo.get(gt.videoName) ?? [];
     list.push(gt);
@@ -686,7 +584,7 @@ function cleanupVideo(video: HTMLVideoElement): void {
 
 /** Load a template PNG and return its bitmap and grayscale data. */
 async function loadTemplatePng(
-  gt: TemplateGT,
+  gt: GroundTruthEntry,
 ): Promise<{ bitmap: ImageBitmap; gray: Float32Array } | null> {
   const tmplUrl = `/test-fixtures/${gt.videoName}_${gt.pokemonName}_${gt.templateId}.png`;
   const tmplResp = await fetch(tmplUrl);
@@ -740,7 +638,7 @@ async function scoreSingleFrame(
 
 /** Find the best CPU and GPU scores across frame offsets for one encounter. */
 async function scoreBestMatchFromOffsets(
-  enc: EncounterGT,
+  matchFrame: number,
   ctx: ScoreContext,
   signal: AbortSignal,
 ): Promise<{ bestCpu: number; bestGpu: number }> {
@@ -750,7 +648,7 @@ async function scoreBestMatchFromOffsets(
   for (const offset of [-5, -2, 0, 2, 5]) {
     if (signal.aborted) break;
 
-    const timeSec = (enc.matchFrame + offset) / FPS;
+    const timeSec = (matchFrame + offset) / FPS;
     try {
       await seekVideo(ctx.video, timeSec, signal);
     } catch {
@@ -765,14 +663,25 @@ async function scoreBestMatchFromOffsets(
   return { bestCpu, bestGpu };
 }
 
-/** Load test config and, when needed, create the GPU detector. */
+/** Load ground truth and test config and, when needed, create the GPU detector. */
 async function initTestEnvironment(
   setProgress: (msg: string) => void,
   needGpu = true,
 ): Promise<{
+  groundTruth: GroundTruthEntry[];
   regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>;
   detector: WebGPUDetector | null;
 }> {
+  setProgress("Loading ground-truth.json...");
+  const gtResp = await fetch("/test-fixtures/ground-truth.json");
+  if (!gtResp.ok) {
+    throw new Error(
+      "Could not load /test-fixtures/ground-truth.json. " +
+      "Make sure the generated fixture files are served (e.g. via Vite public dir or dev server).",
+    );
+  }
+  const groundTruth: GroundTruthEntry[] = await gtResp.json();
+
   setProgress("Loading test-config.json...");
   const configResp = await fetch("/test-fixtures/test-config.json");
   if (!configResp.ok) {
@@ -784,10 +693,10 @@ async function initTestEnvironment(
   const testConfig: TestConfigEntry[] = await configResp.json();
   const regionMap = buildRegionMap(testConfig);
 
-  if (!needGpu) return { regionMap, detector: null };
+  if (!needGpu) return { groundTruth, regionMap, detector: null };
   setProgress("Creating WebGPU detector...");
   const detector = await WebGPUDetector.create();
-  return { regionMap, detector };
+  return { groundTruth, regionMap, detector };
 }
 
 /** Shared context for frame-processing helpers, avoiding long param lists. */
@@ -806,14 +715,16 @@ interface ProcessFramesContext {
 
 /** Process all match-frame encounters for a single template. */
 async function processMatchFrames(
-  gt: TemplateGT,
+  gt: GroundTruthEntry,
   ctx: ProcessFramesContext,
 ): Promise<void> {
   for (const enc of gt.encounters) {
     if (ctx.signal.aborted) break;
 
+    // The fixture stores encounter windows; test the window center frame.
+    const matchFrame = encounterMatchFrame(enc);
     ctx.setProgress(
-      `${gt.pokemonName} (${gt.templateId}) -- Frame ${enc.matchFrame}`,
+      `${gt.pokemonName} (${gt.templateId}) -- Frame ${matchFrame}`,
     );
 
     const scoreCtx: ScoreContext = {
@@ -823,10 +734,10 @@ async function processMatchFrames(
       gpuTemplate: ctx.gpuTemplate,
     };
     const { bestCpu, bestGpu } = await scoreBestMatchFromOffsets(
-      enc, scoreCtx, ctx.signal,
+      matchFrame, scoreCtx, ctx.signal,
     );
 
-    ctx.allResults.push(buildResult(gt, enc.matchFrame, "match", bestCpu, bestGpu));
+    ctx.allResults.push(buildResult(gt, matchFrame, "match", bestCpu, bestGpu));
     ctx.updateProgress(1);
     ctx.publishResults();
   }
@@ -834,7 +745,7 @@ async function processMatchFrames(
 
 /** Process all negative frames for a single template. */
 async function processNegativeFrames(
-  gt: TemplateGT,
+  gt: GroundTruthEntry,
   ctx: ProcessFramesContext,
 ): Promise<void> {
   for (const negFrame of gt.negativeFrames) {
@@ -868,7 +779,7 @@ async function processNegativeFrames(
 
 /** Build a TestResult from scoring data. */
 function buildResult(
-  gt: TemplateGT,
+  gt: GroundTruthEntry,
   frame: number,
   type: "match" | "negative",
   cpuScore: number,
@@ -926,6 +837,40 @@ function StatusIcon({ delta }: Readonly<{ delta: number }>): JSX.Element {
   return <XCircle className="w-4 h-4 text-accent-red" aria-label="Fail" />;
 }
 
+/** Text color for the encounters cell of a full-scan row. */
+function encounterCellColor(hardCase: boolean, pass: boolean): string {
+  if (hardCase) return "text-accent-yellow";
+  return pass ? "text-accent-green" : "text-accent-red";
+}
+
+/**
+ * Status cell of a full-scan row: hard cases get a badge instead of a
+ * pass/fail verdict (they only count toward the GPU==CPU parity check).
+ */
+function ScanRowStatus({
+  hardCase,
+  pass,
+}: Readonly<{ hardCase: boolean; pass: boolean }>): JSX.Element {
+  if (hardCase) {
+    return (
+      <span
+        className="inline-block px-1.5 py-0.5 rounded-none text-[10px] font-semibold bg-accent-yellow/20 text-accent-yellow"
+        title="Deliberate hard case: excluded from pass/fail, still compared for GPU==CPU parity"
+      >
+        hard case
+      </span>
+    );
+  }
+  if (pass) {
+    return (
+      <Check className="w-4 h-4 text-accent-green inline-block" aria-label="Pass" />
+    );
+  }
+  return (
+    <XCircle className="w-4 h-4 text-accent-red inline-block" aria-label="Fail" />
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -933,7 +878,7 @@ function StatusIcon({ delta }: Readonly<{ delta: number }>): JSX.Element {
 /** Try to load a video, skipping its entries on failure. Returns null if skipped. */
 async function tryLoadVideo(
   videoName: string,
-  gtEntries: TemplateGT[],
+  gtEntries: GroundTruthEntry[],
   signal: AbortSignal,
   setProgress: (msg: string) => void,
   updateProgress: (frames: number) => void,
@@ -954,7 +899,7 @@ async function tryLoadVideo(
 
 /** Process a single template entry: load template, run match + negative frames, cleanup. */
 async function processTemplate(
-  gt: TemplateGT,
+  gt: GroundTruthEntry,
   regions: Array<{ x: number; y: number; w: number; h: number }>,
   gpuDetector: WebGPUDetector,
   ctx: Omit<ProcessFramesContext, "tmplData" | "regions" | "gpuDetector" | "gpuTemplate">,
@@ -995,7 +940,7 @@ async function processTemplate(
 /** Run all templates for a single video group. */
 async function processVideoGroup(
   videoName: string,
-  gtEntries: TemplateGT[],
+  gtEntries: GroundTruthEntry[],
   regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>,
   gpuDetector: WebGPUDetector,
   ctx: Omit<ProcessFramesContext, "video" | "tmplData" | "regions" | "gpuDetector" | "gpuTemplate">,
@@ -1114,7 +1059,7 @@ function makeCpuScorer(
  */
 async function buildScorer(
   backend: ScanBackend,
-  gt: TemplateGT,
+  gt: GroundTruthEntry,
   regions: Array<{ x: number; y: number; w: number; h: number }>,
   video: HTMLVideoElement,
   gpuDetector: WebGPUDetector | null,
@@ -1182,7 +1127,7 @@ async function sweepSamplesForRange(
  * window produces a recommendation.
  */
 async function autoSettingsForTemplate(
-  gt: TemplateGT,
+  gt: GroundTruthEntry,
   scorer: FrameScorer,
   signal: AbortSignal,
   setProgress: (msg: string) => void,
@@ -1190,8 +1135,8 @@ async function autoSettingsForTemplate(
   let best: MatchSettings | null = null;
   for (const [i, enc] of gt.encounters.entries()) {
     if (signal.aborted) return null;
-    const start = Math.max(0, enc.windowStart - 300);
-    const end = enc.windowEnd + 300;
+    const start = Math.max(0, enc.start - 300);
+    const end = (enc.maxEnd ?? enc.end) + 300;
     setProgress(
       `${gt.pokemonName} (${gt.templateId}) -- Calibrating window ${i + 1}/${gt.encounters.length} (frames ${start}-${end})...`,
     );
@@ -1227,8 +1172,7 @@ interface ScanOptions {
  * could not be loaded.
  */
 async function fullScanTemplate(
-  gt: TemplateGT,
-  expected: ExpectedEncounters,
+  gt: GroundTruthEntry,
   regions: Array<{ x: number; y: number; w: number; h: number }>,
   video: HTMLVideoElement,
   gpuDetector: WebGPUDetector | null,
@@ -1251,8 +1195,8 @@ async function fullScanTemplate(
     ctx.setProgress(`${gt.pokemonName} (${gt.templateId}) -- Calibrating...`);
     const cal = await sweepSamplesForRange(
       scorer,
-      Math.max(0, calEnc.windowStart - 300),
-      calEnc.windowEnd + 300,
+      Math.max(0, calEnc.start - 300),
+      (calEnc.maxEnd ?? calEnc.end) + 300,
       ctx.signal,
     );
     const calStats = analyzeStability(cal.samples);
@@ -1306,12 +1250,18 @@ async function fullScanTemplate(
       videoName: gt.videoName,
       backend: opts.backend,
       settingsVariant: opts.settingsVariant,
+      difficulty: gt.difficulty,
+      loopTestable: gt.loopTestable,
       encountersFound: sim.encounters,
-      encountersExpected: typeof expected === "number" ? expected : expected.range[0],
-      ...(typeof expected === "number" ? {} : { expectedRange: expected.range }),
+      encountersExpected: gt.expectedEncounters,
       matchFrames,
       sampledFrames: samples.length,
       polledSamples: sim.polledSamples,
+      encounterSpans: sim.encounterSpans.map((span) => ({
+        startFrame: Math.round((span.startMs / 1000) * FPS),
+        endFrame: Math.round((span.endMs / 1000) * FPS),
+        peakScore: span.peakScore,
+      })),
       maxScore,
       scanSeconds: (performance.now() - started) / 1000,
     };
@@ -1323,17 +1273,13 @@ async function fullScanTemplate(
 /** Run the full-video scan for all templates of a single video group. */
 async function fullScanVideoGroup(
   videoName: string,
-  gtEntries: TemplateGT[],
+  gtEntries: GroundTruthEntry[],
   regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>,
   gpuDetector: WebGPUDetector | null,
   opts: ScanOptions,
   ctx: FullScanRunContext,
 ): Promise<void> {
-  const expectedForVideo = EXPECTED_ENCOUNTER_COUNTS[videoName];
-  const scannable = gtEntries.filter(
-    (gt) => expectedForVideo?.[gt.templateId] !== undefined,
-  );
-  if (scannable.length === 0) return;
+  if (gtEntries.length === 0) return;
 
   ctx.setProgress(`Loading video: ${videoName}.mp4...`);
   let video: HTMLVideoElement;
@@ -1343,12 +1289,12 @@ async function fullScanVideoGroup(
     if (ctx.signal.aborted) return;
     const msg = e instanceof Error ? e.message : String(e);
     ctx.setProgress(`Skipping ${videoName}: ${msg}`);
-    for (let i = 0; i < scannable.length; i++) ctx.advanceTemplate();
+    for (let i = 0; i < gtEntries.length; i++) ctx.advanceTemplate();
     return;
   }
 
   try {
-    for (const gt of scannable) {
+    for (const gt of gtEntries) {
       if (ctx.signal.aborted) break;
 
       const regions = regionMap.get(gt.templateId);
@@ -1358,7 +1304,7 @@ async function fullScanVideoGroup(
       }
 
       const result = await fullScanTemplate(
-        gt, expectedForVideo[gt.templateId], regions, video, gpuDetector, opts, ctx,
+        gt, regions, video, gpuDetector, opts, ctx,
       );
       if (result && !ctx.signal.aborted) ctx.publish(result);
       ctx.advanceTemplate();
@@ -1369,10 +1315,11 @@ async function fullScanVideoGroup(
 }
 
 /**
- * Runs the stability analysis and parameter sweep for every ported sweep
- * case on the selected backend, publishing one row per case.
+ * Runs the stability analysis and parameter sweep for every ground-truth
+ * entry that declares a sweepCase, publishing one row per case.
  */
 async function runSweepCases(
+  groundTruth: GroundTruthEntry[],
   regionMap: Map<number, Array<{ x: number; y: number; w: number; h: number }>>,
   gpuDetector: WebGPUDetector | null,
   backend: ScanBackend,
@@ -1381,19 +1328,21 @@ async function runSweepCases(
   reportFraction: (fraction: number) => void,
   publish: (row: SweepUiResult) => void,
 ): Promise<void> {
-  for (let i = 0; i < SWEEP_CASES.length; i++) {
+  const cases = groundTruth.filter(
+    (g): g is GroundTruthEntry & { sweepCase: SweepCase } =>
+      g.sweepCase !== undefined,
+  );
+  for (let i = 0; i < cases.length; i++) {
     if (signal.aborted) break;
-    const sc = SWEEP_CASES[i];
-    const gt = GROUND_TRUTH.find(
-      (g) => g.videoName === sc.videoName && g.templateId === sc.templateId,
-    );
-    const regions = regionMap.get(sc.templateId);
-    if (!gt || !regions || regions.length === 0) continue;
+    const gt = cases[i];
+    const sc = gt.sweepCase;
+    const regions = regionMap.get(gt.templateId);
+    if (!regions || regions.length === 0) continue;
 
-    setProgress(`Sweep: loading ${sc.videoName}.mp4...`);
+    setProgress(`Sweep: loading ${gt.videoName}.mp4...`);
     let video: HTMLVideoElement;
     try {
-      video = await loadVideoElement(sc.videoName, signal);
+      video = await loadVideoElement(gt.videoName, signal);
     } catch {
       continue;
     }
@@ -1407,9 +1356,9 @@ async function runSweepCases(
           built.scorer, sc.scanStart, sc.scanEnd, signal,
           (f) => {
             setProgress(
-              `Sweep: ${sc.pokemonName} (${sc.templateId}) -- frames ${sc.scanStart}-${sc.scanEnd}`,
+              `Sweep: ${gt.pokemonName} (${gt.templateId}) -- frames ${sc.scanStart}-${sc.scanEnd}`,
             );
-            reportFraction((i + f) / SWEEP_CASES.length);
+            reportFraction((i + f) / cases.length);
           },
         );
         if (signal.aborted) break;
@@ -1419,8 +1368,8 @@ async function runSweepCases(
           ? runParameterSweep({ samples, stats, avgScoreMs, cooldownSec: 5 })
           : null;
         publish({
-          pokemonName: sc.pokemonName,
-          templateId: sc.templateId,
+          pokemonName: gt.pokemonName,
+          templateId: gt.templateId,
           backend,
           rating: stats?.rating ?? "poor",
           precision: sweep?.precision ?? 0,
@@ -1492,11 +1441,11 @@ export default function GpuEquivalenceTest({
     let gpuDetector: WebGPUDetector | null = null;
 
     try {
-      const { regionMap, detector } = await initTestEnvironment(setProgress);
+      const { groundTruth, regionMap, detector } = await initTestEnvironment(setProgress);
       if (!detector) throw new Error("WebGPU is not available.");
       gpuDetector = detector;
 
-      const totalFrames = countTotalFrames(GROUND_TRUTH);
+      const totalFrames = countTotalFrames(groundTruth);
       let completedFrames = 0;
       const allResults: TestResult[] = [];
 
@@ -1511,7 +1460,7 @@ export default function GpuEquivalenceTest({
 
       const ctx = { signal, allResults, setProgress, updateProgress, publishResults };
 
-      for (const [videoName, gtEntries] of groupByVideo(GROUND_TRUTH)) {
+      for (const [videoName, gtEntries] of groupByVideo(groundTruth)) {
         if (signal.aborted) break;
         await processVideoGroup(videoName, gtEntries, regionMap, detector, ctx);
       }
@@ -1553,15 +1502,13 @@ export default function GpuEquivalenceTest({
     let gpuDetector: WebGPUDetector | null = null;
 
     try {
-      const { regionMap, detector } = await initTestEnvironment(
+      const { groundTruth, regionMap, detector } = await initTestEnvironment(
         setProgress, backend === "gpu",
       );
       if (backend === "gpu" && !detector) throw new Error("WebGPU is not available.");
       gpuDetector = detector;
 
-      const totalTemplates = GROUND_TRUTH.filter(
-        (gt) => EXPECTED_ENCOUNTER_COUNTS[gt.videoName]?.[gt.templateId] !== undefined,
-      ).length;
+      const totalTemplates = groundTruth.length;
       let templatesDone = 0;
 
       const ctx: FullScanRunContext = {
@@ -1590,7 +1537,7 @@ export default function GpuEquivalenceTest({
       };
 
       const opts: ScanOptions = { backend, settingsVariant };
-      for (const [videoName, gtEntries] of groupByVideo(GROUND_TRUTH)) {
+      for (const [videoName, gtEntries] of groupByVideo(groundTruth)) {
         if (signal.aborted) break;
         await fullScanVideoGroup(videoName, gtEntries, regionMap, gpuDetector, opts, ctx);
       }
@@ -1612,9 +1559,9 @@ export default function GpuEquivalenceTest({
   }, [backend, settingsVariant]);
 
   /**
-   * Runs the stability analysis and parameter sweep for the ported sweep
-   * cases on the selected backend (mirrors the node suite's "Parameter Sweep
-   * on Real Captures").
+   * Runs the stability analysis and parameter sweep for the fixture entries
+   * that declare a sweepCase on the selected backend (mirrors the node
+   * suite's "Parameter Sweep on Real Captures").
    */
   const runSweep = useCallback(async () => {
     setRunning(true);
@@ -1630,7 +1577,7 @@ export default function GpuEquivalenceTest({
     let gpuDetector: WebGPUDetector | null = null;
 
     try {
-      const { regionMap, detector } = await initTestEnvironment(
+      const { groundTruth, regionMap, detector } = await initTestEnvironment(
         setProgress, backend === "gpu",
       );
       if (backend === "gpu" && !detector) throw new Error("WebGPU is not available.");
@@ -1638,7 +1585,7 @@ export default function GpuEquivalenceTest({
 
       const rows: SweepUiResult[] = [];
       await runSweepCases(
-        regionMap, gpuDetector, backend, signal, setProgress,
+        groundTruth, regionMap, gpuDetector, backend, signal, setProgress,
         (fraction) => setProgressPct(fraction * 100),
         (row) => {
           rows.push(row);
@@ -1678,8 +1625,14 @@ export default function GpuEquivalenceTest({
           fullScan: {
             summary: {
               videos: new Set(fullScanResults.map((r) => r.videoName)).size,
-              passed: fullScanResults.filter(scanRowPasses).length,
-              failed: fullScanResults.filter((r) => !scanRowPasses(r)).length,
+              // Hard cases carry no pass/fail verdict; report them separately.
+              passed: fullScanResults.filter(
+                (r) => !isHardCase(r) && scanRowPasses(r),
+              ).length,
+              failed: fullScanResults.filter(
+                (r) => !isHardCase(r) && !scanRowPasses(r),
+              ).length,
+              hardCases: fullScanResults.filter(isHardCase).length,
               totalEncountersExpected: fullScanResults.reduce(
                 (sum, r) => sum + r.encountersExpected, 0,
               ),
@@ -1788,10 +1741,14 @@ export default function GpuEquivalenceTest({
     totalTests > 0 ? Math.max(...results.map((r) => r.delta)) : 0;
 
   // --- Full-scan summary stats ---
+  // Hard cases (loopTestable === false) get no pass/fail verdict; they are
+  // shown with a badge and only count toward the GPU==CPU parity check.
   const scanTotal = fullScanResults.length;
   const scanVideos = new Set(fullScanResults.map((r) => r.videoName)).size;
-  const scanPassed = fullScanResults.filter(scanRowPasses).length;
-  const scanFailed = scanTotal - scanPassed;
+  const scanVerdictRows = fullScanResults.filter((r) => !isHardCase(r));
+  const scanHardCases = scanTotal - scanVerdictRows.length;
+  const scanPassed = scanVerdictRows.filter(scanRowPasses).length;
+  const scanFailed = scanVerdictRows.length - scanPassed;
   const paritySummaries = computeParitySummaries(fullScanResults);
   // Stable ordering with GPU/CPU rows of the same template adjacent, so the
   // accumulated table stays readable across runs.
@@ -2011,6 +1968,12 @@ export default function GpuEquivalenceTest({
                 Scan failed:{" "}
                 <strong className="text-accent-red">{scanFailed}</strong>
               </span>
+              {scanHardCases > 0 && (
+                <span>
+                  Hard cases:{" "}
+                  <strong className="text-accent-yellow">{scanHardCases}</strong>
+                </span>
+              )}
               <span>
                 Encounters:{" "}
                 <strong className="text-text-primary">
@@ -2140,6 +2103,7 @@ export default function GpuEquivalenceTest({
                     </thead>
                     <tbody>
                       {sortedScanResults.map((r, i) => {
+                        const hardCase = isHardCase(r);
                         const pass = scanRowPasses(r);
                         return (
                           <tr
@@ -2161,11 +2125,15 @@ export default function GpuEquivalenceTest({
                               {r.settingsVariant}
                             </td>
                             <td
-                              className={`py-1.5 pr-3 text-right ${
-                                pass ? "text-accent-green" : "text-accent-red"
-                              }`}
+                              className={`py-1.5 pr-3 text-right ${encounterCellColor(hardCase, pass)}`}
+                              title={r.encounterSpans
+                                .map(
+                                  (span, i) =>
+                                    `${i + 1}: ${span.startFrame}f-${span.endFrame}f (peak ${(span.peakScore * 100).toFixed(1)}%)`,
+                                )
+                                .join("\n")}
                             >
-                              {r.encountersFound}/{formatExpected(r)}
+                              {r.encountersFound}/{r.encountersExpected}
                             </td>
                             <td className="py-1.5 pr-3 text-right text-text-primary">
                               {r.matchFrames}
@@ -2183,17 +2151,7 @@ export default function GpuEquivalenceTest({
                               {r.scanSeconds.toFixed(1)}
                             </td>
                             <td className="py-1.5 pr-3 text-center">
-                              {pass ? (
-                                <Check
-                                  className="w-4 h-4 text-accent-green inline-block"
-                                  aria-label="Pass"
-                                />
-                              ) : (
-                                <XCircle
-                                  className="w-4 h-4 text-accent-red inline-block"
-                                  aria-label="Fail"
-                                />
-                              )}
+                              <ScanRowStatus hardCase={hardCase} pass={pass} />
                             </td>
                           </tr>
                         );
