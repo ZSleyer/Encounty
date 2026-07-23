@@ -72,9 +72,8 @@ electron/release/
 *.icns
 *.dmg
 
-# NCC quality test fixtures (large binary files, not committed)
+# NCC quality test fixtures (game footage, distributed privately, never committed)
 frontend/src/engine/__tests__/fixtures/
-frontend/src/engine/__tests__/ncc-*.test.ts
 
 
 # LLM
