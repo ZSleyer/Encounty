@@ -140,3 +140,60 @@ describe("updateMatchState phase 2 (cooldown)", () => {
     expect(state.inHysteresis).toBe(true);
   });
 });
+
+describe("long visible encounter with a score dip (Chaneira pattern)", () => {
+  /**
+   * Feeds a score timeline through the state machine and counts hysteresis
+   * entries, i.e. confirmed encounters, exactly like the full-video scan.
+   */
+  function countEncounters(
+    timeline: Array<{ t: number; score: number; regionStable?: boolean }>,
+    settings: MatchStateSettings,
+  ): number {
+    const state = newCategoryState();
+    let encounters = 0;
+    for (const s of timeline) {
+      const wasInHysteresis = state.inHysteresis;
+      const override = s.regionStable === undefined ? undefined : !s.regionStable;
+      updateMatchState(state, s.score, settings, s.t, override);
+      if (state.inHysteresis && !wasInHysteresis) encounters++;
+    }
+    return timeline.length ? encounters : 0;
+  }
+
+  const FAST = { ...SETTINGS, consecutiveHits: 1 };
+
+  /**
+   * One encounter that stays on screen far longer than the cooldown, with a
+   * multi-frame score dip in the middle (compression noise, camera pan).
+   * Sampled at 200ms like the full-video scan.
+   */
+  function dipTimeline(): Array<{ t: number; score: number }> {
+    const timeline: Array<{ t: number; score: number }> = [];
+    for (let t = 0; t <= 16_000; t += 200) {
+      // Dip below the hysteresis exit threshold from 6.0s to 6.6s, well
+      // after the 5s cooldown can elapse; high score everywhere else.
+      const inDip = t >= 6000 && t <= 6600;
+      timeline.push({ t, score: inDip ? 0.1 : 0.9 });
+    }
+    return timeline;
+  }
+
+  it("documents the known limit: score-based exit double counts across a deep dip", () => {
+    // Known limitation, pinned on purpose: with a purely score-based
+    // hysteresis exit, the dip ends the hysteresis, the cooldown elapses
+    // while the encounter is still on screen, and the still-high score
+    // confirms a second time. Region-based hysteresis (below) is the
+    // designed answer for sources that behave like this.
+    expect(countEncounters(dipTimeline(), FAST)).toBe(2);
+  });
+
+  it("region-based hysteresis exit bridges the dip and counts once", () => {
+    // Same timeline, but the matched region stays visually stable for the
+    // whole time the encounter is on screen (including the score dip), so
+    // the region-delta override keeps the state machine in hysteresis and
+    // no second confirmation happens.
+    const timeline = dipTimeline().map((s) => ({ ...s, regionStable: true }));
+    expect(countEncounters(timeline, FAST)).toBe(1);
+  });
+});
