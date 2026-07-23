@@ -43,6 +43,7 @@ Under the hood: four fused scoring metrics (block SSIM, Pearson correlation, mea
 - **Automatic stability analysis**: every template is analysed up front and Encounty tells you how reliably it will match before you start hunting, including data-driven parameter calibration
 - **Guided template creation** in a step-by-step flow: snapshot, mark the encounter text, test the match, done
 - **Adaptive polling** (50 ms to 2 s) with frame-change gating keeps idle CPU usage near zero
+- **Tested on real gameplay**: an automated quality suite replays real recordings from 2D and 3D games (Gen 3 through Gen 9) and requires exact encounter counts with zero double counts before a release ships. The recordings were kindly provided by [LEOsMIND](https://www.youtube.com/c/LEOsMINDplays) and are too large for the repository; method and current results are documented at [zsleyer.github.io/Encounty/testing.html](https://zsleyer.github.io/Encounty/testing.html)
 
 ### Hunt tracking
 
