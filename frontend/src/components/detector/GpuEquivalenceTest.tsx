@@ -34,6 +34,7 @@ import {
 } from "../../engine/scanSimulator";
 import {
   analyzeStability,
+  recommendPolling,
   type StabilityRating,
   type StabilitySample,
 } from "../../engine/templateStability";
@@ -226,7 +227,7 @@ interface TestResult {
 type ScanBackend = "gpu" | "cpu";
 
 /** State-machine settings variant used by the full scan. */
-type SettingsVariant = "defaults" | "auto";
+type SettingsVariant = "recommended" | "auto";
 
 /** State-machine settings fed into the adaptive scan simulator. */
 interface MatchSettings {
@@ -299,7 +300,7 @@ interface ParitySummary {
  */
 function computeParitySummaries(rows: FullScanResult[]): ParitySummary[] {
   const summaries: ParitySummary[] = [];
-  for (const variant of ["defaults", "auto"] as const) {
+  for (const variant of ["recommended", "auto"] as const) {
     const byBackend = (backend: ScanBackend) =>
       new Map(
         rows
@@ -1241,13 +1242,42 @@ async function fullScanTemplate(
   try {
     const started = performance.now();
 
-    // Auto variant: calibrate per template first, falling back to defaults
-    // when the analysis cannot produce a recommendation.
+    // Calibration mirrors the app's apply-recommended flow: stability
+    // analysis over the first encounter window with the real measured
+    // scoring cost. The recommendation is a package (precision, hysteresis,
+    // polling bounds); with engine default poll bounds the loop can miss
+    // the ultra-short encounter windows of these fixtures entirely.
+    const calEnc = gt.encounters[0];
+    ctx.setProgress(`${gt.pokemonName} (${gt.templateId}) -- Calibrating...`);
+    const cal = await sweepSamplesForRange(
+      scorer,
+      Math.max(0, calEnc.windowStart - 300),
+      calEnc.windowEnd + 300,
+      ctx.signal,
+    );
+    const calStats = analyzeStability(cal.samples);
+    const pollingRec = calStats ? recommendPolling(calStats, cal.avgScoreMs) : null;
+
     let settings = defaultScanSettings();
     if (opts.settingsVariant === "auto") {
+      // Auto variant: sweep-optimized state machine settings.
       const auto = await autoSettingsForTemplate(gt, scorer, ctx.signal, ctx.setProgress);
       if (auto) settings = auto;
+    } else if (calStats) {
+      // Recommended variant: the stability recommendation as the user
+      // would apply it after a batch test.
+      settings = {
+        precision: calStats.recommendedPrecision,
+        hysteresisFactor: calStats.recommendedHysteresis,
+        consecutiveHits: 1,
+        cooldownSec: 5,
+      };
     }
+    const simSettings = {
+      ...settings,
+      minPollMs: pollingRec?.minPollMs,
+      maxPollMs: pollingRec?.maxPollMs,
+    };
 
     const duration = Number.isFinite(video.duration) ? video.duration : 0;
     const samples: ScanSample[] = [];
@@ -1264,9 +1294,9 @@ async function fullScanTemplate(
       samples.push({ time: t, score: r.score, frameGray: r.frameGray });
     }
 
-    // Replay through the runtime's adaptive polling loop; min/max poll and
-    // change threshold stay at the simulator (runtime) defaults.
-    const sim = simulateAdaptiveScan(samples, settings);
+    // Replay through the runtime's adaptive polling loop with the
+    // calibrated poll bounds; change threshold stays at the runtime default.
+    const sim = simulateAdaptiveScan(samples, simSettings);
     const matchFrames = samples.filter((s) => s.score >= SCAN_THRESHOLD).length;
     const maxScore = samples.length > 0 ? Math.max(...samples.map((s) => s.score)) : 0;
 
@@ -1421,7 +1451,7 @@ export default function GpuEquivalenceTest({
   const [fullScanResults, setFullScanResults] = useState<FullScanResult[]>([]);
   const [sweepResults, setSweepResults] = useState<SweepUiResult[]>([]);
   const [backend, setBackend] = useState<ScanBackend>("gpu");
-  const [settingsVariant, setSettingsVariant] = useState<SettingsVariant>("defaults");
+  const [settingsVariant, setSettingsVariant] = useState<SettingsVariant>("recommended");
   const [progress, setProgress] = useState<string>("");
   const [progressPct, setProgressPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -1825,7 +1855,7 @@ export default function GpuEquivalenceTest({
             </div>
             <span className="font-semibold uppercase tracking-wider">Settings</span>
             <div className="flex border border-border-subtle rounded-none overflow-hidden">
-              {(["defaults", "auto"] as const).map((v) => (
+              {(["recommended", "auto"] as const).map((v) => (
                 <button
                   key={v}
                   onClick={() => setSettingsVariant(v)}
@@ -1836,7 +1866,7 @@ export default function GpuEquivalenceTest({
                       : "text-text-muted hover:text-text-primary"
                   }`}
                 >
-                  {v === "auto" ? "Auto (sweep)" : "Defaults"}
+                  {v === "auto" ? "Auto (sweep)" : "Recommended"}
                 </button>
               ))}
             </div>
