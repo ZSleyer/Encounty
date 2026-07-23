@@ -64,7 +64,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: frontend/src/engine/__tests__/fixtures
-          key: ncc-fixtures-v1
+          key: ncc-fixtures-v2
 
       - name: Download fixtures
         if: steps.gate.outputs.enabled == 'true' && steps.fixtures-cache.outputs.cache-hit != 'true'
@@ -72,7 +72,7 @@ jobs:
           GH_TOKEN: ${{ secrets.FIXTURES_TOKEN }}
         run: |
           mkdir -p frontend/src/engine/__tests__/fixtures
-          gh release download fixtures-v1 \
+          gh release download fixtures-v2 \
             --repo ZSleyer/encounty-test-fixtures \
             --dir frontend/src/engine/__tests__/fixtures
 
