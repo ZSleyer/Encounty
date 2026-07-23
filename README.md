@@ -7,7 +7,9 @@
 [![Latest Release](https://img.shields.io/github/v/release/ZSleyer/Encounty)](https://github.com/ZSleyer/Encounty/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/ZSleyer/Encounty/total)](https://github.com/ZSleyer/Encounty/releases)
 
-Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. It captures your game screen directly in the app, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware.
+Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. It captures your game screen directly in the app, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware. Everything runs locally: no account, no cloud, no paywall.
+
+**[Website](https://zsleyer.github.io/Encounty/)** · **[Download & install guide](https://zsleyer.github.io/Encounty/update.html)** · **[Changelog](https://zsleyer.github.io/Encounty/changelog.html)**
 
 ## Download
 
@@ -29,16 +31,38 @@ Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. 
 
 ## Features
 
+### Detection engine
+
+- **GPU-accelerated auto-detection** via WebGPU compute shaders with automatic CPU/worker fallback, easy on your CPU while you play
+- **Multi-metric matching**: every frame is scored by a fusion of block SSIM, Pearson correlation, mean absolute difference, and histogram correlation instead of a single naive pixel diff
+- **Position- and scale-tolerant sprite matching** through true NCC template matching with integral images and multi-scale search, so a region does not have to sit pixel-perfect
+- **No double counting**: a three-phase hysteresis state machine (latch, cooldown, count) with miss tolerance and noise-floor handling makes sure each encounter is counted exactly once
+- **Replay-based screenshots**: pick the perfect template frame from a replay recording instead of hoping to hit the right moment
+- **Automatic stability analysis**: every template is analysed up front and Encounty tells you how reliably it will match before you start hunting, including data-driven parameter calibration
+- **Guided template creation** in a step-by-step flow: snapshot, mark the encounter text, test the match, done
+- **Adaptive polling** (50 ms to 2 s) with frame-change gating keeps idle CPU usage near zero
+
+### Hunt tracking
+
 - **All mainline Pokémon games** from Gen 1 (Red/Blue/Yellow) through Gen 9 (Legends Z-A) with game-specific shiny odds
-- **60+ hunt methods** including Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts, and many more
+- **60+ hunt methods** including Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts, and many more, each with its own odds model
 - **Shiny Charm toggle** with accurate per-method odds for every supported game
 - **Unlimited simultaneous hunts** with independent capture streams
-- **GPU-accelerated auto-detection** via WebGPU compute shaders with automatic CPU fallback
-- **Template management** with import/export and region-based positive matching
 - **Manual tracking** via configurable global hotkeys
+
+### Streaming & extras
+
 - **OBS integration** with drag-and-drop overlay editor, live preview, and text file output
+- **Template import/export** to share detection templates or move them between machines
 - **Pokédex** with sprite support and PokeAPI sync
 - **Multi-language** support for English, German, Spanish, French, and Japanese
+
+### Privacy & platform
+
+- **Local-first**: works offline, no account, no cloud dependency; your hunts stay on your machine
+- **Free**: no ads, no paywall, no pro tier
+- **Cross-platform & multi-arch**: Linux (Wayland), Windows 11, and macOS on x64 and ARM64. Coming soon to your Toaster™
+- **Open source** under AGPL-3.0 with tested, typed code (Go backend, React frontend, Electron shell)
 
 ## Troubleshooting
 
