@@ -56,7 +56,10 @@ WINDOW_OVERRIDES = {
 }
 
 # Sweep cases for the parameter-sweep suite: one wide 2D window, one 3D case.
-SWEEP_TEMPLATE_IDS = {35, 44}
+# Template 39 (Copyright) instead of 35 (Wow!): the Wow! window contains
+# screen fades that legitimately drop the score, which a clean-settings
+# sweep expectation cannot tolerate.
+SWEEP_TEMPLATE_IDS = {39, 44}
 
 NAME_RE = re.compile(r"^[^:]+:\s*(?P<label>.*?)\s*\((?P<diff>[^)]+)\)\s*\[(?P<body>.*?)\]?\s*$")
 WINDOW_RE = re.compile(

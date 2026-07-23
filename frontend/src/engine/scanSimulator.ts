@@ -38,10 +38,22 @@ export interface SimulatorSettings {
   changeThreshold?: number;
 }
 
+/** One confirmed encounter as the simulated loop saw it. */
+export interface EncounterSpan {
+  /** Time (ms) of the confirming poll (hysteresis entry). */
+  startMs: number;
+  /** Time (ms) of the poll that ended the hysteresis (or scan end). */
+  endMs: number;
+  /** Highest raw score polled inside the span. */
+  peakScore: number;
+}
+
 /** Result of one simulated scan. */
 export interface SimulationResult {
   /** Confirmed encounters (hysteresis entries). */
   encounters: number;
+  /** Frame-accurate details per confirmed encounter, for triaging counts. */
+  encounterSpans: EncounterSpan[];
   /** Number of samples the simulated loop actually scored. */
   polledSamples: number;
   /** Number of pure cooldown timer ticks. */
@@ -61,7 +73,7 @@ export function simulateAdaptiveScan(
   samples: ScanSample[],
   settings: SimulatorSettings,
 ): SimulationResult {
-  if (samples.length === 0) return { encounters: 0, polledSamples: 0, cooldownTicks: 0 };
+  if (samples.length === 0) return { encounters: 0, encounterSpans: [], polledSamples: 0, cooldownTicks: 0 };
 
   const minPoll = settings.minPollMs ?? MIN_POLL_MS;
   const maxPoll = settings.maxPollMs ?? MAX_POLL_MS;
@@ -77,6 +89,8 @@ export function simulateAdaptiveScan(
   const endMs = samples[samples.length - 1].time * 1000;
   const state = newCategoryState();
   let encounters = 0;
+  const encounterSpans: EncounterSpan[] = [];
+  let openSpan: EncounterSpan | null = null;
   let polledSamples = 0;
   let cooldownTicks = 0;
   let lastUsedGray: Float32Array | null = null;
@@ -113,7 +127,15 @@ export function simulateAdaptiveScan(
     const adjusted = applyNoiseFloor(sample.score);
     const wasInHysteresis = state.inHysteresis;
     updateMatchState(state, adjusted, machineSettings, nowMs);
-    if (state.inHysteresis && !wasInHysteresis) encounters++;
+    if (state.inHysteresis && !wasInHysteresis) {
+      encounters++;
+      openSpan = { startMs: nowMs, endMs: nowMs, peakScore: sample.score };
+      encounterSpans.push(openSpan);
+    } else if (openSpan && wasInHysteresis) {
+      openSpan.peakScore = Math.max(openSpan.peakScore, sample.score);
+      openSpan.endMs = nowMs;
+      if (!state.inHysteresis) openSpan = null;
+    }
     polledSamples++;
 
     // Same interval decision as DetectionLoop.runDetection's tail.
@@ -122,5 +144,5 @@ export function simulateAdaptiveScan(
       : computeNextInterval(adjusted, delta, settings.precision, minPoll, maxPoll, changeThreshold);
   }
 
-  return { encounters, polledSamples, cooldownTicks };
+  return { encounters, encounterSpans, polledSamples, cooldownTicks };
 }
