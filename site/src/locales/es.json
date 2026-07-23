@@ -129,7 +129,7 @@
   "testing.method.step2.title": "Templates como los haría un usuario",
   "testing.method.step2.desc": "Para cada grabación, los templates de detección se crean exactamente igual que los crearía un usuario en la app, sin ajustes especiales afinados a mano.",
   "testing.method.step3.title": "Criterios de aprobación estrictos",
-  "testing.method.step3.desc": "Se puntúa cada frame de cada clip. La suite solo aprueba si se encuentra cada encuentro real, el escaneo completo del vídeo cuenta el número exacto de encuentros y nada se cuenta dos veces.",
+  "testing.method.step3.desc": "Se puntúa cada frame de cada clip. La suite solo aprueba si se encuentra cada encuentro real, el escaneo completo del vídeo cuenta el número exacto de encuentros y nada se cuenta dos veces. La simulación de encounters sigue el polling adaptativo real de la app.",
   "testing.credit": "Las grabaciones de prueba fueron amablemente proporcionadas por LEOsMIND. Muchísimas gracias, este material ha mejorado sustancialmente el desarrollo de Encounty.",
   "testing.credit.link": "LEOsMIND en YouTube",
   "testing.results.heading": "Resultados actuales",

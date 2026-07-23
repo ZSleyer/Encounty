@@ -129,7 +129,7 @@
   "testing.method.step2.title": "Templates like a user makes them",
   "testing.method.step2.desc": "For every recording, detection templates are created exactly the way a user would create them in the app, no hand-tuned special settings.",
   "testing.method.step3.title": "Hard pass criteria",
-  "testing.method.step3.desc": "Every frame of every clip is scored. The suite only passes if every real encounter is found, the full video scan counts the exact number of encounters, and nothing is ever counted twice.",
+  "testing.method.step3.desc": "Every frame of every clip is scored. The suite only passes if every real encounter is found, the full video scan counts the exact number of encounters, and nothing is ever counted twice. The encounter simulation follows the app's real adaptive polling.",
   "testing.credit": "The test recordings were kindly provided by LEOsMIND. Huge thanks, this footage has substantially improved Encounty's development.",
   "testing.credit.link": "LEOsMIND on YouTube",
   "testing.results.heading": "Current results",

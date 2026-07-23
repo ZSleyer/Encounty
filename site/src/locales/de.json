@@ -129,7 +129,7 @@
   "testing.method.step2.title": "Templates wie vom Nutzer erstellt",
   "testing.method.step2.desc": "Für jede Aufnahme werden die Erkennungs-Templates genau so erstellt, wie ein Nutzer sie im Programm anlegen würde, ohne handgetunte Spezialeinstellungen.",
   "testing.method.step3.title": "Harte Kriterien",
-  "testing.method.step3.desc": "Jeder Frame jedes Clips wird bewertet. Die Suite besteht nur, wenn jeder echte Encounter gefunden wird, der komplette Video-Scan exakt die richtige Encounter-Anzahl liefert und nichts doppelt gezählt wird.",
+  "testing.method.step3.desc": "Jeder Frame jedes Clips wird bewertet. Die Suite besteht nur, wenn jeder echte Encounter gefunden wird, der komplette Video-Scan exakt die richtige Encounter-Anzahl liefert und nichts doppelt gezählt wird. Die Encounter-Simulation folgt dem echten adaptiven Polling der App.",
   "testing.credit": "Die Testaufnahmen wurden freundlicherweise von LEOsMIND bereitgestellt. Riesigen Dank dafür, sie haben die Entwicklung von Encounty maßgeblich verbessert.",
   "testing.credit.link": "LEOsMIND auf YouTube",
   "testing.results.heading": "Aktuelle Ergebnisse",

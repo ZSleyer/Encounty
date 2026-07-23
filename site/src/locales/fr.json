@@ -129,7 +129,7 @@
   "testing.method.step2.title": "Des templates comme en ferait un utilisateur",
   "testing.method.step2.desc": "Pour chaque enregistrement, les templates de détection sont créés exactement comme un utilisateur les créerait dans l'application, sans réglages spéciaux ajustés à la main.",
   "testing.method.step3.title": "Critères de réussite stricts",
-  "testing.method.step3.desc": "Chaque frame de chaque clip est notée. La suite ne réussit que si chaque rencontre réelle est trouvée, si l'analyse complète de la vidéo compte le nombre exact de rencontres et si rien n'est jamais compté deux fois.",
+  "testing.method.step3.desc": "Chaque frame de chaque clip est notée. La suite ne réussit que si chaque rencontre réelle est trouvée, si l'analyse complète de la vidéo compte le nombre exact de rencontres et si rien n'est jamais compté deux fois. La simulation des rencontres suit le polling adaptatif réel de l'application.",
   "testing.credit": "Les enregistrements de test ont été aimablement fournis par LEOsMIND. Un immense merci, ces vidéos ont considérablement amélioré le développement d'Encounty.",
   "testing.credit.link": "LEOsMIND sur YouTube",
   "testing.results.heading": "Résultats actuels",
