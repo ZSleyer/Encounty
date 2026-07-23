@@ -1091,10 +1091,13 @@ async function sweepSamplesForRange(
 }
 
 /**
- * Derives auto-calibrated state-machine settings for one template by running
- * the stability analysis and parameter sweep on samples around its first
- * encounter window (plus a 5 second margin on both sides). Returns null when
- * the analysis cannot produce a recommendation.
+ * Derives auto-calibrated state-machine settings for one template. The sweep
+ * machinery expects a single match window (it optimizes for "confirms
+ * exactly once"), so every ground-truth encounter window is swept on its
+ * own (plus a 5 second margin) and the recommendation of the weakest window
+ * (lowest recommended precision) wins: a threshold tuned on one strong
+ * encounter would miss the weaker ones entirely. Returns null when no
+ * window produces a recommendation.
  */
 async function autoSettingsForTemplate(
   gt: TemplateGT,
@@ -1102,21 +1105,29 @@ async function autoSettingsForTemplate(
   signal: AbortSignal,
   setProgress: (msg: string) => void,
 ): Promise<MatchSettings | null> {
-  const enc = gt.encounters[0];
-  const start = Math.max(0, enc.windowStart - 300);
-  const end = enc.windowEnd + 300;
-  setProgress(`${gt.pokemonName} (${gt.templateId}) -- Calibrating (frames ${start}-${end})...`);
-  const { samples, avgScoreMs } = await sweepSamplesForRange(scorer, start, end, signal);
-  const stats = analyzeStability(samples);
-  if (!stats) return null;
-  const sweep = runParameterSweep({ samples, stats, avgScoreMs, cooldownSec: 5 });
-  if (!sweep) return null;
-  return {
-    precision: sweep.precision,
-    hysteresisFactor: sweep.hysteresisFactor,
-    consecutiveHits: sweep.consecutiveHits,
-    cooldownSec: 5,
-  };
+  let best: MatchSettings | null = null;
+  for (const [i, enc] of gt.encounters.entries()) {
+    if (signal.aborted) return null;
+    const start = Math.max(0, enc.windowStart - 300);
+    const end = enc.windowEnd + 300;
+    setProgress(
+      `${gt.pokemonName} (${gt.templateId}) -- Calibrating window ${i + 1}/${gt.encounters.length} (frames ${start}-${end})...`,
+    );
+    const { samples, avgScoreMs } = await sweepSamplesForRange(scorer, start, end, signal);
+    const stats = analyzeStability(samples);
+    if (!stats) continue;
+    const sweep = runParameterSweep({ samples, stats, avgScoreMs, cooldownSec: 5 });
+    if (!sweep) continue;
+    if (!best || sweep.precision < best.precision) {
+      best = {
+        precision: sweep.precision,
+        hysteresisFactor: sweep.hysteresisFactor,
+        consecutiveHits: sweep.consecutiveHits,
+        cooldownSec: 5,
+      };
+    }
+  }
+  return best;
 }
 
 /**
@@ -1630,7 +1641,13 @@ export default function GpuEquivalenceTest({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `gpu-equivalence-${new Date().toISOString().slice(0, 10)}.json`;
+    // Name the file after what it contains so multiple exports do not need
+    // manual renaming (e.g. gpu-equivalence-2026-07-23-fullscan-gpu-auto.json).
+    const parts = [`gpu-equivalence-${new Date().toISOString().slice(0, 10)}`];
+    const scanRow = fullScanResults[0];
+    if (scanRow) parts.push(`fullscan-${scanRow.backend}-${scanRow.settingsVariant}`);
+    if (sweepResults.length > 0) parts.push(`sweep-${sweepResults[0].backend}`);
+    a.download = `${parts.join("-")}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [results, fullScanResults, sweepResults]);
