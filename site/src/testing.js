@@ -69,7 +69,12 @@ function gapChartSvg(scenarios) {
 function coverageRows(scenarios) {
   const badge = (s) => {
     if (!s.loopTestable) {
-      return '<span class="hard-badge" data-i18n="testing.coverage.hard">Hard case</span>';
+      // Hard cases carry their outcome too: hit means the simulated loop
+      // found every expected encounter despite the deliberate difficulty.
+      const hit = s.scan && s.scan.simulated === s.expectedEncounters;
+      return hit
+        ? '<span class="hard-badge" data-i18n="testing.coverage.hardPass">Hard case: passed</span>'
+        : '<span class="hard-badge" data-i18n="testing.coverage.hardMiss">Hard case: missed</span>';
     }
     return s.scan?.pass
       ? '<span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span>'
