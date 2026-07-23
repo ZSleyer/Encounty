@@ -11,7 +11,7 @@
  *
  * Run with: npx vitest run --config vitest.ncc.config.ts
  */
-import { describe, it, expect } from "vitest";
+import { afterAll, describe, it, expect } from "vitest";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
@@ -270,6 +270,88 @@ function buildVideoTests(): VideoTest[] {
   return Array.from(grouped.values());
 }
 
+// --- Optional results export (consumed by the website testing page) ----------
+//
+// When NCC_RESULTS_PATH is set (the CI workflow points it at
+// site/public/testing-results.json), the suite writes its per-scenario
+// results after the run so the public testing page renders real, current
+// numbers. Values are recorded before the assertions, so failed scenarios
+// export with pass=false instead of vanishing.
+
+/** Video display metadata for the website. */
+const VIDEO_META: Record<string, { game: string; style: "2D" | "3D" }> = {
+  FRLG_SoftReset: { game: "Fire Red/Leaf Green", style: "2D" },
+  FRLG_Fishing: { game: "Fire Red/Leaf Green", style: "2D" },
+  FRLG_Runaway: { game: "Fire Red/Leaf Green", style: "2D" },
+  FRLG_Starter: { game: "Fire Red/Leaf Green", style: "2D" },
+  Dual_SoftReset: { game: "Gen 4/5 (DS)", style: "2D" },
+  SwSh_Breeding: { game: "Sword/Shield", style: "3D" },
+  SwSh_Runaway: { game: "Sword/Shield", style: "3D" },
+  SV_Breeding: { game: "Scarlet/Violet", style: "3D" },
+};
+
+interface ScenarioResult {
+  templateId: number;
+  pokemonName: string;
+  label: string;
+  videoName: string;
+  game: string;
+  style: string;
+  difficulty: string;
+  loopTestable: boolean;
+  expectedEncounters: number;
+  quality?: { matchMin: number; negMax: number; gap: number };
+  scan?: {
+    simulated: number;
+    polled: number;
+    precision: number;
+    minPollMs: number;
+    maxPollMs: number;
+    matchFrames: number;
+    sampledFrames: number;
+    maxScore: number;
+    spans: Array<{ startFrame: number; endFrame: number; peakScore: number }>;
+    pass: boolean;
+  };
+}
+
+const RESULTS = new Map<number, ScenarioResult>();
+
+/** Returns (and lazily creates) the export record for a ground-truth entry. */
+function resultFor(gt: GroundTruthEntry): ScenarioResult {
+  let r = RESULTS.get(gt.templateId);
+  if (!r) {
+    const meta = VIDEO_META[gt.videoName] ?? { game: gt.videoName, style: "2D" };
+    r = {
+      templateId: gt.templateId,
+      pokemonName: gt.pokemonName,
+      label: gt.label,
+      videoName: gt.videoName,
+      game: meta.game,
+      style: meta.style,
+      difficulty: gt.difficulty,
+      loopTestable: gt.loopTestable,
+      expectedEncounters: gt.expectedEncounters,
+    };
+    RESULTS.set(gt.templateId, r);
+  }
+  return r;
+}
+
+afterAll(() => {
+  const out = process.env.NCC_RESULTS_PATH;
+  if (!out) return;
+  const report = {
+    generatedAt: new Date().toISOString(),
+    version: process.env.NCC_APP_VERSION ?? "dev",
+    commit: process.env.GITHUB_SHA ?? null,
+    scenarios: [...RESULTS.values()].sort((a, b) => a.templateId - b.templateId),
+  };
+  fs.mkdirSync(path.dirname(out), { recursive: true });
+  fs.writeFileSync(out, JSON.stringify(report, null, 2) + "\n");
+  console.log(`  results written to ${out}`);
+});
+
 const videoTests = buildVideoTests();
 
 /** Look up the config-side video/template pair for a ground-truth entry. */
@@ -355,6 +437,7 @@ describe("NCC Detection Quality", () => {
         `neg=[${negScores.map((s) => s.score.toFixed(3)).join(", ")}] ` +
         `gap=${(matchMin - negMax).toFixed(3)}`,
       );
+      resultFor(gt).quality = { matchMin, negMax, gap: matchMin - negMax };
 
       // Score distribution analysis
       if (matchScores.length > 0) {
@@ -589,6 +672,25 @@ describe("Full Video Scan", () => {
           `    sim encounter ${i + 1}: ${startF}f-${endF}f peak=${span.peakScore.toFixed(3)} -> ${verdict}`,
         );
       }
+
+      resultFor(gt).scan = {
+        simulated: sim.encounters,
+        polled: sim.polledSamples,
+        precision: simSettings.precision,
+        minPollMs: simSettings.minPollMs ?? MIN_POLL_MS,
+        maxPollMs: simSettings.maxPollMs ?? MAX_POLL_MS,
+        matchFrames: matchFrames.length,
+        sampledFrames: scores.length,
+        maxScore,
+        spans: sim.encounterSpans.map((span) => ({
+          startFrame: Math.round((span.startMs / 1000) * FPS),
+          endFrame: Math.round((span.endMs / 1000) * FPS),
+          peakScore: span.peakScore,
+        })),
+        pass: gt.loopTestable
+          ? sim.encounters === gt.expectedEncounters
+          : sim.encounters <= gt.expectedEncounters,
+      };
 
       if (gt.loopTestable) {
         // The simulated loop is the authoritative counter and must match
