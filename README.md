@@ -9,7 +9,7 @@
 
 Encounty is a modern, open-source auto shiny counter for Pokemon shiny hunting. It captures your game screen directly in the app, runs GPU-accelerated template matching to detect encounters automatically, and supports unlimited parallel hunts, limited only by your hardware. Everything runs locally: no account, no cloud, no paywall.
 
-Under the hood, the detection engine scores every frame with four fused metrics (block SSIM, Pearson correlation, mean absolute difference, histogram correlation) instead of a simple pixel diff, tolerates position and scale shifts through multi-scale NCC template matching, prevents double counts with a three-phase hysteresis state machine, and calibrates each template automatically via stability analysis and parameter sweeps.
+Under the hood: four fused scoring metrics (block SSIM, Pearson correlation, mean absolute difference, histogram correlation), multi-scale NCC template matching, a three-phase hysteresis state machine against double counts, and automatic template calibration. Details in [Features](#features).
 
 **[Website](https://zsleyer.github.io/Encounty/)** · **[Download & install guide](https://zsleyer.github.io/Encounty/update.html)** · **[Changelog](https://zsleyer.github.io/Encounty/changelog.html)**
 
@@ -68,8 +68,11 @@ Under the hood, the detection engine scores every frame with four fused metrics 
 
 ## Troubleshooting
 
+Step-by-step install and update instructions per platform:
+
 - [Linux](https://zsleyer.github.io/Encounty/update.html#linux)
 - [macOS](https://zsleyer.github.io/Encounty/update.html#macos)
+- [Windows](https://zsleyer.github.io/Encounty/update.html#windows)
 
 ## Contributing
 
