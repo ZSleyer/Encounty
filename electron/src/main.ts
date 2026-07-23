@@ -43,7 +43,7 @@ const ELECTRON_KEY_MAP: Record<string, string> = {
   'tab': 'Tab', 'space': 'Space', 'home': 'Home', 'end': 'End',
   'pageup': 'PageUp', 'pagedown': 'PageDown',
   'numpadadd': 'numadd', 'numpadsubtract': 'numsub',
-  'numpadmultiply': 'nummult', 'numpaddivide': 'numdec',
+  'numpadmultiply': 'nummult', 'numpaddivide': 'numdiv',
   'numpadenter': 'Enter', 'numpaddecimal': 'numdec',
   'numpad0': 'num0', 'numpad1': 'num1', 'numpad2': 'num2', 'numpad3': 'num3',
   'numpad4': 'num4', 'numpad5': 'num5', 'numpad6': 'num6', 'numpad7': 'num7',
