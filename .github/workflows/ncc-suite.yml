@@ -14,7 +14,7 @@ on:
     - cron: "30 4 * * 1"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ncc-suite
@@ -79,4 +79,34 @@ jobs:
       - name: Run NCC quality suite
         if: steps.gate.outputs.enabled == 'true'
         working-directory: frontend
-        run: yarn test:ncc
+        env:
+          NCC_RESULTS_PATH: ${{ github.workspace }}/site/public/testing-results.json
+        run: |
+          export NCC_APP_VERSION="$(git describe --tags --abbrev=0 2>/dev/null || echo dev)"
+          yarn test:ncc
+
+      # Publish the results to the website: committing via the GraphQL
+      # createCommitOnBranch mutation keeps the commit signed (GitHub signs
+      # bot commits made through the API). The push touches site/**, which
+      # triggers the Pages deploy, so the public testing page always shows
+      # the latest suite run. Skipped when the numbers did not change.
+      - name: Publish results to the testing page
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FILE=site/public/testing-results.json
+          if git ls-files --error-unmatch "$FILE" >/dev/null 2>&1 && git diff --quiet -- "$FILE"; then
+            echo "No result changes; skipping publish." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          gh api graphql \
+            -f query='mutation($input: CreateCommitOnBranchInput!) {
+              createCommitOnBranch(input: $input) { commit { oid } }
+            }' \
+            -F "input[branch][repositoryNameWithOwner]=${GITHUB_REPOSITORY}" \
+            -F "input[branch][branchName]=${GITHUB_REF_NAME}" \
+            -F "input[expectedHeadOid]=$(git rev-parse HEAD)" \
+            -F "input[message][headline]=chore(site): update testing results from ncc suite run" \
+            -F "input[fileChanges][additions][][path]=$FILE" \
+            -F "input[fileChanges][additions][][contents]=$(base64 -w0 "$FILE")"
