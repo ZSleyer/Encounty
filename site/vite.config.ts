@@ -12,6 +12,7 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         update: resolve(__dirname, "update.html"),
         changelog: resolve(__dirname, "changelog.html"),
+        testing: resolve(__dirname, "testing.html"),
       },
     },
   },

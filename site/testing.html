@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detection Testing - Encounty</title>
+    <meta
+      name="description"
+      content="How Encounty's encounter detection is tested: real gameplay recordings from 2D and 3D Pokémon games, strict pass criteria, current results."
+    />
+    <meta name="theme-color" content="#0f0f13" />
+    <link rel="icon" type="image/png" href="/app-icon.png" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body data-page="testing">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:rounded-none focus:bg-bg-card focus:px-4 focus:py-2"
+      data-i18n="a11y.skip"
+      >Skip to content</a
+    >
+
+    <header class="border-b border-border-subtle">
+      <nav
+        aria-label="Main"
+        class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3"
+      >
+        <a href="/Encounty/" class="flex items-center gap-3">
+          <img src="/app-icon.png" alt="" width="32" height="32" />
+          <span class="t-heading text-sm text-text-primary">Encounty</span>
+        </a>
+        <div class="flex items-center gap-2 text-sm sm:gap-6">
+          <a
+            href="/Encounty/#how-it-works"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.howItWorks"
+            >How it works</a
+          >
+          <a
+            href="/Encounty/#demo"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.demo"
+            >Demo</a
+          >
+          <a
+            href="/Encounty/#features"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.features"
+            >Features</a
+          >
+          <a
+            href="/Encounty/testing.html"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            aria-current="page"
+            data-i18n="nav.testing"
+            >Testing</a
+          >
+          <a
+            href="/Encounty/update.html"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.download"
+            >Download &amp; Update</a
+          >
+          <a
+            href="/Encounty/changelog.html"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.changelog"
+            >Changelog</a
+          >
+          <a
+            href="https://github.com/ZSleyer/Encounty"
+            class="t-label hidden sm:inline-flex"
+            data-i18n="nav.github"
+            >GitHub</a
+          >
+          <select
+            id="lang-select"
+            class="lang-select"
+            data-i18n-attr="aria-label:lang.switcherAria"
+          >
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="ja">日本語</option>
+          </select>
+          <span
+            id="mt-badge"
+            class="mt-badge"
+            hidden
+            data-i18n-attr="title:lang.autoTranslatedHint"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="square"
+              stroke-linejoin="square"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M12 8V4H8" />
+              <rect width="16" height="12" x="4" y="8" />
+              <path d="M2 14h2" />
+              <path d="M20 14h2" />
+              <path d="M15 13v2" />
+              <path d="M9 13v2" />
+            </svg>
+            <span class="mt-badge__label" data-i18n="lang.autoTranslated">Auto-translated</span>
+          </span>
+          <button
+            type="button"
+            id="nav-toggle"
+            class="nav-toggle sm:hidden"
+            aria-expanded="false"
+            aria-controls="mobile-nav"
+            aria-label="Open menu"
+            data-i18n-attr="aria-label:nav.menuAria"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="square"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
+        </div>
+      </nav>
+      <div id="mobile-nav" class="border-t border-border-subtle sm:hidden" hidden>
+        <a
+          href="/Encounty/#how-it-works"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.howItWorks"
+          >How it works</a
+        >
+        <a
+          href="/Encounty/#demo"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.demo"
+          >Demo</a
+        >
+        <a
+          href="/Encounty/#features"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.features"
+          >Features</a
+        >
+        <a
+          href="/Encounty/testing.html"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          aria-current="page"
+          data-i18n="nav.testing"
+          >Testing</a
+        >
+        <a
+          href="/Encounty/update.html"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.download"
+          >Download &amp; Update</a
+        >
+        <a
+          href="/Encounty/changelog.html"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.changelog"
+          >Changelog</a
+        >
+        <a
+          href="https://github.com/ZSleyer/Encounty"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.github"
+          >GitHub</a
+        >
+      </div>
+    </header>
+
+    <main id="main">
+      <!-- Hero -->
+      <section class="hero-glow px-4 pt-16 pb-10 text-center">
+        <div class="mx-auto max-w-3xl">
+          <span class="t-label t-label--accent" data-i18n="testing.hero.badge"
+            >Tested on real gameplay</span
+          >
+          <h1
+            class="t-heading mt-6 text-3xl text-text-primary sm:text-4xl"
+            data-i18n="testing.hero.title"
+          >
+            How detection is tested
+          </h1>
+          <p
+            class="mx-auto mt-6 max-w-xl text-lg text-text-secondary"
+            data-i18n="testing.hero.text"
+          >
+            No lab numbers, no marketing benchmark: before every release, the detection
+            pipeline has to prove itself against real recordings from real hunts, 2D and 3D.
+          </p>
+        </div>
+      </section>
+
+      <!-- Method -->
+      <section aria-labelledby="method-heading" class="px-4 py-16">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="method-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="testing.method.heading"
+          >
+            The method
+          </h2>
+          <ol class="mt-12 grid gap-6 sm:grid-cols-3">
+            <li class="t-panel p-6">
+              <span aria-hidden="true" class="t-step-n">1</span>
+              <h3 class="mt-4 font-semibold" data-i18n="testing.method.step1.title">
+                Real recordings
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="testing.method.step1.desc">
+                The test set is real gameplay footage across five game generations, from Fire
+                Red/Leaf Green (2D) to Sword/Shield and Scarlet/Violet (3D): soft resets,
+                starters, fishing, breeding and fleeing wild encounters.
+              </p>
+            </li>
+            <li class="t-panel p-6">
+              <span aria-hidden="true" class="t-step-n">2</span>
+              <h3 class="mt-4 font-semibold" data-i18n="testing.method.step2.title">
+                Templates like a user makes them
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="testing.method.step2.desc">
+                For every recording, detection templates are created exactly the way a user
+                would create them in the app, no hand-tuned special settings.
+              </p>
+            </li>
+            <li class="t-panel p-6">
+              <span aria-hidden="true" class="t-step-n">3</span>
+              <h3 class="mt-4 font-semibold" data-i18n="testing.method.step3.title">
+                Hard pass criteria
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="testing.method.step3.desc">
+                Every frame of every clip is scored. The suite only passes if every real
+                encounter is found, the full video scan counts the exact number of encounters,
+                and nothing is ever counted twice.
+              </p>
+            </li>
+          </ol>
+          <p class="mx-auto mt-8 max-w-2xl text-center text-sm text-text-muted">
+            <span data-i18n="testing.credit"
+              >The test recordings were kindly provided by LEOsMIND. Huge thanks, this
+              footage has substantially improved Encounty's development.</span
+            >
+            <a
+              href="https://www.youtube.com/c/LEOsMINDplays"
+              class="underline hover:text-text-primary"
+              data-i18n="testing.credit.link"
+              >LEOsMIND on YouTube</a
+            >.
+          </p>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- Results -->
+      <section aria-labelledby="results-heading" class="px-4 py-16">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="results-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="testing.results.heading"
+          >
+            Current results
+          </h2>
+          <p class="mt-4 text-center text-sm text-text-muted">
+            <span data-i18n="testing.results.lastRun">Last run</span>: v0.19.1 · 2026-07-23
+          </p>
+
+          <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="t-panel p-5 text-center">
+              <p class="text-3xl font-bold text-text-primary">32/32</p>
+              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.scenarios">
+                scenarios passed
+              </p>
+            </div>
+            <div class="t-panel p-5 text-center">
+              <p class="text-3xl font-bold text-text-primary">22/22</p>
+              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.encounters">
+                encounters counted exactly
+              </p>
+            </div>
+            <div class="t-panel p-5 text-center">
+              <p class="text-3xl font-bold text-text-primary">0</p>
+              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.doubles">
+                double counts
+              </p>
+            </div>
+            <div class="t-panel p-5 text-center">
+              <p class="text-3xl font-bold text-text-primary">5</p>
+              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.stats.games">
+                game generations covered
+              </p>
+            </div>
+          </div>
+
+          <p
+            class="mx-auto mt-8 max-w-2xl text-center text-sm text-text-secondary"
+            data-i18n="testing.results.hwNote"
+          >
+            Detection accuracy is hardware independent: the same scoring math returns the same
+            result on any machine. This suite also runs entirely without a GPU, using the CPU
+            pipeline.
+          </p>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- Signal vs noise chart -->
+      <section aria-labelledby="gap-heading" class="px-4 py-16">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="gap-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="testing.gap.heading"
+          >
+            Signal vs. noise per scenario
+          </h2>
+          <p
+            class="mx-auto mt-4 max-w-xl text-center text-text-secondary"
+            data-i18n="testing.gap.text"
+          >
+            For every scenario, the weakest real encounter frame must still score clearly above
+            the strongest non-encounter frame. The distance between the two bars is the safety
+            margin.
+          </p>
+          <div class="t-panel mt-8 p-4 sm:p-6">
+            <div class="mb-4 flex flex-wrap justify-center gap-6 text-sm text-text-secondary">
+              <span class="inline-flex items-center gap-2"
+                ><span
+                  aria-hidden="true"
+                  style="width: 12px; height: 12px; background: #8a5fe6; display: inline-block"
+                ></span
+                ><span data-i18n="testing.gap.match">Weakest real encounter</span></span
+              >
+              <span class="inline-flex items-center gap-2"
+                ><span
+                  aria-hidden="true"
+                  style="width: 12px; height: 12px; background: #1fa85f; display: inline-block"
+                ></span
+                ><span data-i18n="testing.gap.neg">Strongest false candidate</span></span
+              >
+            </div>
+            <div class="overflow-x-auto">
+              <svg viewBox="0 0 560 480" role="img" width="100%" aria-label="Grouped bar chart: for each of the 13 scenarios, the weakest real encounter score is far above the strongest false candidate score." font-size="11">
+              <line x1="170.0" y1="10" x2="170.0" y2="462" stroke="#2a3644" stroke-width="1" />
+              <text x="170.0" y="475" fill="#8fa3b5" text-anchor="middle">0</text>
+              <line x1="256.5" y1="10" x2="256.5" y2="462" stroke="#2a3644" stroke-width="1" />
+              <text x="256.5" y="475" fill="#8fa3b5" text-anchor="middle">0.25</text>
+              <line x1="343.0" y1="10" x2="343.0" y2="462" stroke="#2a3644" stroke-width="1" />
+              <text x="343.0" y="475" fill="#8fa3b5" text-anchor="middle">0.5</text>
+              <line x1="429.5" y1="10" x2="429.5" y2="462" stroke="#2a3644" stroke-width="1" />
+              <text x="429.5" y="475" fill="#8fa3b5" text-anchor="middle">0.75</text>
+              <line x1="516.0" y1="10" x2="516.0" y2="462" stroke="#2a3644" stroke-width="1" />
+              <text x="516.0" y="475" fill="#8fa3b5" text-anchor="middle">1</text>
+              <text x="162" y="29.0" fill="#b7c5d3" text-anchor="end">Mewtu · FRLG Soft Reset</text>
+              <path d="M 170 14 h 340.6 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -340.6 Z" fill="#8a5fe6" />
+              <path d="M 170 26 h 18.5 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -18.5 Z" fill="#1fa85f" />
+              <text x="520.6" y="29.0" fill="#8fa3b5">+0.93</text>
+              <text x="162" y="63.0" fill="#b7c5d3" text-anchor="end">Mewtu · FRLG Soft Reset</text>
+              <path d="M 170 48 h 342.0 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -342.0 Z" fill="#8a5fe6" />
+              <path d="M 170 60 h 35.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -35.4 Z" fill="#1fa85f" />
+              <text x="522.0" y="63.0" fill="#8fa3b5">+0.89</text>
+              <text x="162" y="97.0" fill="#b7c5d3" text-anchor="end">Glumanda · FRLG Starter</text>
+              <path d="M 170 82 h 338.5 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -338.5 Z" fill="#8a5fe6" />
+              <path d="M 170 94 h 39.6 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -39.6 Z" fill="#1fa85f" />
+              <text x="518.5" y="97.0" fill="#8fa3b5">+0.86</text>
+              <text x="162" y="131.0" fill="#b7c5d3" text-anchor="end">Goldini · FRLG Fishing</text>
+              <path d="M 170 116 h 305.3 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -305.3 Z" fill="#8a5fe6" />
+              <path d="M 170 128 h 60.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -60.4 Z" fill="#1fa85f" />
+              <text x="485.3" y="131.0" fill="#8fa3b5">+0.71</text>
+              <text x="162" y="165.0" fill="#b7c5d3" text-anchor="end">Picochilla · Runaway</text>
+              <path d="M 170 150 h 318.1 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -318.1 Z" fill="#8a5fe6" />
+              <path d="M 170 162 h 95.3 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -95.3 Z" fill="#1fa85f" />
+              <text x="498.1" y="165.0" fill="#8fa3b5">+0.64</text>
+              <text x="162" y="199.0" fill="#b7c5d3" text-anchor="end">Relicanth · Breeding</text>
+              <path d="M 170 184 h 332.3 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -332.3 Z" fill="#8a5fe6" />
+              <path d="M 170 196 h 116.1 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -116.1 Z" fill="#1fa85f" />
+              <text x="512.3" y="199.0" fill="#8fa3b5">+0.62</text>
+              <text x="162" y="233.0" fill="#b7c5d3" text-anchor="end">Bluzuk · FRLG Runaway</text>
+              <path d="M 170 218 h 312.2 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -312.2 Z" fill="#8a5fe6" />
+              <path d="M 170 230 h 97.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -97.4 Z" fill="#1fa85f" />
+              <text x="492.2" y="233.0" fill="#8fa3b5">+0.62</text>
+              <text x="162" y="267.0" fill="#b7c5d3" text-anchor="end">Bisasam · FRLG Starter</text>
+              <path d="M 170 252 h 335.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -335.4 Z" fill="#8a5fe6" />
+              <path d="M 170 264 h 126.8 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -126.8 Z" fill="#1fa85f" />
+              <text x="515.4" y="267.0" fill="#8fa3b5">+0.60</text>
+              <text x="162" y="301.0" fill="#b7c5d3" text-anchor="end">Schiggy · FRLG Starter</text>
+              <path d="M 170 286 h 339.9 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -339.9 Z" fill="#8a5fe6" />
+              <path d="M 170 298 h 134.4 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -134.4 Z" fill="#1fa85f" />
+              <text x="519.9" y="301.0" fill="#8fa3b5">+0.59</text>
+              <text x="162" y="335.0" fill="#b7c5d3" text-anchor="end">Giratina · DS Soft Reset</text>
+              <path d="M 170 320 h 321.2 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -321.2 Z" fill="#8a5fe6" />
+              <path d="M 170 332 h 119.2 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -119.2 Z" fill="#1fa85f" />
+              <text x="501.2" y="335.0" fill="#8fa3b5">+0.58</text>
+              <text x="162" y="369.0" fill="#b7c5d3" text-anchor="end">Kyurem · DS Soft Reset</text>
+              <path d="M 170 354 h 273.5 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -273.5 Z" fill="#8a5fe6" />
+              <path d="M 170 366 h 109.5 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -109.5 Z" fill="#1fa85f" />
+              <text x="453.5" y="369.0" fill="#8fa3b5">+0.47</text>
+              <text x="162" y="403.0" fill="#b7c5d3" text-anchor="end">Chaneira · FRLG Runaway</text>
+              <path d="M 170 388 h 273.8 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -273.8 Z" fill="#8a5fe6" />
+              <path d="M 170 400 h 129.9 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -129.9 Z" fill="#1fa85f" />
+              <text x="453.8" y="403.0" fill="#8fa3b5">+0.42</text>
+              <text x="162" y="437.0" fill="#b7c5d3" text-anchor="end">Mewtu · FRLG Soft Reset</text>
+              <path d="M 170 422 h 215.7 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -215.7 Z" fill="#8a5fe6" />
+              <path d="M 170 434 h 125.8 a 4 4 0 0 1 4 4 v 2 a 4 4 0 0 1 -4 4 h -125.8 Z" fill="#1fa85f" />
+              <text x="395.7" y="437.0" fill="#8fa3b5">+0.26</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- GPU parity -->
+      <section aria-labelledby="parity-heading" class="px-4 py-16">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="parity-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="testing.parity.heading"
+          >
+            Same result on CPU and GPU
+          </h2>
+          <p
+            class="mx-auto mt-4 max-w-xl text-center text-text-secondary"
+            data-i18n="testing.parity.text"
+          >
+            The WebGPU shader pipeline is checked against the CPU pipeline on the same frames
+            from the same recordings. Both must agree, so it does not matter which one your
+            machine ends up using.
+          </p>
+          <div class="mt-10 grid gap-4 sm:grid-cols-3">
+            <div class="t-panel p-5 text-center">
+              <p class="text-3xl font-bold text-text-primary">76/76</p>
+              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.parity.checks">
+                comparison points within tolerance
+              </p>
+            </div>
+            <div class="t-panel p-5 text-center">
+              <p class="text-3xl font-bold text-text-primary">0.93%</p>
+              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.parity.avg">
+                average score deviation
+              </p>
+            </div>
+            <div class="t-panel p-5 text-center">
+              <p class="text-3xl font-bold text-text-primary">9.5%</p>
+              <p class="mt-1 text-sm text-text-muted" data-i18n="testing.parity.max">
+                maximum score deviation
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- Coverage -->
+      <section aria-labelledby="coverage-heading" class="px-4 py-16">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="coverage-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="testing.coverage.heading"
+          >
+            What gets tested
+          </h2>
+          <div class="t-panel mt-8">
+            <div class="overflow-x-auto">
+            <table class="feature-table">
+              <caption class="sr-only" data-i18n="testing.coverage.heading">
+                What gets tested
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" data-i18n="testing.coverage.colScenario">Scenario</th>
+                  <th scope="col" data-i18n="testing.coverage.colGame">Game</th>
+                  <th scope="col" data-i18n="testing.coverage.colStyle">Style</th>
+                  <th scope="col" class="compare-col" data-i18n="testing.coverage.colResult">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Schiggy · FRLG Starter</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Bisasam · FRLG Starter</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Glumanda · FRLG Starter</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Mewtu · FRLG Soft Reset</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Mewtu · FRLG Soft Reset</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Mewtu · FRLG Soft Reset</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Bluzuk · FRLG Runaway</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Chaneira · FRLG Runaway</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Goldini · FRLG Fishing</th>
+                  <td>Fire Red/Leaf Green</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Kyurem · DS Soft Reset</th>
+                  <td>Gen 4/5 (DS)</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Giratina · DS Soft Reset</th>
+                  <td>Gen 4/5 (DS)</td>
+                  <td>2D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Dartiri · Breeding</th>
+                  <td>Scarlet/Violet</td>
+                  <td>3D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Picochilla · Runaway</th>
+                  <td>Sword/Shield</td>
+                  <td>3D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+                <tr>
+                  <th scope="row">Relicanth · Breeding</th>
+                  <td>Sword/Shield</td>
+                  <td>3D</td>
+                  <td class="compare-col"><span class="pass-badge" data-i18n="testing.coverage.pass">Pass</span></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+          <p class="mx-auto mt-8 max-w-2xl text-center text-sm text-text-muted">
+            <span data-i18n="testing.repoNote"
+              >The test recordings contain game footage and therefore cannot be published; the
+              method and the latest results are documented here instead, and the suite runs in
+              CI against the privately stored fixtures. Questions or want to dig deeper?</span
+            >
+            <a
+              href="https://github.com/ZSleyer/Encounty/issues"
+              class="underline hover:text-text-primary"
+              data-i18n="testing.repoNote.link"
+              >Open an issue on GitHub</a
+            >.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-4">
+      <div class="glow-line" role="presentation"></div>
+      <div
+        class="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 py-8 text-center text-sm text-text-muted"
+      >
+        <p>
+          <a
+            href="https://github.com/ZSleyer/Encounty"
+            class="underline hover:text-text-primary"
+            data-i18n="footer.source"
+            >Source on GitHub</a
+          >
+          · <span data-i18n="footer.licensedUnder">licensed under</span>
+          <a
+            href="https://github.com/ZSleyer/Encounty/blob/main/LICENSE"
+            class="underline hover:text-text-primary"
+            >AGPL-3.0</a
+          >
+        </p>
+        <p>
+          <a
+            href="https://github.com/ZSleyer/Encounty/issues"
+            class="underline hover:text-text-primary"
+            data-i18n="footer.reportBug"
+            >Report a bug</a
+          >
+        </p>
+        <p data-i18n="footer.disclaimer">
+          Encounty is an unofficial, fan-made application and is not affiliated with, endorsed
+          by, or connected to Nintendo, Creatures Inc., GAME FREAK inc., or The Pokémon
+          Company. Pokémon and all related trademarks and copyrights are the property of their
+          respective owners.
+        </p>
+        <p>
+          <span id="copyright-year">© 2026</span>
+          <a href="https://youtube.com/@ZSleyer" class="underline hover:text-text-primary"
+            >ZSleyer</a
+          >
+        </p>
+      </div>
+    </footer>
+
+    <script type="module">
+      import { initMobileNav } from "/src/nav.js";
+      import { applyI18n, initLangSwitcher } from "/src/i18n.js";
+
+      // Localize the static markup and wire the header language switcher.
+      applyI18n();
+      initLangSwitcher();
+      initMobileNav();
+
+      // Same copyright range logic as the Encounty app footer.
+      const year = new Date().getFullYear();
+      document.getElementById("copyright-year").textContent =
+        "© " + (year === 2026 ? "2026" : "2026–" + year);
+    </script>
+  </body>
+</html>

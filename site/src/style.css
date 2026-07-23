@@ -514,6 +514,30 @@ button:focus-visible {
   color: var(--accent-yellow);
 }
 
+/* Pass badge for the testing page: status color with icon + label. */
+.pass-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-green);
+  background: color-mix(in srgb, var(--accent-green) 10%, transparent);
+  white-space: nowrap;
+}
+
+.pass-badge::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12l5 5L20 6' fill='none' stroke='black' stroke-width='3'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 12l5 5L20 6' fill='none' stroke='black' stroke-width='3'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
 /* FAQ: native disclosure widgets in Tempest chrome. */
 .faq-item summary {
   list-style: none;

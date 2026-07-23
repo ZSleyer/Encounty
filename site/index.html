@@ -82,6 +82,12 @@
             >Features</a
           >
           <a
+            href="/Encounty/testing.html"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.testing"
+            >Testing</a
+          >
+          <a
             href="/Encounty/update.html"
             class="hidden text-text-secondary hover:text-text-primary sm:block"
             data-i18n="nav.download"
@@ -180,6 +186,12 @@
           class="block px-4 py-3 text-text-secondary hover:text-text-primary"
           data-i18n="nav.howItWorks"
           >How it works</a
+        >
+        <a
+          href="/Encounty/testing.html"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.testing"
+          >Testing</a
         >
         <a
           href="/Encounty/update.html"
@@ -449,6 +461,10 @@
             </table>
             </div>
           </div>
+          <p class="mt-4 text-center text-sm text-text-muted">
+            <span data-i18n="compare.proofPre">Detection is verified against real gameplay recordings, 2D and 3D.</span>
+            <a href="/Encounty/testing.html" class="underline hover:text-text-primary" data-i18n="compare.proofLink">See how it is tested</a>.
+          </p>
           <h3
             class="t-heading mt-16 text-center text-lg text-text-primary"
             data-i18n="features.heading"
@@ -675,6 +691,16 @@
               <p class="faq-a">
                 <span data-i18n="faq.odds.a">The odds and method data come from a community research thread on r/pokemon that documents the hunting methods of every game; the app credits this source under Settings, About.</span>
                 <a href="https://www.reddit.com/r/pokemon/comments/10wzzt9/these_are_all_the_hunting_methods_of_every_game/" class="underline hover:text-text-primary" data-i18n="faq.odds.link">Read the research thread</a>.
+              </p>
+            </details>
+            <details class="faq-item t-panel">
+              <summary class="faq-q">
+                <span data-i18n="faq.threed.q">Does detection work in 3D games too?</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M5 9l7 7 7-7" /></svg>
+              </summary>
+              <p class="faq-a">
+                <span data-i18n="faq.threed.a">Yes. Before every release, detection has to pass automated tests against real gameplay recordings from 2D and 3D games, with strict criteria: exact encounter counts, no double counting.</span>
+                <a href="/Encounty/testing.html" class="underline hover:text-text-primary" data-i18n="faq.threed.link">See how detection is tested</a>.
               </p>
             </details>
             <details class="faq-item t-panel">
