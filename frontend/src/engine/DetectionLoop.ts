@@ -25,6 +25,7 @@ import {
   type CategoryState, newCategoryState, applyNoiseFloor, updateMatchState,
 } from "./matchStateMachine";
 import { extractRegionGrays, regionSetDelta, type RegionGray } from "./regionDelta";
+import { COOLDOWN_TICK_MS, computeNextInterval } from "./pollingPolicy";
 
 // --- Types -------------------------------------------------------------------
 
@@ -60,9 +61,6 @@ interface ResolvedTemplateSettings {
   /** Index (into the loaded templates) of the template these settings came from. */
   winnerIndex: number;
 }
-
-/** Fast tick interval during cooldown/hysteresis (no GPU work, just timer updates). */
-const COOLDOWN_TICK_MS = 100;
 
 /**
  * Normalized mean-abs-diff above which region content counts as changed for
@@ -451,7 +449,7 @@ export class DetectionLoop {
     this.maxPollMs = leaderSettings.maxPollMs;
     this.pollIntervalMs = this.allCooldown()
       ? COOLDOWN_TICK_MS
-      : this.computeNextInterval(maxAdjusted, pollDelta, leaderSettings.precision, leaderSettings.minPollMs, leaderSettings.maxPollMs);
+      : computeNextInterval(maxAdjusted, pollDelta, leaderSettings.precision, leaderSettings.minPollMs, leaderSettings.maxPollMs, this.config.changeThreshold);
   }
 
   /**
@@ -645,30 +643,6 @@ export class DetectionLoop {
     const cooldownRemainingMs = state === "cooldown" ? maxCooldownRemainingMs : undefined;
 
     this.scoreCallback(this.maxSmoothedScore(), state, cooldownRemainingMs);
-  }
-
-  /**
-   * Compute the next polling interval based on the latest score and detection time.
-   *
-   * When the score is close to the threshold, poll faster to catch transitions.
-   * When the scene is static (low score), slow down to save CPU/GPU.
-   */
-  private computeNextInterval(score: number, delta: number, precision: number, min: number, max: number): number {
-    const { changeThreshold } = this.config;
-
-    // Static scene — slow down to max interval
-    if (delta < (changeThreshold ?? 0.01)) {
-      return max;
-    }
-
-    // How close the score is to the threshold (0 = far, 1 = at/above threshold)
-    const proximity = Math.min(score / Math.max(precision, 0.01), 1);
-
-    // Exponential interpolation: fast when close to match, slow when far
-    const t = proximity * proximity;
-    const interval = max - t * (max - min);
-
-    return Math.round(Math.max(min, Math.min(max, interval)));
   }
 
   /**
