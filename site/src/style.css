@@ -45,7 +45,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Uppercase, letter-spaced section eyebrow — the app's own section-label
+/* Uppercase, letter-spaced section eyebrow, the app's own section-label
    vocabulary (card-title / t-label), scaled up for a marketing headline. */
 .t-heading {
   text-transform: uppercase;
@@ -99,10 +99,7 @@ a.t-label:hover {
   box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
 }
 
-/* Download buttons: one is promoted to --primary by the OS-detection
-   script (index.html) based on the visitor's platform, defaulting to
-   Linux (this project's own primary target) if detection is inconclusive
-   or JS is disabled. */
+/* Download buttons and page CTAs (hero, get-Encounty cards). */
 .dl-btn {
   border: 1px solid var(--border-subtle);
   background: var(--bg-card);
@@ -129,100 +126,12 @@ a.t-label:hover {
   opacity: 0.9;
 }
 
-/* On a split primary button the wrapper hosts the open dropdown as a child,
-   so dimming the wrapper's opacity would make the menu translucent too.
-   Keep the wrapper opaque and dim only the interactive parts instead. */
-.dl-btn--primary.dl-split:hover {
-  opacity: 1;
-}
-
-.dl-btn--primary .dl-split__main:hover,
-.dl-btn--primary .dl-split__toggle:hover {
-  opacity: 0.9;
-}
-
 .dl-btn--primary:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
 }
 
-/* Windows split button: primary installer download + a caret revealing the
-   portable .exe in a dropdown. The wrapper carries the .dl-btn chrome; padding
-   lives on the inner parts so the caret can own its own hit area. */
-.dl-split {
-  position: relative;
-  display: inline-flex;
-  align-items: stretch;
-  padding: 0;
-}
-
-.dl-split__main {
-  display: inline-flex;
-  align-items: center;
-  color: inherit;
-}
-
-.dl-split__toggle {
-  display: inline-flex;
-  align-items: center;
-  padding: 0 0.7rem;
-  border: none;
-  border-left: 1px solid var(--border-subtle);
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-}
-
-/* On a primary split button the wrapper's clip-path would also clip the
-   absolutely-positioned dropdown menu (clip-path clips all descendants),
-   hiding it. Move the Tempest corner cut onto the toggle (the top-right
-   part), which is not an ancestor of the menu, so the menu stays visible. */
-.dl-btn--primary.dl-split {
-  clip-path: none;
-}
-
-.dl-btn--primary .dl-split__toggle {
-  border-left-color: rgba(0, 0, 0, 0.25);
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
-}
-
-.dl-split__toggle svg {
-  transition: transform 0.15s ease;
-}
-
-.dl-split__toggle[aria-expanded="true"] svg {
-  transform: rotate(180deg);
-}
-
-.dl-split__toggle:focus-visible,
-.dl-split__item:focus-visible {
-  outline: 2px solid var(--accent-blue);
-  outline-offset: -2px;
-}
-
-.dl-split__menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  min-width: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  z-index: 10;
-}
-
-.dl-split__item {
-  display: block;
-  padding: 0.6rem 1rem;
-  color: var(--text-primary);
-  white-space: nowrap;
-}
-
-.dl-split__item:hover {
-  background: var(--bg-primary);
-  color: var(--accent-blue);
-}
-
-/* Panel with Tempest corner brackets — the app's own card shell. */
+/* Panel with Tempest corner brackets, the app's own card shell. */
 .t-panel {
   position: relative;
   background: var(--bg-card);
@@ -279,7 +188,7 @@ a.t-label:hover {
   );
 }
 
-/* Soft radial accent glow behind the hero — single accent hue. */
+/* Soft radial accent glow behind the hero, single accent hue. */
 .hero-glow {
   background: radial-gradient(
     650px 320px at 50% 0%,
@@ -288,7 +197,7 @@ a.t-label:hover {
   );
 }
 
-/* Bordered number badge for the "How it works" steps — same shape as the
+/* Bordered number badge for the "How it works" steps, same shape as the
    app's own step-indicator squares. */
 .t-step-n {
   display: inline-flex;
@@ -331,7 +240,7 @@ button:focus-visible {
   display: none;
 }
 
-/* Update page OS switcher tabs — square chips that share the download-button
+/* Update page OS switcher tabs, square chips that share the download-button
    chrome, with the accent used for the active platform. */
 .os-tab {
   border: 1px solid var(--border-subtle);
@@ -432,6 +341,177 @@ button:focus-visible {
 .lang-select option {
   background: var(--bg-card);
   color: var(--text-primary);
+}
+
+/* .t-label's unlayered display beats Tailwind's `hidden` utility (unlayered
+   CSS always wins over @layer utilities), so the mobile-hidden GitHub chip
+   needs its own rule below the sm breakpoint. */
+@media (max-width: 639px) {
+  .t-label.hidden {
+    display: none;
+  }
+}
+
+/* Mobile burger button: square Tempest chrome matching the lang select. */
+.nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-toggle:hover {
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+}
+
+.nav-toggle:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.nav-toggle[aria-expanded="true"] {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+/* Same unlayered-vs-utility conflict as .t-label above: hide the burger on
+   desktop here instead of relying on Tailwind's sm:hidden. */
+@media (min-width: 640px) {
+  .nav-toggle {
+    display: none;
+  }
+}
+
+/* Machine-translation badge: shown next to the language switcher for every
+   language except German (the source language), mirroring the app's
+   auto-translated marker (robot icon + label). */
+.mt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: var(--accent-yellow);
+  background: color-mix(in srgb, var(--accent-yellow) 10%, transparent);
+}
+
+.mt-badge svg {
+  flex-shrink: 0;
+}
+
+/* Icon-only on tight mobile headers; the label stays readable for screen
+   readers via the sr-only box trick. */
+@media (max-width: 640px) {
+  .mt-badge__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* Feature table: Tempest vocabulary, flat with hairline separators, uppercase
+   spaced column labels and a quiet row hover, matching the app's list views. */
+.feature-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.feature-table thead th {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.75rem 1rem;
+}
+
+.feature-table tbody th,
+.feature-table tbody td {
+  padding: 0.75rem 1rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.feature-table tbody tr:last-child th,
+.feature-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.feature-table tbody th {
+  font-weight: 600;
+  color: var(--accent-blue);
+}
+
+.feature-table tbody td {
+  color: var(--text-secondary);
+}
+
+.feature-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent);
+}
+
+.feature-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+@media (min-width: 640px) {
+  .feature-table thead th,
+  .feature-table tbody th,
+  .feature-table tbody td {
+    padding: 0.75rem 1.5rem;
+  }
+
+  /* Keep feature names on one line on wide screens only; narrow viewports
+     wrap instead of forcing a horizontal scroll. */
+  .feature-table tbody th {
+    white-space: nowrap;
+  }
+}
+
+/* Comparison table: centered verdict columns with check and cross marks. */
+.compare-table .compare-col {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.compare-icon {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.compare-icon--yes {
+  color: var(--accent-green);
+}
+
+.compare-icon--no {
+  color: var(--accent-red);
+}
+
+.compare-partial {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-yellow);
 }
 
 @media (prefers-reduced-motion: reduce) {

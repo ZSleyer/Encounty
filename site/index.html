@@ -58,7 +58,7 @@
         aria-label="Main"
         class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3"
       >
-        <a href="#" class="flex items-center gap-3">
+        <a href="/Encounty/" class="flex items-center gap-3">
           <img src="/app-icon.png" alt="" width="32" height="32" />
           <span class="t-heading text-sm text-text-primary">Encounty</span>
         </a>
@@ -84,10 +84,19 @@
           <a
             href="/Encounty/update.html"
             class="hidden text-text-secondary hover:text-text-primary sm:block"
-            data-i18n="nav.update"
-            >Update</a
+            data-i18n="nav.download"
+            >Download &amp; Update</a
           >
-          <a href="https://github.com/ZSleyer/Encounty" class="t-label" data-i18n="nav.github"
+          <a
+            href="/Encounty/changelog.html"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            data-i18n="nav.changelog"
+            >Changelog</a
+          >
+          <a
+            href="https://github.com/ZSleyer/Encounty"
+            class="t-label hidden sm:inline-flex"
+            data-i18n="nav.github"
             >GitHub</a
           >
           <select
@@ -101,8 +110,96 @@
             <option value="fr">Français</option>
             <option value="ja">日本語</option>
           </select>
+          <span
+            id="mt-badge"
+            class="mt-badge"
+            hidden
+            data-i18n-attr="title:lang.autoTranslatedHint"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M12 8V4H8" />
+              <rect width="16" height="12" x="4" y="8" />
+              <path d="M2 14h2" />
+              <path d="M20 14h2" />
+              <path d="M15 13v2" />
+              <path d="M9 13v2" />
+            </svg>
+            <span class="mt-badge__label" data-i18n="lang.autoTranslated">Auto-translated</span>
+          </span>
+          <button
+            type="button"
+            id="nav-toggle"
+            class="nav-toggle sm:hidden"
+            aria-expanded="false"
+            aria-controls="mobile-nav"
+            aria-label="Open menu"
+            data-i18n-attr="aria-label:nav.menuAria"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="square"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
         </div>
       </nav>
+      <div id="mobile-nav" class="border-t border-border-subtle sm:hidden" hidden>
+        <a
+          href="#demo"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.demo"
+          >Demo</a
+        >
+        <a
+          href="#features"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.features"
+          >Features</a
+        >
+        <a
+          href="#how-it-works"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.howItWorks"
+          >How it works</a
+        >
+        <a
+          href="/Encounty/update.html"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.download"
+          >Download &amp; Update</a
+        >
+        <a
+          href="/Encounty/changelog.html"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.changelog"
+          >Changelog</a
+        >
+        <a
+          href="https://github.com/ZSleyer/Encounty"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.github"
+          >GitHub</a
+        >
+      </div>
     </header>
 
     <main id="main">
@@ -110,7 +207,7 @@
       <section class="hero-glow px-4 pt-20 pb-16 text-center">
         <div class="mx-auto max-w-3xl">
           <img src="/app-icon.png" alt="" width="96" height="96" class="mx-auto mb-8" />
-          <span class="t-label t-label--accent" data-i18n="hero.badge">Open source · AGPL-3.0</span>
+          <span class="t-label t-label--accent" data-i18n="hero.badge">Free &amp; Open Source · AGPL-3.0</span>
           <h1
             class="t-heading mt-6 text-4xl leading-tight text-text-primary sm:text-5xl"
           >
@@ -120,76 +217,20 @@
             The modern, open-source auto shiny counter for Pokémon shiny hunting. Capture your
             game, let the GPU detect encounters, and never click a tally counter again.
           </p>
-          <div id="download-buttons" class="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <div data-os="linux" class="dl-btn dl-btn--primary dl-split">
-              <a
-                href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-x86_64.AppImage"
-                class="dl-split__main px-6 py-3"
-                data-i18n="dl.linux"
-                >Download for Linux</a
-              >
-              <button
-                id="linux-more"
-                type="button"
-                class="dl-split__toggle"
-                aria-haspopup="true"
-                aria-expanded="false"
-                aria-controls="linux-arch-menu"
-                aria-label="More Linux download options"
-                data-i18n-attr="aria-label:dl.linuxMoreAria"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-                  <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" />
-                </svg>
-              </button>
-              <div id="linux-arch-menu" class="dl-split__menu" role="menu" hidden>
-                <a
-                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.AppImage"
-                  class="dl-split__item"
-                  role="menuitem"
-                  data-i18n="dl.linuxArm"
-                  >AppImage (arm64)</a
-                >
-              </div>
-            </div>
+          <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
             <a
-              href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-arm64.dmg"
-              data-os="macos"
-              class="dl-btn px-6 py-3"
-              data-i18n="dl.macos"
-              >Download for macOS</a
+              id="cta-download"
+              href="/Encounty/update.html"
+              class="dl-btn dl-btn--primary px-8 py-4 text-lg"
+              data-i18n="hero.ctaDownload"
+              >Download</a
             >
-            <div data-os="windows" class="dl-btn dl-split">
-              <a
-                href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty-Setup.exe"
-                class="dl-split__main px-6 py-3"
-                data-i18n="dl.windows"
-                >Download for Windows</a
-              >
-              <button
-                id="win-more"
-                type="button"
-                class="dl-split__toggle"
-                aria-haspopup="true"
-                aria-expanded="false"
-                aria-controls="win-portable-menu"
-                aria-label="More Windows download options"
-                data-i18n-attr="aria-label:dl.winMoreAria"
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" focusable="false">
-                  <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" />
-                </svg>
-              </button>
-              <div id="win-portable-menu" class="dl-split__menu" role="menu" hidden>
-                <a
-                  href="https://github.com/ZSleyer/Encounty/releases/latest/download/Encounty.exe"
-                  class="dl-split__item"
-                  role="menuitem"
-                  data-i18n="dl.portable"
-                  >Portable .exe (no install)</a
-                >
-              </div>
-            </div>
+            <a
+              href="/Encounty/changelog.html"
+              class="dl-btn px-6 py-3"
+              data-i18n="hero.ctaChangelog"
+              >Changelog</a
+            >
           </div>
           <p class="mt-4 text-sm text-text-muted" data-i18n="dl.formats">
             AppImage (Linux) · installer + portable .exe (Windows 11) · DMG (macOS, Apple
@@ -289,6 +330,73 @@
 
       <div class="glow-line" role="presentation"></div>
 
+      <!-- Community review video -->
+      <section aria-labelledby="review-heading" id="review" class="px-4 py-20">
+        <div class="mx-auto max-w-6xl">
+          <h2
+            id="review-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="review.heading"
+          >
+            Community review
+          </h2>
+          <p
+            class="mx-auto mt-4 max-w-xl text-center text-text-secondary"
+            data-i18n="review.text"
+          >
+            YouTuber LEOsMIND made an in-depth introduction video showing Encounty in action (an
+            earlier version). The video is in German, YouTube offers auto-translated subtitles.
+          </p>
+          <div class="t-panel mt-8 overflow-hidden p-2">
+            <div id="review-embed" class="relative aspect-video w-full">
+              <button
+                type="button"
+                id="review-play"
+                class="group relative block h-full w-full cursor-pointer"
+                data-i18n-attr="aria-label:review.playAria"
+                aria-label="Play the LEOsMIND review video (loads content from YouTube)"
+              >
+                <img
+                  src="https://i.ytimg.com/vi/T8l35SMnrlg/maxresdefault.jpg"
+                  onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/T8l35SMnrlg/hqdefault.jpg'"
+                  alt=""
+                  width="1280"
+                  height="720"
+                  class="h-full w-full object-cover"
+                  loading="lazy"
+                />
+                <span aria-hidden="true" class="absolute inset-0 flex items-center justify-center">
+                  <span
+                    class="flex h-16 w-24 items-center justify-center bg-bg-primary/80 transition-colors group-hover:bg-accent-blue/80"
+                  >
+                    <svg
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="currentColor"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </span>
+                </span>
+              </button>
+            </div>
+          </div>
+          <p class="mt-4 text-center text-sm text-text-muted">
+            <a
+              href="https://www.youtube.com/watch?v=T8l35SMnrlg"
+              class="underline hover:text-text-primary"
+              data-i18n="review.watchOnYoutube"
+              >Watch on YouTube</a
+            >
+          </p>
+        </div>
+      </section>
+
+      <div class="glow-line" role="presentation"></div>
+
       <!-- Features -->
       <section aria-labelledby="features-heading" id="features" class="px-4 py-20">
         <div class="mx-auto max-w-6xl">
@@ -299,64 +407,223 @@
           >
             Features
           </h2>
-          <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue" data-i18n="features.gpu.title">
+          <div class="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.gpu.title">
                 GPU-accelerated auto-detection
               </h3>
               <p class="mt-2 text-sm text-text-secondary" data-i18n="features.gpu.desc">
-                Capture your game window directly in-app. WebGPU compute shaders run template
-                matching in real time and count encounters for you, with a CPU fallback.
+                Capture your game window directly in-app. WebGPU compute shaders run template matching in real time, easy on your CPU, with a CPU fallback.
               </p>
             </article>
-            <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue" data-i18n="features.games.title">
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.hysteresis.title">
+                No double counting
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.hysteresis.desc">
+                Hysteresis logic makes sure each encounter is counted exactly once, no matter how long it stays on screen.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.template.title">
+                Easy template creation
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.template.desc">
+                A guided step-by-step flow: snapshot, mark the encounter text, test the match, done. See the demo video above.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.replay.title">
+                Replay-based screenshots
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.replay.desc">
+                Pick the perfect template frame from a replay recording, no more hoping to hit the right screenshot moment.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.stability.title">
+                Automatic stability analysis
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.stability.desc">
+                Encounty analyses every template automatically and tells you how reliably it will match before you start hunting.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.games.title">
                 All games, Gen 1-9
               </h3>
               <p class="mt-2 text-sm text-text-secondary" data-i18n="features.games.desc">
-                Every mainline Pokémon game with game-specific shiny odds, including the Shiny
-                Charm and accurate per-method probabilities.
+                Every mainline Pokémon game with game-specific shiny odds, including the Shiny Charm and accurate per-method probabilities.
               </p>
             </article>
-            <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue" data-i18n="features.methods.title">
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.methods.title">
                 60+ hunt methods
               </h3>
               <p class="mt-2 text-sm text-text-secondary" data-i18n="features.methods.desc">
-                Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts and many
-                more, each with its own odds model.
+                Masuda, Poké Radar, SOS chaining, DexNav, Mass Outbreaks, Sandwich hunts and many more, each with its own odds model.
               </p>
             </article>
-            <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue" data-i18n="features.parallel.title">
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.parallel.title">
                 Unlimited parallel hunts
               </h3>
               <p class="mt-2 text-sm text-text-secondary" data-i18n="features.parallel.desc">
-                Run as many simultaneous hunts as your hardware allows, each with its own
-                independent capture stream.
+                Run as many simultaneous hunts as your hardware allows, each with its own independent capture stream.
               </p>
             </article>
-            <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue" data-i18n="features.overlay.title">
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.overlay.title">
                 OBS overlay editor
               </h3>
               <p class="mt-2 text-sm text-text-secondary" data-i18n="features.overlay.desc">
-                Show your counters on stream: drag-and-drop overlay editor with live preview and a
-                browser-source URL for OBS.
+                Show your counters on stream: drag-and-drop overlay editor with live preview and a browser-source URL for OBS.
               </p>
             </article>
-            <article class="t-panel p-6">
-              <h3 class="font-semibold text-accent-blue" data-i18n="features.more.title">
-                Hotkeys, templates & more
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.hotkeys.title">
+                Global hotkeys
               </h3>
-              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.more.desc">
-                Global hotkeys for manual counting, template import/export, a Pokédex with sprite
-                support, and a UI in 5 languages.
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.hotkeys.desc">
+                Count, pause or correct manually from anywhere with system-wide hotkeys.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.export.title">
+                Template import &amp; export
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.export.desc">
+                Share your detection templates or move them between machines with one click.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.dex.title">
+                Pokédex with sprites
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.dex.desc">
+                Built-in Pokédex search with multiple sprite styles for your hunts and overlays.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.arch.title">
+                Modern architecture
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.arch.desc">
+                Go backend, React frontend and an Electron shell: fast, robust and actively developed.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.platforms.title">
+                Cross-platform &amp; multi-arch
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.platforms.desc">
+                Linux, Windows 11 and macOS, on x64 and ARM64. Coming soon to your Toaster™.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.oss.title">
+                Open source
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.oss.desc">
+                Free under AGPL-3.0. The full source code is on GitHub.
+              </p>
+            </article>
+            <article class="t-panel p-5">
+              <h3 class="text-sm font-semibold text-accent-blue" data-i18n="features.langs.title">
+                UI in 5 languages
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="features.langs.desc">
+                English, German, Spanish, French and Japanese.
               </p>
             </article>
           </div>
         </div>
       </section>
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- Why Encounty: comparison with plain counter apps -->
+      <section aria-labelledby="compare-heading" id="compare" class="px-4 py-20">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="compare-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="compare.heading"
+          >
+            Why Encounty?
+          </h2>
+          <p
+            class="mx-auto mt-4 max-w-xl text-center text-text-secondary"
+            data-i18n="compare.text"
+          >
+            A classic tally counter app only stores a number. Encounty watches your game and
+            counts for you. Here is what that difference looks like.
+          </p>
+          <div class="t-panel mt-8">
+            <div class="overflow-x-auto">
+            <table class="feature-table compare-table">
+              <caption class="sr-only" data-i18n="compare.tableCaption">
+                Feature comparison between Encounty and typical counter apps
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col" data-i18n="features.colFeature">Feature</th>
+                  <th scope="col" class="compare-col">Encounty</th>
+                  <th scope="col" class="compare-col" data-i18n="compare.colOthers">Typical counter apps</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row" data-i18n="features.gpu.title">GPU-accelerated auto-detection</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><span class="compare-partial" data-i18n="compare.partial">Partly</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="features.replay.title">Replay-based screenshots</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--no" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg><span class="sr-only" data-i18n="compare.no">No</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="features.stability.title">Automatic stability analysis</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--no" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg><span class="sr-only" data-i18n="compare.no">No</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="compare.rowOdds">Accurate odds for every game &amp; method</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><span class="compare-partial" data-i18n="compare.partial">Partly</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="compare.rowOffline">Works offline, no account required</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--no" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg><span class="sr-only" data-i18n="compare.no">No</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="features.parallel.title">Unlimited parallel hunts</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><span class="compare-partial" data-i18n="compare.partial">Partly</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="features.platforms.title">Cross-platform &amp; multi-arch</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><span class="compare-partial" data-i18n="compare.partial">Partly</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="compare.rowFree">Free, no ads, no paywall</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--no" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg><span class="sr-only" data-i18n="compare.no">No</span></td>
+                </tr>
+                <tr>
+                  <th scope="row" data-i18n="features.oss.title">Open source</th>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--yes" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M4 12l5 5L20 6" /></svg><span class="sr-only" data-i18n="compare.yes">Yes</span></td>
+                  <td class="compare-col"><svg class="compare-icon compare-icon--no" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg><span class="sr-only" data-i18n="compare.no">No</span></td>
+                </tr>
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
 
       <div class="glow-line" role="presentation"></div>
 
@@ -397,6 +664,53 @@
           </ol>
         </div>
       </section>
+
+      <div class="glow-line" role="presentation"></div>
+
+      <!-- Get Encounty -->
+      <section aria-labelledby="get-heading" id="get" class="px-4 py-20">
+        <div class="mx-auto max-w-4xl">
+          <h2
+            id="get-heading"
+            class="t-heading text-center text-2xl text-text-primary"
+            data-i18n="get.heading"
+          >
+            Get Encounty
+          </h2>
+          <div class="mt-12 grid gap-6 sm:grid-cols-2">
+            <article class="t-panel p-6">
+              <h3 class="font-semibold text-accent-blue" data-i18n="get.download.title">
+                Download &amp; Update
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="get.download.desc">
+                Direct downloads for Linux, Windows and macOS, with simple step-by-step install
+                and update instructions for your system.
+              </p>
+              <a
+                href="/Encounty/update.html"
+                class="dl-btn mt-4 inline-block px-5 py-2 text-sm"
+                data-i18n="get.download.cta"
+                >Go to downloads</a
+              >
+            </article>
+            <article class="t-panel p-6">
+              <h3 class="font-semibold text-accent-blue" data-i18n="get.changelog.title">
+                Changelog
+              </h3>
+              <p class="mt-2 text-sm text-text-secondary" data-i18n="get.changelog.desc">
+                See what is new: every release with its full release notes, fetched live from
+                GitHub.
+              </p>
+              <a
+                href="/Encounty/changelog.html"
+                class="dl-btn mt-4 inline-block px-5 py-2 text-sm"
+                data-i18n="get.changelog.cta"
+                >View the changelog</a
+              >
+            </article>
+          </div>
+        </div>
+      </section>
     </main>
 
     <footer class="mt-4">
@@ -432,11 +746,13 @@
     </footer>
     <script type="module">
       import { detectOS } from "/src/os-detect.js";
-      import { applyI18n, initLangSwitcher } from "/src/i18n.js";
+      import { initMobileNav } from "/src/nav.js";
+      import { applyI18n, initLangSwitcher, t } from "/src/i18n.js";
 
       // Localize the static markup and wire the header language switcher.
       applyI18n();
       initLangSwitcher();
+      initMobileNav();
 
       const demo = document.getElementById("demo-video");
       // WCAG 2.2.2: auto-playing motion needs a pause mechanism and must
@@ -460,62 +776,26 @@
       document.getElementById("copyright-year").textContent =
         "© " + (year === 2026 ? "2026" : "2026–" + year);
 
-      // Promote the download button matching the visitor's OS to primary
-      // and move it to the middle slot. Defaults to the static markup
-      // order (Linux primary, already first) if detection is inconclusive,
-      // so there's never a no-primary-button state.
+      // Deep-link the download CTA to the visitor's OS tab on the update page.
       const detectedOS = detectOS();
       if (detectedOS) {
-        const container = document.getElementById("download-buttons");
-        const buttons = Array.from(container.querySelectorAll(".dl-btn"));
-        buttons.forEach((btn) => {
-          btn.classList.toggle("dl-btn--primary", btn.dataset.os === detectedOS);
-        });
-        // Base order is [linux, macos, windows], detected macOS is already
-        // in the middle; otherwise pull the detected one out and reinsert
-        // it between the remaining two, keeping their relative order.
-        if (detectedOS !== "macos") {
-          const primaryBtn = buttons.find((btn) => btn.dataset.os === detectedOS);
-          const others = buttons.filter((btn) => btn !== primaryBtn);
-          container.replaceChildren(others[0], primaryBtn, others[1]);
-        }
+        const cta = document.getElementById("cta-download");
+        cta.href = cta.getAttribute("href") + "#" + detectedOS;
       }
 
-      // Split download buttons: wire each toggle to its dropdown menu.
-      const wireSplitMenu = (toggleId, menuId) => {
-        const toggle = document.getElementById(toggleId);
-        const menu = document.getElementById(menuId);
-        if (!toggle || !menu) return;
-        // Lift the whole wrapper (not just the menu) above the sibling
-        // download buttons while open. z-index only on the absolute menu is
-        // not reliably honored against a later-sibling wrapper in Firefox.
-        const wrapper = toggle.closest(".dl-split");
-        const close = () => {
-          menu.hidden = true;
-          toggle.setAttribute("aria-expanded", "false");
-          wrapper.style.zIndex = "";
-        };
-        toggle.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const isOpen = toggle.getAttribute("aria-expanded") === "true";
-          menu.hidden = isOpen;
-          toggle.setAttribute("aria-expanded", String(!isOpen));
-          wrapper.style.zIndex = isOpen ? "" : "20";
-        });
-        document.addEventListener("click", (e) => {
-          if (!menu.hidden && !menu.contains(e.target) && e.target !== toggle) {
-            close();
-          }
-        });
-        document.addEventListener("keydown", (e) => {
-          if (e.key === "Escape" && !menu.hidden) {
-            close();
-            toggle.focus();
-          }
-        });
-      };
-      wireSplitMenu("win-more", "win-portable-menu");
-      wireSplitMenu("linux-more", "linux-arch-menu");
+      // Click-to-load facade: no request leaves for YouTube until the visitor
+      // explicitly starts the video (privacy-enhanced nocookie embed).
+      document.getElementById("review-play").addEventListener("click", () => {
+        const wrap = document.getElementById("review-embed");
+        const iframe = document.createElement("iframe");
+        iframe.src = "https://www.youtube-nocookie.com/embed/T8l35SMnrlg?autoplay=1";
+        iframe.title = t("review.iframeTitle");
+        iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+        iframe.allowFullscreen = true;
+        iframe.className = "absolute inset-0 h-full w-full border-0";
+        wrap.replaceChildren(iframe);
+        iframe.focus();
+      });
     </script>
   </body>
 </html>

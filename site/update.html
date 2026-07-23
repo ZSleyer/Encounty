@@ -49,12 +49,22 @@
             >How it works</a
           >
           <a
+            href="/Encounty/update.html"
+            class="hidden text-text-secondary hover:text-text-primary sm:block"
+            aria-current="page"
+            data-i18n="nav.download"
+            >Download &amp; Update</a
+          >
+          <a
             href="/Encounty/changelog.html"
             class="hidden text-text-secondary hover:text-text-primary sm:block"
             data-i18n="nav.changelog"
             >Changelog</a
           >
-          <a href="https://github.com/ZSleyer/Encounty" class="t-label" data-i18n="nav.github"
+          <a
+            href="https://github.com/ZSleyer/Encounty"
+            class="t-label hidden sm:inline-flex"
+            data-i18n="nav.github"
             >GitHub</a
           >
           <select
@@ -68,8 +78,97 @@
             <option value="fr">Français</option>
             <option value="ja">日本語</option>
           </select>
+          <span
+            id="mt-badge"
+            class="mt-badge"
+            hidden
+            data-i18n-attr="title:lang.autoTranslatedHint"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M12 8V4H8" />
+              <rect width="16" height="12" x="4" y="8" />
+              <path d="M2 14h2" />
+              <path d="M20 14h2" />
+              <path d="M15 13v2" />
+              <path d="M9 13v2" />
+            </svg>
+            <span class="mt-badge__label" data-i18n="lang.autoTranslated">Auto-translated</span>
+          </span>
+          <button
+            type="button"
+            id="nav-toggle"
+            class="nav-toggle sm:hidden"
+            aria-expanded="false"
+            aria-controls="mobile-nav"
+            aria-label="Open menu"
+            data-i18n-attr="aria-label:nav.menuAria"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="square"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
         </div>
       </nav>
+      <div id="mobile-nav" class="border-t border-border-subtle sm:hidden" hidden>
+        <a
+          href="/Encounty/#demo"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.demo"
+          >Demo</a
+        >
+        <a
+          href="/Encounty/#features"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.features"
+          >Features</a
+        >
+        <a
+          href="/Encounty/#how-it-works"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.howItWorks"
+          >How it works</a
+        >
+        <a
+          href="/Encounty/update.html"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          aria-current="page"
+          data-i18n="nav.download"
+          >Download &amp; Update</a
+        >
+        <a
+          href="/Encounty/changelog.html"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.changelog"
+          >Changelog</a
+        >
+        <a
+          href="https://github.com/ZSleyer/Encounty"
+          class="block px-4 py-3 text-text-secondary hover:text-text-primary"
+          data-i18n="nav.github"
+          >GitHub</a
+        >
+      </div>
     </header>
 
     <main id="main">
@@ -649,11 +748,13 @@
 
     <script type="module">
       import { detectOS } from "/src/os-detect.js";
+      import { initMobileNav } from "/src/nav.js";
       import { applyI18n, initLangSwitcher, t } from "/src/i18n.js";
 
       // Localize the static markup and wire the header language switcher.
       applyI18n();
       initLangSwitcher();
+      initMobileNav();
 
       // Same copyright range logic as the Encounty app footer.
       const year = new Date().getFullYear();

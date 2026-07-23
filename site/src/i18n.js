@@ -110,6 +110,11 @@ export function applyI18n(root = document) {
 
   const select = document.getElementById("lang-select");
   if (select && select.value !== currentLang) select.value = currentLang;
+
+  // Mirror the app's auto-translated marker: every language except German
+  // (the source language) is machine-translated and gets the robot badge.
+  const badge = document.getElementById("mt-badge");
+  if (badge) badge.hidden = currentLang === "de";
 }
 
 /**
