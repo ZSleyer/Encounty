@@ -137,6 +137,20 @@ function renderPanel(overrides: Partial<Parameters<typeof DetectorPanel>[0]> = {
   );
 }
 
+/**
+ * Parsed JSON bodies of every PATCH sent to the first template, oldest first.
+ * Assertions must pick the relevant body by a distinctive key instead of
+ * taking the first call: patchWithRetry retries after 500ms, so a test that
+ * exercises its failure path can leak a late stray PATCH (e.g. an
+ * `{enabled:true}` toggle) into the next test's mock on slow CI runners.
+ */
+function templatePatchBodies(): Array<Record<string, unknown>> {
+  return vi.mocked(globalThis.fetch).mock.calls
+    .filter(call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
+      (call[0] as string).includes("/template/0"))
+    .map(call => JSON.parse((call[1] as RequestInit).body as string) as Record<string, unknown>);
+}
+
 describe("DetectorPanel", () => {
   beforeEach(() => {
     // Set up appState with settings so tutorial completion works
@@ -2118,12 +2132,7 @@ describe("DetectorPanel", () => {
     await user.click(screen.getByText(/Speichern|Save/i));
 
     await waitFor(() => {
-      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-          (call[0] as string).includes("/template/0")
-      );
-      expect(patchCalls.length).toBeGreaterThan(0);
-      const body = JSON.parse(patchCalls[0][1]!.body as string);
+      const body = templatePatchBodies().find(b => "precision" in b);
       expect(body).toMatchObject({ precision: 0.55, consecutive_hits: 1, cooldown_sec: 5 });
     });
   });
@@ -2595,12 +2604,7 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-          (call[0] as string).includes("/template/0")
-      );
-      expect(patchCalls.length).toBeGreaterThan(0);
-      const body = JSON.parse(patchCalls[0][1]!.body as string);
+      const body = templatePatchBodies().find(b => "precision" in b);
       expect(body).toMatchObject({ precision: 0.8 });
     });
   });
@@ -2641,12 +2645,7 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-          (call[0] as string).includes("/template/0")
-      );
-      expect(patchCalls.length).toBeGreaterThan(0);
-      const body = JSON.parse(patchCalls[0][1]!.body as string);
+      const body = templatePatchBodies().find(b => "cooldown_sec" in b);
       expect(body).toMatchObject({ cooldown_sec: 15 });
     });
   });
@@ -4411,14 +4410,9 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-          (call[0] as string).includes("/template/0"),
-      );
-      expect(patchCalls.length).toBeGreaterThan(0);
-      const body = JSON.parse(patchCalls[0][1]?.body as string);
+      const body = templatePatchBodies().find(b => "hysteresis_mode" in b);
       // The draft is seeded from the template, so the mode must survive a save
-      expect(body.hysteresis_mode).toBe("region");
+      expect(body?.hysteresis_mode).toBe("region");
     });
   });
 
@@ -4451,13 +4445,8 @@ describe("DetectorPanel", () => {
     await user.click(saveBtn);
 
     await waitFor(() => {
-      const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-        call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-          (call[0] as string).includes("/template/0"),
-      );
-      expect(patchCalls.length).toBeGreaterThan(0);
-      const body = JSON.parse(patchCalls[0][1]?.body as string);
-      expect(body.hysteresis_mode).toBe("score");
+      const body = templatePatchBodies().find(b => "hysteresis_mode" in b);
+      expect(body?.hysteresis_mode).toBe("score");
     });
   });
 
@@ -4501,15 +4490,11 @@ describe("DetectorPanel", () => {
       expect(screen.queryByTestId("template-editor-mock")).not.toBeInTheDocument();
     });
 
-    const patchCalls = vi.mocked(globalThis.fetch).mock.calls.filter(
-      call => typeof call[1] === "object" && call[1]?.method === "PATCH" &&
-        (call[0] as string).includes("/template/0"),
-    );
-    expect(patchCalls.length).toBeGreaterThan(0);
-    const body = JSON.parse(patchCalls[0][1]?.body as string);
+    const body = templatePatchBodies().find(b => "regions" in b);
+    expect(body).toBeDefined();
     // A region edit must never touch the mode; the backend treats an omitted
     // field as "keep", while null would clear it back to score mode.
-    expect("hysteresis_mode" in body).toBe(false);
+    expect("hysteresis_mode" in body!).toBe(false);
 
     // Restore
     vi.mocked(globalThis.fetch).mockImplementation(() =>
