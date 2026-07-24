@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-07-23T23:06:28Z",
-  "version": "v0.19.1",
-  "commit": null,
+  "generatedAt": "2026-07-24T09:02:06.935Z",
+  "version": "dev",
+  "commit": "ca112d7e516891f97d1239dd6026a903a268a906",
   "scenarios": [
     {
       "templateId": 23,
@@ -14,34 +14,34 @@
       "loopTestable": true,
       "expectedEncounters": 3,
       "quality": {
-        "matchMin": 0.998,
-        "negMax": 0.182,
-        "gap": 0.816
+        "matchMin": 0.9977529134133658,
+        "negMax": 0.18169560003147026,
+        "gap": 0.8160573133818956
       },
       "scan": {
         "simulated": 3,
-        "polled": 124,
+        "polled": 117,
         "precision": 0.95,
         "minPollMs": 60,
-        "maxPollMs": 650,
-        "matchFrames": 40,
-        "sampledFrames": 899,
-        "maxScore": 0.998,
+        "maxPollMs": 700,
+        "matchFrames": 41,
+        "sampledFrames": 898,
+        "maxScore": 0.9987370625006728,
         "spans": [
           {
-            "startFrame": 195,
-            "endFrame": 280,
-            "peakScore": 0.998
+            "startFrame": 210,
+            "endFrame": 298,
+            "peakScore": 0.998442305114321
           },
           {
-            "startFrame": 2411,
-            "endFrame": 2496,
-            "peakScore": 0.998
+            "startFrame": 2399,
+            "endFrame": 2498,
+            "peakScore": 0.9977863842733827
           },
           {
-            "startFrame": 4434,
-            "endFrame": 4519,
-            "peakScore": 0.998
+            "startFrame": 4435,
+            "endFrame": 4527,
+            "peakScore": 0.9977453264343372
           }
         ],
         "pass": true
@@ -58,29 +58,29 @@
       "loopTestable": true,
       "expectedEncounters": 2,
       "quality": {
-        "matchMin": 0.852,
-        "negMax": 0.28,
-        "gap": 0.571
+        "matchMin": 0.8516922298249799,
+        "negMax": 0.2804146468752218,
+        "gap": 0.5712775829497582
       },
       "scan": {
         "simulated": 2,
         "polled": 188,
-        "precision": 0.824,
+        "precision": 0.7293856516269852,
         "minPollMs": 60,
         "maxPollMs": 200,
         "matchFrames": 16,
         "sampledFrames": 466,
-        "maxScore": 0.854,
+        "maxScore": 0.8541699021832997,
         "spans": [
           {
             "startFrame": 648,
-            "endFrame": 679,
-            "peakScore": 0.854
+            "endFrame": 676,
+            "peakScore": 0.8541699021832997
           },
           {
-            "startFrame": 2371,
+            "startFrame": 2367,
             "endFrame": 2438,
-            "peakScore": 0.852
+            "peakScore": 0.8517803790706235
           }
         ],
         "pass": true
@@ -97,24 +97,24 @@
       "loopTestable": true,
       "expectedEncounters": 1,
       "quality": {
-        "matchMin": 0.862,
-        "negMax": 0.199,
-        "gap": 0.664
+        "matchMin": 0.8623324202800042,
+        "negMax": 0.1987124886394039,
+        "gap": 0.6636199316406003
       },
       "scan": {
         "simulated": 1,
-        "polled": 29,
-        "precision": 0.832,
+        "polled": 28,
+        "precision": 0.8321431130393908,
         "minPollMs": 60,
-        "maxPollMs": 900,
+        "maxPollMs": 950,
         "matchFrames": 19,
         "sampledFrames": 287,
-        "maxScore": 0.863,
+        "maxScore": 0.8623324202800042,
         "spans": [
           {
-            "startFrame": 486,
-            "endFrame": 598,
-            "peakScore": 0.862
+            "startFrame": 467,
+            "endFrame": 584,
+            "peakScore": 0.8623324202800042
           }
         ],
         "pass": true
@@ -131,34 +131,34 @@
       "loopTestable": true,
       "expectedEncounters": 3,
       "quality": {
-        "matchMin": 0.909,
-        "negMax": 0.319,
-        "gap": 0.591
+        "matchMin": 0.9093206792743764,
+        "negMax": 0.3185193037069938,
+        "gap": 0.5908013755673827
       },
       "scan": {
         "simulated": 3,
-        "polled": 103,
-        "precision": 0.824,
+        "polled": 98,
+        "precision": 0.8647094131313527,
         "minPollMs": 60,
-        "maxPollMs": 800,
+        "maxPollMs": 850,
         "matchFrames": 48,
-        "sampledFrames": 899,
-        "maxScore": 0.912,
+        "sampledFrames": 898,
+        "maxScore": 0.9127107212988858,
         "spans": [
           {
-            "startFrame": 192,
-            "endFrame": 292,
-            "peakScore": 0.911
+            "startFrame": 204,
+            "endFrame": 310,
+            "peakScore": 0.9102473819090869
           },
           {
-            "startFrame": 1998,
-            "endFrame": 2094,
-            "peakScore": 0.912
+            "startFrame": 1985,
+            "endFrame": 2090,
+            "peakScore": 0.9115926258547137
           },
           {
-            "startFrame": 3688,
-            "endFrame": 3791,
-            "peakScore": 0.912
+            "startFrame": 3683,
+            "endFrame": 3792,
+            "peakScore": 0.9123311867965744
           }
         ],
         "pass": true
@@ -175,29 +175,29 @@
       "loopTestable": true,
       "expectedEncounters": 2,
       "quality": {
-        "matchMin": 0.992,
-        "negMax": 0.077,
-        "gap": 0.915
+        "matchMin": 0.9922281259972201,
+        "negMax": 0.07735590870814768,
+        "gap": 0.9148722172890724
       },
       "scan": {
         "simulated": 2,
-        "polled": 94,
-        "precision": 0.807,
+        "polled": 95,
+        "precision": 0.7732609950317149,
         "minPollMs": 60,
         "maxPollMs": 350,
-        "matchFrames": 138,
+        "matchFrames": 136,
         "sampledFrames": 415,
-        "maxScore": 0.996,
+        "maxScore": 0.9964737544828999,
         "spans": [
           {
             "startFrame": 126,
-            "endFrame": 256,
-            "peakScore": 0.993
+            "endFrame": 239,
+            "peakScore": 0.9929137281424651
           },
           {
-            "startFrame": 1521,
-            "endFrame": 2091,
-            "peakScore": 0.993
+            "startFrame": 1504,
+            "endFrame": 2095,
+            "peakScore": 0.9927010550256792
           }
         ],
         "pass": true
@@ -214,29 +214,29 @@
       "loopTestable": false,
       "expectedEncounters": 2,
       "quality": {
-        "matchMin": 0.987,
-        "negMax": 0.282,
-        "gap": 0.705
+        "matchMin": 0.9868270699515935,
+        "negMax": 0.28209244721307075,
+        "gap": 0.7047346227385227
       },
       "scan": {
         "simulated": 2,
-        "polled": 112,
-        "precision": 0.84,
+        "polled": 326,
+        "precision": 0.95,
         "minPollMs": 60,
-        "maxPollMs": 300,
-        "matchFrames": 48,
+        "maxPollMs": 100,
+        "matchFrames": 47,
         "sampledFrames": 415,
-        "maxScore": 0.988,
+        "maxScore": 0.9879201001824113,
         "spans": [
           {
-            "startFrame": 374,
-            "endFrame": 377,
-            "peakScore": 0.987
+            "startFrame": 358,
+            "endFrame": 375,
+            "peakScore": 0.986826987327359
           },
           {
-            "startFrame": 2211,
-            "endFrame": 2233,
-            "peakScore": 0.987
+            "startFrame": 2207,
+            "endFrame": 2224,
+            "peakScore": 0.9868727819328085
           }
         ],
         "pass": true
@@ -253,29 +253,29 @@
       "loopTestable": true,
       "expectedEncounters": 2,
       "quality": {
-        "matchMin": 0.999,
-        "negMax": 0.019,
-        "gap": 0.98
+        "matchMin": 0.9994905063341754,
+        "negMax": 0.01935659398410829,
+        "gap": 0.9801339123500671
       },
       "scan": {
         "simulated": 2,
         "polled": 32,
-        "precision": 0.876,
+        "precision": 0.8750346478804569,
         "minPollMs": 60,
         "maxPollMs": 1300,
         "matchFrames": 51,
         "sampledFrames": 415,
-        "maxScore": 1.0,
+        "maxScore": 0.9995927778142233,
         "spans": [
           {
-            "startFrame": 648,
-            "endFrame": 808,
-            "peakScore": 1.0
+            "startFrame": 634,
+            "endFrame": 794,
+            "peakScore": 0.9995924880054295
           },
           {
-            "startFrame": 2348,
-            "endFrame": 2429,
-            "peakScore": 0.999
+            "startFrame": 2334,
+            "endFrame": 2415,
+            "peakScore": 0.9994905001159898
           }
         ],
         "pass": true
@@ -292,34 +292,34 @@
       "loopTestable": true,
       "expectedEncounters": 3,
       "quality": {
-        "matchMin": 0.999,
-        "negMax": 0.164,
-        "gap": 0.835
+        "matchMin": 0.9987837252402831,
+        "negMax": 0.16419671602508976,
+        "gap": 0.8345870092151934
       },
       "scan": {
         "simulated": 3,
-        "polled": 119,
-        "precision": 0.621,
+        "polled": 132,
+        "precision": 0.6835329758126648,
         "minPollMs": 60,
-        "maxPollMs": 700,
-        "matchFrames": 37,
-        "sampledFrames": 899,
-        "maxScore": 0.999,
+        "maxPollMs": 650,
+        "matchFrames": 35,
+        "sampledFrames": 898,
+        "maxScore": 0.9993012361716687,
         "spans": [
           {
-            "startFrame": 1218,
-            "endFrame": 1263,
-            "peakScore": 0.999
+            "startFrame": 1209,
+            "endFrame": 1280,
+            "peakScore": 0.9991450160129247
           },
           {
-            "startFrame": 3285,
-            "endFrame": 3331,
-            "peakScore": 0.999
+            "startFrame": 3296,
+            "endFrame": 3314,
+            "peakScore": 0.7803376549531036
           },
           {
-            "startFrame": 5310,
-            "endFrame": 5356,
-            "peakScore": 0.999
+            "startFrame": 5291,
+            "endFrame": 5380,
+            "peakScore": 0.9987959924958786
           }
         ],
         "pass": true
@@ -336,34 +336,34 @@
       "loopTestable": true,
       "expectedEncounters": 3,
       "quality": {
-        "matchMin": 0.998,
-        "negMax": 0.331,
-        "gap": 0.666
+        "matchMin": 0.9975540984888844,
+        "negMax": 0.3314447979930978,
+        "gap": 0.6661093004957866
       },
       "scan": {
         "simulated": 3,
-        "polled": 49,
-        "precision": 0.68,
+        "polled": 48,
+        "precision": 0.6793545366083109,
         "minPollMs": 60,
         "maxPollMs": 2000,
         "matchFrames": 171,
-        "sampledFrames": 899,
-        "maxScore": 0.998,
+        "sampledFrames": 898,
+        "maxScore": 0.9980383240150896,
         "spans": [
           {
-            "startFrame": 1280,
-            "endFrame": 1651,
-            "peakScore": 0.997
+            "startFrame": 1293,
+            "endFrame": 1670,
+            "peakScore": 0.9970398531466409
           },
           {
-            "startFrame": 2930,
-            "endFrame": 3293,
-            "peakScore": 0.998
+            "startFrame": 2926,
+            "endFrame": 3286,
+            "peakScore": 0.9931382000477246
           },
           {
-            "startFrame": 4538,
-            "endFrame": 4909,
-            "peakScore": 0.997
+            "startFrame": 4530,
+            "endFrame": 4901,
+            "peakScore": 0.9968111696472398
           }
         ],
         "pass": true
@@ -380,29 +380,29 @@
       "loopTestable": true,
       "expectedEncounters": 2,
       "quality": {
-        "matchMin": 0.945,
-        "negMax": 0.168,
-        "gap": 0.777
+        "matchMin": 0.9453790666553556,
+        "negMax": 0.1683463379796348,
+        "gap": 0.7770327286757208
       },
       "scan": {
         "simulated": 2,
         "polled": 28,
-        "precision": 0.915,
+        "precision": 0.9151470441248044,
         "minPollMs": 60,
-        "maxPollMs": 1900,
-        "matchFrames": 85,
+        "maxPollMs": 1850,
+        "matchFrames": 86,
         "sampledFrames": 466,
-        "maxScore": 0.953,
+        "maxScore": 0.9546115946976108,
         "spans": [
           {
-            "startFrame": 684,
-            "endFrame": 923,
-            "peakScore": 0.945
+            "startFrame": 666,
+            "endFrame": 895,
+            "peakScore": 0.9526884679041926
           },
           {
-            "startFrame": 2474,
-            "endFrame": 2709,
-            "peakScore": 0.95
+            "startFrame": 2416,
+            "endFrame": 2697,
+            "peakScore": 0.9498413944017488
           }
         ],
         "pass": true
@@ -419,24 +419,24 @@
       "loopTestable": true,
       "expectedEncounters": 1,
       "quality": {
-        "matchMin": 0.953,
-        "negMax": 0.556,
-        "gap": 0.398
+        "matchMin": 0.9532196941182389,
+        "negMax": 0.5556067662062336,
+        "gap": 0.3976129279120053
       },
       "scan": {
         "simulated": 1,
         "polled": 17,
-        "precision": 0.923,
+        "precision": 0.9232196941182389,
         "minPollMs": 60,
         "maxPollMs": 2000,
-        "matchFrames": 115,
+        "matchFrames": 117,
         "sampledFrames": 287,
-        "maxScore": 0.959,
+        "maxScore": 0.9594484825577724,
         "spans": [
           {
             "startFrame": 480,
-            "endFrame": 895,
-            "peakScore": 0.958
+            "endFrame": 903,
+            "peakScore": 0.9582719802996865
           }
         ],
         "pass": true
@@ -453,9 +453,9 @@
       "loopTestable": true,
       "expectedEncounters": 2,
       "quality": {
-        "matchMin": 0.998,
-        "negMax": 0.56,
-        "gap": 0.438
+        "matchMin": 0.9983073547641694,
+        "negMax": 0.5600535326600182,
+        "gap": 0.4382538221041512
       },
       "scan": {
         "simulated": 2,
@@ -463,19 +463,19 @@
         "precision": 0.95,
         "minPollMs": 60,
         "maxPollMs": 1150,
-        "matchFrames": 53,
+        "matchFrames": 55,
         "sampledFrames": 404,
-        "maxScore": 1.0,
+        "maxScore": 0.9995817954165499,
         "spans": [
           {
             "startFrame": 276,
             "endFrame": 352,
-            "peakScore": 0.999
+            "peakScore": 0.998601123699941
           },
           {
             "startFrame": 1342,
             "endFrame": 1487,
-            "peakScore": 0.998
+            "peakScore": 0.9983080757880178
           }
         ],
         "pass": true
@@ -492,24 +492,24 @@
       "loopTestable": true,
       "expectedEncounters": 1,
       "quality": {
-        "matchMin": 0.997,
-        "negMax": 0.175,
-        "gap": 0.822
+        "matchMin": 0.9972231936682895,
+        "negMax": 0.17497939861523518,
+        "gap": 0.8222437950530543
       },
       "scan": {
         "simulated": 1,
         "polled": 78,
-        "precision": 0.902,
+        "precision": 0.95,
         "minPollMs": 60,
         "maxPollMs": 300,
         "matchFrames": 6,
         "sampledFrames": 276,
-        "maxScore": 0.997,
+        "maxScore": 0.9983929132346114,
         "spans": [
           {
-            "startFrame": 485,
+            "startFrame": 484,
             "endFrame": 510,
-            "peakScore": 0.997
+            "peakScore": 0.9972231936682895
           }
         ],
         "pass": true
@@ -526,39 +526,39 @@
       "loopTestable": true,
       "expectedEncounters": 4,
       "quality": {
-        "matchMin": 0.849,
-        "negMax": 0.156,
-        "gap": 0.693
+        "matchMin": 0.848988315125687,
+        "negMax": 0.15584510592143752,
+        "gap": 0.6931432092042494
       },
       "scan": {
         "simulated": 4,
-        "polled": 300,
-        "precision": 0.823,
+        "polled": 262,
+        "precision": 0.7582480499036591,
         "minPollMs": 60,
-        "maxPollMs": 250,
-        "matchFrames": 108,
+        "maxPollMs": 300,
+        "matchFrames": 106,
         "sampledFrames": 894,
-        "maxScore": 0.863,
+        "maxScore": 0.8634650319116404,
         "spans": [
           {
             "startFrame": 270,
-            "endFrame": 297,
-            "peakScore": 0.854
+            "endFrame": 291,
+            "peakScore": 0.8541305834842529
           },
           {
-            "startFrame": 1469,
-            "endFrame": 1758,
-            "peakScore": 0.85
+            "startFrame": 1474,
+            "endFrame": 1755,
+            "peakScore": 0.8503539229088237
           },
           {
-            "startFrame": 2897,
-            "endFrame": 2931,
-            "peakScore": 0.852
+            "startFrame": 2901,
+            "endFrame": 2934,
+            "peakScore": 0.852446293389514
           },
           {
-            "startFrame": 4142,
-            "endFrame": 4413,
-            "peakScore": 0.863
+            "startFrame": 4141,
+            "endFrame": 4418,
+            "peakScore": 0.8634650319116404
           }
         ],
         "pass": true
@@ -575,24 +575,24 @@
       "loopTestable": true,
       "expectedEncounters": 1,
       "quality": {
-        "matchMin": 0.877,
-        "negMax": 0.468,
-        "gap": 0.41
+        "matchMin": 0.8774154261774778,
+        "negMax": 0.4678278891263408,
+        "gap": 0.409587537051137
       },
       "scan": {
         "simulated": 1,
-        "polled": 99,
-        "precision": 0.847,
+        "polled": 104,
+        "precision": 0.8466932292340209,
         "minPollMs": 60,
-        "maxPollMs": 950,
-        "matchFrames": 18,
+        "maxPollMs": 900,
+        "matchFrames": 19,
         "sampledFrames": 960,
-        "maxScore": 0.878,
+        "maxScore": 0.8788969173110767,
         "spans": [
           {
-            "startFrame": 1254,
-            "endFrame": 1372,
-            "peakScore": 0.877
+            "startFrame": 1242,
+            "endFrame": 1354,
+            "peakScore": 0.8774152814695901
           }
         ],
         "pass": true
@@ -609,24 +609,24 @@
       "loopTestable": true,
       "expectedEncounters": 1,
       "quality": {
-        "matchMin": 0.913,
-        "negMax": 0.168,
-        "gap": 0.746
+        "matchMin": 0.9133049832848282,
+        "negMax": 0.16766558317137192,
+        "gap": 0.7456394001134563
       },
       "scan": {
         "simulated": 1,
         "polled": 86,
-        "precision": 0.881,
+        "precision": 0.8811748412108252,
         "minPollMs": 60,
         "maxPollMs": 1100,
-        "matchFrames": 37,
+        "matchFrames": 36,
         "sampledFrames": 960,
-        "maxScore": 0.913,
+        "maxScore": 0.9133049152303184,
         "spans": [
           {
             "startFrame": 3552,
             "endFrame": 3688,
-            "peakScore": 0.913
+            "peakScore": 0.9131309816377717
           }
         ],
         "pass": true
@@ -643,24 +643,24 @@
       "loopTestable": true,
       "expectedEncounters": 1,
       "quality": {
-        "matchMin": 0.907,
-        "negMax": 0.104,
-        "gap": 0.802
+        "matchMin": 0.9066477559309017,
+        "negMax": 0.10437370623327755,
+        "gap": 0.8022740496976242
       },
       "scan": {
         "simulated": 1,
-        "polled": 106,
-        "precision": 0.876,
+        "polled": 112,
+        "precision": 0.8758610167804328,
         "minPollMs": 60,
-        "maxPollMs": 900,
-        "matchFrames": 17,
+        "maxPollMs": 850,
+        "matchFrames": 16,
         "sampledFrames": 960,
-        "maxScore": 0.907,
+        "maxScore": 0.9067518072013174,
         "spans": [
           {
             "startFrame": 5486,
-            "endFrame": 5598,
-            "peakScore": 0.906
+            "endFrame": 5592,
+            "peakScore": 0.9062027968012354
           }
         ],
         "pass": true
@@ -677,24 +677,24 @@
       "loopTestable": true,
       "expectedEncounters": 1,
       "quality": {
-        "matchMin": 0.921,
-        "negMax": 0.348,
-        "gap": 0.573
+        "matchMin": 0.920734541911443,
+        "negMax": 0.3476441235359041,
+        "gap": 0.5730904183755389
       },
       "scan": {
         "simulated": 1,
         "polled": 18,
-        "precision": 0.891,
+        "precision": 0.8905019033823564,
         "minPollMs": 60,
         "maxPollMs": 2000,
-        "matchFrames": 52,
+        "matchFrames": 53,
         "sampledFrames": 287,
-        "maxScore": 0.927,
+        "maxScore": 0.9280315884190022,
         "spans": [
           {
             "startFrame": 1296,
             "endFrame": 1667,
-            "peakScore": 0.927
+            "peakScore": 0.9271720287616168
           }
         ],
         "pass": true
@@ -711,24 +711,24 @@
       "loopTestable": true,
       "expectedEncounters": 1,
       "quality": {
-        "matchMin": 0.87,
-        "negMax": 0.14,
-        "gap": 0.73
+        "matchMin": 0.8703370749036006,
+        "negMax": 0.1400200976116128,
+        "gap": 0.7303169772919877
       },
       "scan": {
         "simulated": 1,
-        "polled": 30,
-        "precision": 0.84,
+        "polled": 29,
+        "precision": 0.8402118215035311,
         "minPollMs": 60,
-        "maxPollMs": 850,
-        "matchFrames": 17,
+        "maxPollMs": 900,
+        "matchFrames": 18,
         "sampledFrames": 287,
-        "maxScore": 0.871,
+        "maxScore": 0.8709330663348839,
         "spans": [
           {
-            "startFrame": 1317,
-            "endFrame": 1423,
-            "peakScore": 0.87
+            "startFrame": 1288,
+            "endFrame": 1400,
+            "peakScore": 0.8709330663348839
           }
         ],
         "pass": true
