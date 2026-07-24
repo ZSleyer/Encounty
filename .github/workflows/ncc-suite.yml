@@ -39,7 +39,7 @@ jobs:
 
       - name: Checkout
         if: steps.gate.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node
         if: steps.gate.outputs.enabled == 'true'
@@ -61,7 +61,7 @@ jobs:
       - name: Restore fixtures cache
         if: steps.gate.outputs.enabled == 'true'
         id: fixtures-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: frontend/src/engine/__tests__/fixtures
           key: ncc-fixtures-v2
