@@ -12,7 +12,7 @@
  * Run with: npx vitest run --config vitest.ncc.config.ts
  */
 import { afterAll, describe, it, expect } from "vitest";
-import { execSync } from "child_process";
+import { execSync, spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import {
@@ -107,14 +107,28 @@ function loadPng(filePath: string): { pixels: Uint8ClampedArray; width: number; 
   return { pixels: new Uint8ClampedArray(raw.buffer, raw.byteOffset, raw.byteLength), width: w, height: h };
 }
 
+/** Memoized ffprobe video dimensions: probing costs ~50ms per spawn. */
+const DIMS_CACHE = new Map<string, { width: number; height: number } | null>();
+
+function probeDims(videoPath: string): { width: number; height: number } | null {
+  let dims = DIMS_CACHE.get(videoPath);
+  if (dims === undefined) {
+    const info = execSync(
+      `ffprobe -v quiet -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "${videoPath}"`,
+      { encoding: "utf8" },
+    ).trim();
+    const [w, h] = info.split(",").map(Number);
+    dims = w && h ? { width: w, height: h } : null;
+    DIMS_CACHE.set(videoPath, dims);
+  }
+  return dims;
+}
+
 function extractFrame(videoPath: string, timeSec: number): { pixels: Uint8ClampedArray; width: number; height: number } | null {
   if (!fs.existsSync(videoPath)) return null;
-  const info = execSync(
-    `ffprobe -v quiet -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "${videoPath}"`,
-    { encoding: "utf8" },
-  ).trim();
-  const [w, h] = info.split(",").map(Number);
-  if (!w || !h) return null;
+  const dims = probeDims(videoPath);
+  if (!dims) return null;
+  const { width: w, height: h } = dims;
   const raw = execSync(
     `ffmpeg -y -ss ${timeSec} -i "${videoPath}" -frames:v 1 -f rawvideo -pix_fmt rgba - 2>/dev/null`,
     { maxBuffer: 50 * 1024 * 1024 },
@@ -123,12 +137,52 @@ function extractFrame(videoPath: string, timeSec: number): { pixels: Uint8Clampe
   return { pixels: new Uint8ClampedArray(raw.buffer, raw.byteOffset, raw.byteLength), width: w, height: h };
 }
 
-function getVideoDuration(videoPath: string): number {
-  const dur = execSync(
-    `ffprobe -v quiet -show_entries format=duration -of csv=p=0 "${videoPath}"`,
-    { encoding: "utf8" },
-  ).trim();
-  return parseFloat(dur) || 0;
+/**
+ * Streams a video (or segment) through a single ffmpeg process at the given
+ * sampling rate and invokes onFrame for every decoded RGBA frame. One process
+ * per scan replaces one seek-spawn per sample (~150ms each), which is what
+ * made the dense full-video scans time out in CI. onFrame runs synchronously
+ * per frame; pipe backpressure keeps memory bounded while it computes.
+ * Resolves with the number of frames delivered.
+ */
+function decodeFrames(
+  videoPath: string,
+  opts: { fps: number; startSec?: number; durationSec?: number },
+  onFrame: (pixels: Uint8ClampedArray, width: number, height: number, index: number) => void,
+): Promise<number> {
+  const dims = probeDims(videoPath);
+  if (!dims) return Promise.resolve(0);
+  const { width, height } = dims;
+  const frameBytes = width * height * 4;
+
+  const args: string[] = ["-y", "-v", "quiet"];
+  if (opts.startSec) args.push("-ss", String(opts.startSec));
+  if (opts.durationSec !== undefined) args.push("-t", String(opts.durationSec));
+  args.push("-i", videoPath, "-vf", `fps=${opts.fps}`, "-f", "rawvideo", "-pix_fmt", "rgba", "-");
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn("ffmpeg", args, { stdio: ["ignore", "pipe", "ignore"] });
+    // Chunk list with a lazy concat: concatenating on every 64KB pipe chunk
+    // would copy the whole pending frame each time.
+    let pending: Buffer[] = [];
+    let pendingBytes = 0;
+    let index = 0;
+    proc.stdout.on("data", (chunk: Buffer) => {
+      pending.push(chunk);
+      pendingBytes += chunk.length;
+      if (pendingBytes < frameBytes) return;
+      let buf = pending.length === 1 ? pending[0] : Buffer.concat(pending);
+      while (buf.length >= frameBytes) {
+        const frame = buf.subarray(0, frameBytes);
+        onFrame(new Uint8ClampedArray(frame.buffer, frame.byteOffset, frameBytes), width, height, index++);
+        buf = buf.subarray(frameBytes);
+      }
+      pending = buf.length > 0 ? [buf] : [];
+      pendingBytes = buf.length;
+    });
+    proc.on("error", reject);
+    proc.on("close", () => resolve(index));
+  });
 }
 
 // --- Grayscale helpers (matching CPUDetector logic) --------------------------
@@ -548,25 +602,28 @@ const SCAN_THRESHOLD = 0.55;
  * mid-range CPU) so the result is deterministic across test runners.
  * Returns null when the analysis yields no recommendation.
  */
-function calibratedSettings(
+async function calibratedSettings(
   videoPath: string,
   gt: GroundTruthEntry,
   tmplGray: Float32Array,
   tmplW: number,
   tmplH: number,
   regions: Array<{ x: number; y: number; w: number; h: number }>,
-): { precision: number; hysteresisFactor: number; minPollMs: number; maxPollMs: number } | null {
+): Promise<{ precision: number; hysteresisFactor: number; minPollMs: number; maxPollMs: number } | null> {
   const enc = gt.encounters[0];
   const start = Math.max(0, enc.start - 300);
   const end = (enc.maxEnd ?? enc.end) + 300;
   const samples: StabilitySample[] = [];
-  for (let f = start; f <= end; f += 5) {
-    const frame = extractFrame(videoPath, f / FPS);
-    if (!frame) continue;
-    const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
-    const score = scoreFrame(frameGray, frame.width, frame.height, tmplGray, tmplW, tmplH, regions);
-    samples.push({ frameIndex: f, overallScore: score });
-  }
+  // Every 5th frame at 60fps is a 12fps sampling grid.
+  await decodeFrames(
+    videoPath,
+    { fps: FPS / 5, startSec: start / FPS, durationSec: (end - start) / FPS },
+    (pixels, w, h, i) => {
+      const frameGray = toGrayscale(pixels, w, h);
+      const score = scoreFrame(frameGray, w, h, tmplGray, tmplW, tmplH, regions);
+      samples.push({ frameIndex: start + i * 5, overallScore: score });
+    },
+  );
   const stats = analyzeStability(samples);
   if (!stats) return null;
   const rec = recommendPolling(stats, 5, 8);
@@ -582,7 +639,7 @@ describe("Full Video Scan", () => {
   for (const gt of GROUND_TRUTH) {
     const { vt, tmpl } = findConfig(gt);
 
-    it(`${gt.videoName}/${gt.pokemonName} (${gt.templateId}): finds ${gt.expectedEncounters} encounter(s)`, { timeout: 300_000 }, () => {
+    it(`${gt.videoName}/${gt.pokemonName} (${gt.templateId}): finds ${gt.expectedEncounters} encounter(s)`, { timeout: 300_000 }, async () => {
       if (!vt || !tmpl) {
         console.log(`  SKIP: config not found for ${gt.videoName} template ${gt.templateId}`);
         return;
@@ -599,29 +656,26 @@ describe("Full Video Scan", () => {
         return;
       }
       const tmplGray = toGrayscale(tmplImg.pixels, tmplImg.width, tmplImg.height);
-      const duration = getVideoDuration(videoPath);
 
       // Dense 0.1s sampling grid: the raw data basis. Which of these
       // samples the "app" would actually score is decided afterwards by
       // the loop-faithful simulator, not by the grid itself.
-      const scanInterval = 0.1;
+      const scanFps = 10;
       const scores: ScanSample[] = [];
 
-      for (let t = 0; t < duration; t += scanInterval) {
-        const frame = extractFrame(videoPath, t);
-        if (!frame) continue;
-        const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
+      await decodeFrames(videoPath, { fps: scanFps }, (pixels, w, h, i) => {
+        const frameGray = toGrayscale(pixels, w, h);
         const score = scoreFrame(
-          frameGray, frame.width, frame.height,
+          frameGray, w, h,
           tmplGray, tmplImg.width, tmplImg.height,
           tmpl.regions,
         );
         scores.push({
-          time: t,
+          time: i / scanFps,
           score,
-          frameGray: downsampleGray(frameGray, frame.width, frame.height),
+          frameGray: downsampleGray(frameGray, w, h),
         });
-      }
+      });
 
       const matchFrames = scores.filter((s) => s.score >= SCAN_THRESHOLD);
       const maxScore = scores.length > 0 ? Math.max(...scores.map((s) => s.score)) : 0;
@@ -634,7 +688,7 @@ describe("Full Video Scan", () => {
       // recommended precision, hysteresis and polling bounds as a package.
       // With engine defaults the loop can miss the ultra-short encounter
       // windows of these fixtures entirely.
-      const calibrated = calibratedSettings(videoPath, gt, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
+      const calibrated = await calibratedSettings(videoPath, gt, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
 
       const simSettings = calibrated
         ? { ...calibrated, consecutiveHits: 1, cooldownSec: DEFAULT_COOLDOWN_SEC }
@@ -716,7 +770,7 @@ describe("Parameter Sweep on Real Captures", () => {
     if (!sc) continue;
     const { vt, tmpl } = findConfig(gt);
 
-    it(`${gt.pokemonName} (${gt.templateId}): sweep finds clean settings`, { timeout: 120_000 }, () => {
+    it(`${gt.pokemonName} (${gt.templateId}): sweep finds clean settings`, { timeout: 120_000 }, async () => {
       if (!vt || !tmpl) return;
       if (!fs.existsSync(vt.videoPath)) return;
 
@@ -731,15 +785,17 @@ describe("Parameter Sweep on Real Captures", () => {
       // the real per-frame scoring cost that drives the polling bounds.
       const samples: StabilitySample[] = [];
       let scoreCostMs = 0;
-      for (let f = sc.scanStart; f <= sc.scanEnd; f += 5) {
-        const frame = extractFrame(vt.videoPath, f / FPS);
-        if (!frame) continue;
-        const frameGray = toGrayscale(frame.pixels, frame.width, frame.height);
-        const t0 = performance.now();
-        const score = scoreFrame(frameGray, frame.width, frame.height, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
-        scoreCostMs += performance.now() - t0;
-        samples.push({ frameIndex: f, overallScore: score });
-      }
+      await decodeFrames(
+        vt.videoPath,
+        { fps: FPS / 5, startSec: sc.scanStart / FPS, durationSec: (sc.scanEnd - sc.scanStart) / FPS },
+        (pixels, w, h, i) => {
+          const frameGray = toGrayscale(pixels, w, h);
+          const t0 = performance.now();
+          const score = scoreFrame(frameGray, w, h, tmplGray, tmplImg.width, tmplImg.height, tmpl.regions);
+          scoreCostMs += performance.now() - t0;
+          samples.push({ frameIndex: sc.scanStart + i * 5, overallScore: score });
+        },
+      );
       const avgScoreMs = scoreCostMs / Math.max(1, samples.length);
 
       const stats = analyzeStability(samples);
