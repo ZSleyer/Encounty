@@ -33,8 +33,8 @@ jobs:
           }
           be="${{ inputs.backend-coverage }}"
           fe="${{ inputs.frontend-coverage }}"
-          echo "{\"schemaVersion\":1,\"label\":\"backend coverage\",\"message\":\"${be}%\",\"color\":\"$(badge_color "$be")\"}" > backend-coverage.json
-          echo "{\"schemaVersion\":1,\"label\":\"frontend coverage\",\"message\":\"${fe}%\",\"color\":\"$(badge_color "$fe")\"}" > frontend-coverage.json
+          echo "{\"schemaVersion\":1,\"label\":\"backend\",\"message\":\"${be}%\",\"color\":\"$(badge_color "$be")\"}" > backend-coverage.json
+          echo "{\"schemaVersion\":1,\"label\":\"frontend\",\"message\":\"${fe}%\",\"color\":\"$(badge_color "$fe")\"}" > frontend-coverage.json
 
       - name: Push Badges
         run: |
