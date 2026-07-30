@@ -23,10 +23,21 @@ func TestJoinRejectsTraversal(t *testing.T) {
 		"templates/../../../etc/passwd",
 		"..",
 		filepath.FromSlash("templates/../.."),
+		// Sibling directory sharing the base name as a string prefix.
+		filepath.FromSlash("../encounty-evil/state.json"),
 	}
 	for _, c := range cases {
 		if _, err := Join(base, c); err == nil {
 			t.Errorf("Join(base, %q) = nil error, want escape error", c)
+		}
+	}
+}
+
+func TestJoinRejectsBaseItself(t *testing.T) {
+	base := filepath.FromSlash("/data/encounty")
+	for _, elems := range [][]string{nil, {""}, {"."}, {"templates", ".."}} {
+		if got, err := Join(base, elems...); err == nil {
+			t.Errorf("Join(base, %q) = %q, want error: base itself is not a valid target", elems, got)
 		}
 	}
 }

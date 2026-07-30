@@ -11,12 +11,16 @@ import (
 
 // Join cleans base and appends elems, returning an error if the resulting path
 // would escape base (e.g. via ".." components). The returned path is always
-// filepath.Clean-ed and guaranteed to be base itself or a descendant of it.
+// filepath.Clean-ed and guaranteed to be a strict descendant of base.
+//
+// The containment check is a prefix comparison against base plus a trailing
+// separator rather than a filepath.Rel round trip: the separator rules out
+// sibling directories that merely share a name prefix, and static analysis
+// recognizes the shape as a path-traversal barrier.
 func Join(base string, elems ...string) (string, error) {
-	cleanBase := filepath.Clean(base)
-	joined := filepath.Join(append([]string{cleanBase}, elems...)...)
-	rel, err := filepath.Rel(cleanBase, joined)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+	prefix := filepath.Clean(base) + string(filepath.Separator)
+	joined := filepath.Join(append([]string{prefix}, elems...)...)
+	if !strings.HasPrefix(joined, prefix) {
 		return "", fmt.Errorf("path %q escapes base directory %q", filepath.Join(elems...), base)
 	}
 	return joined, nil
