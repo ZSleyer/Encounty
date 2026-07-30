@@ -14,7 +14,12 @@ export class GoProcessManager extends EventEmitter {
   private readonly MAX_RESTART_DELAY = 30000;
   private readonly pidFilePath: string;
 
-  constructor() {
+  /**
+   * @param selfUpdateSupported whether this install can replace its own binary.
+   *   Forwarded to the backend so its update check knows whether electron-updater
+   *   will handle updates or the user has to be pointed elsewhere.
+   */
+  constructor(private readonly selfUpdateSupported = true) {
     super();
     this.pidFilePath = path.join(app.getPath('userData'), 'backend.pid');
   }
@@ -27,7 +32,11 @@ export class GoProcessManager extends EventEmitter {
     const frontendDir = this.getFrontendDistPath();
     this.process = spawn(binaryPath, ['--frontend-dir', frontendDir], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, ENCOUNTY_ELECTRON: '1' }
+      env: {
+        ...process.env,
+        ENCOUNTY_ELECTRON: '1',
+        ENCOUNTY_SELF_UPDATE: this.selfUpdateSupported ? '1' : '0',
+      }
     });
 
     this.process.stdout?.on('data', (data) => {

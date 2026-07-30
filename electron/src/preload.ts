@@ -22,11 +22,11 @@ interface CaptureSource {
 const isWayland = process.platform === 'linux' &&
   (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
 
-// In-app auto-update capability: Linux (AppImage) always, Windows only for the
-// installed (NSIS) build. Portable Windows sets PORTABLE_EXECUTABLE_DIR and has
-// no install target to update; macOS is unsigned so Squirrel.Mac refuses updates.
-const autoUpdate = process.platform === 'linux' ||
-  (process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_DIR);
+// Update capability is decided in main.ts and handed over as launch arguments.
+// It cannot be recomputed here: the sandboxed preload has no fs to check whether
+// the AppImage is writable.
+const autoUpdate = process.argv.includes('--auto-update=1');
+const packageManaged = process.argv.includes('--package-managed=1');
 
 const isDevMode = process.argv.includes('--dev') ||
   (globalThis as any).location?.port === '5173';
@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   isWayland,
   platform: process.platform as 'win32' | 'linux' | 'darwin',
   autoUpdate,
+  packageManaged,
 
   minimize(): void {
     ipcRenderer.invoke('window:minimize');

@@ -13,12 +13,39 @@ let mainWindow: BrowserWindow | null = null;
 let goProcess: GoProcessManager | null = null;
 const isDev = process.argv.includes('--dev');
 
-// In-app auto-update capability, kept in sync with preload.ts: Linux (AppImage)
-// always, Windows only for the installed (NSIS) build. Portable Windows sets
+/**
+ * Reports whether the running AppImage can be overwritten in place, which is how
+ * electron-updater applies Linux updates. Distribution packages (AUR) install it
+ * root-owned under /opt, where an update would either fail or desync the file
+ * from the package manager's database.
+ */
+function canReplaceOwnAppImage(): boolean {
+  const appImage = process.env.APPIMAGE;
+  if (!appImage) return false;
+  try {
+    fs.accessSync(path.dirname(appImage), fs.constants.W_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// In-app auto-update capability: Linux only for a self-updatable AppImage,
+// Windows only for the installed (NSIS) build. Portable Windows sets
 // PORTABLE_EXECUTABLE_DIR and has no install target; macOS is unsigned so
-// Squirrel.Mac refuses updates.
-const autoUpdateSupported = process.platform === 'linux' ||
-  (process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_DIR);
+// Squirrel.Mac refuses updates. Both flags reach the renderer through
+// additionalArguments below, because the sandboxed preload cannot use fs.
+// isDev keeps the dev run on the same renderer code path as a normal AppImage,
+// where no APPIMAGE variable exists.
+const autoUpdateSupported = process.platform === 'linux'
+  ? isDev || canReplaceOwnAppImage()
+  : process.platform === 'win32' && !process.env.PORTABLE_EXECUTABLE_DIR;
+
+// A read-only AppImage means someone else owns the install, so the update
+// belongs to that package manager and the UI says so instead of offering a
+// download.
+const packageManagedInstall = process.platform === 'linux' &&
+  !!process.env.APPIMAGE && !autoUpdateSupported;
 
 // Set app name early so macOS menu bar shows "Encounty" instead of "Electron".
 app.setName('Encounty');
@@ -301,7 +328,11 @@ async function createWindow(): Promise<void> {
       contextIsolation: true,
       sandbox: true,
       backgroundThrottling: false,
-      preload: path.join(__dirname, 'preload.js')
+      preload: path.join(__dirname, 'preload.js'),
+      additionalArguments: [
+        `--auto-update=${autoUpdateSupported ? '1' : '0'}`,
+        `--package-managed=${packageManagedInstall ? '1' : '0'}`,
+      ]
     }
   });
 
@@ -385,7 +416,7 @@ async function startApp(): Promise<void> {
     // In dev mode, Go backend runs separately (via `make dev` / `go run`).
     // In production, spawn the bundled Go binary.
     if (!isDev) {
-      goProcess = new GoProcessManager();
+      goProcess = new GoProcessManager(autoUpdateSupported);
 
       const canProceed = await resolveZombieBackend(goProcess, BACKEND_PORT);
       if (!canProceed) return;
