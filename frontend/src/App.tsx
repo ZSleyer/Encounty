@@ -139,15 +139,16 @@ function UpdateNotification({
             {t("update.changelog")}
           </a>
           {packageManaged && (
-            <p className="text-sm text-text-muted pt-1.5">
+            <p className="text-xs text-text-muted pt-1.5">
               {t("update.packageManagerHint")}
             </p>
           )}
         </div>
+        {/* Without the second button, half width keeps the same button metrics as the two-button row. */}
         <div className="flex gap-3 w-full">
           <button
             onClick={onDismiss}
-            className="flex-1 px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
+            className={`${packageManaged ? "w-1/2 mx-auto" : "flex-1"} px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors`}
           >
             {packageManaged ? t("common.close") : t("update.later")}
           </button>
