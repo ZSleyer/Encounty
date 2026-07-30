@@ -551,6 +551,43 @@
                 </p>
               </div>
 
+              <div class="mt-8 border border-border-subtle bg-bg-secondary p-5">
+                <h4 class="font-semibold text-text-primary" data-i18n="update.linux.aur.title">
+                  Arch Linux and Arch-based distributions
+                </h4>
+                <p class="mt-2 text-sm text-text-secondary">
+                  <span data-i18n="update.linux.aur.introBefore"
+                    >Skip the manual download and install the</span
+                  >
+                  <a
+                    href="https://aur.archlinux.org/packages/encounty-bin"
+                    class="underline hover:text-text-primary"
+                    rel="noopener"
+                    data-i18n="update.linux.aur.pkgLink"
+                    >encounty-bin package from the AUR</a
+                  ><span data-i18n="update.linux.aur.introAfter"
+                    >, for example with an AUR helper such as yay or paru:</span
+                  >
+                </p>
+                <div class="copy-block mt-3">
+                  <code>yay -S encounty-bin</code>
+                  <button
+                    type="button"
+                    class="copy-block__btn"
+                    data-copy="yay -S encounty-bin"
+                    aria-label="Copy AUR install command to clipboard"
+                    data-i18n="copy.label"
+                    data-i18n-attr="aria-label:update.linux.aur.copyAria"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <p class="mt-3 text-sm text-text-muted" data-i18n="update.linux.aur.updateNote">
+                  The package pulls in everything Encounty needs, including fuse2. Updates then come
+                  from your package manager, so the built-in updater stays out of the way.
+                </p>
+              </div>
+
               <ol class="mt-8 space-y-6">
                 <li class="flex gap-4">
                   <span aria-hidden="true" class="t-step-n shrink-0">1</span>

@@ -34,7 +34,7 @@
   "hero.ctaDownload": "ダウンロード",
   "hero.ctaChangelog": "変更履歴",
 
-  "dl.formats": "AppImage (Linux) · インストーラー + ポータブル .exe (Windows 11) · DMG (macOS、Apple Silicon) · 無料 & AGPL-3.0",
+  "dl.formats": "AppImage (Linux、Arch 向け AUR) · インストーラー + ポータブル .exe (Windows 11) · DMG (macOS、Apple Silicon) · 無料 & AGPL-3.0",
 
   "screens.heading": "スクリーンショット",
   "screens.dashboardAlt": "遭遇カウンター、タイマー、確率とともに進行中の色違い厳選を表示する Encounty のダッシュボード",
@@ -227,6 +227,14 @@
   "update.linux.dlBtn": "Linux 版 Encounty をダウンロード",
   "update.linux.dlArm": "ARM64 向け AppImage",
   "update.linux.dlNoteSuffix": "以降は自動で更新されます。",
+
+  "update.linux.aur.title": "Arch Linux および Arch 系ディストリビューション",
+  "update.linux.aur.introBefore": "手動ダウンロードは不要です。",
+  "update.linux.aur.pkgLink": "AUR の encounty-bin パッケージ",
+  "update.linux.aur.introAfter": "を、yay や paru などの AUR ヘルパーでインストールしてください:",
+  "update.linux.aur.copyAria": "AUR のインストールコマンドをクリップボードにコピー",
+  "update.linux.aur.updateNote": "このパッケージは fuse2 を含め、Encounty に必要なものをすべて導入します。更新はパッケージマネージャー経由になるため、内蔵アップデーターは動作しません。",
+
   "update.linux.step1.title": "AppImage をダウンロード",
   "update.linux.step1.desc": "お使いのアーキテクチャに合わせて上のボタンを使います (ほとんどの PC は x64 です)。",
   "update.linux.step2.title": "実行可能にする",

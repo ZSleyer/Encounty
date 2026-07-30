@@ -34,7 +34,7 @@
   "hero.ctaDownload": "Download",
   "hero.ctaChangelog": "Changelog",
 
-  "dl.formats": "AppImage (Linux) · installer + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · free & AGPL-3.0",
+  "dl.formats": "AppImage (Linux, AUR for Arch) · installer + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · free & AGPL-3.0",
 
   "screens.heading": "Screenshots",
   "screens.dashboardAlt": "Encounty dashboard showing active shiny hunts with encounter counter, timer and odds",
@@ -227,6 +227,14 @@
   "update.linux.dlBtn": "Download Encounty for Linux",
   "update.linux.dlArm": "AppImage for ARM64",
   "update.linux.dlNoteSuffix": "updates itself from then on.",
+
+  "update.linux.aur.title": "Arch Linux and Arch-based distributions",
+  "update.linux.aur.introBefore": "Skip the manual download and install the",
+  "update.linux.aur.pkgLink": "encounty-bin package from the AUR",
+  "update.linux.aur.introAfter": ", for example with an AUR helper such as yay or paru:",
+  "update.linux.aur.copyAria": "Copy AUR install command to clipboard",
+  "update.linux.aur.updateNote": "The package pulls in everything Encounty needs, including fuse2. Updates then come from your package manager, so the built-in updater stays out of the way.",
+
   "update.linux.step1.title": "Download the AppImage",
   "update.linux.step1.desc": "Use the button above for your architecture (x64 for most PCs).",
   "update.linux.step2.title": "Make it executable",

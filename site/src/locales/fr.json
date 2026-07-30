@@ -34,7 +34,7 @@
   "hero.ctaDownload": "Télécharger",
   "hero.ctaChangelog": "Nouveautés",
 
-  "dl.formats": "AppImage (Linux) · installateur + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · gratuit et AGPL-3.0",
+  "dl.formats": "AppImage (Linux, AUR pour Arch) · installateur + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · gratuit et AGPL-3.0",
 
   "screens.heading": "Captures d'écran",
   "screens.dashboardAlt": "Tableau de bord d'Encounty affichant des chasses aux shinies actives avec compteur de rencontres, minuteur et probabilités",
@@ -227,6 +227,14 @@
   "update.linux.dlBtn": "Télécharger Encounty pour Linux",
   "update.linux.dlArm": "AppImage pour ARM64",
   "update.linux.dlNoteSuffix": "se met à jour toute seule ensuite.",
+
+  "update.linux.aur.title": "Arch Linux et distributions dérivées d'Arch",
+  "update.linux.aur.introBefore": "Évite le téléchargement manuel et installe le",
+  "update.linux.aur.pkgLink": "paquet encounty-bin depuis l'AUR",
+  "update.linux.aur.introAfter": ", par exemple avec un assistant AUR comme yay ou paru :",
+  "update.linux.aur.copyAria": "Copier la commande d'installation AUR dans le presse-papiers",
+  "update.linux.aur.updateNote": "Le paquet installe tout ce dont Encounty a besoin, y compris fuse2. Les mises à jour passent alors par ton gestionnaire de paquets, et le programme de mise à jour intégré reste en retrait.",
+
   "update.linux.step1.title": "Téléchargez l'AppImage",
   "update.linux.step1.desc": "Utilisez le bouton ci-dessus pour votre architecture (x64 pour la plupart des PC).",
   "update.linux.step2.title": "Rendez-la exécutable",
