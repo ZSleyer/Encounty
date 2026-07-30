@@ -26,7 +26,7 @@ Under the hood: four fused scoring metrics (block SSIM, Pearson correlation, mea
 
 ### Arch Linux (AUR)
 
-Arch and Arch-based distributions can install the [`encounty-bin`](https://aur.archlinux.org/packages/encounty-bin) package with an AUR helper such as [yay](https://github.com/Jguer/yay):
+Arch and Arch-based distributions can install the [`encounty-bin`](https://aur.archlinux.org/packages/encounty-bin) package with an AUR helper such as [yay](https://github.com/Jguer/yay) or [paru](https://github.com/Morganamilo/paru):
 
 ```bash
 yay -S encounty-bin
