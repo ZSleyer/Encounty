@@ -605,6 +605,108 @@ button:focus-visible {
   color: var(--text-secondary);
 }
 
+/* Screenshot thumbnails: the whole panel is the click target. No resets here,
+   they would override the t-panel border and padding on the hero shot. */
+.shot {
+  cursor: zoom-in;
+}
+
+.shot:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+/* Screenshot gallery modal. */
+.lightbox {
+  width: min(96vw, 1600px);
+  max-width: none;
+  max-height: 94vh;
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  overflow: visible;
+}
+
+.lightbox::backdrop {
+  background: rgb(0 0 0 / 0.8);
+}
+
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.625rem 0.75rem 0.625rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.lightbox__caption {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  /* Alt texts are long; keep the header bar from eating the image. */
+  .lightbox__caption {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+.lightbox__count {
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.lightbox__img {
+  display: block;
+  width: 100%;
+  max-height: calc(94vh - 3rem);
+  object-fit: contain;
+}
+
+.lightbox__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.lightbox__btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-blue);
+}
+
+.lightbox__btn:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+.lightbox__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.lightbox__nav--prev {
+  left: 0.75rem;
+}
+
+.lightbox__nav--next {
+  right: 0.75rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

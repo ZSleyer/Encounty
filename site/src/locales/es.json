@@ -45,6 +45,10 @@
   "screens.dashboardCap": "Céntrate en una sola caza con contador, temporizador y probabilidades en vivo.",
   "screens.newHuntCap": "Elige cualquier juego de la Gen 1 a la 9 y uno de los más de 60 métodos de caza.",
   "screens.overlayCap": "Diseña el overlay de tu stream arrastrando y soltando, con vista previa en vivo.",
+  "screens.closeAria": "Cerrar captura de pantalla",
+  "screens.prevAria": "Captura de pantalla anterior",
+  "screens.nextAria": "Captura de pantalla siguiente",
+
   "changelog.noNotes": "No se proporcionaron notas de la versión.",
   "changelog.loadErrorPre": "No se pudo cargar el registro de cambios en este momento.",
   "changelog.pageHeading": "Registro de cambios",
@@ -58,6 +62,7 @@
   "demo.heading": "Míralo en acción",
   "demo.text": "Del template de detección al primer encounter contado automáticamente en menos de un minuto: haz un snapshot de tu juego, marca el texto del encounter, prueba la detección y a cazar.",
   "demo.videoAria": "Vídeo de demostración: creación de una plantilla de detección automática en Encounty. Haz clic o pulsa Intro para pausar o reanudar.",
+  "demo.expandAria": "Ampliar el vídeo de demostración",
   "demo.noVideo": "Tu navegador no admite la etiqueta de vídeo.",
 
   "review.heading": "Reseña de la comunidad",

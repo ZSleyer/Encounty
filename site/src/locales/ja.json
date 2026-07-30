@@ -45,6 +45,10 @@
   "screens.dashboardCap": "カウンター・タイマー・リアルタイムの確率とともに、1 件の厳選に集中できます。",
   "screens.newHuntCap": "第 1 世代から第 9 世代までの好きな作品と、60 種類以上の厳選方法から 1 つを選べます。",
   "screens.overlayCap": "ドラッグ＆ドロップとライブプレビューで配信用オーバーレイをデザインできます。",
+  "screens.closeAria": "スクリーンショットを閉じる",
+  "screens.prevAria": "前のスクリーンショット",
+  "screens.nextAria": "次のスクリーンショット",
+
   "changelog.noNotes": "リリースノートはありません。",
   "changelog.loadErrorPre": "現在、変更履歴を読み込めませんでした。",
   "changelog.pageHeading": "変更履歴",
@@ -58,6 +62,7 @@
   "demo.heading": "実際の動きを見る",
   "demo.text": "検出テンプレートの作成から最初の自動カウントまで1分以内。ゲームのスナップショットを撮り、エンカウントのテキストを指定して、マッチをテストするだけです。",
   "demo.videoAria": "デモ動画: Encounty で自動検出テンプレートを作成する様子。クリックまたは Enter キーで一時停止・再生します。",
+  "demo.expandAria": "デモ動画を拡大する",
   "demo.noVideo": "お使いのブラウザは video タグに対応していません。",
 
   "review.heading": "コミュニティレビュー",

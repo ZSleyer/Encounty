@@ -45,6 +45,10 @@
   "screens.dashboardCap": "Focus a single hunt with counter, timer and live odds.",
   "screens.newHuntCap": "Pick any game from Gen 1-9 and one of 60+ hunt methods.",
   "screens.overlayCap": "Design your stream overlay with drag & drop and live preview.",
+  "screens.closeAria": "Close screenshot",
+  "screens.prevAria": "Previous screenshot",
+  "screens.nextAria": "Next screenshot",
+
   "changelog.noNotes": "No release notes provided.",
   "changelog.loadErrorPre": "Could not load the changelog right now.",
   "changelog.pageHeading": "Changelog",
@@ -58,6 +62,7 @@
   "demo.heading": "See it in action",
   "demo.text": "From creating a detection template to the first automatically counted encounter in under a minute: snapshot your game, mark the encounter text, test the match, hunt.",
   "demo.videoAria": "Demo video: creating an auto-detection template in Encounty. Click or press Enter to pause or resume.",
+  "demo.expandAria": "Enlarge demo video",
   "demo.noVideo": "Your browser does not support the video tag.",
 
   "review.heading": "Community review",

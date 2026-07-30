@@ -45,6 +45,10 @@
   "screens.dashboardCap": "Konzentriere dich auf einen einzelnen Hunt mit Zähler, Timer und Live-Odds.",
   "screens.newHuntCap": "Wähle ein beliebiges Spiel von Gen 1 bis 9 und eine von über 60 Hunt-Methoden.",
   "screens.overlayCap": "Gestalte dein Stream-Overlay per Drag-and-drop mit Live-Vorschau.",
+  "screens.closeAria": "Screenshot schließen",
+  "screens.prevAria": "Vorheriger Screenshot",
+  "screens.nextAria": "Nächster Screenshot",
+
   "changelog.noNotes": "Keine Release-Notes vorhanden.",
   "changelog.loadErrorPre": "Das Changelog konnte gerade nicht geladen werden.",
   "changelog.pageHeading": "Changelog",
@@ -58,6 +62,7 @@
   "demo.heading": "Encounty in Aktion",
   "demo.text": "Vom Erkennungs-Template bis zum ersten automatisch gezählten Encounter in unter einer Minute: Snapshot vom Spiel machen, Encounter-Text markieren, Treffer testen, hunten.",
   "demo.videoAria": "Demo-Video: Erstellen eines Auto-Erkennungs-Templates in Encounty. Klicke oder drücke Enter zum Pausieren oder Fortsetzen.",
+  "demo.expandAria": "Demo-Video vergrößern",
   "demo.noVideo": "Dein Browser unterstützt das Video-Tag nicht.",
 
   "review.heading": "Community-Review",
