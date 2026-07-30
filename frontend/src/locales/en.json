@@ -45,6 +45,7 @@
   "update.openDownload": "Download",
   "update.later": "Later",
   "update.changelog": "View changes",
+  "update.packageManagerHint": "Install this update with your package manager.",
   "nav.dashboard": "Dashboard",
   "nav.hotkeys": "Hotkeys",
   "nav.overlayEditor": "Overlay",

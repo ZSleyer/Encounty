@@ -45,6 +45,7 @@
   "update.openDownload": "Télécharger",
   "update.later": "Plus tard",
   "update.changelog": "Voir les changements",
+  "update.packageManagerHint": "Installez cette mise à jour avec votre gestionnaire de paquets.",
   "nav.dashboard": "Tableau de bord",
   "nav.hotkeys": "Hotkeys",
   "nav.overlayEditor": "Overlay",

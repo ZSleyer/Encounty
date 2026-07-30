@@ -45,6 +45,7 @@
   "update.openDownload": "Descargar",
   "update.later": "Más tarde",
   "update.changelog": "Ver cambios",
+  "update.packageManagerHint": "Instala esta actualización con tu gestor de paquetes.",
   "nav.dashboard": "Panel principal",
   "nav.hotkeys": "Hotkeys",
   "nav.overlayEditor": "Overlay",

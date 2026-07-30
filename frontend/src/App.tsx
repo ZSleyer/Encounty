@@ -100,11 +100,13 @@ function UpdateNotification({
   onUpdate,
   onDismiss,
   manualDownload,
+  packageManaged,
 }: Readonly<{
   version: string;
   onUpdate: () => void;
   onDismiss: () => void;
   manualDownload?: boolean;
+  packageManaged?: boolean;
 }>) {
   const { t } = useI18n();
   const containerRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onDismiss });
@@ -136,20 +138,27 @@ function UpdateNotification({
           >
             {t("update.changelog")}
           </a>
+          {packageManaged && (
+            <p className="text-sm text-text-muted pt-1.5">
+              {t("update.packageManagerHint")}
+            </p>
+          )}
         </div>
         <div className="flex gap-3 w-full">
           <button
             onClick={onDismiss}
             className="flex-1 px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
           >
-            {t("update.later")}
+            {packageManaged ? t("common.close") : t("update.later")}
           </button>
-          <button
-            onClick={onUpdate}
-            className="flex-1 px-4 py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
-          >
-            {manualDownload ? t("update.openDownload") : t("update.updateNow")}
-          </button>
+          {!packageManaged && (
+            <button
+              onClick={onUpdate}
+              className="flex-1 px-4 py-2.5 rounded-none bg-accent-blue hover:bg-accent-blue/80 text-white text-sm font-semibold transition-colors"
+            >
+              {manualDownload ? t("update.openDownload") : t("update.updateNow")}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -673,6 +682,7 @@ function AppShell() {
         <UpdateNotification
           version={updateInfo.latest_version}
           manualDownload={!globalThis.electronAPI?.autoUpdate}
+          packageManaged={globalThis.electronAPI?.packageManaged}
           onUpdate={() => {
             setShowUpdateNotification(false);
             applyUpdate();

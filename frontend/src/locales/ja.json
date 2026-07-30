@@ -45,6 +45,7 @@
   "update.openDownload": "ダウンロード",
   "update.later": "後で",
   "update.changelog": "変更内容を見る",
+  "update.packageManagerHint": "このアップデートはパッケージマネージャーからインストールしてください。",
   "nav.dashboard": "ダッシュボード",
   "nav.hotkeys": "Hotkeys",
   "nav.overlayEditor": "Overlay",

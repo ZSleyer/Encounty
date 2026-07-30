@@ -47,6 +47,8 @@ interface ElectronAPI {
   platform: 'win32' | 'linux' | 'darwin';
   /** True when this build supports in-app auto-update (Linux, Windows NSIS install). */
   autoUpdate: boolean;
+  /** True when a distribution package owns the install, so updates come from the package manager. */
+  packageManaged: boolean;
   minimize(): void;
   maximize(): void;
   close(): void;
