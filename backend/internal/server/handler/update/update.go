@@ -21,6 +21,18 @@ type handler struct {
 	deps Deps
 }
 
+// selfUpdateHandled reports whether the Electron shell applies updates on its
+// own, which makes a GitHub check pointless. That is the case for the plain
+// Linux AppImage, where electron-updater rewrites the file in place. Installs
+// that cannot do so (distribution packages) set ENCOUNTY_SELF_UPDATE=0, and
+// there the frontend needs the real answer so it can point at the package
+// manager instead.
+func selfUpdateHandled() bool {
+	return os.Getenv("ENCOUNTY_ELECTRON") == "1" &&
+		runtime.GOOS == "linux" &&
+		os.Getenv("ENCOUNTY_SELF_UPDATE") != "0"
+}
+
 // RegisterRoutes attaches the update check endpoint to mux.
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	h := &handler{deps: d}
@@ -46,8 +58,7 @@ func (h *handler) handleUpdateCheck(w http.ResponseWriter, _ *http.Request) {
 		})
 		return
 	}
-	// On Linux inside Electron, electron-updater handles updates via AppImage.
-	if os.Getenv("ENCOUNTY_ELECTRON") == "1" && runtime.GOOS == "linux" {
+	if selfUpdateHandled() {
 		httputil.WriteJSON(w, http.StatusOK, updater.UpdateInfo{
 			Available:      false,
 			CurrentVersion: version,

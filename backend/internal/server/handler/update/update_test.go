@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"testing"
 
 	"github.com/zsleyer/encounty/backend/internal/updater"
@@ -70,6 +71,33 @@ func TestUpdateCheckLinuxElectronSkipped(t *testing.T) {
 	// On other platforms the check proceeds — both are valid outcomes.
 	if info.CurrentVersion != testVersion {
 		t.Errorf("current_version = %q, want %s", info.CurrentVersion, testVersion)
+	}
+}
+
+func TestSelfUpdateHandled(t *testing.T) {
+	tests := []struct {
+		name       string
+		electron   string
+		selfUpdate string
+		want       bool
+	}{
+		{"plain AppImage", "1", "1", true},
+		{"legacy shell without the flag", "1", "", true},
+		{"distribution package", "1", "0", false},
+		{"outside Electron", "", "1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("ENCOUNTY_ELECTRON", tt.electron)
+			t.Setenv("ENCOUNTY_SELF_UPDATE", tt.selfUpdate)
+
+			// The Linux-only branch cannot be true anywhere else.
+			want := tt.want && runtime.GOOS == "linux"
+			if got := selfUpdateHandled(); got != want {
+				t.Errorf("selfUpdateHandled() = %v, want %v", got, want)
+			}
+		})
 	}
 }
 
