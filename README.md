@@ -24,6 +24,14 @@ Under the hood: four fused scoring metrics (block SSIM, Pearson correlation, mea
 | macOS (26+)                | arm64        | `Encounty-arm64.dmg`          |
 | Windows 11 (26H1+)         | x64 + arm64  | `Encounty-Setup.exe`          |
 
+### Arch Linux
+
+If you are using Arch Linux, you can install the application using your favorite AUR helper (e.g. [yay](https://github.com/Jguer/yay)):
+
+```bash
+yay -S encounty-bin
+```
+
 ## How It Works
 
 1. Capture your game screen, window, or camera feed (one source per hunt)
