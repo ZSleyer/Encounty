@@ -32,8 +32,6 @@ Arch and Arch-based distributions can install the [`encounty-bin`](https://aur.a
 yay -S encounty-bin
 ```
 
-> The AUR is a community repository and is not vetted by Arch Linux. Packaging problems belong on the [AUR page](https://aur.archlinux.org/packages/encounty-bin), everything else in this repository's issue tracker.
-
 ## How It Works
 
 1. Capture your game screen, window, or camera feed (one source per hunt)
