@@ -82,3 +82,6 @@ graphify-out/
 
 # design-sync local state (project pin, notes) - not shared via git
 .design-sync/
+
+# AUR package rendered by scripts/render-aur-pkgbuild.sh
+packaging/aur/PKGBUILD

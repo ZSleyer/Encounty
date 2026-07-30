@@ -1,0 +1,45 @@
+# Maintainer: David Hess <davidhess336@gmx.de>
+# Contributor: ZSleyer <aur@zsleyer.de>
+#
+# Template for the AUR package encounty-bin. Version and checksums are filled in
+# by scripts/render-aur-pkgbuild.sh, which the release workflow runs on every
+# stable tag before pushing the result to the AUR.
+
+pkgname=encounty-bin
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Free, open-source auto shiny counter for Pokémon shiny hunting."
+arch=('x86_64' 'aarch64')
+url="https://github.com/ZSleyer/Encounty"
+license=('AGPL-3.0-only')
+# fuse2 provides libfuse.so.2, which the AppImage runtime dlopens on startup.
+depends=('zlib' 'hicolor-icon-theme' 'fuse2')
+options=('!strip' '!debug') # Nothing to strip or split off a precompiled AppImage
+
+_release="${url}/releases/download/v${pkgver}"
+
+# The icon is pinned to the release tag rather than to main so its checksum
+# stays valid for the lifetime of this package version.
+source=('encounty.desktop'
+        "encounty-${pkgver}.png::https://raw.githubusercontent.com/ZSleyer/Encounty/v${pkgver}/backend/winres/icon.png")
+source_x86_64=("encounty-${pkgver}-x86_64.AppImage::${_release}/Encounty-x86_64.AppImage")
+source_aarch64=("encounty-${pkgver}-aarch64.AppImage::${_release}/Encounty-arm64.AppImage")
+
+sha256sums=('@SHA_DESKTOP@'
+            '@SHA_ICON@')
+sha256sums_x86_64=('@SHA_X86_64@')
+sha256sums_aarch64=('@SHA_AARCH64@')
+
+package() {
+  # The AppImage is self-contained, so it lives in /opt and gets reached through
+  # a symlink instead of being unpacked into the filesystem hierarchy.
+  install -Dm755 "${srcdir}/encounty-${pkgver}-${CARCH}.AppImage" \
+    "${pkgdir}/opt/${pkgname}/encounty.AppImage"
+  install -d "${pkgdir}/usr/bin"
+  ln -s "/opt/${pkgname}/encounty.AppImage" "${pkgdir}/usr/bin/encounty"
+
+  install -Dm644 "${srcdir}/encounty-${pkgver}.png" \
+    "${pkgdir}/usr/share/icons/hicolor/256x256/apps/encounty.png"
+  install -Dm644 "${srcdir}/encounty.desktop" \
+    "${pkgdir}/usr/share/applications/encounty.desktop"
+}
