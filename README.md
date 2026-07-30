@@ -26,11 +26,13 @@ Under the hood: four fused scoring metrics (block SSIM, Pearson correlation, mea
 
 ### Arch Linux (AUR)
 
+Arch and Arch-based distributions can install the [`encounty-bin`](https://aur.archlinux.org/packages/encounty-bin) package with an AUR helper such as [yay](https://github.com/Jguer/yay):
+
 ```bash
 yay -S encounty-bin
 ```
 
-[`encounty-bin`](https://aur.archlinux.org/packages/encounty-bin) installs the official AppImage, verified by SHA-256 checksum, with a desktop entry and a `/usr/bin/encounty` launcher. The AUR is community infrastructure and is not vetted or supported by Arch Linux, so report packaging problems on the AUR page and everything else in this repository's issue tracker.
+> The AUR is a community repository and is not vetted by Arch Linux. Packaging problems belong on the [AUR page](https://aur.archlinux.org/packages/encounty-bin), everything else in this repository's issue tracker.
 
 ## How It Works
 
