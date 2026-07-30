@@ -13,6 +13,8 @@ Under the hood: four fused scoring metrics (block SSIM, Pearson correlation, mea
 
 **[Website](https://zsleyer.github.io/Encounty/)** · **[Download & install guide](https://zsleyer.github.io/Encounty/update.html)** · **[Changelog](https://zsleyer.github.io/Encounty/changelog.html)**
 
+![Encounty dashboard in group view with twelve parallel shiny hunts, each with counter, odds and live preview](site/public/screenshots/dashboard-group.png)
+
 ## Download
 
 **[Download Encounty for Linux, macOS, and Windows](https://github.com/ZSleyer/Encounty/releases/latest)**

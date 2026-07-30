@@ -37,9 +37,12 @@
   "dl.formats": "AppImage (Linux、Arch 向け AUR) · インストーラー + ポータブル .exe (Windows 11) · DMG (macOS、Apple Silicon) · 無料 & AGPL-3.0",
 
   "screens.heading": "スクリーンショット",
+  "screens.groupAlt": "12 件の色違い厳選を並行して表示し、それぞれにカウンター・確率・ライブプレビューを備えた Encounty のグループビュー",
   "screens.dashboardAlt": "遭遇カウンター、タイマー、確率とともに進行中の色違い厳選を表示する Encounty のダッシュボード",
   "screens.newHuntAlt": "ポケモン図鑑検索、スプライトスタイル、厳選方法の選択を備えたポケモン追加ダイアログ",
   "screens.overlayAlt": "ドラッグ＆ドロップのレイヤーと、スプライト・カウンター・グローのプロパティを備えた OBS オーバーレイエディター",
+  "screens.groupCap": "ハードウェアが許す限り、いくつでも厳選を並行して進められます。",
+  "screens.dashboardCap": "カウンター・タイマー・リアルタイムの確率とともに、1 件の厳選に集中できます。",
   "screens.newHuntCap": "第 1 世代から第 9 世代までの好きな作品と、60 種類以上の厳選方法から 1 つを選べます。",
   "screens.overlayCap": "ドラッグ＆ドロップとライブプレビューで配信用オーバーレイをデザインできます。",
   "changelog.noNotes": "リリースノートはありません。",

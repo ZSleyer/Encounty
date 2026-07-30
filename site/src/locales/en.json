@@ -37,9 +37,12 @@
   "dl.formats": "AppImage (Linux, AUR for Arch) · installer + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · free & AGPL-3.0",
 
   "screens.heading": "Screenshots",
+  "screens.groupAlt": "Encounty dashboard in group view with twelve parallel shiny hunts, each with counter, odds and live preview",
   "screens.dashboardAlt": "Encounty dashboard showing active shiny hunts with encounter counter, timer and odds",
   "screens.newHuntAlt": "Add Pokémon dialog with Pokédex search, sprite styles and hunt method selection",
   "screens.overlayAlt": "OBS overlay editor with drag-and-drop layers, sprite, counter and glow properties",
+  "screens.groupCap": "Run as many hunts in parallel as your hardware can handle.",
+  "screens.dashboardCap": "Focus a single hunt with counter, timer and live odds.",
   "screens.newHuntCap": "Pick any game from Gen 1-9 and one of 60+ hunt methods.",
   "screens.overlayCap": "Design your stream overlay with drag & drop and live preview.",
   "changelog.noNotes": "No release notes provided.",

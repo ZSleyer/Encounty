@@ -37,9 +37,12 @@
   "dl.formats": "AppImage (Linux, AUR para Arch) · instalador + portable .exe (Windows 11) · DMG (macOS, Apple Silicon) · gratis y AGPL-3.0",
 
   "screens.heading": "Capturas de pantalla",
+  "screens.groupAlt": "Panel de Encounty en vista de grupo con doce cazas de shinies en paralelo, cada una con contador, probabilidades y vista previa en vivo",
   "screens.dashboardAlt": "Panel de Encounty mostrando cazas de shinies activas con contador de encuentros, temporizador y probabilidades",
   "screens.newHuntAlt": "Diálogo para añadir un Pokémon con búsqueda en la Pokédex, estilos de sprite y selección del método de caza",
   "screens.overlayAlt": "Editor de overlay para OBS con capas de arrastrar y soltar y propiedades de sprite, contador y brillo",
+  "screens.groupCap": "Ejecuta tantas cazas en paralelo como permita tu hardware.",
+  "screens.dashboardCap": "Céntrate en una sola caza con contador, temporizador y probabilidades en vivo.",
   "screens.newHuntCap": "Elige cualquier juego de la Gen 1 a la 9 y uno de los más de 60 métodos de caza.",
   "screens.overlayCap": "Diseña el overlay de tu stream arrastrando y soltando, con vista previa en vivo.",
   "changelog.noNotes": "No se proporcionaron notas de la versión.",

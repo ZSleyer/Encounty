@@ -15,7 +15,10 @@
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://zsleyer.github.io/Encounty/" />
-    <meta property="og:image" content="https://zsleyer.github.io/Encounty/screenshots/dashboard.png" />
+    <meta
+      property="og:image"
+      content="https://zsleyer.github.io/Encounty/screenshots/dashboard-group.png"
+    />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Encounty - Auto Shiny Counter for Pokémon" />
     <meta
@@ -24,7 +27,7 @@
     />
     <meta
       name="twitter:image"
-      content="https://zsleyer.github.io/Encounty/screenshots/dashboard.png"
+      content="https://zsleyer.github.io/Encounty/screenshots/dashboard-group.png"
     />
     <link rel="canonical" href="https://zsleyer.github.io/Encounty/" />
     <meta name="theme-color" content="#0f0f13" />
@@ -255,17 +258,33 @@
       <section aria-labelledby="screenshots-heading" class="px-4 pb-20">
         <h2 id="screenshots-heading" class="sr-only" data-i18n="screens.heading">Screenshots</h2>
         <div class="mx-auto max-w-6xl">
-          <div class="t-panel overflow-hidden p-2">
+          <figure class="t-panel overflow-hidden p-2">
             <img
-              src="/screenshots/dashboard.png"
-              alt="Encounty dashboard showing active shiny hunts with encounter counter, timer and odds"
-              data-i18n-attr="alt:screens.dashboardAlt"
+              src="/screenshots/dashboard-group.png"
+              alt="Encounty dashboard in group view with twelve parallel shiny hunts, each with counter, odds and live preview"
+              data-i18n-attr="alt:screens.groupAlt"
               class="w-full"
               width="2088"
-              height="1305"
+              height="1137"
             />
-          </div>
-          <div class="mt-6 grid gap-6 sm:grid-cols-2">
+            <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.groupCap">
+              Run as many hunts in parallel as your hardware can handle.
+            </figcaption>
+          </figure>
+          <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <figure class="t-panel overflow-hidden p-2">
+              <img
+                src="/screenshots/dashboard.png"
+                alt="Encounty dashboard showing active shiny hunts with encounter counter, timer and odds"
+                data-i18n-attr="alt:screens.dashboardAlt"
+                class="w-full"
+                width="2088"
+                height="1305"
+              />
+              <figcaption class="px-3 py-2 text-sm text-text-muted" data-i18n="screens.dashboardCap">
+                Focus a single hunt with counter, timer and live odds.
+              </figcaption>
+            </figure>
             <figure class="t-panel overflow-hidden p-2">
               <img
                 src="/screenshots/new-hunt.png"
