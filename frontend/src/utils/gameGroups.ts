@@ -79,6 +79,8 @@ gen3Rs.methods = {
   roaming_reset: B(gen3Rs),
   rock_smash: B(gen3Rs),
   swarm: B(gen3Rs),
+  colosseum_bonus_disk: { base: [1, 7282] },
+  pokemon_channel: B(gen3Rs),
 };
 
 const gen3Frlg: GameGroup = {
@@ -125,6 +127,12 @@ const gen3Gc: GameGroup = {
   generation: 3,
   baseOdds: [1, 8192],
   methods: {},
+};
+gen3Gc.methods = {
+  shadow_snag_colosseum: B(gen3Gc),
+  poke_spot_xd: B(gen3Gc),
+  gift_xd: B(gen3Gc),
+  trade_xd: B(gen3Gc),
 };
 
 const gen4Dpp: GameGroup = {
@@ -464,13 +472,17 @@ export function getGameGroup(gameKey: string): GameGroup | null {
 
 /**
  * Returns the hunt method keys available for a given game key.
- * Always includes "encounter" and "soft_reset" as universal methods.
+ * Most games include "encounter" and "soft_reset" as universal methods,
+ * but GameCube games (Colosseum/XD) have neither of those.
  */
 export function getMethodsForGame(gameKey: string): string[] {
   const group = GAME_KEY_TO_GROUP[gameKey];
-  const universal = ["encounter", "soft_reset"];
-  if (!group) return universal;
-  return [...universal, ...Object.keys(group.methods)];
+  if (!group) return ["encounter", "soft_reset"];
+  // GameCube games (Colosseum/XD) have no wild encounters or soft resets, so only return the methods defined for that group.
+  if (group.id === "gen3_gc") {
+    return [...Object.keys(group.methods)];
+  }
+  return ["encounter", "soft_reset", ...Object.keys(group.methods)];
 }
 
 /**
