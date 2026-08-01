@@ -121,18 +121,28 @@ gen3E.methods = {
   battle_tower_glitch: B(gen3E),
 };
 
-const gen3Gc: GameGroup = {
-  id: "gen3_gc",
-  gameKeys: ["pokemon-colosseum", "pokemon-xd"],
+const gen3Colosseum: GameGroup = {
+  id: "gen3_colosseum",
+  gameKeys: ["pokemon-colosseum"],
   generation: 3,
   baseOdds: [1, 8192],
   methods: {},
 };
-gen3Gc.methods = {
-  shadow_snag_colosseum: B(gen3Gc),
-  poke_spot_xd: B(gen3Gc),
-  gift_xd: B(gen3Gc),
-  trade_xd: B(gen3Gc),
+gen3Colosseum.methods = {
+  shadow_snag_colosseum: B(gen3Colosseum),
+};
+
+const gen3Xd: GameGroup = {
+  id: "gen3_xd",
+  gameKeys: ["pokemon-xd"],
+  generation: 3,
+  baseOdds: [1, 8192],
+  methods: {},
+};
+gen3Xd.methods = {
+  poke_spot_xd: B(gen3Xd),
+  gift_xd: B(gen3Xd),
+  trade_xd: B(gen3Xd),
 };
 
 const gen4Dpp: GameGroup = {
@@ -430,7 +440,8 @@ export const GAME_GROUPS: GameGroup[] = [
   gen3Rs,
   gen3Frlg,
   gen3E,
-  gen3Gc,
+  gen3Colosseum,
+  gen3Xd,
   gen4Dpp,
   gen4Hgss,
   gen5Bw,
@@ -479,7 +490,7 @@ export function getMethodsForGame(gameKey: string): string[] {
   const group = GAME_KEY_TO_GROUP[gameKey];
   if (!group) return ["encounter", "soft_reset"];
   // GameCube games (Colosseum/XD) have no wild encounters or soft resets, so only return the methods defined for that group.
-  if (group.id === "gen3_gc") {
+  if (group.id === "gen3_colosseum" || group.id === "gen3_xd") {
     return [...Object.keys(group.methods)];
   }
   return ["encounter", "soft_reset", ...Object.keys(group.methods)];
