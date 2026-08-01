@@ -685,7 +685,7 @@ var HuntTypePresets = []HuntTypePreset{
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
 		DefaultConsecutiveHits: 3,
-		TemplateTip:            "Capture the Pokémon's summary screen after receiving the traded Pokémon from Pokémon XD."
+		TemplateTip:            "Capture the Pokémon's summary screen after receiving the traded Pokémon from Pokémon XD.",
 	},
 }
 
