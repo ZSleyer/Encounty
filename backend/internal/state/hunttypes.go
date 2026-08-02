@@ -172,7 +172,7 @@ var HuntTypePresets = []HuntTypePreset{
 		NameDE:                 "DexNav",
 		NameEN:                 "DexNav",
 		OddsNumer:              1,
-		OddsDenom:              512,
+		OddsDenom:              42,
 		DefaultCooldownSec:     8,
 		DefaultConsecutiveHits: 2,
 		TemplateTip:            "Capture the DexNav encounter battle intro screen.",
