@@ -2,13 +2,13 @@
  * DetectorSettings.tsx — Advanced detector configuration panel.
  *
  * Collapsible section with threshold/precision sliders, polling interval
- * configuration (base, min, max poll), cooldown and consecutive hits settings,
- * and hunt-type preset integration. All of these are the active template's
- * own settings (see DetectorTemplate); there is no hunt-level default anymore.
+ * configuration (base, min, max poll), cooldown and consecutive hits settings.
+ * All of these are the active template's own settings (see DetectorTemplate);
+ * there is no hunt-level default anymore.
  */
 import { useState } from "react";
 import { ChevronDown, Settings, Save } from "lucide-react";
-import { DetectorTemplate, HuntTypePreset } from "../../types";
+import { DetectorTemplate } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import {
   DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
@@ -62,8 +62,6 @@ export type DetectorSettingsProps = Readonly<{
   onSave: () => void;
   onReset: () => void;
   settingsDirty: boolean;
-  activePreset?: HuntTypePreset;
-  onApplyDefaults?: () => void;
   embedded?: boolean;
   disabled?: boolean;
 }>;
@@ -76,8 +74,6 @@ export function DetectorSettings({
   onSave,
   onReset,
   settingsDirty,
-  activePreset,
-  onApplyDefaults,
   embedded,
   disabled,
 }: DetectorSettingsProps) {
@@ -251,21 +247,6 @@ export function DetectorSettings({
               );
             })()}
           </div>
-
-          {/* Hunt-type preset */}
-          {activePreset && onApplyDefaults && (
-            <div className="flex items-center justify-end py-2 border-t border-border-subtle">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={onApplyDefaults}
-                  title={t("detector.tooltipApplyDefaults")}
-                  className="px-2 py-0.5 rounded-none text-xs font-medium border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors"
-                >
-                  {t("detector.applyDefaults")}
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Save + Reset */}
           <div className="flex items-center justify-between pt-2 border-t border-border-subtle">

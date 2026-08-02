@@ -548,8 +548,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active Template", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive Template", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active Template", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { image_path: "tmpl2.png", enabled: false, name: "Inactive Template", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -1546,7 +1546,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.5,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -1621,8 +1621,6 @@ describe("DetectorPanel", () => {
   it("handles PATCH error on template toggle gracefully", async () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementationOnce(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response),
-    ).mockImplementationOnce(() =>
       Promise.resolve({ ok: false, json: () => Promise.resolve({ error: "bad request" }) } as unknown as Response),
     );
 
@@ -1634,8 +1632,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -1655,8 +1653,6 @@ describe("DetectorPanel", () => {
   it("handles network error on template toggle gracefully", async () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementationOnce(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response),
-    ).mockImplementationOnce(() =>
       Promise.reject(new TypeError("Failed to fetch")),
     );
 
@@ -1668,8 +1664,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -1896,14 +1892,16 @@ describe("DetectorPanel", () => {
 
   it("handles fetch PATCH with retry on network error for template toggle", async () => {
     const user = userEvent.setup();
-    let callCount = 0;
-    vi.mocked(globalThis.fetch).mockImplementation(() => {
-      callCount++;
-      if (callCount <= 1) {
-        // First call is hunt-types fetch
+    // Count PATCH attempts by URL rather than by call order, so the assertion
+    // does not depend on what other requests the panel happens to make.
+    let patchAttempts = 0;
+    vi.mocked(globalThis.fetch).mockImplementation((input) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (!url.includes("/template/")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
       }
-      if (callCount === 2) {
+      patchAttempts++;
+      if (patchAttempts === 1) {
         // First PATCH attempt fails with network error
         return Promise.reject(new TypeError("fetch failed"));
       }
@@ -1930,7 +1928,7 @@ describe("DetectorPanel", () => {
 
     // Wait for retry to complete
     await waitFor(() => {
-      expect(callCount).toBeGreaterThanOrEqual(3);
+      expect(patchAttempts).toBeGreaterThanOrEqual(2);
     }, { timeout: 3000 });
 
     // Restore default mock
@@ -1965,7 +1963,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -2036,7 +2034,7 @@ describe("DetectorPanel", () => {
     HTMLDialogElement.prototype.close = vi.fn();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/template/") && !url.includes("hunt-types")) {
+      if (url.includes("/template/")) {
         return Promise.resolve({ ok: false } as Response);
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
@@ -2362,7 +2360,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -2415,7 +2413,7 @@ describe("DetectorPanel", () => {
     HTMLDialogElement.prototype.close = vi.fn();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/template/") && !url.includes("hunt-types")) {
+      if (url.includes("/template/")) {
         return Promise.reject(new Error("Network error"));
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
@@ -2510,46 +2508,6 @@ describe("DetectorPanel", () => {
     });
   });
 
-  // --- Apply preset defaults marks settings dirty ---
-
-  it("applies hunt type preset defaults when available", async () => {
-    const user = userEvent.setup();
-    // Mock hunt-types fetch to return a preset matching the pokemon's hunt_type
-    vi.mocked(globalThis.fetch).mockImplementation((input) => {
-      const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([
-            { key: "masuda", name: "Masuda", default_cooldown_sec: 8, default_consecutive_hits: 2 },
-          ]),
-        } as Response);
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-    });
-
-    const pokemon = makePokemon({ hunt_type: "masuda" });
-    const onConfigChange = vi.fn().mockResolvedValue(undefined);
-    renderPanel({ pokemon, onConfigChange });
-
-    // Switch to settings tab
-    await user.click(screen.getByText(/Einstellungen|Settings/i));
-
-    // Wait for hunt type presets to load and the "apply defaults" button to appear
-    await waitFor(() => {
-      const applyBtn = screen.queryByText(/Standardwerte|Apply defaults|Preset/i);
-      // The button might exist if the DetectorSettings component shows it
-      return applyBtn;
-    }, { timeout: 2000 }).catch(() => {
-      // If preset button doesn't appear, that's ok — the fetch still covered the preset loading
-    });
-
-    // Restore default mock
-    vi.mocked(globalThis.fetch).mockImplementation(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response),
-    );
-  });
-
   // --- Tutorial auto-shows on first visit ---
 
   it("auto-shows tutorial when tutorial_seen is not set", async () => {
@@ -2577,7 +2535,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -2622,7 +2580,7 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -3064,8 +3022,8 @@ describe("DetectorPanel", () => {
         window_title: "",
         change_threshold: 0.15,
         templates: [
-          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [] },
-          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [] },
+          { image_path: "tmpl1.png", enabled: true, name: "Active", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
+          { image_path: "tmpl2.png", enabled: false, name: "Inactive", regions: [{ type: "image", expected_text: "", rect: { x: 0, y: 0, w: 10, h: 10 } }] },
         ],
       },
     });
@@ -3120,14 +3078,6 @@ describe("DetectorPanel", () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([
-            { key: "masuda", name: "Masuda", default_cooldown_sec: 12, default_consecutive_hits: 4 },
-          ]),
-        } as Response);
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
     });
 
@@ -3175,12 +3125,8 @@ describe("DetectorPanel", () => {
 
   it("shows network error message when template toggle throws TypeError", async () => {
     const user = userEvent.setup();
-    // Mock: first call is hunt-types, second and retry both fail with TypeError
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
       // Both PATCH attempts throw TypeError (caught by patchWithRetry -> caught by handleToggleTemplate)
       return Promise.reject(new TypeError("Failed to fetch"));
     });
@@ -3222,7 +3168,7 @@ describe("DetectorPanel", () => {
 
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/template/0") && !url.includes("hunt-types")) {
+      if (url.includes("/template/0")) {
         return Promise.reject(new Error("Network fail"));
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
@@ -3271,9 +3217,6 @@ describe("DetectorPanel", () => {
     let callCount = 0;
     vi.mocked(globalThis.fetch).mockImplementation(() => {
       callCount++;
-      if (callCount <= 1) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
       // Both PATCH attempts fail with TypeError
       return Promise.reject(new TypeError("fetch failed"));
     });
@@ -3719,9 +3662,6 @@ describe("DetectorPanel", () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 
@@ -3775,7 +3715,7 @@ describe("DetectorPanel", () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/template/0") && !url.includes("hunt-types")) {
+      if (url.includes("/template/0")) {
         return Promise.resolve({
           ok: false,
           json: () => Promise.resolve({ error: "Save failed" }),
@@ -3824,7 +3764,7 @@ describe("DetectorPanel", () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/template/0") && !url.includes("hunt-types")) {
+      if (url.includes("/template/0")) {
         return Promise.reject(new TypeError("fetch failed"));
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
@@ -4046,9 +3986,6 @@ describe("DetectorPanel", () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 
@@ -4105,9 +4042,6 @@ describe("DetectorPanel", () => {
 
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 
@@ -4237,14 +4171,6 @@ describe("DetectorPanel", () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([
-            { key: "random_encounters", name: "Random Encounters", default_cooldown_sec: 15, default_consecutive_hits: 3 },
-          ]),
-        } as Response);
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
     });
 
@@ -4291,7 +4217,7 @@ describe("DetectorPanel", () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/template/0") && !url.includes("hunt-types")) {
+      if (url.includes("/template/0")) {
         return Promise.reject(new Error("Generic error"));
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
@@ -4337,9 +4263,6 @@ describe("DetectorPanel", () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 
@@ -4457,9 +4380,6 @@ describe("DetectorPanel", () => {
     vi.mocked(globalThis.fetch).mockClear();
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url.includes("/api/hunt-types")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response);
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response);
     });
 

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "../../test-utils";
 import userEvent from "@testing-library/user-event";
 import { DetectorSettings, DetectorSettingsProps } from "./DetectorSettings";
-import { DetectorTemplate, HuntTypePreset } from "../../types";
+import { DetectorTemplate } from "../../types";
 
 /** Minimal DetectorTemplate fixture with sensible defaults. */
 function makeTemplate(overrides?: Partial<DetectorTemplate>): DetectorTemplate {
@@ -139,49 +139,6 @@ describe("DetectorSettings", () => {
     const resetBtn = buttons[buttons.length - 2];
     await user.click(resetBtn);
     expect(props.onReset).toHaveBeenCalledOnce();
-  });
-
-  it("shows the apply defaults button when activePreset is provided", async () => {
-    const user = userEvent.setup();
-    const preset: HuntTypePreset = {
-      key: "masuda",
-      odds_numer: 1,
-      odds_denom: 683,
-      default_cooldown_sec: 5,
-      default_consecutive_hits: 2,
-      template_tip: "Use egg sprite",
-    };
-    renderSettings({ activePreset: preset, onApplyDefaults: vi.fn() });
-    await expandSettings(user);
-    expect(
-      screen.getByRole("button", { name: "Defaults" }),
-    ).toBeInTheDocument();
-  });
-
-  it("calls onApplyDefaults when apply defaults button is clicked", async () => {
-    const user = userEvent.setup();
-    const onApplyDefaults = vi.fn();
-    const preset: HuntTypePreset = {
-      key: "masuda",
-      odds_numer: 1,
-      odds_denom: 683,
-      default_cooldown_sec: 5,
-      default_consecutive_hits: 2,
-      template_tip: "Use egg sprite",
-    };
-    renderSettings({ activePreset: preset, onApplyDefaults });
-    await expandSettings(user);
-    await user.click(screen.getByRole("button", { name: "Defaults" }));
-    expect(onApplyDefaults).toHaveBeenCalledOnce();
-  });
-
-  it("does not show preset section when activePreset is undefined", async () => {
-    const user = userEvent.setup();
-    renderSettings({ activePreset: undefined });
-    await expandSettings(user);
-    expect(
-      screen.queryByRole("button", { name: "Defaults" }),
-    ).not.toBeInTheDocument();
   });
 
   it("renders polling interval inputs in expanded state", async () => {

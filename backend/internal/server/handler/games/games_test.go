@@ -10,7 +10,6 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/database"
 	"github.com/zsleyer/encounty/backend/internal/gamesync"
 	"github.com/zsleyer/encounty/backend/internal/pokedex"
-	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
 // Duplicated test format strings and paths (S1192).
@@ -20,7 +19,6 @@ const (
 	fmtStatusWant405  = "status = %d, want 405"
 	gamesPath         = "/api/games"
 	pokedexPath       = "/api/pokedex"
-	huntTypesPath     = "/api/hunt-types"
 	gamesSyncPath     = "/api/games/sync"
 	syncPokemonPath   = "/api/sync/pokemon"
 )
@@ -189,34 +187,6 @@ func TestGetGamesReturnsList(t *testing.T) {
 		t.Errorf("len(games) = %d, want 1", len(got))
 	}
 }
-
-// --- GetHuntTypes tests ------------------------------------------------------
-
-func TestGetHuntTypes(t *testing.T) {
-	deps := &mockDeps{games: &mockGamesStore{}, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
-	mux := newTestMux(t, deps)
-
-	req := httptest.NewRequest(http.MethodGet, huntTypesPath, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(fmtStatusWant200, w.Code)
-	}
-
-	var got []state.HuntTypePreset
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatalf(fmtUnmarshalError, err)
-	}
-	if len(got) == 0 {
-		t.Error("expected non-empty hunt type presets")
-	}
-	if len(got) != len(state.HuntTypePresets) {
-		t.Errorf("len(presets) = %d, want %d", len(got), len(state.HuntTypePresets))
-	}
-}
-
-// --- GetPokedex tests --------------------------------------------------------
 
 func TestGetPokedex(t *testing.T) {
 	store := &mockPokedexStore{species: fixturePokedexRows()}
@@ -387,14 +357,6 @@ func TestRegisterRoutesGames(t *testing.T) {
 		t.Error(gamesPath + " route not registered")
 	}
 
-	// Verify /api/hunt-types route is registered
-	req = httptest.NewRequest(http.MethodGet, huntTypesPath, nil)
-	w = httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-	if w.Code == http.StatusNotFound {
-		t.Error("/api/hunt-types route not registered")
-	}
-
 	// Verify /api/pokedex route is registered
 	req = httptest.NewRequest(http.MethodGet, pokedexPath, nil)
 	w = httptest.NewRecorder()
@@ -471,30 +433,6 @@ func TestGetGamesEmptyStoreReturnsNull(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Fatalf(fmtStatusWant200, w.Code)
-	}
-}
-
-func TestGetHuntTypesResponseShape(t *testing.T) {
-	deps := &mockDeps{games: &mockGamesStore{}, pokedex: &mockPokedexStore{}, cfgDir: t.TempDir()}
-	mux := newTestMux(t, deps)
-
-	req := httptest.NewRequest(http.MethodGet, huntTypesPath, nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Fatalf(fmtStatusWant200, w.Code)
-	}
-
-	var got []state.HuntTypePreset
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatalf(fmtUnmarshalError, err)
-	}
-	// Verify each preset has a non-empty key and label.
-	for i, p := range got {
-		if p.Key == "" {
-			t.Errorf("preset[%d] has empty key", i)
-		}
 	}
 }
 

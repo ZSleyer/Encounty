@@ -10,7 +10,6 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/gamesync"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/pokedex"
-	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
 // Deps declares the capabilities the games handlers need from the application
@@ -31,7 +30,6 @@ type handler struct {
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
 	h := &handler{deps: d}
 	mux.HandleFunc("/api/games", h.handleGetGames)
-	mux.HandleFunc("/api/hunt-types", h.handleGetHuntTypes)
 	mux.HandleFunc("/api/games/sync", h.handleSyncGames)
 	mux.HandleFunc("/api/pokedex", h.handleGetPokedex)
 	mux.HandleFunc("/api/sync/pokemon", h.handleSyncPokemon)
@@ -61,20 +59,6 @@ func LoadPokedex(d Deps) []pokedex.Entry {
 // @Router       /games [get]
 func (h *handler) handleGetGames(w http.ResponseWriter, _ *http.Request) {
 	httputil.WriteJSON(w, http.StatusOK, gamesync.LoadGames(h.deps.GamesDB()))
-}
-
-// handleGetHuntTypes returns all available hunt type presets as JSON.
-// The slice is ordered as defined in state.HuntTypePresets.
-// GET /api/hunt-types
-//
-// @Summary      Get hunt type presets
-// @Description  Returns all available hunt type presets
-// @Tags         games
-// @Produce      json
-// @Success      200 {array} state.HuntTypePreset
-// @Router       /hunt-types [get]
-func (h *handler) handleGetHuntTypes(w http.ResponseWriter, _ *http.Request) {
-	httputil.WriteJSON(w, http.StatusOK, state.HuntTypePresets)
 }
 
 // handleSyncGames triggers a background sync of game metadata from PokeAPI

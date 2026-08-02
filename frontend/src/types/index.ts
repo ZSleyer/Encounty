@@ -225,17 +225,6 @@ export interface DetectorCapabilities {
   supports_camera: boolean;
 }
 
-/** HuntTypePreset is metadata for one shiny hunting method, returned by the server. */
-export interface HuntTypePreset {
-  /** Matches a huntType.<key> entry in the locale files, which carry the names. */
-  key: string;
-  odds_numer: number;
-  odds_denom: number;
-  default_cooldown_sec: number;
-  default_consecutive_hits: number;
-  template_tip: string;
-}
-
 export interface GradientStop {
   color: string;
   position: number; // 0-100

@@ -413,36 +413,6 @@ func TestHandleGetGames(t *testing.T) {
 	}
 }
 
-// --- handleGetHuntTypes (via mux) ---
-
-func TestHandleGetHuntTypes(t *testing.T) {
-	srv := newTestServer(t)
-	mux := http.NewServeMux()
-	srv.registerRoutes(mux)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/hunt-types", nil)
-	w := httptest.NewRecorder()
-	mux.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf(fmtStatusWant, w.Code, http.StatusOK)
-	}
-
-	var presets []state.HuntTypePreset
-	if err := json.Unmarshal(w.Body.Bytes(), &presets); err != nil {
-		t.Fatalf(fmtUnmarshal, err)
-	}
-	if len(presets) == 0 {
-		t.Error("expected at least one hunt type preset")
-	}
-	// Verify the first known preset key
-	if presets[0].Key != "encounter" {
-		t.Errorf("first preset key = %q, want %q", presets[0].Key, "encounter")
-	}
-}
-
-// --- handleHotkeysPause / Resume / Status ---
-
 func TestHandlePauseResumeLifecycle(t *testing.T) {
 	srv := newTestServer(t)
 	hkMock := srv.hotkeyMgr.(*mockHotkeyMgr)

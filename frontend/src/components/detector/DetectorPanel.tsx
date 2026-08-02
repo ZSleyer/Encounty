@@ -11,7 +11,7 @@ import {
   MoreHorizontal, Download, Upload, FileDown, AlertTriangle, Video, VideoOff, Trash2,
   FlaskConical, Activity,
 } from "lucide-react";
-import { DetectorConfig, DetectorTemplate, HuntTypePreset, Pokemon, MatchedRegion, TemplateCalibration, Settings as SettingsType } from "../../types";
+import { DetectorConfig, DetectorTemplate, Pokemon, MatchedRegion, TemplateCalibration, Settings as SettingsType } from "../../types";
 import {
   DEFAULT_PRECISION, DEFAULT_HYSTERESIS_FACTOR, DEFAULT_CONSECUTIVE_HITS,
   DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
@@ -353,16 +353,6 @@ export function DetectorPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pokemon.detector_config, settingsDirty]);
 
-  // --- Hunt-type presets ----------------------------------------------------
-
-  const [huntTypePresets, setHuntTypePresets] = useState<HuntTypePreset[]>([]);
-  useEffect(() => {
-    fetch(apiUrl("/api/hunt-types"))
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setHuntTypePresets(data); })
-      .catch(() => {});
-  }, []);
-
   // Show tutorial on first visit
   useEffect(() => {
     const tutorialSeen = appState?.settings?.tutorial_seen?.auto_detection;
@@ -389,20 +379,6 @@ export function DetectorPanel({
       loopRef.current = existing;
     }
   }, [pokemon.id, setDetectorStatus]);
-
-  const activePreset = useMemo(
-    () => huntTypePresets.find((p) => p.key === pokemon.hunt_type),
-    [huntTypePresets, pokemon.hunt_type],
-  );
-
-  const handleApplyDefaults = () => {
-    if (!activePreset) return;
-    setTemplateDraft((prev) => ({
-      ...prev,
-      cooldown_sec: activePreset.default_cooldown_sec,
-      consecutive_hits: activePreset.default_consecutive_hits,
-    }));
-  };
 
   // --- Template operations ---------------------------------------------------
 
@@ -658,11 +634,6 @@ export function DetectorPanel({
   /** Wrapper that updates the active template's settings draft and marks it dirty. */
   const updateTemplateDraft = (patch: TemplateSettingsPatch) => {
     setTemplateDraft((prev) => ({ ...prev, ...patch }));
-    setSettingsDirty(true);
-  };
-
-  const handleApplyDefaultsWithDirty = () => {
-    handleApplyDefaults();
     setSettingsDirty(true);
   };
 
@@ -1275,8 +1246,6 @@ export function DetectorPanel({
                     onSave={handleSaveSettings}
                     onReset={handleResetSettings}
                     settingsDirty={settingsDirty}
-                    activePreset={activePreset}
-                    onApplyDefaults={handleApplyDefaultsWithDirty}
                     embedded
                     disabled={isRunning}
                   />
