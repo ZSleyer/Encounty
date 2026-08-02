@@ -16,11 +16,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
-import { GameEntry } from "../../types";
+import { GameEntry, PhaseTarget } from "../../types";
 import {
   getSpriteUrl,
-  getDefaultSpriteUrl,
-  getBoxSpriteUrl,
   SpriteType,
   SpriteStyle,
   SPRITE_STYLES,
@@ -30,10 +28,23 @@ import {
   bestAvailableStyle,
   getPokemonGeneration,
 } from "../../utils/sprites";
+import {
+  PokemonData,
+  SearchResult,
+  PokemonThumb,
+  BROWSE_PAGE,
+  getPkmnName,
+  buildFormStrip,
+  buildSearchList,
+  computeSuggestions,
+  localeToPokemonLangs,
+  usePokedex,
+} from "./pokemonPicker";
+import { PhaseTargetsSection } from "./PhaseTargetsSection";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { TagChip } from "../shared/TagChip";
 import { getGameName, ALL_LANGUAGES } from "../../utils/games";
-import { getAvailableHuntMethods } from "../../utils/huntTypes";
+import { getAvailableHuntMethods, isPhasingMethod } from "../../utils/huntTypes";
 import { gameSupportsCharm } from "../../utils/gameGroups";
 import { CountryFlag } from "../shared/CountryFlag";
 import { apiUrl } from "../../utils/api";
@@ -72,6 +83,8 @@ export interface NewPokemonData {
   group_id?: string;
   /** Free-form tags attached to this Pokémon. */
   tags?: string[];
+  /** Species that end a phase when they show up shiny. */
+  phase_targets?: PhaseTarget[];
 }
 
 export interface ExistingPokemonData {
@@ -91,6 +104,10 @@ export interface ExistingPokemonData {
   timer_accumulated_ms?: number;
   group_id?: string;
   tags?: string[];
+  /** Species that end a phase when they show up shiny. */
+  phase_targets?: PhaseTarget[];
+  /** ID of the parent hunt when this entry is a finished phase. */
+  phase_of?: string;
 }
 
 /** One group entry as exposed to the Pokémon form (subset of the full Group type). */
@@ -123,116 +140,6 @@ export type PokemonFormModalProps =
 
 // --- Internal types ---
 
-interface PokemonForm {
-  canonical: string;
-  names?: Record<string, string>;
-  form_names?: Record<string, string>;
-  sprite_id: number;
-  /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
-  sprite_slug?: string;
-  generations?: number[];
-}
-
-interface PokemonData {
-  id: number;
-  canonical: string;
-  names?: Record<string, string>;
-  forms?: PokemonForm[];
-}
-
-interface SearchResult {
-  id: number;
-  canonical: string;
-  names?: Record<string, string>;
-  isForm: boolean;
-  spriteId: number;
-  /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
-  spriteSlug?: string;
-  formName?: string;
-  baseName?: string;
-}
-
-// --- Helpers ---
-
-function getPkmnName(
-  p: SearchResult | PokemonData | PokemonForm,
-  lang: string,
-): string {
-  return p.names?.[lang] || p.names?.["en"] || p.canonical;
-}
-
-/**
- * Test whether a Pokémon form is available for the currently selected game.
- * Returns true (no filtering) when no game is selected, when the game is
- * unknown, or when the form has no generation metadata. Otherwise the form
- * is shown only if its generations list contains the game's generation.
- */
-function isFormAvailableForGame(
-  form: PokemonForm,
-  selectedGame: string,
-  games: GameEntry[],
-): boolean {
-  if (!selectedGame) return true;
-  if (!form.generations?.length) return true;
-  const game = games.find((g) => g.key === selectedGame);
-  if (!game?.generation) return true;
-  return form.generations.includes(game.generation);
-}
-
-/** Number of browse-mode rows revealed per scroll page. */
-const BROWSE_PAGE = 30;
-
-/** Build browse-mode suggestions (dex-ordered base forms, capped at `limit`). */
-function buildBrowseList(allPokemon: PokemonData[], limit: number): SearchResult[] {
-  return allPokemon
-    .slice(0, limit)
-    .map((p) => ({
-      id: p.id,
-      canonical: p.canonical,
-      names: p.names,
-      isForm: false,
-      spriteId: p.id,
-    }));
-}
-
-/** Filter pokemon data by query string, grouping forms under their base. */
-function filterByQuery(
-  query: string,
-  allPokemon: PokemonData[],
-  selectedGame: string,
-  games: GameEntry[],
-  language: string,
-): SearchResult[] {
-  const q = query.trim().toLowerCase();
-  const matchesQuery = (entry: { canonical: string; names?: Record<string, string>; spriteId: number }) => {
-    if (entry.canonical.includes(q)) return true;
-    if (entry.names) {
-      for (const name of Object.values(entry.names)) {
-        if (name?.toLowerCase().includes(q)) return true;
-      }
-    }
-    if (/^\d+$/.test(q) && entry.spriteId === Number.parseInt(q, 10)) return true;
-    return false;
-  };
-
-  const results: SearchResult[] = [];
-  for (const p of allPokemon) {
-    const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id };
-    const baseMatches = matchesQuery(baseEntry);
-    const matchingForms = formEntriesFor(p, selectedGame, games, language).filter(matchesQuery);
-
-    // The search lists base species only; forms are picked from the strip
-    // after selecting the base. Form names still count as matches (e.g.
-    // "kappe" or "mega" surfaces the species owning such a form), but never
-    // produce their own rows.
-    if (baseMatches || matchingForms.length > 0) {
-      results.push(baseEntry);
-    }
-    if (results.length >= 20) break;
-  }
-  return results.slice(0, 20);
-}
-
 interface FormDefaults {
   language: string;
   customSprite: string;
@@ -249,19 +156,14 @@ interface FormDefaults {
   timerS: number;
   groupId: string;
   tags: string[];
-}
-
-/** Map UI locale to candidate Pokemon language codes (UI "es" → Pokemon "es-es"/"es-419"). */
-function localeToPokemonLangs(locale: string): string[] {
-  if (locale === "es") return ["es-es", "es-419"];
-  return [locale];
+  phaseTargets: PhaseTarget[];
 }
 
 /** Compute initial form values for add mode. */
 function addDefaults(activeLanguages: string[], locale: string): FormDefaults {
   const candidates = localeToPokemonLangs(locale);
   const language = candidates.find((c) => activeLanguages.includes(c)) ?? activeLanguages[0] ?? "en";
-  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [] };
+  return { language, customSprite: "", spriteType: "shiny", spriteStyle: "box", title: "", step: 1, game: "", huntType: "encounter", shinyCharm: false, encounters: 0, timerH: 0, timerM: 0, timerS: 0, groupId: "", tags: [], phaseTargets: [] };
 }
 
 /** Compute initial form values for edit mode from existing pokemon data. */
@@ -284,131 +186,8 @@ function editDefaults(pokemon: ExistingPokemonData, activeLanguages: string[], l
     timerS: Math.floor((ms % 60000) / 1000),
     groupId: pokemon.group_id || "",
     tags: Array.isArray(pokemon.tags) ? [...pokemon.tags] : [],
+    phaseTargets: Array.isArray(pokemon.phase_targets) ? [...pokemon.phase_targets] : [],
   };
-}
-
-/** Build a flat search list of all pokemon including forms. */
-function buildSearchList(
-  data: PokemonData[],
-  selectedGame: string,
-  games: GameEntry[],
-  language: string = "en",
-): SearchResult[] {
-  const results: SearchResult[] = [];
-  for (const p of data) {
-    results.push({ id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id });
-    if (p.forms) {
-      for (const f of p.forms) {
-        if (!isFormAvailableForGame(f, selectedGame, games)) continue;
-        results.push({
-          id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
-          spriteSlug: f.sprite_slug,
-          formName: (f as any).form_names?.[language] || (f as any).form_names?.["en"] || undefined,
-          baseName: p.names?.[language] || p.names?.["en"] || undefined,
-        });
-      }
-    }
-  }
-  return results;
-}
-
-/** Available forms of a base pokemon as selectable entries (game-filtered). */
-function formEntriesFor(
-  p: PokemonData,
-  selectedGame: string,
-  games: GameEntry[],
-  language: string,
-): SearchResult[] {
-  return (p.forms || [])
-    .filter((f) => isFormAvailableForGame(f, selectedGame, games))
-    .map((f) => ({
-      id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
-      spriteSlug: f.sprite_slug,
-      formName: (f as any).form_names?.[language] || (f as any).form_names?.["en"] || undefined,
-      baseName: p.names?.[language] || p.names?.["en"] || undefined,
-    }));
-}
-
-/**
- * Build the form-strip entries for a base species: the base itself followed by
- * its game-filtered forms. Returns an empty array when the species has no
- * selectable forms so the strip stays hidden.
- */
-function buildFormStrip(
-  base: PokemonData,
-  selectedGame: string,
-  games: GameEntry[],
-  language: string,
-): SearchResult[] {
-  const forms = formEntriesFor(base, selectedGame, games, language);
-  if (forms.length === 0) return [];
-  const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id };
-  return [baseEntry, ...forms];
-}
-
-interface PokemonThumbProps {
-  readonly spriteId: number;
-  readonly canonical: string;
-  readonly alt: string;
-  readonly className?: string;
-  /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
-  readonly spriteSlug?: string;
-}
-
-/**
- * Small thumbnail sprite with a resilient fallback chain: the PokeAPI default
- * pixel sprite, then the 3D Home render, then the Pokésprite box sprite
- * (which covers form IDs missing from both PokeAPI sets, e.g.
- * pikachu-starter), and finally the neutral placeholder glyph so the slot
- * stays layout-stable instead of collapsing.
- *
- * Cosmetic-only forms (spriteSlug set) have no numeric PokeAPI ID and no 3D
- * Home render, so their chain starts at the slug-based default sprite and
- * skips straight to the Pokésprite box sprite.
- */
-function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug }: PokemonThumbProps) {
-  // Candidate URLs in fallback order, deduplicated so onError always advances
-  // to a genuinely different source. Pixel-art candidates render pixelated.
-  const sources = spriteSlug
-    ? [
-        { src: getDefaultSpriteUrl(spriteSlug), pixelated: true },
-        { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
-        { src: SPRITE_FALLBACK, pixelated: false },
-      ]
-    : [
-        { src: getDefaultSpriteUrl(spriteId), pixelated: true },
-        { src: getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical), pixelated: false },
-        { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
-        { src: SPRITE_FALLBACK, pixelated: false },
-      ];
-  const candidates: { src: string; pixelated: boolean }[] = [];
-  const seen = new Set<string>();
-  for (const c of sources) {
-    if (!seen.has(c.src)) {
-      seen.add(c.src);
-      candidates.push(c);
-    }
-  }
-
-  const [candidateIndex, setCandidateIndex] = useState(0);
-
-  // Restart the fallback chain when this instance is reused for a different
-  // Pokemon: the surrounding lists key their buttons, not the thumb itself,
-  // so React keeps the component instance (and its state) alive across items.
-  useEffect(() => {
-    setCandidateIndex(0);
-  }, [spriteId, canonical, spriteSlug]);
-
-  const current = candidates[Math.min(candidateIndex, candidates.length - 1)];
-  return (
-    <img
-      src={current.src}
-      alt={alt}
-      className={className}
-      style={{ imageRendering: current.pixelated ? "pixelated" : "auto" }}
-      onError={() => setCandidateIndex((i) => Math.min(i + 1, candidates.length - 1))}
-    />
-  );
 }
 
 interface SelectedState {
@@ -489,30 +268,6 @@ function resolveEffectiveStyle(
   const best = bestAvailableStyle(current, pkGen);
   setSpriteStyle(best);
   return best;
-}
-
-/** Compute search suggestions based on current query and input state. */
-function computeSuggestions(
-  isEdit: boolean,
-  showSearch: boolean,
-  query: string,
-  inputFocused: boolean,
-  allPokemon: PokemonData[],
-  selectedGame: string,
-  games: GameEntry[],
-  language: string,
-  browseLimit: number,
-): SearchResult[] {
-  if (isEdit && !showSearch) return [];
-  // Dropdown only lives while the field has focus. Without this, selecting a
-  // pokemon (which writes its name into `query`) re-triggers the filter and
-  // reopens the list until the next click.
-  if (!inputFocused) return [];
-  const q = query.trim();
-  if (!q) {
-    return allPokemon.length > 0 ? buildBrowseList(allPokemon, browseLimit) : [];
-  }
-  return filterByQuery(query, allPokemon, selectedGame, games, language);
 }
 
 interface GroupAndTagsSectionProps {
@@ -717,8 +472,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // Forms of the currently selected base species, shown right after selection
   // so the user can refine to a specific form without reopening the search.
   const [pendingForms, setPendingForms] = useState<SearchResult[]>([]);
-  const [allPokemon, setAllPokemon] = useState<PokemonData[]>([]);
-  const [missingNames, setMissingNames] = useState(false);
+  const { allPokemon, games, missingNames } = usePokedex();
   const [showSearch, setShowSearch] = useState(!isEdit);
   const [showCustomSprite, setShowCustomSprite] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
@@ -747,13 +501,13 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const [timerM, setTimerM] = useState(defaults.timerM);
   const [timerS, setTimerS] = useState(defaults.timerS);
 
-  const [games, setGames] = useState<GameEntry[]>([]);
   const [selectedGame, setSelectedGame] = useState(defaults.game);
   const [huntType, setHuntType] = useState(defaults.huntType);
   const [shinyCharm, setShinyCharm] = useState(defaults.shinyCharm);
   const [groupId, setGroupId] = useState(defaults.groupId);
   const [tags, setTags] = useState<string[]>(defaults.tags);
   const [tagDraft, setTagDraft] = useState("");
+  const [phaseTargets, setPhaseTargets] = useState<PhaseTarget[]>(defaults.phaseTargets);
 
   // Get the generation for the currently selected game
   const selectedGameGen: number | null =
@@ -764,29 +518,19 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     ? getPokemonGeneration(selected.id)
     : null;
 
-  /** Handle pokedex data after fetch. */
-  const handlePokedexLoaded = (data: PokemonData[]) => {
-    setAllPokemon(data);
-    setMissingNames(!data.some((p) => p.names && Object.keys(p.names).length > 0));
-    if (isEdit) {
-      applyEditModeMatch(data, props.pokemon, selectedGame, games, spriteType, spriteStyle, setSelected, setQuery, setPendingForms);
-    }
-  };
+  // --- Focus search on mount ---
+  // The field carries data-autofocus, which useModalDialog applies right after
+  // showModal(); a focus() call from here would run before showModal() and be
+  // overridden by its own focusing steps.
 
-  // --- Focus search + load pokedex and games on mount (ModalShell opens the dialog) ---
+  // --- Preselect the edited Pokemon once the pokedex has arrived ---
+  // Keyed on allPokemon alone so the match runs exactly once per data load,
+  // mirroring the previous placement inside the fetch callback; later game or
+  // language switches are handled by the form-strip effect below.
   useEffect(() => {
-    inputRef.current?.focus();
-
-    fetch(apiUrl("/api/pokedex"))
-      .then((r) => r.json())
-      .then(handlePokedexLoaded)
-      .catch(() => {});
-
-    fetch(apiUrl("/api/games"))
-      .then((r) => r.json())
-      .then((data: GameEntry[]) => setGames(data))
-      .catch(() => {});
-  }, []);
+    if (props.mode !== "edit") return;
+    applyEditModeMatch(allPokemon, props.pokemon, selectedGame, games, spriteType, spriteStyle, setSelected, setQuery, setPendingForms);
+  }, [allPokemon]);
 
   // --- Auto-switch style when game changes and current style is unavailable ---
   useEffect(
@@ -821,7 +565,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
   useEffect(() => {
     setSuggestions(
-      computeSuggestions(isEdit, showSearch, query, inputFocused, allPokemon, selectedGame, games, language, browseLimit),
+      computeSuggestions(!isEdit || showSearch, query, inputFocused, allPokemon, selectedGame, games, language, browseLimit),
     );
   }, [query, allPokemon, showSearch, inputFocused, selectedGame, games, language, browseLimit]);
 
@@ -1029,6 +773,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
       timer_accumulated_ms: timerH * 3600000 + timerM * 60000 + timerS * 1000,
       group_id: groupId,
       tags,
+      // Always sent, even when the current method cannot phase: switching a
+      // hunt to a non-phasing method must not silently drop its targets.
+      phase_targets: phaseTargets,
     };
     void submitByMode(props, data, requestClose);
   };
@@ -1054,6 +801,10 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   // for sprites this app actually stored for the Pokemon being edited.
   const isUploadedSprite =
     props.mode === "edit" && customSprite.startsWith(apiUrl(`/api/pokemon/${props.pokemon.id}/sprite`));
+  // A finished phase is a frozen snapshot of a past phase and never phases
+  // again, so it gets no targets of its own.
+  const isPhaseEntry = props.mode === "edit" && Boolean(props.pokemon.phase_of);
+  const showPhaseTargets = isPhasingMethod(huntType) && !isPhaseEntry;
 
   return (
     <ModalShell
@@ -1356,6 +1107,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 <Search className="w-4 h-4 text-text-muted shrink-0" />
                 <input
                   ref={inputRef}
+                  data-autofocus
                   type="text"
                   value={query}
                   onChange={(e) => {
@@ -1677,6 +1429,21 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 {t("huntType.shinyCharm")}
               </span>
             </label>
+          )}
+
+          {/* Section: Phase targets. Hidden for methods whose encounter pool
+              holds a single species, and for entries that are themselves a
+              finished phase (those never phase again). */}
+          {showPhaseTargets && (
+            <PhaseTargetsSection
+              targets={phaseTargets}
+              onChange={setPhaseTargets}
+              allPokemon={allPokemon}
+              games={games}
+              selectedGame={selectedGame}
+              language={language}
+              spriteStyle={spriteStyle}
+            />
           )}
 
           {/* Divider */}

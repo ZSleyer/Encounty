@@ -2,6 +2,7 @@ import { PokemonFormModal } from "./PokemonFormModal";
 export type { NewPokemonData } from "./PokemonFormModal";
 import type { NewPokemonData, ExistingPokemonData, GroupOption } from "./PokemonFormModal";
 import type { SpriteType, SpriteStyle } from "../../utils/sprites";
+import type { PhaseTarget } from "../../types";
 
 type Props = Readonly<{
   pokemon: {
@@ -21,6 +22,10 @@ type Props = Readonly<{
     timer_accumulated_ms?: number;
     group_id?: string;
     tags?: string[];
+    /** Species that end a phase when they show up shiny. */
+    phase_targets?: PhaseTarget[];
+    /** ID of the parent hunt when this entry is a finished phase. */
+    phase_of?: string;
   };
   onSave: (id: string, data: NewPokemonData) => void;
   onClose: () => void;
