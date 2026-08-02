@@ -362,9 +362,12 @@ const gen8Swsh: GameGroup = {
 };
 gen8Swsh.methods = {
   dynamax_adventure: { base: [1, 300], charm: [1, 100] },
-  battle_method: { base: gen8Swsh.baseOdds, charm: [1, 1365] },
+  // Only Brilliant Pokemon get extra rolls, and only the Pokedex catch/defeat
+  // counter feeds them: 7x the normal rate at 500+, 9x with the Shiny Charm.
+  // Fishing chains raise how often a Brilliant appears, not its shiny rate, so
+  // fishing for Brilliants is this method rather than a chain_fishing hunt.
+  battle_method: { base: [1, 585], charm: [1, 455] },
   masuda: { base: [1, 682], charm: [1, 512] },
-  chain_fishing: { base: [1, 1529], charm: [1, 876] },
   breeding: { base: gen8Swsh.baseOdds, charm: [1, 1365] },
   fishing: { base: gen8Swsh.baseOdds, charm: [1, 1365] },
   max_raid: { base: gen8Swsh.baseOdds },

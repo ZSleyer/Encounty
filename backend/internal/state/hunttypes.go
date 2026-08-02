@@ -374,7 +374,7 @@ var HuntTypePresets = []HuntTypePreset{
 	{
 		Key:                    "battle_method",
 		OddsNumer:              1,
-		OddsDenom:              4096,
+		OddsDenom:              585,
 		DefaultCooldownSec:     8,
 		DefaultConsecutiveHits: 2,
 		TemplateTip:            "Capture the battle intro screen of the Brilliant Pokémon.",

@@ -101,6 +101,16 @@ describe("getMethodOdds", () => {
     expect(getMethodOdds("pokemon-x", "masuda", true)).toEqual([1, 512]);
   });
 
+  it("returns the Brilliant tier odds for the SwSh battle method", () => {
+    expect(getMethodOdds("pokemon-sword", "battle_method", false)).toEqual([1, 585]);
+    expect(getMethodOdds("pokemon-sword", "battle_method", true)).toEqual([1, 455]);
+  });
+
+  it("does not offer chain fishing in SwSh", () => {
+    expect(getMethodsForGame("pokemon-sword")).not.toContain("chain_fishing");
+    expect(getMethodsForGame("pokemon-x")).toContain("chain_fishing");
+  });
+
   it("returns dynamax_adventure base odds for SwSh", () => {
     expect(getMethodOdds("pokemon-sword", "dynamax_adventure", false)).toEqual([1, 300]);
   });
