@@ -346,7 +346,9 @@ const gen7Lgpe: GameGroup = {
   methods: {},
 };
 gen7Lgpe.methods = {
-  catch_combo: { base: [1, 315], charm: [1, 273] },
+  // Combo 31+ without a Lure. The Lure column would be 1/316 and 1/274, but
+  // the app has no Lure toggle and every other method uses the itemless base.
+  catch_combo: { base: [1, 342], charm: [1, 293] },
   fishing: { base: gen7Lgpe.baseOdds, charm: [1, 1365] },
 };
 

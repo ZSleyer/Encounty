@@ -192,7 +192,7 @@ var HuntTypePresets = []HuntTypePreset{
 		NameDE:                 "Fangkombo",
 		NameEN:                 "Catch Combo",
 		OddsNumer:              1,
-		OddsDenom:              273,
+		OddsDenom:              342,
 		DefaultCooldownSec:     5,
 		DefaultConsecutiveHits: 2,
 		TemplateTip:            "Capture the overworld screen showing spawning Pokémon during an active catch combo.",

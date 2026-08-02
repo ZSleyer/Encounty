@@ -2692,7 +2692,7 @@ describe("Dashboard additional odds display", () => {
     });
     render(<Dashboard />);
     await act(async () => {});
-    expect(screen.getByText("1/315")).toBeInTheDocument();
+    expect(screen.getByText("1/342")).toBeInTheDocument();
   });
 
   it("shows sandwich odds", async () => {
