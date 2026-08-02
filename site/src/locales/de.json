@@ -182,7 +182,7 @@
   "faq.games.q": "Welche Spiele und Setups funktionieren?",
   "faq.games.a": "Alles, was du auf deinem Bildschirm zeigen kannst: PC-Releases oder eine Konsole per Capture-Karte. Das Hunt-Tracking deckt jedes Hauptspiel von Gen 1 bis 9 ab, und die Auto-Erkennung funktioniert überall dort, wo ein Encounter visuell erkennbar ist.",
   "faq.odds.q": "Woher stammen die Odds-Daten?",
-  "faq.odds.a": "Die Odds- und Methoden-Daten stammen aus einem Community-Recherche-Thread auf r/pokemon, der die Hunt-Methoden aller Spiele dokumentiert; das Programm nennt diese Quelle unter Einstellungen, Über.",
+  "faq.odds.a": "Die Odds- und Methoden-Daten stammen aus einem Community-Recherche-Thread auf r/pokemon, der die Hunt-Methoden aller Spiele dokumentiert, und werden gegen Bulbapedia, Smogon und RotomLabs gegengeprüft. Das Programm nennt alle Quellen unter Einstellungen, Über.",
   "faq.odds.link": "Zum Recherche-Thread",
   "faq.threed.q": "Funktioniert die Erkennung auch bei 3D-Spielen?",
   "faq.threed.a": "Ja. Vor jedem Release muss die Erkennung automatisierte Tests gegen echte Spielaufnahmen aus 2D- und 3D-Spielen bestehen, mit strengen Kriterien: exakte Encounter-Anzahl, keine Doppelzählung.",

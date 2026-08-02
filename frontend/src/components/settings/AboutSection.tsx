@@ -47,6 +47,14 @@ const DATA_SOURCES: { name: string; url: string; desc: string; display?: string 
     desc: "Shiny odds & hunting methods",
     display: "reddit.com/r/pokemon",
   },
+  {
+    name: "Bulbapedia",
+    url: "https://bulbapedia.bulbagarden.net",
+    desc: "Shiny odds & game mechanics",
+  },
+  { name: "Smogon", url: "https://www.smogon.com", desc: "RNG & mechanics research" },
+  { name: "RotomLabs", url: "https://rotomlabs.net", desc: "Shiny rate tables" },
+  { name: "PokéWiki", url: "https://www.pokewiki.de", desc: "German terminology" },
 ];
 
 /**

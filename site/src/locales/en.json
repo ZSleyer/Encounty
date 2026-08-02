@@ -182,7 +182,7 @@
   "faq.games.q": "Which games and setups work?",
   "faq.games.a": "Anything you can show on your screen: PC releases or a console through a capture card. Hunt tracking covers every mainline game from Gen 1 to 9, and auto-detection works wherever an encounter is visually recognizable.",
   "faq.odds.q": "Where does the odds data come from?",
-  "faq.odds.a": "The odds and method data come from a community research thread on r/pokemon that documents the hunting methods of every game; the app credits this source under Settings, About.",
+  "faq.odds.a": "The odds and method data come from a community research thread on r/pokemon that documents the hunting methods of every game, cross-checked against Bulbapedia, Smogon and RotomLabs. The app credits every source under Settings, About.",
   "faq.odds.link": "Read the research thread",
   "faq.threed.q": "Does detection work in 3D games too?",
   "faq.threed.a": "Yes. Before every release, detection has to pass automated tests against real gameplay recordings from 2D and 3D games, with strict criteria: exact encounter counts, no double counting.",

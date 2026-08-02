@@ -182,7 +182,7 @@
   "faq.games.q": "Quels jeux et configurations fonctionnent ?",
   "faq.games.a": "Tout ce que vous pouvez afficher à l'écran : des versions PC ou une console via une carte de capture. Le suivi des hunts couvre tous les jeux principaux de la Gen 1 à 9, et la détection automatique fonctionne partout où un encounter est visuellement reconnaissable.",
   "faq.odds.q": "D'où viennent les données d'odds ?",
-  "faq.odds.a": "Les données d'odds et de méthodes proviennent d'un fil de recherche communautaire sur r/pokemon qui documente les méthodes de chasse de tous les jeux ; l'application cite cette source dans Paramètres, À propos.",
+  "faq.odds.a": "Les données d'odds et de méthodes proviennent d'un fil de recherche communautaire sur r/pokemon qui documente les méthodes de chasse de tous les jeux, recoupées avec Bulbapedia, Smogon et RotomLabs. L'application cite toutes les sources dans Paramètres, À propos.",
   "faq.odds.link": "Lire le fil de recherche",
   "faq.threed.q": "La détection fonctionne-t-elle aussi sur les jeux 3D ?",
   "faq.threed.a": "Oui. Avant chaque version, la détection doit passer des tests automatisés sur des enregistrements de gameplay réels de jeux 2D et 3D, avec des critères stricts : nombre exact de rencontres, aucun double comptage.",
