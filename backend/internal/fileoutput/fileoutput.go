@@ -22,6 +22,9 @@ const (
 	encountersFile      = "encounters.txt"
 	pokemonNameFile     = "pokemon_name.txt"
 	encountersLabelFile = "encounters_label.txt"
+	phaseFile           = "phase.txt"
+	totalEncountersFile = "total_encounters.txt"
+	totalTimerFile      = "total_timer.txt"
 )
 
 // Writer manages file output to a directory. All public methods are safe
@@ -49,7 +52,8 @@ func (w *Writer) SetConfig(dir string, enabled bool) {
 }
 
 // writeRootFiles writes the top-level text files for the active Pokémon
-// (encounters, name, label) and session-wide metrics (duration, daily total).
+// (encounters, name, label, phase totals) and session-wide metrics
+// (duration, daily total).
 func (w *Writer) writeRootFiles(dir string, st state.AppState) {
 	var active *state.Pokemon
 	for i := range st.Pokemon {
@@ -69,17 +73,42 @@ func (w *Writer) writeRootFiles(dir string, st state.AppState) {
 		w.writeFile(dir, encountersLabelFile, fmt.Sprintf("%s: %d Encounters", active.Name, active.Encounters))
 	}
 
-	elapsed := time.Since(w.startedAt)
-	hours := int(elapsed.Hours())
-	minutes := int(elapsed.Minutes()) % 60
-	seconds := int(elapsed.Seconds()) % 60
-	w.writeFile(dir, "session_duration.txt", fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds))
+	w.writePhaseFiles(dir, st, active)
 
+	elapsed := time.Since(w.startedAt)
+	w.writeFile(dir, "session_duration.txt", formatClock(elapsed.Milliseconds()))
+
+	// Ending a phase moves encounters from the hunt to its phase entry, so the
+	// sum over all entries stays the same and this daily total is unaffected.
 	allEncounters := 0
 	for _, p := range st.Pokemon {
 		allEncounters += p.Encounters
 	}
 	w.writeFile(dir, "encounters_today.txt", fmt.Sprintf("%d", allEncounters))
+}
+
+// writePhaseFiles writes the phase number and the totals across all phases of
+// the active hunt. Without an active Pokémon every value is zero, matching the
+// placeholder that encounters.txt gets in that case.
+func (w *Writer) writePhaseFiles(dir string, st state.AppState, active *state.Pokemon) {
+	encounters, timerMs, phase := state.PhaseTotals(st.Pokemon, st.ActiveID)
+	// PhaseTotals stays pure and omits the segment of a running timer, so add
+	// it here the same way timer.txt does.
+	if active != nil && active.TimerStartedAt != nil {
+		timerMs += time.Since(*active.TimerStartedAt).Milliseconds()
+	}
+	w.writeFile(dir, phaseFile, fmt.Sprintf("%d", phase))
+	w.writeFile(dir, totalEncountersFile, fmt.Sprintf("%d", encounters))
+	w.writeFile(dir, totalTimerFile, formatClock(timerMs))
+}
+
+// formatClock renders a duration in milliseconds as HH:MM:SS, the format every
+// time-based output file uses.
+func formatClock(totalMs int64) string {
+	if totalMs < 0 {
+		totalMs = 0
+	}
+	return fmt.Sprintf("%02d:%02d:%02d", totalMs/3600000, (totalMs%3600000)/60000, (totalMs%60000)/1000)
 }
 
 // writePokemonDir creates and populates the per-Pokémon subdirectory with
@@ -108,10 +137,7 @@ func (w *Writer) writePokemonDir(dir string, p state.Pokemon) {
 	if p.TimerStartedAt != nil {
 		totalMs += time.Since(*p.TimerStartedAt).Milliseconds()
 	}
-	timerH := totalMs / 3600000
-	timerM := (totalMs % 3600000) / 60000
-	timerS := (totalMs % 60000) / 1000
-	w.writeFile(pokemonDir, "timer.txt", fmt.Sprintf("%02d:%02d:%02d", timerH, timerM, timerS))
+	w.writeFile(pokemonDir, "timer.txt", formatClock(totalMs))
 }
 
 // pokemonSubDirName returns the sanitized directory name for a Pokémon.
@@ -126,7 +152,8 @@ func pokemonSubDirName(p state.Pokemon) string {
 // Write updates all output text files from the given state snapshot.
 // It is a no-op when output is disabled or no output directory is configured.
 // Files written: encounters.txt, pokemon_name.txt, encounters_label.txt,
-// session_duration.txt, encounters_today.txt.
+// phase.txt, total_encounters.txt, total_timer.txt, session_duration.txt,
+// encounters_today.txt.
 func (w *Writer) Write(st state.AppState) {
 	w.mu.Lock()
 	dir := w.dir
@@ -144,9 +171,15 @@ func (w *Writer) Write(st state.AppState) {
 
 	w.writeRootFiles(dir, st)
 
-	// Per-Pokemon subdirectories
+	// Per-Pokemon subdirectories. Phase entries are skipped on purpose: the
+	// writer runs on every state change, so one directory per phase would let
+	// the output directory grow without bound and multiply the file operations
+	// of a single encounter. Their numbers are covered by the total_* files.
 	validDirs := make(map[string]bool)
 	for _, p := range st.Pokemon {
+		if p.PhaseOf != "" {
+			continue
+		}
 		subDir := pokemonSubDirName(p)
 		validDirs[subDir] = true
 		w.writePokemonDir(dir, p)
