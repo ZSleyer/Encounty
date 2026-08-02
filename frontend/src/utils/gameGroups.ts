@@ -147,7 +147,10 @@ const gen3Xd: GameGroup = {
   generation: 3,
   baseOdds: [1, 8192],
   methods: {},
-  universalMethods: [],
+  // XD has no wild Pokemon outside the Poke Spots, but it does have soft
+  // resets: its Shadow Pokemon are shiny locked while the non-Shadow ones are
+  // not, and the Mt. Battle Johto starter is covered by none of the keys below.
+  universalMethods: ["soft_reset"],
 };
 gen3Xd.methods = {
   poke_spot_xd: B(gen3Xd),
