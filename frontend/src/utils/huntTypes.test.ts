@@ -32,11 +32,12 @@ describe("getAvailableHuntMethods", () => {
     expect(keys).toEqual(["encounter", "soft_reset"]);
   });
 
-  it("gen 1 includes encounter, fishing, safari_zone but excludes masuda", () => {
+  it("gen 1 includes fishing but excludes encounter, safari_zone and masuda", () => {
     const keys = getAvailableHuntMethods("pokemon-red").map((m) => m.key);
-    expect(keys).toContain("encounter");
+    expect(keys).toContain("soft_reset");
     expect(keys).toContain("fishing");
-    expect(keys).toContain("safari_zone");
+    expect(keys).not.toContain("encounter");
+    expect(keys).not.toContain("safari_zone");
     expect(keys).not.toContain("masuda");
   });
 
@@ -114,8 +115,8 @@ describe("getAvailableHuntMethods", () => {
     expect(keys).toContain("sparkling_power_lv3");
   });
 
-  it("always includes encounter and soft_reset for any known game", () => {
-    for (const gameKey of ["pokemon-red", "pokemon-diamond", "pokemon-x", "pokemon-sword", "pokemon-scarlet"]) {
+  it("includes encounter and soft_reset for every game that has both", () => {
+    for (const gameKey of ["pokemon-gold", "pokemon-diamond", "pokemon-x", "pokemon-sword", "pokemon-scarlet"]) {
       const keys = getAvailableHuntMethods(gameKey).map((m) => m.key);
       expect(keys).toContain("encounter");
       expect(keys).toContain("soft_reset");

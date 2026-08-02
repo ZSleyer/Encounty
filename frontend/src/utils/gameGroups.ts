@@ -43,10 +43,15 @@ const gen1Rby: GameGroup = {
   generation: 1,
   baseOdds: [1, 8192],
   methods: {},
+  // Grass, cave and Surf encounters in RBY run through the same routine, whose
+  // encounter rate check correlates with the rolls the DVs come from, so they
+  // can never produce a DV set that is Shiny in Gen 2. Safari Zone grass is no
+  // exception. Fishing is, because the routine returns early on the fish flag,
+  // and so are static encounters, which is what soft_reset covers.
+  universalMethods: ["soft_reset"],
 };
 gen1Rby.methods = {
   fishing: B(gen1Rby),
-  safari_zone: B(gen1Rby),
   dv_method: B(gen1Rby),
   time_capsule_exploit: B(gen1Rby),
 };

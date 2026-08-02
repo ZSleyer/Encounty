@@ -37,10 +37,31 @@ describe("getGameGroup", () => {
 });
 
 describe("getMethodsForGame", () => {
-  it("always includes encounter and soft_reset", () => {
-    const methods = getMethodsForGame("pokemon-red");
+  it("includes the universal methods for groups that offer them", () => {
+    const methods = getMethodsForGame("pokemon-diamond");
     expect(methods).toContain("encounter");
     expect(methods).toContain("soft_reset");
+  });
+
+  it("narrows the universal methods for groups that declare their own", () => {
+    expect(getMethodsForGame("pokemon-colosseum")).toEqual([
+      "shadow_snag_colosseum",
+    ]);
+    expect(getMethodsForGame("pokemon-xd")).toContain("soft_reset");
+    expect(getMethodsForGame("pokemon-xd")).not.toContain("encounter");
+    const gen1 = getMethodsForGame("pokemon-red");
+    expect(gen1).toContain("soft_reset");
+    expect(gen1).not.toContain("encounter");
+    expect(gen1).not.toContain("safari_zone");
+  });
+
+  it("never returns a method twice", () => {
+    for (const group of GAME_GROUPS) {
+      for (const gameKey of group.gameKeys) {
+        const methods = getMethodsForGame(gameKey);
+        expect(new Set(methods).size).toBe(methods.length);
+      }
+    }
   });
 
   it("returns game-specific methods for DPPt", () => {
