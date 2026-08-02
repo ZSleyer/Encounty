@@ -1,21 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { ALL_HUNT_METHOD_KEYS, getAvailableHuntMethods } from "./huntTypes";
+import { getAvailableHuntMethods } from "./huntTypes";
+import { GAME_GROUPS } from "./gameGroups";
+import de from "../locales/de.json";
 
-describe("ALL_HUNT_METHOD_KEYS", () => {
-  it("has at least 60 entries", () => {
-    expect(ALL_HUNT_METHOD_KEYS.length).toBeGreaterThanOrEqual(60);
-  });
-
-  it("every key is a non-empty string", () => {
-    for (const key of ALL_HUNT_METHOD_KEYS) {
-      expect(key).toBeTruthy();
-      expect(typeof key).toBe("string");
+describe("hunt method localization", () => {
+  it("every offered method has a label in the reference locale", () => {
+    const seen = new Set<string>();
+    const missing = new Set<string>();
+    for (const group of GAME_GROUPS) {
+      for (const gameKey of group.gameKeys) {
+        for (const { key } of getAvailableHuntMethods(gameKey)) {
+          seen.add(key);
+          if (!(`huntType.${key}` in de)) missing.add(key);
+        }
+      }
     }
-  });
-
-  it("contains no duplicates", () => {
-    const unique = new Set(ALL_HUNT_METHOD_KEYS);
-    expect(unique.size).toBe(ALL_HUNT_METHOD_KEYS.length);
+    expect([...missing]).toEqual([]);
+    // Guard against the loop silently covering nothing.
+    expect(seen.size).toBeGreaterThan(50);
   });
 });
 
