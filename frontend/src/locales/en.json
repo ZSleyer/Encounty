@@ -859,6 +859,7 @@
   "regionPicker.loadError": "Could not load screenshot",
   "licenses.title": "Open Source Licenses",
   "licenses.desc": "Encounty uses the following open-source libraries:",
+  "licenses.contributors": "Contributors:",
   "licenses.project": "Encounty is licensed under the",
   "support.title": "Support Encounty",
   "support.tagline": "Encounty stays free and lives from its community.",

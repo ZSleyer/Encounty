@@ -859,6 +859,7 @@
   "regionPicker.loadError": "Screenshot konnte nicht geladen werden",
   "licenses.title": "Open-Source-Lizenzen",
   "licenses.desc": "Encounty nutzt folgende Open-Source-Bibliotheken:",
+  "licenses.contributors": "Mitwirkende:",
   "licenses.project": "Encounty steht unter der",
   "support.title": "Encounty unterstützen",
   "support.tagline": "Encounty bleibt kostenlos und lebt von der Community.",

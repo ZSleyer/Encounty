@@ -50,8 +50,17 @@ const DATA_SOURCES: { name: string; url: string; desc: string; display?: string 
 ];
 
 /**
- * AboutSection shows project licensing, third-party licenses, data sources
- * and the trademark notice inside a settings card.
+ * People who contributed code to Encounty, kept in sync when a contributor's
+ * pull request is merged. Bot accounts are intentionally not listed.
+ */
+const CONTRIBUTORS: { name: string; url: string }[] = [
+  { name: "ZSleyer", url: "https://github.com/ZSleyer" },
+  { name: "Lunix-420", url: "https://github.com/Lunix-420" },
+];
+
+/**
+ * AboutSection shows project licensing, third-party licenses, data sources,
+ * contributors and the trademark notice inside a settings card.
  */
 export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
   const [licensesOpen, setLicensesOpen] = useState(false);
@@ -136,6 +145,24 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
           {t("license.showDialog")}
         </button>
       </div>
+
+      {/* Humans only. The bot accounts on the repo are deliberately left out. */}
+      <p className="text-xs text-text-muted">
+        {t("licenses.contributors")}{" "}
+        {CONTRIBUTORS.map((person, i) => (
+          <span key={person.name}>
+            {i > 0 && ", "}
+            <a
+              href={person.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent-blue hover:underline"
+            >
+              {person.name}
+            </a>
+          </span>
+        ))}
+      </p>
 
       {showLicenseDialog && (
         <LicenseDialog onAccept={() => setShowLicenseDialog(false)} />

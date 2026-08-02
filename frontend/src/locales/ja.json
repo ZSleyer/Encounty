@@ -859,6 +859,7 @@
   "regionPicker.loadError": "スクリーンショットを読み込めませんでした",
   "licenses.title": "オープンソースライセンス",
   "licenses.desc": "Encountyは以下のオープンソースライブラリを使用しています：",
+  "licenses.contributors": "コントリビューター:",
   "licenses.project": "Encountyは以下のライセンスの下で提供されています：",
   "support.title": "Encounty を応援する",
   "support.tagline": "Encounty は無料のままで、コミュニティによって支えられています。",

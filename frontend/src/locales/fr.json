@@ -859,6 +859,7 @@
   "regionPicker.loadError": "Impossible de charger la capture d'écran",
   "licenses.title": "Licences Open Source",
   "licenses.desc": "Encounty utilise les bibliothèques open-source suivantes :",
+  "licenses.contributors": "Contributeurs :",
   "licenses.project": "Encounty est licence sous la",
   "support.title": "Soutenir Encounty",
   "support.tagline": "Encounty reste gratuit et vit grâce à sa communauté.",
