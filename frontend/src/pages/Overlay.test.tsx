@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, makeAppState, makeOverlaySettings, makePokemon } from "../test-utils";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { act, render, screen, makeAppState, makeOverlaySettings, makePokemon } from "../test-utils";
 import { Overlay } from "./Overlay";
 import { useCounterStore } from "../hooks/useCounterState";
+import type { LabeledTextElement } from "../types";
+import { getOddsPercent } from "../utils/odds";
 
 vi.mock("../components/backgrounds/Aurora", () => ({ default: () => <div data-testid="bg-aurora" /> }));
 vi.mock("../components/backgrounds/Galaxy", () => ({ default: () => <div data-testid="bg-galaxy" /> }));
@@ -494,6 +496,43 @@ describe("Overlay", () => {
       expect(screen.getByText("Chance:")).toBeInTheDocument();
     });
 
+    it("bases the percent on the encounters of all phases, like the statistics panel", () => {
+      // 839 in the running phase plus 2000 from a finished phase, the same
+      // fixture the statistics panel test uses to assert 50.0% at 1/4096.
+      const parent = makePokemon({
+        id: "poke-1",
+        is_active: true,
+        game: "pokemon-scarlet",
+        hunt_type: "encounter",
+        shiny_charm: false,
+        encounters: 839,
+      });
+      const child = makePokemon({
+        id: "phase-1",
+        is_active: false,
+        game: "pokemon-scarlet",
+        hunt_type: "encounter",
+        shiny_charm: false,
+        encounters: 2000,
+        phase_of: "poke-1",
+        phase_number: 1,
+        completed_at: "2024-06-19T10:00:00Z",
+      });
+      useCounterStore.setState({
+        appState: makeAppState({ pokemon: [parent, child], active_id: "poke-1" }),
+      });
+      const base = makeOverlaySettings();
+      const settings = makeOverlaySettings({
+        odds: { ...base.odds, visible: true, format: "percent" },
+      });
+      render(<Overlay previewSettings={settings} />);
+
+      // Pinned to the shared helper the statistics panel calls, so the OBS
+      // source can never drift away from the dashboard.
+      expect(screen.getByText("50.0%")).toBeInTheDocument();
+      expect(screen.getByText(getOddsPercent(parent, 2839))).toBeInTheDocument();
+    });
+
     it("does not render odds label when show_label is false", () => {
       const base = makeOverlaySettings();
       const settings = makeOverlaySettings({
@@ -544,6 +583,295 @@ describe("Overlay", () => {
       const pokemon = makePokemon({ timer_accumulated_ms: 0 });
       render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
       expect(screen.getByText("Elapsed:")).toBeInTheDocument();
+    });
+  });
+
+  // --- Phasing elements (phase, total_counter, total_timer) ---
+
+  describe("Phasing elements", () => {
+    /**
+     * Reads one of the three phasing elements out of the fixture. They are
+     * optional on OverlaySettings because settings stored before the feature
+     * existed do not carry them, so spreading them needs a non-optional value.
+     */
+    function baseLabeled(
+      key: "phase" | "total_counter" | "total_timer",
+    ): LabeledTextElement {
+      const element = makeOverlaySettings()[key];
+      if (!element) throw new Error(`overlay fixture is missing ${key}`);
+      return element;
+    }
+
+    /** Hunt with two finished phases: 30 + 12 encounters, 1h + 30min of timer. */
+    function makePhasedHunt() {
+      const parent = makePokemon({
+        id: "hunt-1",
+        encounters: 5,
+        timer_accumulated_ms: 600000,
+      });
+      const list = [
+        parent,
+        makePokemon({
+          id: "child-1",
+          phase_of: "hunt-1",
+          phase_number: 1,
+          encounters: 30,
+          timer_accumulated_ms: 3600000,
+        }),
+        makePokemon({
+          id: "child-2",
+          phase_of: "hunt-1",
+          phase_number: 2,
+          encounters: 12,
+          timer_accumulated_ms: 1800000,
+        }),
+      ];
+      return { parent, list };
+    }
+
+    function renderPhased(settings: ReturnType<typeof makeOverlaySettings>) {
+      const { parent, list } = makePhasedHunt();
+      return render(
+        <Overlay
+          previewSettings={settings}
+          previewPokemon={parent}
+          previewPokemonList={list}
+        />,
+      );
+    }
+
+    it("hides the phase element when phase.visible is false", () => {
+      renderPhased(
+        makeOverlaySettings({
+          phase: { ...baseLabeled("phase"), visible: false, show_label: true, label_text: "Phase:" },
+        }),
+      );
+      expect(screen.queryByText("3")).not.toBeInTheDocument();
+      expect(screen.queryByText("Phase:")).not.toBeInTheDocument();
+    });
+
+    it("renders the running phase number as max child number plus one", () => {
+      renderPhased(
+        makeOverlaySettings({ phase: { ...baseLabeled("phase"), visible: true } }),
+      );
+      expect(screen.getByText("3")).toBeInTheDocument();
+    });
+
+    it("renders the phase label when show_label is true", () => {
+      renderPhased(
+        makeOverlaySettings({
+          phase: { ...baseLabeled("phase"), visible: true, show_label: true, label_text: "Phase:" },
+        }),
+      );
+      expect(screen.getByText("Phase:")).toBeInTheDocument();
+    });
+
+    it("does not render the phase label when show_label is false", () => {
+      renderPhased(
+        makeOverlaySettings({
+          phase: { ...baseLabeled("phase"), visible: true, show_label: false, label_text: "Phase:" },
+        }),
+      );
+      expect(screen.queryByText("Phase:")).not.toBeInTheDocument();
+    });
+
+    it("hides the total counter when total_counter.visible is false", () => {
+      const { container } = renderPhased(
+        makeOverlaySettings({ total_counter: { ...baseLabeled("total_counter"), visible: false } }),
+      );
+      expect(container.textContent).not.toContain("47");
+    });
+
+    it("renders own encounters plus those of every phase", () => {
+      renderPhased(
+        makeOverlaySettings({ total_counter: { ...baseLabeled("total_counter"), visible: true } }),
+      );
+      // 5 of the running phase + 30 + 12 of the finished ones
+      expect(screen.getByText("47")).toBeInTheDocument();
+    });
+
+    it("renders the total counter label when show_label is true", () => {
+      renderPhased(
+        makeOverlaySettings({
+          total_counter: {
+            ...baseLabeled("total_counter"),
+            visible: true,
+            show_label: true,
+            label_text: "Total:",
+          },
+        }),
+      );
+      expect(screen.getByText("Total:")).toBeInTheDocument();
+    });
+
+    it("does not render the total counter label when show_label is false", () => {
+      renderPhased(
+        makeOverlaySettings({
+          total_counter: {
+            ...baseLabeled("total_counter"),
+            visible: true,
+            show_label: false,
+            label_text: "Total:",
+          },
+        }),
+      );
+      expect(screen.queryByText("Total:")).not.toBeInTheDocument();
+    });
+
+    it("hides the total timer when total_timer.visible is false", () => {
+      const { container } = renderPhased(
+        makeOverlaySettings({ total_timer: { ...baseLabeled("total_timer"), visible: false } }),
+      );
+      expect(container.textContent).not.toContain("01:40:00");
+    });
+
+    it("renders own timer plus that of every phase", () => {
+      renderPhased(
+        makeOverlaySettings({ total_timer: { ...baseLabeled("total_timer"), visible: true } }),
+      );
+      // 10min of the running phase + 60min + 30min of the finished ones
+      expect(screen.getByText("01:40:00")).toBeInTheDocument();
+    });
+
+    it("adds the running timer segment on top of the phase totals", () => {
+      const settings = makeOverlaySettings({
+        total_timer: { ...baseLabeled("total_timer"), visible: true },
+      });
+      const started = new Date(Date.now() - 5000).toISOString();
+      const parent = makePokemon({
+        id: "hunt-1",
+        timer_accumulated_ms: 600000,
+        timer_started_at: started,
+      });
+      const child = makePokemon({
+        id: "child-1",
+        phase_of: "hunt-1",
+        phase_number: 1,
+        timer_accumulated_ms: 3600000,
+      });
+      render(
+        <Overlay
+          previewSettings={settings}
+          previewPokemon={parent}
+          previewPokemonList={[parent, child]}
+        />,
+      );
+      // 60min of the phase + 10min accumulated + the 5s that are still running
+      expect(screen.getByText("01:10:05")).toBeInTheDocument();
+    });
+
+    it("renders the total timer label when show_label is true", () => {
+      renderPhased(
+        makeOverlaySettings({
+          total_timer: {
+            ...baseLabeled("total_timer"),
+            visible: true,
+            show_label: true,
+            label_text: "Total Time:",
+          },
+        }),
+      );
+      expect(screen.getByText("Total Time:")).toBeInTheDocument();
+    });
+
+    it("does not render the total timer label when show_label is false", () => {
+      renderPhased(
+        makeOverlaySettings({
+          total_timer: {
+            ...baseLabeled("total_timer"),
+            visible: true,
+            show_label: false,
+            label_text: "Total Time:",
+          },
+        }),
+      );
+      expect(screen.queryByText("Total Time:")).not.toBeInTheDocument();
+    });
+  });
+
+  // --- Sprite cycling through the phase targets ---
+
+  describe("Sprite cycling", () => {
+    const huntSprite = "http://example.com/hunt.png";
+    const targetSprite = "http://example.com/target.png";
+
+    function makeCyclingPokemon() {
+      return makePokemon({
+        sprite_url: huntSprite,
+        phase_targets: [
+          { canonical_name: "zigzagoon", name: "Zigzachs", sprite_url: targetSprite },
+        ],
+      });
+    }
+
+    function cyclingSettings(enabled: boolean) {
+      const base = makeOverlaySettings();
+      return makeOverlaySettings({
+        sprite: {
+          ...base.sprite,
+          visible: true,
+          cycle_phase_targets: enabled,
+          cycle_interval_ms: 3000,
+        },
+      });
+    }
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("swaps only the image source when the interval elapses", () => {
+      vi.useFakeTimers();
+      const { container } = render(
+        <Overlay previewSettings={cyclingSettings(true)} previewPokemon={makeCyclingPokemon()} />,
+      );
+      const img = container.querySelector("img.pokemon-sprite");
+      const wrapper = img?.parentElement;
+      expect(img).toHaveAttribute("src", huntSprite);
+
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+
+      // Same DOM nodes, only the src differs: feeding the cycle index into the
+      // wrapper key would restart the trigger animation on every tick.
+      expect(container.querySelector("img.pokemon-sprite")).toBe(img);
+      expect(img?.parentElement).toBe(wrapper);
+      expect(img).toHaveAttribute("src", targetSprite);
+    });
+
+    it("returns to the hunt sprite after a full cycle", () => {
+      vi.useFakeTimers();
+      const { container } = render(
+        <Overlay previewSettings={cyclingSettings(true)} previewPokemon={makeCyclingPokemon()} />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(container.querySelector("img.pokemon-sprite")).toHaveAttribute("src", huntSprite);
+    });
+
+    it("keeps the hunt sprite when cycling is disabled", () => {
+      vi.useFakeTimers();
+      const { container } = render(
+        <Overlay previewSettings={cyclingSettings(false)} previewPokemon={makeCyclingPokemon()} />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(9000);
+      });
+      expect(container.querySelector("img.pokemon-sprite")).toHaveAttribute("src", huntSprite);
+    });
+
+    it("keeps the hunt sprite when the hunt has no phase targets", () => {
+      vi.useFakeTimers();
+      const pokemon = makePokemon({ sprite_url: huntSprite, phase_targets: [] });
+      const { container } = render(
+        <Overlay previewSettings={cyclingSettings(true)} previewPokemon={pokemon} />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(9000);
+      });
+      expect(container.querySelector("img.pokemon-sprite")).toHaveAttribute("src", huntSprite);
     });
   });
 });

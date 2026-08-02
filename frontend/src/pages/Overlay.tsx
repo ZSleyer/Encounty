@@ -1,12 +1,13 @@
 import { useRef, useEffect, useMemo, useState, useReducer, lazy, Suspense } from "react";
 import { useParams } from "react-router";
-import { Pokemon, OverlaySettings, TextStyle } from "../types";
+import { Pokemon, OverlaySettings, TextStyle, LabeledTextElement } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 import { resolveOverlay } from "../utils/overlay";
 import { resolveSpriteSrc } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
 import { formatTimer, computeTimerMs } from "../utils/timer";
 import { computeOddsDisplay } from "../utils/odds";
+import { computePhaseStats, PhaseStats } from "../utils/phase";
 
 const Aurora = lazy(() => import("../components/backgrounds/Aurora"));
 const Galaxy = lazy(() => import("../components/backgrounds/Galaxy"));
@@ -16,6 +17,11 @@ const PixelBlast = lazy(() => import("../components/backgrounds/PixelBlast"));
 interface Props {
   previewSettings?: OverlaySettings;
   previewPokemon?: Pokemon;
+  /**
+   * Snapshot the phase totals are derived from while previewing in the editor.
+   * Live overlays read the same list from the counter store instead.
+   */
+  previewPokemonList?: Pokemon[];
   testTrigger?: { element: string; n: number; reverse?: boolean };
 }
 
@@ -41,6 +47,8 @@ interface AnimChannels {
   name: AnimChannel;
   title: AnimChannel;
   odds: AnimChannel;
+  phase: AnimChannel;
+  total_counter: AnimChannel;
 }
 
 /** All animation channel setters. */
@@ -50,6 +58,29 @@ interface AnimChannelSettersMap {
   name: AnimChannelSetters;
   title: AnimChannelSetters;
   odds: AnimChannelSetters;
+  phase: AnimChannelSetters;
+  total_counter: AnimChannelSetters;
+}
+
+/** State and setters of one animation channel. */
+interface AnimChannelHandle {
+  channel: AnimChannel;
+  setters: AnimChannelSetters;
+}
+
+/**
+ * useAnimChannel holds the state of a single animation channel. Bundling the
+ * three pieces here keeps the channel list below readable now that the overlay
+ * drives seven of them.
+ */
+function useAnimChannel(): AnimChannelHandle {
+  const [animClass, setAnimClass] = useState("");
+  const [reverse, setReverse] = useState(false);
+  const [triggerId, setTriggerId] = useState(0);
+  return {
+    channel: { animClass, reverse, triggerId },
+    setters: { setAnimClass, setReverse, setTriggerId },
+  };
 }
 
 /**
@@ -71,8 +102,10 @@ function triggerAnimation(
 }
 
 /**
- * useAnimationTriggers manages the four overlay animation channels
- * (counter, sprite, name, title) and returns their state plus setters.
+ * useAnimationTriggers manages the overlay animation channels (counter, sprite,
+ * name, title, odds, phase, total_counter) and returns their state plus
+ * setters. total_timer has no channel: like timer it only runs an idle
+ * animation.
  */
 function useAnimationTriggers(): {
   channels: AnimChannels;
@@ -80,41 +113,33 @@ function useAnimationTriggers(): {
   counterRenderMode: string;
   setCounterRenderMode: (mode: string) => void;
 } {
-  const [animClass, setAnimClass] = useState("");
-  const [animReverse, setAnimReverse] = useState(false);
-  const [triggerId, setTriggerId] = useState(0);
+  const counter = useAnimChannel();
+  const sprite = useAnimChannel();
+  const name = useAnimChannel();
+  const title = useAnimChannel();
+  const odds = useAnimChannel();
+  const phase = useAnimChannel();
+  const totalCounter = useAnimChannel();
   const [counterRenderMode, setCounterRenderMode] = useState("");
-
-  const [spriteAnimClass, setSpriteAnimClass] = useState("");
-  const [spriteAnimReverse, setSpriteAnimReverse] = useState(false);
-  const [spriteTriggerId, setSpriteTriggerId] = useState(0);
-
-  const [nameAnimClass, setNameAnimClass] = useState("");
-  const [nameAnimReverse, setNameAnimReverse] = useState(false);
-  const [nameTriggerId, setNameTriggerId] = useState(0);
-
-  const [titleAnimClass, setTitleAnimClass] = useState("");
-  const [titleAnimReverse, setTitleAnimReverse] = useState(false);
-  const [titleTriggerId, setTitleTriggerId] = useState(0);
-
-  const [oddsAnimClass, setOddsAnimClass] = useState("");
-  const [oddsAnimReverse, setOddsAnimReverse] = useState(false);
-  const [oddsTriggerId, setOddsTriggerId] = useState(0);
 
   return {
     channels: {
-      counter: { animClass, reverse: animReverse, triggerId },
-      sprite: { animClass: spriteAnimClass, reverse: spriteAnimReverse, triggerId: spriteTriggerId },
-      name: { animClass: nameAnimClass, reverse: nameAnimReverse, triggerId: nameTriggerId },
-      title: { animClass: titleAnimClass, reverse: titleAnimReverse, triggerId: titleTriggerId },
-      odds: { animClass: oddsAnimClass, reverse: oddsAnimReverse, triggerId: oddsTriggerId },
+      counter: counter.channel,
+      sprite: sprite.channel,
+      name: name.channel,
+      title: title.channel,
+      odds: odds.channel,
+      phase: phase.channel,
+      total_counter: totalCounter.channel,
     },
     setters: {
-      counter: { setAnimClass, setReverse: setAnimReverse, setTriggerId, setRenderMode: setCounterRenderMode },
-      sprite: { setAnimClass: setSpriteAnimClass, setReverse: setSpriteAnimReverse, setTriggerId: setSpriteTriggerId },
-      name: { setAnimClass: setNameAnimClass, setReverse: setNameAnimReverse, setTriggerId: setNameTriggerId },
-      title: { setAnimClass: setTitleAnimClass, setReverse: setTitleAnimReverse, setTriggerId: setTitleTriggerId },
-      odds: { setAnimClass: setOddsAnimClass, setReverse: setOddsAnimReverse, setTriggerId: setOddsTriggerId },
+      counter: { ...counter.setters, setRenderMode: setCounterRenderMode },
+      sprite: sprite.setters,
+      name: name.setters,
+      title: title.setters,
+      odds: odds.setters,
+      phase: phase.setters,
+      total_counter: totalCounter.setters,
     },
     counterRenderMode,
     setCounterRenderMode,
@@ -301,6 +326,14 @@ const NAME_ANIMS: Record<string, string> = {
   "zoom-in": "animate-overlay-zoom-in",
 };
 
+// Phase and total_counter are numeric text elements, so they accept both the
+// counter and the name animation vocabulary; merging avoids a lookup miss no
+// matter which of the two lists the property panel offers for them.
+const LABELED_TEXT_ANIMS: Record<string, string> = {
+  ...COUNTER_ANIMS,
+  ...NAME_ANIMS,
+};
+
 const SPRITE_IDLE: Record<string, string> = {
   float: "animate-float",
   pulse: "animate-overlay-pulse-idle",
@@ -473,6 +506,20 @@ function dispatchCounterAnim(
 }
 
 /**
+ * Dispatches the trigger animation of one labeled phasing text element.
+ * Does nothing for elements an older overlay does not carry yet.
+ */
+function dispatchLabeledTextAnim(
+  element: LabeledTextElement | undefined,
+  reverse: boolean,
+  channelSetters: AnimChannelSetters,
+): void {
+  if (!element) return;
+  const key = resolveTriggerKey(element.trigger_enter, element.trigger_decrement, reverse);
+  dispatchElementAnim(key, LABELED_TEXT_ANIMS, reverse, channelSetters);
+}
+
+/**
  * Dispatches counter-change animations across all overlay channels
  * (counter, sprite, name, title).
  */
@@ -504,6 +551,9 @@ function dispatchCounterAnimations(
       ? settings.odds.trigger_decrement : settings.odds.trigger_enter;
     dispatchElementAnim(oddsKey, NAME_ANIMS, isDecrement, allSetters.odds);
   }
+
+  dispatchLabeledTextAnim(settings.phase, isDecrement, allSetters.phase);
+  dispatchLabeledTextAnim(settings.total_counter, isDecrement, allSetters.total_counter);
 }
 
 /** Resolves the effective overlay settings for the current Pokemon. */
@@ -562,6 +612,10 @@ function dispatchTestTrigger(
   } else if (testTrigger.element === "odds" && settings.odds) {
     const key = resolveTriggerKey(settings.odds.trigger_enter, settings.odds.trigger_decrement, rev);
     triggerAnimation(key, NAME_ANIMS, rev, allSetters.odds);
+  } else if (testTrigger.element === "phase") {
+    dispatchLabeledTextAnim(settings.phase, rev, allSetters.phase);
+  } else if (testTrigger.element === "total_counter") {
+    dispatchLabeledTextAnim(settings.total_counter, rev, allSetters.total_counter);
   }
 }
 
@@ -639,9 +693,136 @@ function buildOverlayStyles(
   };
 }
 
+/** Props of the shared layer for the phasing text elements. */
+interface LabeledTextLayerProps {
+  element: LabeledTextElement;
+  /** Stable prefix of the keyed value span, e.g. "phase". */
+  channelKey: string;
+  /** Trigger channel of the element; omitted for idle-only elements. */
+  channel?: AnimChannel;
+  /** Already formatted value to display. */
+  value: string;
+}
+
+/**
+ * LabeledTextLayer renders one positioned text element with an optional label,
+ * following the same structure as the counter and timer layers: the outer box
+ * carries position and idle animation, the keyed inner span carries the trigger
+ * animation so it replays on every new trigger id.
+ *
+ * Used only by the phasing elements (phase, total_counter, total_timer); the
+ * older layers keep their hand-written markup.
+ */
+function LabeledTextLayer({
+  element,
+  channelKey,
+  channel,
+  value,
+}: Readonly<LabeledTextLayerProps>) {
+  const alignMap: Record<string, string> = { center: "center", right: "flex-end" };
+  const alignItems = alignMap[element.style.text_align] ?? "flex-start";
+  const valueStyle = buildTextStyle(element.style);
+  const labelStyle = element.label_style ? buildTextStyle(element.label_style) : {};
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: element.x,
+        top: element.y,
+        width: element.width,
+        height: element.height,
+        zIndex: element.z_index,
+        display: "flex",
+        flexDirection: "column",
+        alignItems,
+        justifyContent: "center",
+      }}
+      className={TEXT_IDLE[element.idle_animation] ?? ""}
+    >
+      <span
+        key={`${channelKey}-${channel?.triggerId ?? 0}`}
+        className={`font-black tabular-nums leading-none ${channel?.animClass ?? ""}`}
+        style={{
+          ...valueStyle,
+          display: "inline-block",
+          transformOrigin: "center",
+          animationDirection: channel?.reverse ? "reverse" : undefined,
+        }}
+      >
+        {value}
+      </span>
+      {element.show_label && <span style={labelStyle}>{element.label_text}</span>}
+    </div>
+  );
+}
+
+/** Milliseconds between two sprite swaps when the overlay carries no value. */
+const DEFAULT_CYCLE_INTERVAL_MS = 3000;
+
+/**
+ * Collects the sprite sources the sprite element can cycle through: the hunt
+ * sprite first, then every phase target that has a sprite of its own.
+ */
+function buildSpriteCycleSources(pokemon: Pokemon | null): string[] {
+  if (!pokemon) return [];
+  const sources = [resolveSpriteSrc(pokemon.sprite_url)];
+  for (const target of pokemon.phase_targets ?? []) {
+    if (target.sprite_url) sources.push(resolveSpriteSrc(target.sprite_url));
+  }
+  return sources;
+}
+
+/**
+ * useSpriteCycle rotates through the given sprite sources and returns the one
+ * to show right now. It only ever swaps the `src` of the image: feeding the
+ * index into the key of the animated wrapper would restart the trigger
+ * animation and make the idle animation jump on every tick.
+ *
+ * All effect dependencies are primitives on purpose. In the editor this
+ * component re-renders on every drag frame, and an array or object dependency
+ * would tear down and re-create the interval each frame, so the cycle would
+ * stall while dragging.
+ */
+function useSpriteCycle(
+  sources: string[],
+  enabled: boolean,
+  intervalMs: number,
+  resetKey: string,
+): string {
+  const [index, setIndex] = useState(0);
+  const count = sources.length;
+  const period = intervalMs > 0 ? intervalMs : DEFAULT_CYCLE_INTERVAL_MS;
+  const cycling = enabled && count > 1;
+
+  useEffect(() => {
+    // Restart at the hunt's own sprite whenever the sources change. The count
+    // alone does not catch a switch to another hunt with equally many targets.
+    setIndex(0);
+    if (!cycling) return;
+    const id = setInterval(() => setIndex((i) => (i + 1) % count), period);
+    return () => clearInterval(id);
+  }, [cycling, count, period, resetKey]);
+
+  // Read through `cycling` instead of trusting the state: after the setting is
+  // switched off the reset only lands in the next effect run.
+  return sources[cycling ? index % count : 0] ?? "";
+}
+
+/**
+ * Total timer of a hunt across all of its phases, including the segment that is
+ * running right now. computePhaseStats stays clock-free so callers can cache it,
+ * which is why the live segment is added here on every render instead.
+ */
+function liveTotalTimerMs(pokemon: Pokemon, stats: PhaseStats): number {
+  const childrenMs = stats.totalTimerMs - (pokemon.timer_accumulated_ms || 0);
+  return childrenMs + computeTimerMs(pokemon);
+}
+
 export function Overlay({
   previewSettings,
   previewPokemon,
+  previewPokemonList,
   testTrigger,
 }: Readonly<Props>) {
   const { appState } = useCounterStore();
@@ -664,6 +845,29 @@ export function Overlay({
     [previewSettings, activePokemon, appState],
   );
 
+  // Snapshot the phase totals are derived from: the editor preview passes its
+  // own list, the live overlay already holds every phase entry in the store.
+  const pokemonList: Pokemon[] = useMemo(
+    () => previewPokemonList ?? appState?.pokemon ?? [],
+    [previewPokemonList, appState],
+  );
+
+  const phaseStats = useMemo(
+    () => computePhaseStats(activePokemon, pokemonList),
+    [activePokemon, pokemonList],
+  );
+
+  const spriteCycleSources = useMemo(
+    () => buildSpriteCycleSources(activePokemon),
+    [activePokemon],
+  );
+  const spriteSrc = useSpriteCycle(
+    spriteCycleSources,
+    settings?.sprite.cycle_phase_targets ?? false,
+    settings?.sprite.cycle_interval_ms ?? DEFAULT_CYCLE_INTERVAL_MS,
+    activePokemon?.id ?? "",
+  );
+
   // Inject fonts
   useGoogleFont(settings?.name.style.font_family || "sans");
   useGoogleFont(settings?.counter.style.font_family || "sans");
@@ -672,6 +876,12 @@ export function Overlay({
   useGoogleFont(settings?.timer?.label_style?.font_family ?? "sans");
   useGoogleFont(settings?.odds?.style.font_family ?? "sans");
   useGoogleFont(settings?.odds?.label_style?.font_family ?? "sans");
+  useGoogleFont(settings?.phase?.style.font_family ?? "sans");
+  useGoogleFont(settings?.phase?.label_style?.font_family ?? "sans");
+  useGoogleFont(settings?.total_counter?.style.font_family ?? "sans");
+  useGoogleFont(settings?.total_counter?.label_style?.font_family ?? "sans");
+  useGoogleFont(settings?.total_timer?.style.font_family ?? "sans");
+  useGoogleFont(settings?.total_timer?.label_style?.font_family ?? "sans");
 
   // Timer tick — force re-render every second while the timer is running
   const [, forceTimerUpdate] = useReducer((x: number) => x + 1, 0);
@@ -824,7 +1034,7 @@ export function Overlay({
               />
             )}
             <img
-              src={resolveSpriteSrc(activePokemon.sprite_url)}
+              src={spriteSrc}
               alt=""
               className="pokemon-sprite"
               style={{
@@ -1044,7 +1254,13 @@ export function Overlay({
           const oddsAlignItems = oddsAlignMap[settings.odds.style.text_align] ?? "flex-start";
           const oddsStyle = buildTextStyle(settings.odds.style);
           const oddsLabelStyle = settings.odds.label_style ? buildTextStyle(settings.odds.label_style) : {};
-          const oddsText = computeOddsDisplay(activePokemon, settings.odds.format);
+          // Every encounter of every phase was a roll at the target, so the
+          // percentage counts them all, exactly like the statistics panel.
+          const oddsText = computeOddsDisplay(
+            activePokemon,
+            settings.odds.format,
+            phaseStats.totalEncounters,
+          );
 
           return (
           <div
@@ -1080,6 +1296,35 @@ export function Overlay({
           </div>
           );
       })()}
+
+      {/* Phase: number of the phase currently in progress */}
+      {settings.phase?.visible && (
+        <LabeledTextLayer
+          element={settings.phase}
+          channelKey="phase"
+          channel={channels.phase}
+          value={String(phaseStats.phaseNumber)}
+        />
+      )}
+
+      {/* Total encounters: current phase plus all finished ones */}
+      {settings.total_counter?.visible && (
+        <LabeledTextLayer
+          element={settings.total_counter}
+          channelKey="total-counter"
+          channel={channels.total_counter}
+          value={String(phaseStats.totalEncounters)}
+        />
+      )}
+
+      {/* Total timer: accumulated phase time plus the running segment */}
+      {settings.total_timer?.visible && (
+        <LabeledTextLayer
+          element={settings.total_timer}
+          channelKey="total-timer"
+          value={formatTimer(liveTotalTimerMs(activePokemon, phaseStats))}
+        />
+      )}
     </div>
   );
 

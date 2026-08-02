@@ -2,10 +2,13 @@ import { Play, RotateCcw, AlignLeft, AlignCenter, AlignRight, Upload, Trash2 } f
 import {
   OverlaySettings,
   OverlayElementBase,
+  LabeledTextElement,
+  Pokemon,
   TextStyle,
   GradientStop,
 } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
+import type { DraggableElementKey, ElementKey } from "../../utils/overlayElements";
 import { NumInput, NumSlider } from "./controls/NumSlider";
 import { ColorSwatch } from "./controls/ColorSwatch";
 import type { ShadowConfirmParams } from "./controls/ShadowEditorModal";
@@ -15,7 +18,35 @@ interface OpenShadowEditorParams extends ShadowConfirmParams {
   readonly onConfirm: (params: ShadowConfirmParams) => void;
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds" | "canvas";
+/** Translation function signature, mirrored from the I18n context. */
+type TranslateFn = (key: string, options?: Record<string, string | number>) => string;
+
+/** One entry of an animation `<select>`. */
+interface AnimationOption {
+  readonly value: string;
+  readonly label: string;
+}
+
+/** Callbacks that open the shared style editor modals. */
+interface StyleEditorOpeners {
+  readonly onOpenTextColorEditor: (
+    colorType: "solid" | "gradient", color: string,
+    gradientStops: GradientStop[], gradientAngle: number,
+    onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
+  ) => void;
+  readonly onOpenOutlineEditor: (
+    type: "none" | "solid", color: string, width: number,
+    onConfirm: (t: "none" | "solid", c: string, w: number) => void,
+  ) => void;
+  readonly onOpenShadowEditor: (params: OpenShadowEditorParams) => void;
+}
+
+/** Default milliseconds between two sprite swaps while cycling phase targets. */
+const DEFAULT_CYCLE_INTERVAL_MS = 3000;
+
+/** Shared CSS for the panel's `<select>` controls. */
+const SELECT_CLASS =
+  "w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary";
 
 const POPULAR_FONTS = [
   "sans", "serif", "monospace", "pokemon",
@@ -248,6 +279,200 @@ function TextStyleEditor({
   );
 }
 
+/** buildIdleAnimations lists the idle animations offered for text elements. */
+function buildIdleAnimations(t: TranslateFn): AnimationOption[] {
+  return [
+    { value: "none", label: t("overlay.animNone") },
+    { value: "breathe", label: t("overlay.animBreathe") },
+    { value: "glow", label: t("overlay.animGlow") },
+    { value: "shimmer", label: t("overlay.animShimmerIdle") },
+    { value: "float", label: t("overlay.animFloat") },
+  ];
+}
+
+/**
+ * buildNumericTriggerAnimations lists the trigger animations offered for the
+ * labeled text elements. "Slot" and "Flip Digit" are missing on purpose: they
+ * are render modes rather than animations and only the counter renders them.
+ */
+function buildNumericTriggerAnimations(t: TranslateFn): AnimationOption[] {
+  return [
+    { value: "none", label: t("overlay.animNone") },
+    { value: "pop", label: "Pop" },
+    { value: "flash", label: "Flash" },
+    { value: "bounce", label: "Bounce" },
+    { value: "shake", label: "Shake" },
+    { value: "slide-up", label: "Slide Up" },
+    { value: "flip", label: "Flip" },
+    { value: "rubber", label: "Rubber Band" },
+    { value: "jello", label: "Jello" },
+    { value: "tada", label: "Tada" },
+    { value: "zoom-in", label: "Zoom In" },
+  ];
+}
+
+/** Labeled animation select with the test button that plays the animation once. */
+function TriggerAnimationRow({
+  id,
+  label,
+  value,
+  options,
+  reverse,
+  onChange,
+  onTest,
+}: Readonly<{
+  id: string;
+  label: string;
+  value: string;
+  options: readonly AnimationOption[];
+  /** Renders the decrement variant: red test button with a rewind icon. */
+  reverse?: boolean;
+  onChange: (value: string) => void;
+  onTest: () => void;
+}>) {
+  const buttonClass = reverse
+    ? "bg-accent-red/15 hover:bg-accent-red/40 text-accent-red"
+    : "bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue";
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-0.5">
+        <label htmlFor={id} className="text-xs text-text-muted">
+          {label}
+        </label>
+        <button
+          type="button"
+          onClick={onTest}
+          className={`flex items-center gap-1 px-2 py-1 rounded-none text-xs transition-colors ${buttonClass}`}
+        >
+          {reverse ? (
+            <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" />
+          ) : (
+            <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" />
+          )}{" "}
+          Test
+        </button>
+      </div>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={SELECT_CLASS}>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * LabeledTextElementEditor renders the property rows shared by the phasing text
+ * elements (phase, total_counter, total_timer): text style, label toggle with
+ * its own text and style, idle animation and, unless the caller omits the
+ * trigger options, both trigger animations with their test buttons.
+ *
+ * The counter, timer and odds blocks deliberately keep their hand-written
+ * markup: the overlay tests assert their exact DOM structure.
+ */
+function LabeledTextElementEditor({
+  elementKey,
+  element,
+  styleLabel,
+  idleAnimations,
+  triggerAnimations,
+  onChange,
+  onOpenTextColorEditor,
+  onOpenOutlineEditor,
+  onOpenShadowEditor,
+  fireTest,
+}: Readonly<
+  StyleEditorOpeners & {
+    elementKey: DraggableElementKey;
+    element: LabeledTextElement;
+    styleLabel: string;
+    idleAnimations: readonly AnimationOption[];
+    /** Omitted for elements without trigger animations, such as total_timer. */
+    triggerAnimations?: readonly AnimationOption[];
+    onChange: (patch: Partial<LabeledTextElement>) => void;
+    fireTest: (element: ElementKey, reverse?: boolean) => void;
+  }
+>) {
+  const { t } = useI18n();
+  return (
+    <div className="space-y-3">
+      <TextStyleEditor
+        style={element.style || DEFAULT_TEXT_STYLE}
+        label={styleLabel}
+        onChange={(s) => onChange({ style: s })}
+        onOpenTextColorEditor={onOpenTextColorEditor}
+        onOpenOutlineEditor={onOpenOutlineEditor}
+        onOpenShadowEditor={onOpenShadowEditor}
+      />
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={element.show_label}
+          onChange={(e) => onChange({ show_label: e.target.checked })}
+          className="accent-accent-blue"
+        />
+        <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
+      </label>
+      {element.show_label && (
+        <>
+          <input
+            type="text"
+            value={element.label_text}
+            onChange={(e) => onChange({ label_text: e.target.value })}
+            className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
+            placeholder={t("overlay.labelText")}
+            aria-label={t("aria.labelText")}
+          />
+          <TextStyleEditor
+            style={element.label_style || DEFAULT_TEXT_STYLE}
+            label={t("overlay.labelStyle")}
+            onChange={(s) => onChange({ label_style: s })}
+            onOpenTextColorEditor={onOpenTextColorEditor}
+            onOpenOutlineEditor={onOpenOutlineEditor}
+            onOpenShadowEditor={onOpenShadowEditor}
+          />
+        </>
+      )}
+      <div>
+        <label htmlFor={`${elementKey}-idle-animation`} className="text-xs text-text-muted">
+          {t("overlay.idleAnimation")}
+        </label>
+        <select
+          id={`${elementKey}-idle-animation`}
+          value={element.idle_animation}
+          onChange={(e) => onChange({ idle_animation: e.target.value })}
+          className={SELECT_CLASS}
+        >
+          {idleAnimations.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+      {triggerAnimations && (
+        <>
+          <TriggerAnimationRow
+            id={`${elementKey}-trigger-animation`}
+            label={t("overlay.triggerAnimation")}
+            value={element.trigger_enter}
+            options={triggerAnimations}
+            onChange={(v) => onChange({ trigger_enter: v })}
+            onTest={() => fireTest(elementKey)}
+          />
+          <TriggerAnimationRow
+            id={`${elementKey}-trigger-decrement-animation`}
+            label={t("overlay.triggerAnimationDecrement")}
+            value={element.trigger_decrement || "none"}
+            options={triggerAnimations}
+            reverse
+            onChange={(v) => onChange({ trigger_decrement: v })}
+            onTest={() => fireTest(elementKey, true)}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
 interface OverlayPropertyPanelProps {
   readonly localSettings: OverlaySettings;
   readonly selectedEl: ElementKey;
@@ -267,6 +492,8 @@ interface OverlayPropertyPanelProps {
     onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
   ) => void;
   readonly fireTest: (element: ElementKey, reverse?: boolean) => void;
+  /** Hunt the editor previews; supplies the phase targets for the sprite cycling hint. */
+  readonly activePokemon?: Pokemon;
   readonly bgPreviewUrl?: string;
   readonly bgUploading?: boolean;
   readonly onBgUpload?: () => void;
@@ -285,6 +512,7 @@ export function OverlayPropertyPanel({
   openShadowEditor,
   openColorPicker,
   fireTest,
+  activePokemon,
   bgPreviewUrl,
   bgUploading,
   onBgUpload,
@@ -298,6 +526,9 @@ export function OverlayPropertyPanel({
     counter: t("overlay.elementCounter"),
     timer: t("overlay.elementTimer"),
     odds: t("overlay.elementOdds"),
+    phase: t("overlay.elementPhase"),
+    total_counter: t("overlay.elementTotalCounter"),
+    total_timer: t("overlay.elementTotalTimer"),
     canvas: "Canvas",
   };
   const update = (s: OverlaySettings) => {
@@ -307,6 +538,48 @@ export function OverlayPropertyPanel({
   const bgConfig = localSettings.background_animation_config ?? {};
   const setBgConfig = (key: string, value: unknown) =>
     update({ ...localSettings, background_animation_config: { ...bgConfig, [key]: value } });
+
+  const idleAnimations = buildIdleAnimations(t);
+  const numericTriggerAnimations = buildNumericTriggerAnimations(t);
+  const styleEditorOpeners: StyleEditorOpeners = {
+    onOpenTextColorEditor: openTextColorEditor,
+    onOpenOutlineEditor: openOutlineEditor,
+    onOpenShadowEditor: openShadowEditor,
+  };
+
+  // Optional in the settings type, so the panel only renders what the state carries.
+  const selectedBase =
+    selectedEl === "canvas"
+      ? undefined
+      : (localSettings[selectedEl] as OverlayElementBase | undefined);
+
+  /**
+   * Renders one of the phasing text elements when it is selected and present in
+   * the settings. Omitting triggerAnimations drops the trigger rows.
+   */
+  const renderLabeledText = (
+    key: "phase" | "total_counter" | "total_timer",
+    triggerAnimations?: readonly AnimationOption[],
+  ) => {
+    const element: LabeledTextElement | undefined = localSettings[key];
+    if (selectedEl !== key || !element) return null;
+    return (
+      <LabeledTextElementEditor
+        elementKey={key}
+        element={element}
+        styleLabel={t("overlay.textStyle")}
+        idleAnimations={idleAnimations}
+        triggerAnimations={triggerAnimations}
+        onChange={(patch) => update({ ...localSettings, [key]: { ...element, ...patch } })}
+        fireTest={fireTest}
+        {...styleEditorOpeners}
+      />
+    );
+  };
+
+  const cycleIntervalSeconds =
+    (localSettings.sprite.cycle_interval_ms ?? DEFAULT_CYCLE_INTERVAL_MS) / 1000;
+  const phaseTargetCount = activePokemon?.phase_targets?.length ?? 0;
 
   return (
     <div data-tutorial="properties" className={embedded ? "flex-1 min-h-0" : "bg-bg-secondary rounded-none border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"}>
@@ -707,14 +980,14 @@ export function OverlayPropertyPanel({
         </div>
       )}
 
-      {/* Position & Size — compact Photoshop style */}
-      {selectedEl !== "canvas" && (
+      {/* Position & Size, compact Photoshop style */}
+      {selectedBase && (
       <div className="space-y-1.5 mb-4">
         <div className="flex gap-2">
           <label className="flex items-center gap-1 flex-1">
             <span className="text-xs text-text-muted w-3">X</span>
             <NumInput
-              value={(localSettings[selectedEl] as OverlayElementBase).x}
+              value={selectedBase.x}
               min={0}
               max={localSettings.canvas_width}
               onChange={(v) => updateSelectedEl({ x: v })}
@@ -724,7 +997,7 @@ export function OverlayPropertyPanel({
           <label className="flex items-center gap-1 flex-1">
             <span className="text-xs text-text-muted w-3">Y</span>
             <NumInput
-              value={(localSettings[selectedEl] as OverlayElementBase).y}
+              value={selectedBase.y}
               min={0}
               max={localSettings.canvas_height}
               onChange={(v) => updateSelectedEl({ y: v })}
@@ -736,9 +1009,7 @@ export function OverlayPropertyPanel({
           <label className="flex items-center gap-1 flex-1">
             <span className="text-xs text-text-muted w-3">W</span>
             <NumInput
-              value={
-                (localSettings[selectedEl] as OverlayElementBase).width
-              }
+              value={selectedBase.width}
               min={10}
               max={localSettings.canvas_width}
               onChange={(v) => updateSelectedEl({ width: v })}
@@ -748,9 +1019,7 @@ export function OverlayPropertyPanel({
           <label className="flex items-center gap-1 flex-1">
             <span className="text-xs text-text-muted w-3">H</span>
             <NumInput
-              value={
-                (localSettings[selectedEl] as OverlayElementBase).height
-              }
+              value={selectedBase.height}
               min={10}
               max={localSettings.canvas_height}
               onChange={(v) => updateSelectedEl({ height: v })}
@@ -831,6 +1100,52 @@ export function OverlayPropertyPanel({
               />
             </div>
           )}
+          <div className="space-y-2 border-t border-border-subtle pt-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localSettings.sprite.cycle_phase_targets ?? false}
+                onChange={(e) =>
+                  update({
+                    ...localSettings,
+                    sprite: {
+                      ...localSettings.sprite,
+                      cycle_phase_targets: e.target.checked,
+                    },
+                  })
+                }
+                className="accent-accent-blue"
+              />
+              <span className="text-xs 2xl:text-sm text-text-secondary">
+                {t("overlay.cyclePhaseTargets")}
+              </span>
+            </label>
+            {localSettings.sprite.cycle_phase_targets && (
+              <>
+                <NumSlider
+                  label={`${t("overlay.cycleInterval")} ${cycleIntervalSeconds.toFixed(1)}s`}
+                  min={0.5}
+                  max={60}
+                  step={0.5}
+                  value={cycleIntervalSeconds}
+                  onChange={(v) =>
+                    update({
+                      ...localSettings,
+                      sprite: {
+                        ...localSettings.sprite,
+                        cycle_interval_ms: Math.round(v * 1000),
+                      },
+                    })
+                  }
+                />
+                {phaseTargetCount === 0 && (
+                  <p className="text-[11px] text-accent-yellow">
+                    {t("overlay.cycleNoTargets")}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
           <div>
             <label htmlFor="sprite-idle-animation" className="text-xs text-text-muted">
               {t("overlay.idleAnimation")}
@@ -1642,6 +1957,11 @@ export function OverlayPropertyPanel({
           </div>
         </div>
       )}
+
+      {renderLabeledText("phase", numericTriggerAnimations)}
+      {renderLabeledText("total_counter", numericTriggerAnimations)}
+      {/* Like the timer, the total timer ticks on its own and gets no trigger animations. */}
+      {renderLabeledText("total_timer")}
     </div>
   );
 }

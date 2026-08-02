@@ -30,17 +30,22 @@ import { OverlayCanvas } from "./OverlayCanvas";
 import { OverlayPropertyPanel } from "./OverlayPropertyPanel";
 import { VerticalToolbar } from "./VerticalToolbar";
 import { apiUrl } from "../../utils/api";
+import {
+  DRAGGABLE_ELEMENT_KEYS,
+  ELEMENT_KEYS,
+  type ElementKey,
+} from "../../utils/overlayElements";
 
 interface Props {
   settings: OverlaySettings;
   onUpdate: (settings: OverlaySettings) => void;
   activePokemon?: Pokemon;
+  /** All tracked Pokemon, so the preview can derive phase, total counter and total timer. */
+  previewPokemonList?: Pokemon[];
   overlayTargetId?: string;
   readOnly?: boolean;
   compact?: boolean;
 }
-
-type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds" | "canvas";
 
 
 const DEFAULT_TEXT_STYLE: TextStyle = {
@@ -103,6 +108,8 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     trigger_enter: "bounce",
     trigger_exit: "none",
     trigger_decrement: "shake",
+    cycle_phase_targets: false,
+    cycle_interval_ms: 3000,
   },
   name: {
     visible: true,
@@ -235,7 +242,126 @@ const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
     trigger_enter: "none",
     trigger_decrement: "none",
   },
+  phase: {
+    visible: false,
+    x: 530,
+    y: 122,
+    width: 120,
+    height: 36,
+    z_index: 7,
+    style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "pokemon",
+      font_size: 24,
+      font_weight: 700,
+      color: "#ffffff",
+      outline_type: "solid",
+      outline_width: 3,
+      outline_color: "#000000",
+    },
+    show_label: false,
+    label_text: "Phase",
+    label_style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "sans",
+      font_size: 14,
+      font_weight: 400,
+      color: "#94a3b8",
+    },
+    idle_animation: "none",
+    trigger_enter: "none",
+    trigger_decrement: "none",
+  },
+  total_counter: {
+    visible: false,
+    x: 660,
+    y: 122,
+    width: 130,
+    height: 36,
+    z_index: 8,
+    style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "pokemon",
+      font_size: 24,
+      font_weight: 700,
+      color: "#ffffff",
+      outline_type: "solid",
+      outline_width: 3,
+      outline_color: "#000000",
+    },
+    show_label: false,
+    label_text: "Total Encounter",
+    label_style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "sans",
+      font_size: 14,
+      font_weight: 400,
+      color: "#94a3b8",
+    },
+    idle_animation: "none",
+    trigger_enter: "none",
+    trigger_decrement: "none",
+  },
+  total_timer: {
+    visible: false,
+    x: 530,
+    y: 162,
+    width: 260,
+    height: 36,
+    z_index: 9,
+    style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "pokemon",
+      font_size: 24,
+      font_weight: 700,
+      color: "#ffffff",
+      outline_type: "solid",
+      outline_width: 3,
+      outline_color: "#000000",
+    },
+    show_label: false,
+    label_text: "Total Timer",
+    label_style: {
+      ...DEFAULT_TEXT_STYLE,
+      font_family: "sans",
+      font_size: 14,
+      font_weight: 400,
+      color: "#94a3b8",
+    },
+    idle_animation: "none",
+    // Like the plain timer, the total timer has no counting animation to react to.
+    trigger_enter: "none",
+    trigger_decrement: "none",
+  },
 };
+
+/** Elements that were added after the first release and may be absent in stored settings. */
+const MIGRATABLE_ELEMENT_KEYS = [
+  "title",
+  "timer",
+  "phase",
+  "total_counter",
+  "total_timer",
+] as const;
+
+/**
+ * fillMissingElements substitutes the default element for every overlay
+ * element that predates the stored settings. A zero-sized element counts as
+ * missing because that is how older backends persisted an unknown element.
+ * Without it the layer list and the canvas would read `undefined.visible`.
+ */
+function fillMissingElements(settings: OverlaySettings): OverlaySettings {
+  const filled = { ...settings };
+  for (const key of MIGRATABLE_ELEMENT_KEYS) {
+    const el = filled[key];
+    if (!el || (el.width === 0 && el.height === 0)) {
+      // Structural assignment across a union of element shapes; the key always
+      // picks the default of its own element type.
+      (filled as Record<string, unknown>)[key] = DEFAULT_OVERLAY_SETTINGS[key];
+    }
+  }
+  return filled;
+}
 
 export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   const { t } = useI18n();
@@ -290,7 +416,7 @@ export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
   );
 }
 
-export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTargetId: _overlayTargetId, readOnly, compact }: Readonly<Props>) {
+export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemonList, overlayTargetId: _overlayTargetId, readOnly, compact }: Readonly<Props>) {
   const { t } = useI18n();
   const { push } = useToast();
   const ELEMENT_LABELS: Record<ElementKey, string> = {
@@ -300,9 +426,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     counter: t("overlay.elementCounter"),
     timer: t("overlay.elementTimer"),
     odds: t("overlay.elementOdds"),
+    phase: t("overlay.elementPhase"),
+    total_counter: t("overlay.elementTotalCounter"),
+    total_timer: t("overlay.elementTotalTimer"),
     canvas: "Canvas",
   };
-  const [localSettings, setLocalSettings] = useState<OverlaySettings>(settings);
+  const [localSettings, setLocalSettings] = useState<OverlaySettings>(() => fillMissingElements(settings));
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasScale, setCanvasScale] = useState(1);
@@ -374,6 +503,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   const currentCount =
     fakeCount ?? activePokemon?.encounters ?? 0;
 
+  // total_timer is deliberately absent: like the plain timer it only has an
+  // idle animation, so there is no trigger channel to fire.
   const testIncrement = () => {
     setFakeCount(currentCount + 1);
     fireTest("counter");
@@ -381,6 +512,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     fireTest("name");
     fireTest("title");
     fireTest("odds");
+    fireTest("phase");
+    fireTest("total_counter");
   };
   const testDecrement = () => {
     if (currentCount > 0) {
@@ -390,6 +523,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
       fireTest("name", true);
       fireTest("title", true);
       fireTest("odds", true);
+      fireTest("phase", true);
+      fireTest("total_counter", true);
     }
   };
   const testReset = () => {
@@ -471,15 +606,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
   );
 
   useEffect(() => {
-    // Migrate: fill in default title element for settings saved before it existed
-    let migrated = (!settings.title || (settings.title.width === 0 && settings.title.height === 0))
-      ? { ...settings, title: DEFAULT_OVERLAY_SETTINGS.title }
-      : settings;
-    // Migrate: fill in default timer element for settings saved before it existed
-    if (!migrated.timer || (migrated.timer.width === 0 && migrated.timer.height === 0)) {
-      migrated = { ...migrated, timer: DEFAULT_OVERLAY_SETTINGS.timer };
-    }
-    setLocalSettings(migrated);
+    setLocalSettings(fillMissingElements(settings));
   }, [settings]);
 
   // Keep zoomRef in sync
@@ -578,8 +705,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
 
   const effectiveScale = canvasScale * zoom;
 
-  const LAYERS: ElementKey[] = ["sprite", "name", "title", "counter", "timer", "odds", "canvas"];
-
   const moveLayer = (key: ElementKey, dir: "up" | "down") => {
     if (key === "canvas") return;
     const el = localSettings[key] as OverlayElementBase;
@@ -640,12 +765,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
     }
     if (e.key === "Tab") {
       e.preventDefault();
-      const idx = LAYERS.indexOf(selectedEl);
-      setSelectedEl(LAYERS[(idx + 1) % LAYERS.length]);
+      const idx = ELEMENT_KEYS.indexOf(selectedEl);
+      setSelectedEl(ELEMENT_KEYS[(idx + 1) % ELEMENT_KEYS.length]);
       return true;
     }
     return false;
-  }, [selectedEl, localSettings, updateSelectedEl, LAYERS]);
+  }, [selectedEl, localSettings, updateSelectedEl]);
 
   // Keyboard navigation + spacebar for hand tool
   useEffect(() => {
@@ -963,6 +1088,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
           testTrigger={testTrigger}
           fakeCount={fakeCount}
           activePokemon={activePokemon}
+          previewPokemonList={previewPokemonList}
           readOnly={readOnly}
           canvasContainerRef={canvasContainerRef}
           altHeld={altHeld}
@@ -989,6 +1115,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               updateSelectedEl={updateSelectedEl}
               readOnly={readOnly}
               embedded
+              activePokemon={activePokemon}
               onUpdate={update}
               openColorPicker={openColorPicker}
               openOutlineEditor={openOutlineEditor}
@@ -1045,8 +1172,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, overlayTarget
               <RotateCcw className="w-3 h-3" />
             </button>
           </div>
-          {LAYERS
-            .filter(key => key !== "canvas")
+          {DRAGGABLE_ELEMENT_KEYS
             .map((key) => {
               const el = localSettings[key] as OverlayElementBase;
               return (

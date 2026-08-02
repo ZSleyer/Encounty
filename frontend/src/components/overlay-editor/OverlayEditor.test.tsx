@@ -2400,12 +2400,16 @@ describe("OverlayEditor", () => {
     const spriteLayerButtons = screen.getAllByLabelText("Sprite");
     await user.click(spriteLayerButtons[0]);
 
-    // Tab: sprite -> name -> title -> counter -> timer -> odds -> canvas
+    // Tab: sprite -> name -> title -> counter -> timer -> odds -> phase ->
+    //      total_counter -> total_timer -> canvas
     await user.keyboard("{Tab}"); // name
     await user.keyboard("{Tab}"); // title
     await user.keyboard("{Tab}"); // counter
     await user.keyboard("{Tab}"); // timer
     await user.keyboard("{Tab}"); // odds
+    await user.keyboard("{Tab}"); // phase
+    await user.keyboard("{Tab}"); // total_counter
+    await user.keyboard("{Tab}"); // total_timer
     await user.keyboard("{Tab}"); // canvas
 
     // Canvas should now be selected

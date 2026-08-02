@@ -128,7 +128,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when glow checkbox is toggled", () => {
     const props = makeProps({ selectedEl: "sprite" });
     render(<OverlayPropertyPanel {...props} />);
-    const glowCheckbox = screen.getByRole("checkbox");
+    const glowCheckbox = screen.getByRole("checkbox", { name: "Glow" });
     fireEvent.click(glowCheckbox);
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({

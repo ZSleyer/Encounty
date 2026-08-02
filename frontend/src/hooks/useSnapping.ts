@@ -5,8 +5,10 @@
  * - snap: snaps x/y to the nearest grid line (bypassed when Shift is held).
  */
 import { OverlaySettings } from "../types";
-
-type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds";
+import {
+  DRAGGABLE_ELEMENT_KEYS,
+  type DraggableElementKey,
+} from "../utils/overlayElements";
 
 export interface Guide {
   type: "h" | "v";
@@ -50,14 +52,15 @@ function getElementEdgeGuides(
   w: number,
   h: number,
   settings: OverlaySettings,
-  exclude: ElementKey,
+  exclude: DraggableElementKey,
 ): Guide[] {
   const guides: Guide[] = [];
-  const keys: ElementKey[] = ["sprite", "name", "title", "counter", "timer", "odds"];
 
-  for (const key of keys) {
+  for (const key of DRAGGABLE_ELEMENT_KEYS) {
     if (key === exclude) continue;
     const el = settings[key];
+    // Elements added later are absent in settings persisted before them.
+    if (!el) continue;
     const ex = el.x, ey = el.y, ew = el.width, eh = el.height;
 
     // Vertical guides (left/center/right of other element)
@@ -88,7 +91,7 @@ export function useSnapping(
   gridSize: number,
 ) {
   const getGuides = (
-    activeKey: ElementKey,
+    activeKey: DraggableElementKey,
     x: number,
     y: number,
     w: number,

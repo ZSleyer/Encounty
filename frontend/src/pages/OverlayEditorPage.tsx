@@ -44,7 +44,61 @@ function makePreviewPokemon(): Pokemon {
     language: "de",
     game: "WHITE-2",
     overlay_mode: "default",
+    timer_accumulated_ms: 1_800_000,
+    // Without targets the sprite cycling would have nothing to cycle through.
+    phase_targets: [
+      {
+        canonical_name: "zigzagoon",
+        name: "Zigzachs",
+        sprite_url: getSpriteUrl(263, "pokemon-black-white", "shiny", "classic", "zigzagoon"),
+      },
+      {
+        canonical_name: "poochyena",
+        name: "Fiffyen",
+        sprite_url: getSpriteUrl(261, "pokemon-black-white", "shiny", "classic", "poochyena"),
+      },
+    ],
   };
+}
+
+/**
+ * Synthetic finished phases for the default layout editor. They give the phase,
+ * total counter and total timer elements something to derive, which the single
+ * hardcoded preview Pokemon cannot do on its own.
+ */
+function makePreviewPhaseChildren(parent: Pokemon): Pokemon[] {
+  const base = {
+    is_active: false,
+    language: parent.language,
+    game: parent.game,
+    overlay_mode: "default" as const,
+    sprite_type: "shiny" as const,
+    created_at: parent.created_at,
+    completed_at: parent.created_at,
+    phase_of: parent.id,
+  };
+  return [
+    {
+      ...base,
+      id: "preview-phase-1",
+      name: "Zigzachs",
+      canonical_name: "zigzagoon",
+      sprite_url: getSpriteUrl(263, "pokemon-black-white", "shiny", "classic", "zigzagoon"),
+      encounters: 512,
+      timer_accumulated_ms: 5_400_000,
+      phase_number: 1,
+    },
+    {
+      ...base,
+      id: "preview-phase-2",
+      name: "Fiffyen",
+      canonical_name: "poochyena",
+      sprite_url: getSpriteUrl(261, "pokemon-black-white", "shiny", "classic", "poochyena"),
+      encounters: 287,
+      timer_accumulated_ms: 3_600_000,
+      phase_number: 2,
+    },
+  ];
 }
 
 export function OverlayEditorPage() {
@@ -78,6 +132,10 @@ export function OverlayEditorPage() {
   });
 
   const [previewPokemon] = useState(() => makePreviewPokemon());
+  const [previewPokemonList] = useState(() => [
+    previewPokemon,
+    ...makePreviewPhaseChildren(previewPokemon),
+  ]);
 
   const [isInitialised, setInitialised] = useState(!!appState);
   useEffect(() => {
@@ -175,6 +233,7 @@ export function OverlayEditorPage() {
         <OverlayEditor
           settings={currentOverlay}
           activePokemon={previewPokemon}
+          previewPokemonList={previewPokemonList}
           onUpdate={(overlay) => {
             setCurrentOverlay(overlay);
             setOverlayDirty(true);

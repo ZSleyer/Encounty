@@ -5,6 +5,11 @@ import type { Pokemon } from "../../types";
 import { Guide, useSnapping } from "../../hooks/useSnapping";
 import { useReducedMotion } from "../../hooks/useReducedMotion";
 import { useI18n } from "../../contexts/I18nContext";
+import {
+  DRAGGABLE_ELEMENT_KEYS,
+  type DraggableElementKey,
+  type ElementKey,
+} from "../../utils/overlayElements";
 
 /** i18n label key per WebGL background animation, used for the reduced-motion placeholder. */
 const RB_LABEL_KEYS: Record<string, string> = {
@@ -38,9 +43,6 @@ function buildStaticBgPreview(
   }
 }
 
-type ElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds" | "canvas";
-/** Element keys that correspond to draggable overlay elements in OverlaySettings. */
-type DraggableElementKey = "sprite" | "name" | "title" | "counter" | "timer" | "odds";
 type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
 interface OverlayCanvasProps {
@@ -59,6 +61,8 @@ interface OverlayCanvasProps {
   readonly testTrigger: { element: ElementKey; n: number; reverse?: boolean };
   readonly fakeCount: number | null;
   readonly activePokemon?: Pokemon;
+  /** All tracked Pokemon, so the preview can derive phase, total counter and total timer. */
+  readonly previewPokemonList?: Pokemon[];
   readonly readOnly?: boolean;
   readonly canvasContainerRef: React.RefObject<HTMLDivElement | null>;
   readonly onMouseMove: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -331,6 +335,7 @@ export function OverlayCanvas({
   testTrigger,
   fakeCount,
   activePokemon,
+  previewPokemonList,
   altHeld,
   readOnly,
   canvasContainerRef,
@@ -345,8 +350,6 @@ export function OverlayCanvas({
   onUpdate,
   snapEnabled,
 }: OverlayCanvasProps) {
-  const LAYERS: DraggableElementKey[] = ["sprite", "name", "title", "counter", "timer", "odds"];
-
   // Reduced motion: the WebGL background animations (Aurora/Galaxy/Silk/
   // PixelBlast) are replaced by a static gradient placeholder in the editor
   // preview. The live /overlay OBS view is untouched.
@@ -369,6 +372,10 @@ export function OverlayCanvas({
   const counterHandlers = useElementDrag({ elementKey: "counter", ...dragOpts });
   const timerHandlers = useElementDrag({ elementKey: "timer", ...dragOpts });
   const oddsHandlers = useElementDrag({ elementKey: "odds", ...dragOpts });
+  // Hooks cannot be called in a loop, so every element needs its own line.
+  const phaseHandlers = useElementDrag({ elementKey: "phase", ...dragOpts });
+  const totalCounterHandlers = useElementDrag({ elementKey: "total_counter", ...dragOpts });
+  const totalTimerHandlers = useElementDrag({ elementKey: "total_timer", ...dragOpts });
 
   const handlers: Record<DraggableElementKey, ReturnType<typeof useElementDrag>> = {
     sprite: spriteHandlers,
@@ -377,6 +384,9 @@ export function OverlayCanvas({
     counter: counterHandlers,
     timer: timerHandlers,
     odds: oddsHandlers,
+    phase: phaseHandlers,
+    total_counter: totalCounterHandlers,
+    total_timer: totalTimerHandlers,
   };
 
   const fakePreviewPokemon: Pokemon | undefined = activePokemon
@@ -451,6 +461,7 @@ export function OverlayCanvas({
           <Overlay
             previewSettings={previewSettings}
             previewPokemon={fakePreviewPokemon}
+            previewPokemonList={previewPokemonList}
             testTrigger={testTrigger}
           />
 
@@ -517,7 +528,7 @@ export function OverlayCanvas({
           )}
 
           {/* Drag/resize overlays for each element */}
-          {!readOnly && LAYERS.map((key) => {
+          {!readOnly && DRAGGABLE_ELEMENT_KEYS.map((key) => {
             const el = localSettings[key] as OverlayElementBase;
             if (!el.visible) return null;
             const { onDragStart, onResizeStart } = handlers[key];

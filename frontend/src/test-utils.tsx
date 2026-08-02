@@ -9,7 +9,12 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { I18nProvider } from "./contexts/I18nContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { CaptureServiceProvider } from "./contexts/CaptureServiceContext";
-import type { AppState, Pokemon, OverlaySettings } from "./types";
+import type {
+  AppState,
+  LabeledTextElement,
+  OverlaySettings,
+  Pokemon,
+} from "./types";
 
 /** Wraps children with all application providers for component testing. */
 function AllProviders({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -70,6 +75,8 @@ export function makeOverlaySettings(
       trigger_enter: "none",
       trigger_exit: "none",
       trigger_decrement: "none",
+      cycle_phase_targets: false,
+      cycle_interval_ms: 3000,
     },
     name: {
       visible: true,
@@ -139,6 +146,34 @@ export function makeOverlaySettings(
       trigger_enter: "none",
       trigger_decrement: "none",
     },
+    phase: makeLabeledTextElement({ y: 130, width: 80, z_index: 7, label_text: "Phase" }),
+    total_counter: makeLabeledTextElement({ y: 170, width: 80, z_index: 8, label_text: "Total Encounter" }),
+    total_timer: makeLabeledTextElement({ x: 200, y: 170, width: 180, z_index: 9, label_text: "Total Timer" }),
+    ...overrides,
+  };
+}
+
+/**
+ * Builds a phasing text element fixture. Hidden by default, mirroring the
+ * backend defaults, so existing overlay tests keep their DOM unchanged.
+ */
+function makeLabeledTextElement(
+  overrides?: Partial<LabeledTextElement>,
+): LabeledTextElement {
+  return {
+    visible: false,
+    x: 10,
+    y: 10,
+    width: 120,
+    height: 30,
+    z_index: 7,
+    style: makeTextStyle(),
+    show_label: false,
+    label_text: "",
+    label_style: makeTextStyle(),
+    idle_animation: "none",
+    trigger_enter: "none",
+    trigger_decrement: "none",
     ...overrides,
   };
 }
