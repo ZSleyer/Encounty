@@ -6,7 +6,7 @@
  * the active Pokémon (increment, decrement, reset, complete/delete).
  * Counter actions are sent over WebSocket for immediate multi-tab sync.
  */
-import { useState, useEffect, useRef, useReducer, Fragment } from "react";
+import { useState, useEffect, useMemo, useRef, useReducer, Fragment } from "react";
 import {
   Plus,
   Minus,
@@ -47,10 +47,13 @@ import {
   Video,
   VideoOff,
   FolderPlus,
+  Split,
 } from "lucide-react";
 import { Link } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
 import { EditPokemonModal } from "../components/pokemon/EditPokemonModal";
+import { EndPhaseModal } from "../components/pokemon/EndPhaseModal";
+import { CaughtChoiceModal, type CaughtChoice } from "../components/pokemon/CaughtChoiceModal";
 import { ConfirmModal } from "../components/shared/ConfirmModal";
 import { SetEncounterModal } from "../components/shared/SetEncounterModal";
 import { SetTimerModal } from "../components/shared/SetTimerModal";
@@ -73,6 +76,8 @@ import { useCaptureService, useCaptureVersion } from "../contexts/CaptureService
 import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
 import { getOddsFractional } from "../utils/odds";
+import { computePhaseStats, phaseChildren } from "../utils/phase";
+import { isPhasingMethod } from "../utils/huntTypes";
 import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 
@@ -1372,7 +1377,9 @@ function HeaderOverflowMenu({
               <Edit2 className="w-3.5 h-3.5" />
               {t("dash.edit")}
             </button>
-            {pokemon.completed_at && (
+            {/* Phase entries stay archived: the backend rejects reactivating
+                them, they would otherwise keep counting into their parent. */}
+            {pokemon.completed_at && !pokemon.phase_of && (
               <button
                 onClick={() => runAction(onReactivate)}
                 className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
@@ -1445,12 +1452,203 @@ function stepLabel(pokemon: Pokemon): string {
   return pokemon.step && pokemon.step > 1 ? String(pokemon.step) : "1";
 }
 
-/** Counter tab content: one cohesive hero panel with status, identity, big number, chips, and actions. */
-function DashboardCounterTab({
-  pokemon, imgError, oddsDisplay, send,
-  onImgError, onDecrement, onIncrement, onReset, onSetEncounter, timerStartBlocked = false,
+// --- Phasing ---
+
+/** Species data the end-phase modal returns for the foreign shiny that ended a phase. */
+interface PhaseCatchPayload {
+  canonical_name: string;
+  name: string;
+  base_name?: string;
+  form_name?: string;
+  sprite_url: string;
+}
+
+/** Per-render phase lookups for the sidebar, so a long list stays linear. */
+interface PhaseIndex {
+  /** Parent hunt id → highest phase number already finished below it. */
+  latestPhase: Map<string, number>;
+  /** Pokémon id → display name, used to resolve the parent of a phase entry. */
+  nameById: Map<string, string>;
+}
+
+/** Builds both sidebar phase lookups in a single pass over the snapshot. */
+function buildPhaseIndex(all: Pokemon[]): PhaseIndex {
+  const latestPhase = new Map<string, number>();
+  const nameById = new Map<string, string>();
+  for (const p of all) {
+    nameById.set(p.id, p.name);
+    const parentId = p.phase_of;
+    // A corrupted snapshot pointing an entry at itself must not make it its own phase.
+    if (!parentId || parentId === p.id) continue;
+    const number = p.phase_number ?? 0;
+    if (number > (latestPhase.get(parentId) ?? 0)) latestPhase.set(parentId, number);
+  }
+  return { latestPhase, nameById };
+}
+
+/**
+ * Describes where a phase entry came from, or returns null for a regular hunt.
+ * Falls back to the bare phase number once the parent hunt has been deleted.
+ */
+function phaseOriginLabel(
+  pokemon: Pokemon,
+  parentName: string | undefined,
+  t: (key: string, options?: Record<string, string | number>) => string,
+): string | null {
+  if (!pokemon.phase_of) return null;
+  const number = pokemon.phase_number ?? 0;
+  if (parentName) return t("phase.ofHunt", { number, name: parentName });
+  return `${t("phase.badge", { number })} · ${t("phase.orphaned")}`;
+}
+
+/**
+ * Reports whether the entry is the most recent phase of a parent that still
+ * exists. Only that phase can be undone, matching the backend rule.
+ */
+function isNewestPhase(pokemon: Pokemon, all: Pokemon[]): boolean {
+  const parentId = pokemon.phase_of;
+  if (!parentId || !all.some((p) => p.id === parentId)) return false;
+  const siblings = phaseChildren(all, parentId);
+  return siblings[siblings.length - 1]?.id === pokemon.id;
+}
+
+/**
+ * PhaseTotalTimer renders the accumulated time across all phases of a hunt and
+ * ticks once per second while the hunt timer runs, mirroring PokemonTimer.
+ * The derived total is clock-free, so the running segment is added here.
+ */
+function PhaseTotalTimer({ pokemon, totalTimerMs }: Readonly<{ pokemon: Pokemon; totalTimerMs: number }>) {
+  const { t } = useI18n();
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
+  const isRunning = !!pokemon.timer_started_at;
+
+  useEffect(() => {
+    if (!isRunning) return;
+    const id = setInterval(() => forceUpdate(), 1000);
+    return () => clearInterval(id);
+  }, [isRunning]);
+
+  const runningMs = computeTimerMs(pokemon) - (pokemon.timer_accumulated_ms ?? 0);
+  return (
+    <span className="t-label gap-1">
+      {t("phase.totalTime")}
+      <span className="font-mono tabular-nums">{formatTimer(totalTimerMs + runningMs)}</span>
+    </span>
+  );
+}
+
+/**
+ * PhaseHistory lists the finished phases of a hunt. Each row is a real button
+ * that opens the phase entry in the archive.
+ */
+function PhaseHistory({
+  entries, imgError, onImgError, onOpenEntry,
+}: Readonly<{
+  entries: Pokemon[];
+  imgError: Record<string, string>;
+  onImgError: (id: string, src: string) => void;
+  onOpenEntry: (target: Pokemon) => void;
+}>) {
+  const { t } = useI18n();
+  return (
+    <section
+      className="t-panel p-4 mt-3"
+      style={{ width: "min(100%, clamp(420px, 40vw, 620px))" }}
+      aria-label={t("phase.historyTitle")}
+    >
+      <span className="t-label">{t("phase.historyTitle")}</span>
+      <ul className="flex flex-col gap-0.5 mt-2">
+        {entries.map((entry) => {
+          const number = entry.phase_number ?? 0;
+          return (
+            <li key={entry.id}>
+              <button
+                type="button"
+                onClick={() => onOpenEntry(entry)}
+                aria-label={t("aria.phaseHistoryEntry", { number, name: entry.name })}
+                className="w-full min-h-8 flex items-center gap-2 px-2 py-1 rounded-none text-left hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              >
+                <img
+                  src={resolveSpriteUrl(entry.id, entry.sprite_url, imgError)}
+                  alt=""
+                  aria-hidden="true"
+                  onError={() => onImgError(entry.id, resolveSpriteSrc(entry.sprite_url))}
+                  className="pokemon-sprite w-6 h-6 shrink-0 object-contain"
+                />
+                <span className="t-label shrink-0">{t("phase.short", { number })}</span>
+                <span className="flex-1 min-w-0 truncate text-xs text-text-primary capitalize">{entry.name}</span>
+                <span className="shrink-0 text-xs tabular-nums text-text-secondary">{entry.encounters}</span>
+                <span className="shrink-0 text-xs font-mono tabular-nums text-text-muted">
+                  {formatTimer(entry.timer_accumulated_ms ?? 0)}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * CaughtBanner is the archive header of a completed entry. For a phase entry it
+ * additionally links back to its parent hunt and offers the undo action on the
+ * most recent phase.
+ */
+function CaughtBanner({
+  pokemon, parent, canUndo, onOpenEntry, onUndoPhase,
 }: Readonly<{
   pokemon: Pokemon;
+  parent: Pokemon | null;
+  canUndo: boolean;
+  onOpenEntry: (target: Pokemon) => void;
+  onUndoPhase: (child: Pokemon) => void;
+}>) {
+  const { t } = useI18n();
+  const originLabel = phaseOriginLabel(pokemon, parent?.name, t);
+  return (
+    <div className="flex flex-wrap items-center gap-2.5 px-6 py-2 rounded-none bg-accent-green/10 text-accent-green text-sm mb-2 border border-accent-green/30 shadow-sm mt-8">
+      <Trophy className="w-4 h-4" />
+      <span className="font-bold">{t("dash.caughtBanner")}</span>
+      <span className="w-px h-3 bg-accent-green/30" />
+      <span className="text-accent-green/80 text-xs font-medium">
+        {new Date(pokemon.completed_at!).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}
+      </span>
+      {originLabel && parent && (
+        <button
+          type="button"
+          onClick={() => onOpenEntry(parent)}
+          aria-label={t("aria.phaseGoToParent", { name: parent.name })}
+          className="t-label min-h-6 px-1.5 gap-1 hover:text-accent-blue transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+        >
+          {originLabel}
+        </button>
+      )}
+      {originLabel && !parent && <span className="t-label px-1.5">{originLabel}</span>}
+      {canUndo && (
+        <button
+          type="button"
+          onClick={() => onUndoPhase(pokemon)}
+          title={t("phase.undo")}
+          aria-label={t("phase.undo")}
+          className="min-h-6 flex items-center gap-1 px-1.5 rounded-none text-text-muted hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+        >
+          <Undo2 className="w-3.5 h-3.5" />
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em]">{t("phase.undo")}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Counter tab content: one cohesive hero panel with status, identity, big number, chips, and actions. */
+function DashboardCounterTab({
+  pokemon, allPokemon, imgError, oddsDisplay, send,
+  onImgError, onDecrement, onIncrement, onReset, onSetEncounter,
+  onEndPhase, onUndoPhase, onOpenEntry, timerStartBlocked = false,
+}: Readonly<{
+  pokemon: Pokemon;
+  allPokemon: Pokemon[];
   imgError: Record<string, string>;
   oddsDisplay: string;
   send: (type: string, payload: unknown) => void;
@@ -1459,6 +1657,9 @@ function DashboardCounterTab({
   onIncrement: (id: string) => void;
   onReset: (id: string) => void;
   onSetEncounter: (p: Pokemon) => void;
+  onEndPhase: (p: Pokemon) => void;
+  onUndoPhase: (child: Pokemon) => void;
+  onOpenEntry: (target: Pokemon) => void;
   timerStartBlocked?: boolean;
 }>) {
   const { t } = useI18n();
@@ -1469,18 +1670,22 @@ function DashboardCounterTab({
   const [baseName, formName] = getBaseAndFormName(pokemon);
   // Secondary identity line: form and game, dot-separated, both optional.
   const metaLine = [formName, pokemon.game ? formatGame(pokemon.game) : ""].filter(Boolean).join(" \u00b7 ");
+  const phase = computePhaseStats(pokemon, allPokemon);
+  // Everything derived from phases stays hidden until a phase actually exists,
+  // so a plain hunt keeps exactly the numbers it had before the feature.
+  const hasPhases = phase.children.length > 0;
+  const canEndPhase = !isCompleted && !phase.isPhase && isPhasingMethod(pokemon.hunt_type);
 
   return (
     <>
       {isCompleted && (
-        <div className="flex items-center gap-2.5 px-6 py-2 rounded-none bg-accent-green/10 text-accent-green text-sm mb-2 border border-accent-green/30 shadow-sm mt-8">
-          <Trophy className="w-4 h-4" />
-          <span className="font-bold">{t("dash.caughtBanner")}</span>
-          <span className="w-px h-3 bg-accent-green/30" />
-          <span className="text-accent-green/80 text-xs font-medium">
-            {new Date(pokemon.completed_at!).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}
-          </span>
-        </div>
+        <CaughtBanner
+          pokemon={pokemon}
+          parent={phase.parent}
+          canUndo={isNewestPhase(pokemon, allPokemon)}
+          onOpenEntry={onOpenEntry}
+          onUndoPhase={onUndoPhase}
+        />
       )}
 
       {/* Hero identity: large full sprite (never the box-trimmed variant)
@@ -1508,17 +1713,24 @@ function DashboardCounterTab({
       >
         {/* Header row: hunt status label left, timer controls right */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          {isCompleted ? (
-            <span className="t-label">{t("dash.tabArchive")}</span>
-          ) : (
-            <span
-              className={`t-label t-label--accent ${pokemon.is_active ? "" : "invisible"}`}
-              title={pokemon.is_active ? t("dash.tooltipSetActive") : undefined}
-              aria-hidden={!pokemon.is_active}
-            >
-              {t("dash.hotkeyBadge")}
-            </span>
-          )}
+          <div className="flex items-center gap-2 min-w-0">
+            {isCompleted ? (
+              <span className="t-label">{t("dash.tabArchive")}</span>
+            ) : (
+              <span
+                className={`t-label t-label--accent ${pokemon.is_active ? "" : "invisible"}`}
+                title={pokemon.is_active ? t("dash.tooltipSetActive") : undefined}
+                aria-hidden={!pokemon.is_active}
+              >
+                {t("dash.hotkeyBadge")}
+              </span>
+            )}
+            {hasPhases && (
+              <span className="t-label border border-accent-purple/40 text-accent-purple px-1.5">
+                {t("phase.badge", { number: phase.phaseNumber })}
+              </span>
+            )}
+          </div>
           <PokemonTimer pokemon={pokemon} send={send} disabled={isCompleted} timerStartBlocked={timerStartBlocked} />
         </div>
 
@@ -1542,12 +1754,21 @@ function DashboardCounterTab({
           )}
         </div>
 
-        {/* Chips row: odds micro label */}
+        {/* Chips row: odds micro label, plus the phase totals once phases exist */}
         <div className="flex flex-wrap items-center justify-center gap-2">
           <span className="t-label t-label--accent gap-1" title={t("aria.odds")}>
             {t("dash.odds") || "Odds"}
             <span className="tabular-nums">{oddsDisplay}</span>
           </span>
+          {hasPhases && (
+            <>
+              <span className="t-label gap-1">
+                {t("phase.totalEncounters")}
+                <span className="tabular-nums">{phase.totalEncounters}</span>
+              </span>
+              <PhaseTotalTimer pokemon={pokemon} totalTimerMs={phase.totalTimerMs} />
+            </>
+          )}
         </div>
 
         {/* Action row: minus (secondary), plus (primary accent), reset (ghost) */}
@@ -1588,8 +1809,29 @@ function DashboardCounterTab({
               <RotateCcw className="w-4 h-4" />
             </button>
           )}
+          {canEndPhase && (
+            <button
+              type="button"
+              onClick={() => onEndPhase(pokemon)}
+              className="flex items-center justify-center gap-1.5 h-11 px-3 rounded-none bg-bg-card border border-border-subtle text-text-secondary hover:border-accent-purple/50 hover:text-accent-purple transition-colors"
+              title={t("phase.end")}
+              aria-label={t("phase.end")}
+            >
+              <Split className="w-4 h-4" />
+              <span className="text-xs font-semibold">{t("phase.end")}</span>
+            </button>
+          )}
         </div>
       </section>
+
+      {hasPhases && (
+        <PhaseHistory
+          entries={phase.children}
+          imgError={imgError}
+          onImgError={onImgError}
+          onOpenEntry={onOpenEntry}
+        />
+      )}
     </>
   );
 }
@@ -1775,6 +2017,7 @@ function DashboardOverlayTab({
           <OverlayEditor
             settings={currentOverlay}
             activePokemon={pokemon || undefined}
+            previewPokemonList={allPokemon}
             overlayTargetId={pokemon.id}
             onUpdate={onOverlayUpdate}
             compact
@@ -1864,9 +2107,16 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   const clearDetectorStatus = useCounterStore((s) => s.clearDetectorStatus);
   const { t } = useI18n();
   const capture = useCaptureService();
+  const { push: pushToast } = useToast();
   useCaptureVersion(); // Re-render when capture sources connect/disconnect
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPokemon, setEditingPokemon] = useState<Pokemon | null>(null);
+  // Only the id: the modal shows live encounters and timer, so a snapshot
+  // would go stale as soon as the hotkey keeps counting while it is open.
+  const [endPhaseId, setEndPhaseId] = useState<string | null>(null);
+  // Hunt whose "Caught!" button asked what actually happened, id for the same
+  // reason as endPhaseId.
+  const [caughtChoiceId, setCaughtChoiceId] = useState<string | null>(null);
   const [imgError, setImgError] = useState<Record<string, string>>({});
 
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("active");
@@ -2157,6 +2407,103 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   ).sort((a, b) => a.localeCompare(b));
   const viewedPokemon = findViewedPokemon(allPokemon, viewedPokemonId);
   const oddsDisplay = getOddsFractional(viewedPokemon);
+  // Built once per snapshot: renderPokemonItem would otherwise rescan the whole
+  // list per row, making the sidebar quadratic.
+  const phaseIndex = useMemo(() => buildPhaseIndex(allPokemon), [allPokemon]);
+  // The hunt whose phase is being ended, resolved live so counting on with the
+  // hotkey keeps the modal summary in sync with what the backend will freeze.
+  const endPhaseParent = allPokemon.find((p) => p.id === endPhaseId) ?? null;
+  const caughtChoiceHunt = allPokemon.find((p) => p.id === caughtChoiceId) ?? null;
+
+  // --- Phase Handlers ---
+
+  /**
+   * Reports whether a catch on this hunt is ambiguous: with a phasing method the
+   * shiny that just appeared is either the target or the one that ends the phase.
+   * Phase entries and finished hunts are never ambiguous.
+   */
+  const catchIsAmbiguous = (p: Pokemon) =>
+    !p.completed_at && !p.phase_of && isPhasingMethod(p.hunt_type);
+
+  /**
+   * Entry point of the Caught button: ask first when the hunt can phase, and
+   * complete straight away when it cannot.
+   */
+  const handleCaught = (p: Pokemon) => {
+    if (catchIsAmbiguous(p)) {
+      setCaughtChoiceId(p.id);
+      return;
+    }
+    void handleComplete(p.id);
+  };
+
+  /** Routes the answer of the caught dialog to the matching flow. */
+  const handleCaughtChoice = (id: string, choice: CaughtChoice) => {
+    if (choice === "phase") {
+      setEndPhaseId(id);
+      return;
+    }
+    void handleComplete(id);
+  };
+
+  /**
+   * Shows the given entry in the main panel and switches the sidebar to the tab
+   * it lives in, so jumping from a phase entry to its hunt (or back) always
+   * lands on something visible.
+   */
+  const handleOpenEntry = (target: Pokemon) => {
+    setSidebarTab(target.completed_at ? "archived" : "active");
+    setViewedGroupId(null);
+    setViewedPokemonId(target.id);
+    setRightPanelTab("counter");
+  };
+
+  /**
+   * Ends the running phase of a hunt with the foreign shiny picked in the
+   * modal. A failure is rethrown so the modal keeps the dialog, and the pick,
+   * open; the modal closes itself once this resolves.
+   */
+  const handleEndPhase = async (parent: Pokemon, data: PhaseCatchPayload) => {
+    const number = computePhaseStats(parent, allPokemon).phaseNumber;
+    try {
+      const res = await fetch(apiUrl(`/api/pokemon/${parent.id}/phase`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("end phase failed");
+    } catch (err) {
+      pushToast({ type: "error", title: t("phase.errEndFailed"), key: "phase-end" });
+      throw err;
+    }
+    pushToast({ type: "success", title: t("phase.ended", { number }), key: "phase-end" });
+  };
+
+  /** Deletes the most recent phase and returns its encounters and time to the hunt. */
+  const undoPhase = async (child: Pokemon) => {
+    try {
+      const res = await fetch(apiUrl(`/api/pokemon/${child.id}/phase`), { method: "DELETE" });
+      if (!res.ok) throw new Error("undo phase failed");
+      // The entry no longer exists afterwards, so follow the user to the hunt
+      // that absorbed it instead of leaving an empty panel behind.
+      const parent = allPokemon.find((p) => p.id === child.phase_of);
+      if (parent) handleOpenEntry(parent);
+      pushToast({ type: "success", title: t("phase.undone"), key: "phase-undo" });
+    } catch {
+      pushToast({ type: "error", title: t("phase.errUndoFailed"), key: "phase-undo" });
+    }
+  };
+
+  /** Confirms first: undoing a phase deletes its archive entry. */
+  const handleUndoPhase = (child: Pokemon) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: t("phase.undo"),
+      message: t("phase.undoConfirm"),
+      isDestructive: true,
+      onConfirm: () => void undoPhase(child),
+    });
+  };
 
   // Persist sort + sidebar preferences
   useEffect(() => {
@@ -2315,6 +2662,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   const renderCounterTab = (pokemon: Pokemon) => (
     <DashboardCounterTab
       pokemon={pokemon}
+      allPokemon={allPokemon}
       imgError={imgError}
       oddsDisplay={oddsDisplay}
       send={send}
@@ -2323,6 +2671,9 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       onIncrement={handleIncrement}
       onReset={handleReset}
       onSetEncounter={setSetEncounterPokemon}
+      onEndPhase={(p) => setEndPhaseId(p.id)}
+      onUndoPhase={handleUndoPhase}
+      onOpenEntry={handleOpenEntry}
       timerStartBlocked={isTimerStartBlocked(pokemon, capture.isCapturing)}
     />
   );
@@ -2364,8 +2715,13 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
     const itemClassName = buildSidebarItemClass(itemBorderClass, focusedIdx === idx, isArchived);
     const [baseName, formName] = getBaseAndFormName(p);
     const tags = p.tags ?? [];
+    const originLabel = phaseOriginLabel(p, phaseIndex.nameById.get(p.phase_of ?? ""), t);
+    // The running phase is max(finished) + 1; without a finished phase the hunt
+    // is still in phase 1 and stays unmarked.
+    const finishedPhases = phaseIndex.latestPhase.get(p.id);
+    const runningPhase = isArchived || finishedPhases === undefined ? null : finishedPhases + 1;
     // Full metadata as tooltip since the merged line truncates.
-    const metaTitle = [formName, p.game ? formatGame(p.game) : "", String(p.encounters)]
+    const metaTitle = [formName, p.game ? formatGame(p.game) : "", String(p.encounters), originLabel ?? ""]
       .filter(Boolean)
       .join(" · ");
     // While dragging, show an empty dashed slot at the drop position so the
@@ -2423,6 +2779,14 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
             <span className="text-[13px] 2xl:text-sm font-semibold text-text-primary truncate flex-1 capitalize" title={p.name}>
               {baseName}
             </span>
+            {runningPhase !== null && (
+              <span
+                className="shrink-0 border border-accent-purple/40 text-accent-purple text-[10px] px-1 rounded-none tabular-nums"
+                title={t("phase.badge", { number: runningPhase })}
+              >
+                {t("phase.short", { number: runningPhase })}
+              </span>
+            )}
             <div className="flex gap-0.5 items-center shrink-0">
               {hasDetectorReady(p) && (
                 capture.isCapturing(p.id)
@@ -2457,6 +2821,12 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               {p.game && <span>{formatGame(p.game)}</span>}
               {(formName || p.game) && <span className="text-text-faint"> · </span>}
               <span className="tabular-nums">{p.encounters}</span>
+              {originLabel && (
+                <>
+                  <span className="text-text-faint"> · </span>
+                  <span className="text-accent-purple">{originLabel}</span>
+                </>
+              )}
             </span>
             {!isViewed && tags.length > 0 && (
               <span className="flex items-center gap-1 shrink-0" title={tags.join(", ")}>
@@ -2928,7 +3298,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               {/* 1. Caught, positive state change before CTA */}
               {!viewedPokemon.completed_at && (
                 <button
-                  onClick={() => handleComplete(viewedPokemon.id)}
+                  onClick={() => handleCaught(viewedPokemon)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-blue hover:bg-accent-blue/90 border border-transparent text-xs font-bold transition-colors"
                   aria-label={t("dash.caught")}
                 >
@@ -2990,6 +3360,24 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           groups={groups.map((g) => ({ id: g.id, name: g.name, color: g.color }))}
           availableTags={availableTags}
           onManageGroups={() => setShowGroupModal(true)}
+        />
+      )}
+      {caughtChoiceHunt && (
+        <CaughtChoiceModal
+          targetName={caughtChoiceHunt.name}
+          phaseNumber={computePhaseStats(caughtChoiceHunt, allPokemon).phaseNumber}
+          onChoose={(choice) => handleCaughtChoice(caughtChoiceHunt.id, choice)}
+          onClose={() => setCaughtChoiceId(null)}
+        />
+      )}
+      {endPhaseParent && (
+        <EndPhaseModal
+          parent={endPhaseParent}
+          phaseNumber={computePhaseStats(endPhaseParent, allPokemon).phaseNumber}
+          encounters={endPhaseParent.encounters}
+          timerMs={computeTimerMs(endPhaseParent)}
+          onSubmit={(data) => handleEndPhase(endPhaseParent, data)}
+          onClose={() => setEndPhaseId(null)}
         />
       )}
       {showGroupModal && (

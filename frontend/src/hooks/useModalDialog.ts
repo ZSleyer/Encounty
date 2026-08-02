@@ -41,6 +41,10 @@ export interface UseModalDialogResult {
  * close handler, and backdrop-close listeners. Callers still render the
  * <dialog> themselves (or use ModalShell for the standard chrome) and should
  * pass `onCancel={requestClose}` so Escape routes through the same path.
+ *
+ * To place the initial focus, mark the target element with `data-autofocus`;
+ * it is focused right after showModal(), which otherwise keeps the focus on
+ * the first focusable element in the dialog.
  */
 export function useModalDialog({
   onClose,
@@ -50,7 +54,15 @@ export function useModalDialog({
   const requestClose = useDialogClose(dialogRef, onClose);
 
   useEffect(() => {
-    dialogRef.current?.showModal();
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    dialog.showModal();
+    // showModal() runs the dialog focusing steps itself and parks the focus on
+    // the first focusable element, usually the header close button. A modal
+    // that wants a different starting point marks that element with
+    // data-autofocus; setting it from a child effect would be too early, since
+    // child effects run before this one.
+    dialog.querySelector<HTMLElement>("[data-autofocus]")?.focus();
   }, []);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, makeAppState, makePokemon, userEvent, act, fireEvent } from "../test-utils";
+import { render, screen, makeAppState, makePokemon, userEvent, act, fireEvent, waitFor } from "../test-utils";
 import { Dashboard } from "./Dashboard";
 import { useCounterStore } from "../hooks/useCounterState";
 
@@ -49,6 +49,19 @@ vi.mock("../engine/startDetection", () => ({
   reloadDetectionTemplates: vi.fn(),
 }));
 
+/**
+ * jsdom implements neither showModal nor close: make both flip the open
+ * attribute so a <dialog> behaves like an open modal and the close transition
+ * of useDialogClose still terminates.
+ */
+function mockDialogMethods() {
+  HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  });
+  HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
+    this.removeAttribute("open");
+  });
+}
 
 describe("Dashboard", () => {
   beforeEach(() => {
@@ -1149,7 +1162,8 @@ describe("Dashboard action buttons", () => {
     expect(reactivateButtons.length).toBeGreaterThan(0);
   });
 
-  it("calls fetch when caught button is clicked", async () => {
+  it("calls fetch when the caught button reports the target", async () => {
+    mockDialogMethods();
     const user = userEvent.setup();
     const pokemon = makePokemon({ id: "p1" });
 
@@ -1166,10 +1180,63 @@ describe("Dashboard action buttons", () => {
     const caughtButtons = screen.getAllByRole("button", { name: /Gefangen/ });
     await user.click(caughtButtons[0]);
 
+    // The hunt method can phase, so the dialog asks what the shiny was.
+    await user.click(await screen.findByRole("button", { name: /Bisasam gefangen/ }));
+
     // Should call the complete API endpoint
-    expect(mockFetch).toHaveBeenCalledWith(
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/pokemon/p1/complete"),
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+  });
+
+  it("opens the end-phase dialog when the caught button reports an off-target shiny", async () => {
+    mockDialogMethods();
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    await user.click(screen.getAllByRole("button", { name: /Gefangen/ })[0]);
+    await user.click(await screen.findByRole("button", { name: /Fehl-Shiny gefangen/ }));
+
+    // The species dialog takes over; the hunt itself is not completed.
+    expect(await screen.findByPlaceholderText("Spezies suchen…")).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalledWith(
       expect.stringContaining("/api/pokemon/p1/complete"),
       expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("skips the question and completes directly for a method that cannot phase", async () => {
+    const user = userEvent.setup();
+    const pokemon = makePokemon({ id: "p1", hunt_type: "soft_reset" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [pokemon], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    await user.click(screen.getAllByRole("button", { name: /Gefangen/ })[0]);
+
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/pokemon/p1/complete"),
+        expect.objectContaining({ method: "POST" }),
+      ),
     );
   });
 
@@ -5959,6 +6026,7 @@ describe("Dashboard header caught button", () => {
   });
 
   it("calls complete API from header caught button", async () => {
+    mockDialogMethods();
     const user = userEvent.setup();
     const pokemon = makePokemon({ id: "p1" });
 
@@ -5977,10 +6045,14 @@ describe("Dashboard header caught button", () => {
     expect(headerCaughtBtn).toBeTruthy();
 
     await user.click(headerCaughtBtn);
+    // The hunt can phase, so confirm in the dialog that it really was the target.
+    await user.click(await screen.findByRole("button", { name: /Bisasam gefangen/ }));
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining("/api/pokemon/p1/complete"),
-      expect.objectContaining({ method: "POST" }),
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/pokemon/p1/complete"),
+        expect.objectContaining({ method: "POST" }),
+      ),
     );
   });
 });
@@ -6320,5 +6392,323 @@ describe("Dashboard group view and manual ordering", () => {
       (c) => typeof c[0] === "string" && c[0].includes("/api/pokemon/reorder"),
     );
     expect(reordered).toBe(true);
+  });
+});
+
+// --- Phasing: end-phase button visibility ---
+
+describe("Dashboard phase end button", () => {
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("shows the end-phase action for a running phaseable hunt", async () => {
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [makePokemon({ id: "hunt-1" })],
+        active_id: "hunt-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.getByLabelText("Phase beenden")).toBeInTheDocument();
+  });
+
+  it("hides the end-phase action once the hunt is completed", async () => {
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [makePokemon({ id: "hunt-1", completed_at: "2025-01-01T00:00:00Z" })],
+        active_id: "hunt-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.queryByLabelText("Phase beenden")).not.toBeInTheDocument();
+  });
+
+  it("hides the end-phase action for a non-phasing hunt method", async () => {
+    // soft_reset is in NON_PHASING_METHODS: its pool holds a single species,
+    // so no foreign shiny can ever end a phase.
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [makePokemon({ id: "hunt-1", hunt_type: "soft_reset" })],
+        active_id: "hunt-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.queryByLabelText("Phase beenden")).not.toBeInTheDocument();
+  });
+
+  it("hides the end-phase action on a phase entry itself", async () => {
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [
+          makePokemon({ id: "hunt-1", is_active: false }),
+          makePokemon({ id: "phase-1", name: "Glumanda", phase_of: "hunt-1", phase_number: 1 }),
+        ],
+        active_id: "phase-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.queryByLabelText("Phase beenden")).not.toBeInTheDocument();
+  });
+});
+
+// --- Phasing: badge, total chips and history ---
+
+describe("Dashboard phase totals and history", () => {
+  /** Parent hunt plus one finished phase below it. */
+  function phasedState() {
+    return makeAppState({
+      pokemon: [
+        makePokemon({ id: "hunt-1", name: "Bisasam", encounters: 100, timer_accumulated_ms: 60000 }),
+        makePokemon({
+          id: "phase-1",
+          name: "Glumanda",
+          canonical_name: "charmander",
+          encounters: 7,
+          timer_accumulated_ms: 5000,
+          completed_at: "2025-01-01T00:00:00Z",
+          phase_of: "hunt-1",
+          phase_number: 1,
+          is_active: false,
+        }),
+      ],
+      active_id: "hunt-1",
+    });
+  }
+
+  beforeEach(() => {
+    mockSend.mockReset();
+  });
+
+  it("hides badge, total chips and history while the hunt has no phases", async () => {
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [makePokemon({ id: "hunt-1", encounters: 100 })],
+        active_id: "hunt-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.queryByText("Phase 2")).not.toBeInTheDocument();
+    expect(screen.queryByText("Total-Encounter")).not.toBeInTheDocument();
+    expect(screen.queryByText("Gesamtzeit")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Phasen-Historie")).not.toBeInTheDocument();
+  });
+
+  it("shows badge, total chips and history once a phase exists", async () => {
+    useCounterStore.setState({
+      appState: phasedState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    // Running phase is max(finished) + 1.
+    expect(screen.getByText("Phase 2")).toBeInTheDocument();
+
+    // Totals: 100 own encounters + 7 from the phase, 60s + 5s of timer. The
+    // numbers sit in a nested span, so read them off the chip they belong to.
+    expect(screen.getByText("Total-Encounter").textContent).toBe("Total-Encounter107");
+    expect(screen.getByText("Gesamtzeit").textContent).toBe("Gesamtzeit00:01:05");
+
+    const history = screen.getByLabelText("Phasen-Historie");
+    const entry = screen.getByLabelText("Phase 1: Glumanda im Archiv öffnen");
+    expect(history).toContainElement(entry);
+    expect(entry.textContent).toContain("P1");
+    expect(entry.textContent).toContain("Glumanda");
+    expect(entry.textContent).toContain("00:00:05");
+  });
+
+  it("marks the parent hunt row in the sidebar with the running phase number", async () => {
+    useCounterStore.setState({
+      appState: phasedState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const rows = [...document.querySelectorAll("[data-sidebar-idx]")] as HTMLElement[];
+    const parentRow = rows.find((row) => row.textContent?.includes("Bisasam"));
+    expect(parentRow).toBeTruthy();
+    expect(parentRow!.textContent).toContain("P2");
+  });
+});
+
+// --- Phasing: origin line, reactivate visibility and undo ---
+
+describe("Dashboard phase entry archive view", () => {
+  /** Completed phase entry, optionally orphaned by pointing at a missing parent. */
+  function phaseChild(parentId: string) {
+    return makePokemon({
+      id: "phase-1",
+      name: "Glumanda",
+      canonical_name: "charmander",
+      encounters: 7,
+      completed_at: "2025-01-01T00:00:00Z",
+      phase_of: parentId,
+      phase_number: 1,
+    });
+  }
+
+  beforeEach(() => {
+    mockSend.mockReset();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+  });
+
+  it("shows the origin line and a link back to the parent hunt", async () => {
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [
+          makePokemon({ id: "hunt-1", name: "Bisasam", is_active: false }),
+          phaseChild("hunt-1"),
+        ],
+        active_id: "phase-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const parentLink = screen.getByLabelText("Zur Hunt Bisasam springen");
+    expect(parentLink.textContent).toBe("Phase 1 von Bisasam");
+  });
+
+  it("falls back to the orphaned label and drops the parent link when the parent is gone", async () => {
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [phaseChild("gone-1")],
+        active_id: "phase-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.getByText("Phase 1 · Eltern-Hunt gelöscht")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Zur Hunt .* springen/)).not.toBeInTheDocument();
+  });
+
+  it("hides the reactivate action for a phase entry", async () => {
+    const user = userEvent.setup();
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [
+          makePokemon({ id: "hunt-1", name: "Bisasam", is_active: false }),
+          phaseChild("hunt-1"),
+        ],
+        active_id: "phase-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const header = document.querySelector("header");
+    const kebab = header?.querySelector("button[aria-label*='Weitere Aktionen']") as HTMLElement;
+    expect(kebab).toBeTruthy();
+    await user.click(kebab);
+
+    // Edit is there, so the menu really is open; reactivate is not offered.
+    expect(screen.getByLabelText(/^Bearbeiten$/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Reaktivieren")).not.toBeInTheDocument();
+  });
+
+  it("still offers the reactivate action for a plain completed hunt", async () => {
+    const user = userEvent.setup();
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [makePokemon({ id: "hunt-1", completed_at: "2025-01-01T00:00:00Z" })],
+        active_id: "hunt-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const header = document.querySelector("header");
+    const kebab = header?.querySelector("button[aria-label*='Weitere Aktionen']") as HTMLElement;
+    await user.click(kebab);
+
+    expect(screen.getByLabelText("Reaktivieren")).toBeInTheDocument();
+  });
+
+  it("deletes the newest phase after confirming the undo action", async () => {
+    const user = userEvent.setup();
+    useCounterStore.setState({
+      appState: makeAppState({
+        pokemon: [
+          makePokemon({ id: "hunt-1", name: "Bisasam", is_active: false }),
+          phaseChild("hunt-1"),
+        ],
+        active_id: "phase-1",
+      }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    await user.click(screen.getByLabelText("Phase rückgängig machen"));
+
+    // Undoing drops the archive entry, so it goes through the destructive confirm.
+    const confirmBtns = screen.getAllByText(/Bestätigen|Confirm/i);
+    const dialogConfirm = confirmBtns.find((el) => el.closest("dialog") !== null);
+    expect(dialogConfirm).toBeTruthy();
+    await user.click(dialogConfirm!);
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("/api/pokemon/phase-1/phase"),
+      expect.objectContaining({ method: "DELETE" }),
+    );
   });
 });
