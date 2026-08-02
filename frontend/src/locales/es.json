@@ -620,7 +620,6 @@
   "detector.interval": "Intervalo (ms)",
   "detector.save": "Guardar",
   "detector.reset": "Reiniciar",
-  "detector.odds": "Odds",
   "detector.applyDefaults": "Predeterminados",
   "detector.applyDefaultsTitle": "Reiniciar cooldown y coincidencias a los valores predeterminados del tipo de hunt",
   "detector.errNoRegion": "Ninguna región de detección seleccionada.",

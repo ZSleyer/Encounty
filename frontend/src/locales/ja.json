@@ -620,7 +620,6 @@
   "detector.interval": "間隔 (ms)",
   "detector.save": "保存",
   "detector.reset": "リセット",
-  "detector.odds": "Odds",
   "detector.applyDefaults": "デフォルト",
   "detector.applyDefaultsTitle": "CooldownとヒットをHuntタイプのプリセット値にリセット",
   "detector.errNoRegion": "検出領域が選択されていません。",

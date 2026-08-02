@@ -620,7 +620,6 @@
   "detector.interval": "Intervall (ms)",
   "detector.save": "Speichern",
   "detector.reset": "Zurücksetzen",
-  "detector.odds": "Odds",
   "detector.applyDefaults": "Defaults",
   "detector.applyDefaultsTitle": "Cooldown und Treffer auf Preset-Werte zurücksetzen",
   "detector.errNoRegion": "Kein Erkennungsbereich ausgewählt.",

@@ -141,7 +141,7 @@ describe("DetectorSettings", () => {
     expect(props.onReset).toHaveBeenCalledOnce();
   });
 
-  it("shows hunt type preset info when activePreset is provided", async () => {
+  it("shows the apply defaults button when activePreset is provided", async () => {
     const user = userEvent.setup();
     const preset: HuntTypePreset = {
       key: "masuda",
@@ -153,7 +153,9 @@ describe("DetectorSettings", () => {
     };
     renderSettings({ activePreset: preset, onApplyDefaults: vi.fn() });
     await expandSettings(user);
-    expect(screen.getByText(/683/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Defaults" }),
+    ).toBeInTheDocument();
   });
 
   it("calls onApplyDefaults when apply defaults button is clicked", async () => {
@@ -169,11 +171,7 @@ describe("DetectorSettings", () => {
     };
     renderSettings({ activePreset: preset, onApplyDefaults });
     await expandSettings(user);
-    // The "apply defaults" button contains odds text nearby
-    const oddsText = screen.getByText(/1 \/ 683/);
-    // The apply button is a sibling
-    const applyBtn = oddsText.closest("div")!.querySelector("button")!;
-    await user.click(applyBtn);
+    await user.click(screen.getByRole("button", { name: "Defaults" }));
     expect(onApplyDefaults).toHaveBeenCalledOnce();
   });
 
@@ -181,7 +179,9 @@ describe("DetectorSettings", () => {
     const user = userEvent.setup();
     renderSettings({ activePreset: undefined });
     await expandSettings(user);
-    expect(screen.queryByText(/683/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Defaults" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders polling interval inputs in expanded state", async () => {

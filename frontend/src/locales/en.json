@@ -620,7 +620,6 @@
   "detector.interval": "Interval (ms)",
   "detector.save": "Save",
   "detector.reset": "Reset",
-  "detector.odds": "Odds",
   "detector.applyDefaults": "Defaults",
   "detector.applyDefaultsTitle": "Reset cooldown and hits to hunt-type preset values",
   "detector.errNoRegion": "No detection region selected.",

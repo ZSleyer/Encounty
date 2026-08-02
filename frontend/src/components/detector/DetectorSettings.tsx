@@ -254,12 +254,8 @@ export function DetectorSettings({
 
           {/* Hunt-type preset */}
           {activePreset && onApplyDefaults && (
-            <div className="flex items-center justify-between py-2 border-t border-border-subtle">
-              <span className="text-xs text-text-muted">{t("detector.odds")}</span>
+            <div className="flex items-center justify-end py-2 border-t border-border-subtle">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-mono text-text-secondary">
-                  {activePreset.odds_numer} / {activePreset.odds_denom}
-                </span>
                 <button
                   onClick={onApplyDefaults}
                   title={t("detector.tooltipApplyDefaults")}
