@@ -2081,7 +2081,7 @@ describe("Dashboard odds display", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    expect(screen.getByText("1/99")).toBeInTheDocument();
+    expect(screen.getByText("1/100")).toBeInTheDocument();
   });
 
   it("shows chain_fishing odds", async () => {

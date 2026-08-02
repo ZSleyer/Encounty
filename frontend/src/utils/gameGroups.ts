@@ -249,7 +249,11 @@ const gen6Xy: GameGroup = {
 };
 gen6Xy.methods = {
   chain_fishing: { base: [1, 100], charm: [1, 96] },
-  radar: { base: [1, 99], charm: [1, 99] },
+  // Each generation caps the sparkling patch at a different rate on a chain of
+  // 40: Gen IV at 1/200, Gen VI at 1/100, BDSP at 1/99. In Gen VI the chance
+  // starts at 1/8100 and the denominator drops by 200 per successful encounter.
+  // The Shiny Charm does not apply to the patch roll.
+  radar: { base: [1, 100] },
   masuda: { base: [1, 682], charm: [1, 512] },
   friend_safari: { base: [1, 819], charm: [1, 585] },
   fossil: { base: gen6Xy.baseOdds },
