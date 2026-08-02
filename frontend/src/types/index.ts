@@ -36,6 +36,19 @@ export interface Pokemon {
   tags?: string[];
   /** Manual sidebar sort position (ascending). Absent on legacy snapshots. */
   sort_order?: number;
+  /** ID of the parent hunt when this entry is a finished phase. Empty on regular hunts. */
+  phase_of?: string;
+  /** 1-based number of the phase this entry froze. Only set on phase entries. */
+  phase_number?: number;
+  /** Species that end a phase when they show up shiny. Always an array in fresh snapshots. */
+  phase_targets?: PhaseTarget[];
+}
+
+/** PhaseTarget is one species preselected as a phase-ending shiny. */
+export interface PhaseTarget {
+  canonical_name: string;
+  name: string;
+  sprite_url: string;
 }
 
 /** Group is a user-defined bucket that groups Pokémon in the sidebar. */
@@ -272,6 +285,10 @@ export interface SpriteElement extends OverlayElementBase {
   trigger_enter: string;
   trigger_exit: string;
   trigger_decrement: string;
+  /** Cycles the sprite through the hunt's phase targets instead of showing a static sprite. */
+  cycle_phase_targets?: boolean;
+  /** Milliseconds between two sprite swaps while cycling; the backend keeps this above 0. */
+  cycle_interval_ms?: number;
 }
 
 export interface NameElement extends OverlayElementBase {
@@ -318,6 +335,23 @@ export interface OddsElement extends OverlayElementBase {
 }
 
 /**
+ * LabeledTextElement is the shared shape of the phasing text elements
+ * (phase, total_counter, total_timer): a text value with an optional label,
+ * an idle animation and two trigger animations. Mirrors the Go type of the
+ * same name. total_timer carries the trigger fields for round-trip parity,
+ * but keeps them at "none".
+ */
+export interface LabeledTextElement extends OverlayElementBase {
+  style: TextStyle;
+  show_label: boolean;
+  label_text: string;
+  label_style: TextStyle;
+  idle_animation: string;
+  trigger_enter: string;
+  trigger_decrement: string;
+}
+
+/**
  * OverlaySettings is the complete configuration for the OBS Browser Source
  * overlay, using an absolute-positioning canvas model.
  */
@@ -346,6 +380,12 @@ export interface OverlaySettings {
   counter: CounterElement;
   timer: TimerElement;
   odds: OddsElement;
+  // Phasing elements are optional so that hand-written fixtures and overlays
+  // persisted before the phasing migration still type-check; the backend fills
+  // them in on every load.
+  phase?: LabeledTextElement;
+  total_counter?: LabeledTextElement;
+  total_timer?: LabeledTextElement;
 
   // Editor Tools
   snap_enabled?: boolean;
