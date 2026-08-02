@@ -799,7 +799,9 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
     if (!selectedGame) return;
     const available = getAvailableHuntMethods(selectedGame);
     if (!available.some((m) => m.key === huntType)) {
-      setHuntType("encounter");
+      // Games without wild encounters (Colosseum, XD) do not offer "encounter",
+      // so fall back to whatever the game does offer.
+      setHuntType(available[0]?.key ?? "encounter");
     }
     if (!gameSupportsCharm(selectedGame)) {
       setShinyCharm(false);
