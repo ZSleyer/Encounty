@@ -378,9 +378,14 @@ const gen8Bdsp: GameGroup = {
   methods: {},
 };
 gen8Bdsp.methods = {
-  radar: { base: [1, 99], charm: [1, 99] },
+  // BDSP disables the Shiny Charm for everything except eggs, so the universal
+  // methods are declared here to override the group's charm odds. The charm
+  // does not apply to the Poke Radar or the Grand Underground either.
+  encounter: { base: gen8Bdsp.baseOdds },
+  soft_reset: { base: gen8Bdsp.baseOdds },
+  radar: { base: [1, 99] },
   masuda: { base: [1, 682], charm: [1, 512] },
-  grand_underground: { base: [1, 2048], charm: [1, 2048] },
+  grand_underground: { base: [1, 2048] },
   breeding: { base: gen8Bdsp.baseOdds, charm: [1, 2048] },
   fishing: { base: gen8Bdsp.baseOdds },
   fossil: { base: gen8Bdsp.baseOdds },
@@ -515,7 +520,9 @@ export function getMethodsForGame(gameKey: string): string[] {
 
 /**
  * Returns the shiny odds for a specific method in a specific game.
- * Falls back to the game group's base odds for unknown methods.
+ * A group's own `methods` entry always wins over the universal defaults, so a
+ * group can override the odds of a universal method. Everything else falls
+ * back to the group's base odds.
  */
 export function getMethodOdds(
   gameKey: string,
@@ -527,19 +534,9 @@ export function getMethodOdds(
 
   const resolvedKey = LEGACY_METHOD_ALIASES[methodKey] ?? methodKey;
 
-  // Universal base-odds methods
-  if (
-    resolvedKey === "encounter" ||
-    resolvedKey === "soft_reset" ||
-    resolvedKey === "gift"
-  ) {
-    if (hasCharm && group.charmOdds) return group.charmOdds;
-    return group.baseOdds;
-  }
-
   const methodOdds = group.methods[resolvedKey];
   if (!methodOdds) {
-    // Unknown method — fall back to base odds
+    // Universal or unknown method — fall back to the group's base odds
     if (hasCharm && group.charmOdds) return group.charmOdds;
     return group.baseOdds;
   }
