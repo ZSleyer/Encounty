@@ -21,7 +21,12 @@ export interface GameGroup {
   baseOdds: OddsTuple;
   charmOdds?: OddsTuple;
   methods: Record<string, MethodOdds>;
+  /** Universal methods offered for this group. Defaults to DEFAULT_UNIVERSAL_METHODS. */
+  universalMethods?: string[];
 }
+
+/** Methods every game group offers unless it declares its own universalMethods. */
+const DEFAULT_UNIVERSAL_METHODS = ["encounter", "soft_reset"];
 
 // --- Helper: shorthand for "Base Odds" (inherits group base) ---
 const B = (g: GameGroup): MethodOdds => ({ base: g.baseOdds });
@@ -127,6 +132,10 @@ const gen3Colosseum: GameGroup = {
   generation: 3,
   baseOdds: [1, 8192],
   methods: {},
+  // Colosseum has no wild Pokemon, and every non-Shadow Pokemon in it (the
+  // starter Espeon/Umbreon, Duking's Plusle, the Mt. Battle Ho-Oh) is shiny
+  // locked, so snagging Shadow Pokemon is the only shiny hunt there is.
+  universalMethods: [],
 };
 gen3Colosseum.methods = {
   shadow_snag_colosseum: B(gen3Colosseum),
@@ -138,6 +147,7 @@ const gen3Xd: GameGroup = {
   generation: 3,
   baseOdds: [1, 8192],
   methods: {},
+  universalMethods: [],
 };
 gen3Xd.methods = {
   poke_spot_xd: B(gen3Xd),
@@ -483,17 +493,17 @@ export function getGameGroup(gameKey: string): GameGroup | null {
 
 /**
  * Returns the hunt method keys available for a given game key.
- * Most games include "encounter" and "soft_reset" as universal methods,
- * but GameCube games (Colosseum/XD) have neither of those.
+ * Most groups offer DEFAULT_UNIVERSAL_METHODS on top of their own methods;
+ * a group can narrow that set through its universalMethods field.
  */
 export function getMethodsForGame(gameKey: string): string[] {
   const group = GAME_KEY_TO_GROUP[gameKey];
-  if (!group) return ["encounter", "soft_reset"];
-  // GameCube games (Colosseum/XD) have no wild encounters or soft resets, so only return the methods defined for that group.
-  if (group.id === "gen3_colosseum" || group.id === "gen3_xd") {
-    return [...Object.keys(group.methods)];
-  }
-  return ["encounter", "soft_reset", ...Object.keys(group.methods)];
+  if (!group) return [...DEFAULT_UNIVERSAL_METHODS];
+  const universal = group.universalMethods ?? DEFAULT_UNIVERSAL_METHODS;
+  return [
+    ...universal,
+    ...Object.keys(group.methods).filter((k) => !universal.includes(k)),
+  ];
 }
 
 /**
