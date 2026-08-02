@@ -29,29 +29,54 @@ export function getOddsFractional(pokemon: Pokemon | null): string {
 }
 
 /**
+ * Resolves the encounter count the cumulative probability is based on.
+ *
+ * Callers that track phased hunts pass the total across all phases here.
+ * Handing over a plain number instead of a patched pokemon copy is deliberate:
+ * a spread clone would break the `useMemo` identity of every caller that keys
+ * its memo on the pokemon object.
+ */
+function resolveEncounters(pokemon: Pokemon | null, override?: number): number {
+  const raw = override ?? pokemon?.encounters ?? 0;
+  return Math.max(0, raw);
+}
+
+/**
  * Returns the cumulative shiny probability after the pokemon's current
  * encounter count as a formatted percentage (e.g. "63.2%").
+ * Pass `encountersOverride` to base the result on a different count, e.g. the
+ * total encounters of a phased hunt.
  * Edge cases: missing pokemon or non-positive encounter counts return "0.0%";
  * a probability that exceeds 1 is capped at "100.0%".
  */
-export function getOddsPercent(pokemon: Pokemon | null): string {
+export function getOddsPercent(
+  pokemon: Pokemon | null,
+  encountersOverride?: number,
+): string {
   if (!pokemon) return "0.0%";
   const [num, denom] = resolveOddsTuple(pokemon);
   if (denom <= 0) return "0.0%";
   const p = num / denom;
-  const encounters = Math.max(0, pokemon.encounters ?? 0);
+  const encounters = resolveEncounters(pokemon, encountersOverride);
   if (encounters === 0) return "0.0%";
   if (p >= 1) return "100.0%";
   const cumulative = 1 - Math.pow(1 - p, encounters);
   return `${(cumulative * 100).toFixed(1)}%`;
 }
 
-/** Dispatches to fractional or percent formatting based on the format key. */
+/**
+ * Dispatches to fractional or percent formatting based on the format key.
+ * `encountersOverride` only affects the percent mode, the fractional odds do
+ * not depend on the encounter count.
+ */
 export function computeOddsDisplay(
   pokemon: Pokemon | null,
   format: "fractional" | "percent",
+  encountersOverride?: number,
 ): string {
-  return format === "percent" ? getOddsPercent(pokemon) : getOddsFractional(pokemon);
+  return format === "percent"
+    ? getOddsPercent(pokemon, encountersOverride)
+    : getOddsFractional(pokemon);
 }
 
 /**
@@ -95,14 +120,16 @@ const DEFAULT_MILESTONE_TARGETS = [0.5, 0.75, 0.9, 0.99];
 /**
  * Returns cumulative-probability milestones for the pokemon's current
  * configuration. When `ratePerHour > 0`, each milestone also carries a
- * remaining-ETA in milliseconds based on the pokemon's `encounters`.
+ * remaining-ETA in milliseconds based on the pokemon's `encounters`, or on
+ * `encountersOverride` when the caller tracks a total across phases.
  */
 export function getOddsMilestones(
   pokemon: Pokemon | null,
   targets: number[] = DEFAULT_MILESTONE_TARGETS,
   ratePerHour?: number,
+  encountersOverride?: number,
 ): OddsMilestone[] {
-  const current = Math.max(0, pokemon?.encounters ?? 0);
+  const current = resolveEncounters(pokemon, encountersOverride);
   const rateMs = ratePerHour && ratePerHour > 0 ? ratePerHour / 3_600_000 : 0;
 
   return targets.map((target) => {

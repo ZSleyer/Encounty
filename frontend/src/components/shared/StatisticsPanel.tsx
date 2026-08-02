@@ -26,9 +26,13 @@ import {
   getOddsMilestones,
   getOddsPercent,
 } from "../../utils/odds";
+import { computePhaseStats } from "../../utils/phase";
 import { computeTimerMs } from "../../utils/timer";
 
 const MILESTONE_TARGETS = [0.5, 0.75, 0.9, 0.99];
+
+/** Stable fallback so the store selector never returns a fresh array. */
+const NO_POKEMON: Pokemon[] = [];
 
 /** Formats an ETA in milliseconds as "2h 15m" / "45m" / "30s". */
 function formatEtaMs(ms: number | null): string {
@@ -48,13 +52,29 @@ interface StatisticsPanelProps {
 
 type ChartInterval = "hour" | "day" | "week";
 
-/** StatisticsPanel shows encounter metrics, a chart, and recent history. */
+/**
+ * StatisticsPanel shows encounter metrics, a chart, and recent history.
+ *
+ * Odds, milestones and the encounter rate are based on the totals across all
+ * phases of the hunt, because every encounter of every phase was a roll on the
+ * target. For an entry that is itself a phase the history-based sections are
+ * hidden: its encounter events deliberately stay with the parent hunt, so
+ * querying them under the phase's own id would only yield empty charts.
+ */
 export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   const { t } = useI18n();
-  const pokemon = useCounterStore(
-    (s) => s.appState?.pokemon.find((p) => p.id === pokemonId) ?? null,
+  const allPokemon = useCounterStore((s) => s.appState?.pokemon) ?? NO_POKEMON;
+  const pokemon = useMemo(
+    () => allPokemon.find((p) => p.id === pokemonId) ?? null,
+    [allPokemon, pokemonId],
   );
   const encounters = pokemon?.encounters ?? 0;
+  const phaseStats = useMemo(
+    () => computePhaseStats(pokemon, allPokemon),
+    [pokemon, allPokemon],
+  );
+  const totalEncounters = phaseStats.totalEncounters;
+  const hasOwnHistory = !phaseStats.isPhase;
   const [stats, setStats] = useState<EncounterStats | null>(null);
   const [chartData, setChartData] = useState<ChartPoint[]>([]);
   const [history, setHistory] = useState<EncounterEvent[]>([]);
@@ -62,6 +82,10 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (phaseStats.isPhase) {
+      setLoading(false);
+      return;
+    }
     if (!stats) setLoading(true);
     Promise.all([
       fetch(apiUrl(`/api/stats/pokemon/${pokemonId}`)).then((r) => r.json()),
@@ -75,26 +99,33 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [pokemonId, interval, encounters]);
+  }, [pokemonId, interval, encounters, phaseStats.isPhase]);
 
   // Encounters per hour is derived from the active hunt duration (accumulated
   // timer), not the calendar span between first and last encounter. An on/off
   // hunt would otherwise report a far too low rate (see issue #35).
+  // Both sides of the fraction have to cover all phases: pairing total
+  // encounters with the current phase's timer would inflate the rate by the
+  // phase count and shrink every milestone ETA accordingly.
   const ratePerHour = useMemo(() => {
     if (!pokemon) return null;
-    const hours = computeTimerMs(pokemon) / 3_600_000;
-    return hours > 0 ? encounters / hours : null;
-  }, [pokemon, encounters]);
+    // computePhaseStats never reads the clock, so the running segment of the
+    // current phase is added here via computeTimerMs.
+    const childTimerMs = phaseStats.totalTimerMs - (pokemon.timer_accumulated_ms || 0);
+    const hours = (computeTimerMs(pokemon) + childTimerMs) / 3_600_000;
+    return hours > 0 ? totalEncounters / hours : null;
+  }, [pokemon, phaseStats, totalEncounters]);
 
   const milestones = useMemo(
-    () => getOddsMilestones(pokemon, MILESTONE_TARGETS, ratePerHour ?? undefined),
-    [pokemon, ratePerHour],
+    () =>
+      getOddsMilestones(pokemon, MILESTONE_TARGETS, ratePerHour ?? undefined, totalEncounters),
+    [pokemon, ratePerHour, totalEncounters],
   );
   const probabilityCurve = useMemo(() => {
     const upper99 = encountersForProbability(pokemon, 0.99);
-    const maxN = Math.max(4000, Math.round((upper99 ?? 4000) * 1.2), encounters * 1.2);
+    const maxN = Math.max(4000, Math.round((upper99 ?? 4000) * 1.2), totalEncounters * 1.2);
     return buildProbabilityCurve(pokemon, maxN, 80);
-  }, [pokemon, encounters]);
+  }, [pokemon, totalEncounters]);
 
   if (loading && !stats) {
     return (
@@ -109,133 +140,175 @@ export function StatisticsPanel({ pokemonId }: Readonly<StatisticsPanelProps>) {
     <div className="w-full h-full flex flex-col gap-4 min-h-0 overflow-y-auto">
       {/* Metrics strip */}
       <div className="bg-bg-card border border-border-subtle rounded-none px-4 py-2.5 flex flex-wrap items-center justify-around gap-y-2 gap-x-3 shrink-0">
-        <MetricItem icon={<BarChart3 className="w-3.5 h-3.5 text-accent-blue" />} label={t("stats.total")} value={stats?.total?.toLocaleString() ?? "0"} />
-        <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
-        <MetricItem icon={<Calendar className="w-3.5 h-3.5 text-accent-green" />} label={t("stats.today")} value={stats?.today?.toLocaleString() ?? "0"} />
-        <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
+        {hasOwnHistory && (
+          <>
+            <MetricItem icon={<BarChart3 className="w-3.5 h-3.5 text-accent-blue" />} label={t("stats.total")} value={stats?.total?.toLocaleString() ?? "0"} />
+            <MetricDivider />
+            <MetricItem icon={<Calendar className="w-3.5 h-3.5 text-accent-green" />} label={t("stats.today")} value={stats?.today?.toLocaleString() ?? "0"} />
+            <MetricDivider />
+          </>
+        )}
         <MetricItem icon={<TrendingUp className="w-3.5 h-3.5 text-accent-yellow" />} label={t("stats.ratePerHour")} value={ratePerHour ? ratePerHour.toFixed(1) : "—"} />
-        <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
-        <MetricItem icon={<Sparkles className="w-3.5 h-3.5 text-accent-red" />} label={t("stats.shinyChance")} value={getOddsPercent(pokemon)} />
-        <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />
-        <MetricItem icon={<Clock className="w-3.5 h-3.5 text-accent-purple" />} label={t("stats.firstEncounter")} value={stats?.first_at && stats.total > 0 ? new Date(stats.first_at).toLocaleDateString() : "—"} />
+        <MetricDivider />
+        <MetricItem icon={<Sparkles className="w-3.5 h-3.5 text-accent-red" />} label={t("stats.shinyChance")} value={getOddsPercent(pokemon, totalEncounters)} />
+        {hasOwnHistory && (
+          <>
+            <MetricDivider />
+            <MetricItem icon={<Clock className="w-3.5 h-3.5 text-accent-purple" />} label={t("stats.firstEncounter")} value={stats?.first_at && stats.total > 0 ? new Date(stats.first_at).toLocaleDateString() : "—"} />
+          </>
+        )}
       </div>
 
       {/* Chart + History side-by-side, both fill height */}
-      <div className="flex-1 grid grid-cols-[2fr_1fr] gap-4 min-h-0">
-        {/* Chart */}
-        <div className="t-panel p-5 flex flex-col min-h-0">
-          <div className="flex items-center justify-between mb-3 shrink-0">
-            <h2 className="text-sm font-semibold text-text-primary">
-              {t("stats.chartTitle")}
-            </h2>
-            <fieldset className="flex border border-border-subtle rounded-none p-0 m-0" aria-label={t("stats.chartTitle")}>
-              {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
-                <button
-                  key={iv}
-                  onClick={() => setInterval(iv)}
-                  aria-pressed={interval === iv}
-                  className={`px-3 py-1 rounded-none text-xs font-medium transition-colors ${
-                    interval === iv
-                      ? "bg-accent-blue/20 text-accent-blue"
-                      : "text-text-muted hover:text-text-primary"
-                  }`}
-                >
-                  {t(`stats.interval.${iv}`)}
-                </button>
-              ))}
-            </fieldset>
-          </div>
-          {chartData.length > 0 ? (
-            <div role="img" aria-label={t("stats.chartTitle")} className="flex-1 min-h-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 10, fill: "var(--text-muted)" }}
-                    tickFormatter={(v: string) => {
-                      if (interval === "hour") return v.slice(11, 16);
-                      if (interval === "week") return v;
-                      return v.slice(5);
-                    }}
-                  />
-                  <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} width={40} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--bg-card)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRadius: "0",
-                      fontSize: "12px",
-                      color: "var(--text-primary)",
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="count"
-                    stroke="var(--accent-blue)"
-                    fill="var(--accent-blue)"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <div className="flex items-center justify-center flex-1 min-h-0 text-text-faint text-sm">
-              {t("stats.noData")}
-            </div>
-          )}
-        </div>
-
-        {/* Recent History */}
-        <div className="t-panel p-5 flex flex-col min-h-0">
-          <h2 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
-            {t("stats.recentHistory")}
-          </h2>
-          {history.length > 0 ? (
-            <div className="overflow-y-auto flex-1 min-h-0">
-              <table className="w-full text-xs" aria-label={t("stats.recentHistory")}>
-                <thead className="sticky top-0 bg-bg-card">
-                  <tr className="border-b border-border-subtle text-text-faint">
-                    <th className="text-left py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colTime")}</th>
-                    <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colChange")}</th>
-                    <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colCount")}</th>
-                    <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colSource")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((e) => (
-                    <tr key={e.id} className="hover:bg-bg-hover transition-colors">
-                      <td className="py-1.5 px-2 text-text-muted whitespace-nowrap">
-                        <time dateTime={e.timestamp}>{new Date(e.timestamp).toLocaleString()}</time>
-                      </td>
-                      <td className={`py-1.5 px-2 text-right font-mono font-semibold ${e.delta > 0 ? "text-accent-green" : "text-accent-red"}`}>
-                        {e.delta > 0 ? "+" : ""}{e.delta}
-                      </td>
-                      <td className="py-1.5 px-2 text-right text-text-secondary tabular-nums">
-                        {e.count_after}
-                      </td>
-                      <td className="py-1.5 px-2 text-right text-text-faint">
-                        {e.source}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-text-faint text-xs">{t("stats.noHistory")}</p>
-          )}
-        </div>
-      </div>
+      {hasOwnHistory && (
+        <HistorySection
+          chartData={chartData}
+          interval={interval}
+          onIntervalChange={setInterval}
+          history={history}
+        />
+      )}
 
       {/* Probability curve + milestones */}
       <ProbabilityPanel
         pokemon={pokemon}
         curve={probabilityCurve}
         milestones={milestones}
-        currentEncounters={encounters}
+        currentEncounters={totalEncounters}
       />
+    </div>
+  );
+}
+
+// --- HistorySection ----------------------------------------------------------
+
+interface HistorySectionProps {
+  readonly chartData: ChartPoint[];
+  readonly interval: ChartInterval;
+  readonly onIntervalChange: (interval: ChartInterval) => void;
+  readonly history: EncounterEvent[];
+}
+
+/**
+ * Renders the encounter chart and the recent-history table, both fed by the
+ * encounter events stored under the pokemon's own id. Callers hide this for
+ * phase entries, whose events stay with the parent hunt.
+ */
+function HistorySection({
+  chartData,
+  interval,
+  onIntervalChange,
+  history,
+}: HistorySectionProps) {
+  const { t } = useI18n();
+
+  return (
+    <div className="flex-1 grid grid-cols-[2fr_1fr] gap-4 min-h-0">
+      {/* Chart */}
+      <div className="t-panel p-5 flex flex-col min-h-0">
+        <div className="flex items-center justify-between mb-3 shrink-0">
+          <h2 className="text-sm font-semibold text-text-primary">
+            {t("stats.chartTitle")}
+          </h2>
+          <fieldset className="flex border border-border-subtle rounded-none p-0 m-0" aria-label={t("stats.chartTitle")}>
+            {(["hour", "day", "week"] as ChartInterval[]).map((iv) => (
+              <button
+                key={iv}
+                onClick={() => onIntervalChange(iv)}
+                aria-pressed={interval === iv}
+                className={`px-3 py-1 rounded-none text-xs font-medium transition-colors ${
+                  interval === iv
+                    ? "bg-accent-blue/20 text-accent-blue"
+                    : "text-text-muted hover:text-text-primary"
+                }`}
+              >
+                {t(`stats.interval.${iv}`)}
+              </button>
+            ))}
+          </fieldset>
+        </div>
+        {chartData.length > 0 ? (
+          <div role="img" aria-label={t("stats.chartTitle")} className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 10, fill: "var(--text-muted)" }}
+                  tickFormatter={(v: string) => {
+                    if (interval === "hour") return v.slice(11, 16);
+                    if (interval === "week") return v;
+                    return v.slice(5);
+                  }}
+                />
+                <YAxis tick={{ fontSize: 10, fill: "var(--text-muted)" }} width={40} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "var(--bg-card)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: "0",
+                    fontSize: "12px",
+                    color: "var(--text-primary)",
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="count"
+                  stroke="var(--accent-blue)"
+                  fill="var(--accent-blue)"
+                  fillOpacity={0.15}
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center flex-1 min-h-0 text-text-faint text-sm">
+            {t("stats.noData")}
+          </div>
+        )}
+      </div>
+
+      {/* Recent History */}
+      <div className="t-panel p-5 flex flex-col min-h-0">
+        <h2 className="text-sm font-semibold text-text-primary mb-3 shrink-0">
+          {t("stats.recentHistory")}
+        </h2>
+        {history.length > 0 ? (
+          <div className="overflow-y-auto flex-1 min-h-0">
+            <table className="w-full text-xs" aria-label={t("stats.recentHistory")}>
+              <thead className="sticky top-0 bg-bg-card">
+                <tr className="border-b border-border-subtle text-text-faint">
+                  <th className="text-left py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colTime")}</th>
+                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colChange")}</th>
+                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colCount")}</th>
+                  <th className="text-right py-1.5 px-2 font-semibold uppercase tracking-wider text-[10px]">{t("stats.colSource")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((e) => (
+                  <tr key={e.id} className="hover:bg-bg-hover transition-colors">
+                    <td className="py-1.5 px-2 text-text-muted whitespace-nowrap">
+                      <time dateTime={e.timestamp}>{new Date(e.timestamp).toLocaleString()}</time>
+                    </td>
+                    <td className={`py-1.5 px-2 text-right font-mono font-semibold ${e.delta > 0 ? "text-accent-green" : "text-accent-red"}`}>
+                      {e.delta > 0 ? "+" : ""}{e.delta}
+                    </td>
+                    <td className="py-1.5 px-2 text-right text-text-secondary tabular-nums">
+                      {e.count_after}
+                    </td>
+                    <td className="py-1.5 px-2 text-right text-text-faint">
+                      {e.source}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-text-faint text-xs">{t("stats.noHistory")}</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -359,6 +432,11 @@ function ProbabilityPanel({
 }
 
 // --- MetricItem --------------------------------------------------------------
+
+/** Vertical rule between two metrics, decorative and hidden on narrow layouts. */
+function MetricDivider() {
+  return <div className="hidden md:block w-px h-5 bg-border-subtle" aria-hidden="true" />;
+}
 
 function MetricItem({
   icon,

@@ -101,6 +101,45 @@ function seedStore(
   });
 }
 
+/** Seeds a parent hunt plus its finished phases, so totals can be asserted. */
+function seedPhasedStore(
+  parent: Parameters<typeof makePokemon>[0] = {},
+  children: Parameters<typeof makePokemon>[0][] = [],
+) {
+  useCounterStore.setState({
+    appState: makeAppState({
+      pokemon: [
+        makePokemon({
+          id: "poke-1",
+          is_active: true,
+          encounters: 0,
+          game: "pokemon-scarlet",
+          hunt_type: "encounter",
+          shiny_charm: false,
+          ...parent,
+        }),
+        ...children.map((child, i) =>
+          makePokemon({
+            id: `phase-${i + 1}`,
+            is_active: false,
+            game: "pokemon-scarlet",
+            hunt_type: "encounter",
+            shiny_charm: false,
+            phase_of: "poke-1",
+            phase_number: i + 1,
+            completed_at: "2024-06-19T10:00:00Z",
+            ...child,
+          }),
+        ),
+      ],
+      active_id: "poke-1",
+    }),
+    isConnected: true,
+    lastEncounterPokemonId: null,
+    detectorStatus: {},
+  });
+}
+
 describe("StatisticsPanel", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -347,6 +386,70 @@ describe("StatisticsPanel", () => {
       vi.unstubAllGlobals();
     });
 
+    it("bases the shiny chance on the encounters of all phases", async () => {
+      // 839 in the running phase plus 2000 from a finished phase ≈ 50% at 1/4096.
+      seedPhasedStore({ encounters: 839 }, [{ encounters: 2000 }]);
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+      render(<StatisticsPanel pokemonId="poke-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText(formattedTotal)).toBeInTheDocument();
+      });
+      expect(screen.getByText("50.0%")).toBeInTheDocument();
+      vi.unstubAllGlobals();
+    });
+
+    it("derives the rate per hour from total encounters and total timer", async () => {
+      // 10 + 15 encounters over 1h + 1h = 12.5 per hour. Using the total
+      // encounters with only the current phase's timer would report 25.0.
+      seedPhasedStore(
+        { encounters: 10, timer_accumulated_ms: 3_600_000 },
+        [{ encounters: 15, timer_accumulated_ms: 3_600_000 }],
+      );
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+      render(<StatisticsPanel pokemonId="poke-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText(formattedTotal)).toBeInTheDocument();
+      });
+      expect(screen.getByText("12.5")).toBeInTheDocument();
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe("phase entries", () => {
+    it("hides the history-based sections and skips their fetches", async () => {
+      seedPhasedStore({ encounters: 100 }, [{ encounters: 2839 }]);
+      const fetchMock = mockFetch(sampleStats, sampleChart, sampleHistory);
+      vi.stubGlobal("fetch", fetchMock);
+
+      render(<StatisticsPanel pokemonId="phase-1" />);
+
+      // The probability panel proves the component finished rendering.
+      await waitFor(() => {
+        expect(screen.getByTestId("probability-chart")).toBeInTheDocument();
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(screen.queryByTestId("area-chart")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/Letzte Ereignisse|Recent/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/^(Gesamt|Total)$/)).not.toBeInTheDocument();
+      vi.unstubAllGlobals();
+    });
+
+    it("shows the odds of its own frozen encounter count", async () => {
+      seedPhasedStore({ encounters: 100 }, [{ encounters: 2839 }]);
+      vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));
+
+      render(<StatisticsPanel pokemonId="phase-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByText("50.0%")).toBeInTheDocument();
+      });
+      vi.unstubAllGlobals();
+    });
+  });
+
+  describe("probability panel edge cases", () => {
     it("hides the probability panel when the pokemon has no game set", async () => {
       seedStore("poke-1", { encounters: 100, game: "" });
       vi.stubGlobal("fetch", mockFetch(sampleStats, sampleChart, sampleHistory));

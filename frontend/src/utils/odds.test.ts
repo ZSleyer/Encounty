@@ -68,6 +68,18 @@ describe("odds", () => {
       const high = parseFloat(getOddsPercent(pokemon({ encounters: 1000 })));
       expect(high).toBeGreaterThan(low);
     });
+
+    it("uses the encounters override instead of the pokemon's own count", () => {
+      expect(getOddsPercent(pokemon({ encounters: 100 }), 4096)).toBe("63.2%");
+    });
+
+    it("returns 0.0% for an override of zero even with own encounters", () => {
+      expect(getOddsPercent(pokemon({ encounters: 4096 }), 0)).toBe("0.0%");
+    });
+
+    it("clamps a negative override to zero", () => {
+      expect(getOddsPercent(pokemon({ encounters: 4096 }), -10)).toBe("0.0%");
+    });
   });
 
   describe("computeOddsDisplay", () => {
@@ -77,6 +89,14 @@ describe("odds", () => {
 
     it("dispatches to percent formatting", () => {
       expect(computeOddsDisplay(pokemon({ encounters: 4096 }), "percent")).toBe("63.2%");
+    });
+
+    it("forwards the encounters override to the percent formatting", () => {
+      expect(computeOddsDisplay(pokemon({ encounters: 0 }), "percent", 4096)).toBe("63.2%");
+    });
+
+    it("ignores the encounters override in fractional mode", () => {
+      expect(computeOddsDisplay(pokemon(), "fractional", 4096)).toBe("1/4096");
     });
   });
 
@@ -134,6 +154,22 @@ describe("odds", () => {
     it("returns etaMs = 0 when the pokemon already passed the milestone", () => {
       const ms = getOddsMilestones(pokemon({ encounters: 100_000 }), [0.5], 60);
       expect(ms[0].etaMs).toBe(0);
+    });
+
+    it("bases the ETA on the encounters override", () => {
+      const own = getOddsMilestones(pokemon({ encounters: 100 }), [0.5], 60);
+      const total = getOddsMilestones(pokemon({ encounters: 100 }), [0.5], 60, 2000);
+      expect(total[0].etaMs!).toBeLessThan(own[0].etaMs!);
+    });
+
+    it("reports a milestone as reached when only the override passes it", () => {
+      const ms = getOddsMilestones(pokemon({ encounters: 10 }), [0.5], 60, 100_000);
+      expect(ms[0].etaMs).toBe(0);
+    });
+
+    it("leaves the required encounter counts untouched by the override", () => {
+      const ms = getOddsMilestones(pokemon(), [0.5], undefined, 5000);
+      expect(ms[0].encounters).toBe(2839);
     });
 
     it("returns null etaMs when encounters is unreachable (p ≥ 1 impossible here, but test target ≥ 1)", () => {
