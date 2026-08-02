@@ -304,7 +304,9 @@ export function DetectorSettings({
       className="bg-bg-card border border-border-subtle rounded-none shadow-sm overflow-hidden"
     >
       <button
+        type="button"
         onClick={() => setShowSettings((v) => !v)}
+        aria-expanded={showSettings}
         className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-bg-hover transition-colors"
       >
         <span className="flex items-center gap-2 text-xs text-text-muted font-semibold uppercase tracking-wider">

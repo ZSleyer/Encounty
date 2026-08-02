@@ -178,7 +178,9 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
 
       {/* Collapsible licenses */}
       <button
+        type="button"
         onClick={() => setLicensesOpen(!licensesOpen)}
+        aria-expanded={licensesOpen}
         className="w-full flex items-center justify-between py-1"
       >
         <span className="text-sm text-text-primary flex items-center gap-2">
@@ -203,6 +205,8 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
                   className="bg-bg-secondary/30 border border-border-subtle rounded-none overflow-hidden"
                 >
                   <button
+                    type="button"
+                    aria-expanded={expandedLicense === dep.name}
                     onClick={() =>
                       setExpandedLicense(
                         expandedLicense === dep.name ? null : dep.name,
@@ -237,7 +241,9 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
 
       {/* Data Sources & APIs */}
       <button
+        type="button"
         onClick={() => setDataSourcesOpen(!dataSourcesOpen)}
+        aria-expanded={dataSourcesOpen}
         className="w-full flex items-center justify-between py-1"
       >
         <span className="text-sm text-text-primary flex items-center gap-2">
@@ -277,7 +283,9 @@ export function AboutSection({ t }: Readonly<{ t: (key: string) => string }>) {
 
       {/* Trademark Notice */}
       <button
+        type="button"
         onClick={() => setTrademarkOpen(!trademarkOpen)}
+        aria-expanded={trademarkOpen}
         className="w-full flex items-center justify-between py-1"
       >
         <span className="text-sm text-text-primary flex items-center gap-2">
