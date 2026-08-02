@@ -84,7 +84,7 @@ gen3Rs.methods = {
   roaming_reset: B(gen3Rs),
   rock_smash: B(gen3Rs),
   swarm: B(gen3Rs),
-  colosseum_bonus_disk: { base: [1, 7282] },
+  colosseum_bonus_disc: { base: [1, 7282] },
   pokemon_channel: B(gen3Rs),
 };
 

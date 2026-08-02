@@ -628,14 +628,14 @@ var HuntTypePresets = []HuntTypePreset{
 		TemplateTip:            "Capture the egg-hatch animation frame from a Picnic egg.",
 	},
 	{
-		Key:                    "colosseum_bonus_disk",
-		NameDE:                 "Colosseum (US) Bonus-Disk",
-		NameEN:                 "Colosseum (US) Bonus Disk",
+		Key:                    "colosseum_bonus_disc",
+		NameDE:                 "Colosseum (US) Bonus-Disc",
+		NameEN:                 "Colosseum (US) Bonus Disc",
 		OddsNumer:              1,
 		OddsDenom:              7282,
 		DefaultCooldownSec:     25,
 		DefaultConsecutiveHits: 3,
-		TemplateTip:            "Capture the Jirachi's summary screen after transferring from the Colosseum Bonus Disk.",
+		TemplateTip:            "Capture the Jirachi's summary screen after transferring from the Colosseum Bonus Disc.",
 	},
 	{
 		Key:                    "pokemon_channel",
