@@ -515,11 +515,11 @@ components:
       type: object
     state.HuntTypePreset:
       properties:
-        defaultConsecutiveHits:
+        default_consecutive_hits:
           description: DefaultConsecutiveHits is the recommended number of matching
             frames before counting.
           type: integer
-        defaultCooldownSec:
+        default_cooldown_sec:
           description: DefaultCooldownSec is the recommended minimum seconds between
             counted encounters.
           type: integer
@@ -529,13 +529,15 @@ components:
             names live in the frontend locale files, keyed by this identifier, so
             every UI language is covered in one place.
           type: string
-        oddsDenom:
+        odds_denom:
           type: integer
-        oddsNumer:
-          description: OddsNumer and OddsDenom express the base shiny probability
-            as a fraction.
+        odds_numer:
+          description: |-
+            OddsNumer and OddsDenom express the generic base shiny probability as a
+            fraction. The UI shows the per-game odds from gameGroups.ts instead;
+            these are the fallback for other API consumers.
           type: integer
-        templateTip:
+        template_tip:
           description: TemplateTip is an English hint shown to the user when capturing
             a template.
           type: string

@@ -10,16 +10,18 @@ type HuntTypePreset struct {
 	// Key is the canonical identifier stored in Pokemon.HuntType. Display
 	// names live in the frontend locale files, keyed by this identifier, so
 	// every UI language is covered in one place.
-	Key string
-	// OddsNumer and OddsDenom express the base shiny probability as a fraction.
-	OddsNumer int
-	OddsDenom int
+	Key string `json:"key"`
+	// OddsNumer and OddsDenom express the generic base shiny probability as a
+	// fraction. The UI shows the per-game odds from gameGroups.ts instead;
+	// these are the fallback for other API consumers.
+	OddsNumer int `json:"odds_numer"`
+	OddsDenom int `json:"odds_denom"`
 	// DefaultCooldownSec is the recommended minimum seconds between counted encounters.
-	DefaultCooldownSec int
+	DefaultCooldownSec int `json:"default_cooldown_sec"`
 	// DefaultConsecutiveHits is the recommended number of matching frames before counting.
-	DefaultConsecutiveHits int
+	DefaultConsecutiveHits int `json:"default_consecutive_hits"`
 	// TemplateTip is an English hint shown to the user when capturing a template.
-	TemplateTip string
+	TemplateTip string `json:"template_tip"`
 }
 
 // HuntTypePresets is the ordered list of all supported shiny hunting methods.

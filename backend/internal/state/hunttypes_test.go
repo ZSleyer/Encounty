@@ -1,6 +1,9 @@
 package state
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestPresetsNotEmpty(t *testing.T) {
 	if len(HuntTypePresets) == 0 {
@@ -48,5 +51,30 @@ func TestAllPresetsHaveTemplateTips(t *testing.T) {
 		if p.TemplateTip == "" {
 			t.Errorf("preset %q has empty TemplateTip", p.Key)
 		}
+	}
+}
+
+func TestPresetJSONKeys(t *testing.T) {
+	data, err := json.Marshal(HuntTypePresets[0])
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	want := map[string]bool{
+		"key": true, "odds_numer": true, "odds_denom": true,
+		"default_cooldown_sec": true, "default_consecutive_hits": true,
+		"template_tip": true,
+	}
+	for k := range decoded {
+		if !want[k] {
+			t.Errorf("unexpected JSON key %q, the frontend reads snake_case", k)
+		}
+		delete(want, k)
+	}
+	for k := range want {
+		t.Errorf("missing JSON key %q", k)
 	}
 }
