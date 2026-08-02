@@ -649,7 +649,7 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "shadow_snag_colosseum",
-		NameDE:                 "Shadow-Snagging (Colosseum)",
+		NameDE:                 "Crypto-Pokémon krallen (Colosseum)",
 		NameEN:                 "Shadow Snag (Colosseum)",
 		OddsNumer:              1,
 		OddsDenom:              8192,
@@ -659,7 +659,7 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "poke_spot_xd",
-		NameDE:                 "Poké-Spot (XD)",
+		NameDE:                 "Poképlatz (XD)",
 		NameEN:                 "Poké Spot (XD)",
 		OddsNumer:              1,
 		OddsDenom:              8192,
