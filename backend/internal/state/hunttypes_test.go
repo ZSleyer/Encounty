@@ -43,13 +43,10 @@ func TestAllPresetsHaveUniqueKeys(t *testing.T) {
 	}
 }
 
-func TestAllPresetsHaveNames(t *testing.T) {
+func TestAllPresetsHaveTemplateTips(t *testing.T) {
 	for _, p := range HuntTypePresets {
-		if p.NameEN == "" {
-			t.Errorf("preset %q has empty NameEN", p.Key)
-		}
-		if p.NameDE == "" {
-			t.Errorf("preset %q has empty NameDE", p.Key)
+		if p.TemplateTip == "" {
+			t.Errorf("preset %q has empty TemplateTip", p.Key)
 		}
 	}
 }

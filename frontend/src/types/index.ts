@@ -227,9 +227,8 @@ export interface DetectorCapabilities {
 
 /** HuntTypePreset is metadata for one shiny hunting method, returned by the server. */
 export interface HuntTypePreset {
+  /** Matches a huntType.<key> entry in the locale files, which carry the names. */
   key: string;
-  name_de: string;
-  name_en: string;
   odds_numer: number;
   odds_denom: number;
   default_cooldown_sec: number;

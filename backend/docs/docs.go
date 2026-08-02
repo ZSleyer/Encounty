@@ -326,6 +326,9 @@ const docTemplate = `{
                     },
                     "sprite_id": {
                         "type": "integer"
+                    },
+                    "sprite_slug": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -736,15 +739,7 @@ const docTemplate = `{
                         "type": "integer"
                     },
                     "key": {
-                        "description": "Key is the canonical identifier stored in Pokemon.HuntType.",
-                        "type": "string"
-                    },
-                    "nameDE": {
-                        "description": "NameDE is the German display name.",
-                        "type": "string"
-                    },
-                    "nameEN": {
-                        "description": "NameEN is the English display name.",
+                        "description": "Key is the canonical identifier stored in Pokemon.HuntType. Display\nnames live in the frontend locale files, keyed by this identifier, so\nevery UI language is covered in one place.",
                         "type": "string"
                     },
                     "oddsDenom": {

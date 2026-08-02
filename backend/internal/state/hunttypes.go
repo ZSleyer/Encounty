@@ -7,12 +7,10 @@ const eggHatchDescription = "Capture the egg-hatch animation frame."
 
 // HuntTypePreset holds metadata and detector defaults for one shiny hunting method.
 type HuntTypePreset struct {
-	// Key is the canonical identifier stored in Pokemon.HuntType.
+	// Key is the canonical identifier stored in Pokemon.HuntType. Display
+	// names live in the frontend locale files, keyed by this identifier, so
+	// every UI language is covered in one place.
 	Key string
-	// NameDE is the German display name.
-	NameDE string
-	// NameEN is the English display name.
-	NameEN string
 	// OddsNumer and OddsDenom express the base shiny probability as a fraction.
 	OddsNumer int
 	OddsDenom int
@@ -29,8 +27,6 @@ type HuntTypePreset struct {
 var HuntTypePresets = []HuntTypePreset{
 	{
 		Key:                    "encounter",
-		NameDE:                 "Zufallsbegegnung",
-		NameEN:                 "Wild Encounter",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -39,8 +35,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "soft_reset",
-		NameDE:                 "Soft Reset",
-		NameEN:                 "Soft Reset",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     25,
@@ -49,8 +43,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "masuda",
-		NameDE:                 "Masuda-Methode",
-		NameEN:                 "Masuda Method",
 		OddsNumer:              1,
 		OddsDenom:              683,
 		DefaultCooldownSec:     15,
@@ -59,8 +51,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "fossil",
-		NameDE:                 "Fossil-Revival",
-		NameEN:                 "Fossil Revival",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     20,
@@ -69,8 +59,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "gift",
-		NameDE:                 "Geschenk / Mystery Gift",
-		NameEN:                 "Gift / Mystery Gift",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     20,
@@ -79,8 +67,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "radar",
-		NameDE:                 "Pokéradar",
-		NameEN:                 "Poké Radar",
 		OddsNumer:              1,
 		OddsDenom:              200,
 		DefaultCooldownSec:     5,
@@ -89,8 +75,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "horde",
-		NameDE:                 "Horden-Begegnung",
-		NameEN:                 "Horde Encounter",
 		OddsNumer:              5,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -99,8 +83,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "sos",
-		NameDE:                 "Notruf-Kette",
-		NameEN:                 "SOS Chaining",
 		OddsNumer:              1,
 		OddsDenom:              683,
 		DefaultCooldownSec:     6,
@@ -109,8 +91,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "outbreak",
-		NameDE:                 "Massenausbruch",
-		NameEN:                 "Mass Outbreak",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -119,8 +99,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "sandwich",
-		NameDE:                 "Sandwich-Methode",
-		NameEN:                 "Sandwich Method",
 		OddsNumer:              1,
 		OddsDenom:              683,
 		DefaultCooldownSec:     8,
@@ -129,8 +107,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "dynamax_adventure",
-		NameDE:                 "Dynamax-Abenteuer",
-		NameEN:                 "Dynamax Adventure",
 		OddsNumer:              1,
 		OddsDenom:              100,
 		DefaultCooldownSec:     30,
@@ -139,8 +115,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "max_raid",
-		NameDE:                 "Dyna-Raid",
-		NameEN:                 "Max Raid Battle",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     30,
@@ -149,8 +123,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "chain_fishing",
-		NameDE:                 "Ketten-Angeln",
-		NameEN:                 "Chain Fishing",
 		OddsNumer:              1,
 		OddsDenom:              100,
 		DefaultCooldownSec:     6,
@@ -159,8 +131,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "friend_safari",
-		NameDE:                 "Freundes-Safari",
-		NameEN:                 "Friend Safari",
 		OddsNumer:              1,
 		OddsDenom:              819,
 		DefaultCooldownSec:     8,
@@ -169,8 +139,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "dexnav",
-		NameDE:                 "DexNav",
-		NameEN:                 "DexNav",
 		OddsNumer:              1,
 		OddsDenom:              42,
 		DefaultCooldownSec:     8,
@@ -179,8 +147,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "ultra_wormhole",
-		NameDE:                 "Ultrapforte",
-		NameEN:                 "Ultra Wormhole",
 		OddsNumer:              1,
 		OddsDenom:              3,
 		DefaultCooldownSec:     15,
@@ -189,8 +155,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "catch_combo",
-		NameDE:                 "Fangkombo",
-		NameEN:                 "Catch Combo",
 		OddsNumer:              1,
 		OddsDenom:              342,
 		DefaultCooldownSec:     5,
@@ -199,8 +163,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "tera_raid",
-		NameDE:                 "Tera-Raid",
-		NameEN:                 "Tera Raid Battle",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     30,
@@ -209,8 +171,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "fishing",
-		NameDE:                 "Angeln",
-		NameEN:                 "Fishing",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -219,8 +179,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "safari_zone",
-		NameDE:                 "Safari-Zone",
-		NameEN:                 "Safari Zone",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -229,8 +187,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "breeding",
-		NameDE:                 "Zucht",
-		NameEN:                 "Breeding",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     15,
@@ -239,8 +195,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "dv_method",
-		NameDE:                 "DV-Methode",
-		NameEN:                 "DV Method",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -249,8 +203,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "time_capsule_exploit",
-		NameDE:                 "Zeitkapsel-Exploit",
-		NameEN:                 "Time Capsule Exploit",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -259,8 +211,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "odd_egg",
-		NameDE:                 "Kurioses Ei",
-		NameEN:                 "Odd Egg",
 		OddsNumer:              1,
 		OddsDenom:              7,
 		DefaultCooldownSec:     15,
@@ -269,8 +219,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "dv_breeding",
-		NameDE:                 "DV-Zucht",
-		NameEN:                 "DV Breeding",
 		OddsNumer:              1,
 		OddsDenom:              64,
 		DefaultCooldownSec:     15,
@@ -279,8 +227,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "headbutt",
-		NameDE:                 "Kopfnuss",
-		NameEN:                 "Headbutt",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     8,
@@ -289,8 +235,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "roaming_reset",
-		NameDE:                 "Roaming-Reset",
-		NameEN:                 "Roaming Reset",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     25,
@@ -299,8 +243,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "swarm",
-		NameDE:                 "Schwarm-Hunt",
-		NameEN:                 "Swarm Hunting",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -309,8 +251,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "coin_case_glitch",
-		NameDE:                 "Münzkoffer-Glitch",
-		NameEN:                 "Coin Case Glitch",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -319,8 +259,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "rock_smash",
-		NameDE:                 "Zertrümmerer",
-		NameEN:                 "Rock Smash",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -329,8 +267,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "game_corner",
-		NameDE:                 "Spielhalle-Resets",
-		NameEN:                 "Game Corner Resets",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -339,8 +275,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "pomeg_glitch",
-		NameDE:                 "Grana-Glitch",
-		NameEN:                 "Pomeg Glitch",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -349,8 +283,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "run_away",
-		NameDE:                 "Flucht",
-		NameEN:                 "Run Away",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     8,
@@ -359,8 +291,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "battle_pyramid_glitch",
-		NameDE:                 "Kampfpyramide-Glitch",
-		NameEN:                 "Battle Pyramid Glitch",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -369,8 +299,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "battle_tower_glitch",
-		NameDE:                 "Duellturm-Glitch",
-		NameEN:                 "Battle Tower Glitch",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -379,8 +307,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "cute_charm_glitch",
-		NameDE:                 "Charmebolzen-Glitch",
-		NameEN:                 "Cute Charm Glitch",
 		OddsNumer:              1,
 		OddsDenom:              5,
 		DefaultCooldownSec:     8,
@@ -389,8 +315,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "honey_tree",
-		NameDE:                 "Honigbaum",
-		NameEN:                 "Honey Tree",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     8,
@@ -399,8 +323,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "dongle_method",
-		NameDE:                 "Dual-Slot-Methode",
-		NameEN:                 "Dongle Method",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     8,
@@ -409,8 +331,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "great_marsh",
-		NameDE:                 "Großmoor",
-		NameEN:                 "Great Marsh",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -419,8 +339,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "lucky_power",
-		NameDE:                 "Glückskraft",
-		NameEN:                 "Lucky Power",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -429,8 +347,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "poke_pelago",
-		NameDE:                 "Pokémon-Resort",
-		NameEN:                 "Poké Pelago",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     15,
@@ -439,8 +355,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "island_scan",
-		NameDE:                 "Insel-Scanner",
-		NameEN:                 "Island Scan",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -449,8 +363,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "soaring",
-		NameDE:                 "Überfliegen",
-		NameEN:                 "Soaring",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -459,8 +371,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "battle_method",
-		NameDE:                 "Kampf-Methode",
-		NameEN:                 "Battle Method",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     8,
@@ -469,8 +379,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "curry_hunting",
-		NameDE:                 "Curry-Hunt",
-		NameEN:                 "Curry Hunting",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     15,
@@ -479,8 +387,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "grand_underground",
-		NameDE:                 "Untergrundhöhlen",
-		NameEN:                 "Grand Underground",
 		OddsNumer:              1,
 		OddsDenom:              2048,
 		DefaultCooldownSec:     8,
@@ -489,8 +395,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "massive_outbreak",
-		NameDE:                 "Multipler Auflauf",
-		NameEN:                 "Massive Mass Outbreak",
 		OddsNumer:              1,
 		OddsDenom:              315,
 		DefaultCooldownSec:     8,
@@ -499,8 +403,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "massive_outbreak_lv10",
-		NameDE:                 "Multipler Auflauf (Fs. 10)",
-		NameEN:                 "Massive Outbreak (LV10)",
 		OddsNumer:              1,
 		OddsDenom:              293,
 		DefaultCooldownSec:     8,
@@ -509,8 +411,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "massive_outbreak_perfect",
-		NameDE:                 "Multipler Auflauf (Perfekt)",
-		NameEN:                 "Massive Outbreak (Perfect)",
 		OddsNumer:              1,
 		OddsDenom:              256,
 		DefaultCooldownSec:     8,
@@ -519,8 +419,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "outbreak_lv10",
-		NameDE:                 "Massiver Auflauf (Fs. 10)",
-		NameEN:                 "Mass Outbreak (LV10)",
 		OddsNumer:              1,
 		OddsDenom:              152,
 		DefaultCooldownSec:     8,
@@ -529,8 +427,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "outbreak_perfect",
-		NameDE:                 "Massiver Auflauf (Perfekt)",
-		NameEN:                 "Mass Outbreak (Perfect)",
 		OddsNumer:              1,
 		OddsDenom:              141,
 		DefaultCooldownSec:     8,
@@ -539,8 +435,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "encounter_lv10",
-		NameDE:                 "Begegnung (Fs. 10)",
-		NameEN:                 "Encounter (LV10)",
 		OddsNumer:              1,
 		OddsDenom:              2048,
 		DefaultCooldownSec:     8,
@@ -549,8 +443,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "encounter_perfect",
-		NameDE:                 "Begegnung (Perfekt)",
-		NameEN:                 "Encounter (Perfect)",
 		OddsNumer:              1,
 		OddsDenom:              1024,
 		DefaultCooldownSec:     8,
@@ -559,8 +451,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "sandwich_sp1",
-		NameDE:                 "Sandwich (Schillerkraft 1)",
-		NameEN:                 "Sandwich (Sparkling Power 1)",
 		OddsNumer:              1,
 		OddsDenom:              2048,
 		DefaultCooldownSec:     8,
@@ -569,8 +459,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "sandwich_sp2",
-		NameDE:                 "Sandwich (Schillerkraft 2)",
-		NameEN:                 "Sandwich (Sparkling Power 2)",
 		OddsNumer:              1,
 		OddsDenom:              1365,
 		DefaultCooldownSec:     8,
@@ -579,8 +467,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "sandwich_sp3",
-		NameDE:                 "Sandwich (Schillerkraft 3)",
-		NameEN:                 "Sandwich (Sparkling Power 3)",
 		OddsNumer:              1,
 		OddsDenom:              1024,
 		DefaultCooldownSec:     8,
@@ -589,8 +475,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "sparkling_power_lv1",
-		NameDE:                 "Schillerkraft St. 1",
-		NameEN:                 "Sparkling Power LV1",
 		OddsNumer:              1,
 		OddsDenom:              2048,
 		DefaultCooldownSec:     8,
@@ -599,8 +483,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "sparkling_power_lv2",
-		NameDE:                 "Schillerkraft St. 2",
-		NameEN:                 "Sparkling Power LV2",
 		OddsNumer:              1,
 		OddsDenom:              1365,
 		DefaultCooldownSec:     8,
@@ -609,8 +491,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "sparkling_power_lv3",
-		NameDE:                 "Schillerkraft St. 3",
-		NameEN:                 "Sparkling Power LV3",
 		OddsNumer:              1,
 		OddsDenom:              1024,
 		DefaultCooldownSec:     8,
@@ -619,8 +499,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "picnic_breeding",
-		NameDE:                 "Picknick-Zucht",
-		NameEN:                 "Picnic Breeding",
 		OddsNumer:              1,
 		OddsDenom:              4096,
 		DefaultCooldownSec:     15,
@@ -629,8 +507,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "colosseum_bonus_disc",
-		NameDE:                 "Colosseum (US) Bonus-Disc",
-		NameEN:                 "Colosseum (US) Bonus Disc",
 		OddsNumer:              1,
 		OddsDenom:              7282,
 		DefaultCooldownSec:     25,
@@ -639,8 +515,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "pokemon_channel",
-		NameDE:                 "Pokémon Channel (PAL) Jirachi",
-		NameEN:                 "Pokémon Channel (PAL) Jirachi",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -649,8 +523,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "shadow_snag_colosseum",
-		NameDE:                 "Crypto-Pokémon krallen (Colosseum)",
-		NameEN:                 "Shadow Snag (Colosseum)",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,
@@ -659,8 +531,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "poke_spot_xd",
-		NameDE:                 "Poképlatz (XD)",
-		NameEN:                 "Poké Spot (XD)",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     8,
@@ -669,8 +539,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "gift_xd",
-		NameDE:                 "Geschenk (XD)",
-		NameEN:                 "Gift (XD)",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     20,
@@ -679,8 +547,6 @@ var HuntTypePresets = []HuntTypePreset{
 	},
 	{
 		Key:                    "trade_xd",
-		NameDE:                 "Tausch (XD)",
-		NameEN:                 "Trade (XD)",
 		OddsNumer:              1,
 		OddsDenom:              8192,
 		DefaultCooldownSec:     25,

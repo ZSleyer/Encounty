@@ -145,8 +145,6 @@ describe("DetectorSettings", () => {
     const user = userEvent.setup();
     const preset: HuntTypePreset = {
       key: "masuda",
-      name_de: "Masuda",
-      name_en: "Masuda",
       odds_numer: 1,
       odds_denom: 683,
       default_cooldown_sec: 5,
@@ -163,8 +161,6 @@ describe("DetectorSettings", () => {
     const onApplyDefaults = vi.fn();
     const preset: HuntTypePreset = {
       key: "masuda",
-      name_de: "Masuda",
-      name_en: "Masuda",
       odds_numer: 1,
       odds_denom: 683,
       default_cooldown_sec: 5,
