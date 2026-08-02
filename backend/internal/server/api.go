@@ -28,6 +28,11 @@ func ReadJSON(r *http.Request, v any) error {
 // broadcastState serialises the current AppState and sends a "state_update"
 // message to every connected WebSocket client.
 func (s *Server) broadcastState() {
+	// ponytail: phase entries are ordinary Pokemon rows, so every state_update
+	// carries all of them and the payload grows linearly with the phase count.
+	// Fine for the few hundred phases a hunt realistically reaches; if a payload
+	// ever becomes a problem, send phase entries as a separate paged endpoint
+	// and keep only the derived totals in the state broadcast.
 	st := s.state.GetState()
 	s.hub.BroadcastRaw("state_update", st)
 }

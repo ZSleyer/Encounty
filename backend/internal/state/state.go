@@ -6,6 +6,7 @@ package state
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"os"
@@ -30,6 +31,23 @@ const (
 	animationNone       = "none"
 	fontPokemon         = "pokemon"
 	overlayLinkedPrefix = "linked:"
+)
+
+// defaultSpriteCycleIntervalMs is the dwell time per sprite when the overlay
+// cycles through the phase targets.
+const defaultSpriteCycleIntervalMs = 3000
+
+// Sentinel errors returned by the phase transitions so HTTP handlers can map
+// them to status codes without string matching.
+var (
+	// ErrPhaseParentNotFound reports that the hunt a phase operation refers to
+	// does not exist (unknown id, or an orphaned phase entry whose parent hunt
+	// has been deleted).
+	ErrPhaseParentNotFound = errors.New("phase parent not found")
+	// ErrNotPhaseable reports that the referenced entry cannot take part in the
+	// requested phase transition: a completed hunt or a phase entry cannot end a
+	// phase, and only the newest phase of a hunt can be undone.
+	ErrNotPhaseable = errors.New("entry is not phaseable")
 )
 
 // Pokemon represents a single shiny-hunt session for one Pokémon species.
@@ -63,6 +81,36 @@ type Pokemon struct {
 	GroupID            string           `json:"group_id"`   // Empty string means "no group" (shown in "Ohne Gruppe" section)
 	Tags               []string         `json:"tags"`       // Arbitrary short labels; always a JSON array, never null
 	SortOrder          int              `json:"sort_order"` // Manual ordering position (ascending); assigned via ReorderPokemon
+	// PhaseOf is the ID of the hunt this entry is a phase of. Empty means the
+	// entry is a hunt of its own. Immutable after creation.
+	PhaseOf string `json:"phase_of,omitempty"`
+	// PhaseNumber is the frozen number of this phase within its parent hunt
+	// (1-based). Zero for entries that are not phases. Immutable after creation.
+	PhaseNumber int `json:"phase_number,omitempty"`
+	// PhaseTargets lists the species the hunter expects as off-target shinies.
+	// Always a JSON array, never null.
+	PhaseTargets []PhaseTarget `json:"phase_targets"`
+}
+
+// PhaseTarget is one species a hunter expects to run into as an off-target
+// shiny. Targets are optional: they drive the quick-select chips when ending a
+// phase and the sprite cycling in the overlay.
+type PhaseTarget struct {
+	CanonicalName string `json:"canonical_name"` // English PokéAPI slug, unique per hunt
+	Name          string `json:"name"`           // Display name (localized)
+	SpriteURL     string `json:"sprite_url"`
+}
+
+// PhaseCatch describes the off-target shiny that ended a phase. It only carries
+// the species identity; every other field of the resulting archive entry is
+// inherited from the parent hunt. CanonicalName may be empty so a phase can be
+// ended with a free-text name when no Pokédex entry is available.
+type PhaseCatch struct {
+	CanonicalName string `json:"canonical_name"`
+	Name          string `json:"name"`
+	BaseName      string `json:"base_name"`
+	FormName      string `json:"form_name"`
+	SpriteURL     string `json:"sprite_url"`
 }
 
 // Group organizes Pokémon into collapsible Sidebar sections.
@@ -266,6 +314,11 @@ type SpriteElement struct {
 	TriggerEnter     string  `json:"trigger_enter"`
 	TriggerExit      string  `json:"trigger_exit"`
 	TriggerDecrement string  `json:"trigger_decrement"`
+	// CyclePhaseTargets makes the sprite rotate through the hunt's phase
+	// targets instead of showing the hunted species only.
+	CyclePhaseTargets bool `json:"cycle_phase_targets"`
+	// CycleIntervalMs is the dwell time per sprite while cycling.
+	CycleIntervalMs int `json:"cycle_interval_ms"`
 }
 
 // NameElement configures the Pokémon name text layer of the overlay.
@@ -327,6 +380,25 @@ type OddsElement struct {
 	TriggerDecrement string    `json:"trigger_decrement"`
 }
 
+// LabeledTextElement configures a text layer of the overlay that renders one
+// derived value with an optional descriptive label above or below it. It backs
+// the phase, total-encounter and total-timer layers introduced with phasing.
+// The older text elements deliberately keep their own structs: converting them
+// would change no behaviour and only risk regressions in their editors.
+//
+// Elements that expose no trigger animations (total timer) still carry the
+// trigger fields; they stay at "none" and no editor binds them.
+type LabeledTextElement struct {
+	OverlayElementBase
+	Style            TextStyle `json:"style"`
+	ShowLabel        bool      `json:"show_label"`
+	LabelText        string    `json:"label_text"`
+	LabelStyle       TextStyle `json:"label_style"`
+	IdleAnimation    string    `json:"idle_animation"`
+	TriggerEnter     string    `json:"trigger_enter"`
+	TriggerDecrement string    `json:"trigger_decrement"`
+}
+
 // OverlaySettings is the complete configuration for the OBS Browser Source
 // overlay. It uses an absolute-positioning canvas model: each element has its
 // own x/y/width/height within a fixed canvas.
@@ -352,6 +424,13 @@ type OverlaySettings struct {
 	Counter                   CounterElement  `json:"counter"`
 	Timer                     TimerElement    `json:"timer"`
 	Odds                      OddsElement     `json:"odds"`
+	// Phase renders the current phase number of the active hunt.
+	Phase LabeledTextElement `json:"phase"`
+	// TotalCounter renders the encounters of the hunt and all its phases.
+	TotalCounter LabeledTextElement `json:"total_counter"`
+	// TotalTimer renders the hunt time across all phases. Like Timer it offers
+	// an idle animation only, which saves one animation channel.
+	TotalTimer LabeledTextElement `json:"total_timer"`
 }
 
 // TutorialFlags tracks which tutorials the user has already completed.
@@ -501,6 +580,8 @@ func NewManager(configDir string) *Manager {
 						IdleAnimation:      animationNone,
 						TriggerEnter:       "bounce",
 						TriggerDecrement:   "shake",
+						CyclePhaseTargets:  false,
+						CycleIntervalMs:    defaultSpriteCycleIntervalMs,
 					},
 					Name: NameElement{
 						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
@@ -605,6 +686,39 @@ func NewManager(configDir string) *Manager {
 						},
 						Format:           "fractional",
 						IdleAnimation:    animationNone,
+						TriggerEnter:     animationNone,
+						TriggerDecrement: animationNone,
+					},
+					// The phasing elements share their typography, so they reuse the
+					// same helpers the migration path in persist.go builds from.
+					Phase: LabeledTextElement{
+						OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 122, Width: 120, Height: 36, ZIndex: 7},
+						Style:              phasingTextStyle(),
+						ShowLabel:          false,
+						LabelText:          "Phase",
+						LabelStyle:         phasingLabelStyle(),
+						IdleAnimation:      animationNone,
+						TriggerEnter:       animationNone,
+						TriggerDecrement:   animationNone,
+					},
+					TotalCounter: LabeledTextElement{
+						OverlayElementBase: OverlayElementBase{Visible: false, X: 660, Y: 122, Width: 130, Height: 36, ZIndex: 8},
+						Style:              phasingTextStyle(),
+						ShowLabel:          false,
+						LabelText:          "Total Encounter",
+						LabelStyle:         phasingLabelStyle(),
+						IdleAnimation:      animationNone,
+						TriggerEnter:       animationNone,
+						TriggerDecrement:   animationNone,
+					},
+					TotalTimer: LabeledTextElement{
+						OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 162, Width: 260, Height: 36, ZIndex: 9},
+						Style:              phasingTextStyle(),
+						ShowLabel:          false,
+						LabelText:          "Total Timer",
+						LabelStyle:         phasingLabelStyle(),
+						IdleAnimation:      animationNone,
+						// No trigger animations, mirroring the timer element.
 						TriggerEnter:     animationNone,
 						TriggerDecrement: animationNone,
 					},
@@ -755,14 +869,16 @@ func (m *Manager) GetState() AppState {
 // cloneState returns a snapshot of s that is safe to read (marshal, persist)
 // after the caller releases the state lock, without racing in-place mutations
 // of the live state. The slices that are mutated in place (Pokemon and each
-// Pokemon's Tags) and the CaptureResolutions map receive fresh backing storage;
-// Sessions, Groups and Languages are also cloned since they are appended to.
-// Pointer fields (Overlay, DetectorConfig, *time.Time) are replaced wholesale
-// under Lock rather than mutated in place, so sharing those pointers is safe.
+// Pokemon's Tags and PhaseTargets) and the CaptureResolutions map receive fresh
+// backing storage; Sessions, Groups and Languages are also cloned since they are
+// appended to. Pointer fields (Overlay, DetectorConfig, *time.Time) are replaced
+// wholesale under Lock rather than mutated in place, so sharing those pointers
+// is safe.
 func cloneState(s AppState) AppState {
 	s.Pokemon = slices.Clone(s.Pokemon)
 	for i := range s.Pokemon {
 		s.Pokemon[i].Tags = slices.Clone(s.Pokemon[i].Tags)
+		s.Pokemon[i].PhaseTargets = slices.Clone(s.Pokemon[i].PhaseTargets)
 	}
 	s.Sessions = slices.Clone(s.Sessions)
 	s.Groups = slices.Clone(s.Groups)
@@ -787,12 +903,13 @@ func (m *Manager) GetActivePokemon() *Pokemon {
 }
 
 // AddPokemon appends p to the Pokémon list. If the list was empty before,
-// p is automatically set as the active Pokémon. Tags is normalised to an empty
-// slice so JSON serialisation never emits null.
+// p is automatically set as the active Pokémon. Tags and PhaseTargets are
+// normalised to non-nil slices so JSON serialisation never emits null.
 func (m *Manager) AddPokemon(p Pokemon) {
 	if p.Tags == nil {
 		p.Tags = []string{}
 	}
+	p.PhaseTargets = normalizePhaseTargets(p.PhaseTargets)
 	m.mu.Lock()
 	m.state.Pokemon = append(m.state.Pokemon, p)
 	if m.state.ActiveID == "" && m.state.ActiveGroupID == "" {
@@ -806,8 +923,8 @@ func (m *Manager) AddPokemon(p Pokemon) {
 }
 
 // applyPokemonUpdate merges non-zero fields from update into dst. Only
-// user-editable fields are touched; immutable fields like ID and CreatedAt
-// are preserved.
+// user-editable fields are touched; immutable fields like ID, CreatedAt and the
+// phase link (PhaseOf, PhaseNumber) are preserved.
 func applyPokemonUpdate(dst *Pokemon, update Pokemon) {
 	applyBasicFields(dst, update)
 	applyOverlayUpdate(dst, update)
@@ -856,6 +973,12 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	if update.Tags != nil {
 		dst.Tags = normalizeTags(update.Tags)
 	}
+	// Same contract as Tags: nil means "not touched", empty clears the list.
+	// PhaseOf and PhaseNumber are intentionally absent here; a phase link is
+	// established by EndPhase alone and must survive every edit of the entry.
+	if update.PhaseTargets != nil {
+		dst.PhaseTargets = normalizePhaseTargets(update.PhaseTargets)
+	}
 }
 
 // normalizeTags trims whitespace, drops empty entries, and removes duplicates
@@ -873,6 +996,31 @@ func normalizeTags(raw []string) []string {
 			continue
 		}
 		seen[t] = struct{}{}
+		out = append(out, t)
+	}
+	return out
+}
+
+// normalizePhaseTargets trims every field, drops targets without a canonical
+// name and removes duplicates by canonical name while preserving the first-seen
+// order. The canonical name is the identity of a target: it is the second half
+// of the phase_targets primary key, so a duplicate or empty one would collide in
+// the database. Returns a non-nil slice so JSON serialisation produces []
+// rather than null.
+func normalizePhaseTargets(raw []PhaseTarget) []PhaseTarget {
+	seen := make(map[string]struct{}, len(raw))
+	out := make([]PhaseTarget, 0, len(raw))
+	for _, t := range raw {
+		t.CanonicalName = strings.TrimSpace(t.CanonicalName)
+		t.Name = strings.TrimSpace(t.Name)
+		t.SpriteURL = strings.TrimSpace(t.SpriteURL)
+		if t.CanonicalName == "" {
+			continue
+		}
+		if _, dup := seen[t.CanonicalName]; dup {
+			continue
+		}
+		seen[t.CanonicalName] = struct{}{}
 		out = append(out, t)
 	}
 	return out
@@ -958,6 +1106,11 @@ func (m *Manager) resetLinkedOverlays(id string) {
 
 // DeletePokemon removes the Pokémon with the given id. If it was the active
 // Pokémon, the first remaining entry becomes active. Returns false if not found.
+//
+// Deliberately keeps PhaseOf on the deleted hunt's phase entries instead of
+// clearing it: an orphaned phase keeps its "phase N" marking (the frontend just
+// omits the link back to the hunt). Clearing it would silently rewrite those
+// entries into ordinary hunts and erase the fact that they were phases.
 func (m *Manager) DeletePokemon(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -1040,13 +1193,15 @@ func (m *Manager) Reset(id string) bool {
 	return false
 }
 
-// IncrementGroup increments all Pokémon in the given group by their step value.
+// IncrementGroup increments all running Pokémon in the given group by their
+// step value. Completed entries are skipped: phase entries inherit the group of
+// their hunt, and their counters are frozen history.
 func (m *Manager) IncrementGroup(groupID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var changed []string
 	for i := range m.state.Pokemon {
-		if m.state.Pokemon[i].GroupID != groupID {
+		if m.state.Pokemon[i].GroupID != groupID || m.state.Pokemon[i].CompletedAt != nil {
 			continue
 		}
 		step := m.state.Pokemon[i].Step
@@ -1059,14 +1214,15 @@ func (m *Manager) IncrementGroup(groupID string) {
 	m.markCounterDirty(changed...)
 }
 
-// DecrementGroup decrements all Pokémon in the given group by their step value,
-// flooring at zero.
+// DecrementGroup decrements all running Pokémon in the given group by their
+// step value, flooring at zero. Completed entries are skipped for the same
+// reason as in IncrementGroup.
 func (m *Manager) DecrementGroup(groupID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var changed []string
 	for i := range m.state.Pokemon {
-		if m.state.Pokemon[i].GroupID != groupID {
+		if m.state.Pokemon[i].GroupID != groupID || m.state.Pokemon[i].CompletedAt != nil {
 			continue
 		}
 		step := m.state.Pokemon[i].Step
@@ -1083,13 +1239,16 @@ func (m *Manager) DecrementGroup(groupID string) {
 	m.markCounterDirty(changed...)
 }
 
-// ResetGroup resets the encounter count of all Pokémon in the given group to 0.
+// ResetGroup resets the encounter count of all running Pokémon in the given
+// group to 0. Completed entries are skipped: without that guard a group reset
+// would wipe the encounter counts of every phase entry in the group and destroy
+// the hunt history irrecoverably.
 func (m *Manager) ResetGroup(groupID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var changed []string
 	for i := range m.state.Pokemon {
-		if m.state.Pokemon[i].GroupID == groupID {
+		if m.state.Pokemon[i].GroupID == groupID && m.state.Pokemon[i].CompletedAt == nil {
 			m.state.Pokemon[i].Encounters = 0
 			changed = append(changed, m.state.Pokemon[i].ID)
 		}
@@ -1321,17 +1480,194 @@ func (m *Manager) CompletePokemon(id string) bool {
 
 // UncompletePokemon clears the CompletedAt timestamp, moving the Pokémon
 // back to active-hunt status. Returns false if not found.
+//
+// Phase entries are refused: a reactivated phase would keep counting while its
+// frozen encounters and time still flow into the totals of its parent hunt.
+// UndoPhase is the supported way to take a phase back.
 func (m *Manager) UncompletePokemon(id string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for i := range m.state.Pokemon {
 		if m.state.Pokemon[i].ID == id {
+			if m.state.Pokemon[i].PhaseOf != "" {
+				return false
+			}
 			m.state.Pokemon[i].CompletedAt = nil
 			m.markDirty()
 			return true
 		}
 	}
 	return false
+}
+
+// ---------------------------------------------------------------------------
+// Phases
+// ---------------------------------------------------------------------------
+
+// indexOfPokemon returns the position of the Pokémon with the given id in list,
+// or -1 when it is not present.
+func indexOfPokemon(list []Pokemon, id string) int {
+	for i := range list {
+		if list[i].ID == id {
+			return i
+		}
+	}
+	return -1
+}
+
+// EndPhase closes the running phase of the hunt with parentID. The off-target
+// shiny described by catch becomes a completed child entry that freezes the
+// hunt's encounters and elapsed time, and the hunt itself restarts at zero
+// while a running timer keeps running.
+//
+// Returns the created child entry, ErrPhaseParentNotFound when parentID is
+// unknown, or ErrNotPhaseable when the target is itself a phase or is already
+// completed.
+//
+// The whole transition runs under a single lock and reimplements the pieces of
+// CompletePokemon, Reset and AddPokemon it needs instead of calling them: each
+// of those takes the lock itself, so a broadcast or save could observe the hunt
+// already reset but the phase entry not yet inserted. Reset also only raises
+// markCounterDirty, which would let the fast counter-only save path write the
+// zeroed hunt without ever inserting the new row.
+func (m *Manager) EndPhase(parentID string, catch PhaseCatch) (Pokemon, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	idx := indexOfPokemon(m.state.Pokemon, parentID)
+	if idx < 0 {
+		return Pokemon{}, ErrPhaseParentNotFound
+	}
+	parent := m.state.Pokemon[idx]
+	if parent.PhaseOf != "" || parent.CompletedAt != nil {
+		return Pokemon{}, ErrNotPhaseable
+	}
+
+	now := time.Now()
+	child := buildPhaseChild(m.state.Pokemon, parent, catch, now)
+
+	// Reset the hunt before appending: append may reallocate the slice, so the
+	// index must still refer to the live backing array.
+	m.state.Pokemon[idx].Encounters = 0
+	m.state.Pokemon[idx].TimerAccumulatedMs = 0
+	if m.state.Pokemon[idx].TimerStartedAt != nil {
+		// The timer keeps running across the phase change; only its origin moves
+		// so the new phase starts at zero.
+		started := now
+		m.state.Pokemon[idx].TimerStartedAt = &started
+	}
+	m.state.Pokemon = append(m.state.Pokemon, child)
+
+	m.markDirty()
+	return child, nil
+}
+
+// buildPhaseChild assembles the completed archive entry for a finished phase.
+// It inherits the hunt context (game, language, method, charm, hunt mode, sprite
+// style, group) and freezes the hunt's encounters and elapsed time, including a
+// currently running timer segment measured up to now.
+//
+// DetectorConfig stays nil on purpose: copying it would duplicate every template
+// image of the hunt for each phase. Overlay, IsActive, Tags and PhaseTargets are
+// not inherited either; they describe the running hunt, not its history.
+func buildPhaseChild(all []Pokemon, parent Pokemon, catch PhaseCatch, now time.Time) Pokemon {
+	frozenMs := parent.TimerAccumulatedMs
+	if parent.TimerStartedAt != nil {
+		frozenMs += now.Sub(*parent.TimerStartedAt).Milliseconds()
+	}
+	completedAt := now
+	return Pokemon{
+		ID:                 uuid.NewString(),
+		Name:               catch.Name,
+		BaseName:           catch.BaseName,
+		FormName:           catch.FormName,
+		CanonicalName:      catch.CanonicalName,
+		SpriteURL:          catch.SpriteURL,
+		SpriteType:         "shiny",
+		SpriteStyle:        parent.SpriteStyle,
+		Encounters:         parent.Encounters,
+		CreatedAt:          phaseStartedAt(all, parent),
+		Language:           parent.Language,
+		Game:               parent.Game,
+		CompletedAt:        &completedAt,
+		OverlayMode:        "default",
+		HuntType:           parent.HuntType,
+		ShinyCharm:         parent.ShinyCharm,
+		TimerAccumulatedMs: frozenMs,
+		HuntMode:           parent.HuntMode,
+		GroupID:            parent.GroupID,
+		Tags:               []string{},
+		SortOrder:          len(all),
+		PhaseOf:            parent.ID,
+		PhaseNumber:        PhaseNumber(all, parent.ID),
+		PhaseTargets:       []PhaseTarget{},
+	}
+}
+
+// phaseStartedAt returns the start of the phase that is ending: the moment the
+// previous phase was caught, or the creation of the hunt for the first phase.
+// Storing it as the child's CreatedAt keeps the phase duration derivable and
+// the archive sorted in the order the phases actually happened.
+func phaseStartedAt(all []Pokemon, parent Pokemon) time.Time {
+	children := PhaseChildren(all, parent.ID)
+	if len(children) > 0 {
+		if last := children[len(children)-1]; last.CompletedAt != nil {
+			return *last.CompletedAt
+		}
+	}
+	return parent.CreatedAt
+}
+
+// UndoPhase takes back the most recent phase change of a hunt: the phase entry
+// with childID returns its encounters and accumulated time to its parent hunt
+// and is removed. Returns the updated parent hunt.
+//
+// Only the newest phase can be undone, because any older one would leave a hole
+// that the max(phase_number)+1 numbering cannot express. Returns
+// ErrPhaseParentNotFound when childID is unknown or its parent hunt no longer
+// exists, and ErrNotPhaseable when the entry is not a phase or not the newest
+// one.
+func (m *Manager) UndoPhase(childID string) (Pokemon, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	ci := indexOfPokemon(m.state.Pokemon, childID)
+	if ci < 0 {
+		return Pokemon{}, ErrPhaseParentNotFound
+	}
+	child := m.state.Pokemon[ci]
+	if child.PhaseOf == "" {
+		return Pokemon{}, ErrNotPhaseable
+	}
+	for _, sibling := range m.state.Pokemon {
+		if sibling.PhaseOf == child.PhaseOf && sibling.PhaseNumber > child.PhaseNumber {
+			return Pokemon{}, ErrNotPhaseable
+		}
+	}
+	pi := indexOfPokemon(m.state.Pokemon, child.PhaseOf)
+	if pi < 0 {
+		return Pokemon{}, ErrPhaseParentNotFound
+	}
+
+	// The parent keeps its own running timer; only the frozen milliseconds of
+	// the phase flow back, so an undo during a running hunt loses no time.
+	m.state.Pokemon[pi].Encounters += child.Encounters
+	m.state.Pokemon[pi].TimerAccumulatedMs += child.TimerAccumulatedMs
+
+	m.state.Pokemon = append(m.state.Pokemon[:ci], m.state.Pokemon[ci+1:]...)
+	m.resetLinkedOverlays(childID)
+	if m.state.ActiveID == childID {
+		// Hand the selection to the hunt the phase belonged to rather than
+		// leaving a dangling active id behind.
+		m.state.ActiveID = child.PhaseOf
+		for i := range m.state.Pokemon {
+			m.state.Pokemon[i].IsActive = m.state.Pokemon[i].ID == child.PhaseOf
+		}
+	}
+
+	m.markDirty()
+	// Re-resolve the index: removing the phase entry shifted everything after it.
+	return m.state.Pokemon[indexOfPokemon(m.state.Pokemon, child.PhaseOf)], nil
 }
 
 // NextPokemon advances the active Pokémon to the next entry in the list,

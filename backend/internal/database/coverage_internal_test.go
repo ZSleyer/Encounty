@@ -1225,7 +1225,10 @@ func TestLoadAllOverlaysElementError(t *testing.T) {
 func TestApplyOverlayElementDispatch(t *testing.T) {
 	styleLookup := func(int64, string) state.TextStyle { return emptyTextStyle() }
 	ov := &state.OverlaySettings{}
-	for _, elemType := range []string{"sprite", "name", "title", "counter", "timer", "odds"} {
+	for _, elemType := range []string{
+		"sprite", "name", "title", "counter", "timer", "odds",
+		"phase", "total_counter", "total_timer",
+	} {
 		e := elemRow{
 			id:       1,
 			elemType: elemType,
@@ -1234,11 +1237,82 @@ func TestApplyOverlayElementDispatch(t *testing.T) {
 		applyOverlayElement(ov, e, styleLookup)
 	}
 	if !ov.Sprite.Visible || !ov.Name.Visible || !ov.Title.Visible ||
-		!ov.Counter.Visible || !ov.Timer.Visible || !ov.Odds.Visible {
+		!ov.Counter.Visible || !ov.Timer.Visible || !ov.Odds.Visible ||
+		!ov.Phase.Visible || !ov.TotalCounter.Visible || !ov.TotalTimer.Visible {
 		t.Error("applyOverlayElement should mark every dispatched element visible")
 	}
 	if ov.Odds.Format != "fractional" {
 		t.Errorf("odds format = %q, want fractional", ov.Odds.Format)
+	}
+}
+
+// TestOverlayPhasingRoundTrip verifies that the phasing text elements and the
+// sprite cycling columns survive a SaveFullState/LoadFullState round trip.
+func TestOverlayPhasingRoundTrip(t *testing.T) {
+	d := openInternalTestDB(t)
+
+	st := &state.AppState{Pokemon: []state.Pokemon{}, Sessions: []state.Session{}}
+	st.Settings.Overlay.Sprite.CyclePhaseTargets = true
+	st.Settings.Overlay.Sprite.CycleIntervalMs = 1500
+	st.Settings.Overlay.Phase = state.LabeledTextElement{
+		OverlayElementBase: state.OverlayElementBase{Visible: true, X: 10, Y: 20, Width: 120, Height: 36, ZIndex: 7},
+		Style: state.TextStyle{
+			FontFamily: "pokemon",
+			FontSize:   24,
+			FontWeight: 700,
+			ColorType:  "solid",
+			Color:      "#ffffff",
+		},
+		ShowLabel: true,
+		LabelText: "Phase",
+		LabelStyle: state.TextStyle{
+			FontFamily: "sans",
+			FontSize:   14,
+			FontWeight: 400,
+			ColorType:  "solid",
+			Color:      "#94a3b8",
+		},
+		IdleAnimation: "pulse",
+		TriggerEnter:  "shake",
+	}
+	st.Settings.Overlay.TotalCounter.LabelText = "Total Encounter"
+	st.Settings.Overlay.TotalTimer.LabelText = "Total Timer"
+
+	if err := d.SaveFullState(st); err != nil {
+		t.Fatalf("SaveFullState: %v", err)
+	}
+	loaded, err := d.LoadFullState()
+	if err != nil {
+		t.Fatalf("LoadFullState: %v", err)
+	}
+
+	sprite := loaded.Settings.Overlay.Sprite
+	if !sprite.CyclePhaseTargets || sprite.CycleIntervalMs != 1500 {
+		t.Errorf("sprite cycling = %v/%d, want true/1500", sprite.CyclePhaseTargets, sprite.CycleIntervalMs)
+	}
+	phase := loaded.Settings.Overlay.Phase
+	if !phase.Visible || phase.X != 10 || phase.Width != 120 || phase.ZIndex != 7 {
+		t.Errorf("phase base = %+v, want the saved geometry", phase.OverlayElementBase)
+	}
+	if !phase.ShowLabel || phase.LabelText != "Phase" {
+		t.Errorf("phase label = %v/%q, want true/Phase", phase.ShowLabel, phase.LabelText)
+	}
+	if phase.IdleAnimation != "pulse" || phase.TriggerEnter != "shake" {
+		t.Errorf("phase animations = %q/%q, want pulse/shake", phase.IdleAnimation, phase.TriggerEnter)
+	}
+	if phase.Style.FontFamily != "pokemon" || phase.Style.FontSize != 24 || phase.Style.Color != "#ffffff" {
+		t.Errorf("phase style = %+v, want the saved value typography", phase.Style)
+	}
+	// The load path reads the label style under its own style role, so a
+	// round trip that only checks the value style would miss a lost role.
+	if phase.LabelStyle.FontFamily != "sans" || phase.LabelStyle.FontSize != 14 || phase.LabelStyle.Color != "#94a3b8" {
+		t.Errorf("phase label style = %+v, want the saved label typography", phase.LabelStyle)
+	}
+	if loaded.Settings.Overlay.TotalCounter.LabelText != "Total Encounter" {
+		t.Errorf("total_counter label = %q, want Total Encounter", loaded.Settings.Overlay.TotalCounter.LabelText)
+	}
+	if loaded.Settings.Overlay.TotalTimer.LabelText != "Total Timer" {
+		t.Errorf("total_timer label = %q, want Total Timer", loaded.Settings.Overlay.TotalTimer.LabelText)
 	}
 }
 
@@ -1490,5 +1564,133 @@ func TestGroupsAndTagsRoundTrip(t *testing.T) {
 	}
 	if loaded.Pokemon[1].GroupID != "" {
 		t.Errorf("Pokemon[1].GroupID = %q, want empty", loaded.Pokemon[1].GroupID)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Migration 31: phasing columns and phase_targets table
+// ---------------------------------------------------------------------------
+
+// columnNames returns the column names of a table, so migration tests can
+// assert that an ADD COLUMN actually landed.
+func columnNames(t *testing.T, db *sql.DB, table string) map[string]bool {
+	t.Helper()
+	rows, err := db.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		t.Fatalf("PRAGMA table_info(%s): %v", table, err)
+	}
+	defer func() { _ = rows.Close() }()
+	cols := map[string]bool{}
+	for rows.Next() {
+		var cid int
+		var colName, colType string
+		var notnull, pk int
+		var dfltValue sql.NullString
+		if err := rows.Scan(&cid, &colName, &colType, &notnull, &dfltValue, &pk); err != nil {
+			t.Fatalf("scan table_info(%s): %v", table, err)
+		}
+		cols[colName] = true
+	}
+	return cols
+}
+
+// TestMigration31OnV30DB verifies that running migration 31 against a database
+// stopped at v30 creates the phase_targets table and adds the phase_of and
+// phase_number columns to the pokemon table.
+func TestMigration31OnV30DB(t *testing.T) {
+	d := openInternalTestDB(t)
+
+	// Roll the migrations table back so only versions <= 30 remain applied,
+	// simulating a user upgrading from v30 to v31.
+	if _, err := d.db.Exec(`DELETE FROM migrations WHERE version >= 31`); err != nil {
+		t.Fatalf("rollback migrations table: %v", err)
+	}
+	if _, err := d.db.Exec(`DROP TABLE IF EXISTS phase_targets`); err != nil {
+		t.Fatalf("drop phase_targets: %v", err)
+	}
+	// The pokemon columns stay in place: SQLite cannot drop them reliably, and
+	// re-running the migration over them must be a no-op, which is asserted
+	// by the migration completing without error.
+
+	if err := RunMigrations(d.db); err != nil {
+		t.Fatalf(runMigrationsFmt, err)
+	}
+
+	var name string
+	if err := d.db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name='phase_targets'`).Scan(&name); err != nil {
+		t.Errorf("phase_targets table missing: %v", err)
+	}
+	cols := columnNames(t, d.db, "pokemon")
+	if !cols["phase_of"] {
+		t.Error("pokemon.phase_of column missing after migration 31")
+	}
+	if !cols["phase_number"] {
+		t.Error("pokemon.phase_number column missing after migration 31")
+	}
+
+	var count int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM migrations WHERE version = 31`).Scan(&count); err != nil {
+		t.Fatalf("query migration row: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("migration 31 tracking row count = %d, want 1", count)
+	}
+}
+
+// TestMigration31CascadesPhaseTargets verifies that the foreign key created by
+// migration 31 removes the phase targets of a deleted hunt.
+func TestMigration31CascadesPhaseTargets(t *testing.T) {
+	d := openInternalTestDB(t)
+
+	if _, err := d.db.Exec(`INSERT INTO pokemon (id, name, sprite_url) VALUES ('p1', 'Torchic', '')`); err != nil {
+		t.Fatalf("insert pokemon: %v", err)
+	}
+	if _, err := d.db.Exec(`INSERT INTO phase_targets (pokemon_id, canonical_name, name) VALUES ('p1', 'zigzagoon', 'Zigzagoon')`); err != nil {
+		t.Fatalf("insert phase target: %v", err)
+	}
+	if _, err := d.db.Exec(`DELETE FROM pokemon WHERE id = 'p1'`); err != nil {
+		t.Fatalf("delete pokemon: %v", err)
+	}
+
+	var count int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM phase_targets WHERE pokemon_id = 'p1'`).Scan(&count); err != nil {
+		t.Fatalf("count phase targets: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("phase_targets rows after parent delete = %d, want 0", count)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Migration 32: sprite cycling columns
+// ---------------------------------------------------------------------------
+
+// TestMigration32OnV31DB verifies that running migration 32 against a database
+// stopped at v31 adds the sprite cycling columns to overlay_elements.
+func TestMigration32OnV31DB(t *testing.T) {
+	d := openInternalTestDB(t)
+
+	if _, err := d.db.Exec(`DELETE FROM migrations WHERE version >= 32`); err != nil {
+		t.Fatalf("rollback migrations table: %v", err)
+	}
+
+	if err := RunMigrations(d.db); err != nil {
+		t.Fatalf(runMigrationsFmt, err)
+	}
+
+	cols := columnNames(t, d.db, "overlay_elements")
+	if !cols["cycle_phase_targets"] {
+		t.Error("overlay_elements.cycle_phase_targets column missing after migration 32")
+	}
+	if !cols["cycle_interval_ms"] {
+		t.Error("overlay_elements.cycle_interval_ms column missing after migration 32")
+	}
+
+	var count int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM migrations WHERE version = 32`).Scan(&count); err != nil {
+		t.Fatalf("query migration row: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("migration 32 tracking row count = %d, want 1", count)
 	}
 }

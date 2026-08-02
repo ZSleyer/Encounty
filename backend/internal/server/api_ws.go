@@ -79,8 +79,8 @@ func (s *Server) wsHandleDecrement(payload json.RawMessage) {
 		return
 	}
 	s.logEncounter(p.PokemonID, count, -1, "hotkey")
-	if count == 0 && s.db != nil {
-		_ = s.db.DeleteEncounterEvents(p.PokemonID)
+	if count == 0 {
+		s.clearEncounterHistory(p.PokemonID)
 	}
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": p.PokemonID, "count": count})
@@ -97,9 +97,7 @@ func (s *Server) wsHandleReset(payload json.RawMessage) {
 	if !s.state.Reset(p.PokemonID) {
 		return
 	}
-	if s.db != nil {
-		_ = s.db.DeleteEncounterEvents(p.PokemonID)
-	}
+	s.clearEncounterHistory(p.PokemonID)
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": p.PokemonID})
 	s.broadcastState()

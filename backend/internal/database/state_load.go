@@ -81,6 +81,11 @@ func (d *DB) LoadFullState() (*state.AppState, error) {
 		return nil, fmt.Errorf("load pokemon tags: %w", err)
 	}
 
+	// 4b2. Load per-Pokémon phase targets and attach them.
+	if err := attachPhaseTargets(d.db, st.Pokemon); err != nil {
+		return nil, fmt.Errorf("load phase targets: %w", err)
+	}
+
 	// 4c. Load organizational groups.
 	st.Groups, err = loadGroups(d.db)
 	if err != nil {
@@ -140,6 +145,36 @@ func attachPokemonTags(db *sql.DB, pokemon []state.Pokemon) error {
 		}
 		if i, ok := idx[pokemonID]; ok {
 			pokemon[i].Tags = append(pokemon[i].Tags, tag)
+		}
+	}
+	return rows.Err()
+}
+
+// attachPhaseTargets fills Pokemon.PhaseTargets for every entry in pokemon by
+// reading phase_targets in a single query. Pokémon without target rows end up
+// with a non-nil empty slice so JSON serialisation emits [] rather than null.
+func attachPhaseTargets(db *sql.DB, pokemon []state.Pokemon) error {
+	for i := range pokemon {
+		pokemon[i].PhaseTargets = []state.PhaseTarget{}
+	}
+	rows, err := db.Query(`SELECT pokemon_id, canonical_name, name, sprite_url
+		FROM phase_targets ORDER BY pokemon_id, sort_order, canonical_name`)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	idx := make(map[string]int, len(pokemon))
+	for i, p := range pokemon {
+		idx[p.ID] = i
+	}
+	for rows.Next() {
+		var pokemonID string
+		var target state.PhaseTarget
+		if err := rows.Scan(&pokemonID, &target.CanonicalName, &target.Name, &target.SpriteURL); err != nil {
+			return err
+		}
+		if i, ok := idx[pokemonID]; ok {
+			pokemon[i].PhaseTargets = append(pokemon[i].PhaseTargets, target)
 		}
 	}
 	return rows.Err()
@@ -250,7 +285,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	rows, err := db.Query(`SELECT id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
 		sprite_style, encounters, step, is_active, created_at, language, game,
 		completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
-		hunt_mode, group_id
+		hunt_mode, group_id, phase_of, phase_number
 		FROM pokemon ORDER BY sort_order`)
 	if err != nil {
 		return nil, err
@@ -268,7 +303,8 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		if err := rows.Scan(&p.ID, &p.Name, &p.BaseName, &p.FormName, &p.Title, &p.CanonicalName, &p.SpriteURL,
 			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
 			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
-			&p.HuntType, &shinyCharm, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode, &p.GroupID); err != nil {
+			&p.HuntType, &shinyCharm, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode, &p.GroupID,
+			&p.PhaseOf, &p.PhaseNumber); err != nil {
 			return nil, err
 		}
 		p.IsActive = isActive != 0
@@ -278,9 +314,11 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		}
 		p.CompletedAt = parseOptionalTime(completedAt)
 		p.TimerStartedAt = parseOptionalTime(timerStartedAt)
-		// Ensure Tags is always a non-nil slice; attachPokemonTags will fill
-		// it from the pokemon_tags table once all rows are loaded.
+		// Ensure Tags and PhaseTargets are always non-nil slices;
+		// attachPokemonTags and attachPhaseTargets fill them from their tables
+		// once all rows are loaded.
 		p.Tags = []string{}
+		p.PhaseTargets = []state.PhaseTarget{}
 		pokemon = append(pokemon, p)
 	}
 	if pokemon == nil {
@@ -554,6 +592,7 @@ type elemRow struct {
 	triggerExit, triggerDecrement, labelText sql.NullString
 	format                                   sql.NullString
 	glowOpacity                              sql.NullFloat64
+	cyclePhaseTargets, cycleIntervalMs       sql.NullInt64
 }
 
 // overlayKey builds the map key that identifies one overlay by its owner.
@@ -643,7 +682,7 @@ func loadAllOverlayBases(db *sql.DB) (map[string]*state.OverlaySettings, map[int
 func loadAllOverlayElements(db *sql.DB) (map[int64][]elemRow, error) {
 	rows, err := db.Query(`SELECT overlay_id, id, element_type, visible, x, y, width, height, z_index,
 		show_glow, glow_color, glow_opacity, glow_blur, idle_animation, trigger_enter, trigger_exit,
-		trigger_decrement, show_label, label_text, format
+		trigger_decrement, show_label, label_text, format, cycle_phase_targets, cycle_interval_ms
 		FROM overlay_elements`)
 	if err != nil {
 		return nil, fmt.Errorf("query overlay_elements: %w", err)
@@ -657,7 +696,8 @@ func loadAllOverlayElements(db *sql.DB) (map[int64][]elemRow, error) {
 		var visible int
 		if err := rows.Scan(&overlayID, &e.id, &e.elemType, &visible, &e.base.X, &e.base.Y, &e.base.Width,
 			&e.base.Height, &e.base.ZIndex, &e.showGlow, &e.glowColor, &e.glowOpacity, &e.glowBlur,
-			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.triggerDecrement, &e.showLabel, &e.labelText, &e.format); err != nil {
+			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.triggerDecrement, &e.showLabel, &e.labelText, &e.format,
+			&e.cyclePhaseTargets, &e.cycleIntervalMs); err != nil {
 			return nil, fmt.Errorf("scan overlay_element: %w", err)
 		}
 		e.base.Visible = visible != 0
@@ -755,6 +795,18 @@ func emptyTextStyle() state.TextStyle {
 	}
 }
 
+// labeledTextTarget returns the OverlaySettings field that stores the given
+// phasing element type, or nil for every other element type. It walks the same
+// list the save path uses, keeping both directions on one source of truth.
+func labeledTextTarget(ov *state.OverlaySettings, elemType string) *state.LabeledTextElement {
+	for _, ref := range labeledTextElements(ov) {
+		if ref.elemType == elemType {
+			return ref.element
+		}
+	}
+	return nil
+}
+
 // applyOverlayElement dispatches a single element row to the appropriate field
 // on the OverlaySettings, resolving text styles via the given lookup.
 func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elementID int64, role string) state.TextStyle) {
@@ -762,6 +814,22 @@ func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elemen
 	triggerEnterStr := nullStr(e.triggerEnter)
 	triggerExitStr := nullStr(e.triggerExit)
 	triggerDecrementStr := nullStr(e.triggerDecrement)
+
+	// The phasing elements share one struct, so one table-driven branch covers
+	// all of them instead of three identical switch cases.
+	if target := labeledTextTarget(ov, e.elemType); target != nil {
+		*target = state.LabeledTextElement{
+			OverlayElementBase: e.base,
+			Style:              style(e.id, "main"),
+			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
+			LabelText:          nullStr(e.labelText),
+			LabelStyle:         style(e.id, "label"),
+			IdleAnimation:      idleAnimStr,
+			TriggerEnter:       triggerEnterStr,
+			TriggerDecrement:   triggerDecrementStr,
+		}
+		return
+	}
 
 	switch e.elemType {
 	case "sprite":
@@ -775,6 +843,8 @@ func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elemen
 			TriggerEnter:       triggerEnterStr,
 			TriggerExit:        triggerExitStr,
 			TriggerDecrement:   triggerDecrementStr,
+			CyclePhaseTargets:  e.cyclePhaseTargets.Valid && e.cyclePhaseTargets.Int64 != 0,
+			CycleIntervalMs:    int(nullInt(e.cycleIntervalMs)),
 		}
 
 	case "name":

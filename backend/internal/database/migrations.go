@@ -169,6 +169,16 @@ var migrations = []migration{
 		description: "force pokedex re-sync to populate cosmetic forms",
 		fn:          migrateForcePokedexResync,
 	},
+	{
+		version:     31,
+		description: "add phasing columns and phase_targets table",
+		fn:          migrateAddPhasing,
+	},
+	{
+		version:     32,
+		description: "add sprite cycling columns to overlay_elements",
+		fn:          migrateAddSpriteCycling,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -621,6 +631,41 @@ func migrateAddPokemonGroupsAndTags(tx *sql.Tx) error {
 // support IF NOT EXISTS on ADD COLUMN.
 func migrateAddOverlayElementFormat(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN format TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddPhasing introduces shiny hunt phasing. It appends the phase_of and
+// phase_number columns to the pokemon table and creates the phase_targets table
+// holding the species a hunter expects as off-target shinies. CREATE TABLE uses
+// IF NOT EXISTS for idempotency; the ADD COLUMN calls tolerate the
+// duplicate-column error that SQLite returns on re-runs since ALTER TABLE has
+// no IF NOT EXISTS.
+func migrateAddPhasing(tx *sql.Tx) error {
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS phase_targets (
+		pokemon_id     TEXT    NOT NULL,
+		canonical_name TEXT    NOT NULL,
+		name           TEXT    NOT NULL DEFAULT '',
+		sprite_url     TEXT    NOT NULL DEFAULT '',
+		sort_order     INTEGER NOT NULL DEFAULT 0,
+		PRIMARY KEY (pokemon_id, canonical_name),
+		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
+	)`); err != nil {
+		return fmt.Errorf("create phase_targets: %w", err)
+	}
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN phase_of TEXT NOT NULL DEFAULT ''`)
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN phase_number INTEGER NOT NULL DEFAULT 0`)
+	return nil
+}
+
+// migrateAddSpriteCycling adds the cycle_phase_targets and cycle_interval_ms
+// columns to overlay_elements so sprite rows can persist the rotation through
+// the phase targets of a hunt. Both columns stay nullable like the other
+// sprite-only columns: rows of every other element type leave them NULL.
+// Errors are ignored for idempotency because SQLite does not support
+// IF NOT EXISTS on ADD COLUMN.
+func migrateAddSpriteCycling(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN cycle_phase_targets INTEGER`)
+	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN cycle_interval_ms INTEGER`)
 	return nil
 }
 

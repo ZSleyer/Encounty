@@ -387,6 +387,18 @@ func (s *Server) StateCompletePokemon(id string) bool { return s.state.CompleteP
 // StateUncompletePokemon clears CompletedAt on the Pokemon.
 func (s *Server) StateUncompletePokemon(id string) bool { return s.state.UncompletePokemon(id) }
 
+// StateEndPhase ends the current phase of the hunt, archiving the off-target
+// catch as a linked phase entry.
+func (s *Server) StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error) {
+	return s.state.EndPhase(parentID, catch)
+}
+
+// StateUndoPhase removes the newest phase entry and returns its encounters and
+// timer milliseconds to the parent hunt.
+func (s *Server) StateUndoPhase(childID string) (state.Pokemon, error) {
+	return s.state.UndoPhase(childID)
+}
+
 // StateUnlinkOverlay copies the resolved overlay and sets mode to custom.
 func (s *Server) StateUnlinkOverlay(pokemonID string) bool {
 	return s.state.UnlinkOverlay(pokemonID)
@@ -513,6 +525,18 @@ func (s *Server) handleHotkeyIncrement(id string) {
 	s.broadcastState()
 }
 
+// clearEncounterHistory deletes the logged encounter events of the hunt with
+// the given id, unless the hunt has phase entries. The events of all earlier
+// phases stay attached to the hunt, so on a phased hunt this deletion would not
+// drop the few events of the running phase but the whole chart. Shared by every
+// path that zeroes a counter (WebSocket decrement and reset, hotkey decrement).
+func (s *Server) clearEncounterHistory(id string) {
+	if s.db == nil || s.state.HasPhaseChildren(id) {
+		return
+	}
+	_ = s.db.DeleteEncounterEvents(id)
+}
+
 // handleHotkeyDecrement processes the "decrement" hotkey action for the given Pokémon.
 func (s *Server) handleHotkeyDecrement(id string) {
 	count, ok := s.state.Decrement(id)
@@ -520,8 +544,8 @@ func (s *Server) handleHotkeyDecrement(id string) {
 		return
 	}
 	s.logEncounter(id, count, -1, "hotkey")
-	if count == 0 && s.db != nil {
-		_ = s.db.DeleteEncounterEvents(id)
+	if count == 0 {
+		s.clearEncounterHistory(id)
 	}
 	s.state.ScheduleSave()
 	s.hub.BroadcastRaw("encounter_removed", map[string]any{"pokemon_id": id, "count": count})

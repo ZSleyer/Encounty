@@ -334,6 +334,26 @@
                 },
                 "type": "object"
             },
+            "pokemon.endPhaseRequest": {
+                "properties": {
+                    "base_name": {
+                        "type": "string"
+                    },
+                    "canonical_name": {
+                        "type": "string"
+                    },
+                    "form_name": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "sprite_url": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "pokemon.reorderRequest": {
                 "properties": {
                     "order": {
@@ -721,6 +741,51 @@
                 },
                 "type": "object"
             },
+            "state.LabeledTextElement": {
+                "description": "TotalTimer renders the hunt time across all phases. Like Timer it offers\nan idle animation only, which saves one animation channel.",
+                "properties": {
+                    "height": {
+                        "type": "integer"
+                    },
+                    "idle_animation": {
+                        "type": "string"
+                    },
+                    "label_style": {
+                        "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "label_text": {
+                        "type": "string"
+                    },
+                    "show_label": {
+                        "type": "boolean"
+                    },
+                    "style": {
+                        "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "trigger_decrement": {
+                        "type": "string"
+                    },
+                    "trigger_enter": {
+                        "type": "string"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    },
+                    "width": {
+                        "type": "integer"
+                    },
+                    "x": {
+                        "type": "integer"
+                    },
+                    "y": {
+                        "type": "integer"
+                    },
+                    "z_index": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
             "state.MatchedRegion": {
                 "properties": {
                     "category": {
@@ -882,6 +947,9 @@
                     "odds": {
                         "$ref": "#/components/schemas/state.OddsElement"
                     },
+                    "phase": {
+                        "$ref": "#/components/schemas/state.LabeledTextElement"
+                    },
                     "show_border": {
                         "type": "boolean"
                     },
@@ -893,6 +961,28 @@
                     },
                     "title": {
                         "$ref": "#/components/schemas/state.TitleElement"
+                    },
+                    "total_counter": {
+                        "$ref": "#/components/schemas/state.LabeledTextElement"
+                    },
+                    "total_timer": {
+                        "$ref": "#/components/schemas/state.LabeledTextElement"
+                    }
+                },
+                "type": "object"
+            },
+            "state.PhaseTarget": {
+                "properties": {
+                    "canonical_name": {
+                        "description": "English PokéAPI slug, unique per hunt",
+                        "type": "string"
+                    },
+                    "name": {
+                        "description": "Display name (localized)",
+                        "type": "string"
+                    },
+                    "sprite_url": {
+                        "type": "string"
                     }
                 },
                 "type": "object"
@@ -956,6 +1046,22 @@
                     "overlay_mode": {
                         "description": "\"default\" | \"custom\" | \"linked:\u003cpokemon-id\u003e\"",
                         "type": "string"
+                    },
+                    "phase_number": {
+                        "description": "PhaseNumber is the frozen number of this phase within its parent hunt\n(1-based). Zero for entries that are not phases. Immutable after creation.",
+                        "type": "integer"
+                    },
+                    "phase_of": {
+                        "description": "PhaseOf is the ID of the hunt this entry is a phase of. Empty means the\nentry is a hunt of its own. Immutable after creation.",
+                        "type": "string"
+                    },
+                    "phase_targets": {
+                        "description": "PhaseTargets lists the species the hunter expects as off-target shinies.\nAlways a JSON array, never null.",
+                        "items": {
+                            "$ref": "#/components/schemas/state.PhaseTarget"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     },
                     "shiny_charm": {
                         "type": "boolean"
@@ -1068,6 +1174,14 @@
             },
             "state.SpriteElement": {
                 "properties": {
+                    "cycle_interval_ms": {
+                        "description": "CycleIntervalMs is the dwell time per sprite while cycling.",
+                        "type": "integer"
+                    },
+                    "cycle_phase_targets": {
+                        "description": "CyclePhaseTargets makes the sprite rotate through the hunt's phase\ntargets instead of showing the hunted species only.",
+                        "type": "boolean"
+                    },
                     "glow_blur": {
                         "type": "integer"
                     },
@@ -3141,6 +3255,138 @@
                     }
                 },
                 "summary": "Unlink Pokemon overlay",
+                "tags": [
+                    "pokemon"
+                ]
+            }
+        },
+        "/pokemon/{id}/phase": {
+            "delete": {
+                "description": "Removes the newest phase entry and returns its encounters and timer to the parent hunt",
+                "parameters": [
+                    {
+                        "description": "Phase entry ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/state.Pokemon"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    }
+                },
+                "summary": "Undo a phase",
+                "tags": [
+                    "pokemon"
+                ]
+            },
+            "post": {
+                "description": "Archives the off-target shiny as a linked phase entry and restarts the hunt's counter and timer at zero",
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/pokemon.endPhaseRequest",
+                                        "summary": "body",
+                                        "description": "Off-target shiny that ended the phase"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Off-target shiny that ended the phase",
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/state.Pokemon"
+                                }
+                            }
+                        },
+                        "description": "Created"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Conflict"
+                    }
+                },
+                "summary": "End the current phase",
                 "tags": [
                     "pokemon"
                 ]

@@ -66,6 +66,11 @@ func (d *DB) SaveFullState(st *state.AppState) error {
 	if err := savePokemonRows(tx, st.Pokemon, pokemonIDs); err != nil {
 		return err
 	}
+	// Runs after savePokemonRows because the rows it references must exist for
+	// the foreign key on phase_targets.pokemon_id.
+	if err := savePhaseTargets(tx, st.Pokemon); err != nil {
+		return fmt.Errorf("save phase_targets: %w", err)
+	}
 	if err := savePokemonOverlays(tx, st.Pokemon, pokemonIDs); err != nil {
 		return err
 	}
@@ -176,6 +181,34 @@ func savePokemonTags(tx *sql.Tx, pokemon []state.Pokemon) error {
 	return nil
 }
 
+// savePhaseTargets replaces the phase_targets rows per Pokémon, mirroring the
+// full-replace strategy of savePokemonTags. The insert uses OR IGNORE because a
+// duplicate canonical_name would violate the primary key and abort the whole
+// transaction, taking every later save step with it. sort_order stores the slice
+// index so the chip order stays stable across a round-trip.
+func savePhaseTargets(tx *sql.Tx, pokemon []state.Pokemon) error {
+	stmt, err := tx.Prepare(`INSERT OR IGNORE INTO phase_targets
+		(pokemon_id, canonical_name, name, sprite_url, sort_order) VALUES (?, ?, ?, ?, ?)`)
+	if err != nil {
+		return fmt.Errorf("prepare phase_targets insert: %w", err)
+	}
+	defer func() { _ = stmt.Close() }()
+	for _, p := range pokemon {
+		if _, err := tx.Exec(`DELETE FROM phase_targets WHERE pokemon_id = ?`, p.ID); err != nil {
+			return fmt.Errorf("delete phase_targets for %q: %w", p.ID, err)
+		}
+		for i, target := range p.PhaseTargets {
+			if target.CanonicalName == "" {
+				continue
+			}
+			if _, err := stmt.Exec(p.ID, target.CanonicalName, target.Name, target.SpriteURL, i); err != nil {
+				return fmt.Errorf("insert phase target %q on %q: %w", target.CanonicalName, p.ID, err)
+			}
+		}
+	}
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // SaveFullState extracted helpers
 // ---------------------------------------------------------------------------
@@ -270,8 +303,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 		INSERT INTO pokemon (id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
 			completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
-			hunt_mode, group_id, sort_order)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			hunt_mode, group_id, phase_of, phase_number, sort_order)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name                 = excluded.name,
 			base_name            = excluded.base_name,
@@ -295,6 +328,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			timer_accumulated_ms = excluded.timer_accumulated_ms,
 			hunt_mode            = excluded.hunt_mode,
 			group_id             = excluded.group_id,
+			phase_of             = excluded.phase_of,
+			phase_number         = excluded.phase_number,
 			sort_order           = excluded.sort_order`)
 	if err != nil {
 		return fmt.Errorf("prepare pokemon upsert: %w", err)
@@ -307,7 +342,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			p.SpriteStyle, p.Encounters, p.Step, boolToInt(p.IsActive),
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
 			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm),
-			nullTimeStr(p.TimerStartedAt), p.TimerAccumulatedMs, p.HuntMode, p.GroupID, i,
+			nullTimeStr(p.TimerStartedAt), p.TimerAccumulatedMs, p.HuntMode, p.GroupID,
+			p.PhaseOf, p.PhaseNumber, i,
 		); err != nil {
 			return fmt.Errorf("upsert pokemon %q: %w", p.ID, err)
 		}
@@ -488,17 +524,19 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 
 	// Insert sprite element.
 	spriteID, err := insertElement(tx, elementInsertParams{
-		overlayID:        overlayID,
-		elemType:         "sprite",
-		base:             &ov.Sprite.OverlayElementBase,
-		showGlow:         boolToInt(ov.Sprite.ShowGlow),
-		glowColor:        ov.Sprite.GlowColor,
-		glowOpacity:      ov.Sprite.GlowOpacity,
-		glowBlur:         ov.Sprite.GlowBlur,
-		idleAnim:         ov.Sprite.IdleAnimation,
-		triggerEnter:     ov.Sprite.TriggerEnter,
-		triggerExit:      ov.Sprite.TriggerExit,
-		triggerDecrement: ov.Sprite.TriggerDecrement,
+		overlayID:         overlayID,
+		elemType:          "sprite",
+		base:              &ov.Sprite.OverlayElementBase,
+		showGlow:          boolToInt(ov.Sprite.ShowGlow),
+		glowColor:         ov.Sprite.GlowColor,
+		glowOpacity:       ov.Sprite.GlowOpacity,
+		glowBlur:          ov.Sprite.GlowBlur,
+		idleAnim:          ov.Sprite.IdleAnimation,
+		triggerEnter:      ov.Sprite.TriggerEnter,
+		triggerExit:       ov.Sprite.TriggerExit,
+		triggerDecrement:  ov.Sprite.TriggerDecrement,
+		cyclePhaseTargets: ov.Sprite.CyclePhaseTargets,
+		cycleIntervalMs:   ov.Sprite.CycleIntervalMs,
 	})
 	if err != nil {
 		return fmt.Errorf("insert sprite element: %w", err)
@@ -601,6 +639,56 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		return fmt.Errorf("save odds label text style: %w", err)
 	}
 
+	// Insert the phasing elements, which all share one struct and therefore
+	// one insert path instead of three copied blocks.
+	for _, e := range labeledTextElements(ov) {
+		if err := insertLabeledTextElement(tx, overlayID, e.elemType, e.element); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// labeledTextElementRef pairs an element type with the OverlaySettings field
+// that stores it, so save and load share one list of the phasing elements.
+type labeledTextElementRef struct {
+	elemType string
+	element  *state.LabeledTextElement
+}
+
+// labeledTextElements returns the phasing text elements of an overlay in a
+// stable order together with their element_type values.
+func labeledTextElements(ov *state.OverlaySettings) []labeledTextElementRef {
+	return []labeledTextElementRef{
+		{elemType: "phase", element: &ov.Phase},
+		{elemType: "total_counter", element: &ov.TotalCounter},
+		{elemType: "total_timer", element: &ov.TotalTimer},
+	}
+}
+
+// insertLabeledTextElement persists one LabeledTextElement row together with
+// its main and label text styles.
+func insertLabeledTextElement(tx *sql.Tx, overlayID int64, elemType string, el *state.LabeledTextElement) error {
+	elementID, err := insertElement(tx, elementInsertParams{
+		overlayID:        overlayID,
+		elemType:         elemType,
+		base:             &el.OverlayElementBase,
+		idleAnim:         el.IdleAnimation,
+		triggerEnter:     el.TriggerEnter,
+		triggerDecrement: el.TriggerDecrement,
+		showLabel:        el.ShowLabel,
+		labelText:        el.LabelText,
+	})
+	if err != nil {
+		return fmt.Errorf("insert %s element: %w", elemType, err)
+	}
+	if err := saveTextStyle(tx, elementID, "main", &el.Style); err != nil {
+		return fmt.Errorf("save %s main text style: %w", elemType, err)
+	}
+	if err := saveTextStyle(tx, elementID, "label", &el.LabelStyle); err != nil {
+		return fmt.Errorf("save %s label text style: %w", elemType, err)
+	}
 	return nil
 }
 
@@ -621,10 +709,25 @@ type elementInsertParams struct {
 	showLabel        bool
 	labelText        string
 	format           string // populated only for "odds" elements
+	// cyclePhaseTargets and cycleIntervalMs are populated only for "sprite".
+	cyclePhaseTargets bool
+	cycleIntervalMs   int
+}
+
+// labelBearingElementTypes is the set of element types whose rows carry the
+// show_label and label_text columns. Every other type stores NULL there.
+var labelBearingElementTypes = map[string]bool{
+	"counter":       true,
+	"timer":         true,
+	"odds":          true,
+	"phase":         true,
+	"total_counter": true,
+	"total_timer":   true,
 }
 
 // insertElement inserts one overlay_elements row and returns its auto-increment ID.
-// showGlow/glowColor/glowOpacity/glowBlur are nullable and only meaningful for sprite.
+// showGlow/glowColor/glowOpacity/glowBlur and the cycle columns are nullable and
+// only meaningful for sprite.
 func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 	// Use sql.NullInt64/NullString for sprite-only and label-bearing fields.
 	var glowShowVal, glowBlurVal sql.NullInt64
@@ -632,14 +735,17 @@ func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 	var glowOpacityVal sql.NullFloat64
 	var showLabelVal sql.NullInt64
 	var labelTextVal sql.NullString
+	var cyclePhaseTargetsVal, cycleIntervalVal sql.NullInt64
 
 	if p.elemType == "sprite" {
 		glowShowVal = sql.NullInt64{Int64: int64(p.showGlow), Valid: true}
 		glowColorVal = sql.NullString{String: p.glowColor, Valid: true}
 		glowOpacityVal = sql.NullFloat64{Float64: p.glowOpacity, Valid: true}
 		glowBlurVal = sql.NullInt64{Int64: int64(p.glowBlur), Valid: true}
+		cyclePhaseTargetsVal = sql.NullInt64{Int64: int64(boolToInt(p.cyclePhaseTargets)), Valid: true}
+		cycleIntervalVal = sql.NullInt64{Int64: int64(p.cycleIntervalMs), Valid: true}
 	}
-	if p.elemType == "counter" || p.elemType == "timer" || p.elemType == "odds" {
+	if labelBearingElementTypes[p.elemType] {
 		showLabelVal = sql.NullInt64{Int64: int64(boolToInt(p.showLabel)), Valid: true}
 		labelTextVal = sql.NullString{String: p.labelText, Valid: true}
 	}
@@ -647,11 +753,13 @@ func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 	res, err := tx.Exec(`
 		INSERT INTO overlay_elements (overlay_id, element_type, visible, x, y, width, height,
 			z_index, show_glow, glow_color, glow_opacity, glow_blur,
-			idle_animation, trigger_enter, trigger_exit, trigger_decrement, show_label, label_text, format)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			idle_animation, trigger_enter, trigger_exit, trigger_decrement, show_label, label_text, format,
+			cycle_phase_targets, cycle_interval_ms)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.overlayID, p.elemType, boolToInt(p.base.Visible), p.base.X, p.base.Y, p.base.Width, p.base.Height,
 		p.base.ZIndex, glowShowVal, glowColorVal, glowOpacityVal, glowBlurVal,
 		p.idleAnim, p.triggerEnter, p.triggerExit, p.triggerDecrement, showLabelVal, labelTextVal, p.format,
+		cyclePhaseTargetsVal, cycleIntervalVal,
 	)
 	if err != nil {
 		return 0, err

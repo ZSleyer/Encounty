@@ -36,7 +36,8 @@ func (m *mockDetectorStopper) Stop(pokemonID string) {
 
 // mockEncounterLogger records encounter log calls for verification.
 type mockEncounterLogger struct {
-	logged []encounterLogEntry
+	logged  []encounterLogEntry
+	deleted []string
 }
 
 // encounterLogEntry captures the arguments passed to LogEncounter.
@@ -60,8 +61,10 @@ func (m *mockEncounterLogger) LogEncounter(pokemonID, pokemonName string, delta,
 	return nil
 }
 
-// DeleteEncounterEvents is a no-op mock for clearing encounter events on reset.
-func (m *mockEncounterLogger) DeleteEncounterEvents(_ string) error {
+// DeleteEncounterEvents records the id whose encounter events were cleared, so
+// tests can assert that a phased hunt keeps its history.
+func (m *mockEncounterLogger) DeleteEncounterEvents(pokemonID string) error {
+	m.deleted = append(m.deleted, pokemonID)
 	return nil
 }
 
@@ -189,6 +192,16 @@ func (d *testDeps) StateCompletePokemon(id string) bool { return d.stateMgr.Comp
 // StateUncompletePokemon delegates to the real state manager.
 func (d *testDeps) StateUncompletePokemon(id string) bool {
 	return d.stateMgr.UncompletePokemon(id)
+}
+
+// StateEndPhase delegates to the real state manager.
+func (d *testDeps) StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error) {
+	return d.stateMgr.EndPhase(parentID, catch)
+}
+
+// StateUndoPhase delegates to the real state manager.
+func (d *testDeps) StateUndoPhase(childID string) (state.Pokemon, error) {
+	return d.stateMgr.UndoPhase(childID)
 }
 
 // StateUnlinkOverlay delegates to the real state manager.
@@ -898,6 +911,264 @@ func TestUncompletePokemonNotFound(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
+	}
+}
+
+// --- POST /api/pokemon/{id}/phase --------------------------------------------
+
+// TestEndPhaseCreated verifies that ending a phase returns 201 with the new
+// phase entry and restarts the hunt's counter at zero.
+func TestEndPhaseCreated(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+	deps.stateMgr.SetEncounters("p1", 420)
+
+	body := jsonBody(t, map[string]string{
+		"canonical_name": "hoothoot",
+		"name":           "Hoothoot",
+		"sprite_url":     "https://example.test/hoothoot.png",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/phase", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusCreated)
+	}
+
+	var child state.Pokemon
+	decodeJSON(t, w, &child)
+	if child.Name != "Hoothoot" {
+		t.Errorf(fmtWantName, child.Name, "Hoothoot")
+	}
+	if child.PhaseOf != "p1" || child.PhaseNumber != 1 {
+		t.Errorf("phase link = %q/%d, want p1/1", child.PhaseOf, child.PhaseNumber)
+	}
+	if child.Encounters != 420 {
+		t.Errorf("child Encounters = %d, want the frozen 420", child.Encounters)
+	}
+	if deps.saveCount == 0 {
+		t.Error(fmtWantSaveCall)
+	}
+
+	st := deps.stateMgr.GetState()
+	if st.Pokemon[0].Encounters != 0 {
+		t.Errorf("hunt Encounters = %d, want 0 after the phase change", st.Pokemon[0].Encounters)
+	}
+}
+
+// TestEndPhaseMissingName verifies that a body without a name returns 400,
+// since the name is the only required field of the request.
+func TestEndPhaseMissingName(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+
+	body := jsonBody(t, map[string]string{"name": "   "})
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/phase", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusBadRequest)
+	}
+	if len(deps.stateMgr.GetState().Pokemon) != 1 {
+		t.Error("no phase entry should have been created")
+	}
+}
+
+// TestEndPhaseNotFound verifies that ending a phase of an unknown hunt
+// returns 404.
+func TestEndPhaseNotFound(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	body := jsonBody(t, map[string]string{"name": "Hoothoot"})
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/nonexistent/phase", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
+	}
+}
+
+// TestEndPhaseConflict verifies that a completed hunt cannot end a phase and
+// answers with 409.
+func TestEndPhaseConflict(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+	deps.stateMgr.CompletePokemon("p1")
+
+	body := jsonBody(t, map[string]string{"name": "Hoothoot"})
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/phase", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusConflict)
+	}
+}
+
+// --- DELETE /api/pokemon/{id}/phase ------------------------------------------
+
+// phasePath builds the /api/pokemon/{id}/phase route for the given entry id.
+func phasePath(id string) string { return pathPokemon + "/" + id + "/phase" }
+
+// endPhaseOn ends one phase of the hunt with parentID and returns the created
+// phase entry, so the undo tests start from a real phase history.
+func endPhaseOn(t *testing.T, deps *testDeps, parentID, name string) state.Pokemon {
+	t.Helper()
+	child, err := deps.stateMgr.EndPhase(parentID, state.PhaseCatch{Name: name})
+	if err != nil {
+		t.Fatalf("EndPhase(%s): %v", parentID, err)
+	}
+	return child
+}
+
+// TestUndoPhaseSuccess verifies that deleting the newest phase answers 200 with
+// the parent hunt, hands the frozen encounters and timer back to it and drops
+// the phase entry.
+func TestUndoPhaseSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+	deps.stateMgr.SetEncounters("p1", 420)
+	deps.stateMgr.SetTimer("p1", 90_000)
+	child := endPhaseOn(t, deps, "p1", "Hoothoot")
+	deps.stateMgr.SetEncounters("p1", 7)
+
+	req := httptest.NewRequest(http.MethodDelete, phasePath(child.ID), nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusOK)
+	}
+
+	var parent state.Pokemon
+	decodeJSON(t, w, &parent)
+	if parent.ID != "p1" {
+		t.Fatalf("parent id = %q, want p1", parent.ID)
+	}
+	if parent.Encounters != 427 {
+		t.Errorf("parent Encounters = %d, want 427 (7 + the 420 of the phase)", parent.Encounters)
+	}
+	if parent.TimerAccumulatedMs != 90_000 {
+		t.Errorf("parent TimerAccumulatedMs = %d, want 90000", parent.TimerAccumulatedMs)
+	}
+	if len(deps.stateMgr.GetState().Pokemon) != 1 {
+		t.Error("the phase entry should have been removed")
+	}
+	if deps.saveCount == 0 {
+		t.Error(fmtWantSaveCall)
+	}
+	if deps.broadcastN == 0 {
+		t.Error("expected BroadcastState to be called")
+	}
+}
+
+// TestUndoPhaseNotFound verifies that undoing a phase of an unknown entry
+// answers 404.
+func TestUndoPhaseNotFound(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodDelete, phasePath("nonexistent"), nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
+	}
+}
+
+// TestUndoPhaseConflict verifies that an entry which is not a phase cannot be
+// undone and answers 409.
+func TestUndoPhaseConflict(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+
+	req := httptest.NewRequest(http.MethodDelete, phasePath("p1"), nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusConflict)
+	}
+	if len(deps.stateMgr.GetState().Pokemon) != 1 {
+		t.Error("the hunt should still exist")
+	}
+}
+
+// TestUndoPhaseMethodNotAllowed verifies that a verb other than POST or DELETE
+// on the phase route is rejected.
+func TestUndoPhaseMethodNotAllowed(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+
+	req := httptest.NewRequest(http.MethodPut, phasePath("p1"), nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusMethodNotAllowed {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusMethodNotAllowed)
+	}
+}
+
+// --- Encounter history of phased hunts ---------------------------------------
+
+// TestResetKeepsHistoryOfPhasedHunt verifies that resetting a hunt with phases
+// leaves the encounter events alone: the reset only zeroes the counter of the
+// running phase, while the events of every earlier phase stay on the hunt.
+func TestResetKeepsHistoryOfPhasedHunt(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+	endPhaseOn(t, deps, "p1", "Hoothoot")
+
+	req := httptest.NewRequest(http.MethodPost, pathPokemonByP1+"/reset", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNoContent)
+	}
+	if len(deps.logger.deleted) != 0 {
+		t.Errorf("DeleteEncounterEvents called for %v, want no call on a phased hunt", deps.logger.deleted)
+	}
+}
+
+// TestResetClearsHistoryWithoutPhases verifies that the guard is limited to
+// phased hunts: an ordinary hunt still drops its events on reset.
+func TestResetClearsHistoryWithoutPhases(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+
+	req := httptest.NewRequest(http.MethodPost, pathPokemonByP1+"/reset", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNoContent)
+	}
+	if len(deps.logger.deleted) != 1 || deps.logger.deleted[0] != "p1" {
+		t.Errorf("deleted = %v, want [p1]", deps.logger.deleted)
+	}
+}
+
+// TestDecrementToZeroKeepsHistoryOfPhasedHunt verifies that counting a phased
+// hunt back down to zero keeps the events of the earlier phases.
+func TestDecrementToZeroKeepsHistoryOfPhasedHunt(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+	endPhaseOn(t, deps, "p1", "Hoothoot")
+	deps.stateMgr.SetEncounters("p1", 1)
+
+	req := httptest.NewRequest(http.MethodPost, pathPokemonByP1+"/decrement", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusOK)
+	}
+	if len(deps.logger.deleted) != 0 {
+		t.Errorf("DeleteEncounterEvents called for %v, want no call on a phased hunt", deps.logger.deleted)
 	}
 }
 

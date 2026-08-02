@@ -139,6 +139,7 @@ func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
 	migrateTitleElement(global)
 	migrateTimerElement(global)
 	migrateOddsElement(global)
+	migratePhasingElements(global)
 
 	for i := range pokemon {
 		if pokemon[i].Overlay != nil {
@@ -146,6 +147,7 @@ func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
 			migrateTitleElement(pokemon[i].Overlay)
 			migrateTimerElement(pokemon[i].Overlay)
 			migrateOddsElement(pokemon[i].Overlay)
+			migratePhasingElements(pokemon[i].Overlay)
 		}
 	}
 }
@@ -267,6 +269,79 @@ func migrateOddsElement(o *OverlaySettings) {
 	}
 	if o.Odds.Format == "" {
 		o.Odds.Format = "fractional"
+	}
+}
+
+// migratePhasingElements fills in default values for the overlay elements that
+// arrived with the phasing feature (phase number, total encounters, total
+// timer) plus the sprite cycling settings, for state saved before they existed.
+func migratePhasingElements(o *OverlaySettings) {
+	fillLabeledTextElement(&o.Phase, LabeledTextElement{
+		OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 122, Width: 120, Height: 36, ZIndex: 7},
+		Style:              phasingTextStyle(),
+		LabelText:          "Phase",
+		LabelStyle:         phasingLabelStyle(),
+		IdleAnimation:      animationNone,
+		TriggerEnter:       animationNone,
+		TriggerDecrement:   animationNone,
+	})
+	fillLabeledTextElement(&o.TotalCounter, LabeledTextElement{
+		OverlayElementBase: OverlayElementBase{Visible: false, X: 660, Y: 122, Width: 130, Height: 36, ZIndex: 8},
+		Style:              phasingTextStyle(),
+		LabelText:          "Total Encounter",
+		LabelStyle:         phasingLabelStyle(),
+		IdleAnimation:      animationNone,
+		TriggerEnter:       animationNone,
+		TriggerDecrement:   animationNone,
+	})
+	fillLabeledTextElement(&o.TotalTimer, LabeledTextElement{
+		OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 162, Width: 260, Height: 36, ZIndex: 9},
+		Style:              phasingTextStyle(),
+		LabelText:          "Total Timer",
+		LabelStyle:         phasingLabelStyle(),
+		IdleAnimation:      animationNone,
+		TriggerEnter:       animationNone,
+		TriggerDecrement:   animationNone,
+	})
+	// 0 would stop the sprite cycling from ever advancing.
+	if o.Sprite.CycleIntervalMs <= 0 {
+		o.Sprite.CycleIntervalMs = defaultSpriteCycleIntervalMs
+	}
+}
+
+// fillLabeledTextElement replaces el with def when el was never persisted.
+// Zero width and height identify such a row, the same probe migrateOddsElement
+// uses: no user can size an element down to nothing in the editor.
+func fillLabeledTextElement(el *LabeledTextElement, def LabeledTextElement) {
+	if el.Width == 0 && el.Height == 0 {
+		*el = def
+	}
+}
+
+// phasingTextStyle returns the shared value typography of the phasing overlay
+// elements, used both by the defaults in NewManager and by the migration below.
+func phasingTextStyle() TextStyle {
+	return TextStyle{
+		FontFamily:   fontPokemon,
+		FontSize:     24,
+		FontWeight:   700,
+		ColorType:    colorTypeSolid,
+		Color:        colorWhite,
+		OutlineType:  outlineTypeSolid,
+		OutlineWidth: 3,
+		OutlineColor: colorBlack,
+	}
+}
+
+// phasingLabelStyle returns the shared label typography of the phasing overlay
+// elements, used both by the defaults in NewManager and by the migration below.
+func phasingLabelStyle() TextStyle {
+	return TextStyle{
+		FontFamily: "sans",
+		FontSize:   14,
+		FontWeight: 400,
+		ColorType:  colorTypeSolid,
+		Color:      "#94a3b8",
 	}
 }
 

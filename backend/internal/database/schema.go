@@ -77,6 +77,8 @@ var schemaV2 = []string{
 		timer_accumulated_ms INTEGER NOT NULL DEFAULT 0,
 		hunt_mode            TEXT    NOT NULL DEFAULT 'both',
 		group_id             TEXT    NOT NULL DEFAULT '',
+		phase_of             TEXT    NOT NULL DEFAULT '',
+		phase_number         INTEGER NOT NULL DEFAULT 0,
 		sort_order           INTEGER NOT NULL DEFAULT 0
 	)`,
 
@@ -95,6 +97,19 @@ var schemaV2 = []string{
 		pokemon_id TEXT NOT NULL,
 		tag        TEXT NOT NULL,
 		PRIMARY KEY (pokemon_id, tag),
+		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
+	)`,
+
+	// ── Phase targets (many-to-many) ─────────────────────────────────────
+	// Species a hunter expects as off-target shinies during a hunt. The primary
+	// key already covers lookups by pokemon_id, so no extra index is needed.
+	`CREATE TABLE IF NOT EXISTS phase_targets (
+		pokemon_id     TEXT    NOT NULL,
+		canonical_name TEXT    NOT NULL,
+		name           TEXT    NOT NULL DEFAULT '',
+		sprite_url     TEXT    NOT NULL DEFAULT '',
+		sort_order     INTEGER NOT NULL DEFAULT 0,
+		PRIMARY KEY (pokemon_id, canonical_name),
 		FOREIGN KEY (pokemon_id) REFERENCES pokemon(id) ON DELETE CASCADE
 	)`,
 
@@ -132,7 +147,8 @@ var schemaV2 = []string{
 		UNIQUE(owner_type, owner_id)
 	)`,
 
-	// ── Overlay elements (sprite, name, title, counter, timer, odds) ─────
+	// ── Overlay elements (sprite, name, title, counter, timer, odds,
+	//    phase, total_counter, total_timer) ────────────────────────────────
 	`CREATE TABLE IF NOT EXISTS overlay_elements (
 		id             INTEGER PRIMARY KEY AUTOINCREMENT,
 		overlay_id     INTEGER NOT NULL,
@@ -154,6 +170,8 @@ var schemaV2 = []string{
 		show_label     INTEGER,
 		label_text     TEXT,
 		format         TEXT    NOT NULL DEFAULT '',
+		cycle_phase_targets INTEGER,
+		cycle_interval_ms   INTEGER,
 		UNIQUE(overlay_id, element_type),
 		FOREIGN KEY (overlay_id) REFERENCES overlay_settings(id) ON DELETE CASCADE
 	)`,

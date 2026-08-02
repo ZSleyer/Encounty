@@ -3,6 +3,7 @@
 package pokemon
 
 import (
+	"errors"
 	"net/http"
 	"os"
 	"strings"
@@ -33,6 +34,19 @@ type setEncountersRequest struct {
 // setTimerRequest is the JSON body for POST /api/pokemon/{id}/timer/set.
 type setTimerRequest struct {
 	Ms int64 `json:"ms"`
+}
+
+// endPhaseRequest is the JSON body for POST /api/pokemon/{id}/phase. It only
+// carries the identity of the off-target shiny that ended the phase; every
+// other field of the resulting archive entry comes from the parent hunt. Name
+// is the sole required field so a phase can also be ended with a free-text
+// species that has no Pokédex entry yet.
+type endPhaseRequest struct {
+	CanonicalName string `json:"canonical_name"`
+	Name          string `json:"name"`
+	BaseName      string `json:"base_name"`
+	FormName      string `json:"form_name"`
+	SpriteURL     string `json:"sprite_url"`
 }
 
 // reorderRequest is the JSON body for PUT /api/pokemon/reorder. Order lists the
@@ -86,6 +100,12 @@ type Deps interface {
 	StateSetActive(id string) bool
 	StateCompletePokemon(id string) bool
 	StateUncompletePokemon(id string) bool
+	// StateEndPhase archives catch as a phase entry of the hunt and restarts
+	// the hunt's counter and timer at zero.
+	StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error)
+	// StateUndoPhase removes the newest phase entry of a hunt and returns its
+	// encounters and timer milliseconds to the parent hunt.
+	StateUndoPhase(childID string) (state.Pokemon, error)
 	StateUnlinkOverlay(pokemonID string) bool
 	StateStartTimer(id string) bool
 	StateStopTimer(id string) bool
@@ -176,6 +196,16 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 		h.handleCompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/complete"))
 	case strings.HasSuffix(path, "/uncomplete"):
 		h.handleUncompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
+	case strings.HasSuffix(path, "/phase"):
+		id := httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/phase")
+		switch r.Method {
+		case http.MethodPost:
+			h.handleEndPhase(w, r, id)
+		case http.MethodDelete:
+			h.handleUndoPhase(w, r, id)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	default:
 		id := httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "")
 		switch r.Method {
@@ -328,7 +358,11 @@ func (h *handler) handleDecrement(w http.ResponseWriter, _ *http.Request, id str
 		return
 	}
 	h.logEncounter(id, count, -1, "api")
-	if count == 0 {
+	// Counting back down to zero clears the event history, but only for a hunt
+	// without phases: the events of every earlier phase stay on the hunt, so
+	// dropping them here would erase the whole chart instead of the few events
+	// of the current phase.
+	if count == 0 && !h.hasPhases(id) {
 		if logger := h.deps.EncounterLogger(); logger != nil {
 			_ = logger.DeleteEncounterEvents(id)
 		}
@@ -354,8 +388,13 @@ func (h *handler) handleReset(w http.ResponseWriter, _ *http.Request, id string)
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
 		return
 	}
-	if logger := h.deps.EncounterLogger(); logger != nil {
-		_ = logger.DeleteEncounterEvents(id)
+	// A reset only zeroes the counter of the running phase; the phase entries
+	// keep their own encounters. Dropping the events of a phased hunt here would
+	// therefore erase history that the reset did not touch.
+	if !h.hasPhases(id) {
+		if logger := h.deps.EncounterLogger(); logger != nil {
+			_ = logger.DeleteEncounterEvents(id)
+		}
 	}
 	h.deps.StateScheduleSave()
 	h.deps.Broadcaster().BroadcastRaw("encounter_reset", map[string]any{"pokemon_id": id})
@@ -534,6 +573,75 @@ func (h *handler) handleUncompletePokemon(w http.ResponseWriter, _ *http.Request
 	h.pokemonMutate(w, id, "", h.deps.StateUncompletePokemon)
 }
 
+// handleEndPhase ends the current phase of the hunt: the off-target shiny from
+// the request body becomes a completed phase entry linked to the hunt, and the
+// hunt's counter and timer restart at zero.
+// POST /api/pokemon/{id}/phase
+//
+// @Summary      End the current phase
+// @Description  Archives the off-target shiny as a linked phase entry and restarts the hunt's counter and timer at zero
+// @Tags         pokemon
+// @Accept       json
+// @Produce      json
+// @Param        id path string true "Pokemon ID"
+// @Param        body body endPhaseRequest true "Off-target shiny that ended the phase"
+// @Success      201 {object} state.Pokemon
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Failure      409 {object} httputil.ErrResp
+// @Router       /pokemon/{id}/phase [post]
+func (h *handler) handleEndPhase(w http.ResponseWriter, r *http.Request, id string) {
+	var body endPhaseRequest
+	if err := httputil.ReadJSON(r, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	catch := state.PhaseCatch{
+		CanonicalName: strings.TrimSpace(body.CanonicalName),
+		Name:          strings.TrimSpace(body.Name),
+		BaseName:      strings.TrimSpace(body.BaseName),
+		FormName:      strings.TrimSpace(body.FormName),
+		SpriteURL:     normalizeCatchSpriteURL(strings.TrimSpace(body.SpriteURL), id),
+	}
+	if catch.Name == "" {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "name is required"})
+		return
+	}
+	child, err := h.deps.StateEndPhase(id, catch)
+	if err != nil {
+		writePhaseError(w, err)
+		return
+	}
+	h.deps.StateScheduleSave()
+	h.deps.BroadcastState()
+	httputil.WriteJSON(w, http.StatusCreated, child)
+}
+
+// handleUndoPhase reverts the newest phase of a hunt: the phase entry with the
+// given id is removed and its encounters and timer milliseconds flow back into
+// the parent hunt. Responds with the updated parent hunt.
+// DELETE /api/pokemon/{id}/phase
+//
+// @Summary      Undo a phase
+// @Description  Removes the newest phase entry and returns its encounters and timer to the parent hunt
+// @Tags         pokemon
+// @Produce      json
+// @Param        id path string true "Phase entry ID"
+// @Success      200 {object} state.Pokemon
+// @Failure      404 {object} httputil.ErrResp
+// @Failure      409 {object} httputil.ErrResp
+// @Router       /pokemon/{id}/phase [delete]
+func (h *handler) handleUndoPhase(w http.ResponseWriter, _ *http.Request, id string) {
+	parent, err := h.deps.StateUndoPhase(id)
+	if err != nil {
+		writePhaseError(w, err)
+		return
+	}
+	h.deps.StateScheduleSave()
+	h.deps.BroadcastState()
+	httputil.WriteJSON(w, http.StatusOK, parent)
+}
+
 // handleUnlinkOverlay copies the resolved overlay into the Pokemon and sets
 // its mode to "custom", breaking any link to another Pokemon's overlay.
 // POST /api/pokemon/{id}/overlay/unlink
@@ -575,6 +683,45 @@ func (h *handler) pokemonMutate(w http.ResponseWriter, id string, eventType stri
 }
 
 // --- Helpers -----------------------------------------------------------------
+
+// writePhaseError maps the sentinel errors of the phase state transitions onto
+// HTTP status codes: an unknown hunt is a 404, a hunt or entry that may not
+// take part in the transition is a 409.
+func writePhaseError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, state.ErrPhaseParentNotFound):
+		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+	case errors.Is(err, state.ErrNotPhaseable):
+		httputil.WriteJSON(w, http.StatusConflict, httputil.ErrResp{Error: err.Error()})
+	default:
+		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})
+	}
+}
+
+// normalizeCatchSpriteURL drops a sprite URL that points at the sprite upload
+// endpoint of the hunt the phase belongs to. That BLOB is owned by the hunt and
+// disappears with it, so a phase entry referencing it would end up with a dead
+// image; an empty URL lets the frontend fall back to the default sprite.
+func normalizeCatchSpriteURL(spriteURL, parentID string) string {
+	uploadPath := pokemonAPIPrefix + parentID + "/sprite"
+	if spriteURL == uploadPath || strings.HasPrefix(spriteURL, uploadPath+"?") {
+		return ""
+	}
+	return spriteURL
+}
+
+// hasPhases reports whether the Pokemon with the given id has phase entries
+// attached to it.
+//
+// This clones the whole state, unlike the equivalent check on the WebSocket and
+// hotkey paths, which reads the live Pokemon slice under a read lock. Avoiding
+// the clone here would mean a new Deps method plus its test double, while the
+// decrement caller already clones the state one line earlier through
+// logEncounter, so the interface stays as small as it is.
+func (h *handler) hasPhases(id string) bool {
+	st := h.deps.StateGetState()
+	return len(state.PhaseChildren(st.Pokemon, id)) > 0
+}
 
 // logEncounter writes an encounter event to the database.
 // It resolves the Pokemon name and computes the step delta.
