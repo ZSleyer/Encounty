@@ -265,10 +265,7 @@ jobs:
       - name: Render PKGBUILD from the published release assets
         run: ./scripts/render-aur-pkgbuild.sh "${GITHUB_REF#refs/tags/v}"
 
-      # Push access depends on being a co-maintainer of the package, which is not
-      # confirmed yet. Until it is, a rejected push must not fail the release.
       - name: Push to the AUR
-        continue-on-error: true
         uses: KSXGitHub/github-actions-deploy-aur@v4.2.0
         with:
           pkgname: encounty-bin
