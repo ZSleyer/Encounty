@@ -265,6 +265,32 @@ jobs:
       - name: Render PKGBUILD from the published release assets
         run: ./scripts/render-aur-pkgbuild.sh "${GITHUB_REF#refs/tags/v}"
 
+      # The AUR takes writes down for maintenance without warning while reads stay
+      # up, so only the authenticated SSH endpoint tells us whether a push can
+      # land. It answers with a maintenance banner after the key is accepted.
+      # Wait that out instead of shipping a release whose AUR package silently
+      # stayed on the previous version.
+      - name: Wait for AUR writes to be available
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          ssh-keyscan -H aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+          for attempt in $(seq 1 30); do
+            reply=$(ssh -i ~/.ssh/aur -o BatchMode=yes -o ConnectTimeout=15 \
+              aur@aur.archlinux.org help 2>&1 || true)
+            if ! printf '%s' "$reply" | grep -qi 'maintenance'; then
+              echo "AUR writes available after $attempt attempt(s)."
+              exit 0
+            fi
+            echo "AUR is in maintenance, retrying in 60s ($attempt/30)."
+            sleep 60
+          done
+          echo "::error::AUR still in maintenance after 30 minutes."
+          exit 1
+
       - name: Push to the AUR
         uses: KSXGitHub/github-actions-deploy-aur@v4.2.0
         with:
