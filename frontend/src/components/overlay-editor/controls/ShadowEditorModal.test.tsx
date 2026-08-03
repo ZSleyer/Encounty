@@ -54,9 +54,8 @@ describe("ShadowEditorModal", () => {
 
   it("shows color type toggle buttons", () => {
     render(<ShadowEditorModal {...defaultProps} />);
-    // t("overlay.colorSolid") and t("overlay.colorGradient") are missing keys, rendered as-is
-    expect(screen.getByText("overlay.colorSolid")).toBeInTheDocument();
-    expect(screen.getByText("overlay.colorGradient")).toBeInTheDocument();
+    expect(screen.getByText("Einfarbig")).toBeInTheDocument();
+    expect(screen.getByText("Verlauf")).toBeInTheDocument();
   });
 
   it("calls onClose when cancel button is clicked", () => {
@@ -111,7 +110,7 @@ describe("ShadowEditorModal", () => {
   it("renders blur slider", () => {
     render(<ShadowEditorModal {...defaultProps} />);
     // NumSlider renders a title with the label text
-    const blurSlider = screen.getByTitle("overlay.blurPx");
+    const blurSlider = screen.getByTitle("Blur");
     expect(blurSlider).toBeInTheDocument();
   });
 
@@ -132,8 +131,8 @@ describe("ShadowEditorModal", () => {
         ]}
       />,
     );
-    // "overlay.colorGradient" appears in both the toggle button and the label section
-    const matches = screen.getAllByText("overlay.colorGradient");
+    // "Verlauf" appears in both the toggle button and the label section
+    const matches = screen.getAllByText("Verlauf");
     expect(matches.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -141,7 +140,7 @@ describe("ShadowEditorModal", () => {
     const onConfirm = vi.fn();
     render(<ShadowEditorModal {...defaultProps} onConfirm={onConfirm} />);
     // Click the gradient toggle button (only one instance when colorType is solid)
-    fireEvent.click(screen.getAllByText("overlay.colorGradient")[0]);
+    fireEvent.click(screen.getAllByText("Verlauf")[0]);
     // Apply and verify colorType changed
     fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(
@@ -274,8 +273,8 @@ describe("ShadowEditorModal", () => {
   it("updates blur via slider and reflects in confirm output", () => {
     const onConfirm = vi.fn();
     render(<ShadowEditorModal {...defaultProps} blur={4} onConfirm={onConfirm} />);
-    // NumSlider renders a range input with title="overlay.blurPx"
-    const blurRange = screen.getByTitle("overlay.blurPx") as HTMLInputElement;
+    // NumSlider renders a range input with title="Blur"
+    const blurRange = screen.getByTitle("Blur") as HTMLInputElement;
     fireEvent.change(blurRange, { target: { value: "12" } });
     fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ blur: 12 }));

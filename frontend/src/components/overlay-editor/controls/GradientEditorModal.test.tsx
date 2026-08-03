@@ -32,8 +32,7 @@ describe("GradientEditorModal", () => {
 
   it("renders angle slider", () => {
     render(<GradientEditorModal {...defaultProps} />);
-    // t("overlay.angleDeg") is a missing key, rendered as the key itself
-    const slider = screen.getByTitle("overlay.angleDeg");
+    const slider = screen.getByTitle("Winkel");
     expect(slider).toBeInTheDocument();
   });
 

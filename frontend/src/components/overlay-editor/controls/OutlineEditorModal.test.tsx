@@ -22,15 +22,14 @@ describe("OutlineEditorModal", () => {
 
   it("renders type toggle buttons", () => {
     render(<OutlineEditorModal {...defaultProps} />);
-    // t("overlay.animNone") = "Keine", t("overlay.colorSolid") = "overlay.colorSolid" (missing key)
     expect(screen.getByText("Keine")).toBeInTheDocument();
-    expect(screen.getByText("overlay.colorSolid")).toBeInTheDocument();
+    expect(screen.getByText("Einfarbig")).toBeInTheDocument();
   });
 
   it("shows width slider when type is solid", () => {
     render(<OutlineEditorModal {...defaultProps} type="solid" />);
     // The NumSlider renders a range input
-    expect(screen.getByTitle("overlay.widthPx")).toBeInTheDocument();
+    expect(screen.getByTitle("Breite")).toBeInTheDocument();
   });
 
   it("hides width slider when type is none", () => {
