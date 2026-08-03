@@ -2,7 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { X, Plus } from "lucide-react";
-import { NumSlider } from "./NumSlider";
+import { AngleDial } from "./AngleDial";
 import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
 import type { GradientStop } from "../../../types";
@@ -269,7 +269,7 @@ export function GradientEditorModal({
 
       {/* --- Angle --- */}
       <div>
-        <NumSlider label={t("overlay.angleDeg")} value={angle} min={0} max={360} onChange={setAngle} />
+        <AngleDial label={t("overlay.gradientAngle")} value={angle} onChange={setAngle} />
       </div>
     </ModalShell>
   );

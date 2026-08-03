@@ -1,47 +1,13 @@
-import { useRef, useCallback, useMemo } from "react";
+import { useRef, useCallback } from "react";
 import { OverlaySettings, OverlayElementBase } from "../../types";
 import { Overlay } from "../../pages/Overlay";
 import type { Pokemon } from "../../types";
 import { Guide, useSnapping } from "../../hooks/useSnapping";
-import { useReducedMotion } from "../../hooks/useReducedMotion";
-import { useI18n } from "../../contexts/I18nContext";
 import {
   DRAGGABLE_ELEMENT_KEYS,
   type DraggableElementKey,
   type ElementKey,
 } from "../../utils/overlayElements";
-
-/** i18n label key per WebGL background animation, used for the reduced-motion placeholder. */
-const RB_LABEL_KEYS: Record<string, string> = {
-  "rb-aurora": "overlay.animAurora",
-  "rb-galaxy": "overlay.animGalaxy",
-  "rb-silk": "overlay.animSilk",
-  "rb-pixelblast": "overlay.animPixelBlast",
-};
-
-/**
- * Builds a static CSS gradient approximating a WebGL background animation.
- * Shown in the editor preview instead of the live WebGL canvas when motion
- * is reduced, using the same configured colors so the preview stays useful.
- */
-function buildStaticBgPreview(
-  key: string,
-  cfg: Record<string, unknown>,
-  backgroundColor: string,
-): string {
-  switch (key) {
-    case "rb-aurora":
-      return `linear-gradient(135deg, ${(cfg.auroraColor1 as string) ?? "#3A29FF"}, ${(cfg.auroraColor2 as string) ?? "#FF94B4"}, ${(cfg.auroraColor3 as string) ?? "#FF3232"})`;
-    case "rb-galaxy":
-      return "linear-gradient(135deg, #0b0d2a, #1b1035, #05060f)";
-    case "rb-silk":
-      return `linear-gradient(135deg, ${(cfg.silkColor as string) ?? "#5227FF"}, #1a1a2e)`;
-    case "rb-pixelblast":
-      return `linear-gradient(135deg, ${(cfg.pixelColor as string) ?? "#1a1a2e"}, ${backgroundColor})`;
-    default:
-      return backgroundColor;
-  }
-}
 
 type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -350,21 +316,6 @@ export function OverlayCanvas({
   onUpdate,
   snapEnabled,
 }: OverlayCanvasProps) {
-  // Reduced motion: the WebGL background animations (Aurora/Galaxy/Silk/
-  // PixelBlast) are replaced by a static gradient placeholder in the editor
-  // preview. The live /overlay OBS view is untouched.
-  const reducedMotion = useReducedMotion();
-  const { t } = useI18n();
-  const bgAnimKey = localSettings.background_animation ?? "none";
-  const suppressWebglPreview = reducedMotion && bgAnimKey in RB_LABEL_KEYS;
-  const previewSettings = useMemo(
-    () =>
-      suppressWebglPreview
-        ? { ...localSettings, background_animation: "none", background_opacity: 0 }
-        : localSettings,
-    [localSettings, suppressWebglPreview],
-  );
-
   const dragOpts = { settings: localSettings, onUpdate, canvasScale: effectiveScale, onDragStateChange, onGuidesChange, snapEnabled, gridSize };
   const spriteHandlers = useElementDrag({ elementKey: "sprite", ...dragOpts });
   const nameHandlers = useElementDrag({ elementKey: "name", ...dragOpts });
@@ -437,29 +388,9 @@ export function OverlayCanvas({
             height: localSettings.canvas_height,
           }}
         >
-          {/* Static stand-in for the WebGL background when motion is reduced.
-              Same footprint as the animated canvas so the layout is unchanged. */}
-          {suppressWebglPreview && (
-            <div
-              role="img"
-              aria-label={t(RB_LABEL_KEYS[bgAnimKey])}
-              style={{
-                position: "absolute",
-                inset: 0,
-                borderRadius: `${localSettings.border_radius}px`,
-                background: buildStaticBgPreview(
-                  bgAnimKey,
-                  localSettings.background_animation_config ?? {},
-                  localSettings.background_color,
-                ),
-                pointerEvents: "none",
-              }}
-            />
-          )}
-
           {/* Actual overlay preview */}
           <Overlay
-            previewSettings={previewSettings}
+            previewSettings={localSettings}
             previewPokemon={fakePreviewPokemon}
             previewPokemonList={previewPokemonList}
             testTrigger={testTrigger}

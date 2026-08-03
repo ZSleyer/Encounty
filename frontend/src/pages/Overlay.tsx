@@ -1,18 +1,22 @@
-import { useRef, useEffect, useMemo, useState, useReducer, lazy, Suspense } from "react";
+import { useRef, useEffect, useMemo, useState, useReducer } from "react";
 import { useParams } from "react-router";
 import { Pokemon, OverlaySettings, TextStyle, LabeledTextElement } from "../types";
 import { useCounterStore } from "../hooks/useCounterState";
 import { resolveOverlay } from "../utils/overlay";
+import {
+  buildBaseTextStyle,
+  buildFillPaint,
+  buildOutlinePaint,
+  effectiveOutlineWidth,
+  outlinePadding,
+  textDecorationPadding,
+} from "../utils/textStyle";
 import { resolveSpriteSrc } from "../utils/sprites";
 import { apiUrl } from "../utils/api";
 import { formatTimer, computeTimerMs } from "../utils/timer";
 import { computeOddsDisplay } from "../utils/odds";
 import { computePhaseStats, PhaseStats } from "../utils/phase";
-
-const Aurora = lazy(() => import("../components/backgrounds/Aurora"));
-const Galaxy = lazy(() => import("../components/backgrounds/Galaxy"));
-const Silk = lazy(() => import("../components/backgrounds/Silk"));
-const PixelBlast = lazy(() => import("../components/backgrounds/PixelBlast"));
+import { isGoogleFont } from "../utils/fonts";
 
 interface Props {
   previewSettings?: OverlaySettings;
@@ -146,11 +150,17 @@ function useAnimationTriggers(): {
   };
 }
 
-// Inject Google Font dynamically
+/**
+ * useGoogleFont injects the stylesheet of a curated Google font.
+ *
+ * Only the curated families exist on fonts.googleapis.com. Anything else, an
+ * engine alias or a family the user picked from their own machine, resolves
+ * locally, so requesting it from Google would only produce a failed request for
+ * a font that is already there.
+ */
 function useGoogleFont(fontFamily: string) {
   useEffect(() => {
-    const systemFonts = ["sans", "serif", "monospace", "pokemon"];
-    if (!fontFamily || systemFonts.includes(fontFamily)) return;
+    if (!isGoogleFont(fontFamily)) return;
     const id = `gfont-${fontFamily.replaceAll(/\s+/g, "-")}`;
     if (document.getElementById(id)) return;
     const link = document.createElement("link");
@@ -161,53 +171,126 @@ function useGoogleFont(fontFamily: string) {
   }, [fontFamily]);
 }
 
-function resolveFont(family: string): string {
-  if (family === "pokemon") return "'Press Start 2P', cursive";
-  if (family === "sans") return "'Inter', sans-serif";
-  if (family === "serif") return "serif";
-  if (family === "monospace") return "monospace";
-  return `'${family}', sans-serif`;
+/** Props of the layered text renderer. */
+interface StyledTextProps {
+  /** Style model the layers are derived from. */
+  style: TextStyle;
+  /** Classes of the outer element, carrying the trigger animation. */
+  className?: string;
+  /** Extra CSS for the outer element (display, animation, white-space). */
+  outerStyle?: React.CSSProperties;
+  children: React.ReactNode;
 }
 
-function buildTextStyle(style: TextStyle): React.CSSProperties {
-  const hasSolidOutline = style.outline_type === "solid";
+/**
+ * StyledText renders one text element, stroke and fill as two stacked layers.
+ *
+ * A single span cannot carry both: `background-clip: text` paints the gradient
+ * below the glyph, and the fill has to be transparent for the gradient to show,
+ * so an opaque stroke on the same span covers the gradient completely. The
+ * stroke therefore gets its own layer underneath, and the fill is painted on top
+ * of it at the same origin.
+ *
+ * Without an outline the element stays a single span, so the common case keeps
+ * exactly the DOM and CSS it had before.
+ */
+function StyledText({
+  style,
+  className,
+  outerStyle,
+  children,
+}: Readonly<StyledTextProps>) {
+  const base = buildBaseTextStyle(style);
+  const fill = buildFillPaint(style);
+  const width = effectiveOutlineWidth(style);
 
-  // Double width because fill covers the inner half via paint-order: stroke fill
-  const effectiveOutlineWidth = style.outline_width * 2;
-
-  // For gradient shadows, fall back to the first gradient stop color
-  const shadowColor =
-    style.text_shadow_color_type === "gradient" &&
-    style.text_shadow_gradient_stops?.length
-      ? style.text_shadow_gradient_stops[0].color
-      : style.text_shadow_color;
-
-  const css: React.CSSProperties = {
-    fontFamily: resolveFont(style.font_family),
-    fontSize: `${style.font_size}px`,
-    fontWeight: style.font_weight,
-    textAlign: (style.text_align || "left") as React.CSSProperties["textAlign"],
-    color: style.color,
-    WebkitTextStroke: hasSolidOutline
-      ? `${effectiveOutlineWidth}px ${style.outline_color}`
-      : undefined,
-    paintOrder: hasSolidOutline ? "stroke fill" : undefined,
-    textShadow: style.text_shadow
-      ? `${style.text_shadow_x}px ${style.text_shadow_y}px ${style.text_shadow_blur}px ${shadowColor}`
-      : undefined,
-  } as React.CSSProperties;
-
-  if (style.color_type === "gradient" && style.gradient_stops?.length >= 2) {
-    const stops = style.gradient_stops
-      .map((s) => `${s.color} ${s.position}%`)
-      .join(", ");
-    css.background = `linear-gradient(${style.gradient_angle}deg, ${stops})`;
-    css.WebkitBackgroundClip = "text";
-    css.WebkitTextFillColor = "transparent";
-    css.color = undefined;
+  if (width === 0) {
+    return (
+      <span className={className} style={{ ...base, ...fill, ...outerStyle }}>
+        {children}
+      </span>
+    );
   }
 
-  return css;
+  // Padding reserves the room the stroke needs outside the glyph box, the
+  // matching negative margin takes it back out of the layout so the glyph does
+  // not shift. Ancestors that clip therefore cut at the ink, not into it.
+  const pad = outlinePadding(style);
+
+  return (
+    <span
+      className={className}
+      style={{
+        display: "inline-block",
+        ...outerStyle,
+        position: "relative",
+        padding: pad,
+        margin: -pad,
+      }}
+    >
+      <span
+        className="overlay-text-stroke"
+        style={{ ...base, ...buildOutlinePaint(style, width), display: "block" }}
+      >
+        {children}
+      </span>
+      {/* The same text twice would be announced twice, so the stroke layer is
+          the only one left in the accessibility tree. */}
+      <span
+        aria-hidden="true"
+        className="overlay-text-fill"
+        style={{
+          ...base,
+          ...fill,
+          // The shadow belongs to the widest silhouette, which is the stroke
+          // layer. Repeating it here would darken it a second time.
+          textShadow: undefined,
+          position: "absolute",
+          left: pad,
+          top: pad,
+          right: pad,
+        }}
+      >
+        {children}
+      </span>
+    </span>
+  );
+}
+
+/**
+ * TextLabel renders the optional label of a text element. Overlays saved before
+ * an element had a label style carry none, and those labels keep rendering
+ * unstyled instead of crashing on a missing style.
+ */
+function TextLabel({
+  style,
+  text,
+}: Readonly<{ style?: TextStyle; text: string }>) {
+  if (!style) return <span>{text}</span>;
+  return <StyledText style={style}>{text}</StyledText>;
+}
+
+/**
+ * CounterAffix renders the counter prefix or suffix in the counter's own text
+ * style, so the digit-animation modes keep the affixes that the plain counter
+ * span renders inline. An empty string renders nothing.
+ */
+function CounterAffix({
+  text,
+  counterStyle,
+}: Readonly<{ text: string; counterStyle: TextStyle }>) {
+  if (!text) return null;
+  return (
+    <StyledText
+      style={counterStyle}
+      className="font-black leading-none"
+      // pre keeps the spacing the user typed: a prefix like "Encounters: " ends
+      // in a space that HTML would otherwise collapse away against the digits.
+      outerStyle={{ display: "inline-block", whiteSpace: "pre" }}
+    >
+      {text}
+    </StyledText>
+  );
 }
 
 // Slot counter: only digits that change re-mount and animate
@@ -218,7 +301,7 @@ function SlotCounter({
   strokePadding = 0,
 }: Readonly<{
   value: number;
-  counterStyle: React.CSSProperties;
+  counterStyle: TextStyle;
   reverse?: boolean;
   strokePadding?: number;
 }>) {
@@ -231,16 +314,16 @@ function SlotCounter({
           key={`${i}_${digit}`}
           style={{ display: "inline-block", overflow: "hidden", padding: strokePadding, margin: -strokePadding }}
         >
-          <span
+          <StyledText
+            style={counterStyle}
             className="font-black tabular-nums leading-none"
-            style={{
+            outerStyle={{
               display: "block",
               animation: `${anim} 0.22s ease-out forwards`,
-              ...counterStyle,
             }}
           >
             {digit}
-          </span>
+          </StyledText>
         </span>
       ))}
     </span>
@@ -255,7 +338,7 @@ function FlipCounter({
   strokePadding = 0,
 }: Readonly<{
   value: number;
-  counterStyle: React.CSSProperties;
+  counterStyle: TextStyle;
   reverse?: boolean;
   strokePadding?: number;
 }>) {
@@ -267,18 +350,18 @@ function FlipCounter({
           key={`${i}_${digit}`}
           style={{ display: "inline-block", overflow: "hidden", padding: strokePadding, margin: -strokePadding }}
         >
-          <span
+          <StyledText
+            style={counterStyle}
             className="font-black tabular-nums leading-none"
-            style={{
+            outerStyle={{
               display: "block",
               animation: "overlay-flip 0.45s ease-in-out forwards",
               animationDirection: reverse ? "reverse" : "normal",
               transformOrigin: "center",
-              ...counterStyle,
             }}
           >
             {digit}
-          </span>
+          </StyledText>
         </span>
       ))}
     </span>
@@ -356,13 +439,20 @@ const BG_ANIM_CLASS: Record<string, string> = {
   "shimmer-bg": "canvas-shimmer-bg",
 };
 
-const RB_ANIMS = new Set(["rb-aurora", "rb-galaxy", "rb-silk", "rb-pixelblast"]);
-
 const BG_ANIM_DEFAULT_DURATION: Record<string, number> = {
   waves: 30,
   "gradient-shift": 8,
   "shimmer-bg": 3,
 };
+
+/**
+ * Own-key lookup for the animation maps. `in` would also match inherited
+ * Object.prototype members, so a stored animation key like "constructor" would
+ * pass the guard and resolve to a function that ends up in a class name.
+ */
+function hasOwnKey(map: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(map, key);
+}
 
 /**
  * Builds the inline style for a homebrew CSS-based background animation,
@@ -376,7 +466,10 @@ function buildHomebrewBgStyle(
 ): React.CSSProperties {
   const style: React.CSSProperties & Record<string, string> = {};
   if (speed && speed !== 1) {
-    style.animationDuration = `${(BG_ANIM_DEFAULT_DURATION[bgAnimKey] ?? 8) / speed}s`;
+    const base = hasOwnKey(BG_ANIM_DEFAULT_DURATION, bgAnimKey)
+      ? BG_ANIM_DEFAULT_DURATION[bgAnimKey]
+      : 8;
+    style.animationDuration = `${base / speed}s`;
   }
   if (bgAnimKey === "waves") {
     style["--waves-color"] = (cfg.wavesColor as string) ?? "#ffffff";
@@ -631,11 +724,6 @@ function buildOverlayStyles(
     .padStart(2, "0");
   const bgWithOpacity = `#${bgHex}${opacity}`;
 
-  const nameStyle = buildTextStyle(settings.name.style);
-  const counterStyle = buildTextStyle(settings.counter.style);
-  const labelStyle = buildTextStyle(settings.counter.label_style);
-  const titleStyle = settings.title ? buildTextStyle(settings.title.style) : {};
-
   const counterMode = settings.counter.trigger_enter;
 
   const outerStyle: React.CSSProperties = isPreview
@@ -650,7 +738,11 @@ function buildOverlayStyles(
   const borderWidth = settings.border_width ?? 2;
 
   const bgAnimKey = settings.background_animation ?? "none";
-  const hasBgAnim = bgAnimKey !== "none" && (bgAnimKey in BG_ANIM_CLASS || RB_ANIMS.has(bgAnimKey));
+  // Unknown keys (for example animations removed in a later version but still
+  // stored in an old profile) fall back to rendering no animation at all.
+  // A hidden canvas drops every background layer: the animation paints from its
+  // own color, opacity and keyframes, so clearing the card style is not enough.
+  const hasBgAnim = !hidden && hasOwnKey(BG_ANIM_CLASS, bgAnimKey);
 
   const bgStyle: React.CSSProperties = hidden
     ? { position: "absolute", inset: 0, pointerEvents: "none" }
@@ -673,7 +765,8 @@ function buildOverlayStyles(
   const bgImageUrl = settings.background_image
     ? apiUrl(`/api/backgrounds/${settings.background_image}`)
     : "";
-  const bgImageStyle: React.CSSProperties | undefined = settings.background_image
+  const showBgImage = !!settings.background_image && !hidden;
+  const bgImageStyle: React.CSSProperties | undefined = showBgImage
     ? {
         position: "absolute",
         inset: 0,
@@ -687,7 +780,7 @@ function buildOverlayStyles(
     : undefined;
 
   return {
-    nameStyle, counterStyle, labelStyle, titleStyle, counterMode,
+    counterMode,
     outerStyle, crispSprites, bgAnimKey, hasBgAnim,
     bgStyle, bgImageStyle,
   };
@@ -721,8 +814,6 @@ function LabeledTextLayer({
 }: Readonly<LabeledTextLayerProps>) {
   const alignMap: Record<string, string> = { center: "center", right: "flex-end" };
   const alignItems = alignMap[element.style.text_align] ?? "flex-start";
-  const valueStyle = buildTextStyle(element.style);
-  const labelStyle = element.label_style ? buildTextStyle(element.label_style) : {};
 
   return (
     <div
@@ -740,19 +831,24 @@ function LabeledTextLayer({
       }}
       className={TEXT_IDLE[element.idle_animation] ?? ""}
     >
-      <span
+      <StyledText
         key={`${channelKey}-${channel?.triggerId ?? 0}`}
+        style={element.style}
         className={`font-black tabular-nums leading-none ${channel?.animClass ?? ""}`}
-        style={{
-          ...valueStyle,
+        outerStyle={{
           display: "inline-block",
           transformOrigin: "center",
           animationDirection: channel?.reverse ? "reverse" : undefined,
+          // pre keeps the spacing the user typed around the value: a prefix
+          // like "Phase: " ends in a space that HTML would collapse away.
+          whiteSpace: "pre",
         }}
       >
-        {value}
-      </span>
-      {element.show_label && <span style={labelStyle}>{element.label_text}</span>}
+        {(element.prefix_text ?? "") + value + (element.suffix_text ?? "")}
+      </StyledText>
+      {element.show_label && (
+        <TextLabel style={element.label_style} text={element.label_text} />
+      )}
     </div>
   );
 }
@@ -807,6 +903,157 @@ function useSpriteCycle(
   // Read through `cycling` instead of trusting the state: after the setting is
   // switched off the reset only lands in the next effect run.
   return sources[cycling ? index % count : 0] ?? "";
+}
+
+/** Longest transition between two cycled sprites, in milliseconds. */
+const SPRITE_TRANSITION_MS = 400;
+
+/** Effects the cycling sprite can play on a swap. */
+export type SpriteTransition = "none" | "fade" | "wipe-lr" | "wipe-rl";
+
+/**
+ * Transition an overlay falls back to. Cycling shipped with the crossfade as
+ * its only behaviour, so an overlay that carries no choice keeps that one.
+ */
+const DEFAULT_SPRITE_TRANSITION: SpriteTransition = "fade";
+
+/** Every transition this build renders, in the order the editor offers them. */
+export const SPRITE_TRANSITIONS: readonly SpriteTransition[] = [
+  "none",
+  "fade",
+  "wipe-lr",
+  "wipe-rl",
+];
+
+/**
+ * resolveSpriteTransition maps a stored value onto a transition this build
+ * knows. Overlays saved before the setting existed carry an empty string, and
+ * one written by a newer version can name an effect this build does not have;
+ * both render as the crossfade rather than as nothing at all.
+ */
+export function resolveSpriteTransition(value: string | undefined): SpriteTransition {
+  return SPRITE_TRANSITIONS.includes(value as SpriteTransition)
+    ? (value as SpriteTransition)
+    : DEFAULT_SPRITE_TRANSITION;
+}
+
+/** Keyframes that reveal the incoming sprite, per wipe direction. */
+const WIPE_KEYFRAMES: Record<string, string> = {
+  "wipe-lr": "overlay-sprite-wipe-lr",
+  "wipe-rl": "overlay-sprite-wipe-rl",
+};
+
+/**
+ * Builds the transition half of one slot's style: everything that differs
+ * between the incoming and the outgoing sprite.
+ *
+ * A wipe reveals the incoming sprite over the outgoing one, which therefore has
+ * to stay fully visible until the reveal has covered it. Being covered is not
+ * enough to make it disappear afterwards, because sprites are transparent
+ * outside their silhouette, so the outgoing slot is cut away by a zero-length
+ * opacity transition that waits out the wipe first.
+ */
+function spriteSlotTransitionStyle(
+  transition: SpriteTransition,
+  incoming: boolean,
+  /** Whether the other slot holds a sprite that the incoming one wipes over. */
+  covers: boolean,
+  durationMs: number,
+): React.CSSProperties {
+  if (transition === "none") {
+    return { opacity: incoming ? 1 : 0, transition: "none" };
+  }
+  if (transition === "fade") {
+    return {
+      opacity: incoming ? 1 : 0,
+      transition: `opacity ${durationMs}ms ease-in-out`,
+    };
+  }
+  if (incoming) {
+    return {
+      opacity: 1,
+      transition: "none",
+      // The animation only exists on the slot that is in front, so handing the
+      // front over restarts it without remounting anything.
+      animation: covers
+        ? `${WIPE_KEYFRAMES[transition]} ${durationMs}ms ease-in-out both`
+        : undefined,
+    };
+  }
+  return { opacity: 0, transition: `opacity 0s linear ${durationMs}ms` };
+}
+
+/** Props for {@link CyclingSprite}. */
+interface CyclingSpriteProps {
+  /** Sprite URL to show. A change to this value starts a transition. */
+  readonly src: string;
+  /** Render pixel art without smoothing. */
+  readonly crisp: boolean;
+  /** Cycle period, so a transition never outlasts the interval driving it. */
+  readonly intervalMs: number;
+  /** Effect to play on a swap. */
+  readonly transition: SpriteTransition;
+}
+
+/**
+ * CyclingSprite moves between phase-target sprites instead of swapping the
+ * image source in one frame.
+ *
+ * It keeps two stacked images and alternates which one is in front, so the
+ * outgoing sprite is still on screen while the incoming one appears. A single
+ * image that merely remounts would blink, because the old frame is gone before
+ * the new one has decoded. Neither image is keyed on the cycle index: the idle
+ * and trigger animations live on the wrapper divs above, and remounting them
+ * every tick would restart those animations.
+ *
+ * The incoming slot always paints above the outgoing one. A wipe that ran
+ * behind the sprite it replaces would reveal nothing.
+ */
+function CyclingSprite({ src, crisp, intervalMs, transition }: CyclingSpriteProps) {
+  // Two slots, alternating. `front` is the one currently being shown.
+  const [slots, setSlots] = useState<readonly [string, string]>([src, ""]);
+  const [front, setFront] = useState(0);
+
+  useEffect(() => {
+    if (!src || src === slots[front]) return;
+    const back = front === 0 ? 1 : 0;
+    setSlots((prev) => (back === 0 ? [src, prev[1]] : [prev[0], src]));
+    setFront(back);
+  }, [src, slots, front]);
+
+  // Half the period, so a fast cycle never spends longer moving between two
+  // sprites than it spends showing either of them on its own.
+  const durationMs = Math.min(SPRITE_TRANSITION_MS, Math.max(0, intervalMs) / 2);
+
+  return (
+    <>
+      {slots.map((slotSrc, i) => (
+        <img
+          // Index keys are correct here: the two slots are fixed positions that
+          // swap contents, not a reorderable list.
+          key={i}
+          src={slotSrc || undefined}
+          alt=""
+          className="pokemon-sprite motion-reduce:transition-none motion-reduce:animate-none"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            position: "absolute",
+            inset: 0,
+            zIndex: i === front ? 2 : 1,
+            imageRendering: crisp ? "pixelated" : undefined,
+            ...spriteSlotTransitionStyle(
+              transition,
+              !!slotSrc && i === front,
+              !!slots[i === 0 ? 1 : 0],
+              durationMs,
+            ),
+          }}
+        />
+      ))}
+    </>
+  );
 }
 
 /**
@@ -916,7 +1163,7 @@ export function Overlay({
   }
 
   const {
-    nameStyle, counterStyle, labelStyle, titleStyle, counterMode: defaultCounterMode,
+    counterMode: defaultCounterMode,
     outerStyle, crispSprites, bgAnimKey, hasBgAnim,
     bgStyle, bgImageStyle,
   } = buildOverlayStyles(settings, !!previewSettings, appState?.settings.crisp_sprites ?? false);
@@ -929,7 +1176,7 @@ export function Overlay({
       {/* Card background — clipped to border-radius, does NOT clip content */}
       <div style={bgStyle}>
         {bgImageStyle && <div style={bgImageStyle} />}
-        {hasBgAnim && !RB_ANIMS.has(bgAnimKey) && (
+        {hasBgAnim && (
           <div
             className={BG_ANIM_CLASS[bgAnimKey]}
             style={buildHomebrewBgStyle(
@@ -938,59 +1185,6 @@ export function Overlay({
               settings.background_animation_config ?? {},
             )}
           />
-        )}
-        {RB_ANIMS.has(bgAnimKey) && (
-          <Suspense fallback={null}>
-            <div style={{ position: "absolute", inset: 0, overflow: "hidden", borderRadius: "inherit" }}>
-              {(() => {
-                const cfg = settings.background_animation_config ?? {};
-                const speed = settings.background_animation_speed ?? 1;
-                switch (bgAnimKey) {
-                  case "rb-aurora":
-                    return (
-                      <Aurora
-                        colorStops={[
-                          (cfg.auroraColor1 as string) ?? "#3A29FF",
-                          (cfg.auroraColor2 as string) ?? "#FF94B4",
-                          (cfg.auroraColor3 as string) ?? "#FF3232",
-                        ]}
-                        amplitude={(cfg.auroraAmplitude as number) ?? 1}
-                        blend={(cfg.auroraBlend as number) ?? 0.5}
-                        speed={speed}
-                      />
-                    );
-                  case "rb-galaxy":
-                    return (
-                      <Galaxy
-                        density={(cfg.galaxyDensity as number) ?? 0.7}
-                        glowIntensity={(cfg.galaxyGlow as number) ?? 0.5}
-                        saturation={(cfg.galaxySaturation as number) ?? 1}
-                        speed={speed}
-                      />
-                    );
-                  case "rb-silk":
-                    return (
-                      <Silk
-                        color={(cfg.silkColor as string) ?? "#5227FF"}
-                        scale={(cfg.silkScale as number) ?? 1}
-                        noiseIntensity={(cfg.silkNoise as number) ?? 1.5}
-                        speed={speed}
-                      />
-                    );
-                  case "rb-pixelblast":
-                    return (
-                      <PixelBlast
-                        color={(cfg.pixelColor as string) ?? "#1a1a2e"}
-                        pixelSize={(cfg.pixelSize as number) ?? 10}
-                        variant={((cfg.pixelVariant as string) ?? "circle") as "circle" | "square" | "diamond" | "triangle"}
-                      />
-                    );
-                  default:
-                    return null;
-                }
-              })()}
-            </div>
-          </Suspense>
         )}
       </div>
 
@@ -1033,18 +1227,11 @@ export function Overlay({
                 }}
               />
             )}
-            <img
+            <CyclingSprite
               src={spriteSrc}
-              alt=""
-              className="pokemon-sprite"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "contain",
-                position: "relative",
-                zIndex: 1,
-                imageRendering: crispSprites ? "pixelated" : undefined,
-              }}
+              crisp={crispSprites}
+              intervalMs={settings.sprite.cycle_interval_ms ?? DEFAULT_CYCLE_INTERVAL_MS}
+              transition={resolveSpriteTransition(settings.sprite.cycle_transition)}
             />
           </div>
         </div>
@@ -1054,9 +1241,7 @@ export function Overlay({
       {settings.name.visible && (() => {
           const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
           const nameJustifyContent = alignToJustify[settings.name.style.text_align] ?? "flex-start";
-          const outlinePadding = settings.name.style.outline_type === "solid" ? settings.name.style.outline_width * 2 + 1 : 0;
-          const shadowPadding = settings.name.style.text_shadow ? Math.abs(settings.name.style.text_shadow_x) + settings.name.style.text_shadow_blur : 0;
-          const namePadding = Math.max(2, outlinePadding, shadowPadding);
+          const namePadding = textDecorationPadding(settings.name.style);
 
           return (
           <div
@@ -1075,18 +1260,18 @@ export function Overlay({
             }}
             className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
           >
-            <span
+            <StyledText
               key={`name-${channels.name.triggerId}`}
+              style={settings.name.style}
               className={`uppercase tracking-widest whitespace-nowrap ${channels.name.animClass}`}
-              style={{
-                ...nameStyle,
+              outerStyle={{
                 display: "inline-block",
                 transformOrigin: "center",
                 animationDirection: channels.name.reverse ? "reverse" : undefined,
               }}
             >
               {activePokemon.name}
-            </span>
+            </StyledText>
           </div>
           );
       })()}
@@ -1095,9 +1280,7 @@ export function Overlay({
       {settings.title?.visible && (activePokemon.title || !!previewSettings) && (() => {
           const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
           const titleJustifyContent = alignToJustify[settings.title.style.text_align] ?? "flex-start";
-          const outlinePadding = settings.title.style.outline_type === "solid" ? settings.title.style.outline_width * 2 + 1 : 0;
-          const shadowPadding = settings.title.style.text_shadow ? Math.abs(settings.title.style.text_shadow_x) + settings.title.style.text_shadow_blur : 0;
-          const titlePadding = Math.max(2, outlinePadding, shadowPadding);
+          const titlePadding = textDecorationPadding(settings.title.style);
 
           return (
           <div
@@ -1116,18 +1299,18 @@ export function Overlay({
             }}
             className={TEXT_IDLE[settings.title.idle_animation] ?? ""}
           >
-            <span
+            <StyledText
               key={`title-${channels.title.triggerId}`}
+              style={settings.title.style}
               className={`uppercase tracking-widest whitespace-nowrap ${channels.title.animClass}`}
-              style={{
-                ...titleStyle,
+              outerStyle={{
                 display: "inline-block",
                 transformOrigin: "center",
                 animationDirection: channels.title.reverse ? "reverse" : undefined,
               }}
             >
               {activePokemon.title || "Titel"}
-            </span>
+            </StyledText>
           </div>
           );
       })()}
@@ -1158,51 +1341,63 @@ export function Overlay({
             }
           >
             {(() => {
-              const counterOutlinePad = settings.counter.style.outline_type === "solid" ? settings.counter.style.outline_width * 2 + 1 : 0;
-              const counterShadowPad = settings.counter.style.text_shadow ? Math.abs(settings.counter.style.text_shadow_x) + settings.counter.style.text_shadow_blur : 0;
-              const counterStrokePad = Math.max(2, counterOutlinePad, counterShadowPad);
+              // The digit wrappers below clip their overflow, so they must hold
+              // the room the stroke layer of every digit reserves for itself.
+              const counterStrokePad = textDecorationPadding(settings.counter.style);
+              const counterPrefix = settings.counter.prefix_text ?? "";
+              const counterSuffix = settings.counter.suffix_text ?? "";
 
               if (counterMode === "slot") {
                 return (
-                  <span key={`slot-${channels.counter.triggerId}`}>
+                  // nowrap: affix and digits are one value, they must not be
+                  // torn onto two lines when the element is narrow.
+                  <span key={`slot-${channels.counter.triggerId}`} style={{ whiteSpace: "nowrap" }}>
+                    <CounterAffix text={counterPrefix} counterStyle={settings.counter.style} />
                     <SlotCounter
                       value={activePokemon.encounters}
-                      counterStyle={counterStyle}
+                      counterStyle={settings.counter.style}
                       reverse={channels.counter.reverse}
                       strokePadding={counterStrokePad}
                     />
+                    <CounterAffix text={counterSuffix} counterStyle={settings.counter.style} />
                   </span>
                 );
               }
               if (counterMode === "flip-digit") {
                 return (
-                  <span key={`flip-${channels.counter.triggerId}`}>
+                  <span key={`flip-${channels.counter.triggerId}`} style={{ whiteSpace: "nowrap" }}>
+                    <CounterAffix text={counterPrefix} counterStyle={settings.counter.style} />
                     <FlipCounter
                       value={activePokemon.encounters}
-                      counterStyle={counterStyle}
+                      counterStyle={settings.counter.style}
                       reverse={channels.counter.reverse}
                       strokePadding={counterStrokePad}
                     />
+                    <CounterAffix text={counterSuffix} counterStyle={settings.counter.style} />
                   </span>
                 );
               }
               return (
-                <span
+                <StyledText
                   key={`counter-${channels.counter.triggerId}`}
+                  style={settings.counter.style}
                   className={`font-black tabular-nums leading-none ${channels.counter.animClass}`}
-                  style={{
-                    ...counterStyle,
+                  outerStyle={{
                     display: "inline-block",
                     transformOrigin: "center",
                     animationDirection: channels.counter.reverse ? "reverse" : undefined,
+                    whiteSpace: "pre",
                   }}
                 >
-                  {activePokemon.encounters}
-                </span>
+                  {counterPrefix + activePokemon.encounters + counterSuffix}
+                </StyledText>
               );
             })()}
             {settings.counter.show_label && (
-              <span style={labelStyle}>{settings.counter.label_text}</span>
+              <TextLabel
+                style={settings.counter.label_style}
+                text={settings.counter.label_text}
+              />
             )}
           </div>
           );
@@ -1212,8 +1407,6 @@ export function Overlay({
       {settings.timer?.visible && (() => {
           const timerAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
           const timerAlignItems = timerAlignMap[settings.timer.style.text_align] ?? "flex-start";
-          const timerStyle = buildTextStyle(settings.timer.style);
-          const timerLabelStyle = settings.timer.label_style ? buildTextStyle(settings.timer.label_style) : {};
           const timerMs = activePokemon ? computeTimerMs(activePokemon) : 0;
 
           return (
@@ -1232,17 +1425,23 @@ export function Overlay({
             }}
             className={TEXT_IDLE[settings.timer.idle_animation] ?? ""}
           >
-            <span
+            <StyledText
+              style={settings.timer.style}
               className="font-black tabular-nums leading-none"
-              style={{
-                ...timerStyle,
+              outerStyle={{
                 display: "inline-block",
+                whiteSpace: "pre",
               }}
             >
-              {formatTimer(timerMs)}
-            </span>
+              {(settings.timer.prefix_text ?? "") +
+                formatTimer(timerMs) +
+                (settings.timer.suffix_text ?? "")}
+            </StyledText>
             {settings.timer.show_label && (
-              <span style={timerLabelStyle}>{settings.timer.label_text}</span>
+              <TextLabel
+                style={settings.timer.label_style}
+                text={settings.timer.label_text}
+              />
             )}
           </div>
           );
@@ -1252,8 +1451,6 @@ export function Overlay({
       {settings.odds?.visible && (() => {
           const oddsAlignMap: Record<string, string> = { center: "center", right: "flex-end" };
           const oddsAlignItems = oddsAlignMap[settings.odds.style.text_align] ?? "flex-start";
-          const oddsStyle = buildTextStyle(settings.odds.style);
-          const oddsLabelStyle = settings.odds.label_style ? buildTextStyle(settings.odds.label_style) : {};
           // Every encounter of every phase was a roll at the target, so the
           // percentage counts them all, exactly like the statistics panel.
           const oddsText = computeOddsDisplay(
@@ -1278,20 +1475,26 @@ export function Overlay({
             }}
             className={TEXT_IDLE[settings.odds.idle_animation] ?? ""}
           >
-            <span
+            <StyledText
               key={`odds-${channels.odds.triggerId}`}
+              style={settings.odds.style}
               className={`font-black tabular-nums leading-none ${channels.odds.animClass}`}
-              style={{
-                ...oddsStyle,
+              outerStyle={{
                 display: "inline-block",
                 transformOrigin: "center",
                 animationDirection: channels.odds.reverse ? "reverse" : undefined,
+                whiteSpace: "pre",
               }}
             >
-              {oddsText}
-            </span>
+              {(settings.odds.prefix_text ?? "") +
+                oddsText +
+                (settings.odds.suffix_text ?? "")}
+            </StyledText>
             {settings.odds.show_label && (
-              <span style={oddsLabelStyle}>{settings.odds.label_text}</span>
+              <TextLabel
+                style={settings.odds.label_style}
+                text={settings.odds.label_text}
+              />
             )}
           </div>
           );

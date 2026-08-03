@@ -252,16 +252,14 @@ export interface TextStyle {
   color: string;
   gradient_stops: GradientStop[];
   gradient_angle: number;
-  outline_type: "none" | "solid";
+  outline_type: "none" | "solid" | "gradient";
   outline_width: number;
   outline_color: string;
   outline_gradient_stops: GradientStop[];
   outline_gradient_angle: number;
   text_shadow: boolean;
+  /** CSS `text-shadow` paints one colour only, so the shadow carries no gradient. */
   text_shadow_color: string;
-  text_shadow_color_type: "solid" | "gradient";
-  text_shadow_gradient_stops: GradientStop[];
-  text_shadow_gradient_angle: number;
   text_shadow_blur: number;
   text_shadow_x: number;
   text_shadow_y: number;
@@ -283,12 +281,17 @@ export interface SpriteElement extends OverlayElementBase {
   glow_blur: number; // px
   idle_animation: string;
   trigger_enter: string;
-  trigger_exit: string;
   trigger_decrement: string;
   /** Cycles the sprite through the hunt's phase targets instead of showing a static sprite. */
   cycle_phase_targets?: boolean;
   /** Milliseconds between two sprite swaps while cycling; the backend keeps this above 0. */
   cycle_interval_ms?: number;
+  /**
+   * Effect played on a sprite swap while cycling: "none", "fade", "wipe-lr" or
+   * "wipe-rl". Overlays saved before this setting existed carry nothing, and an
+   * empty or unknown value renders as "fade".
+   */
+  cycle_transition?: string;
 }
 
 export interface NameElement extends OverlayElementBase {
@@ -310,6 +313,8 @@ export interface CounterElement extends OverlayElementBase {
   show_label: boolean;
   label_text: string;
   label_style: TextStyle;
+  prefix_text: string;
+  suffix_text: string;
   idle_animation: string; // "none"
   trigger_enter: string; // "none" | "pop" | "count-flash"
   trigger_decrement: string;
@@ -320,6 +325,8 @@ export interface TimerElement extends OverlayElementBase {
   show_label: boolean;
   label_text: string;
   label_style: TextStyle;
+  prefix_text: string;
+  suffix_text: string;
   idle_animation: string;
 }
 
@@ -328,6 +335,8 @@ export interface OddsElement extends OverlayElementBase {
   show_label: boolean;
   label_text: string;
   label_style: TextStyle;
+  prefix_text: string;
+  suffix_text: string;
   format: "fractional" | "percent";
   idle_animation: string;
   trigger_enter: string;
@@ -340,12 +349,19 @@ export interface OddsElement extends OverlayElementBase {
  * an idle animation and two trigger animations. Mirrors the Go type of the
  * same name. total_timer carries the trigger fields for round-trip parity,
  * but keeps them at "none".
+ *
+ * prefix_text and suffix_text render inline with the value, inside the value's
+ * own span, so they inherit its style; the label keeps its separate span and
+ * label_style. An empty string is the off state, there is no boolean toggle.
+ * All text elements that expose a label share these two fields.
  */
 export interface LabeledTextElement extends OverlayElementBase {
   style: TextStyle;
   show_label: boolean;
   label_text: string;
   label_style: TextStyle;
+  prefix_text: string;
+  suffix_text: string;
   idle_animation: string;
   trigger_enter: string;
   trigger_decrement: string;

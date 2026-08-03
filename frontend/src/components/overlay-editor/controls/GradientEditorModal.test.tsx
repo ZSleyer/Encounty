@@ -30,10 +30,10 @@ describe("GradientEditorModal", () => {
     expect(screen.getByLabelText("Stop 2")).toBeInTheDocument();
   });
 
-  it("renders angle slider", () => {
+  it("renders the angle dial for the gradient direction", () => {
     render(<GradientEditorModal {...defaultProps} />);
-    const slider = screen.getByTitle("Winkel");
-    expect(slider).toBeInTheDocument();
+    expect(screen.getByText("Gradient-Winkel")).toBeInTheDocument();
+    expect(screen.getByLabelText("Winkel in Grad")).toBeInTheDocument();
   });
 
   it("renders stop position inputs", () => {

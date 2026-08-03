@@ -2,13 +2,8 @@ import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { act, render, screen, makeAppState, makeOverlaySettings, makePokemon } from "../test-utils";
 import { Overlay } from "./Overlay";
 import { useCounterStore } from "../hooks/useCounterState";
-import type { LabeledTextElement } from "../types";
+import type { LabeledTextElement, TextStyle } from "../types";
 import { getOddsPercent } from "../utils/odds";
-
-vi.mock("../components/backgrounds/Aurora", () => ({ default: () => <div data-testid="bg-aurora" /> }));
-vi.mock("../components/backgrounds/Galaxy", () => ({ default: () => <div data-testid="bg-galaxy" /> }));
-vi.mock("../components/backgrounds/Silk", () => ({ default: () => <div data-testid="bg-silk" /> }));
-vi.mock("../components/backgrounds/PixelBlast", () => ({ default: () => <div data-testid="bg-pixelblast" /> }));
 
 describe("Overlay", () => {
   beforeEach(() => {
@@ -261,23 +256,183 @@ describe("Overlay", () => {
     expect(nameEl.style.textShadow).toBe("2px 3px 4px #ff0000");
   });
 
-  it("applies outline stroke when outline_type is solid", () => {
+  // --- Text outline layers ---
+
+  /** Overlay settings whose name element carries the given style overrides. */
+  function settingsWithNameStyle(overrides: Partial<TextStyle>) {
+    const base = makeOverlaySettings();
+    return makeOverlaySettings({
+      name: { ...base.name, style: { ...base.name.style, ...overrides } },
+    });
+  }
+
+  /** Renders the name element with the given style and returns both layers. */
+  function renderNameWithStyle(overrides: Partial<TextStyle>) {
+    const { container } = render(
+      <Overlay
+        previewSettings={settingsWithNameStyle(overrides)}
+        previewPokemon={makePokemon({ name: "Gengar" })}
+      />,
+    );
+    return {
+      container,
+      stroke: container.querySelector<HTMLElement>(".overlay-text-stroke"),
+      fill: container.querySelector<HTMLElement>(".overlay-text-fill"),
+    };
+  }
+
+  const SOLID_OUTLINE: Partial<TextStyle> = {
+    outline_type: "solid" as const,
+    outline_width: 3,
+    outline_color: "#00ff00",
+  };
+
+  const GRADIENT_OUTLINE: Partial<TextStyle> = {
+    outline_type: "gradient" as const,
+    outline_width: 3,
+    outline_color: "#00ff00",
+    outline_gradient_stops: [
+      { color: "#ff0000", position: 0 },
+      { color: "#0000ff", position: 100 },
+    ],
+    outline_gradient_angle: 45,
+  };
+
+  const GRADIENT_FILL: Partial<TextStyle> = {
+    color_type: "gradient" as const,
+    gradient_stops: [
+      { color: "#111111", position: 0 },
+      { color: "#222222", position: 100 },
+    ],
+    gradient_angle: 90,
+  };
+
+  it("renders a single span without outline layers when outline_type is none", () => {
+    const { container, stroke, fill } = renderNameWithStyle({ outline_type: "none" });
+    expect(stroke).toBeNull();
+    expect(fill).toBeNull();
+    expect(container.querySelector("[aria-hidden='true']")).toBeNull();
+    expect(screen.getByText("Gengar")).toBeInTheDocument();
+  });
+
+  it("renders no outline for an outline_width of zero", () => {
+    const { stroke } = renderNameWithStyle({ ...SOLID_OUTLINE, outline_width: 0 });
+    expect(stroke).toBeNull();
+  });
+
+  it("renders no outline for an unknown outline_type", () => {
+    const { stroke, fill } = renderNameWithStyle({
+      // A value stored by a future or foreign version must not break rendering.
+      outline_type: "engraved" as unknown as TextStyle["outline_type"],
+      outline_width: 4,
+    });
+    expect(stroke).toBeNull();
+    expect(fill).toBeNull();
+    expect(screen.getByText("Gengar")).toBeInTheDocument();
+  });
+
+  it("paints a solid outline on a stroke layer below a solid fill layer", () => {
+    const { stroke, fill } = renderNameWithStyle(SOLID_OUTLINE);
+    // Double width because the fill layer covers the inner half of the stroke.
+    expect(stroke?.style.webkitTextStroke).toBe("6px #00ff00");
+    expect(stroke?.style.paintOrder).toBe("stroke fill");
+    expect(stroke?.style.webkitTextFillColor).toBe("transparent");
+    expect(stroke?.style.backgroundImage).toBe("");
+    expect(fill?.style.color).toBe("rgb(255, 255, 255)");
+    expect(fill?.style.position).toBe("absolute");
+  });
+
+  it("keeps a gradient fill visible above a solid outline", () => {
+    const { stroke, fill } = renderNameWithStyle({ ...SOLID_OUTLINE, ...GRADIENT_FILL });
+    // The stroke layer must not carry the fill gradient: it would be covered by
+    // the opaque stroke anyway and the fill layer above owns the interior.
+    expect(stroke?.style.webkitTextStroke).toBe("6px #00ff00");
+    expect(stroke?.style.backgroundImage).toBe("");
+    expect(fill?.style.backgroundImage).toBe(
+      "linear-gradient(90deg, rgb(17, 17, 17) 0%, rgb(34, 34, 34) 100%)",
+    );
+    expect(fill?.style.webkitBackgroundClip).toBe("text");
+    expect(fill?.style.webkitTextFillColor).toBe("transparent");
+  });
+
+  it("paints a gradient outline through a transparent stroke", () => {
+    const { stroke, fill } = renderNameWithStyle(GRADIENT_OUTLINE);
+    // A transparent stroke still widens the background-clip region, so the
+    // gradient fills the widened silhouette and becomes the outline.
+    expect(stroke?.style.webkitTextStroke).toBe("6px transparent");
+    expect(stroke?.style.backgroundImage).toBe(
+      "linear-gradient(45deg, rgb(255, 0, 0) 0%, rgb(0, 0, 255) 100%)",
+    );
+    expect(stroke?.style.webkitBackgroundClip).toBe("text");
+    expect(stroke?.style.webkitTextFillColor).toBe("transparent");
+    expect(fill?.style.color).toBe("rgb(255, 255, 255)");
+  });
+
+  it("combines a gradient fill with a gradient outline", () => {
+    const { stroke, fill } = renderNameWithStyle({ ...GRADIENT_OUTLINE, ...GRADIENT_FILL });
+    expect(stroke?.style.backgroundImage).toBe(
+      "linear-gradient(45deg, rgb(255, 0, 0) 0%, rgb(0, 0, 255) 100%)",
+    );
+    expect(fill?.style.backgroundImage).toBe(
+      "linear-gradient(90deg, rgb(17, 17, 17) 0%, rgb(34, 34, 34) 100%)",
+    );
+    expect(stroke?.style.webkitTextStroke).toBe("6px transparent");
+  });
+
+  it("falls back to the outline color when a gradient outline lacks stops", () => {
+    const { stroke } = renderNameWithStyle({
+      ...GRADIENT_OUTLINE,
+      outline_gradient_stops: [{ color: "#ff0000", position: 0 }],
+    });
+    expect(stroke?.style.webkitTextStroke).toBe("6px #00ff00");
+    expect(stroke?.style.backgroundImage).toBe("");
+  });
+
+  it("announces outlined text only once", () => {
+    render(
+      <Overlay
+        previewSettings={settingsWithNameStyle(SOLID_OUTLINE)}
+        previewPokemon={makePokemon({ name: "Gengar" })}
+      />,
+    );
+    const nodes = screen.getAllByText("Gengar");
+    expect(nodes).toHaveLength(2);
+    const announced = nodes.filter((el) => !el.closest("[aria-hidden='true']"));
+    expect(announced).toHaveLength(1);
+  });
+
+  it("reserves room around the glyphs so a thick outline is not clipped", () => {
+    const { stroke } = renderNameWithStyle({ ...SOLID_OUTLINE, outline_width: 10 });
+    const wrapper = stroke?.parentElement;
+    // Effective stroke is 20px and sits half outside the glyph box.
+    expect(wrapper?.style.padding).toBe("10px");
+    expect(wrapper?.style.margin).toBe("-10px");
+    expect(wrapper?.style.position).toBe("relative");
+  });
+
+  it("gives the clipping digit wrappers room for the stroke in slot mode", () => {
+    const base = makeOverlaySettings();
     const settings = makeOverlaySettings({
-      name: {
-        ...makeOverlaySettings().name,
-        style: {
-          ...makeOverlaySettings().name.style,
-          outline_type: "solid" as const,
-          outline_width: 3,
-          outline_color: "#00ff00",
-        },
+      counter: {
+        ...base.counter,
+        trigger_enter: "slot",
+        style: { ...base.counter.style, ...SOLID_OUTLINE, outline_width: 10 },
       },
     });
-    const pokemon = makePokemon({ name: "Gengar" });
-    render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
-    const nameEl = screen.getByText("Gengar");
-    // Double width because fill covers the inner half via paint-order: stroke fill
-    expect(nameEl.style.paintOrder).toBe("stroke fill");
+    const { container } = render(
+      <Overlay previewSettings={settings} previewPokemon={makePokemon({ encounters: 42 })} />,
+    );
+    const strokes = container.querySelectorAll<HTMLElement>(".overlay-text-stroke");
+    expect(strokes.length).toBeGreaterThan(0);
+    for (const strokeLayer of strokes) {
+      const wrapper = strokeLayer.parentElement;
+      const clipper = wrapper?.parentElement;
+      expect(clipper?.style.overflow).toBe("hidden");
+      // The clipper must reserve at least what the stroke layer sticks out.
+      const clipperPad = Number.parseFloat(clipper?.style.padding ?? "0");
+      const wrapperPad = Number.parseFloat(wrapper?.style.padding ?? "0");
+      expect(clipperPad).toBeGreaterThanOrEqual(wrapperPad);
+    }
   });
 
   // --- Title display ---
@@ -433,15 +588,40 @@ describe("Overlay", () => {
     expect(container.querySelector(".canvas-shimmer-bg")).not.toBeInTheDocument();
   });
 
-  it("renders Suspense wrapper for reactbits animations", async () => {
+  it("renders no animation for an unknown background_animation value", () => {
+    // Profiles saved before an animation was removed can still carry its key.
     const settings = makeOverlaySettings({
-      background_animation: "rb-aurora",
+      background_animation: "rb-galaxy",
     });
     const pokemon = makePokemon();
-    // Should not crash even though lazy components are mocked
-    render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
-    const auroraEl = await screen.findByTestId("bg-aurora");
-    expect(auroraEl).toBeInTheDocument();
+    const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    expect(container.querySelector(".canvas-waves")).not.toBeInTheDocument();
+    expect(container.querySelector(".canvas-gradient-shift")).not.toBeInTheDocument();
+    expect(container.querySelector(".canvas-shimmer-bg")).not.toBeInTheDocument();
+  });
+
+  it("does not render the animation div when the canvas is hidden", () => {
+    const settings = makeOverlaySettings({
+      hidden: true,
+      background_animation: "waves",
+    });
+    const pokemon = makePokemon({ name: "Pikachu" });
+    const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    expect(container.querySelector(".canvas-waves")).not.toBeInTheDocument();
+    expect(container.querySelector(".canvas-gradient-shift")).not.toBeInTheDocument();
+    expect(container.querySelector(".canvas-shimmer-bg")).not.toBeInTheDocument();
+    // Hiding the canvas must not hide the layers that carry their own visible flag.
+    expect(screen.getByText("Pikachu")).toBeInTheDocument();
+  });
+
+  it("renders the animation div when the canvas is not hidden", () => {
+    const settings = makeOverlaySettings({
+      hidden: false,
+      background_animation: "waves",
+    });
+    const pokemon = makePokemon();
+    const { container } = render(<Overlay previewSettings={settings} previewPokemon={pokemon} />);
+    expect(container.querySelector(".canvas-waves")).toBeInTheDocument();
   });
 
   // --- Odds element rendering ---
@@ -804,40 +984,90 @@ describe("Overlay", () => {
       });
     }
 
-    function cyclingSettings(enabled: boolean) {
+    function cyclingSettings(enabled: boolean, transition?: string, intervalMs = 3000) {
       const base = makeOverlaySettings();
       return makeOverlaySettings({
         sprite: {
           ...base.sprite,
           visible: true,
           cycle_phase_targets: enabled,
-          cycle_interval_ms: 3000,
+          cycle_interval_ms: intervalMs,
+          cycle_transition: transition,
         },
       });
+    }
+
+    /**
+     * Renders a cycling overlay, advances past one swap and hands back both
+     * slots in the order [incoming, outgoing].
+     */
+    function swapOnce(transition?: string, intervalMs = 3000) {
+      vi.useFakeTimers();
+      const { container } = render(
+        <Overlay
+          previewSettings={cyclingSettings(true, transition, intervalMs)}
+          previewPokemon={makeCyclingPokemon()}
+        />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(intervalMs);
+      });
+      const slots = [...container.querySelectorAll("img.pokemon-sprite")] as HTMLElement[];
+      // Slot 0 starts in front, so after exactly one swap slot 1 is the
+      // incoming one and slot 0 the outgoing one.
+      return { incoming: slots[1], outgoing: slots[0] };
     }
 
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it("swaps only the image source when the interval elapses", () => {
+    it("crossfades to the next sprite when the interval elapses", () => {
       vi.useFakeTimers();
       const { container } = render(
         <Overlay previewSettings={cyclingSettings(true)} previewPokemon={makeCyclingPokemon()} />,
       );
-      const img = container.querySelector("img.pokemon-sprite");
-      const wrapper = img?.parentElement;
-      expect(img).toHaveAttribute("src", huntSprite);
+      const slots = [...container.querySelectorAll("img.pokemon-sprite")];
+      const wrapper = slots[0]?.parentElement;
+      // Two stacked slots so the outgoing sprite stays on screen while the
+      // incoming one fades in. Only the hunt sprite is visible at rest.
+      expect(slots).toHaveLength(2);
+      expect(slots[0]).toHaveAttribute("src", huntSprite);
+      expect(slots[0]).toHaveStyle({ opacity: "1" });
+      expect(slots[1]).toHaveStyle({ opacity: "0" });
 
       act(() => {
         vi.advanceTimersByTime(3000);
       });
 
-      // Same DOM nodes, only the src differs: feeding the cycle index into the
-      // wrapper key would restart the trigger animation on every tick.
-      expect(container.querySelector("img.pokemon-sprite")).toBe(img);
-      expect(img?.parentElement).toBe(wrapper);
-      expect(img).toHaveAttribute("src", targetSprite);
+      // Same DOM nodes, the slots only swap contents and opacity: feeding the
+      // cycle index into the wrapper key would restart the trigger animation on
+      // every tick, and remounting the image would blink instead of fade.
+      const after = [...container.querySelectorAll("img.pokemon-sprite")];
+      expect(after[0]).toBe(slots[0]);
+      expect(after[1]).toBe(slots[1]);
+      expect(after[0]?.parentElement).toBe(wrapper);
+      expect(after[1]).toHaveAttribute("src", targetSprite);
+      expect(after[1]).toHaveStyle({ opacity: "1" });
+      expect(after[0]).toHaveStyle({ opacity: "0" });
+    });
+
+    it("fades no longer than half the cycle interval", () => {
+      vi.useFakeTimers();
+      const settings = cyclingSettings(true);
+      const { container } = render(
+        <Overlay
+          previewSettings={makeOverlaySettings({
+            ...settings,
+            sprite: { ...settings.sprite, cycle_interval_ms: 300 },
+          })}
+          previewPokemon={makeCyclingPokemon()}
+        />,
+      );
+      // A fast cycle must not leave both sprites at partial opacity for longer
+      // than it shows either one on its own.
+      const slot = container.querySelector("img.pokemon-sprite");
+      expect(slot).toHaveStyle({ transition: "opacity 150ms ease-in-out" });
     });
 
     it("returns to the hunt sprite after a full cycle", () => {
@@ -872,6 +1102,84 @@ describe("Overlay", () => {
         vi.advanceTimersByTime(9000);
       });
       expect(container.querySelector("img.pokemon-sprite")).toHaveAttribute("src", huntSprite);
+    });
+
+    // --- Transitions ---
+
+    it("swaps in one frame with the none transition", () => {
+      const { incoming, outgoing } = swapOnce("none");
+      expect(incoming).toHaveAttribute("src", targetSprite);
+      expect(incoming.style.opacity).toBe("1");
+      expect(incoming.style.transition).toBe("none");
+      expect(incoming.style.animation).toBe("");
+      expect(outgoing.style.opacity).toBe("0");
+      expect(outgoing.style.transition).toBe("none");
+    });
+
+    it("crossfades with the fade transition", () => {
+      const { incoming, outgoing } = swapOnce("fade");
+      expect(incoming.style.opacity).toBe("1");
+      expect(incoming.style.transition).toBe("opacity 400ms ease-in-out");
+      expect(incoming.style.animation).toBe("");
+      expect(outgoing.style.opacity).toBe("0");
+      expect(outgoing.style.transition).toBe("opacity 400ms ease-in-out");
+    });
+
+    it("reveals the incoming sprite left to right with wipe-lr", () => {
+      const { incoming, outgoing } = swapOnce("wipe-lr");
+      // Opacity 1 throughout, so the clip path is a wipe and not a fade.
+      expect(incoming.style.opacity).toBe("1");
+      expect(incoming.style.animation).toBe("overlay-sprite-wipe-lr 400ms ease-in-out both");
+      // The outgoing sprite stays visible underneath for the whole wipe and is
+      // only cut away afterwards; sprites are transparent, so leaving it up
+      // would show two of them at once.
+      expect(outgoing.style.opacity).toBe("0");
+      expect(outgoing.style.transition).toBe("opacity 0s linear 400ms");
+      expect(outgoing.style.animation).toBe("");
+    });
+
+    it("reveals the incoming sprite right to left with wipe-rl", () => {
+      const { incoming, outgoing } = swapOnce("wipe-rl");
+      expect(incoming.style.opacity).toBe("1");
+      expect(incoming.style.animation).toBe("overlay-sprite-wipe-rl 400ms ease-in-out both");
+      expect(outgoing.style.opacity).toBe("0");
+      expect(outgoing.style.transition).toBe("opacity 0s linear 400ms");
+    });
+
+    it("stacks the incoming slot above the outgoing one while wiping", () => {
+      const { incoming, outgoing } = swapOnce("wipe-lr");
+      // A wipe that ran behind the sprite it replaces would reveal nothing, so
+      // the front slot has to paint above the other one either way round.
+      expect(Number(incoming.style.zIndex)).toBeGreaterThan(Number(outgoing.style.zIndex));
+    });
+
+    it("does not wipe the first sprite in, there is nothing to wipe over", () => {
+      vi.useFakeTimers();
+      const { container } = render(
+        <Overlay
+          previewSettings={cyclingSettings(true, "wipe-lr")}
+          previewPokemon={makeCyclingPokemon()}
+        />,
+      );
+      const first = container.querySelector("img.pokemon-sprite") as HTMLElement;
+      expect(first.style.animation).toBe("");
+    });
+
+    it("caps the wipe at half the cycle interval too", () => {
+      const { incoming, outgoing } = swapOnce("wipe-lr", 300);
+      expect(incoming.style.animation).toBe("overlay-sprite-wipe-lr 150ms ease-in-out both");
+      expect(outgoing.style.transition).toBe("opacity 0s linear 150ms");
+    });
+
+    it("falls back to the crossfade for a stored value this build has no effect for", () => {
+      // An overlay written by a newer version, or one saved before the setting
+      // existed, must still cycle instead of rendering nothing.
+      for (const stored of ["", "wipe-diagonal", undefined]) {
+        const { incoming, outgoing } = swapOnce(stored);
+        expect(incoming.style.transition).toBe("opacity 400ms ease-in-out");
+        expect(incoming.style.opacity).toBe("1");
+        expect(outgoing.style.opacity).toBe("0");
+      }
     });
   });
 });
