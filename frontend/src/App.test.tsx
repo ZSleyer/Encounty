@@ -28,10 +28,6 @@ beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch);
 });
 
-vi.mock("./components/backgrounds/PixelBlast", () => ({
-  default: () => <div data-testid="pixel-blast" />,
-}));
-
 vi.mock("./hooks/useWebSocket", async () => {
   const React = await import("react");
   return {

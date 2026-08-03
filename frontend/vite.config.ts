@@ -219,7 +219,6 @@ export default defineConfig({
         "src/components/detector/GpuEquivalenceTest.tsx",
         "src/utils/i18n.ts",
         "src/locales/index.ts",
-        "src/components/backgrounds/**",
       ],
     },
   },
