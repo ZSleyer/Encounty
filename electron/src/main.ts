@@ -826,8 +826,11 @@ app.on('ready', async () => {
     });
   }
 
-  // Allow media, display-capture, and WebGPU permissions
-  const allowedPermissions = new Set(['media', 'display-capture', 'webgpu', 'clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
+  // Allow media, display-capture, WebGPU and clipboard permissions.
+  // 'local-fonts' backs the overlay editor's font picker: without it
+  // queryLocalFonts() is rejected and the user can only pick the curated
+  // families, even though their own fonts are installed and would render.
+  const allowedPermissions = new Set(['media', 'display-capture', 'webgpu', 'local-fonts', 'clipboard-read', 'clipboard-write', 'clipboard-sanitized-write']);
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
     console.log('[Electron] Permission request:', permission);
     callback(allowedPermissions.has(permission));
