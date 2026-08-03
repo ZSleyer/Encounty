@@ -215,10 +215,15 @@ dialog.t-panel::after {
    UA keeps rendering the dialog in the top layer for the duration of the
    close transition instead of yanking it instantly. */
 dialog {
-  /* -2px, not 0: clipping exactly at the border edge shaves off the
-     corner-bracket hairlines (they render on the border-box boundary), so
-     the fully-open state needs a hair of breathing room around it. */
-  clip-path: inset(-2px);
+  /* Only the top edge hugs the box: -2px, not 0, because clipping exactly at
+     the border edge shaves off the corner-bracket hairlines (they render on
+     the border-box boundary). The other three sides stay a full viewport
+     outside it because clip-path also turns the dialog into a clip box for
+     position:fixed descendants, and a tight box cuts off anchored popovers
+     that intentionally overhang the dialog (species dropdown, help panel).
+     The unfold reads the same either way: it animates the top and bottom
+     insets, and the extra room is off-screen. */
+  clip-path: inset(-2px -100vw -100vh -100vw);
   opacity: 1;
   transition:
     clip-path 240ms cubic-bezier(0.4, 0, 0.2, 1),
@@ -233,7 +238,7 @@ dialog::backdrop {
 }
 
 dialog:not([open]) {
-  clip-path: inset(50% 0 50% 0);
+  clip-path: inset(50% -100vw 50% -100vw);
   opacity: 0;
 }
 
@@ -243,7 +248,7 @@ dialog:not([open])::backdrop {
 
 @starting-style {
   dialog[open] {
-    clip-path: inset(50% 0 50% 0);
+    clip-path: inset(50% -100vw 50% -100vw);
     opacity: 0;
   }
 
@@ -770,6 +775,29 @@ code {
   }
   50% {
     opacity: 1;
+  }
+}
+
+/* ── Overlay sprite cycling wipes ────────────────────────────────
+   Reveal the incoming sprite of a cycling sprite layer edge to edge
+   while the outgoing one still sits underneath. Only the keyframes
+   live here: the duration follows the cycle interval, so Overlay.tsx
+   sets the animation itself. */
+@keyframes overlay-sprite-wipe-lr {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0);
+  }
+}
+
+@keyframes overlay-sprite-wipe-rl {
+  from {
+    clip-path: inset(0 0 0 100%);
+  }
+  to {
+    clip-path: inset(0);
   }
 }
 

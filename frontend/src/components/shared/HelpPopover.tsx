@@ -9,7 +9,7 @@
  * the Escape key is swallowed while the panel is open, so the first Escape
  * closes the explanation and the second one the dialog.
  */
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useI18n } from "../../contexts/I18nContext";
 
 /** Props for {@link HelpPopover}. */
@@ -36,6 +36,8 @@ export function HelpPopover({ label, title, children, align = "left" }: HelpPopo
   const panelId = useId();
   const wrapperRef = useRef<HTMLSpanElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  // useId() yields colons, which are not valid in a CSS dashed-ident.
+  const anchorName = `--help-${panelId.replace(/[^a-zA-Z0-9]/g, "-")}`;
 
   useEffect(() => {
     if (!open) return;
@@ -62,11 +64,14 @@ export function HelpPopover({ label, title, children, align = "left" }: HelpPopo
   }, [open]);
 
   return (
-    <span ref={wrapperRef} className="relative inline-flex">
+    <span ref={wrapperRef} className="inline-flex">
       <button
         ref={toggleRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
+        // anchorName is CSS anchor positioning, which React's CSSProperties
+        // does not know yet, hence the cast.
+        style={{ anchorName } as CSSProperties}
         aria-expanded={open}
         aria-controls={panelId}
         aria-label={label}
@@ -83,9 +88,19 @@ export function HelpPopover({ label, title, children, align = "left" }: HelpPopo
       {open && (
         <span
           id={panelId}
-          className={`absolute top-8 z-50 block w-[min(20rem,70vw)] rounded-none border border-border-subtle bg-bg-card p-3 text-left shadow-lg ${
-            align === "right" ? "right-0" : "left-0"
-          }`}
+          // Fixed instead of absolute: the popover is used inside scrollable
+          // modal bodies, and an absolutely positioned panel gets clipped by
+          // that overflow ancestor. A fixed box escapes the clip, and CSS
+          // anchor positioning keeps it glued to the toggle without JS
+          // measuring. The properties are not in React's CSSProperties yet.
+          style={
+            {
+              positionAnchor: anchorName,
+              positionArea: align === "right" ? "block-end span-inline-start" : "block-end span-inline-end",
+              marginBlockStart: "0.5rem",
+            } as CSSProperties
+          }
+          className="fixed z-50 block w-[min(20rem,70vw)] rounded-none border border-border-subtle bg-bg-card p-3 text-left shadow-lg"
         >
           <span className="block text-xs font-bold text-text-primary">{title}</span>
           <span className="mt-1 block text-[11px] leading-relaxed text-text-secondary">

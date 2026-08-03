@@ -8,7 +8,7 @@
  * several drifting copies.
  */
 
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useId, useMemo, useRef, type CSSProperties } from "react";
 import { Search } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { GameEntry } from "../../types";
@@ -385,6 +385,9 @@ export function PokemonSearchPicker({
 }: PokemonSearchPickerProps) {
   const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
+  const instanceId = useId();
+  // useId() yields colons, which are not valid in a CSS dashed-ident.
+  const anchorName = `--picker-${instanceId.replace(/[^a-zA-Z0-9]/g, "-")}`;
 
   const [query, setQuery] = useState("");
   // True while the suggestion list is open. Bound to focus anywhere inside the
@@ -458,8 +461,13 @@ export function PokemonSearchPicker({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="relative" onBlur={handleBlur} onKeyDown={handleKeyDown}>
-        <div className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2">
+      <div onBlur={handleBlur} onKeyDown={handleKeyDown}>
+        <div
+          // anchorName is CSS anchor positioning, which React's CSSProperties
+          // does not know yet, hence the cast.
+          style={{ anchorName } as CSSProperties}
+          className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2"
+        >
           <Search className="w-4 h-4 text-text-muted shrink-0" aria-hidden="true" />
           <input
             ref={inputRef}
@@ -496,7 +504,21 @@ export function PokemonSearchPicker({
                 setBrowseLimit((l) => Math.min(l + BROWSE_PAGE, allPokemon.length));
               }
             }}
-            className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-none overflow-hidden z-10 shadow-xl max-h-52 overflow-y-auto"
+            // Fixed instead of absolute: the picker lives inside scrollable
+            // modal bodies and native <dialog> boxes, whose overflow clipped
+            // the list down to a couple of visible rows. A fixed box escapes
+            // that clip, and CSS anchor positioning keeps it under the field
+            // (and at its width) without JS measuring. The properties are not
+            // in React's CSSProperties yet.
+            style={
+              {
+                positionAnchor: anchorName,
+                positionArea: "block-end span-inline-end",
+                width: "anchor-size(width)",
+                marginBlockStart: "0.25rem",
+              } as CSSProperties
+            }
+            className="fixed bg-bg-secondary border border-border-subtle rounded-none z-50 shadow-xl max-h-52 overflow-x-hidden overflow-y-auto"
           >
             {isBrowseMode && (
               <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">
