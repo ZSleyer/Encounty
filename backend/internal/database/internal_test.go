@@ -392,9 +392,6 @@ func TestLoadTextStyleNoRow(t *testing.T) {
 	if ts.OutlineGradientStops == nil {
 		t.Error("OutlineGradientStops should be non-nil")
 	}
-	if ts.TextShadowGradientStops == nil {
-		t.Error("TextShadowGradientStops should be non-nil")
-	}
 }
 
 func TestLoadGradientStopsEmpty(t *testing.T) {

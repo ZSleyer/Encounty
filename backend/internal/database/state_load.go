@@ -584,15 +584,17 @@ func loadSessions(db *sql.DB) ([]state.Session, error) {
 // elemRow holds the raw column values for a single overlay_elements row,
 // used as an intermediate representation before dispatching to typed fields.
 type elemRow struct {
-	id                                       int64
-	elemType                                 string
-	base                                     state.OverlayElementBase
-	showGlow, showLabel, glowBlur            sql.NullInt64
-	glowColor, idleAnim, triggerEnter        sql.NullString
-	triggerExit, triggerDecrement, labelText sql.NullString
-	format                                   sql.NullString
-	glowOpacity                              sql.NullFloat64
-	cyclePhaseTargets, cycleIntervalMs       sql.NullInt64
+	id                                 int64
+	elemType                           string
+	base                               state.OverlayElementBase
+	showGlow, showLabel, glowBlur      sql.NullInt64
+	glowColor, idleAnim, triggerEnter  sql.NullString
+	triggerDecrement, labelText        sql.NullString
+	prefixText, suffixText             sql.NullString
+	format                             sql.NullString
+	glowOpacity                        sql.NullFloat64
+	cyclePhaseTargets, cycleIntervalMs sql.NullInt64
+	cycleTransition                    sql.NullString
 }
 
 // overlayKey builds the map key that identifies one overlay by its owner.
@@ -681,8 +683,9 @@ func loadAllOverlayBases(db *sql.DB) (map[string]*state.OverlaySettings, map[int
 // overlay_id.
 func loadAllOverlayElements(db *sql.DB) (map[int64][]elemRow, error) {
 	rows, err := db.Query(`SELECT overlay_id, id, element_type, visible, x, y, width, height, z_index,
-		show_glow, glow_color, glow_opacity, glow_blur, idle_animation, trigger_enter, trigger_exit,
-		trigger_decrement, show_label, label_text, format, cycle_phase_targets, cycle_interval_ms
+		show_glow, glow_color, glow_opacity, glow_blur, idle_animation, trigger_enter,
+		trigger_decrement, show_label, label_text, prefix_text, suffix_text, format,
+		cycle_phase_targets, cycle_interval_ms, cycle_transition
 		FROM overlay_elements`)
 	if err != nil {
 		return nil, fmt.Errorf("query overlay_elements: %w", err)
@@ -696,8 +699,9 @@ func loadAllOverlayElements(db *sql.DB) (map[int64][]elemRow, error) {
 		var visible int
 		if err := rows.Scan(&overlayID, &e.id, &e.elemType, &visible, &e.base.X, &e.base.Y, &e.base.Width,
 			&e.base.Height, &e.base.ZIndex, &e.showGlow, &e.glowColor, &e.glowOpacity, &e.glowBlur,
-			&e.idleAnim, &e.triggerEnter, &e.triggerExit, &e.triggerDecrement, &e.showLabel, &e.labelText, &e.format,
-			&e.cyclePhaseTargets, &e.cycleIntervalMs); err != nil {
+			&e.idleAnim, &e.triggerEnter, &e.triggerDecrement, &e.showLabel, &e.labelText,
+			&e.prefixText, &e.suffixText, &e.format,
+			&e.cyclePhaseTargets, &e.cycleIntervalMs, &e.cycleTransition); err != nil {
 			return nil, fmt.Errorf("scan overlay_element: %w", err)
 		}
 		e.base.Visible = visible != 0
@@ -716,8 +720,8 @@ func loadAllTextStyles(db *sql.DB) (map[int64]map[string]state.TextStyle, error)
 
 	rows, err := db.Query(`SELECT id, element_id, style_role, font_family, font_size, font_weight, text_align,
 		color_type, color, gradient_angle, outline_type, outline_width, outline_color,
-		outline_gradient_angle, text_shadow, text_shadow_color, text_shadow_color_type,
-		text_shadow_gradient_angle, text_shadow_blur, text_shadow_x, text_shadow_y
+		outline_gradient_angle, text_shadow, text_shadow_color,
+		text_shadow_blur, text_shadow_x, text_shadow_y
 		FROM text_styles`)
 	if err != nil {
 		return nil, fmt.Errorf("query text_styles: %w", err)
@@ -732,14 +736,13 @@ func loadAllTextStyles(db *sql.DB) (map[int64]map[string]state.TextStyle, error)
 		var textShadow int
 		if err := rows.Scan(&styleID, &elementID, &role, &ts.FontFamily, &ts.FontSize, &ts.FontWeight, &ts.TextAlign,
 			&ts.ColorType, &ts.Color, &ts.GradientAngle, &ts.OutlineType, &ts.OutlineWidth, &ts.OutlineColor,
-			&ts.OutlineGradientAngle, &textShadow, &ts.TextShadowColor, &ts.TextShadowColorType,
-			&ts.TextShadowGradientAngle, &ts.TextShadowBlur, &ts.TextShadowX, &ts.TextShadowY); err != nil {
+			&ts.OutlineGradientAngle, &textShadow, &ts.TextShadowColor,
+			&ts.TextShadowBlur, &ts.TextShadowX, &ts.TextShadowY); err != nil {
 			return nil, fmt.Errorf("scan text_style: %w", err)
 		}
 		ts.TextShadow = textShadow != 0
 		ts.GradientStops = gradientStopsOrEmpty(stops, styleID, "color")
 		ts.OutlineGradientStops = gradientStopsOrEmpty(stops, styleID, "outline")
-		ts.TextShadowGradientStops = gradientStopsOrEmpty(stops, styleID, "shadow")
 		if styles[elementID] == nil {
 			styles[elementID] = map[string]state.TextStyle{}
 		}
@@ -789,9 +792,8 @@ func gradientStopsOrEmpty(stops map[int64]map[string][]state.GradientStop, style
 // slices, matching a text_styles row that does not exist.
 func emptyTextStyle() state.TextStyle {
 	return state.TextStyle{
-		GradientStops:           []state.GradientStop{},
-		OutlineGradientStops:    []state.GradientStop{},
-		TextShadowGradientStops: []state.GradientStop{},
+		GradientStops:        []state.GradientStop{},
+		OutlineGradientStops: []state.GradientStop{},
 	}
 }
 
@@ -812,7 +814,6 @@ func labeledTextTarget(ov *state.OverlaySettings, elemType string) *state.Labele
 func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elementID int64, role string) state.TextStyle) {
 	idleAnimStr := nullStr(e.idleAnim)
 	triggerEnterStr := nullStr(e.triggerEnter)
-	triggerExitStr := nullStr(e.triggerExit)
 	triggerDecrementStr := nullStr(e.triggerDecrement)
 
 	// The phasing elements share one struct, so one table-driven branch covers
@@ -824,6 +825,8 @@ func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elemen
 			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
 			LabelText:          nullStr(e.labelText),
 			LabelStyle:         style(e.id, "label"),
+			PrefixText:         nullStr(e.prefixText),
+			SuffixText:         nullStr(e.suffixText),
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,
 			TriggerDecrement:   triggerDecrementStr,
@@ -841,10 +844,10 @@ func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elemen
 			GlowBlur:           int(nullInt(e.glowBlur)),
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,
-			TriggerExit:        triggerExitStr,
 			TriggerDecrement:   triggerDecrementStr,
 			CyclePhaseTargets:  e.cyclePhaseTargets.Valid && e.cyclePhaseTargets.Int64 != 0,
 			CycleIntervalMs:    int(nullInt(e.cycleIntervalMs)),
+			CycleTransition:    nullStr(e.cycleTransition),
 		}
 
 	case "name":
@@ -872,6 +875,8 @@ func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elemen
 			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
 			LabelText:          nullStr(e.labelText),
 			LabelStyle:         style(e.id, "label"),
+			PrefixText:         nullStr(e.prefixText),
+			SuffixText:         nullStr(e.suffixText),
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,
 			TriggerDecrement:   triggerDecrementStr,
@@ -884,6 +889,8 @@ func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elemen
 			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
 			LabelText:          nullStr(e.labelText),
 			LabelStyle:         style(e.id, "label"),
+			PrefixText:         nullStr(e.prefixText),
+			SuffixText:         nullStr(e.suffixText),
 			IdleAnimation:      idleAnimStr,
 		}
 
@@ -898,6 +905,8 @@ func applyOverlayElement(ov *state.OverlaySettings, e elemRow, style func(elemen
 			ShowLabel:          e.showLabel.Valid && e.showLabel.Int64 != 0,
 			LabelText:          nullStr(e.labelText),
 			LabelStyle:         style(e.id, "label"),
+			PrefixText:         nullStr(e.prefixText),
+			SuffixText:         nullStr(e.suffixText),
 			Format:             format,
 			IdleAnimation:      idleAnimStr,
 			TriggerEnter:       triggerEnterStr,

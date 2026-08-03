@@ -179,6 +179,31 @@ var migrations = []migration{
 		description: "add sprite cycling columns to overlay_elements",
 		fn:          migrateAddSpriteCycling,
 	},
+	{
+		version:     33,
+		description: "add prefix_text and suffix_text columns to overlay_elements",
+		fn:          migrateAddPrefixSuffixText,
+	},
+	{
+		version:     34,
+		description: "replace removed WebGL background animations with waves",
+		fn:          migrateReplaceRemovedBgAnimations,
+	},
+	{
+		version:     35,
+		description: "drop the unused trigger_exit column from overlay_elements",
+		fn:          migrateDropTriggerExit,
+	},
+	{
+		version:     36,
+		description: "fold gradient text shadows into a single shadow colour",
+		fn:          migrateDropShadowGradient,
+	},
+	{
+		version:     37,
+		description: "add the sprite cycle transition column to overlay_elements",
+		fn:          migrateAddSpriteCycleTransition,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -452,6 +477,21 @@ func migrateRemapAccentColorPresets(tx *sql.Tx) error {
 	return nil
 }
 
+// migrateReplaceRemovedBgAnimations rewrites background animations that no
+// longer exist. The rb-aurora, rb-galaxy, rb-silk and rb-pixelblast animations
+// were rendered by an external WebGL library that has been dropped; the CSS
+// based "waves" animation is the closest surviving option and matches the
+// built-in default overlay. This touches every owner row, global and
+// per-pokemon alike.
+func migrateReplaceRemovedBgAnimations(tx *sql.Tx) error {
+	if _, err := tx.Exec(`UPDATE overlay_settings SET background_animation = 'waves'
+		WHERE background_animation IN
+		('rb-aurora', 'rb-galaxy', 'rb-silk', 'rb-pixelblast')`); err != nil {
+		return fmt.Errorf("replace removed background animations: %w", err)
+	}
+	return nil
+}
+
 // migrateAddTemplateCalibration adds the calibration column to
 // detector_templates. It stores an opaque JSON blob computed by the frontend
 // stability analysis. Errors are ignored because the column may already exist
@@ -669,6 +709,30 @@ func migrateAddSpriteCycling(tx *sql.Tx) error {
 	return nil
 }
 
+// migrateAddSpriteCycleTransition adds the cycle_transition column to
+// overlay_elements so a sprite row can persist which effect a swap plays while
+// cycling. The column stays nullable like the other sprite-only columns: rows
+// of every other element type leave it NULL, and existing sprite rows read as
+// "", which resolves to the crossfade they behaved like.
+// Errors are ignored for idempotency because SQLite does not support
+// IF NOT EXISTS on ADD COLUMN.
+func migrateAddSpriteCycleTransition(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN cycle_transition TEXT`)
+	return nil
+}
+
+// migrateAddPrefixSuffixText adds the prefix_text and suffix_text columns to
+// overlay_elements so the label-bearing text rows can persist affixes rendered
+// inline with their value. Both columns stay nullable like label_text: rows of
+// every other element type leave them NULL, and existing rows read as "".
+// Errors are ignored for idempotency because SQLite does not support
+// IF NOT EXISTS on ADD COLUMN.
+func migrateAddPrefixSuffixText(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN prefix_text TEXT`)
+	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN suffix_text TEXT`)
+	return nil
+}
+
 // migrateForcePokedexResync clears the cached pokedex tables so the next
 // application start performs a full PokeAPI sync. This is required because
 // migration 12 introduced the generations column, which can only be populated
@@ -681,4 +745,65 @@ func migrateForcePokedexResync(tx *sql.Tx) error {
 		return fmt.Errorf("clear pokedex_species: %w", err)
 	}
 	return nil
+}
+
+// migrateDropTriggerExit removes the trigger_exit column from overlay_elements.
+// No renderer ever read the value and no editor control ever set it, so every
+// row only carried the default. The DROP COLUMN error is ignored for
+// idempotency: databases created after this migration never had the column.
+func migrateDropTriggerExit(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE overlay_elements DROP COLUMN trigger_exit`)
+	return nil
+}
+
+// migrateDropShadowGradient removes the gradient drop shadow, which CSS
+// text-shadow cannot paint: the renderer only ever used the first stop. Styles
+// that stored a gradient shadow keep the colour they showed, so the first stop
+// is copied into text_shadow_color before the shadow stops and the three
+// gradient columns are removed. DROP COLUMN errors are ignored for idempotency
+// because databases created after this migration never had the columns; the
+// backfill and the cleanup delete report their errors.
+func migrateDropShadowGradient(tx *sql.Tx) error {
+	hasColorType, err := columnExists(tx, "text_styles", "text_shadow_color_type")
+	if err != nil {
+		return err
+	}
+	// A database created after this migration never had the column, so there is
+	// no stored gradient shadow left to rescue.
+	if !hasColorType {
+		return nil
+	}
+	// Only touch rows that actually stored a gradient shadow with stops, so a
+	// solid shadow keeps its own colour.
+	if _, err := tx.Exec(`UPDATE text_styles SET text_shadow_color = (
+			SELECT color FROM gradient_stops
+			WHERE gradient_stops.text_style_id = text_styles.id
+			  AND gradient_stops.gradient_type = 'shadow'
+			ORDER BY gradient_stops.sort_order LIMIT 1)
+		WHERE text_shadow_color_type = 'gradient'
+		  AND EXISTS (
+			SELECT 1 FROM gradient_stops
+			WHERE gradient_stops.text_style_id = text_styles.id
+			  AND gradient_stops.gradient_type = 'shadow')`); err != nil {
+		return fmt.Errorf("fold shadow gradient into text_shadow_color: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM gradient_stops WHERE gradient_type = 'shadow'`); err != nil {
+		return fmt.Errorf("delete shadow gradient stops: %w", err)
+	}
+	_, _ = tx.Exec(`ALTER TABLE text_styles DROP COLUMN text_shadow_color_type`)
+	_, _ = tx.Exec(`ALTER TABLE text_styles DROP COLUMN text_shadow_gradient_angle`)
+	return nil
+}
+
+// columnExists reports whether a table carries the given column. SQLite has no
+// IF EXISTS for columns, so migrations that have to read a column before
+// dropping it ask the schema first instead of relying on a swallowed error.
+func columnExists(tx *sql.Tx, table, column string) (bool, error) {
+	rows, err := tx.Query(`SELECT 1 FROM pragma_table_info(?) WHERE name = ?`, table, column)
+	if err != nil {
+		return false, fmt.Errorf("pragma_table_info(%s): %w", table, err)
+	}
+	defer func() { _ = rows.Close() }()
+	found := rows.Next()
+	return found, rows.Err()
 }

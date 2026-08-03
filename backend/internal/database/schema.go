@@ -165,13 +165,15 @@ var schemaV2 = []string{
 		glow_blur      INTEGER,
 		idle_animation TEXT    NOT NULL DEFAULT 'none',
 		trigger_enter     TEXT    NOT NULL DEFAULT 'none',
-		trigger_exit      TEXT    NOT NULL DEFAULT '',
 		trigger_decrement TEXT    NOT NULL DEFAULT 'none',
 		show_label     INTEGER,
 		label_text     TEXT,
+		prefix_text    TEXT,
+		suffix_text    TEXT,
 		format         TEXT    NOT NULL DEFAULT '',
 		cycle_phase_targets INTEGER,
 		cycle_interval_ms   INTEGER,
+		cycle_transition    TEXT,
 		UNIQUE(overlay_id, element_type),
 		FOREIGN KEY (overlay_id) REFERENCES overlay_settings(id) ON DELETE CASCADE
 	)`,
@@ -195,8 +197,6 @@ var schemaV2 = []string{
 		outline_gradient_angle     INTEGER NOT NULL DEFAULT 0,
 		text_shadow                INTEGER NOT NULL DEFAULT 0,
 		text_shadow_color          TEXT    NOT NULL DEFAULT '',
-		text_shadow_color_type     TEXT    NOT NULL DEFAULT 'solid',
-		text_shadow_gradient_angle INTEGER NOT NULL DEFAULT 0,
 		text_shadow_blur           INTEGER NOT NULL DEFAULT 0,
 		text_shadow_x              INTEGER NOT NULL DEFAULT 0,
 		text_shadow_y              INTEGER NOT NULL DEFAULT 0,
@@ -205,7 +205,8 @@ var schemaV2 = []string{
 	)`,
 
 	// ── Gradient stops ───────────────────────────────────────────────────
-	// gradient_type: 'color', 'outline', or 'shadow'.
+	// gradient_type: 'color' or 'outline'. The drop shadow carries a single
+	// colour, so it stores no stops.
 	`CREATE TABLE IF NOT EXISTS gradient_stops (
 		id            INTEGER PRIMARY KEY AUTOINCREMENT,
 		text_style_id INTEGER NOT NULL,

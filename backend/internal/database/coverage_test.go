@@ -206,8 +206,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 32 {
-		t.Errorf("MigrationVersion = %d, want 32", v)
+	if v != 37 {
+		t.Errorf("MigrationVersion = %d, want 37", v)
 	}
 }
 
@@ -460,10 +460,10 @@ func TestOverlayHiddenAndBorderFields(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Overlay with all animation fields (trigger_decrement, trigger_exit)
+// Overlay with all animation fields (trigger_decrement)
 // ---------------------------------------------------------------------------
 
-// TestOverlayTriggerDecrement verifies that trigger_decrement and trigger_exit
+// TestOverlayTriggerDecrement verifies that trigger_decrement
 // animation fields round-trip for all element types.
 func TestOverlayTriggerDecrement(t *testing.T) {
 	db := openTestDB(t)

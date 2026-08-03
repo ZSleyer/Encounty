@@ -225,9 +225,10 @@ func TestSessionWithEndedAt(t *testing.T) {
 	}
 }
 
-// TestOverlayWithOutlineAndShadowGradients verifies that outline gradient stops
-// and text shadow gradient stops survive a save/load cycle.
-func TestOverlayWithOutlineAndShadowGradients(t *testing.T) {
+// TestOverlayWithOutlineGradientStops verifies that outline gradient stops
+// survive a save/load cycle. The drop shadow carries no stops: CSS text-shadow
+// paints a single colour.
+func TestOverlayWithOutlineGradientStops(t *testing.T) {
 	db := openTestDB(t)
 	now := time.Now().UTC().Truncate(time.Second)
 
@@ -238,10 +239,7 @@ func TestOverlayWithOutlineAndShadowGradients(t *testing.T) {
 		{Color: colorGreen, Position: 0.5},
 		{Color: colorBlue, Position: 1},
 	}
-	overlay.Name.Style.TextShadowGradientStops = []state.GradientStop{
-		{Color: colorDarkGray1, Position: 0},
-		{Color: colorDarkGray2, Position: 1},
-	}
+	overlay.Name.Style.TextShadowColor = colorDarkGray1
 
 	st := state.AppState{
 		ActiveID: "p1",
@@ -287,16 +285,10 @@ func TestOverlayWithOutlineAndShadowGradients(t *testing.T) {
 		t.Errorf("OutlineGradientStops[2].Color = %q, want %q", outlineStops[2].Color, colorBlue)
 	}
 
-	// Check text shadow gradient stops.
-	shadowStops := got.Settings.Overlay.Name.Style.TextShadowGradientStops
-	if len(shadowStops) != 2 {
-		t.Fatalf("TextShadowGradientStops len = %d, want 2", len(shadowStops))
-	}
-	if shadowStops[0].Color != colorDarkGray1 {
-		t.Errorf("TextShadowGradientStops[0].Color = %q, want %q", shadowStops[0].Color, colorDarkGray1)
-	}
-	if shadowStops[1].Color != colorDarkGray2 {
-		t.Errorf("TextShadowGradientStops[1].Color = %q, want %q", shadowStops[1].Color, colorDarkGray2)
+	// The shadow keeps its single colour.
+	if got.Settings.Overlay.Name.Style.TextShadowColor != colorDarkGray1 {
+		t.Errorf("TextShadowColor = %q, want %q",
+			got.Settings.Overlay.Name.Style.TextShadowColor, colorDarkGray1)
 	}
 }
 
@@ -928,5 +920,66 @@ func assertTemplateDetectionSettings(t *testing.T, tmpl state.DetectorTemplate, 
 	}
 	if tmpl.MaxPollMs == nil || *tmpl.MaxPollMs != maxPollMs {
 		t.Errorf("MaxPollMs = %v, want %v", tmpl.MaxPollMs, maxPollMs)
+	}
+}
+
+// TestOverlayGradientOutlineRoundTrip verifies that a gradient outline survives
+// a save/load cycle with its type, angle and stops intact, so the renderer sees
+// the same outline it was configured with.
+func TestOverlayGradientOutlineRoundTrip(t *testing.T) {
+	db := openTestDB(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	overlay := makeTestOverlay()
+	overlay.Name.Style.OutlineType = "gradient"
+	overlay.Name.Style.OutlineWidth = 4
+	overlay.Name.Style.OutlineGradientAngle = 135
+	overlay.Name.Style.OutlineGradientStops = []state.GradientStop{
+		{Color: colorRed, Position: 0},
+		{Color: colorBlue, Position: 100},
+	}
+
+	st := state.AppState{
+		ActiveID: "p1",
+		Pokemon: []state.Pokemon{
+			{ID: "p1", Name: "Charmander", CreatedAt: now, OverlayMode: "default"},
+		},
+		Sessions: []state.Session{},
+		Settings: state.Settings{
+			Languages: []string{"en"},
+			Overlay:   overlay,
+		},
+	}
+
+	if err := db.SaveFullState(&st); err != nil {
+		t.Fatalf(edgeFmtSaveErr, err)
+	}
+
+	got, err := db.LoadFullState()
+	if err != nil {
+		t.Fatalf(edgeFmtLoadErr, err)
+	}
+	if got == nil {
+		t.Fatal(edgeLoadNil)
+	}
+
+	style := got.Settings.Overlay.Name.Style
+	if style.OutlineType != "gradient" {
+		t.Errorf("OutlineType = %q, want %q", style.OutlineType, "gradient")
+	}
+	if style.OutlineWidth != 4 {
+		t.Errorf("OutlineWidth = %d, want 4", style.OutlineWidth)
+	}
+	if style.OutlineGradientAngle != 135 {
+		t.Errorf("OutlineGradientAngle = %d, want 135", style.OutlineGradientAngle)
+	}
+	if len(style.OutlineGradientStops) != 2 {
+		t.Fatalf("OutlineGradientStops len = %d, want 2", len(style.OutlineGradientStops))
+	}
+	if style.OutlineGradientStops[0].Color != colorRed || style.OutlineGradientStops[0].Position != 0 {
+		t.Errorf("OutlineGradientStops[0] = %+v, want %s at 0", style.OutlineGradientStops[0], colorRed)
+	}
+	if style.OutlineGradientStops[1].Color != colorBlue || style.OutlineGradientStops[1].Position != 100 {
+		t.Errorf("OutlineGradientStops[1] = %+v, want %s at 100", style.OutlineGradientStops[1], colorBlue)
 	}
 }

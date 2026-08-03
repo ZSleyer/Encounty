@@ -25,17 +25,35 @@ import (
 // Shared string literals used in default overlay settings and overlay resolution.
 const (
 	colorBlack          = "#000000"
-	colorWhite          = "#ffffff"
 	colorTypeSolid      = "solid"
-	outlineTypeSolid    = "solid"
+	outlineTypeNone     = "none"
 	animationNone       = "none"
-	fontPokemon         = "pokemon"
+	fontSans            = "sans"
 	overlayLinkedPrefix = "linked:"
+)
+
+// Tempest design-system colours baked into the default overlay layout. The
+// overlay stores plain hex rather than a CSS custom property: the editor's
+// colour picker only round-trips 6-digit hex, and the OBS browser source keeps
+// its own theme and accent preset. The token each value came from is recorded
+// here so a later theme change stays traceable.
+const (
+	colorBgPrimary     = "#0d1117" // --bg-primary
+	colorBorderSubtle  = "#2a3644" // --border-subtle
+	colorTextPrimary   = "#eef3f8" // --text-primary
+	colorTextSecondary = "#b7c5d3" // --text-secondary
+	colorTextMuted     = "#8fa3b5" // --text-muted
+	colorAccentViolet  = "#a685f0" // --accent-blue, violet preset (the default accent)
 )
 
 // defaultSpriteCycleIntervalMs is the dwell time per sprite when the overlay
 // cycles through the phase targets.
 const defaultSpriteCycleIntervalMs = 3000
+
+// defaultSpriteCycleTransition is the effect played on a sprite swap while
+// cycling. Cycling shipped with the crossfade as its only behaviour, so it is
+// both the default and the fallback for an overlay that carries no choice.
+const defaultSpriteCycleTransition = "fade"
 
 // Sentinel errors returned by the phase transitions so HTTP handlers can map
 // them to status codes without string matching.
@@ -265,30 +283,29 @@ type GradientStop struct {
 
 // TextStyle describes the typography and decoration for one text element
 // in the OBS overlay (name label or encounter counter).
-// Outlines support "none" and "solid" modes.
-// Text shadows support "solid" or "gradient" colour with dedicated stops and angle.
+// Outlines support "none", "solid" and "gradient" modes; a gradient outline
+// carries its own stops and angle. Any other value renders as no outline.
+// The drop shadow carries exactly one colour, because CSS text-shadow cannot
+// paint a gradient.
 type TextStyle struct {
-	FontFamily              string         `json:"font_family"`
-	FontSize                int            `json:"font_size"`
-	FontWeight              int            `json:"font_weight"`
-	TextAlign               string         `json:"text_align"`
-	ColorType               string         `json:"color_type"` // "solid" | "gradient"
-	Color                   string         `json:"color"`
-	GradientStops           []GradientStop `json:"gradient_stops"`
-	GradientAngle           int            `json:"gradient_angle"`
-	OutlineType             string         `json:"outline_type"` // "none" | "solid"
-	OutlineWidth            int            `json:"outline_width"`
-	OutlineColor            string         `json:"outline_color"`
-	OutlineGradientStops    []GradientStop `json:"outline_gradient_stops"`
-	OutlineGradientAngle    int            `json:"outline_gradient_angle"`
-	TextShadow              bool           `json:"text_shadow"`
-	TextShadowColor         string         `json:"text_shadow_color"`
-	TextShadowColorType     string         `json:"text_shadow_color_type"` // "solid" | "gradient"
-	TextShadowGradientStops []GradientStop `json:"text_shadow_gradient_stops"`
-	TextShadowGradientAngle int            `json:"text_shadow_gradient_angle"`
-	TextShadowBlur          int            `json:"text_shadow_blur"`
-	TextShadowX             int            `json:"text_shadow_x"`
-	TextShadowY             int            `json:"text_shadow_y"`
+	FontFamily           string         `json:"font_family"`
+	FontSize             int            `json:"font_size"`
+	FontWeight           int            `json:"font_weight"`
+	TextAlign            string         `json:"text_align"`
+	ColorType            string         `json:"color_type"` // "solid" | "gradient"
+	Color                string         `json:"color"`
+	GradientStops        []GradientStop `json:"gradient_stops"`
+	GradientAngle        int            `json:"gradient_angle"`
+	OutlineType          string         `json:"outline_type"` // "none" | "solid" | "gradient"
+	OutlineWidth         int            `json:"outline_width"`
+	OutlineColor         string         `json:"outline_color"`
+	OutlineGradientStops []GradientStop `json:"outline_gradient_stops"`
+	OutlineGradientAngle int            `json:"outline_gradient_angle"`
+	TextShadow           bool           `json:"text_shadow"`
+	TextShadowColor      string         `json:"text_shadow_color"`
+	TextShadowBlur       int            `json:"text_shadow_blur"`
+	TextShadowX          int            `json:"text_shadow_x"`
+	TextShadowY          int            `json:"text_shadow_y"`
 }
 
 // OverlayElementBase holds position and size fields shared by every overlay
@@ -312,13 +329,16 @@ type SpriteElement struct {
 	GlowBlur         int     `json:"glow_blur"`
 	IdleAnimation    string  `json:"idle_animation"`
 	TriggerEnter     string  `json:"trigger_enter"`
-	TriggerExit      string  `json:"trigger_exit"`
 	TriggerDecrement string  `json:"trigger_decrement"`
 	// CyclePhaseTargets makes the sprite rotate through the hunt's phase
 	// targets instead of showing the hunted species only.
 	CyclePhaseTargets bool `json:"cycle_phase_targets"`
 	// CycleIntervalMs is the dwell time per sprite while cycling.
 	CycleIntervalMs int `json:"cycle_interval_ms"`
+	// CycleTransition names the effect played on a sprite swap while cycling:
+	// "none", "fade", "wipe-lr" or "wipe-rl". An empty or unknown value renders
+	// as "fade", the effect cycling shipped with.
+	CycleTransition string `json:"cycle_transition"`
 }
 
 // NameElement configures the Pokémon name text layer of the overlay.
@@ -342,12 +362,16 @@ type TitleElement struct {
 
 // CounterElement configures the encounter-count text layer of the overlay,
 // including an optional descriptive label rendered above or below the number.
+// PrefixText and SuffixText render inline with the number in the number's own
+// style, unlike the label, which has its own style; an empty string hides them.
 type CounterElement struct {
 	OverlayElementBase
 	Style            TextStyle `json:"style"`
 	ShowLabel        bool      `json:"show_label"`
 	LabelText        string    `json:"label_text"`
 	LabelStyle       TextStyle `json:"label_style"`
+	PrefixText       string    `json:"prefix_text"`
+	SuffixText       string    `json:"suffix_text"`
 	IdleAnimation    string    `json:"idle_animation"`
 	TriggerEnter     string    `json:"trigger_enter"`
 	TriggerDecrement string    `json:"trigger_decrement"`
@@ -355,12 +379,16 @@ type CounterElement struct {
 
 // TimerElement configures the hunt timer text layer of the overlay,
 // including an optional descriptive label rendered above or below the time.
+// PrefixText and SuffixText render inline with the time in the time's own
+// style, unlike the label, which has its own style; an empty string hides them.
 type TimerElement struct {
 	OverlayElementBase
 	Style         TextStyle `json:"style"`
 	ShowLabel     bool      `json:"show_label"`
 	LabelText     string    `json:"label_text"`
 	LabelStyle    TextStyle `json:"label_style"`
+	PrefixText    string    `json:"prefix_text"`
+	SuffixText    string    `json:"suffix_text"`
 	IdleAnimation string    `json:"idle_animation"`
 }
 
@@ -368,12 +396,16 @@ type TimerElement struct {
 // Format toggles between a static fractional display (e.g. "1/4096")
 // and a cumulative probability after the current encounter count
 // (e.g. "63.2%"). An optional descriptive label mirrors CounterElement.
+// PrefixText and SuffixText render inline with the value in the value's own
+// style, unlike the label, which has its own style; an empty string hides them.
 type OddsElement struct {
 	OverlayElementBase
 	Style            TextStyle `json:"style"`
 	ShowLabel        bool      `json:"show_label"`
 	LabelText        string    `json:"label_text"`
 	LabelStyle       TextStyle `json:"label_style"`
+	PrefixText       string    `json:"prefix_text"`
+	SuffixText       string    `json:"suffix_text"`
 	Format           string    `json:"format"` // "fractional" | "percent"
 	IdleAnimation    string    `json:"idle_animation"`
 	TriggerEnter     string    `json:"trigger_enter"`
@@ -388,12 +420,17 @@ type OddsElement struct {
 //
 // Elements that expose no trigger animations (total timer) still carry the
 // trigger fields; they stay at "none" and no editor binds them.
+//
+// PrefixText and SuffixText render inline with the value in the value's own
+// style, unlike the label, which has its own style; an empty string hides them.
 type LabeledTextElement struct {
 	OverlayElementBase
 	Style            TextStyle `json:"style"`
 	ShowLabel        bool      `json:"show_label"`
 	LabelText        string    `json:"label_text"`
 	LabelStyle       TextStyle `json:"label_style"`
+	PrefixText       string    `json:"prefix_text"`
+	SuffixText       string    `json:"suffix_text"`
 	IdleAnimation    string    `json:"idle_animation"`
 	TriggerEnter     string    `json:"trigger_enter"`
 	TriggerDecrement string    `json:"trigger_decrement"`
@@ -535,9 +572,241 @@ type Manager struct {
 	counterDirty    map[string]struct{}
 }
 
+// overlayValueStyle returns the value typography shared by every text layer of
+// the default overlay: one sans face at the given size, --text-primary on the
+// panel, no stroke, and the minimal shadow floor. The shadow is invisible on
+// the plate but keeps the text readable for users who drop the background
+// opacity to 0 or hide the canvas layer entirely. The stroke colour is the
+// panel rather than black, so a user who switches the stroke on gets a halo
+// against the plate instead of a cartoon key line.
+func overlayValueStyle(size int) TextStyle {
+	return TextStyle{
+		FontFamily:      fontSans,
+		FontSize:        size,
+		FontWeight:      700,
+		TextAlign:       "left",
+		ColorType:       colorTypeSolid,
+		Color:           colorTextPrimary,
+		OutlineType:     outlineTypeNone,
+		OutlineWidth:    2,
+		OutlineColor:    colorBgPrimary,
+		TextShadow:      true,
+		TextShadowColor: colorBlack,
+		TextShadowX:     0,
+		TextShadowY:     1,
+		TextShadowBlur:  3,
+	}
+}
+
+// overlayLabelStyle returns the caption typography of the label channel, the
+// single caption rule of the default layout: every stat captions itself with a
+// label, none of them with an inline prefix.
+func overlayLabelStyle() TextStyle {
+	return TextStyle{
+		FontFamily: fontSans,
+		FontSize:   11,
+		FontWeight: 600,
+		TextAlign:  "left",
+		ColorType:  colorTypeSolid,
+		Color:      colorTextMuted,
+	}
+}
+
+// overlayLabelSet holds the six captions the default overlay writes into its
+// label channels, in one language.
+type overlayLabelSet struct {
+	Encounters      string
+	Time            string
+	Odds            string
+	Phase           string
+	TotalEncounters string
+	TotalTime       string
+}
+
+// overlayLabels maps a language code to the captions the seeded default overlay
+// uses. A caption is stored text, not rendered text: it is written into the
+// overlay once, on first run, and belongs to the user afterwards, so it has to
+// be in their language from the start.
+//
+// The values are the `overlay.label*` keys of frontend/src/locales/*.json.
+// Keeping a small table here rather than reading those files keeps the backend
+// free of the frontend's assets; the frontend test in overlayTemplates.test.ts
+// and the table test in state_test.go guard the two copies.
+//
+// German keeps the English loan words the Pokémon community uses (Encounter,
+// Odds), which is why "ENCOUNTER" and "ODDS" are not translated there.
+var overlayLabels = map[string]overlayLabelSet{
+	"de": {"ENCOUNTER", "ZEIT", "ODDS", "PHASE", "ENCOUNTER GESAMT", "ZEIT GESAMT"},
+	"en": {"ENCOUNTERS", "TIME", "ODDS", "PHASE", "TOTAL ENCOUNTERS", "TOTAL TIME"},
+	"es": {"ENCUENTROS", "TIEMPO", "PROBABILIDAD", "FASE", "ENCUENTROS TOTALES", "TIEMPO TOTAL"},
+	"fr": {"RENCONTRES", "TEMPS", "PROBABILITÉ", "PHASE", "RENCONTRES TOTALES", "TEMPS TOTAL"},
+	"ja": {"エンカウント", "タイム", "確率", "フェーズ", "合計エンカウント", "合計タイム"},
+}
+
+// overlayLabelsFor picks the caption set for the first configured language.
+// Anything the table does not know, including an empty configuration, falls
+// back to English.
+func overlayLabelsFor(languages []string) overlayLabelSet {
+	if len(languages) > 0 {
+		if labels, ok := overlayLabels[languages[0]]; ok {
+			return labels
+		}
+	}
+	return overlayLabels["en"]
+}
+
+// overlayStripStat returns one of the three phasing slots of the default stat
+// strip. They differ only in position, z-index and caption, and all three ship
+// hidden: a phase number, a total encounter count and a total time say nothing
+// until the user actually phases.
+func overlayStripStat(x, zIndex int, label string) LabeledTextElement {
+	return LabeledTextElement{
+		OverlayElementBase: OverlayElementBase{Visible: false, X: x, Y: 196, Width: 144, Height: 44, ZIndex: zIndex},
+		Style:              overlayValueStyle(20),
+		ShowLabel:          true,
+		LabelText:          label,
+		LabelStyle:         overlayLabelStyle(),
+		PrefixText:         "",
+		SuffixText:         "",
+		IdleAnimation:      animationNone,
+		TriggerEnter:       animationNone,
+		TriggerDecrement:   animationNone,
+	}
+}
+
+// defaultOverlaySettings returns the default overlay layout: an 800x264 panel
+// on a 24px margin, read as three bands (sprite plus identity header, hero
+// counter, stat strip). The strip runs along the bottom margin as five 144px
+// slots with 8px gutters, so the two stats that ship visible bracket it against
+// both page margins and the three hidden phasing stats grow inward without
+// moving a single coordinate.
+//
+// It is kept in sync with `buildDefaultOverlaySettings` in
+// frontend/src/components/overlay-editor/overlayTemplates.ts so the initial
+// overlay (created in NewManager) is identical to the layout the "reset
+// overlay" button produces. The migrations in persist.go fill absent elements
+// from here as well, so the three copies cannot drift apart.
+//
+// The captions come from the configured languages because the backend has no
+// translator: the first entry decides, English fills in for anything the label
+// table does not cover.
+func defaultOverlaySettings(languages []string) OverlaySettings {
+	labels := overlayLabelsFor(languages)
+	return OverlaySettings{
+		CanvasWidth:     800,
+		CanvasHeight:    264,
+		BackgroundColor: colorBgPrimary,
+		// 0.9 rather than the old 0.6: every text colour has to clear 4.5:1 even
+		// over a fully white game capture.
+		BackgroundOpacity:   0.9,
+		BackgroundAnimation: animationNone,
+		Blur:                0,
+		ShowBorder:          true,
+		BorderColor:         colorBorderSubtle,
+		BorderWidth:         1,
+		BorderRadius:        0,
+		Sprite: SpriteElement{
+			OverlayElementBase: OverlayElementBase{Visible: true, X: 24, Y: 24, Width: 152, Height: 152, ZIndex: 1},
+			ShowGlow:           true,
+			GlowColor:          colorTextPrimary,
+			// A backlight that lifts a dark sprite off the panel, not a soft bloom.
+			GlowOpacity:   0.1,
+			GlowBlur:      24,
+			IdleAnimation: animationNone,
+			// Motion on the counting hotkeys is feedback that the key fired, not
+			// decoration, so both triggers stay on.
+			TriggerEnter:      "bounce",
+			TriggerDecrement:  "shake",
+			CyclePhaseTargets: false,
+			CycleIntervalMs:   defaultSpriteCycleIntervalMs,
+			CycleTransition:   defaultSpriteCycleTransition,
+		},
+		Name: NameElement{
+			OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 24, Width: 576, Height: 34, ZIndex: 2},
+			Style:              overlayValueStyle(26),
+			IdleAnimation:      animationNone,
+			TriggerEnter:       animationNone,
+			TriggerDecrement:   animationNone,
+		},
+		Title: TitleElement{
+			// The renderer only paints the title when the hunt has one, so shipping
+			// it visible costs an untitled hunt nothing and saves a trip to the
+			// layer list for everyone else.
+			OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 62, Width: 576, Height: 22, ZIndex: 4},
+			Style:              titleStyle(),
+			IdleAnimation:      animationNone,
+			TriggerEnter:       animationNone,
+			TriggerDecrement:   animationNone,
+		},
+		Counter: CounterElement{
+			OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 92, Width: 576, Height: 88, ZIndex: 3},
+			Style:              overlayValueStyle(64),
+			ShowLabel:          true,
+			LabelText:          labels.Encounters,
+			LabelStyle:         overlayLabelStyle(),
+			// The caption lives in the label channel, not in the prefix: a prefix
+			// renders inline in the value's own style, so at 64px it would
+			// overflow the card.
+			PrefixText:       "",
+			SuffixText:       "",
+			IdleAnimation:    animationNone,
+			TriggerEnter:     "slot",
+			TriggerDecrement: "slot",
+		},
+		Timer: TimerElement{
+			OverlayElementBase: OverlayElementBase{Visible: true, X: 24, Y: 196, Width: 144, Height: 44, ZIndex: 5},
+			Style:              overlayValueStyle(20),
+			ShowLabel:          true,
+			LabelText:          labels.Time,
+			LabelStyle:         overlayLabelStyle(),
+			PrefixText:         "",
+			SuffixText:         "",
+			IdleAnimation:      animationNone,
+		},
+		Odds: OddsElement{
+			OverlayElementBase: OverlayElementBase{Visible: true, X: 632, Y: 196, Width: 144, Height: 44, ZIndex: 6},
+			Style:              oddsStyle(),
+			ShowLabel:          true,
+			LabelText:          labels.Odds,
+			LabelStyle:         overlayLabelStyle(),
+			PrefixText:         "",
+			SuffixText:         "",
+			Format:             "fractional",
+			IdleAnimation:      animationNone,
+			TriggerEnter:       animationNone,
+			TriggerDecrement:   animationNone,
+		},
+		Phase:        overlayStripStat(176, 7, labels.Phase),
+		TotalCounter: overlayStripStat(328, 8, labels.TotalEncounters),
+		TotalTimer:   overlayStripStat(480, 9, labels.TotalTime),
+	}
+}
+
+// titleStyle returns the typography of the title layer: one step below the name
+// in both size and colour, so the header column reads as a hierarchy.
+func titleStyle() TextStyle {
+	s := overlayValueStyle(13)
+	s.FontWeight = 600
+	s.Color = colorTextSecondary
+	return s
+}
+
+// oddsStyle returns the typography of the odds layer. It carries the single
+// accent of the layout and is the only right-aligned element, so its value and
+// label both hug the right page margin.
+func oddsStyle() TextStyle {
+	s := overlayValueStyle(20)
+	s.Color = colorAccentViolet
+	s.TextAlign = "right"
+	return s
+}
+
 // NewManager creates a Manager with sensible defaults for all settings.
 // The defaults are used as-is until Load() overwrites them from disk.
 func NewManager(configDir string) *Manager {
+	// Hoisted out of the literal below because the seeded overlay reads it:
+	// the first entry decides which language the overlay captions are in.
+	languages := []string{"de", "en"}
 	m := &Manager{
 		configDir:    configDir,
 		dirty:        make(chan struct{}, 1),
@@ -551,178 +820,11 @@ func NewManager(configDir string) *Manager {
 				OutputEnabled:      false,
 				OutputDir:          filepath.Join(configDir, "output"),
 				AutoSave:           true,
-				Languages:          []string{"de", "en"},
+				Languages:          languages,
 				CrispSprites:       true,
 				AccentColor:        "violet",
 				CaptureResolutions: map[string]string{},
-				// Default overlay — kept in sync with the frontend
-				// `DEFAULT_OVERLAY_SETTINGS` constant in
-				// frontend/src/components/overlay-editor/OverlayEditor.tsx so the
-				// initial overlay (created here) is identical to the layout the
-				// "reset overlay" button produces.
-				Overlay: OverlaySettings{
-					CanvasWidth:         800,
-					CanvasHeight:        200,
-					BackgroundColor:     "#ce5a41",
-					BackgroundOpacity:   0.6,
-					BackgroundAnimation: "waves",
-					Blur:                8,
-					ShowBorder:          true,
-					BorderColor:         "rgba(255,255,255,0.1)",
-					BorderWidth:         2,
-					BorderRadius:        40,
-					Sprite: SpriteElement{
-						OverlayElementBase: OverlayElementBase{Visible: true, X: 10, Y: 10, Width: 180, Height: 180, ZIndex: 1},
-						ShowGlow:           true,
-						GlowColor:          colorWhite,
-						GlowOpacity:        0.2,
-						GlowBlur:           42,
-						IdleAnimation:      animationNone,
-						TriggerEnter:       "bounce",
-						TriggerDecrement:   "shake",
-						CyclePhaseTargets:  false,
-						CycleIntervalMs:    defaultSpriteCycleIntervalMs,
-					},
-					Name: NameElement{
-						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
-						Style: TextStyle{
-							FontFamily:   fontPokemon,
-							FontSize:     28,
-							FontWeight:   700,
-							ColorType:    colorTypeSolid,
-							Color:        colorWhite,
-							OutlineType:  outlineTypeSolid,
-							OutlineWidth: 4,
-							OutlineColor: colorBlack,
-						},
-						IdleAnimation:    animationNone,
-						TriggerEnter:     animationNone,
-						TriggerDecrement: animationNone,
-					},
-					Title: TitleElement{
-						OverlayElementBase: OverlayElementBase{Visible: false, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
-						Style: TextStyle{
-							FontFamily:   fontPokemon,
-							FontSize:     20,
-							FontWeight:   700,
-							ColorType:    colorTypeSolid,
-							Color:        colorWhite,
-							OutlineType:  outlineTypeSolid,
-							OutlineWidth: 3,
-							OutlineColor: colorBlack,
-						},
-						IdleAnimation:    animationNone,
-						TriggerEnter:     animationNone,
-						TriggerDecrement: animationNone,
-					},
-					Counter: CounterElement{
-						OverlayElementBase: OverlayElementBase{Visible: true, X: 200, Y: 80, Width: 300, Height: 100, ZIndex: 3},
-						Style: TextStyle{
-							FontFamily:   fontPokemon,
-							FontSize:     80,
-							FontWeight:   700,
-							ColorType:    colorTypeSolid,
-							Color:        colorWhite,
-							OutlineType:  outlineTypeSolid,
-							OutlineWidth: 6,
-							OutlineColor: colorBlack,
-						},
-						ShowLabel: false,
-						LabelText: "Begegnungen",
-						LabelStyle: TextStyle{
-							FontFamily: "sans",
-							FontSize:   14,
-							FontWeight: 400,
-							ColorType:  colorTypeSolid,
-							Color:      "#94a3b8",
-						},
-						IdleAnimation:    animationNone,
-						TriggerEnter:     "slot",
-						TriggerDecrement: "slot",
-					},
-					Timer: TimerElement{
-						OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 20, Width: 250, Height: 40, ZIndex: 5},
-						Style: TextStyle{
-							FontFamily:   fontPokemon,
-							FontSize:     24,
-							FontWeight:   700,
-							ColorType:    colorTypeSolid,
-							Color:        colorWhite,
-							OutlineType:  outlineTypeSolid,
-							OutlineWidth: 3,
-							OutlineColor: colorBlack,
-						},
-						ShowLabel: false,
-						LabelText: "Timer",
-						LabelStyle: TextStyle{
-							FontFamily: "sans",
-							FontSize:   14,
-							FontWeight: 400,
-							ColorType:  colorTypeSolid,
-							Color:      "#94a3b8",
-						},
-						IdleAnimation: animationNone,
-					},
-					Odds: OddsElement{
-						OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 70, Width: 250, Height: 50, ZIndex: 6},
-						Style: TextStyle{
-							FontFamily:   fontPokemon,
-							FontSize:     28,
-							FontWeight:   700,
-							ColorType:    colorTypeSolid,
-							Color:        colorWhite,
-							OutlineType:  outlineTypeSolid,
-							OutlineWidth: 3,
-							OutlineColor: colorBlack,
-						},
-						ShowLabel: false,
-						LabelText: "Odds",
-						LabelStyle: TextStyle{
-							FontFamily: "sans",
-							FontSize:   14,
-							FontWeight: 400,
-							ColorType:  colorTypeSolid,
-							Color:      "#94a3b8",
-						},
-						Format:           "fractional",
-						IdleAnimation:    animationNone,
-						TriggerEnter:     animationNone,
-						TriggerDecrement: animationNone,
-					},
-					// The phasing elements share their typography, so they reuse the
-					// same helpers the migration path in persist.go builds from.
-					Phase: LabeledTextElement{
-						OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 122, Width: 120, Height: 36, ZIndex: 7},
-						Style:              phasingTextStyle(),
-						ShowLabel:          false,
-						LabelText:          "Phase",
-						LabelStyle:         phasingLabelStyle(),
-						IdleAnimation:      animationNone,
-						TriggerEnter:       animationNone,
-						TriggerDecrement:   animationNone,
-					},
-					TotalCounter: LabeledTextElement{
-						OverlayElementBase: OverlayElementBase{Visible: false, X: 660, Y: 122, Width: 130, Height: 36, ZIndex: 8},
-						Style:              phasingTextStyle(),
-						ShowLabel:          false,
-						LabelText:          "Total Encounter",
-						LabelStyle:         phasingLabelStyle(),
-						IdleAnimation:      animationNone,
-						TriggerEnter:       animationNone,
-						TriggerDecrement:   animationNone,
-					},
-					TotalTimer: LabeledTextElement{
-						OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 162, Width: 260, Height: 36, ZIndex: 9},
-						Style:              phasingTextStyle(),
-						ShowLabel:          false,
-						LabelText:          "Total Timer",
-						LabelStyle:         phasingLabelStyle(),
-						IdleAnimation:      animationNone,
-						// No trigger animations, mirroring the timer element.
-						TriggerEnter:     animationNone,
-						TriggerDecrement: animationNone,
-					},
-				},
+				Overlay:            defaultOverlaySettings(languages),
 			},
 			Hotkeys: HotkeyMap{
 				Increment:   "F1",

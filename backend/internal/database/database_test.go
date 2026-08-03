@@ -55,7 +55,6 @@ func makeTestOverlay() state.OverlaySettings {
 			GlowBlur:           15,
 			IdleAnimation:      "float",
 			TriggerEnter:       "pop",
-			TriggerExit:        "fade-out",
 		},
 		Name: state.NameElement{
 			OverlayElementBase: state.OverlayElementBase{Visible: true, X: 200, Y: 20, Width: 300, Height: 40, ZIndex: 2},
@@ -72,17 +71,15 @@ func makeTestOverlay() state.OverlaySettings {
 					{Color: "#00ff00", Position: 0.5},
 					{Color: "#0000ff", Position: 1},
 				},
-				OutlineType:             "solid",
-				OutlineWidth:            4,
-				OutlineColor:            "#000000",
-				OutlineGradientStops:    []state.GradientStop{},
-				TextShadow:              true,
-				TextShadowColor:         "#333333",
-				TextShadowColorType:     "solid",
-				TextShadowBlur:          3,
-				TextShadowX:             1,
-				TextShadowY:             2,
-				TextShadowGradientStops: []state.GradientStop{},
+				OutlineType:          "solid",
+				OutlineWidth:         4,
+				OutlineColor:         "#000000",
+				OutlineGradientStops: []state.GradientStop{},
+				TextShadow:           true,
+				TextShadowColor:      "#333333",
+				TextShadowBlur:       3,
+				TextShadowX:          1,
+				TextShadowY:          2,
 			},
 			IdleAnimation: "none",
 			TriggerEnter:  "fade-in",
@@ -90,17 +87,16 @@ func makeTestOverlay() state.OverlaySettings {
 		Title: state.TitleElement{
 			OverlayElementBase: state.OverlayElementBase{Visible: true, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
 			Style: state.TextStyle{
-				FontFamily:              "pokemon",
-				FontSize:                20,
-				FontWeight:              700,
-				ColorType:               "solid",
-				Color:                   "#eeeeee",
-				OutlineType:             "solid",
-				OutlineWidth:            3,
-				OutlineColor:            "#111111",
-				GradientStops:           []state.GradientStop{},
-				OutlineGradientStops:    []state.GradientStop{},
-				TextShadowGradientStops: []state.GradientStop{},
+				FontFamily:           "pokemon",
+				FontSize:             20,
+				FontWeight:           700,
+				ColorType:            "solid",
+				Color:                "#eeeeee",
+				OutlineType:          "solid",
+				OutlineWidth:         3,
+				OutlineColor:         "#111111",
+				GradientStops:        []state.GradientStop{},
+				OutlineGradientStops: []state.GradientStop{},
 			},
 			IdleAnimation: "none",
 			TriggerEnter:  "fade-in",
@@ -118,14 +114,15 @@ func makeTestOverlay() state.OverlaySettings {
 					{Color: "#gold", Position: 0},
 					{Color: "#silver", Position: 1},
 				},
-				OutlineType:             "solid",
-				OutlineWidth:            6,
-				OutlineColor:            "#000000",
-				OutlineGradientStops:    []state.GradientStop{},
-				TextShadowGradientStops: []state.GradientStop{},
+				OutlineType:          "solid",
+				OutlineWidth:         6,
+				OutlineColor:         "#000000",
+				OutlineGradientStops: []state.GradientStop{},
 			},
-			ShowLabel: true,
-			LabelText: "Encounters",
+			ShowLabel:  true,
+			LabelText:  "Encounters",
+			PrefixText: "Encounters: ",
+			SuffixText: " total",
 			LabelStyle: state.TextStyle{
 				FontFamily:    "sans",
 				FontSize:      14,
@@ -137,8 +134,7 @@ func makeTestOverlay() state.OverlaySettings {
 					{Color: "#aaa", Position: 0},
 					{Color: "#bbb", Position: 1},
 				},
-				OutlineGradientStops:    []state.GradientStop{},
-				TextShadowGradientStops: []state.GradientStop{},
+				OutlineGradientStops: []state.GradientStop{},
 			},
 			IdleAnimation: "none",
 			TriggerEnter:  "pop",
@@ -840,9 +836,6 @@ func compareSpriteElement(t *testing.T, label string, got, want *state.SpriteEle
 	if got.TriggerEnter != want.TriggerEnter {
 		t.Errorf("%s TriggerEnter = %q, want %q", label, got.TriggerEnter, want.TriggerEnter)
 	}
-	if got.TriggerExit != want.TriggerExit {
-		t.Errorf("%s TriggerExit = %q, want %q", label, got.TriggerExit, want.TriggerExit)
-	}
 }
 
 // compareCounterElement checks all fields of an OverlayCounterElement.
@@ -856,6 +849,12 @@ func compareCounterElement(t *testing.T, label string, got, want *state.CounterE
 	}
 	if got.LabelText != want.LabelText {
 		t.Errorf("%s LabelText = %q, want %q", label, got.LabelText, want.LabelText)
+	}
+	if got.PrefixText != want.PrefixText {
+		t.Errorf("%s PrefixText = %q, want %q", label, got.PrefixText, want.PrefixText)
+	}
+	if got.SuffixText != want.SuffixText {
+		t.Errorf("%s SuffixText = %q, want %q", label, got.SuffixText, want.SuffixText)
 	}
 }
 
@@ -1003,7 +1002,6 @@ func compareTextStyle(t *testing.T, label string, got, want *state.TextStyle) {
 	// Gradient stops
 	compareGradientStops(t, label+".GradientStops", got.GradientStops, want.GradientStops)
 	compareGradientStops(t, label+".OutlineGradientStops", got.OutlineGradientStops, want.OutlineGradientStops)
-	compareGradientStops(t, label+".TextShadowGradientStops", got.TextShadowGradientStops, want.TextShadowGradientStops)
 }
 
 // ---------------------------------------------------------------------------

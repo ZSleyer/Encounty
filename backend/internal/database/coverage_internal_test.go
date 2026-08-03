@@ -186,7 +186,7 @@ func TestScanOverlayElementsError(t *testing.T) {
 		1 AS id, ? AS element_type, 1 AS visible,
 		'not_an_int' AS x, 0 AS y, 0 AS width, 0 AS height, 0 AS z_index,
 		NULL AS show_glow, NULL AS glow_color, NULL AS glow_opacity, NULL AS glow_blur,
-		NULL AS idle_animation, NULL AS trigger_enter, NULL AS trigger_exit,
+		NULL AS idle_animation, NULL AS trigger_enter,
 		NULL AS trigger_decrement, NULL AS show_label, NULL AS label_text,
 		? AS overlay_id`, overlayID, overlayID)
 
@@ -200,7 +200,7 @@ func TestScanOverlayElementsError(t *testing.T) {
 		id INTEGER PRIMARY KEY, overlay_id INTEGER, element_type TEXT,
 		visible INTEGER, x INTEGER, y INTEGER, width INTEGER, height INTEGER,
 		z_index INTEGER, show_glow TEXT, glow_color TEXT, glow_opacity TEXT,
-		glow_blur TEXT, idle_animation TEXT, trigger_enter TEXT, trigger_exit TEXT,
+		glow_blur TEXT, idle_animation TEXT, trigger_enter TEXT,
 		trigger_decrement TEXT, show_label TEXT, label_text TEXT
 	)`)
 	// Insert a row where the query will succeed but scan will fail because
@@ -1124,37 +1124,6 @@ func TestSaveTextStyleOutlineGradientError(t *testing.T) {
 	}
 }
 
-// TestSaveTextStyleShadowGradientError verifies that saveTextStyle fails
-// when inserting shadow gradient stops fails.
-func TestSaveTextStyleShadowGradientError(t *testing.T) {
-	d := openInternalTestDB(t)
-	tx, err := d.db.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	// Create element.
-	_, _ = tx.Exec(`INSERT INTO overlay_settings (id, owner_type, owner_id) VALUES (1, 'test', 'shadow')`)
-	_, _ = tx.Exec(`INSERT INTO overlay_elements (id, overlay_id, element_type) VALUES (1, 1, 'name')`)
-
-	style := &state.TextStyle{
-		FontFamily:           "test",
-		GradientStops:        []state.GradientStop{},
-		OutlineGradientStops: []state.GradientStop{},
-		TextShadowGradientStops: []state.GradientStop{
-			{Color: "#000", Position: 0},
-		},
-	}
-
-	// Drop gradient_stops so the shadow gradient insert fails.
-	_, _ = tx.Exec(`DROP TABLE gradient_stops`)
-	err = saveTextStyle(tx, 1, "main", style)
-	if err == nil {
-		t.Error("saveTextStyle should fail when gradient_stops is dropped (shadow)")
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Batched text style / overlay load error paths
 // ---------------------------------------------------------------------------
@@ -1176,10 +1145,9 @@ func TestLoadAllTextStylesGradientError(t *testing.T) {
 				Name: state.NameElement{
 					OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10},
 					Style: state.TextStyle{
-						FontFamily:              "test",
-						GradientStops:           []state.GradientStop{{Color: "#fff", Position: 0}},
-						OutlineGradientStops:    []state.GradientStop{},
-						TextShadowGradientStops: []state.GradientStop{},
+						FontFamily:           "test",
+						GradientStops:        []state.GradientStop{{Color: "#fff", Position: 0}},
+						OutlineGradientStops: []state.GradientStop{},
 					},
 				},
 				Title:   state.TitleElement{OverlayElementBase: state.OverlayElementBase{Width: 10, Height: 10}},
@@ -1254,6 +1222,7 @@ func TestOverlayPhasingRoundTrip(t *testing.T) {
 	st := &state.AppState{Pokemon: []state.Pokemon{}, Sessions: []state.Session{}}
 	st.Settings.Overlay.Sprite.CyclePhaseTargets = true
 	st.Settings.Overlay.Sprite.CycleIntervalMs = 1500
+	st.Settings.Overlay.Sprite.CycleTransition = "wipe-rl"
 	st.Settings.Overlay.Phase = state.LabeledTextElement{
 		OverlayElementBase: state.OverlayElementBase{Visible: true, X: 10, Y: 20, Width: 120, Height: 36, ZIndex: 7},
 		Style: state.TextStyle{
@@ -1289,6 +1258,9 @@ func TestOverlayPhasingRoundTrip(t *testing.T) {
 	sprite := loaded.Settings.Overlay.Sprite
 	if !sprite.CyclePhaseTargets || sprite.CycleIntervalMs != 1500 {
 		t.Errorf("sprite cycling = %v/%d, want true/1500", sprite.CyclePhaseTargets, sprite.CycleIntervalMs)
+	}
+	if sprite.CycleTransition != "wipe-rl" {
+		t.Errorf("sprite cycle transition = %q, want wipe-rl", sprite.CycleTransition)
 	}
 	phase := loaded.Settings.Overlay.Phase
 	if !phase.Visible || phase.X != 10 || phase.Width != 120 || phase.ZIndex != 7 {
@@ -1692,5 +1664,55 @@ func TestMigration32OnV31DB(t *testing.T) {
 	}
 	if count != 1 {
 		t.Errorf("migration 32 tracking row count = %d, want 1", count)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Migration 37: sprite cycle transition column
+// ---------------------------------------------------------------------------
+
+// TestMigration37OnV36DB verifies that running migration 37 against a database
+// stopped at v36 adds the cycle_transition column to overlay_elements, and that
+// a sprite row written before the column existed reads back as the crossfade it
+// behaved like rather than crashing the load.
+func TestMigration37OnV36DB(t *testing.T) {
+	d := openInternalTestDB(t)
+
+	if _, err := d.db.Exec(`DELETE FROM migrations WHERE version >= 37`); err != nil {
+		t.Fatalf("rollback migrations table: %v", err)
+	}
+
+	if err := RunMigrations(d.db); err != nil {
+		t.Fatalf(runMigrationsFmt, err)
+	}
+
+	cols := columnNames(t, d.db, "overlay_elements")
+	if !cols["cycle_transition"] {
+		t.Error("overlay_elements.cycle_transition column missing after migration 37")
+	}
+
+	var count int
+	if err := d.db.QueryRow(`SELECT COUNT(*) FROM migrations WHERE version = 37`).Scan(&count); err != nil {
+		t.Fatalf("query migration row: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("migration 37 tracking row count = %d, want 1", count)
+	}
+
+	st := &state.AppState{Pokemon: []state.Pokemon{}, Sessions: []state.Session{}}
+	st.Settings.Overlay.Sprite.CyclePhaseTargets = true
+	if err := d.SaveFullState(st); err != nil {
+		t.Fatalf("SaveFullState: %v", err)
+	}
+	// Blank the column the way a row from before migration 37 reads.
+	if _, err := d.db.Exec(`UPDATE overlay_elements SET cycle_transition = NULL WHERE element_type = 'sprite'`); err != nil {
+		t.Fatalf("blank cycle_transition: %v", err)
+	}
+	loaded, err := d.LoadFullState()
+	if err != nil {
+		t.Fatalf("LoadFullState: %v", err)
+	}
+	if got := loaded.Settings.Overlay.Sprite.CycleTransition; got != "" {
+		t.Errorf("legacy cycle_transition = %q, want the empty string the state migration fills in", got)
 	}
 }

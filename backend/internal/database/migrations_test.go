@@ -311,6 +311,79 @@ func TestMigrationRemapAccentColorPresets(t *testing.T) {
 	}
 }
 
+// TestMigrationReplaceRemovedBgAnimations verifies that migration 34 rewrites
+// every removed WebGL background animation to waves, on the global overlay row
+// as well as on per-pokemon rows, and leaves surviving values untouched.
+func TestMigrationReplaceRemovedBgAnimations(t *testing.T) {
+	cases := []struct {
+		old  string
+		want string
+	}{
+		{"rb-aurora", "waves"},
+		{"rb-galaxy", "waves"},
+		{"rb-silk", "waves"},
+		{"rb-pixelblast", "waves"},
+		{"none", "none"},
+		{"waves", "waves"},
+		{"gradient-shift", "gradient-shift"},
+		{"shimmer-bg", "shimmer-bg"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.old, func(t *testing.T) {
+			db := openRawTestDB(t)
+
+			// Apply all migrations up to (but not including) the replacement.
+			original := migrations
+			defer func() { migrations = original }()
+			var upTo []migration
+			for _, m := range original {
+				if m.version < 34 {
+					upTo = append(upTo, m)
+				}
+			}
+			migrations = upTo
+			if err := RunMigrations(db); err != nil {
+				t.Fatalf("RunMigrations up to version 33: %v", err)
+			}
+
+			// Seed a global and a per-pokemon overlay row with the same value
+			// so the migration is proven to cover every owner.
+			owners := []struct{ ownerType, ownerID string }{
+				{"global", "default"},
+				{"pokemon", "1f0c6a1e-0000-4000-8000-000000000001"},
+			}
+			for _, o := range owners {
+				if _, err := db.Exec(
+					`INSERT INTO overlay_settings (owner_type, owner_id, background_animation) VALUES (?, ?, ?)`,
+					o.ownerType, o.ownerID, tc.old,
+				); err != nil {
+					t.Fatalf("insert overlay_settings for %s: %v", o.ownerType, err)
+				}
+			}
+
+			// Apply the remaining migrations, including the replacement.
+			migrations = original
+			if err := RunMigrations(db); err != nil {
+				t.Fatalf("RunMigrations including replacement: %v", err)
+			}
+
+			for _, o := range owners {
+				var got string
+				if err := db.QueryRow(
+					`SELECT background_animation FROM overlay_settings WHERE owner_type = ? AND owner_id = ?`,
+					o.ownerType, o.ownerID,
+				).Scan(&got); err != nil {
+					t.Fatalf("query background_animation for %s: %v", o.ownerType, err)
+				}
+				if got != tc.want {
+					t.Errorf("%s background_animation = %q, want %q", o.ownerType, got, tc.want)
+				}
+			}
+		})
+	}
+}
+
 // TestRunMigrationsTracking verifies that the migrations table stores the
 // correct version, description, and a valid RFC3339 timestamp for each migration.
 func TestRunMigrationsTracking(t *testing.T) {
@@ -355,5 +428,191 @@ func TestRunMigrationsTracking(t *testing.T) {
 	}
 	if idx != len(migrations) {
 		t.Fatalf("got %d tracking rows, want %d", idx, len(migrations))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Removal migrations (35, 36)
+// ---------------------------------------------------------------------------
+
+// seedLegacyOverlaySchema recreates the overlay tables as they looked before
+// the trigger_exit and shadow-gradient columns were removed, so the removal
+// migrations can be exercised against real legacy data.
+func seedLegacyOverlaySchema(t *testing.T, db *sql.DB) {
+	t.Helper()
+	stmts := []string{
+		`CREATE TABLE overlay_elements (
+			id             INTEGER PRIMARY KEY AUTOINCREMENT,
+			overlay_id     INTEGER NOT NULL,
+			element_type   TEXT    NOT NULL,
+			idle_animation TEXT    NOT NULL DEFAULT 'none',
+			trigger_enter  TEXT    NOT NULL DEFAULT 'none',
+			trigger_exit   TEXT    NOT NULL DEFAULT ''
+		)`,
+		`CREATE TABLE text_styles (
+			id                         INTEGER PRIMARY KEY AUTOINCREMENT,
+			element_id                 INTEGER NOT NULL,
+			text_shadow_color          TEXT    NOT NULL DEFAULT '',
+			text_shadow_color_type     TEXT    NOT NULL DEFAULT 'solid',
+			text_shadow_gradient_angle INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE TABLE gradient_stops (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			text_style_id INTEGER NOT NULL,
+			gradient_type TEXT    NOT NULL,
+			color         TEXT    NOT NULL,
+			position      REAL    NOT NULL,
+			sort_order    INTEGER NOT NULL DEFAULT 0
+		)`,
+		`INSERT INTO overlay_elements (id, overlay_id, element_type, trigger_exit)
+			VALUES (1, 1, 'sprite', 'fade-out')`,
+		// Style 1 stored a gradient shadow, style 2 a solid one.
+		`INSERT INTO text_styles (id, element_id, text_shadow_color, text_shadow_color_type, text_shadow_gradient_angle)
+			VALUES (1, 1, '#111111', 'gradient', 180)`,
+		`INSERT INTO text_styles (id, element_id, text_shadow_color, text_shadow_color_type, text_shadow_gradient_angle)
+			VALUES (2, 1, '#abcdef', 'solid', 0)`,
+		// Out-of-order sort_order proves the migration takes the first stop.
+		`INSERT INTO gradient_stops (text_style_id, gradient_type, color, position, sort_order)
+			VALUES (1, 'shadow', '#00ff00', 100, 1)`,
+		`INSERT INTO gradient_stops (text_style_id, gradient_type, color, position, sort_order)
+			VALUES (1, 'shadow', '#ff0000', 0, 0)`,
+		`INSERT INTO gradient_stops (text_style_id, gradient_type, color, position, sort_order)
+			VALUES (1, 'outline', '#0000ff', 0, 0)`,
+	}
+	for _, stmt := range stmts {
+		if _, err := db.Exec(stmt); err != nil {
+			t.Fatalf("seed legacy overlay schema (%s): %v", stmt, err)
+		}
+	}
+}
+
+// runMigrationTx applies a single migration function inside its own
+// transaction, mirroring what RunMigrations does.
+func runMigrationTx(t *testing.T, db *sql.DB, fn func(tx *sql.Tx) error) {
+	t.Helper()
+	tx, err := db.Begin()
+	if err != nil {
+		t.Fatalf("begin: %v", err)
+	}
+	if err := fn(tx); err != nil {
+		_ = tx.Rollback()
+		t.Fatalf("migration: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("commit: %v", err)
+	}
+}
+
+// hasColumn reports whether a table carries a column, used to assert that the
+// removal migrations really dropped them.
+func hasColumn(t *testing.T, db *sql.DB, table, column string) bool {
+	t.Helper()
+	var n int
+	err := db.QueryRow(
+		`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?`, table, column,
+	).Scan(&n)
+	if err != nil {
+		t.Fatalf("pragma_table_info(%s): %v", table, err)
+	}
+	return n > 0
+}
+
+// TestMigrateDropTriggerExit verifies that migration 35 removes the dead
+// trigger_exit column while leaving the rest of the row intact.
+func TestMigrateDropTriggerExit(t *testing.T) {
+	db := openRawTestDB(t)
+	seedLegacyOverlaySchema(t, db)
+
+	if !hasColumn(t, db, "overlay_elements", "trigger_exit") {
+		t.Fatal("seed did not create trigger_exit")
+	}
+
+	runMigrationTx(t, db, migrateDropTriggerExit)
+
+	if hasColumn(t, db, "overlay_elements", "trigger_exit") {
+		t.Error("trigger_exit still present after migration")
+	}
+	var elemType string
+	if err := db.QueryRow(`SELECT element_type FROM overlay_elements WHERE id = 1`).Scan(&elemType); err != nil {
+		t.Fatalf("read overlay_elements: %v", err)
+	}
+	if elemType != "sprite" {
+		t.Errorf("element_type = %q, want %q", elemType, "sprite")
+	}
+}
+
+// TestMigrateDropTriggerExitIsIdempotent verifies that migration 35 is safe on
+// a database that never had the column.
+func TestMigrateDropTriggerExitIsIdempotent(t *testing.T) {
+	db := openRawTestDB(t)
+	seedLegacyOverlaySchema(t, db)
+
+	runMigrationTx(t, db, migrateDropTriggerExit)
+	runMigrationTx(t, db, migrateDropTriggerExit)
+
+	if hasColumn(t, db, "overlay_elements", "trigger_exit") {
+		t.Error("trigger_exit still present after migration")
+	}
+}
+
+// TestMigrateDropShadowGradient verifies that migration 36 folds the first
+// shadow stop into text_shadow_color, leaves a solid shadow alone, deletes only
+// the shadow stops, and drops the three gradient columns.
+func TestMigrateDropShadowGradient(t *testing.T) {
+	db := openRawTestDB(t)
+	seedLegacyOverlaySchema(t, db)
+
+	runMigrationTx(t, db, migrateDropShadowGradient)
+
+	var gradientShadowColor, solidShadowColor string
+	if err := db.QueryRow(`SELECT text_shadow_color FROM text_styles WHERE id = 1`).Scan(&gradientShadowColor); err != nil {
+		t.Fatalf("read style 1: %v", err)
+	}
+	if gradientShadowColor != "#ff0000" {
+		t.Errorf("gradient shadow colour = %q, want %q (first stop)", gradientShadowColor, "#ff0000")
+	}
+	if err := db.QueryRow(`SELECT text_shadow_color FROM text_styles WHERE id = 2`).Scan(&solidShadowColor); err != nil {
+		t.Fatalf("read style 2: %v", err)
+	}
+	if solidShadowColor != "#abcdef" {
+		t.Errorf("solid shadow colour = %q, want it unchanged (%q)", solidShadowColor, "#abcdef")
+	}
+
+	var shadowStops, outlineStops int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM gradient_stops WHERE gradient_type = 'shadow'`).Scan(&shadowStops); err != nil {
+		t.Fatalf("count shadow stops: %v", err)
+	}
+	if shadowStops != 0 {
+		t.Errorf("shadow stops left = %d, want 0", shadowStops)
+	}
+	if err := db.QueryRow(`SELECT COUNT(*) FROM gradient_stops WHERE gradient_type = 'outline'`).Scan(&outlineStops); err != nil {
+		t.Fatalf("count outline stops: %v", err)
+	}
+	if outlineStops != 1 {
+		t.Errorf("outline stops left = %d, want 1", outlineStops)
+	}
+
+	for _, col := range []string{"text_shadow_color_type", "text_shadow_gradient_angle"} {
+		if hasColumn(t, db, "text_styles", col) {
+			t.Errorf("column %q still present after migration", col)
+		}
+	}
+}
+
+// TestMigrateDropShadowGradientIsIdempotent verifies that migration 36 is a
+// no-op once the columns are gone, which is also the fresh-database case.
+func TestMigrateDropShadowGradientIsIdempotent(t *testing.T) {
+	db := openRawTestDB(t)
+	seedLegacyOverlaySchema(t, db)
+
+	runMigrationTx(t, db, migrateDropShadowGradient)
+	runMigrationTx(t, db, migrateDropShadowGradient)
+
+	var color string
+	if err := db.QueryRow(`SELECT text_shadow_color FROM text_styles WHERE id = 1`).Scan(&color); err != nil {
+		t.Fatalf("read style 1: %v", err)
+	}
+	if color != "#ff0000" {
+		t.Errorf("shadow colour = %q, want %q", color, "#ff0000")
 	}
 }

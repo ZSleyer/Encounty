@@ -518,11 +518,17 @@ const docTemplate = `{
                     "label_text": {
                         "type": "string"
                     },
+                    "prefix_text": {
+                        "type": "string"
+                    },
                     "show_label": {
                         "type": "boolean"
                     },
                     "style": {
                         "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "suffix_text": {
+                        "type": "string"
                     },
                     "trigger_decrement": {
                         "type": "string"
@@ -763,11 +769,17 @@ const docTemplate = `{
                     "label_text": {
                         "type": "string"
                     },
+                    "prefix_text": {
+                        "type": "string"
+                    },
                     "show_label": {
                         "type": "boolean"
                     },
                     "style": {
                         "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "suffix_text": {
+                        "type": "string"
                     },
                     "trigger_decrement": {
                         "type": "string"
@@ -866,11 +878,17 @@ const docTemplate = `{
                     "label_text": {
                         "type": "string"
                     },
+                    "prefix_text": {
+                        "type": "string"
+                    },
                     "show_label": {
                         "type": "boolean"
                     },
                     "style": {
                         "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "suffix_text": {
+                        "type": "string"
                     },
                     "trigger_decrement": {
                         "type": "string"
@@ -1189,6 +1207,10 @@ const docTemplate = `{
                         "description": "CyclePhaseTargets makes the sprite rotate through the hunt's phase\ntargets instead of showing the hunted species only.",
                         "type": "boolean"
                     },
+                    "cycle_transition": {
+                        "description": "CycleTransition names the effect played on a sprite swap while cycling:\n\"none\", \"fade\", \"wipe-lr\" or \"wipe-rl\". An empty or unknown value renders\nas \"fade\", the effect cycling shipped with.",
+                        "type": "string"
+                    },
                     "glow_blur": {
                         "type": "integer"
                     },
@@ -1211,9 +1233,6 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "trigger_enter": {
-                        "type": "string"
-                    },
-                    "trigger_exit": {
                         "type": "string"
                     },
                     "visible": {
@@ -1276,7 +1295,7 @@ const docTemplate = `{
                         "uniqueItems": false
                     },
                     "outline_type": {
-                        "description": "\"none\" | \"solid\"",
+                        "description": "\"none\" | \"solid\" | \"gradient\"",
                         "type": "string"
                     },
                     "outline_width": {
@@ -1293,20 +1312,6 @@ const docTemplate = `{
                     },
                     "text_shadow_color": {
                         "type": "string"
-                    },
-                    "text_shadow_color_type": {
-                        "description": "\"solid\" | \"gradient\"",
-                        "type": "string"
-                    },
-                    "text_shadow_gradient_angle": {
-                        "type": "integer"
-                    },
-                    "text_shadow_gradient_stops": {
-                        "items": {
-                            "$ref": "#/components/schemas/state.GradientStop"
-                        },
-                        "type": "array",
-                        "uniqueItems": false
                     },
                     "text_shadow_x": {
                         "type": "integer"
@@ -1331,11 +1336,17 @@ const docTemplate = `{
                     "label_text": {
                         "type": "string"
                     },
+                    "prefix_text": {
+                        "type": "string"
+                    },
                     "show_label": {
                         "type": "boolean"
                     },
                     "style": {
                         "$ref": "#/components/schemas/state.TextStyle"
+                    },
+                    "suffix_text": {
+                        "type": "string"
                     },
                     "visible": {
                         "type": "boolean"

@@ -102,7 +102,7 @@ func (m *Manager) applyMigrations() {
 	}
 
 	migratePokemonDefaults(m.state.Pokemon)
-	migrateOverlaySettings(&m.state.Settings.Overlay, m.state.Pokemon)
+	migrateOverlaySettings(&m.state.Settings.Overlay, m.state.Pokemon, m.state.Settings.Languages)
 }
 
 // migratePokemonDefaults fills in zero-value fields on each Pokemon that were
@@ -131,24 +131,50 @@ func migratePokemonDefaults(pokemon []Pokemon) {
 // migrateOverlaySettings applies overlay-specific migrations (trigger
 // decrement, title element) to the global overlay and each per-Pokemon
 // overlay.
-func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon) {
+//
+// languages is the user's configured language list. Every fill migration takes
+// its replacement element from the default layout, and that element carries a
+// caption, so the caption has to be written in the user's language rather than
+// in English.
+func migrateOverlaySettings(global *OverlaySettings, pokemon []Pokemon, languages []string) {
 	// TriggerDecrement was added after v0.6.4; empty string means "none".
 	migrateOverlayTriggerDecrement(global)
 	// Migrate overlay settings to include title element when loaded from
 	// state saved before TitleElement was added.
-	migrateTitleElement(global)
-	migrateTimerElement(global)
-	migrateOddsElement(global)
-	migratePhasingElements(global)
+	migrateTitleElement(global, languages)
+	migrateTimerElement(global, languages)
+	migrateOddsElement(global, languages)
+	migratePhasingElements(global, languages)
+	migrateRemovedBackgroundAnimation(global)
 
 	for i := range pokemon {
 		if pokemon[i].Overlay != nil {
 			migrateOverlayTriggerDecrement(pokemon[i].Overlay)
-			migrateTitleElement(pokemon[i].Overlay)
-			migrateTimerElement(pokemon[i].Overlay)
-			migrateOddsElement(pokemon[i].Overlay)
-			migratePhasingElements(pokemon[i].Overlay)
+			migrateTitleElement(pokemon[i].Overlay, languages)
+			migrateTimerElement(pokemon[i].Overlay, languages)
+			migrateOddsElement(pokemon[i].Overlay, languages)
+			migratePhasingElements(pokemon[i].Overlay, languages)
+			migrateRemovedBackgroundAnimation(pokemon[i].Overlay)
 		}
+	}
+}
+
+// removedBackgroundAnimations lists the background animations that were
+// rendered by an external WebGL library which is no longer bundled.
+var removedBackgroundAnimations = map[string]bool{
+	"rb-aurora":     true,
+	"rb-galaxy":     true,
+	"rb-silk":       true,
+	"rb-pixelblast": true,
+}
+
+// migrateRemovedBackgroundAnimation replaces a background animation that no
+// longer exists with "waves", the closest surviving option and the value used
+// by the built-in default overlay. Mirrors the database migration so state
+// restored from legacy JSON is normalized the same way.
+func migrateRemovedBackgroundAnimation(o *OverlaySettings) {
+	if removedBackgroundAnimations[o.BackgroundAnimation] {
+		o.BackgroundAnimation = "waves"
 	}
 }
 
@@ -183,88 +209,35 @@ func migrateOverlayTriggerDecrement(o *OverlaySettings) {
 
 // migrateTitleElement fills in default values for a TitleElement that was
 // zero-valued after loading state saved before the field existed.
-func migrateTitleElement(o *OverlaySettings) {
+// Like every migration below it takes the current default layout but forces the
+// layer hidden: a stored overlay belongs to its owner, and switching a layer on
+// that the user never had would change what their stream shows.
+func migrateTitleElement(o *OverlaySettings, languages []string) {
 	if o.Title.Width == 0 && o.Title.Height == 0 {
-		o.Title = TitleElement{
-			OverlayElementBase: OverlayElementBase{Visible: false, X: 200, Y: 60, Width: 300, Height: 30, ZIndex: 4},
-			Style: TextStyle{
-				FontFamily:   "pokemon",
-				FontSize:     20,
-				FontWeight:   700,
-				ColorType:    "solid",
-				Color:        "#ffffff",
-				OutlineType:  "solid",
-				OutlineWidth: 3,
-				OutlineColor: "#000000",
-			},
-			IdleAnimation:    "none",
-			TriggerEnter:     "none",
-			TriggerDecrement: "none",
-		}
+		o.Title = defaultOverlaySettings(languages).Title
+		o.Title.Visible = false
+		clampIntoCanvas(&o.Title.OverlayElementBase, o)
 	}
 }
 
 // migrateTimerElement fills in default values for a TimerElement that was
 // zero-valued after loading state saved before the field existed.
-func migrateTimerElement(o *OverlaySettings) {
+func migrateTimerElement(o *OverlaySettings, languages []string) {
 	if o.Timer.Width == 0 && o.Timer.Height == 0 {
-		o.Timer = TimerElement{
-			OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 20, Width: 250, Height: 40, ZIndex: 5},
-			Style: TextStyle{
-				FontFamily:   "pokemon",
-				FontSize:     24,
-				FontWeight:   700,
-				ColorType:    "solid",
-				Color:        "#ffffff",
-				OutlineType:  "solid",
-				OutlineWidth: 3,
-				OutlineColor: "#000000",
-			},
-			ShowLabel: false,
-			LabelText: "Timer",
-			LabelStyle: TextStyle{
-				FontFamily: "sans",
-				FontSize:   14,
-				FontWeight: 400,
-				ColorType:  "solid",
-				Color:      "#94a3b8",
-			},
-			IdleAnimation: "none",
-		}
+		o.Timer = defaultOverlaySettings(languages).Timer
+		o.Timer.Visible = false
+		clampIntoCanvas(&o.Timer.OverlayElementBase, o)
 	}
 }
 
 // migrateOddsElement fills in default values for an OddsElement that was
 // zero-valued after loading state saved before the field existed, and
 // ensures Format defaults to "fractional" on partially-initialised rows.
-func migrateOddsElement(o *OverlaySettings) {
+func migrateOddsElement(o *OverlaySettings, languages []string) {
 	if o.Odds.Width == 0 && o.Odds.Height == 0 {
-		o.Odds = OddsElement{
-			OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 70, Width: 250, Height: 50, ZIndex: 6},
-			Style: TextStyle{
-				FontFamily:   "pokemon",
-				FontSize:     28,
-				FontWeight:   700,
-				ColorType:    "solid",
-				Color:        "#ffffff",
-				OutlineType:  "solid",
-				OutlineWidth: 3,
-				OutlineColor: "#000000",
-			},
-			ShowLabel: false,
-			LabelText: "Odds",
-			LabelStyle: TextStyle{
-				FontFamily: "sans",
-				FontSize:   14,
-				FontWeight: 400,
-				ColorType:  "solid",
-				Color:      "#94a3b8",
-			},
-			Format:           "fractional",
-			IdleAnimation:    "none",
-			TriggerEnter:     "none",
-			TriggerDecrement: "none",
-		}
+		o.Odds = defaultOverlaySettings(languages).Odds
+		o.Odds.Visible = false
+		clampIntoCanvas(&o.Odds.OverlayElementBase, o)
 		return
 	}
 	if o.Odds.Format == "" {
@@ -275,73 +248,44 @@ func migrateOddsElement(o *OverlaySettings) {
 // migratePhasingElements fills in default values for the overlay elements that
 // arrived with the phasing feature (phase number, total encounters, total
 // timer) plus the sprite cycling settings, for state saved before they existed.
-func migratePhasingElements(o *OverlaySettings) {
-	fillLabeledTextElement(&o.Phase, LabeledTextElement{
-		OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 122, Width: 120, Height: 36, ZIndex: 7},
-		Style:              phasingTextStyle(),
-		LabelText:          "Phase",
-		LabelStyle:         phasingLabelStyle(),
-		IdleAnimation:      animationNone,
-		TriggerEnter:       animationNone,
-		TriggerDecrement:   animationNone,
-	})
-	fillLabeledTextElement(&o.TotalCounter, LabeledTextElement{
-		OverlayElementBase: OverlayElementBase{Visible: false, X: 660, Y: 122, Width: 130, Height: 36, ZIndex: 8},
-		Style:              phasingTextStyle(),
-		LabelText:          "Total Encounter",
-		LabelStyle:         phasingLabelStyle(),
-		IdleAnimation:      animationNone,
-		TriggerEnter:       animationNone,
-		TriggerDecrement:   animationNone,
-	})
-	fillLabeledTextElement(&o.TotalTimer, LabeledTextElement{
-		OverlayElementBase: OverlayElementBase{Visible: false, X: 530, Y: 162, Width: 260, Height: 36, ZIndex: 9},
-		Style:              phasingTextStyle(),
-		LabelText:          "Total Timer",
-		LabelStyle:         phasingLabelStyle(),
-		IdleAnimation:      animationNone,
-		TriggerEnter:       animationNone,
-		TriggerDecrement:   animationNone,
-	})
+func migratePhasingElements(o *OverlaySettings, languages []string) {
+	def := defaultOverlaySettings(languages)
+	fillLabeledTextElement(&o.Phase, def.Phase, o)
+	fillLabeledTextElement(&o.TotalCounter, def.TotalCounter, o)
+	fillLabeledTextElement(&o.TotalTimer, def.TotalTimer, o)
 	// 0 would stop the sprite cycling from ever advancing.
 	if o.Sprite.CycleIntervalMs <= 0 {
 		o.Sprite.CycleIntervalMs = defaultSpriteCycleIntervalMs
+	}
+	// State saved before the transition setting existed carries none, and it
+	// crossfaded, so that is the effect it keeps.
+	if o.Sprite.CycleTransition == "" {
+		o.Sprite.CycleTransition = defaultSpriteCycleTransition
 	}
 }
 
 // fillLabeledTextElement replaces el with def when el was never persisted.
 // Zero width and height identify such a row, the same probe migrateOddsElement
 // uses: no user can size an element down to nothing in the editor.
-func fillLabeledTextElement(el *LabeledTextElement, def LabeledTextElement) {
+func fillLabeledTextElement(el *LabeledTextElement, def LabeledTextElement, o *OverlaySettings) {
 	if el.Width == 0 && el.Height == 0 {
 		*el = def
+		clampIntoCanvas(&el.OverlayElementBase, o)
 	}
 }
 
-// phasingTextStyle returns the shared value typography of the phasing overlay
-// elements, used both by the defaults in NewManager and by the migration below.
-func phasingTextStyle() TextStyle {
-	return TextStyle{
-		FontFamily:   fontPokemon,
-		FontSize:     24,
-		FontWeight:   700,
-		ColorType:    colorTypeSolid,
-		Color:        colorWhite,
-		OutlineType:  outlineTypeSolid,
-		OutlineWidth: 3,
-		OutlineColor: colorBlack,
+// clampIntoCanvas pulls a freshly filled element back inside the stored canvas.
+// The default layout is authored for the current 800x264 panel, but an overlay
+// saved before that layout existed keeps the canvas size it was created with,
+// and the card does not clip its content: an element placed on the newer grid
+// would render outside the panel over the game capture. A zero canvas dimension
+// means the size was never persisted either, so there is nothing to clamp to.
+func clampIntoCanvas(el *OverlayElementBase, o *OverlaySettings) {
+	if o.CanvasWidth > 0 && el.X+el.Width > o.CanvasWidth {
+		el.X = max(0, o.CanvasWidth-el.Width)
 	}
-}
-
-// phasingLabelStyle returns the shared label typography of the phasing overlay
-// elements, used both by the defaults in NewManager and by the migration below.
-func phasingLabelStyle() TextStyle {
-	return TextStyle{
-		FontFamily: "sans",
-		FontSize:   14,
-		FontWeight: 400,
-		ColorType:  colorTypeSolid,
-		Color:      "#94a3b8",
+	if o.CanvasHeight > 0 && el.Y+el.Height > o.CanvasHeight {
+		el.Y = max(0, o.CanvasHeight-el.Height)
 	}
 }
 

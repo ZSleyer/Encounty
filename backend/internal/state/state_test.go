@@ -43,6 +43,59 @@ func TestNewManagerDefaults(t *testing.T) {
 	if st.Settings.Overlay.CanvasWidth != 800 {
 		t.Errorf("CanvasWidth = %d, want 800", st.Settings.Overlay.CanvasWidth)
 	}
+	if st.Settings.Overlay.CanvasHeight != 264 {
+		t.Errorf("CanvasHeight = %d, want 264", st.Settings.Overlay.CanvasHeight)
+	}
+}
+
+// TestMigrateOverlaySettingsKeepsElementsInsideLegacyCanvas guards the fill
+// migrations against the current default layout, which is authored for a taller
+// canvas than the one legacy overlays were saved with. Every element the
+// migration adds has to stay inside the stored canvas, otherwise it renders
+// outside the panel as soon as the user switches the layer on.
+func TestMigrateOverlaySettingsKeepsElementsInsideLegacyCanvas(t *testing.T) {
+	legacy := OverlaySettings{CanvasWidth: 800, CanvasHeight: 200}
+	migrateOverlaySettings(&legacy, nil, []string{"de"})
+
+	elements := map[string]OverlayElementBase{
+		"title":         legacy.Title.OverlayElementBase,
+		"timer":         legacy.Timer.OverlayElementBase,
+		"odds":          legacy.Odds.OverlayElementBase,
+		"phase":         legacy.Phase.OverlayElementBase,
+		"total_counter": legacy.TotalCounter.OverlayElementBase,
+		"total_timer":   legacy.TotalTimer.OverlayElementBase,
+	}
+	for name, el := range elements {
+		if el.Width == 0 || el.Height == 0 {
+			t.Errorf("%s was not filled: %dx%d", name, el.Width, el.Height)
+		}
+		if el.X < 0 || el.X+el.Width > legacy.CanvasWidth {
+			t.Errorf("%s spans x %d..%d, outside canvas width %d", name, el.X, el.X+el.Width, legacy.CanvasWidth)
+		}
+		if el.Y < 0 || el.Y+el.Height > legacy.CanvasHeight {
+			t.Errorf("%s spans y %d..%d, outside canvas height %d", name, el.Y, el.Y+el.Height, legacy.CanvasHeight)
+		}
+	}
+}
+
+// TestMigrateOverlaySettingsFillsSpriteCycleTransition verifies that an overlay
+// saved before the sprite cycle transition existed keeps the crossfade it
+// behaved like, instead of an empty value the renderer would have to guess at.
+func TestMigrateOverlaySettingsFillsSpriteCycleTransition(t *testing.T) {
+	legacy := OverlaySettings{CanvasWidth: 800, CanvasHeight: 264}
+	migrateOverlaySettings(&legacy, nil, []string{"de"})
+
+	if legacy.Sprite.CycleTransition != "fade" {
+		t.Errorf("Sprite.CycleTransition = %q, want fade", legacy.Sprite.CycleTransition)
+	}
+
+	// A stored choice is never overwritten by the migration.
+	chosen := OverlaySettings{CanvasWidth: 800, CanvasHeight: 264}
+	chosen.Sprite.CycleTransition = "wipe-lr"
+	migrateOverlaySettings(&chosen, nil, []string{"de"})
+	if chosen.Sprite.CycleTransition != "wipe-lr" {
+		t.Errorf("Sprite.CycleTransition = %q, want wipe-lr", chosen.Sprite.CycleTransition)
+	}
 }
 
 func makePokemon(id, name string) Pokemon {
@@ -823,5 +876,87 @@ func TestReorderPokemon(t *testing.T) {
 		if after[i].ID != id {
 			t.Errorf("order changed after rejected reorder: position %d = %q, want %q", i, after[i].ID, id)
 		}
+	}
+}
+
+// TestOverlayLabelsForPicksFirstLanguage covers the label table the seeded
+// default overlay reads instead of a translator: the first configured language
+// wins, and anything the table does not know falls back to English.
+func TestOverlayLabelsForPicksFirstLanguage(t *testing.T) {
+	cases := []struct {
+		name      string
+		languages []string
+		wantTime  string
+	}{
+		{"first entry wins", []string{"fr", "de"}, "TEMPS"},
+		{"second entry ignored", []string{"de", "en"}, "ZEIT"},
+		{"unknown code falls back", []string{"pt"}, "TIME"},
+		{"empty list falls back", nil, "TIME"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := overlayLabelsFor(tc.languages).Time; got != tc.wantTime {
+				t.Errorf("overlayLabelsFor(%v).Time = %q, want %q", tc.languages, got, tc.wantTime)
+			}
+		})
+	}
+}
+
+// TestOverlayLabelsCoverEveryLocale keeps the Go table in step with the five
+// locale files the frontend ships: a language the UI offers but the table does
+// not know would seed an English overlay for a user who never chose English.
+func TestOverlayLabelsCoverEveryLocale(t *testing.T) {
+	for _, lang := range []string{"de", "en", "es", "fr", "ja"} {
+		labels, ok := overlayLabels[lang]
+		if !ok {
+			t.Errorf("overlayLabels has no entry for %q", lang)
+			continue
+		}
+		captions := map[string]string{
+			"Encounters":      labels.Encounters,
+			"Time":            labels.Time,
+			"Odds":            labels.Odds,
+			"Phase":           labels.Phase,
+			"TotalEncounters": labels.TotalEncounters,
+			"TotalTime":       labels.TotalTime,
+		}
+		for field, value := range captions {
+			if value == "" {
+				t.Errorf("overlayLabels[%q].%s is empty", lang, field)
+			}
+		}
+	}
+	if len(overlayLabels) != 5 {
+		t.Errorf("overlayLabels has %d entries, want 5", len(overlayLabels))
+	}
+}
+
+// TestDefaultOverlaySettingsUsesConfiguredLanguage checks that the captions
+// actually reach the seeded layout, in every label channel that has one.
+func TestDefaultOverlaySettingsUsesConfiguredLanguage(t *testing.T) {
+	o := defaultOverlaySettings([]string{"de"})
+	captions := map[string]string{
+		"counter":       o.Counter.LabelText,
+		"timer":         o.Timer.LabelText,
+		"odds":          o.Odds.LabelText,
+		"phase":         o.Phase.LabelText,
+		"total_counter": o.TotalCounter.LabelText,
+		"total_timer":   o.TotalTimer.LabelText,
+	}
+	want := map[string]string{
+		"counter":       "ENCOUNTER",
+		"timer":         "ZEIT",
+		"odds":          "ODDS",
+		"phase":         "PHASE",
+		"total_counter": "ENCOUNTER GESAMT",
+		"total_timer":   "ZEIT GESAMT",
+	}
+	for element, got := range captions {
+		if got != want[element] {
+			t.Errorf("%s label = %q, want %q", element, got, want[element])
+		}
+	}
+	if en := defaultOverlaySettings([]string{"en"}); en.Timer.LabelText != "TIME" {
+		t.Errorf("english timer label = %q, want %q", en.Timer.LabelText, "TIME")
 	}
 }

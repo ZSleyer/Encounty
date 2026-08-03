@@ -533,10 +533,10 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		glowBlur:          ov.Sprite.GlowBlur,
 		idleAnim:          ov.Sprite.IdleAnimation,
 		triggerEnter:      ov.Sprite.TriggerEnter,
-		triggerExit:       ov.Sprite.TriggerExit,
 		triggerDecrement:  ov.Sprite.TriggerDecrement,
 		cyclePhaseTargets: ov.Sprite.CyclePhaseTargets,
 		cycleIntervalMs:   ov.Sprite.CycleIntervalMs,
+		cycleTransition:   ov.Sprite.CycleTransition,
 	})
 	if err != nil {
 		return fmt.Errorf("insert sprite element: %w", err)
@@ -586,6 +586,8 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		triggerDecrement: ov.Counter.TriggerDecrement,
 		showLabel:        ov.Counter.ShowLabel,
 		labelText:        ov.Counter.LabelText,
+		prefixText:       ov.Counter.PrefixText,
+		suffixText:       ov.Counter.SuffixText,
 	})
 	if err != nil {
 		return fmt.Errorf("insert counter element: %w", err)
@@ -606,6 +608,8 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		triggerEnter: "none",
 		showLabel:    ov.Timer.ShowLabel,
 		labelText:    ov.Timer.LabelText,
+		prefixText:   ov.Timer.PrefixText,
+		suffixText:   ov.Timer.SuffixText,
 	})
 	if err != nil {
 		return fmt.Errorf("insert timer element: %w", err)
@@ -627,6 +631,8 @@ func saveOverlay(tx *sql.Tx, ov *state.OverlaySettings, ownerType, ownerID strin
 		triggerDecrement: ov.Odds.TriggerDecrement,
 		showLabel:        ov.Odds.ShowLabel,
 		labelText:        ov.Odds.LabelText,
+		prefixText:       ov.Odds.PrefixText,
+		suffixText:       ov.Odds.SuffixText,
 		format:           ov.Odds.Format,
 	})
 	if err != nil {
@@ -679,6 +685,8 @@ func insertLabeledTextElement(tx *sql.Tx, overlayID int64, elemType string, el *
 		triggerDecrement: el.TriggerDecrement,
 		showLabel:        el.ShowLabel,
 		labelText:        el.LabelText,
+		prefixText:       el.PrefixText,
+		suffixText:       el.SuffixText,
 	})
 	if err != nil {
 		return fmt.Errorf("insert %s element: %w", elemType, err)
@@ -704,18 +712,22 @@ type elementInsertParams struct {
 	glowBlur         int
 	idleAnim         string
 	triggerEnter     string
-	triggerExit      string
 	triggerDecrement string
 	showLabel        bool
 	labelText        string
+	prefixText       string
+	suffixText       string
 	format           string // populated only for "odds" elements
-	// cyclePhaseTargets and cycleIntervalMs are populated only for "sprite".
+	// cyclePhaseTargets, cycleIntervalMs and cycleTransition are populated only
+	// for "sprite".
 	cyclePhaseTargets bool
 	cycleIntervalMs   int
+	cycleTransition   string
 }
 
 // labelBearingElementTypes is the set of element types whose rows carry the
-// show_label and label_text columns. Every other type stores NULL there.
+// show_label, label_text, prefix_text and suffix_text columns. Every other type
+// stores NULL there.
 var labelBearingElementTypes = map[string]bool{
 	"counter":       true,
 	"timer":         true,
@@ -734,8 +746,9 @@ func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 	var glowColorVal sql.NullString
 	var glowOpacityVal sql.NullFloat64
 	var showLabelVal sql.NullInt64
-	var labelTextVal sql.NullString
+	var labelTextVal, prefixTextVal, suffixTextVal sql.NullString
 	var cyclePhaseTargetsVal, cycleIntervalVal sql.NullInt64
+	var cycleTransitionVal sql.NullString
 
 	if p.elemType == "sprite" {
 		glowShowVal = sql.NullInt64{Int64: int64(p.showGlow), Valid: true}
@@ -744,22 +757,27 @@ func insertElement(tx *sql.Tx, p elementInsertParams) (int64, error) {
 		glowBlurVal = sql.NullInt64{Int64: int64(p.glowBlur), Valid: true}
 		cyclePhaseTargetsVal = sql.NullInt64{Int64: int64(boolToInt(p.cyclePhaseTargets)), Valid: true}
 		cycleIntervalVal = sql.NullInt64{Int64: int64(p.cycleIntervalMs), Valid: true}
+		cycleTransitionVal = sql.NullString{String: p.cycleTransition, Valid: true}
 	}
 	if labelBearingElementTypes[p.elemType] {
 		showLabelVal = sql.NullInt64{Int64: int64(boolToInt(p.showLabel)), Valid: true}
 		labelTextVal = sql.NullString{String: p.labelText, Valid: true}
+		prefixTextVal = sql.NullString{String: p.prefixText, Valid: true}
+		suffixTextVal = sql.NullString{String: p.suffixText, Valid: true}
 	}
 
 	res, err := tx.Exec(`
 		INSERT INTO overlay_elements (overlay_id, element_type, visible, x, y, width, height,
 			z_index, show_glow, glow_color, glow_opacity, glow_blur,
-			idle_animation, trigger_enter, trigger_exit, trigger_decrement, show_label, label_text, format,
-			cycle_phase_targets, cycle_interval_ms)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			idle_animation, trigger_enter, trigger_decrement, show_label, label_text,
+			prefix_text, suffix_text, format,
+			cycle_phase_targets, cycle_interval_ms, cycle_transition)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		p.overlayID, p.elemType, boolToInt(p.base.Visible), p.base.X, p.base.Y, p.base.Width, p.base.Height,
 		p.base.ZIndex, glowShowVal, glowColorVal, glowOpacityVal, glowBlurVal,
-		p.idleAnim, p.triggerEnter, p.triggerExit, p.triggerDecrement, showLabelVal, labelTextVal, p.format,
-		cyclePhaseTargetsVal, cycleIntervalVal,
+		p.idleAnim, p.triggerEnter, p.triggerDecrement, showLabelVal, labelTextVal,
+		prefixTextVal, suffixTextVal, p.format,
+		cyclePhaseTargetsVal, cycleIntervalVal, cycleTransitionVal,
 	)
 	if err != nil {
 		return 0, err
@@ -773,14 +791,13 @@ func saveTextStyle(tx *sql.Tx, elementID int64, role string, style *state.TextSt
 		INSERT INTO text_styles (element_id, style_role, font_family, font_size, font_weight,
 			text_align, color_type, color, gradient_angle, outline_type, outline_width,
 			outline_color, outline_gradient_angle, text_shadow, text_shadow_color,
-			text_shadow_color_type, text_shadow_gradient_angle, text_shadow_blur,
-			text_shadow_x, text_shadow_y)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			text_shadow_blur, text_shadow_x, text_shadow_y)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		elementID, role, style.FontFamily, style.FontSize, style.FontWeight,
 		style.TextAlign, style.ColorType, style.Color, style.GradientAngle,
 		style.OutlineType, style.OutlineWidth, style.OutlineColor, style.OutlineGradientAngle,
-		boolToInt(style.TextShadow), style.TextShadowColor, style.TextShadowColorType,
-		style.TextShadowGradientAngle, style.TextShadowBlur, style.TextShadowX, style.TextShadowY,
+		boolToInt(style.TextShadow), style.TextShadowColor,
+		style.TextShadowBlur, style.TextShadowX, style.TextShadowY,
 	)
 	if err != nil {
 		return fmt.Errorf("insert text_style: %w", err)
@@ -790,17 +807,12 @@ func saveTextStyle(tx *sql.Tx, elementID int64, role string, style *state.TextSt
 		return fmt.Errorf("get text_style id: %w", err)
 	}
 
-	// Insert gradient stops for the three gradient types.
+	// Insert gradient stops for both gradient types. The shadow has none: CSS
+	// text-shadow paints one colour.
 	if err := insertGradientStops(tx, styleID, "color", style.GradientStops); err != nil {
 		return err
 	}
-	if err := insertGradientStops(tx, styleID, "outline", style.OutlineGradientStops); err != nil {
-		return err
-	}
-	if err := insertGradientStops(tx, styleID, "shadow", style.TextShadowGradientStops); err != nil {
-		return err
-	}
-	return nil
+	return insertGradientStops(tx, styleID, "outline", style.OutlineGradientStops)
 }
 
 // insertGradientStops inserts a slice of GradientStop rows for a text_style.
