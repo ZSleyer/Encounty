@@ -8,12 +8,12 @@ import {
   Copy,
   ExternalLink,
   RotateCcw,
+  LayoutTemplate,
 } from "lucide-react";
 import { EditorTutorial } from "./EditorTutorial";
 import {
   OverlaySettings,
   OverlayElementBase,
-  TextStyle,
   GradientStop,
 } from "../../types";
 import type { Pokemon } from "../../types";
@@ -27,8 +27,15 @@ import { ShadowEditorModal, type ShadowConfirmParams } from "./controls/ShadowEd
 import { OutlineEditorModal } from "./controls/OutlineEditorModal";
 import { TextColorEditorModal } from "./controls/TextColorEditorModal";
 import { OverlayCanvas } from "./OverlayCanvas";
-import { OverlayPropertyPanel } from "./OverlayPropertyPanel";
+import { OverlayPropertyPanel, type OpenOutlineEditorParams } from "./OverlayPropertyPanel";
 import { VerticalToolbar } from "./VerticalToolbar";
+import { ConfirmModal } from "../shared/ConfirmModal";
+import { TemplatePickerModal } from "./TemplatePickerModal";
+import {
+  buildDefaultOverlaySettings,
+  type OverlayTemplate,
+  type Translate,
+} from "./overlayTemplates";
 import { apiUrl } from "../../utils/api";
 import {
   DRAGGABLE_ELEMENT_KEYS,
@@ -48,293 +55,6 @@ interface Props {
 }
 
 
-const DEFAULT_TEXT_STYLE: TextStyle = {
-  font_family: "sans",
-  font_size: 16,
-  font_weight: 400,
-  text_align: "left",
-  color_type: "solid",
-  color: "#ffffff",
-  gradient_stops: [
-    { color: "#ffffff", position: 0 },
-    { color: "#aaaaaa", position: 100 },
-  ],
-  gradient_angle: 180,
-  outline_type: "none",
-  outline_width: 2,
-  outline_color: "#000000",
-  outline_gradient_stops: [
-    { color: "#ffffff", position: 0 },
-    { color: "#000000", position: 100 },
-  ],
-  outline_gradient_angle: 180,
-  text_shadow: false,
-  text_shadow_color: "#000000",
-  text_shadow_color_type: "solid",
-  text_shadow_gradient_stops: [
-    { color: "#ffffff", position: 0 },
-    { color: "#000000", position: 100 },
-  ],
-  text_shadow_gradient_angle: 180,
-  text_shadow_blur: 4,
-  text_shadow_x: 1,
-  text_shadow_y: 1,
-};
-
-const DEFAULT_OVERLAY_SETTINGS: OverlaySettings = {
-  canvas_width: 800,
-  canvas_height: 200,
-  hidden: false,
-  background_color: "#ce5a41",
-  background_opacity: 0.6,
-  background_animation: "waves",
-  blur: 8,
-  show_border: true,
-  border_color: "rgba(255,255,255,0.1)",
-  border_width: 2,
-  border_radius: 40,
-  sprite: {
-    visible: true,
-    x: 10,
-    y: 10,
-    width: 180,
-    height: 180,
-    z_index: 1,
-    show_glow: true,
-    glow_color: "#ffffff",
-    glow_opacity: 0.2,
-    glow_blur: 42,
-    idle_animation: "none",
-    trigger_enter: "bounce",
-    trigger_exit: "none",
-    trigger_decrement: "shake",
-    cycle_phase_targets: false,
-    cycle_interval_ms: 3000,
-  },
-  name: {
-    visible: true,
-    x: 200,
-    y: 20,
-    width: 300,
-    height: 40,
-    z_index: 2,
-    style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "pokemon",
-      font_size: 28,
-      font_weight: 700,
-      color: "#ffffff",
-      outline_type: "solid",
-      outline_width: 4,
-      outline_color: "#000000",
-    },
-    idle_animation: "none",
-    trigger_enter: "none",
-    trigger_decrement: "none",
-  },
-  title: {
-    visible: false,
-    x: 200,
-    y: 60,
-    width: 300,
-    height: 30,
-    z_index: 4,
-    style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "pokemon",
-      font_size: 20,
-      font_weight: 700,
-      color: "#ffffff",
-      outline_type: "solid",
-      outline_width: 3,
-      outline_color: "#000000",
-    },
-    idle_animation: "none",
-    trigger_enter: "none",
-    trigger_decrement: "none",
-  },
-  counter: {
-    visible: true,
-    x: 200,
-    y: 80,
-    width: 300,
-    height: 100,
-    z_index: 3,
-    style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "pokemon",
-      font_size: 80,
-      font_weight: 700,
-      color: "#ffffff",
-      outline_type: "solid",
-      outline_width: 6,
-      outline_color: "#000000",
-    },
-    show_label: false,
-    label_text: "Begegnungen",
-    label_style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "sans",
-      font_size: 14,
-      font_weight: 400,
-      color: "#94a3b8",
-    },
-    idle_animation: "none",
-    trigger_enter: "slot",
-    trigger_decrement: "slot",
-  },
-  timer: {
-    visible: false,
-    x: 530,
-    y: 20,
-    width: 250,
-    height: 40,
-    z_index: 5,
-    style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "pokemon",
-      font_size: 24,
-      font_weight: 700,
-      color: "#ffffff",
-      outline_type: "solid",
-      outline_width: 3,
-      outline_color: "#000000",
-    },
-    show_label: false,
-    label_text: "Timer",
-    label_style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "sans",
-      font_size: 14,
-      font_weight: 400,
-      color: "#94a3b8",
-    },
-    idle_animation: "none",
-  },
-  odds: {
-    visible: false,
-    x: 530,
-    y: 70,
-    width: 250,
-    height: 50,
-    z_index: 6,
-    style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "pokemon",
-      font_size: 28,
-      font_weight: 700,
-      color: "#ffffff",
-      outline_type: "solid",
-      outline_width: 3,
-      outline_color: "#000000",
-    },
-    show_label: false,
-    label_text: "Odds",
-    label_style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "sans",
-      font_size: 14,
-      font_weight: 400,
-      color: "#94a3b8",
-    },
-    format: "fractional",
-    idle_animation: "none",
-    trigger_enter: "none",
-    trigger_decrement: "none",
-  },
-  phase: {
-    visible: false,
-    x: 530,
-    y: 122,
-    width: 120,
-    height: 36,
-    z_index: 7,
-    style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "pokemon",
-      font_size: 24,
-      font_weight: 700,
-      color: "#ffffff",
-      outline_type: "solid",
-      outline_width: 3,
-      outline_color: "#000000",
-    },
-    show_label: false,
-    label_text: "Phase",
-    label_style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "sans",
-      font_size: 14,
-      font_weight: 400,
-      color: "#94a3b8",
-    },
-    idle_animation: "none",
-    trigger_enter: "none",
-    trigger_decrement: "none",
-  },
-  total_counter: {
-    visible: false,
-    x: 660,
-    y: 122,
-    width: 130,
-    height: 36,
-    z_index: 8,
-    style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "pokemon",
-      font_size: 24,
-      font_weight: 700,
-      color: "#ffffff",
-      outline_type: "solid",
-      outline_width: 3,
-      outline_color: "#000000",
-    },
-    show_label: false,
-    label_text: "Total Encounter",
-    label_style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "sans",
-      font_size: 14,
-      font_weight: 400,
-      color: "#94a3b8",
-    },
-    idle_animation: "none",
-    trigger_enter: "none",
-    trigger_decrement: "none",
-  },
-  total_timer: {
-    visible: false,
-    x: 530,
-    y: 162,
-    width: 260,
-    height: 36,
-    z_index: 9,
-    style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "pokemon",
-      font_size: 24,
-      font_weight: 700,
-      color: "#ffffff",
-      outline_type: "solid",
-      outline_width: 3,
-      outline_color: "#000000",
-    },
-    show_label: false,
-    label_text: "Total Timer",
-    label_style: {
-      ...DEFAULT_TEXT_STYLE,
-      font_family: "sans",
-      font_size: 14,
-      font_weight: 400,
-      color: "#94a3b8",
-    },
-    idle_animation: "none",
-    // Like the plain timer, the total timer has no counting animation to react to.
-    trigger_enter: "none",
-    trigger_decrement: "none",
-  },
-};
-
 /** Elements that were added after the first release and may be absent in stored settings. */
 const MIGRATABLE_ELEMENT_KEYS = [
   "title",
@@ -349,15 +69,28 @@ const MIGRATABLE_ELEMENT_KEYS = [
  * element that predates the stored settings. A zero-sized element counts as
  * missing because that is how older backends persisted an unknown element.
  * Without it the layer list and the canvas would read `undefined.visible`.
+ *
+ * The substitute is always hidden, mirroring the Go copy of this rule in
+ * backend/internal/state/persist.go: a layer the user never had must not
+ * switch itself on just because a newer default ships it visible.
+ *
+ * It takes the translator because the substitute carries a caption, and a
+ * caption is stored text: filling a missing layer in must write it in the
+ * language the user is running.
  */
-function fillMissingElements(settings: OverlaySettings): OverlaySettings {
+function fillMissingElements(settings: OverlaySettings, t: Translate): OverlaySettings {
   const filled = { ...settings };
+  let defaults: OverlaySettings | null = null;
   for (const key of MIGRATABLE_ELEMENT_KEYS) {
     const el = filled[key];
     if (!el || (el.width === 0 && el.height === 0)) {
+      defaults ??= buildDefaultOverlaySettings(t);
       // Structural assignment across a union of element shapes; the key always
       // picks the default of its own element type.
-      (filled as Record<string, unknown>)[key] = DEFAULT_OVERLAY_SETTINGS[key];
+      (filled as Record<string, unknown>)[key] = {
+        ...defaults[key],
+        visible: false,
+      };
     }
   }
   return filled;
@@ -431,7 +164,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     total_timer: t("overlay.elementTotalTimer"),
     canvas: "Canvas",
   };
-  const [localSettings, setLocalSettings] = useState<OverlaySettings>(() => fillMissingElements(settings));
+  const [localSettings, setLocalSettings] = useState<OverlaySettings>(() => fillMissingElements(settings, t));
   const [selectedEl, setSelectedEl] = useState<ElementKey>("sprite");
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const [canvasScale, setCanvasScale] = useState(1);
@@ -472,6 +205,11 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
 
   // Tutorial
   const [showTutorial, setShowTutorial] = useState(false);
+
+  // Template picker: the picked template waits in pendingTemplate until the
+  // user confirms, because applying it discards the current layout.
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [pendingTemplate, setPendingTemplate] = useState<OverlayTemplate | null>(null);
 
   // Canvas background for testing (transparent = checkered, white, black)
   const [canvasBg, setCanvasBg] = useState<"transparent" | "white" | "black">("transparent");
@@ -544,16 +282,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     stops: GradientStop[]; angle: number;
     onConfirm: (stops: GradientStop[], angle: number) => void;
   } | null>(null);
-  const [shadowEditorTarget, setShadowEditorTarget] = useState<{
-    enabled: boolean; color: string; colorType: "solid" | "gradient";
-    gradientStops: GradientStop[]; gradientAngle: number;
-    blur: number; x: number; y: number;
-    onConfirm: (params: ShadowConfirmParams) => void;
-  } | null>(null);
-  const [outlineEditorTarget, setOutlineEditorTarget] = useState<{
-    type: "none" | "solid"; color: string; width: number;
-    onConfirm: (type: "none" | "solid", color: string, width: number) => void;
-  } | null>(null);
+  const [shadowEditorTarget, setShadowEditorTarget] = useState<
+    (ShadowConfirmParams & { onConfirm: (params: ShadowConfirmParams) => void }) | null
+  >(null);
+  const [outlineEditorTarget, setOutlineEditorTarget] = useState<OpenOutlineEditorParams | null>(null);
   const [textColorEditorTarget, setTextColorEditorTarget] = useState<{
     colorType: "solid" | "gradient"; color: string;
     gradientStops: GradientStop[]; gradientAngle: number;
@@ -573,17 +305,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     [],
   );
 
-  /** Open the shared GradientEditorModal. */
   /** Open the shared OutlineEditorModal. */
-  const openOutlineEditor = useCallback(
-    (
-      type: "none" | "solid", color: string, width: number,
-      onConfirm: (t: "none" | "solid", c: string, w: number) => void,
-    ) => {
-      setOutlineEditorTarget({ type, color, width, onConfirm });
-    },
-    [],
-  );
+  const openOutlineEditor = useCallback((params: OpenOutlineEditorParams) => {
+    setOutlineEditorTarget(params);
+  }, []);
 
   /** Open the shared ShadowEditorModal. */
   const openShadowEditor = useCallback(
@@ -606,8 +331,8 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   );
 
   useEffect(() => {
-    setLocalSettings(fillMissingElements(settings));
-  }, [settings]);
+    setLocalSettings(fillMissingElements(settings, t));
+  }, [settings, t]);
 
   // Keep zoomRef in sync
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
@@ -775,6 +500,12 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   // Keyboard navigation + spacebar for hand tool
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // Every editor modal is a native <dialog> opened with showModal(). While
+      // one is up the canvas shortcuts must stay out of the way: the Tab branch
+      // below calls preventDefault(), which would otherwise pin the focus to
+      // the dialog's first control and make the modal unusable by keyboard.
+      if (document.querySelector("dialog[open]")) return;
+
       const tag = (e.target as HTMLElement)?.tagName;
       const isInput = ["INPUT", "SELECT", "TEXTAREA"].includes(tag);
 
@@ -1150,7 +881,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
               try { localStorage.removeItem("encounty_editor_split"); } catch {}
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-none p-1 text-text-muted hover:text-text-primary transition-opacity z-10 relative after:absolute after:-inset-2 after:content-['']"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 bg-bg-secondary border border-border-subtle rounded-none p-1 text-text-muted hover:text-text-primary transition-opacity z-10 after:absolute after:-inset-2 after:content-['']"
             title={t("tooltip.editor.resetLayout")}
             aria-label={t("tooltip.editor.resetLayout")}
           >
@@ -1164,13 +895,24 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
             <h3 className="text-[10px] font-semibold text-text-secondary uppercase tracking-wider">
               {t("overlay.layers")}
             </h3>
-            <button
-              onClick={() => update(DEFAULT_OVERLAY_SETTINGS)}
-              title={t("tooltip.editor.resetLayout")}
-              className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setShowTemplates(true)}
+                title={t("overlay.templatesTitle")}
+                aria-label={t("overlay.templatesTitle")}
+                className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors relative after:absolute after:-inset-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"
+              >
+                <LayoutTemplate className="w-3 h-3" />
+              </button>
+              <button
+                onClick={() => update(buildDefaultOverlaySettings(t))}
+                title={t("tooltip.editor.resetLayout")}
+                className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors relative after:absolute after:-inset-2 after:content-['']"
+              >
+                <RotateCcw className="w-3 h-3" />
+              </button>
+            </div>
           </div>
           {DRAGGABLE_ELEMENT_KEYS
             .map((key) => {
@@ -1277,6 +1019,24 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
         </div>
       </div>
 
+      {/* Template picker + its confirmation, both applied like the reset button */}
+      {showTemplates && (
+        <TemplatePickerModal
+          onSelect={setPendingTemplate}
+          onClose={() => setShowTemplates(false)}
+        />
+      )}
+      {pendingTemplate && (
+        <ConfirmModal
+          title={t("overlay.templateConfirmTitle")}
+          message={t("overlay.templateConfirmMessage", { name: t(pendingTemplate.nameKey) })}
+          confirmLabel={t("overlay.templateApply")}
+          isDestructive
+          onConfirm={() => update(pendingTemplate.settings)}
+          onClose={() => setPendingTemplate(null)}
+        />
+      )}
+
       {/* Tutorial overlay */}
       {showTutorial && (
         <EditorTutorial
@@ -1318,9 +1078,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
         <ShadowEditorModal
           enabled={shadowEditorTarget.enabled}
           color={shadowEditorTarget.color}
-          colorType={shadowEditorTarget.colorType}
-          gradientStops={shadowEditorTarget.gradientStops}
-          gradientAngle={shadowEditorTarget.gradientAngle}
           blur={shadowEditorTarget.blur}
           x={shadowEditorTarget.x}
           y={shadowEditorTarget.y}
@@ -1331,9 +1088,6 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
           onClose={() => setShadowEditorTarget(null)}
           onOpenColorPicker={(color, onPick) =>
             openColorPicker(color, onPick)
-          }
-          onOpenGradientEditor={(stops, angle, onConfirm) =>
-            setGradientEditorTarget({ stops, angle, onConfirm })
           }
         />
       )}
@@ -1361,13 +1115,18 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
           type={outlineEditorTarget.type}
           color={outlineEditorTarget.color}
           width={outlineEditorTarget.width}
-          onConfirm={(type, color, width) => {
-            outlineEditorTarget.onConfirm(type, color, width);
+          gradientStops={outlineEditorTarget.gradientStops}
+          gradientAngle={outlineEditorTarget.gradientAngle}
+          onConfirm={(type, color, width, gradientStops, gradientAngle) => {
+            outlineEditorTarget.onConfirm(type, color, width, gradientStops, gradientAngle);
             setOutlineEditorTarget(null);
           }}
           onClose={() => setOutlineEditorTarget(null)}
           onOpenColorPicker={(color, onPick) =>
             openColorPicker(color, onPick)
+          }
+          onOpenGradientEditor={(stops, angle, onConfirm) =>
+            setGradientEditorTarget({ stops, angle, onConfirm })
           }
         />
       )}

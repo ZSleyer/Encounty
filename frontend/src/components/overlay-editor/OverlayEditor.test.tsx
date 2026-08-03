@@ -269,9 +269,9 @@ describe("OverlayEditor", () => {
     // Click the layers section reset (second match)
     await user.click(resetButtons[1]);
 
-    // onUpdate should be called with default settings (canvas_width 800)
+    // onUpdate should be called with default settings (the 800x264 default panel)
     expect(onUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ canvas_width: 800 }),
+      expect.objectContaining({ canvas_width: 800, canvas_height: 264 }),
     );
   });
 
@@ -2718,8 +2718,8 @@ describe("OverlayEditor", () => {
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
     await user.click(canvasLayerButtons[0]);
 
-    // Click the background color swatch (title contains the hex color)
-    const colorSwatch = screen.getByTitle("#000000");
+    // Click the background color swatch (title is the label plus the hex code)
+    const colorSwatch = screen.getByTitle("Farbe #000000");
     await user.click(colorSwatch);
 
     // ColorPickerModal should now be rendered — look for dialog element
@@ -2915,7 +2915,7 @@ describe("OverlayEditor", () => {
     // Select canvas layer and open color picker
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
     await user.click(canvasLayerButtons[0]);
-    const colorSwatch = screen.getByTitle("#000000");
+    const colorSwatch = screen.getByTitle("Farbe #000000");
     await user.click(colorSwatch);
 
     // Dialog should be open
@@ -3240,7 +3240,7 @@ describe("OverlayEditor", () => {
     // Open color picker via canvas background color swatch
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
     await user.click(canvasLayerButtons[0]);
-    const colorSwatch = screen.getByTitle("#000000");
+    const colorSwatch = screen.getByTitle("Farbe #000000");
     await user.click(colorSwatch);
 
     // Dialog should be open
@@ -3347,7 +3347,7 @@ describe("OverlayEditor", () => {
     // Open color picker
     const canvasLayerButtons = screen.getAllByLabelText("Canvas");
     await user.click(canvasLayerButtons[0]);
-    const colorSwatch = screen.getByTitle("#000000");
+    const colorSwatch = screen.getByTitle("Farbe #000000");
     await user.click(colorSwatch);
 
     // Click cancel button
