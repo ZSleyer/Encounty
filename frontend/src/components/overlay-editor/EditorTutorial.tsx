@@ -1,184 +1,96 @@
 /**
- * EditorTutorial.tsx — Step-based tooltip overlay that guides first-time users
- * through the Overlay Editor. Highlights key areas of the UI using
- * data-tutorial attributes placed on target containers.
+ * EditorTutorial.tsx: the walkthrough of the Overlay Editor.
+ *
+ * It only owns the step list; the dimming, the cutout, the focus trap and the
+ * step announcement live in the shared TutorialOverlay. Steps address their
+ * target through the `data-tutorial` attribute placed on the container they
+ * point at.
+ *
+ * Some steps talk about rows that the property panel only renders for a
+ * specific layer, for instance the affix fields of a value layer or the sprite's
+ * phase cycling. Those steps name that layer in `select`, and the editor
+ * switches to it before the step is measured.
  */
-import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
-import { useI18n } from "../../contexts/I18nContext";
-import { useModalA11y } from "../../hooks/useModalA11y";
+import { useCallback } from "react";
+import { TutorialOverlay, type TutorialStep } from "../shared/TutorialOverlay";
+import type { ElementKey } from "../../utils/overlayElements";
 
 type Props = Readonly<{
   onComplete: () => void;
+  /** Selects the layer a step needs so the rows it points at exist. */
+  onSelectElement?: (key: ElementKey) => void;
 }>;
 
-interface TutorialStep {
-  target: string;
-  titleKey: string;
-  textKey: string;
+/** A walkthrough step, optionally tied to the layer that renders its target. */
+interface EditorTutorialStep extends TutorialStep {
+  /** Layer the editor selects before this step is shown. */
+  readonly select?: ElementKey;
 }
 
-const STEPS: TutorialStep[] = [
+const STEPS: readonly EditorTutorialStep[] = [
   {
     target: "canvas",
     titleKey: "editorTutorial.step1Title",
     textKey: "editorTutorial.step1Text",
   },
   {
-    target: "layers",
+    target: "templates",
     titleKey: "editorTutorial.step2Title",
     textKey: "editorTutorial.step2Text",
   },
   {
-    target: "properties",
+    target: "layers",
     titleKey: "editorTutorial.step3Title",
     textKey: "editorTutorial.step3Text",
   },
   {
-    target: "toolbar",
+    target: "properties",
     titleKey: "editorTutorial.step4Title",
     textKey: "editorTutorial.step4Text",
+    select: "counter",
   },
   {
-    target: "canvas",
+    target: "text-style",
     titleKey: "editorTutorial.step5Title",
     textKey: "editorTutorial.step5Text",
+    select: "counter",
+  },
+  {
+    target: "affixes",
+    titleKey: "editorTutorial.step6Title",
+    textKey: "editorTutorial.step6Text",
+    select: "counter",
+  },
+  {
+    target: "sprite-cycle",
+    titleKey: "editorTutorial.step7Title",
+    textKey: "editorTutorial.step7Text",
+    select: "sprite",
+  },
+  {
+    target: "toolbar",
+    titleKey: "editorTutorial.step8Title",
+    textKey: "editorTutorial.step8Text",
   },
 ];
 
-export function EditorTutorial({ onComplete }: Props) {
-  const { t } = useI18n();
-  const [step, setStep] = useState(0);
-  const [rect, setRect] = useState<DOMRect | null>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
-  // The tutorial is always actively showing a step while mounted; the parent
-  // only renders this component while the walkthrough is running.
-  const tooltipRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onComplete });
+/** Step-based walkthrough of the Overlay Editor. */
+export function EditorTutorial({ onComplete, onSelectElement }: Props) {
+  const handleStepChange = useCallback(
+    (index: number) => {
+      const select = STEPS[index].select;
+      if (select) onSelectElement?.(select);
+    },
+    [onSelectElement],
+  );
 
-  useEffect(() => {
-    const el = document.querySelector(`[data-tutorial="${STEPS[step].target}"]`);
-    if (el) {
-      setRect(el.getBoundingClientRect());
-    }
-  }, [step]);
-
-  // Recalculate on resize
-  useEffect(() => {
-    const handler = () => {
-      const el = document.querySelector(`[data-tutorial="${STEPS[step].target}"]`);
-      if (el) setRect(el.getBoundingClientRect());
-    };
-    globalThis.addEventListener("resize", handler);
-    return () => globalThis.removeEventListener("resize", handler);
-  }, [step]);
-
-  const next = () => {
-    if (step < STEPS.length - 1) {
-      setStep(step + 1);
-    } else {
-      onComplete();
-    }
-  };
-
-  const skip = () => onComplete();
-
-  const current = STEPS[step];
-  const pad = 8;
-
-  // Tooltip positioning: place below the target, or above if near bottom
-  const tooltipStyle: React.CSSProperties = rect
-    ? {
-        position: "fixed",
-        left: Math.max(8, Math.min(rect.left, globalThis.innerWidth - 340)),
-        top: Math.max(40, rect.bottom + pad + 8 > globalThis.innerHeight - 100
-          ? rect.top - pad - 120
-          : rect.bottom + pad + 8),
-        zIndex: 10002,
-        maxWidth: "min(320px, 85vw)",
-        width: "auto",
-      }
-    : { display: "none" };
-
-  return createPortal(
-    <div ref={overlayRef} className="fixed inset-0" style={{ zIndex: 10000 }}>
-      {/* Semi-transparent backdrop with cutout */}
-      <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 10000 }}>
-        <defs>
-          <mask id="tutorial-mask">
-            <rect width="100%" height="100%" fill="white" />
-            {rect && (
-              <rect
-                x={rect.left - pad}
-                y={rect.top - pad}
-                width={rect.width + pad * 2}
-                height={rect.height + pad * 2}
-                rx={0}
-                fill="black"
-              />
-            )}
-          </mask>
-        </defs>
-        <rect
-          width="100%"
-          height="100%"
-          fill="rgba(0,0,0,0.8)"
-          mask="url(#tutorial-mask)"
-        />
-      </svg>
-
-      {/* Highlight border */}
-      {rect && (
-        <div
-          className="absolute border-2 border-accent-blue rounded-none pointer-events-none"
-          style={{
-            left: rect.left - pad,
-            top: rect.top - pad,
-            width: rect.width + pad * 2,
-            height: rect.height + pad * 2,
-            zIndex: 10001,
-            boxShadow: "0 0 0 4px rgba(90, 171, 255, 0.2)",
-          }}
-        />
-      )}
-
-      {/* Tooltip */}
-      <div style={tooltipStyle}>
-        <div
-          ref={tooltipRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="editor-tutorial-title"
-          tabIndex={-1}
-          className="bg-bg-secondary border border-border-subtle rounded-none shadow-lg p-4"
-        >
-          <p id="editor-tutorial-title" className="text-sm font-semibold text-text-primary mb-1">
-            {t(current.titleKey)}
-          </p>
-          <p className="text-xs text-text-secondary mb-3">
-            {t(current.textKey)}
-          </p>
-          <div className="flex items-center justify-between">
-            <span className="text-xs text-text-muted">
-              {step + 1}/{STEPS.length}
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={skip}
-                className="px-3 py-1 rounded-none text-xs text-text-muted hover:text-text-primary hover:bg-bg-hover border border-border-subtle transition-colors"
-              >
-                {t("editorTutorial.skip")}
-              </button>
-              <button
-                onClick={next}
-                className="px-3 py-1 rounded-none text-xs bg-accent-blue text-white hover:bg-accent-blue/80 transition-colors"
-              >
-                {step < STEPS.length - 1 ? t("editorTutorial.next") : t("editorTutorial.finish")}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <TutorialOverlay
+      steps={STEPS}
+      attribute="data-tutorial"
+      namespace="editorTutorial"
+      onStepChange={handleStepChange}
+      onComplete={onComplete}
+    />
   );
 }

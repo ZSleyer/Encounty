@@ -1615,4 +1615,30 @@ describe("OverlayPropertyPanel", () => {
       }),
     );
   });
+
+  // --- Tutorial anchors ---
+  // The walkthrough finds its targets by attribute, so a renamed or dropped
+  // anchor is only noticed at runtime unless it is asserted here.
+
+  it("anchors the text style tutorial step on a value layer", () => {
+    const props = makeProps({ selectedEl: "counter" });
+    const { container } = render(<OverlayPropertyPanel {...props} />);
+    expect(container.querySelector("[data-tutorial='text-style']")).toBeInTheDocument();
+  });
+
+  it("anchors the affix tutorial step on a value layer", () => {
+    const props = makeProps({ selectedEl: "counter" });
+    const { container } = render(<OverlayPropertyPanel {...props} />);
+    const affixes = container.querySelector("[data-tutorial='affixes']");
+    expect(affixes).toBeInTheDocument();
+    expect(affixes).toHaveTextContent("Text davor & danach");
+  });
+
+  it("anchors the sprite cycling tutorial step on the sprite layer", () => {
+    const props = makeProps({ selectedEl: "sprite" });
+    const { container } = render(<OverlayPropertyPanel {...props} />);
+    const cycle = container.querySelector("[data-tutorial='sprite-cycle']");
+    expect(cycle).toBeInTheDocument();
+    expect(cycle).toHaveTextContent("Phase-Targets durchwechseln");
+  });
 });

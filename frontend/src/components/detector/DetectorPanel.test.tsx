@@ -1491,6 +1491,23 @@ describe("DetectorPanel", () => {
     });
   });
 
+  // --- Tutorial anchors ---
+
+  it("provides every anchor the detector tutorial points at", () => {
+    renderPanel();
+
+    // The settings anchor sits on the log/settings tab bar, because the
+    // settings themselves only render while their own tab is active.
+    // "preview" belongs to DetectorPreview, which is mocked out here and
+    // asserted in DetectorPreview.test.tsx instead. "controls" lives on the
+    // dashboard header, outside this panel.
+    for (const target of ["source", "templates", "settings"]) {
+      expect(
+        document.querySelector(`[data-detector-tutorial="${target}"]`),
+      ).not.toBeNull();
+    }
+  });
+
   // --- Settings save PATCHes the active template ---
 
   it("PATCHes the active template when settings are saved after modification", async () => {

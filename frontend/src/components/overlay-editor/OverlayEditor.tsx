@@ -59,6 +59,7 @@ interface Props {
 const MIGRATABLE_ELEMENT_KEYS = [
   "title",
   "timer",
+  "odds",
   "phase",
   "total_counter",
   "total_timer",
@@ -77,8 +78,11 @@ const MIGRATABLE_ELEMENT_KEYS = [
  * It takes the translator because the substitute carries a caption, and a
  * caption is stored text: filling a missing layer in must write it in the
  * language the user is running.
+ *
+ * Exported for its own test: driving it through the component would only show
+ * that a filled layer appears in the layer list, not where it was placed.
  */
-function fillMissingElements(settings: OverlaySettings, t: Translate): OverlaySettings {
+export function fillMissingElements(settings: OverlaySettings, t: Translate): OverlaySettings {
   const filled = { ...settings };
   let defaults: OverlaySettings | null = null;
   for (const key of MIGRATABLE_ELEMENT_KEYS) {
@@ -87,13 +91,31 @@ function fillMissingElements(settings: OverlaySettings, t: Translate): OverlaySe
       defaults ??= buildDefaultOverlaySettings(t);
       // Structural assignment across a union of element shapes; the key always
       // picks the default of its own element type.
-      (filled as Record<string, unknown>)[key] = {
-        ...defaults[key],
-        visible: false,
-      };
+      const substitute = { ...defaults[key], visible: false } as OverlayElementBase;
+      clampIntoCanvas(substitute, settings);
+      (filled as Record<string, unknown>)[key] = substitute;
     }
   }
   return filled;
+}
+
+/**
+ * Pulls a substituted element back inside the stored canvas. The defaults are
+ * laid out for the current default canvas, which is taller than the one an
+ * older overlay was saved with, so a filled-in layer would otherwise sit below
+ * the panel and show up outside it the moment the user switches it on.
+ *
+ * Mirrors clampIntoCanvas in backend/internal/state/persist.go. The backend
+ * normally clamps before the editor ever sees the state, so this is the safety
+ * net for any path that does not go through it.
+ */
+function clampIntoCanvas(el: OverlayElementBase, canvas: OverlaySettings): void {
+  if (canvas.canvas_width > 0 && el.x + el.width > canvas.canvas_width) {
+    el.x = Math.max(0, canvas.canvas_width - el.width);
+  }
+  if (canvas.canvas_height > 0 && el.y + el.height > canvas.canvas_height) {
+    el.y = Math.max(0, canvas.canvas_height - el.height);
+  }
 }
 
 export function OBSSourceHint({ pokemonId }: Readonly<{ pokemonId?: string }>) {
@@ -504,7 +526,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
       // one is up the canvas shortcuts must stay out of the way: the Tab branch
       // below calls preventDefault(), which would otherwise pin the focus to
       // the dialog's first control and make the modal unusable by keyboard.
-      if (document.querySelector("dialog[open]")) return;
+      if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) return;
 
       const tag = (e.target as HTMLElement)?.tagName;
       const isInput = ["INPUT", "SELECT", "TEXTAREA"].includes(tag);
@@ -899,6 +921,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
               <button
                 type="button"
                 onClick={() => setShowTemplates(true)}
+                data-tutorial="templates"
                 title={t("overlay.templatesTitle")}
                 aria-label={t("overlay.templatesTitle")}
                 className="flex items-center gap-1 px-1 py-0.5 rounded-none text-[10px] text-text-muted hover:text-accent-blue hover:bg-accent-blue/10 transition-colors relative after:absolute after:-inset-2 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-blue"

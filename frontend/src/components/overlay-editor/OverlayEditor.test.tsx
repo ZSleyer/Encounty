@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, makeOverlaySettings, makePokemon, userEvent, fireEvent, act, waitFor } from "../../test-utils";
-import { OverlayEditor } from "./OverlayEditor";
+import { OverlayEditor, fillMissingElements } from "./OverlayEditor";
+import type { OverlaySettings } from "../../types";
 
 // Mock the overlay utils
 vi.mock("../../utils/overlay", () => ({
@@ -203,6 +204,20 @@ describe("OverlayEditor", () => {
     // The toolbar has a data-tutorial="toolbar" attribute
     const toolbarEl = container.querySelector("[data-tutorial='toolbar']");
     expect(toolbarEl).not.toBeNull();
+  });
+
+  it("anchors the templates tutorial step on the template picker button", () => {
+    const { container } = render(
+      <OverlayEditor
+        settings={makeOverlaySettings()}
+        onUpdate={vi.fn()}
+        activePokemon={makePokemon()}
+      />,
+    );
+
+    const templatesBtn = container.querySelector("[data-tutorial='templates']");
+    expect(templatesBtn).not.toBeNull();
+    expect(templatesBtn).toHaveAttribute("aria-label", "Vorlagen");
   });
 
   // --- Property panel rendering ---
@@ -880,6 +895,34 @@ describe("OverlayEditor", () => {
     // After the tutorial effect runs, it should show the tutorial
     const allText = document.body.textContent ?? "";
     expect(allText).toBeTruthy();
+  });
+
+  it("suppresses the canvas Tab shortcut while the tutorial is open", async () => {
+    const user = userEvent.setup();
+    localStorage.removeItem("encounty_editor_tutorial_seen");
+    const store: Record<string, string> = {};
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, val: string) => { store[key] = val; },
+      removeItem: (key: string) => { delete store[key]; },
+    });
+
+    render(
+      <OverlayEditor
+        settings={makeOverlaySettings()}
+        onUpdate={vi.fn()}
+        activePokemon={makePokemon()}
+      />,
+    );
+
+    // The walkthrough is up, so Tab has to stay a focus move inside it instead
+    // of cycling the selected layer behind the backdrop.
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.keyboard("{Tab}");
+
+    const spriteLayerButtons = screen.getAllByLabelText("Sprite");
+    const spriteWrapper = spriteLayerButtons[0].closest("div");
+    expect(spriteWrapper?.className).toMatch(/accent-blue/);
   });
 
   // --- Divider reset button ---
@@ -4061,5 +4104,47 @@ describe("OverlayEditor", () => {
     );
 
     expect(screen.getByText("15")).toBeInTheDocument();
+  });
+});
+
+describe("fillMissingElements", () => {
+  const t = ((key: string) => key) as unknown as Parameters<typeof fillMissingElements>[1];
+
+  /** An overlay saved before an element existed persisted it zero-sized. */
+  const legacy = (overrides: Partial<OverlaySettings> = {}) => {
+    const base = makeOverlaySettings();
+    return {
+      ...base,
+      canvas_width: 800,
+      canvas_height: 200,
+      odds: { ...base.odds, width: 0, height: 0, x: 0, y: 0 },
+      ...overrides,
+    };
+  };
+
+  it("fills an absent odds element instead of leaving it zero-sized", () => {
+    const filled = fillMissingElements(legacy(), t);
+    expect(filled.odds.width).toBeGreaterThan(0);
+    expect(filled.odds.height).toBeGreaterThan(0);
+  });
+
+  it("leaves a filled-in element hidden", () => {
+    expect(fillMissingElements(legacy(), t).odds.visible).toBe(false);
+  });
+
+  it("clamps a filled-in element into the stored canvas", () => {
+    // The defaults are laid out for a taller canvas than a legacy overlay has,
+    // so without clamping the layer sits below the panel and shows up outside
+    // it the moment the user switches it on.
+    const filled = fillMissingElements(legacy(), t);
+    expect(filled.odds.y + filled.odds.height).toBeLessThanOrEqual(200);
+    expect(filled.odds.x + filled.odds.width).toBeLessThanOrEqual(800);
+  });
+
+  it("does not touch an element the user actually positioned", () => {
+    const base = makeOverlaySettings();
+    const mine = { ...base.odds, x: 11, y: 22, width: 33, height: 44, visible: true };
+    const filled = fillMissingElements(legacy({ odds: mine }), t);
+    expect(filled.odds).toEqual(mine);
   });
 });

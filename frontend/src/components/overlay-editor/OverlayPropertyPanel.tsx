@@ -194,7 +194,7 @@ function TextStyleEditor({
   const u = (field: keyof TextStyle, value: unknown) =>
     onChange({ ...style, [field]: value });
   return (
-    <div className="space-y-2 border border-border-subtle/50 rounded-none p-2">
+    <div data-tutorial="text-style" className="space-y-2 border border-border-subtle/50 rounded-none p-2">
       <p className="text-xs 2xl:text-sm text-text-secondary font-semibold">{label}</p>
 
       {/* --- Font --- */}
@@ -625,41 +625,45 @@ function AffixFields({
   const { t } = useI18n();
   const hintId = `${idPrefix}-affix-hint`;
   return (
-    <PanelSection title={t("overlay.affixGroup")}>
-      <div>
-        <label htmlFor={`${idPrefix}-prefix-text`} className="text-xs text-text-muted">
-          {t("overlay.prefixText")}
-        </label>
-        <input
-          id={`${idPrefix}-prefix-text`}
-          type="text"
-          value={prefixText ?? ""}
-          onChange={(e) => onChange({ prefix_text: e.target.value })}
-          className={`${TEXT_INPUT_CLASS} mt-0.5`}
-          placeholder={t("overlay.prefixText")}
-          aria-label={t("aria.prefixText")}
-          aria-describedby={hintId}
-        />
-      </div>
-      <div>
-        <label htmlFor={`${idPrefix}-suffix-text`} className="text-xs text-text-muted">
-          {t("overlay.suffixText")}
-        </label>
-        <input
-          id={`${idPrefix}-suffix-text`}
-          type="text"
-          value={suffixText ?? ""}
-          onChange={(e) => onChange({ suffix_text: e.target.value })}
-          className={`${TEXT_INPUT_CLASS} mt-0.5`}
-          placeholder={t("overlay.suffixText")}
-          aria-label={t("aria.suffixText")}
-          aria-describedby={hintId}
-        />
-      </div>
-      <p id={hintId} className="text-xs text-text-muted leading-snug">
-        {t("overlay.affixHint")}
-      </p>
-    </PanelSection>
+    // The wrapper only exists to carry the tutorial anchor: the section itself
+    // collapses, and the walkthrough still has to be able to point at it.
+    <div data-tutorial="affixes">
+      <PanelSection title={t("overlay.affixGroup")}>
+        <div>
+          <label htmlFor={`${idPrefix}-prefix-text`} className="text-xs text-text-muted">
+            {t("overlay.prefixText")}
+          </label>
+          <input
+            id={`${idPrefix}-prefix-text`}
+            type="text"
+            value={prefixText ?? ""}
+            onChange={(e) => onChange({ prefix_text: e.target.value })}
+            className={`${TEXT_INPUT_CLASS} mt-0.5`}
+            placeholder={t("overlay.prefixText")}
+            aria-label={t("aria.prefixText")}
+            aria-describedby={hintId}
+          />
+        </div>
+        <div>
+          <label htmlFor={`${idPrefix}-suffix-text`} className="text-xs text-text-muted">
+            {t("overlay.suffixText")}
+          </label>
+          <input
+            id={`${idPrefix}-suffix-text`}
+            type="text"
+            value={suffixText ?? ""}
+            onChange={(e) => onChange({ suffix_text: e.target.value })}
+            className={`${TEXT_INPUT_CLASS} mt-0.5`}
+            placeholder={t("overlay.suffixText")}
+            aria-label={t("aria.suffixText")}
+            aria-describedby={hintId}
+          />
+        </div>
+        <p id={hintId} className="text-xs text-text-muted leading-snug">
+          {t("overlay.affixHint")}
+        </p>
+      </PanelSection>
+    </div>
   );
 }
 
@@ -1410,7 +1414,7 @@ export function OverlayPropertyPanel({
           )}
 
           {/* --- Phase target cycling --- */}
-          <div className="space-y-2 border-t border-border-subtle pt-2">
+          <div data-tutorial="sprite-cycle" className="space-y-2 border-t border-border-subtle pt-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"

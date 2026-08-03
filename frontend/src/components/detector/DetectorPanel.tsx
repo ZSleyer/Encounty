@@ -1136,8 +1136,12 @@ export function DetectorPanel({
                 </button>
               </div>
 
-              {/* Log + Settings tabs */}
-              <div className="flex shrink-0 border-b border-border-subtle items-center">
+              {/* Log + Settings tabs. Carries the tutorial anchor because the
+                  settings themselves only render while their tab is active. */}
+              <div
+                data-detector-tutorial="settings"
+                className="flex shrink-0 border-b border-border-subtle items-center"
+              >
                 {([["log", t("detector.logTitle")], ["settings", t("detector.settingsTitle")]] as const).map(([tab, label]) => (
                   <button
                     key={tab}
