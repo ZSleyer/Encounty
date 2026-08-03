@@ -410,6 +410,27 @@ describe("Overlay", () => {
     expect(wrapper?.style.position).toBe("relative");
   });
 
+  it("places the glyphs independently of the outline width", () => {
+    // The positioned box does not clip, so padding there would only indent the
+    // text by an outline-dependent amount and make it jump whenever the outline
+    // changes. Position must depend on x/y alone.
+    const positionedBox = (outlineWidth: number) => {
+      const { stroke, container } = renderNameWithStyle(
+        outlineWidth === 0
+          ? { outline_type: "none" }
+          : { ...SOLID_OUTLINE, outline_width: outlineWidth },
+      );
+      const node = stroke ?? container.querySelector<HTMLElement>("span");
+      return node?.closest<HTMLElement>("div[style*='position: absolute']");
+    };
+
+    for (const width of [0, 4, 10]) {
+      const box = positionedBox(width);
+      expect(box?.style.padding).toBe("");
+      expect(box?.style.paddingLeft).toBe("");
+    }
+  });
+
   it("gives the clipping digit wrappers room for the stroke in slot mode", () => {
     const base = makeOverlaySettings();
     const settings = makeOverlaySettings({

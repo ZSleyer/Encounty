@@ -1241,7 +1241,6 @@ export function Overlay({
       {settings.name.visible && (() => {
           const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
           const nameJustifyContent = alignToJustify[settings.name.style.text_align] ?? "flex-start";
-          const namePadding = textDecorationPadding(settings.name.style);
 
           return (
           <div
@@ -1255,7 +1254,10 @@ export function Overlay({
               display: "flex",
               alignItems: "center",
               justifyContent: nameJustifyContent,
-              padding: `0 ${namePadding}px`,
+              // No padding for the stroke: the box does not clip, so the only
+              // thing padding would do is indent the glyphs by an amount that
+              // depends on the outline width, which makes the text jump the
+              // moment someone changes the outline.
               overflow: "visible",
             }}
             className={TEXT_IDLE[settings.name.idle_animation] ?? ""}
@@ -1280,7 +1282,6 @@ export function Overlay({
       {settings.title?.visible && (activePokemon.title || !!previewSettings) && (() => {
           const alignToJustify: Record<string, string> = { center: "center", right: "flex-end" };
           const titleJustifyContent = alignToJustify[settings.title.style.text_align] ?? "flex-start";
-          const titlePadding = textDecorationPadding(settings.title.style);
 
           return (
           <div
@@ -1294,7 +1295,8 @@ export function Overlay({
               display: "flex",
               alignItems: "center",
               justifyContent: titleJustifyContent,
-              padding: `0 ${titlePadding}px`,
+              // See the name layer: padding here would only indent the glyphs
+              // by an outline-dependent amount, and the box does not clip.
               overflow: "visible",
             }}
             className={TEXT_IDLE[settings.title.idle_animation] ?? ""}
