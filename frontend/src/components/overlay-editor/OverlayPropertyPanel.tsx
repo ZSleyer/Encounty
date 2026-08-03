@@ -1,3 +1,4 @@
+import { useId, type ReactNode } from "react";
 import { Play, RotateCcw, AlignLeft, AlignCenter, AlignRight, Upload, Trash2 } from "lucide-react";
 import {
   OverlaySettings,
@@ -9,13 +10,32 @@ import {
 } from "../../types";
 import { useI18n } from "../../contexts/I18nContext";
 import type { DraggableElementKey, ElementKey } from "../../utils/overlayElements";
-import { NumInput, NumSlider } from "./controls/NumSlider";
+import { NumInput, NumSlider, PercentSlider } from "./controls/NumSlider";
 import { ColorSwatch } from "./controls/ColorSwatch";
+import { PanelSection } from "./controls/PanelSection";
+import { FontFamilyPicker } from "./controls/FontFamilyPicker";
 import type { ShadowConfirmParams } from "./controls/ShadowEditorModal";
+import type { OutlineType } from "./controls/OutlineEditorModal";
 
 /** Parameters for opening the shadow editor modal. */
 interface OpenShadowEditorParams extends ShadowConfirmParams {
   readonly onConfirm: (params: ShadowConfirmParams) => void;
+}
+
+/** Current outline values plus the callback the outline editor confirms with. */
+export interface OpenOutlineEditorParams {
+  readonly type: OutlineType;
+  readonly color: string;
+  readonly width: number;
+  readonly gradientStops: GradientStop[];
+  readonly gradientAngle: number;
+  readonly onConfirm: (
+    type: OutlineType,
+    color: string,
+    width: number,
+    gradientStops: GradientStop[],
+    gradientAngle: number,
+  ) => void;
 }
 
 /** Translation function signature, mirrored from the I18n context. */
@@ -34,10 +54,7 @@ interface StyleEditorOpeners {
     gradientStops: GradientStop[], gradientAngle: number,
     onConfirm: (ct: "solid" | "gradient", c: string, gs: GradientStop[], ga: number) => void,
   ) => void;
-  readonly onOpenOutlineEditor: (
-    type: "none" | "solid", color: string, width: number,
-    onConfirm: (t: "none" | "solid", c: string, w: number) => void,
-  ) => void;
+  readonly onOpenOutlineEditor: (params: OpenOutlineEditorParams) => void;
   readonly onOpenShadowEditor: (params: OpenShadowEditorParams) => void;
 }
 
@@ -46,14 +63,7 @@ const DEFAULT_CYCLE_INTERVAL_MS = 3000;
 
 /** Shared CSS for the panel's `<select>` controls. */
 const SELECT_CLASS =
-  "w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary";
-
-const POPULAR_FONTS = [
-  "sans", "serif", "monospace", "pokemon",
-  "Roboto", "Open Sans", "Lato", "Montserrat", "Oswald", "Raleway",
-  "Poppins", "Nunito", "Ubuntu", "Merriweather", "Playfair Display",
-  "Bebas Neue", "Cinzel", "Exo 2", "Orbitron", "Press Start 2P",
-];
+  "w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
 
 const DEFAULT_TEXT_STYLE: TextStyle = {
   font_family: "sans",
@@ -77,16 +87,87 @@ const DEFAULT_TEXT_STYLE: TextStyle = {
   outline_gradient_angle: 180,
   text_shadow: false,
   text_shadow_color: "#000000",
-  text_shadow_color_type: "solid",
-  text_shadow_gradient_stops: [
-    { color: "#ffffff", position: 0 },
-    { color: "#000000", position: 100 },
-  ],
-  text_shadow_gradient_angle: 180,
   text_shadow_blur: 4,
   text_shadow_x: 1,
   text_shadow_y: 1,
 };
+
+/** Fallback stops for a style that carries no gradient of its own yet. */
+const FALLBACK_GRADIENT_STOPS: GradientStop[] = [
+  { color: "#ffffff", position: 0 },
+  { color: "#000000", position: 100 },
+];
+
+/** Default gradient angle for a style that carries none yet. */
+const FALLBACK_GRADIENT_ANGLE = 180;
+
+/**
+ * Named font weights, in the wording type tools use. The stored value stays the
+ * CSS number, only the option text changes.
+ */
+const FONT_WEIGHTS: readonly { readonly value: number; readonly key: string }[] = [
+  { value: 100, key: "overlay.weightThin" },
+  { value: 300, key: "overlay.weightLight" },
+  { value: 400, key: "overlay.weightRegular" },
+  { value: 500, key: "overlay.weightMedium" },
+  { value: 700, key: "overlay.weightBold" },
+  { value: 900, key: "overlay.weightBlack" },
+];
+
+/** Swatch colour and optional gradient preview of the outline row. */
+function outlineSwatchPaint(style: TextStyle): {
+  color: string;
+  gradient?: { stops: GradientStop[]; angle: number };
+} {
+  if (style.outline_type === "solid") return { color: style.outline_color };
+  if (style.outline_type === "gradient") {
+    const stops = style.outline_gradient_stops?.length
+      ? style.outline_gradient_stops
+      : FALLBACK_GRADIENT_STOPS;
+    return {
+      color: stops[0].color,
+      gradient: { stops, angle: style.outline_gradient_angle || FALLBACK_GRADIENT_ANGLE },
+    };
+  }
+  return { color: "#00000000" };
+}
+
+/**
+ * Summary the outline swatch row shows next to its preview: a readable label
+ * plus the raw colour value as muted secondary text.
+ */
+function outlineSwatchText(
+  style: TextStyle,
+  t: TranslateFn,
+): { label: string; detail: string } {
+  if (style.outline_type === "solid") {
+    return {
+      label: `${t("overlay.outline")} ${style.outline_width}px`,
+      detail: style.outline_color,
+    };
+  }
+  if (style.outline_type === "gradient") {
+    return {
+      label: `${t("overlay.outline")} ${style.outline_width}px`,
+      detail: `(${t("overlay.gradient")})`,
+    };
+  }
+  return { label: `${t("overlay.outline")} (${t("overlay.animNone")})`, detail: "" };
+}
+
+/** Same split for the shadow row: readable summary first, raw colour second. */
+function shadowSwatchText(
+  style: TextStyle,
+  t: TranslateFn,
+): { label: string; detail: string } {
+  if (!style.text_shadow) {
+    return { label: `${t("overlay.shadow")} (${t("overlay.off")})`, detail: "" };
+  }
+  return {
+    label: `${t("overlay.shadow")} ${style.text_shadow_blur}px ${style.text_shadow_x},${style.text_shadow_y}`,
+    detail: style.text_shadow_color,
+  };
+}
 
 /** Compact text style editor with swatch-based rows that open modal editors. */
 function TextStyleEditor({
@@ -105,13 +186,11 @@ function TextStyleEditor({
     gradientStops: GradientStop[], gradientAngle: number,
     onConfirm: (colorType: "solid" | "gradient", color: string, gradientStops: GradientStop[], gradientAngle: number) => void,
   ) => void;
-  onOpenOutlineEditor: (
-    type: "none" | "solid", color: string, width: number,
-    onConfirm: (type: "none" | "solid", color: string, width: number) => void,
-  ) => void;
+  onOpenOutlineEditor: (params: OpenOutlineEditorParams) => void;
   onOpenShadowEditor: (params: OpenShadowEditorParams) => void;
 }>) {
   const { t } = useI18n();
+  const alignGroupId = useId();
   const u = (field: keyof TextStyle, value: unknown) =>
     onChange({ ...style, [field]: value });
   return (
@@ -119,58 +198,57 @@ function TextStyleEditor({
       <p className="text-xs 2xl:text-sm text-text-secondary font-semibold">{label}</p>
 
       {/* --- Font --- */}
-      <label className="block">
-        <span className="text-xs text-text-muted">{t("overlay.fontFamily")}</span>
-        <select
-          value={style.font_family}
-          onChange={(e) => u("font_family", e.target.value)}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-        >
-          {POPULAR_FONTS.map((f) => (
-            <option key={f} value={f}>{f}</option>
-          ))}
-        </select>
-      </label>
+      <FontFamilyPicker value={style.font_family} onChange={(f) => u("font_family", f)} />
 
       {/* --- Size --- */}
-      <NumSlider label={t("overlay.sizePx")} value={style.font_size} min={6} max={200} onChange={(v) => u("font_size", v)} />
+      <NumSlider label={t("overlay.size")} unit="px" value={style.font_size} min={6} max={200} onChange={(v) => u("font_size", v)} />
 
-      {/* --- Weight --- */}
+      {/* --- Weight, named the way a type tool names it --- */}
       <label className="block">
         <span className="text-xs text-text-muted">{t("overlay.fontWeight")}</span>
         <select
           value={style.font_weight}
           onChange={(e) => u("font_weight", Number(e.target.value))}
-          className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
+          className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
         >
-          {[100, 300, 400, 500, 700, 900].map((w) => (
-            <option key={w} value={w}>{w}</option>
+          {FONT_WEIGHTS.map((w) => (
+            <option key={w.value} value={w.value}>{t(w.key)}</option>
           ))}
         </select>
       </label>
 
       {/* --- Alignment --- */}
       <div className="flex items-center gap-1">
-        <span className="text-xs text-text-muted w-14 2xl:w-16">{t("overlay.textAlign")}</span>
-        <div className="flex border border-border-subtle rounded-none overflow-hidden">
+        <span className="text-xs text-text-muted w-14 2xl:w-16" id={`${alignGroupId}-label`}>
+          {t("overlay.textAlign")}
+        </span>
+        <div
+          role="group"
+          aria-labelledby={`${alignGroupId}-label`}
+          className="flex border border-border-subtle rounded-none overflow-hidden"
+        >
           {(["left", "center", "right"] as const).map((align) => {
             const centerOrRight = align === "center" ? t("tooltip.editor.alignCenter") : t("tooltip.editor.alignRight");
             const alignTitle = align === "left" ? t("tooltip.editor.alignLeft") : centerOrRight;
+            const active = (style.text_align || "left") === align;
 
             return (
             <button
               key={align}
+              type="button"
               onClick={() => u("text_align", align)}
-              className={`px-2.5 py-1.5 flex items-center justify-center ${
-                (style.text_align || "left") === align
+              aria-pressed={active}
+              className={`px-2.5 py-1.5 flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-blue ${
+                active
                   ? "bg-accent-blue/20 text-accent-blue"
                   : "text-text-muted hover:bg-bg-hover"
               }`}
               title={alignTitle}
+              aria-label={alignTitle}
             >
-              {align === "left" && <AlignLeft size={12} />}
-              {align === "center" && <AlignCenter size={12} />}
-              {align === "right" && <AlignRight size={12} />}
+              {align === "left" && <AlignLeft size={12} aria-hidden="true" />}
+              {align === "center" && <AlignCenter size={12} aria-hidden="true" />}
+              {align === "right" && <AlignRight size={12} aria-hidden="true" />}
             </button>
             );
           })}
@@ -185,7 +263,8 @@ function TextStyleEditor({
             stops: style.gradient_stops || [],
             angle: style.gradient_angle || 180,
           } : undefined}
-          label={style.color_type === "solid" ? `${t("overlay.color")} ${style.color}` : `${t("overlay.color")} (${t("overlay.gradient")})`}
+          label={t("overlay.color")}
+          detail={style.color_type === "solid" ? style.color : `(${t("overlay.gradient")})`}
           onClick={() =>
             onOpenTextColorEditor(
               style.color_type || "solid",
@@ -209,24 +288,28 @@ function TextStyleEditor({
       {/* --- Outline swatch row --- */}
       <div className="border-t border-border-subtle/50 pt-2">
         <ColorSwatch
-          color={style.outline_type === "solid" ? style.outline_color : "#00000000"}
-          label={
-            style.outline_type === "solid"
-              ? `${t("overlay.outline")} ${style.outline_width}px ${style.outline_color}`
-              : `${t("overlay.outline")} (${t("overlay.animNone")})`
-          }
+          {...outlineSwatchPaint(style)}
+          {...outlineSwatchText(style, t)}
           onClick={() =>
-            onOpenOutlineEditor(
-              style.outline_type === "solid" ? "solid" : "none",
-              style.outline_color,
-              style.outline_width,
-              (type, color, width) => {
+            onOpenOutlineEditor({
+              type: style.outline_type ?? "none",
+              color: style.outline_color,
+              width: style.outline_width,
+              gradientStops: style.outline_gradient_stops?.length
+                ? style.outline_gradient_stops
+                : FALLBACK_GRADIENT_STOPS,
+              gradientAngle: style.outline_gradient_angle || FALLBACK_GRADIENT_ANGLE,
+              onConfirm: (type, color, width, gradientStops, gradientAngle) => {
                 onChange({
                   ...style,
-                  outline_type: type, outline_color: color, outline_width: width,
+                  outline_type: type,
+                  outline_color: color,
+                  outline_width: width,
+                  outline_gradient_stops: gradientStops,
+                  outline_gradient_angle: gradientAngle,
                 });
               },
-            )
+            })
           }
         />
       </div>
@@ -235,26 +318,11 @@ function TextStyleEditor({
       <div className="border-t border-border-subtle/50 pt-2">
         <ColorSwatch
           color={style.text_shadow ? style.text_shadow_color : "#00000000"}
-          gradient={
-            style.text_shadow && (style.text_shadow_color_type === "gradient")
-              ? {
-                  stops: style.text_shadow_gradient_stops || [{ color: "#ffffff", position: 0 }, { color: "#000000", position: 100 }],
-                  angle: style.text_shadow_gradient_angle || 180,
-                }
-              : undefined
-          }
-          label={
-            style.text_shadow
-              ? `${t("overlay.shadow")} ${style.text_shadow_blur}px ${style.text_shadow_x},${style.text_shadow_y}`
-              : `${t("overlay.shadow")} (${t("overlay.off")})`
-          }
+          {...shadowSwatchText(style, t)}
           onClick={() =>
             onOpenShadowEditor({
               enabled: style.text_shadow,
               color: style.text_shadow_color,
-              colorType: style.text_shadow_color_type || "solid",
-              gradientStops: style.text_shadow_gradient_stops || [{ color: "#ffffff", position: 0 }, { color: "#000000", position: 100 }],
-              gradientAngle: style.text_shadow_gradient_angle || 180,
               blur: style.text_shadow_blur,
               x: style.text_shadow_x,
               y: style.text_shadow_y,
@@ -263,9 +331,6 @@ function TextStyleEditor({
                   ...style,
                   text_shadow: p.enabled,
                   text_shadow_color: p.color,
-                  text_shadow_color_type: p.colorType,
-                  text_shadow_gradient_stops: p.gradientStops,
-                  text_shadow_gradient_angle: p.gradientAngle,
                   text_shadow_blur: p.blur,
                   text_shadow_x: p.x,
                   text_shadow_y: p.y,
@@ -279,7 +344,7 @@ function TextStyleEditor({
   );
 }
 
-/** buildIdleAnimations lists the idle animations offered for text elements. */
+/** buildIdleAnimations lists the continuous animations offered for text elements. */
 function buildIdleAnimations(t: TranslateFn): AnimationOption[] {
   return [
     { value: "none", label: t("overlay.animNone") },
@@ -287,6 +352,89 @@ function buildIdleAnimations(t: TranslateFn): AnimationOption[] {
     { value: "glow", label: t("overlay.animGlow") },
     { value: "shimmer", label: t("overlay.animShimmerIdle") },
     { value: "float", label: t("overlay.animFloat") },
+  ];
+}
+
+/** buildSpriteIdleAnimations lists the continuous animations offered for the sprite. */
+function buildSpriteIdleAnimations(t: TranslateFn): AnimationOption[] {
+  return [
+    { value: "none", label: t("overlay.animNone") },
+    { value: "float", label: t("overlay.animFloat") },
+    { value: "bob", label: t("overlay.animBob") },
+    { value: "pulse", label: t("overlay.animPulseShort") },
+    { value: "rock", label: t("overlay.animWobble") },
+    { value: "wiggle", label: t("overlay.animBounce") },
+    { value: "shimmer", label: t("overlay.animShimmerIdle") },
+  ];
+}
+
+/** buildSpriteTriggerAnimations lists the one-shot animations offered for the sprite. */
+function buildSpriteTriggerAnimations(t: TranslateFn): AnimationOption[] {
+  return [
+    { value: "none", label: t("overlay.animNone") },
+    { value: "pop", label: "Pop" },
+    { value: "bounce", label: "Bounce" },
+    { value: "shake", label: "Shake" },
+    { value: "spin", label: "Spin" },
+    { value: "flip", label: "Flip" },
+    { value: "rubber", label: "Rubber Band" },
+    { value: "flash", label: "Flash" },
+    { value: "jello", label: "Jello" },
+    { value: "tada", label: "Tada" },
+    { value: "swing", label: "Swing" },
+  ];
+}
+
+/** buildTextTriggerAnimations lists the one-shot animations of the plain text elements. */
+function buildTextTriggerAnimations(t: TranslateFn): AnimationOption[] {
+  return [
+    { value: "none", label: t("overlay.animNone") },
+    { value: "fade-in", label: t("overlay.animFadeIn") },
+    { value: "slide-in", label: t("overlay.animSlideIn") },
+    { value: "pop", label: "Pop" },
+    { value: "bounce", label: "Bounce" },
+    { value: "shake", label: "Shake" },
+    { value: "flip", label: "Flip" },
+    { value: "rubber", label: "Rubber Band" },
+    { value: "jello", label: "Jello" },
+    { value: "tada", label: "Tada" },
+    { value: "zoom-in", label: "Zoom In" },
+  ];
+}
+
+/**
+ * buildCounterTriggerAnimations lists the counter's one-shot animations. "Slot"
+ * and "Flip Digit" are digit render modes and only the counter can show them.
+ */
+function buildCounterTriggerAnimations(t: TranslateFn): AnimationOption[] {
+  return [
+    { value: "none", label: t("overlay.animNone") },
+    { value: "pop", label: "Pop" },
+    { value: "flash", label: "Flash" },
+    { value: "bounce", label: "Bounce" },
+    { value: "shake", label: "Shake" },
+    { value: "slot", label: "Slot" },
+    { value: "flip-digit", label: "Flip Digit" },
+    { value: "slide-up", label: "Slide Up" },
+    { value: "flip", label: "Flip" },
+    { value: "rubber", label: "Rubber Band" },
+    { value: "jello", label: "Jello" },
+    { value: "tada", label: "Tada" },
+    { value: "zoom-in", label: "Zoom In" },
+  ];
+}
+
+/** buildOddsTriggerAnimations lists the one-shot animations offered for the odds. */
+function buildOddsTriggerAnimations(t: TranslateFn): AnimationOption[] {
+  return [
+    { value: "none", label: t("overlay.animNone") },
+    { value: "fade-in", label: t("overlay.animFadeIn") },
+    { value: "pop", label: "Pop" },
+    { value: "flash", label: "Flash" },
+    { value: "bounce", label: "Bounce" },
+    { value: "shake", label: "Shake" },
+    { value: "tada", label: "Tada" },
+    { value: "zoom-in", label: "Zoom In" },
   ];
 }
 
@@ -311,13 +459,17 @@ function buildNumericTriggerAnimations(t: TranslateFn): AnimationOption[] {
   ];
 }
 
-/** Labeled animation select with the test button that plays the animation once. */
-function TriggerAnimationRow({
+/**
+ * Labeled animation select. The two one-shot rows also carry a test button that
+ * plays the animation once, forward for an encounter and backwards for a
+ * correction.
+ */
+function AnimationRow({
   id,
   label,
   value,
   options,
-  reverse,
+  test,
   onChange,
   onTest,
 }: Readonly<{
@@ -325,34 +477,44 @@ function TriggerAnimationRow({
   label: string;
   value: string;
   options: readonly AnimationOption[];
-  /** Renders the decrement variant: red test button with a rewind icon. */
-  reverse?: boolean;
+  /** Omitted for the continuous row, which has nothing to fire once. */
+  test?: "play" | "rewind";
   onChange: (value: string) => void;
-  onTest: () => void;
+  onTest?: () => void;
 }>) {
-  const buttonClass = reverse
-    ? "bg-accent-red/15 hover:bg-accent-red/40 text-accent-red"
-    : "bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue";
+  const { t } = useI18n();
+  const buttonClass =
+    test === "rewind"
+      ? "bg-accent-red/15 hover:bg-accent-red/40 text-accent-red"
+      : "bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue";
   return (
     <div>
-      <div className="flex items-center justify-between mb-0.5">
+      <div className="flex items-center justify-between gap-2 mb-0.5 min-h-6">
         <label htmlFor={id} className="text-xs text-text-muted">
           {label}
         </label>
-        <button
-          type="button"
-          onClick={onTest}
-          className={`flex items-center gap-1 px-2 py-1 rounded-none text-xs transition-colors ${buttonClass}`}
-        >
-          {reverse ? (
-            <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" />
-          ) : (
-            <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" />
-          )}{" "}
-          Test
-        </button>
+        {test && (
+          <button
+            type="button"
+            onClick={onTest}
+            aria-label={t("aria.testAnimation", { name: label })}
+            className={`flex items-center gap-1 px-2 py-1 rounded-none text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${buttonClass}`}
+          >
+            {test === "rewind" ? (
+              <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" aria-hidden="true" />
+            ) : (
+              <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" aria-hidden="true" />
+            )}{" "}
+            Test
+          </button>
+        )}
       </div>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={SELECT_CLASS}>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={SELECT_CLASS}
+      >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
@@ -362,17 +524,314 @@ function TriggerAnimationRow({
 }
 
 /**
- * LabeledTextElementEditor renders the property rows shared by the phasing text
- * elements (phase, total_counter, total_timer): text style, label toggle with
- * its own text and style, idle animation and, unless the caller omits the
- * trigger options, both trigger animations with their test buttons.
- *
- * The counter, timer and odds blocks deliberately keep their hand-written
- * markup: the overlay tests assert their exact DOM structure.
+ * fireTestFor binds the test callback to one element. The forward run passes
+ * only the element key, the backwards run adds the reverse flag.
+ */
+function fireTestFor(
+  fireTest: (element: ElementKey, reverse?: boolean) => void,
+  key: ElementKey,
+): (reverse?: boolean) => void {
+  return (reverse) => (reverse ? fireTest(key, true) : fireTest(key));
+}
+
+/** One animation channel: current value, the options offered and its setter. */
+interface AnimationChannel {
+  readonly value: string;
+  readonly options: readonly AnimationOption[];
+  readonly onChange: (value: string) => void;
+}
+
+/**
+ * AnimationGroup collects the animation rows of one element under a single
+ * heading. Without the shared heading the renamed rows ("Always running", "On
+ * encounter") would read as three unrelated settings.
+ */
+function AnimationGroup({
+  idPrefix,
+  idle,
+  trigger,
+  decrement,
+  onTest,
+}: Readonly<{
+  /** Element key the row ids are derived from, so they stay unique per layer. */
+  idPrefix: string;
+  idle: AnimationChannel;
+  /** Omitted for elements that tick on their own, such as the timers. */
+  trigger?: AnimationChannel;
+  decrement?: AnimationChannel;
+  onTest: (reverse?: boolean) => void;
+}>) {
+  const { t } = useI18n();
+  return (
+    <fieldset className="border border-border-subtle rounded-none px-2.5 pb-2.5 space-y-2">
+      <legend className="px-1 text-xs 2xl:text-sm text-text-secondary">
+        {t("overlay.animationGroup")}
+      </legend>
+      <AnimationRow
+        id={`${idPrefix}-idle-animation`}
+        label={t("overlay.idleAnimation")}
+        value={idle.value}
+        options={idle.options}
+        onChange={idle.onChange}
+      />
+      {trigger && (
+        <AnimationRow
+          id={`${idPrefix}-trigger-animation`}
+          label={t("overlay.triggerAnimation")}
+          value={trigger.value}
+          options={trigger.options}
+          test="play"
+          onChange={trigger.onChange}
+          onTest={() => onTest()}
+        />
+      )}
+      {decrement && (
+        <AnimationRow
+          id={`${idPrefix}-trigger-decrement-animation`}
+          label={t("overlay.triggerAnimationDecrement")}
+          value={decrement.value}
+          options={decrement.options}
+          test="rewind"
+          onChange={decrement.onChange}
+          onTest={() => onTest(true)}
+        />
+      )}
+    </fieldset>
+  );
+}
+
+/** Shared class of the single-line text inputs in the property panel. */
+const TEXT_INPUT_CLASS =
+  "w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary";
+
+/**
+ * AffixFields renders the optional prefix and suffix inputs of a value layer.
+ * Both strings are drawn inside the value's own span, so they inherit its text
+ * style instead of the label style. An empty field is the off state, which is
+ * why the group carries no toggle.
+ */
+function AffixFields({
+  idPrefix,
+  prefixText,
+  suffixText,
+  onChange,
+}: Readonly<{
+  /** Element key the input ids are derived from, so they stay unique per layer. */
+  idPrefix: string;
+  prefixText: string;
+  suffixText: string;
+  onChange: (patch: { prefix_text?: string; suffix_text?: string }) => void;
+}>) {
+  const { t } = useI18n();
+  const hintId = `${idPrefix}-affix-hint`;
+  return (
+    <PanelSection title={t("overlay.affixGroup")}>
+      <div>
+        <label htmlFor={`${idPrefix}-prefix-text`} className="text-xs text-text-muted">
+          {t("overlay.prefixText")}
+        </label>
+        <input
+          id={`${idPrefix}-prefix-text`}
+          type="text"
+          value={prefixText ?? ""}
+          onChange={(e) => onChange({ prefix_text: e.target.value })}
+          className={`${TEXT_INPUT_CLASS} mt-0.5`}
+          placeholder={t("overlay.prefixText")}
+          aria-label={t("aria.prefixText")}
+          aria-describedby={hintId}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${idPrefix}-suffix-text`} className="text-xs text-text-muted">
+          {t("overlay.suffixText")}
+        </label>
+        <input
+          id={`${idPrefix}-suffix-text`}
+          type="text"
+          value={suffixText ?? ""}
+          onChange={(e) => onChange({ suffix_text: e.target.value })}
+          className={`${TEXT_INPUT_CLASS} mt-0.5`}
+          placeholder={t("overlay.suffixText")}
+          aria-label={t("aria.suffixText")}
+          aria-describedby={hintId}
+        />
+      </div>
+      <p id={hintId} className="text-xs text-text-muted leading-snug">
+        {t("overlay.affixHint")}
+      </p>
+    </PanelSection>
+  );
+}
+
+/**
+ * LabelFields renders the optional label of a value layer: the toggle, and when
+ * it is on the label text plus the label's own text style.
+ */
+function LabelFields({
+  show,
+  text,
+  style,
+  onChange,
+  onOpenTextColorEditor,
+  onOpenOutlineEditor,
+  onOpenShadowEditor,
+}: Readonly<
+  StyleEditorOpeners & {
+    show: boolean;
+    text: string;
+    style: TextStyle | undefined;
+    onChange: (patch: { show_label?: boolean; label_text?: string; label_style?: TextStyle }) => void;
+  }
+>) {
+  const { t } = useI18n();
+  return (
+    <>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={show}
+          onChange={(e) => onChange({ show_label: e.target.checked })}
+          className="accent-accent-blue"
+        />
+        <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
+      </label>
+      {show && (
+        <>
+          <input
+            type="text"
+            value={text}
+            onChange={(e) => onChange({ label_text: e.target.value })}
+            className={TEXT_INPUT_CLASS}
+            placeholder={t("overlay.labelText")}
+            aria-label={t("aria.labelText")}
+          />
+          <TextStyleEditor
+            style={style || DEFAULT_TEXT_STYLE}
+            label={t("overlay.labelStyle")}
+            onChange={(s) => onChange({ label_style: s })}
+            onOpenTextColorEditor={onOpenTextColorEditor}
+            onOpenOutlineEditor={onOpenOutlineEditor}
+            onOpenShadowEditor={onOpenShadowEditor}
+          />
+        </>
+      )}
+    </>
+  );
+}
+
+/**
+ * LabeledTextLike is the structural shape every value layer with an optional
+ * label shares: counter, timer, odds and the phasing elements. The timer has no
+ * trigger animations, which is why both trigger fields are optional here.
+ */
+interface LabeledTextLike {
+  style: TextStyle;
+  show_label: boolean;
+  label_text: string;
+  label_style?: TextStyle;
+  prefix_text: string;
+  suffix_text: string;
+  idle_animation: string;
+  trigger_enter?: string;
+  trigger_decrement?: string;
+}
+
+/**
+ * LabeledTextElementEditor renders the property rows shared by every value
+ * layer that can carry a label: text style, the text drawn before and after the
+ * value, the label group, and the animation group. Omitting triggerAnimations
+ * drops the one-shot rows, which is what the timers need.
  */
 function LabeledTextElementEditor({
   elementKey,
   element,
+  styleLabel,
+  idleAnimations,
+  triggerAnimations,
+  extraRows,
+  onChange,
+  onOpenTextColorEditor,
+  onOpenOutlineEditor,
+  onOpenShadowEditor,
+  fireTest,
+}: Readonly<
+  StyleEditorOpeners & {
+    elementKey: DraggableElementKey;
+    element: LabeledTextLike;
+    styleLabel: string;
+    idleAnimations: readonly AnimationOption[];
+    /** Omitted for elements without trigger animations, such as the timers. */
+    triggerAnimations?: readonly AnimationOption[];
+    /** Element-specific rows, rendered right below the affix group. */
+    extraRows?: ReactNode;
+    onChange: (patch: Partial<LabeledTextElement>) => void;
+    fireTest: (element: ElementKey, reverse?: boolean) => void;
+  }
+>) {
+  const openers: StyleEditorOpeners = {
+    onOpenTextColorEditor,
+    onOpenOutlineEditor,
+    onOpenShadowEditor,
+  };
+  return (
+    <div className="space-y-3">
+      <TextStyleEditor
+        style={element.style || DEFAULT_TEXT_STYLE}
+        label={styleLabel}
+        onChange={(s) => onChange({ style: s })}
+        {...openers}
+      />
+      <AffixFields
+        idPrefix={elementKey}
+        prefixText={element.prefix_text}
+        suffixText={element.suffix_text}
+        onChange={onChange}
+      />
+      {extraRows}
+      <LabelFields
+        show={element.show_label}
+        text={element.label_text}
+        style={element.label_style}
+        onChange={onChange}
+        {...openers}
+      />
+      <AnimationGroup
+        idPrefix={elementKey}
+        idle={{
+          value: element.idle_animation,
+          options: idleAnimations,
+          onChange: (v) => onChange({ idle_animation: v }),
+        }}
+        trigger={
+          triggerAnimations && {
+            value: element.trigger_enter ?? "none",
+            options: triggerAnimations,
+            onChange: (v) => onChange({ trigger_enter: v }),
+          }
+        }
+        decrement={
+          triggerAnimations && {
+            value: element.trigger_decrement || "none",
+            options: triggerAnimations,
+            onChange: (v) => onChange({ trigger_decrement: v }),
+          }
+        }
+        onTest={fireTestFor(fireTest, elementKey)}
+      />
+    </div>
+  );
+}
+
+/**
+ * PlainTextElementEditor renders the rows of a text layer without a label:
+ * the name and the title. Only a text style and the animation group.
+ */
+function PlainTextElementEditor({
+  elementKey,
+  style,
+  idleAnimation,
+  triggerEnter,
+  triggerDecrement,
   styleLabel,
   idleAnimations,
   triggerAnimations,
@@ -384,91 +843,51 @@ function LabeledTextElementEditor({
 }: Readonly<
   StyleEditorOpeners & {
     elementKey: DraggableElementKey;
-    element: LabeledTextElement;
+    style: TextStyle | undefined;
+    idleAnimation: string;
+    triggerEnter: string;
+    triggerDecrement: string;
     styleLabel: string;
     idleAnimations: readonly AnimationOption[];
-    /** Omitted for elements without trigger animations, such as total_timer. */
-    triggerAnimations?: readonly AnimationOption[];
-    onChange: (patch: Partial<LabeledTextElement>) => void;
+    triggerAnimations: readonly AnimationOption[];
+    onChange: (patch: {
+      style?: TextStyle;
+      idle_animation?: string;
+      trigger_enter?: string;
+      trigger_decrement?: string;
+    }) => void;
     fireTest: (element: ElementKey, reverse?: boolean) => void;
   }
 >) {
-  const { t } = useI18n();
   return (
     <div className="space-y-3">
       <TextStyleEditor
-        style={element.style || DEFAULT_TEXT_STYLE}
+        style={style || DEFAULT_TEXT_STYLE}
         label={styleLabel}
         onChange={(s) => onChange({ style: s })}
         onOpenTextColorEditor={onOpenTextColorEditor}
         onOpenOutlineEditor={onOpenOutlineEditor}
         onOpenShadowEditor={onOpenShadowEditor}
       />
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={element.show_label}
-          onChange={(e) => onChange({ show_label: e.target.checked })}
-          className="accent-accent-blue"
-        />
-        <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
-      </label>
-      {element.show_label && (
-        <>
-          <input
-            type="text"
-            value={element.label_text}
-            onChange={(e) => onChange({ label_text: e.target.value })}
-            className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            placeholder={t("overlay.labelText")}
-            aria-label={t("aria.labelText")}
-          />
-          <TextStyleEditor
-            style={element.label_style || DEFAULT_TEXT_STYLE}
-            label={t("overlay.labelStyle")}
-            onChange={(s) => onChange({ label_style: s })}
-            onOpenTextColorEditor={onOpenTextColorEditor}
-            onOpenOutlineEditor={onOpenOutlineEditor}
-            onOpenShadowEditor={onOpenShadowEditor}
-          />
-        </>
-      )}
-      <div>
-        <label htmlFor={`${elementKey}-idle-animation`} className="text-xs text-text-muted">
-          {t("overlay.idleAnimation")}
-        </label>
-        <select
-          id={`${elementKey}-idle-animation`}
-          value={element.idle_animation}
-          onChange={(e) => onChange({ idle_animation: e.target.value })}
-          className={SELECT_CLASS}
-        >
-          {idleAnimations.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      </div>
-      {triggerAnimations && (
-        <>
-          <TriggerAnimationRow
-            id={`${elementKey}-trigger-animation`}
-            label={t("overlay.triggerAnimation")}
-            value={element.trigger_enter}
-            options={triggerAnimations}
-            onChange={(v) => onChange({ trigger_enter: v })}
-            onTest={() => fireTest(elementKey)}
-          />
-          <TriggerAnimationRow
-            id={`${elementKey}-trigger-decrement-animation`}
-            label={t("overlay.triggerAnimationDecrement")}
-            value={element.trigger_decrement || "none"}
-            options={triggerAnimations}
-            reverse
-            onChange={(v) => onChange({ trigger_decrement: v })}
-            onTest={() => fireTest(elementKey, true)}
-          />
-        </>
-      )}
+      <AnimationGroup
+        idPrefix={elementKey}
+        idle={{
+          value: idleAnimation,
+          options: idleAnimations,
+          onChange: (v) => onChange({ idle_animation: v }),
+        }}
+        trigger={{
+          value: triggerEnter,
+          options: triggerAnimations,
+          onChange: (v) => onChange({ trigger_enter: v }),
+        }}
+        decrement={{
+          value: triggerDecrement || "none",
+          options: triggerAnimations,
+          onChange: (v) => onChange({ trigger_decrement: v }),
+        }}
+        onTest={fireTestFor(fireTest, elementKey)}
+      />
     </div>
   );
 }
@@ -481,10 +900,7 @@ interface OverlayPropertyPanelProps {
   readonly embedded?: boolean;
   readonly onUpdate: (settings: OverlaySettings) => void;
   readonly openColorPicker: (color: string, onPick: (c: string) => void, opts?: { opacity?: number; showOpacity?: boolean }) => void;
-  readonly openOutlineEditor: (
-    type: "none" | "solid", color: string, width: number,
-    onConfirm: (t: "none" | "solid", c: string, w: number) => void,
-  ) => void;
+  readonly openOutlineEditor: (params: OpenOutlineEditorParams) => void;
   readonly openShadowEditor: (params: OpenShadowEditorParams) => void;
   readonly openTextColorEditor: (
     colorType: "solid" | "gradient", color: string,
@@ -541,6 +957,11 @@ export function OverlayPropertyPanel({
 
   const idleAnimations = buildIdleAnimations(t);
   const numericTriggerAnimations = buildNumericTriggerAnimations(t);
+  const spriteIdleAnimations = buildSpriteIdleAnimations(t);
+  const spriteTriggerAnimations = buildSpriteTriggerAnimations(t);
+  const textTriggerAnimations = buildTextTriggerAnimations(t);
+  const counterTriggerAnimations = buildCounterTriggerAnimations(t);
+  const oddsTriggerAnimations = buildOddsTriggerAnimations(t);
   const styleEditorOpeners: StyleEditorOpeners = {
     onOpenTextColorEditor: openTextColorEditor,
     onOpenOutlineEditor: openOutlineEditor,
@@ -581,6 +1002,12 @@ export function OverlayPropertyPanel({
     (localSettings.sprite.cycle_interval_ms ?? DEFAULT_CYCLE_INTERVAL_MS) / 1000;
   const phaseTargetCount = activePokemon?.phase_targets?.length ?? 0;
 
+  // Named colours cannot drive a swatch preview, so anything but a hex falls
+  // back to white the same way the colour picker does.
+  const borderSwatchColor = localSettings.border_color?.startsWith("#")
+    ? localSettings.border_color
+    : "#ffffff";
+
   return (
     <div data-tutorial="properties" className={embedded ? "flex-1 min-h-0" : "bg-bg-secondary rounded-none border border-border-subtle p-3 flex-1 min-h-0 overflow-y-auto"}>
       <div className="mb-4">
@@ -594,389 +1021,273 @@ export function OverlayPropertyPanel({
 
       {/* Canvas properties */}
       {selectedEl === "canvas" && (
-        <div className="space-y-2">
-          <NumSlider
-            label={t("overlay.width")}
-            value={localSettings.canvas_width}
-            min={100}
-            max={1920}
-            step={10}
-            onChange={(v) => update({ ...localSettings, canvas_width: v })}
-          />
-          <NumSlider
-            label={t("overlay.height")}
-            value={localSettings.canvas_height}
-            min={50}
-            max={1080}
-            step={10}
-            onChange={(v) => update({ ...localSettings, canvas_height: v })}
-          />
-
-          {/* Background animation */}
-          <label className="block">
-            <span className="text-xs text-text-muted">
-              {t("overlay.bgAnimation")}
-            </span>
-            <select
-              value={localSettings.background_animation ?? "none"}
-              onChange={(e) => update({ ...localSettings, background_animation: e.target.value })}
-              className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="waves">{t("overlay.animWaves")}</option>
-              <option value="gradient-shift">{t("overlay.animGradient")}</option>
-              <option value="shimmer-bg">{t("overlay.animShimmer")}</option>
-              <option value="rb-aurora">{t("overlay.animAurora")}</option>
-              <option value="rb-galaxy">{t("overlay.animGalaxy")}</option>
-              <option value="rb-silk">{t("overlay.animSilk")}</option>
-              <option value="rb-pixelblast">{t("overlay.animPixelBlast")}</option>
-            </select>
-          </label>
-
-          {/* Animation speed */}
-          {(localSettings.background_animation ?? "none") !== "none" && (
+        <div className="space-y-3">
+          {/* --- Canvas size --- */}
+          <fieldset className="border border-border-subtle rounded-none px-2.5 pb-2.5 space-y-2">
+            <legend className="px-1 text-xs 2xl:text-sm text-text-secondary">
+              {t("overlay.canvasSize")}
+            </legend>
             <NumSlider
-              label={`${t("overlay.speed")} ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
-              value={localSettings.background_animation_speed ?? 1}
-              min={0.1}
-              max={3}
-              step={0.1}
-              onChange={(v) => update({ ...localSettings, background_animation_speed: v })}
+              label={t("overlay.width")}
+              unit="px"
+              value={localSettings.canvas_width}
+              min={100}
+              max={1920}
+              step={10}
+              onChange={(v) => update({ ...localSettings, canvas_width: v })}
             />
-          )}
+            <NumSlider
+              label={t("overlay.height")}
+              unit="px"
+              value={localSettings.canvas_height}
+              min={50}
+              max={1080}
+              step={10}
+              onChange={(v) => update({ ...localSettings, canvas_height: v })}
+            />
+          </fieldset>
 
-          {/* Animation-specific settings */}
-          {(localSettings.background_animation ?? "none") !== "none" && (
-            <div className="space-y-2 pt-1 border-t border-border-subtle">
-              <span className="text-[10px] font-medium text-text-faint uppercase tracking-wider">
-                {t("overlay.animSettings")}
-              </span>
+          {/* --- Background: fill, image and the shape of the box --- */}
+          <fieldset className="border border-border-subtle rounded-none px-2.5 pb-2.5 space-y-2">
+            <legend className="px-1 text-xs 2xl:text-sm text-text-secondary">
+              {t("overlay.background")}
+            </legend>
 
-              {/* Waves: color, opacity */}
-              {localSettings.background_animation === "waves" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                    <input type="color" value={(bgConfig.wavesColor as string) ?? "#ffffff"}
-                      onChange={(e) => setBgConfig("wavesColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animOpacity")} value={(bgConfig.wavesOpacity as number) ?? 0.18}
-                    min={0} max={1} step={0.05}
-                    onChange={(v) => setBgConfig("wavesOpacity", v)} />
-                </>
-              )}
-
-              {/* Gradient shift: 4 color stops */}
-              {localSettings.background_animation === "gradient-shift" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
-                    <input type="color" value={(bgConfig.gradientColor1 as string) ?? "#ff6b6b"}
-                      onChange={(e) => setBgConfig("gradientColor1", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
-                    <input type="color" value={(bgConfig.gradientColor2 as string) ?? "#feca57"}
-                      onChange={(e) => setBgConfig("gradientColor2", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 3</span>
-                    <input type="color" value={(bgConfig.gradientColor3 as string) ?? "#48dbfb"}
-                      onChange={(e) => setBgConfig("gradientColor3", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 4</span>
-                    <input type="color" value={(bgConfig.gradientColor4 as string) ?? "#ff9ff3"}
-                      onChange={(e) => setBgConfig("gradientColor4", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                </>
-              )}
-
-              {/* Shimmer: color and intensity */}
-              {localSettings.background_animation === "shimmer-bg" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                    <input type="color" value={(bgConfig.shimmerColor as string) ?? "#ffffff"}
-                      onChange={(e) => setBgConfig("shimmerColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animIntensity")} value={(bgConfig.shimmerIntensity as number) ?? 0.12}
-                    min={0} max={1} step={0.05}
-                    onChange={(v) => setBgConfig("shimmerIntensity", v)} />
-                </>
-              )}
-
-              {/* Aurora: color stops */}
-              {localSettings.background_animation === "rb-aurora" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
-                    <input type="color" value={(bgConfig.auroraColor1 as string) ?? "#3A29FF"}
-                      onChange={(e) => setBgConfig("auroraColor1", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
-                    <input type="color" value={(bgConfig.auroraColor2 as string) ?? "#FF94B4"}
-                      onChange={(e) => setBgConfig("auroraColor2", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")} 3</span>
-                    <input type="color" value={(bgConfig.auroraColor3 as string) ?? "#FF3232"}
-                      onChange={(e) => setBgConfig("auroraColor3", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animAmplitude")} value={(bgConfig.auroraAmplitude as number) ?? 1}
-                    min={0.1} max={3} step={0.1}
-                    onChange={(v) => setBgConfig("auroraAmplitude", v)} />
-                  <NumSlider label={t("overlay.animBlend")} value={(bgConfig.auroraBlend as number) ?? 0.5}
-                    min={0} max={1} step={0.05}
-                    onChange={(v) => setBgConfig("auroraBlend", v)} />
-                </>
-              )}
-
-              {/* Galaxy: density, glow, saturation */}
-              {localSettings.background_animation === "rb-galaxy" && (
-                <>
-                  <NumSlider label={t("overlay.animDensity")} value={(bgConfig.galaxyDensity as number) ?? 0.7}
-                    min={0.1} max={2} step={0.1}
-                    onChange={(v) => setBgConfig("galaxyDensity", v)} />
-                  <NumSlider label={t("overlay.animGlow")} value={(bgConfig.galaxyGlow as number) ?? 0.5}
-                    min={0} max={2} step={0.1}
-                    onChange={(v) => setBgConfig("galaxyGlow", v)} />
-                  <NumSlider label={t("overlay.animSaturation")} value={(bgConfig.galaxySaturation as number) ?? 1}
-                    min={0} max={2} step={0.1}
-                    onChange={(v) => setBgConfig("galaxySaturation", v)} />
-                </>
-              )}
-
-              {/* Silk: color, scale, noise */}
-              {localSettings.background_animation === "rb-silk" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                    <input type="color" value={(bgConfig.silkColor as string) ?? "#5227FF"}
-                      onChange={(e) => setBgConfig("silkColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animScale")} value={(bgConfig.silkScale as number) ?? 1}
-                    min={0.1} max={5} step={0.1}
-                    onChange={(v) => setBgConfig("silkScale", v)} />
-                  <NumSlider label={t("overlay.animNoise")} value={(bgConfig.silkNoise as number) ?? 1.5}
-                    min={0} max={5} step={0.1}
-                    onChange={(v) => setBgConfig("silkNoise", v)} />
-                </>
-              )}
-
-              {/* Pixel Blast: color, pixel size, variant */}
-              {localSettings.background_animation === "rb-pixelblast" && (
-                <>
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
-                    <input type="color" value={(bgConfig.pixelColor as string) ?? "#1a1a2e"}
-                      onChange={(e) => setBgConfig("pixelColor", e.target.value)}
-                      className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
-                  </label>
-                  <NumSlider label={t("overlay.animPixelSize")} value={(bgConfig.pixelSize as number) ?? 10}
-                    min={3} max={30} step={1}
-                    onChange={(v) => setBgConfig("pixelSize", v)} />
-                  <label className="block">
-                    <span className="text-xs text-text-muted">{t("overlay.animVariant")}</span>
-                    <select value={(bgConfig.pixelVariant as string) ?? "circle"}
-                      onChange={(e) => setBgConfig("pixelVariant", e.target.value)}
-                      className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1">
-                      <option value="circle">Circle</option>
-                      <option value="square">Square</option>
-                      <option value="diamond">Diamond</option>
-                      <option value="triangle">Triangle</option>
-                    </select>
-                  </label>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Background image upload */}
-          {onBgUpload && (
-            <div>
-              <span className="text-xs text-text-muted">
-                {t("overlay.bgImage")}
-              </span>
-              <div className="flex items-center gap-1.5 mt-1">
-                <button
-                  title={t("tooltip.editor.uploadBackground")}
-                  onClick={onBgUpload}
-                  disabled={bgUploading}
-                  className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
-                >
-                  <Upload className="w-3 h-3" />
-                  {bgUploading ? "..." : t("overlay.upload")}
-                </button>
-                {localSettings.background_image && onBgRemove && (
-                  <button
-                    title={t("tooltip.editor.removeBackground")}
-                    onClick={onBgRemove}
-                    className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-bg-primary hover:bg-accent-red/20 text-text-secondary hover:text-accent-red transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    {t("overlay.remove")}
-                  </button>
-                )}
-              </div>
-              {localSettings.background_image && bgPreviewUrl && (
-                <>
-                  <div
-                    className="mt-1.5 w-full h-12 rounded-none border border-border-subtle bg-bg-primary overflow-hidden"
-                    style={{
-                      backgroundImage: `url(${bgPreviewUrl})`,
-                      backgroundSize: "cover",
-                      backgroundPosition: "center",
-                    }}
-                  />
-                  <select
-                    value={localSettings.background_image_fit ?? "cover"}
-                    onChange={(e) =>
-                      update({
-                        ...localSettings,
-                        background_image_fit: e.target.value as "cover" | "contain" | "stretch" | "tile",
-                      })
-                    }
-                    className="w-full bg-bg-secondary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs 2xl:text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue mt-1"
-                  >
-                    <option value="cover">Cover</option>
-                    <option value="contain">Contain</option>
-                    <option value="stretch">Stretch</option>
-                    <option value="tile">{t("overlay.bgFitTile")}</option>
-                  </select>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Background color, opacity, and blur */}
-          <div className={localSettings.hidden ? "opacity-30 pointer-events-none" : ""}>
-            <div>
-              <span className="text-xs text-text-muted mb-1 block">
-                {t("overlay.background")}
-              </span>
+            <div className={localSettings.hidden ? "space-y-2 opacity-30 pointer-events-none" : "space-y-2"}>
               <ColorSwatch
                 color={localSettings.background_color}
-                label={localSettings.background_color}
+                label={t("overlay.color")}
+                detail={localSettings.background_color}
                 onClick={() =>
                   openColorPicker(localSettings.background_color, (c) =>
                     update({ ...localSettings, background_color: c }),
                   )
                 }
               />
-            </div>
-            <div className="mt-2">
-              <label htmlFor="pp-background-opacity" className="text-xs text-text-muted">
-                {t("overlay.opacity")} {Math.round(localSettings.background_opacity * 100)}%
-              </label>
-              <input
-                id="pp-background-opacity"
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
+              <PercentSlider
+                label={t("overlay.opacity")}
                 value={localSettings.background_opacity}
-                onChange={(e) => update({ ...localSettings, background_opacity: Number(e.target.value) })}
-                className="w-full h-1.5 accent-accent-blue"
+                onChange={(v) => update({ ...localSettings, background_opacity: v })}
               />
-            </div>
-            <div className="mt-2">
-              <label htmlFor="pp-blur" className="text-xs text-text-muted">
-                Blur {localSettings.blur}px
-              </label>
-              <input
-                id="pp-blur"
-                type="range"
+              <NumSlider
+                label={t("overlay.blur")}
+                unit="px"
+                value={localSettings.blur}
                 min={0}
                 max={30}
-                value={localSettings.blur}
-                onChange={(e) => update({ ...localSettings, blur: Number(e.target.value) })}
-                className="w-full h-1.5 accent-accent-blue"
+                onChange={(v) => update({ ...localSettings, blur: v })}
               />
             </div>
-          </div>
 
-          {/* Border radius */}
-          <div>
-            <label htmlFor="pp-border-radius" className="text-xs text-text-muted">
-              {t("overlay.radius")} {localSettings.border_radius}px
-            </label>
-            <input
-              id="pp-border-radius"
-              type="range"
+            <NumSlider
+              label={t("overlay.radius")}
+              unit="px"
+              value={localSettings.border_radius}
               min={0}
               max={60}
-              value={localSettings.border_radius}
-              onChange={(e) => update({ ...localSettings, border_radius: Number(e.target.value) })}
-              className="w-full h-1.5 accent-accent-blue"
+              onChange={(v) => update({ ...localSettings, border_radius: v })}
             />
-          </div>
 
-          {/* Border toggle + settings */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={localSettings.show_border}
-              onChange={(e) => update({ ...localSettings, show_border: e.target.checked })}
-              className="accent-accent-blue"
-            />
-            <span className="text-xs text-text-secondary">{t("overlay.borderOutline")}</span>
-          </label>
-          {localSettings.show_border && (
-            <div
-              className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}
-            >
+            {/* Background image upload */}
+            {onBgUpload && (
               <div>
-                <span className="text-xs text-text-muted mb-1 block">
-                  {t("overlay.borderColor")}
+                <span className="text-xs text-text-muted">
+                  {t("overlay.bgImage")}
                 </span>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <button
+                    type="button"
+                    title={t("tooltip.editor.uploadBackground")}
+                    onClick={onBgUpload}
+                    disabled={bgUploading}
+                    className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-bg-primary hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                  >
+                    <Upload className="w-3 h-3" aria-hidden="true" />
+                    {bgUploading ? "..." : t("overlay.upload")}
+                  </button>
+                  {localSettings.background_image && onBgRemove && (
+                    <button
+                      type="button"
+                      title={t("tooltip.editor.removeBackground")}
+                      onClick={onBgRemove}
+                      className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-bg-primary hover:bg-accent-red/20 text-text-secondary hover:text-accent-red transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+                    >
+                      <Trash2 className="w-3 h-3" aria-hidden="true" />
+                      {t("overlay.remove")}
+                    </button>
+                  )}
+                </div>
+                {localSettings.background_image && bgPreviewUrl && (
+                  <>
+                    <div
+                      className="mt-1.5 w-full h-12 rounded-none border border-border-subtle bg-bg-primary overflow-hidden"
+                      style={{
+                        backgroundImage: `url(${bgPreviewUrl})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    />
+                    <label className="block mt-1" htmlFor="pp-bg-image-fit">
+                      <span className="text-xs text-text-muted">{t("overlay.bgImageFit")}</span>
+                      <select
+                        id="pp-bg-image-fit"
+                        value={localSettings.background_image_fit ?? "cover"}
+                        onChange={(e) =>
+                          update({
+                            ...localSettings,
+                            background_image_fit: e.target.value as "cover" | "contain" | "stretch" | "tile",
+                          })
+                        }
+                        className={SELECT_CLASS}
+                      >
+                        <option value="cover">Cover</option>
+                        <option value="contain">Contain</option>
+                        <option value="stretch">Stretch</option>
+                        <option value="tile">{t("overlay.bgFitTile")}</option>
+                      </select>
+                    </label>
+                  </>
+                )}
+              </div>
+            )}
+          </fieldset>
+
+          {/* --- Border --- */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localSettings.show_border}
+                onChange={(e) => update({ ...localSettings, show_border: e.target.checked })}
+                className="accent-accent-blue"
+              />
+              <span className="text-xs text-text-secondary">{t("overlay.borderOutline")}</span>
+            </label>
+            {localSettings.show_border && (
+              <div
+                className={`space-y-2 pl-1 ${localSettings.hidden ? "opacity-30 pointer-events-none" : ""}`}
+              >
                 <ColorSwatch
-                  color={(() => {
-                    const c = localSettings.border_color;
-                    if (c?.startsWith("#")) return c;
-                    return "#ffffff";
-                  })()}
-                  label={localSettings.border_color}
+                  color={borderSwatchColor}
+                  label={t("overlay.borderColor")}
+                  detail={localSettings.border_color}
                   onClick={() =>
-                    openColorPicker(
-                      (() => {
-                        const c = localSettings.border_color;
-                        if (c?.startsWith("#")) return c;
-                        return "#ffffff";
-                      })(),
-                      (c) => update({ ...localSettings, border_color: c }),
+                    openColorPicker(borderSwatchColor, (c) =>
+                      update({ ...localSettings, border_color: c }),
                     )
                   }
                 />
-              </div>
-              <div>
-                <label htmlFor="pp-border-width" className="text-xs text-text-muted">
-                  {t("overlay.borderWidth")} {localSettings.border_width ?? 2}px
-                </label>
-                <input
-                  id="pp-border-width"
-                  type="range"
+                <NumSlider
+                  label={t("overlay.borderWidth")}
+                  unit="px"
+                  value={localSettings.border_width ?? 2}
                   min={1}
                   max={8}
-                  step={1}
-                  value={localSettings.border_width ?? 2}
-                  onChange={(e) => update({ ...localSettings, border_width: Number(e.target.value) })}
-                  className="w-full h-1.5 accent-accent-blue"
+                  onChange={(v) => update({ ...localSettings, border_width: v })}
                 />
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* --- Background animation --- */}
+          <div className="space-y-2">
+            <label className="block" htmlFor="pp-bg-animation">
+              <span className="text-xs text-text-muted">
+                {t("overlay.bgAnimation")}
+              </span>
+              <select
+                id="pp-bg-animation"
+                value={localSettings.background_animation ?? "none"}
+                onChange={(e) => update({ ...localSettings, background_animation: e.target.value })}
+                className={`${SELECT_CLASS} mt-1`}
+              >
+                <option value="none">{t("overlay.animNone")}</option>
+                <option value="waves">{t("overlay.animWaves")}</option>
+                <option value="gradient-shift">{t("overlay.animGradient")}</option>
+                <option value="shimmer-bg">{t("overlay.animShimmer")}</option>
+              </select>
+            </label>
+
+            {/* Animation speed */}
+            {(localSettings.background_animation ?? "none") !== "none" && (
+              <NumSlider
+                label={`${t("overlay.speed")} ${(localSettings.background_animation_speed ?? 1).toFixed(1)}×`}
+                value={localSettings.background_animation_speed ?? 1}
+                min={0.1}
+                max={3}
+                step={0.1}
+                onChange={(v) => update({ ...localSettings, background_animation_speed: v })}
+              />
+            )}
+
+            {/* Animation-specific settings */}
+            {(localSettings.background_animation ?? "none") !== "none" && (
+              <div className="space-y-2 pt-1 border-t border-border-subtle">
+                <span className="text-[10px] font-medium text-text-faint uppercase tracking-wider">
+                  {t("overlay.animSettings")}
+                </span>
+
+                {/* Waves: color, opacity */}
+                {localSettings.background_animation === "waves" && (
+                  <>
+                    <label className="block">
+                      <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                      <input type="color" value={(bgConfig.wavesColor as string) ?? "#ffffff"}
+                        onChange={(e) => setBgConfig("wavesColor", e.target.value)}
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                    </label>
+                    <PercentSlider label={t("overlay.animOpacity")} value={(bgConfig.wavesOpacity as number) ?? 0.18}
+                      onChange={(v) => setBgConfig("wavesOpacity", v)} />
+                  </>
+                )}
+
+                {/* Gradient shift: 4 color stops */}
+                {localSettings.background_animation === "gradient-shift" && (
+                  <>
+                    <label className="block">
+                      <span className="text-xs text-text-muted">{t("overlay.animColor")} 1</span>
+                      <input type="color" value={(bgConfig.gradientColor1 as string) ?? "#ff6b6b"}
+                        onChange={(e) => setBgConfig("gradientColor1", e.target.value)}
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-text-muted">{t("overlay.animColor")} 2</span>
+                      <input type="color" value={(bgConfig.gradientColor2 as string) ?? "#feca57"}
+                        onChange={(e) => setBgConfig("gradientColor2", e.target.value)}
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-text-muted">{t("overlay.animColor")} 3</span>
+                      <input type="color" value={(bgConfig.gradientColor3 as string) ?? "#48dbfb"}
+                        onChange={(e) => setBgConfig("gradientColor3", e.target.value)}
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs text-text-muted">{t("overlay.animColor")} 4</span>
+                      <input type="color" value={(bgConfig.gradientColor4 as string) ?? "#ff9ff3"}
+                        onChange={(e) => setBgConfig("gradientColor4", e.target.value)}
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                    </label>
+                  </>
+                )}
+
+                {/* Shimmer: color and intensity */}
+                {localSettings.background_animation === "shimmer-bg" && (
+                  <>
+                    <label className="block">
+                      <span className="text-xs text-text-muted">{t("overlay.animColor")}</span>
+                      <input type="color" value={(bgConfig.shimmerColor as string) ?? "#ffffff"}
+                        onChange={(e) => setBgConfig("shimmerColor", e.target.value)}
+                        className="w-full h-7 mt-1 rounded-none border border-border-subtle cursor-pointer" />
+                    </label>
+                    <PercentSlider label={t("overlay.animIntensity")} value={(bgConfig.shimmerIntensity as number) ?? 0.12}
+                      onChange={(v) => setBgConfig("shimmerIntensity", v)} />
+                  </>
+                )}
+
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -1036,6 +1347,7 @@ export function OverlayPropertyPanel({
       {/* Element-specific properties */}
       {selectedEl === "sprite" && (
         <div className="space-y-3">
+          {/* --- Glow --- */}
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -1055,28 +1367,23 @@ export function OverlayPropertyPanel({
           </label>
           {localSettings.sprite.show_glow && (
             <div className="space-y-2">
-              <div className="flex gap-2 items-center">
-                <ColorSwatch
-                  color={localSettings.sprite.glow_color || "#ffffff"}
-                  label={t("overlay.glowColor")}
-                  onClick={() =>
-                    openColorPicker(
-                      localSettings.sprite.glow_color || "#ffffff",
-                      (c) =>
-                        update({
-                          ...localSettings,
-                          sprite: { ...localSettings.sprite, glow_color: c },
-                        }),
-                      { opacity: localSettings.sprite.glow_opacity ?? 0.2, showOpacity: true },
-                    )
-                  }
-                />
-              </div>
-              <NumSlider
+              <ColorSwatch
+                color={localSettings.sprite.glow_color || "#ffffff"}
+                label={t("overlay.glowColor")}
+                onClick={() =>
+                  openColorPicker(
+                    localSettings.sprite.glow_color || "#ffffff",
+                    (c) =>
+                      update({
+                        ...localSettings,
+                        sprite: { ...localSettings.sprite, glow_color: c },
+                      }),
+                    { opacity: localSettings.sprite.glow_opacity ?? 0.2, showOpacity: true },
+                  )
+                }
+              />
+              <PercentSlider
                 label={t("overlay.opacity")}
-                min={0}
-                max={1}
-                step={0.05}
                 value={localSettings.sprite.glow_opacity ?? 0.2}
                 onChange={(v) =>
                   update({
@@ -1086,7 +1393,8 @@ export function OverlayPropertyPanel({
                 }
               />
               <NumSlider
-                label="Blur"
+                label={t("overlay.blur")}
+                unit="px"
                 min={0}
                 max={80}
                 step={1}
@@ -1100,6 +1408,8 @@ export function OverlayPropertyPanel({
               />
             </div>
           )}
+
+          {/* --- Phase target cycling --- */}
           <div className="space-y-2 border-t border-border-subtle pt-2">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -1123,7 +1433,8 @@ export function OverlayPropertyPanel({
             {localSettings.sprite.cycle_phase_targets && (
               <>
                 <NumSlider
-                  label={`${t("overlay.cycleInterval")} ${cycleIntervalSeconds.toFixed(1)}s`}
+                  label={t("overlay.cycleInterval")}
+                  unit="s"
                   min={0.5}
                   max={60}
                   step={0.5}
@@ -1138,6 +1449,34 @@ export function OverlayPropertyPanel({
                     })
                   }
                 />
+                <div>
+                  <label
+                    htmlFor="sprite-cycle-transition"
+                    className="text-xs text-text-muted"
+                  >
+                    {t("overlay.cycleTransition")}
+                  </label>
+                  <select
+                    id="sprite-cycle-transition"
+                    value={localSettings.sprite.cycle_transition ?? "fade"}
+                    onChange={(e) =>
+                      update({
+                        ...localSettings,
+                        sprite: {
+                          ...localSettings.sprite,
+                          cycle_transition: e.target.value,
+                        },
+                      })
+                    }
+                    aria-label={t("aria.cycleTransition")}
+                    className={`${SELECT_CLASS} mt-1`}
+                  >
+                    <option value="none">{t("overlay.cycleTransitionNone")}</option>
+                    <option value="fade">{t("overlay.cycleTransitionFade")}</option>
+                    <option value="wipe-lr">{t("overlay.cycleTransitionWipeLr")}</option>
+                    <option value="wipe-rl">{t("overlay.cycleTransitionWipeRl")}</option>
+                  </select>
+                </div>
                 {phaseTargetCount === 0 && (
                   <p className="text-[11px] text-accent-yellow">
                     {t("overlay.cycleNoTargets")}
@@ -1146,816 +1485,134 @@ export function OverlayPropertyPanel({
               </>
             )}
           </div>
-          <div>
-            <label htmlFor="sprite-idle-animation" className="text-xs text-text-muted">
-              {t("overlay.idleAnimation")}
-            </label>
-            <select
-              id="sprite-idle-animation"
-              value={localSettings.sprite.idle_animation}
-              onChange={(e) =>
+
+          <AnimationGroup
+            idPrefix="sprite"
+            idle={{
+              value: localSettings.sprite.idle_animation,
+              options: spriteIdleAnimations,
+              onChange: (v) =>
                 update({
                   ...localSettings,
-                  sprite: {
-                    ...localSettings.sprite,
-                    idle_animation: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="float">{t("overlay.animFloat")}</option>
-              <option value="bob">{t("overlay.animBob")}</option>
-              <option value="pulse">{t("overlay.animPulseShort")}</option>
-              <option value="rock">{t("overlay.animWobble")}</option>
-              <option value="wiggle">{t("overlay.animBounce")}</option>
-              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="sprite-trigger-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimation")}
-              </label>
-              <button
-                onClick={() => fireTest("sprite")}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
-              >
-                <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="sprite-trigger-animation"
-              value={localSettings.sprite.trigger_enter}
-              onChange={(e) =>
+                  sprite: { ...localSettings.sprite, idle_animation: v },
+                }),
+            }}
+            trigger={{
+              value: localSettings.sprite.trigger_enter,
+              options: spriteTriggerAnimations,
+              onChange: (v) =>
                 update({
                   ...localSettings,
-                  sprite: {
-                    ...localSettings.sprite,
-                    trigger_enter: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="pop">Pop</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="spin">Spin</option>
-              <option value="flip">Flip</option>
-              <option value="rubber">Rubber Band</option>
-              <option value="flash">Flash</option>
-              <option value="jello">Jello</option>
-              <option value="tada">Tada</option>
-              <option value="swing">Swing</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="sprite-trigger-decrement-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimationDecrement")}
-              </label>
-              <button
-                onClick={() => fireTest("sprite", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/15 hover:bg-accent-red/40 text-accent-red transition-colors"
-              >
-                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="sprite-trigger-decrement-animation"
-              value={localSettings.sprite.trigger_decrement || "none"}
-              onChange={(e) =>
+                  sprite: { ...localSettings.sprite, trigger_enter: v },
+                }),
+            }}
+            decrement={{
+              value: localSettings.sprite.trigger_decrement || "none",
+              options: spriteTriggerAnimations,
+              onChange: (v) =>
                 update({
                   ...localSettings,
-                  sprite: {
-                    ...localSettings.sprite,
-                    trigger_decrement: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="pop">Pop</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="spin">Spin</option>
-              <option value="flip">Flip</option>
-              <option value="rubber">Rubber Band</option>
-              <option value="flash">Flash</option>
-              <option value="jello">Jello</option>
-              <option value="tada">Tada</option>
-              <option value="swing">Swing</option>
-            </select>
-          </div>
+                  sprite: { ...localSettings.sprite, trigger_decrement: v },
+                }),
+            }}
+            onTest={fireTestFor(fireTest, "sprite")}
+          />
         </div>
       )}
 
       {selectedEl === "name" && (
-        <div className="space-y-3">
-          <TextStyleEditor
-            style={localSettings.name.style || DEFAULT_TEXT_STYLE}
-            label={t("overlay.textStyle")}
-            onChange={(s) =>
-              update({
-                ...localSettings,
-                name: { ...localSettings.name, style: s },
-              })
-            }
-            onOpenTextColorEditor={openTextColorEditor}
-            onOpenOutlineEditor={openOutlineEditor}
-            onOpenShadowEditor={openShadowEditor}
-          />
-          <div>
-            <label htmlFor="name-idle-animation" className="text-xs text-text-muted">
-              {t("overlay.idleAnimation")}
-            </label>
-            <select
-              id="name-idle-animation"
-              value={localSettings.name.idle_animation}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  name: {
-                    ...localSettings.name,
-                    idle_animation: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="breathe">{t("overlay.animBreathe")}</option>
-              <option value="glow">{t("overlay.animGlow")}</option>
-              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
-              <option value="float">{t("overlay.animFloat")}</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="name-trigger-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimation")}
-              </label>
-              <button
-                onClick={() => fireTest("name")}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
-              >
-                <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="name-trigger-animation"
-              value={localSettings.name.trigger_enter}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  name: {
-                    ...localSettings.name,
-                    trigger_enter: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="fade-in">{t("overlay.animFadeIn")}</option>
-              <option value="slide-in">{t("overlay.animSlideIn")}</option>
-              <option value="pop">Pop</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="flip">Flip</option>
-              <option value="rubber">Rubber Band</option>
-              <option value="jello">Jello</option>
-              <option value="tada">Tada</option>
-              <option value="zoom-in">Zoom In</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="name-trigger-decrement-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimationDecrement")}
-              </label>
-              <button
-                onClick={() => fireTest("name", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/15 hover:bg-accent-red/40 text-accent-red transition-colors"
-              >
-                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="name-trigger-decrement-animation"
-              value={localSettings.name.trigger_decrement || "none"}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  name: {
-                    ...localSettings.name,
-                    trigger_decrement: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="fade-in">{t("overlay.animFadeIn")}</option>
-              <option value="slide-in">{t("overlay.animSlideIn")}</option>
-              <option value="pop">Pop</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="flip">Flip</option>
-              <option value="rubber">Rubber Band</option>
-              <option value="jello">Jello</option>
-              <option value="tada">Tada</option>
-              <option value="zoom-in">Zoom In</option>
-            </select>
-          </div>
-        </div>
+        <PlainTextElementEditor
+          elementKey="name"
+          style={localSettings.name.style}
+          idleAnimation={localSettings.name.idle_animation}
+          triggerEnter={localSettings.name.trigger_enter}
+          triggerDecrement={localSettings.name.trigger_decrement}
+          styleLabel={t("overlay.textStyle")}
+          idleAnimations={idleAnimations}
+          triggerAnimations={textTriggerAnimations}
+          onChange={(patch) => update({ ...localSettings, name: { ...localSettings.name, ...patch } })}
+          fireTest={fireTest}
+          {...styleEditorOpeners}
+        />
       )}
 
       {selectedEl === "title" && localSettings.title && (
-        <div className="space-y-3">
-          <TextStyleEditor
-            style={localSettings.title.style || DEFAULT_TEXT_STYLE}
-            label={t("overlay.titleStyle")}
-            onChange={(s) =>
-              update({
-                ...localSettings,
-                title: { ...localSettings.title, style: s },
-              })
-            }
-            onOpenTextColorEditor={openTextColorEditor}
-            onOpenOutlineEditor={openOutlineEditor}
-            onOpenShadowEditor={openShadowEditor}
-          />
-          <div>
-            <label htmlFor="title-idle-animation" className="text-xs text-text-muted">
-              {t("overlay.idleAnimation")}
-            </label>
-            <select
-              id="title-idle-animation"
-              value={localSettings.title.idle_animation || "none"}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  title: {
-                    ...localSettings.title,
-                    idle_animation: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="breathe">{t("overlay.animBreathe")}</option>
-              <option value="glow">{t("overlay.animGlow")}</option>
-              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
-              <option value="float">{t("overlay.animFloat")}</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="title-trigger-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimation")}
-              </label>
-              <button
-                onClick={() => fireTest("title")}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
-              >
-                <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="title-trigger-animation"
-              value={localSettings.title.trigger_enter || "fade-in"}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  title: {
-                    ...localSettings.title,
-                    trigger_enter: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="fade-in">{t("overlay.animFadeIn")}</option>
-              <option value="slide-in">{t("overlay.animSlideIn")}</option>
-              <option value="pop">Pop</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="flip">Flip</option>
-              <option value="rubber">Rubber Band</option>
-              <option value="jello">Jello</option>
-              <option value="tada">Tada</option>
-              <option value="zoom-in">Zoom In</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="title-trigger-decrement-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimationDecrement")}
-              </label>
-              <button
-                onClick={() => fireTest("title", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/15 hover:bg-accent-red/40 text-accent-red transition-colors"
-              >
-                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="title-trigger-decrement-animation"
-              value={localSettings.title.trigger_decrement || "none"}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  title: {
-                    ...localSettings.title,
-                    trigger_decrement: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="fade-in">{t("overlay.animFadeIn")}</option>
-              <option value="slide-in">{t("overlay.animSlideIn")}</option>
-              <option value="pop">Pop</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="flip">Flip</option>
-              <option value="rubber">Rubber Band</option>
-              <option value="jello">Jello</option>
-              <option value="tada">Tada</option>
-              <option value="zoom-in">Zoom In</option>
-            </select>
-          </div>
-        </div>
+        <PlainTextElementEditor
+          elementKey="title"
+          style={localSettings.title.style}
+          idleAnimation={localSettings.title.idle_animation || "none"}
+          triggerEnter={localSettings.title.trigger_enter || "fade-in"}
+          triggerDecrement={localSettings.title.trigger_decrement || "none"}
+          styleLabel={t("overlay.titleStyle")}
+          idleAnimations={idleAnimations}
+          triggerAnimations={textTriggerAnimations}
+          onChange={(patch) => update({ ...localSettings, title: { ...localSettings.title!, ...patch } })}
+          fireTest={fireTest}
+          {...styleEditorOpeners}
+        />
       )}
 
       {selectedEl === "counter" && (
-        <div className="space-y-3">
-          <TextStyleEditor
-            style={localSettings.counter.style || DEFAULT_TEXT_STYLE}
-            label={t("overlay.counterStyle")}
-            onChange={(s) =>
-              update({
-                ...localSettings,
-                counter: { ...localSettings.counter, style: s },
-              })
-            }
-            onOpenTextColorEditor={openTextColorEditor}
-            onOpenOutlineEditor={openOutlineEditor}
-            onOpenShadowEditor={openShadowEditor}
-          />
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={localSettings.counter.show_label}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  counter: {
-                    ...localSettings.counter,
-                    show_label: e.target.checked,
-                  },
-                })
-              }
-              className="accent-accent-blue"
-            />
-            <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
-          </label>
-          {localSettings.counter.show_label && (
-            <>
-              <input
-                type="text"
-                value={localSettings.counter.label_text}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    counter: {
-                      ...localSettings.counter,
-                      label_text: e.target.value,
-                    },
-                  })
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-                placeholder="Label-Text"
-                aria-label={t("aria.labelText")}
-              />
-              <TextStyleEditor
-                style={
-                  localSettings.counter.label_style || DEFAULT_TEXT_STYLE
-                }
-                label={t("overlay.labelStyle")}
-                onChange={(s) =>
-                  update({
-                    ...localSettings,
-                    counter: { ...localSettings.counter, label_style: s },
-                  })
-                }
-                onOpenTextColorEditor={openTextColorEditor}
-                onOpenOutlineEditor={openOutlineEditor}
-                onOpenShadowEditor={openShadowEditor}
-              />
-            </>
-          )}
-          <div>
-            <label htmlFor="counter-idle-animation" className="text-xs text-text-muted">
-              {t("overlay.idleAnimation")}
-            </label>
-            <select
-              id="counter-idle-animation"
-              value={localSettings.counter.idle_animation}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  counter: {
-                    ...localSettings.counter,
-                    idle_animation: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="breathe">{t("overlay.animBreathe")}</option>
-              <option value="glow">{t("overlay.animGlow")}</option>
-              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
-              <option value="float">{t("overlay.animFloat")}</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="counter-trigger-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimation")}
-              </label>
-              <button
-                onClick={() => fireTest("counter")}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
-              >
-                <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="counter-trigger-animation"
-              value={localSettings.counter.trigger_enter}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  counter: {
-                    ...localSettings.counter,
-                    trigger_enter: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="pop">Pop</option>
-              <option value="flash">Flash</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="slot">Slot</option>
-              <option value="flip-digit">Flip Digit</option>
-              <option value="slide-up">Slide Up</option>
-              <option value="flip">Flip</option>
-              <option value="rubber">Rubber Band</option>
-              <option value="jello">Jello</option>
-              <option value="tada">Tada</option>
-              <option value="zoom-in">Zoom In</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="counter-trigger-decrement-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimationDecrement")}
-              </label>
-              <button
-                onClick={() => fireTest("counter", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/15 hover:bg-accent-red/40 text-accent-red transition-colors"
-              >
-                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="counter-trigger-decrement-animation"
-              value={localSettings.counter.trigger_decrement || "none"}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  counter: {
-                    ...localSettings.counter,
-                    trigger_decrement: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="pop">Pop</option>
-              <option value="flash">Flash</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="slot">Slot</option>
-              <option value="flip-digit">Flip Digit</option>
-              <option value="slide-up">Slide Up</option>
-              <option value="flip">Flip</option>
-              <option value="rubber">Rubber Band</option>
-              <option value="jello">Jello</option>
-              <option value="tada">Tada</option>
-              <option value="zoom-in">Zoom In</option>
-            </select>
-          </div>
-        </div>
+        <LabeledTextElementEditor
+          elementKey="counter"
+          element={localSettings.counter}
+          styleLabel={t("overlay.counterStyle")}
+          idleAnimations={idleAnimations}
+          triggerAnimations={counterTriggerAnimations}
+          onChange={(patch) => update({ ...localSettings, counter: { ...localSettings.counter, ...patch } })}
+          fireTest={fireTest}
+          {...styleEditorOpeners}
+        />
       )}
 
       {selectedEl === "timer" && localSettings.timer && (
-        <div className="space-y-3">
-          <TextStyleEditor
-            style={localSettings.timer.style || DEFAULT_TEXT_STYLE}
-            label={t("overlay.timerStyle")}
-            onChange={(s) =>
-              update({
-                ...localSettings,
-                timer: { ...localSettings.timer, style: s },
-              })
-            }
-            onOpenTextColorEditor={openTextColorEditor}
-            onOpenOutlineEditor={openOutlineEditor}
-            onOpenShadowEditor={openShadowEditor}
-          />
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={localSettings.timer.show_label}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  timer: {
-                    ...localSettings.timer,
-                    show_label: e.target.checked,
-                  },
-                })
-              }
-              className="accent-accent-blue"
-            />
-            <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
-          </label>
-          {localSettings.timer.show_label && (
-            <>
-              <input
-                type="text"
-                value={localSettings.timer.label_text}
-                onChange={(e) =>
-                  update({
-                    ...localSettings,
-                    timer: {
-                      ...localSettings.timer,
-                      label_text: e.target.value,
-                    },
-                  })
-                }
-                className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-                placeholder="Label-Text"
-                aria-label={t("aria.labelText")}
-              />
-              <TextStyleEditor
-                style={
-                  localSettings.timer.label_style || DEFAULT_TEXT_STYLE
-                }
-                label={t("overlay.labelStyle")}
-                onChange={(s) =>
-                  update({
-                    ...localSettings,
-                    timer: { ...localSettings.timer, label_style: s },
-                  })
-                }
-                onOpenTextColorEditor={openTextColorEditor}
-                onOpenOutlineEditor={openOutlineEditor}
-                onOpenShadowEditor={openShadowEditor}
-              />
-            </>
-          )}
-          <div>
-            <label htmlFor="timer-idle-animation" className="text-xs text-text-muted">
-              {t("overlay.idleAnimation")}
-            </label>
-            <select
-              id="timer-idle-animation"
-              value={localSettings.timer.idle_animation}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  timer: {
-                    ...localSettings.timer,
-                    idle_animation: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="breathe">{t("overlay.animBreathe")}</option>
-              <option value="glow">{t("overlay.animGlow")}</option>
-              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
-              <option value="float">{t("overlay.animFloat")}</option>
-            </select>
-          </div>
-        </div>
+        <LabeledTextElementEditor
+          elementKey="timer"
+          element={localSettings.timer}
+          styleLabel={t("overlay.timerStyle")}
+          idleAnimations={idleAnimations}
+          onChange={(patch) => update({ ...localSettings, timer: { ...localSettings.timer!, ...patch } })}
+          fireTest={fireTest}
+          {...styleEditorOpeners}
+        />
       )}
 
       {selectedEl === "odds" && localSettings.odds && (
-        <div className="space-y-3">
-          <TextStyleEditor
-            style={localSettings.odds.style || DEFAULT_TEXT_STYLE}
-            label={t("overlay.oddsStyle")}
-            onChange={(s) =>
-              update({
-                ...localSettings,
-                odds: { ...localSettings.odds, style: s },
-              })
-            }
-            onOpenTextColorEditor={openTextColorEditor}
-            onOpenOutlineEditor={openOutlineEditor}
-            onOpenShadowEditor={openShadowEditor}
-          />
-          <div>
-            <label htmlFor="odds-format" className="text-xs text-text-muted">
-              {t("overlay.odds.formatLabel")}
-            </label>
-            <select
-              id="odds-format"
-              value={localSettings.odds.format}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  odds: {
-                    ...localSettings.odds,
-                    format: e.target.value as "fractional" | "percent",
-                  },
-                })
-              }
-              aria-label={t("aria.oddsFormat")}
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary mt-1"
-            >
-              <option value="fractional">{t("overlay.odds.formatFractional")}</option>
-              <option value="percent">{t("overlay.odds.formatPercent")}</option>
-            </select>
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={localSettings.odds.show_label}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  odds: {
-                    ...localSettings.odds,
-                    show_label: e.target.checked,
-                  },
-                })
-              }
-              className="accent-accent-blue"
-            />
-            <span className="text-xs 2xl:text-sm text-text-secondary">{t("overlay.showLabel")}</span>
-          </label>
-          {localSettings.odds.show_label && (
-            <>
-              <input
-                type="text"
-                value={localSettings.odds.label_text}
+        <LabeledTextElementEditor
+          elementKey="odds"
+          element={localSettings.odds}
+          styleLabel={t("overlay.oddsStyle")}
+          idleAnimations={idleAnimations}
+          triggerAnimations={oddsTriggerAnimations}
+          extraRows={
+            <div>
+              <label htmlFor="odds-format" className="text-xs text-text-muted">
+                {t("overlay.odds.formatLabel")}
+              </label>
+              <select
+                id="odds-format"
+                value={localSettings.odds.format}
                 onChange={(e) =>
                   update({
                     ...localSettings,
                     odds: {
-                      ...localSettings.odds,
-                      label_text: e.target.value,
+                      ...localSettings.odds!,
+                      format: e.target.value as "fractional" | "percent",
                     },
                   })
                 }
-                className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-                placeholder="Label"
-                aria-label={t("aria.labelText")}
-              />
-              <TextStyleEditor
-                style={
-                  localSettings.odds.label_style || DEFAULT_TEXT_STYLE
-                }
-                label={t("overlay.labelStyle")}
-                onChange={(s) =>
-                  update({
-                    ...localSettings,
-                    odds: { ...localSettings.odds, label_style: s },
-                  })
-                }
-                onOpenTextColorEditor={openTextColorEditor}
-                onOpenOutlineEditor={openOutlineEditor}
-                onOpenShadowEditor={openShadowEditor}
-              />
-            </>
-          )}
-          <div>
-            <label htmlFor="odds-idle-animation" className="text-xs text-text-muted">
-              {t("overlay.idleAnimation")}
-            </label>
-            <select
-              id="odds-idle-animation"
-              value={localSettings.odds.idle_animation}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  odds: {
-                    ...localSettings.odds,
-                    idle_animation: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="breathe">{t("overlay.animBreathe")}</option>
-              <option value="glow">{t("overlay.animGlow")}</option>
-              <option value="shimmer">{t("overlay.animShimmerIdle")}</option>
-              <option value="float">{t("overlay.animFloat")}</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="odds-trigger-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimation")}
-              </label>
-              <button
-                onClick={() => fireTest("odds")}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-blue/20 hover:bg-accent-blue/40 text-accent-blue transition-colors"
+                aria-label={t("aria.oddsFormat")}
+                className={`${SELECT_CLASS} mt-1`}
               >
-                <Play className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
+                <option value="fractional">{t("overlay.odds.formatFractional")}</option>
+                <option value="percent">{t("overlay.odds.formatPercent")}</option>
+              </select>
             </div>
-            <select
-              id="odds-trigger-animation"
-              value={localSettings.odds.trigger_enter}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  odds: {
-                    ...localSettings.odds,
-                    trigger_enter: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="fade-in">{t("overlay.animFadeIn")}</option>
-              <option value="pop">Pop</option>
-              <option value="flash">Flash</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="tada">Tada</option>
-              <option value="zoom-in">Zoom In</option>
-            </select>
-          </div>
-          <div>
-            <div className="flex items-center justify-between mb-0.5">
-              <label htmlFor="odds-trigger-decrement-animation" className="text-xs text-text-muted">
-                {t("overlay.triggerAnimationDecrement")}
-              </label>
-              <button
-                onClick={() => fireTest("odds", true)}
-                className="flex items-center gap-1 px-2 py-1 rounded-none text-xs bg-accent-red/15 hover:bg-accent-red/40 text-accent-red transition-colors"
-              >
-                <RotateCcw className="w-2.5 h-2.5 2xl:w-3 2xl:h-3" /> Test
-              </button>
-            </div>
-            <select
-              id="odds-trigger-decrement-animation"
-              value={localSettings.odds.trigger_decrement || "none"}
-              onChange={(e) =>
-                update({
-                  ...localSettings,
-                  odds: {
-                    ...localSettings.odds,
-                    trigger_decrement: e.target.value,
-                  },
-                })
-              }
-              className="w-full bg-bg-primary border border-border-subtle rounded-none px-2.5 py-1.5 text-xs text-text-primary"
-            >
-              <option value="none">{t("overlay.animNone")}</option>
-              <option value="fade-in">{t("overlay.animFadeIn")}</option>
-              <option value="pop">Pop</option>
-              <option value="flash">Flash</option>
-              <option value="bounce">Bounce</option>
-              <option value="shake">Shake</option>
-              <option value="tada">Tada</option>
-              <option value="zoom-in">Zoom In</option>
-            </select>
-          </div>
-        </div>
+          }
+          onChange={(patch) => update({ ...localSettings, odds: { ...localSettings.odds!, ...patch } })}
+          fireTest={fireTest}
+          {...styleEditorOpeners}
+        />
       )}
 
       {renderLabeledText("phase", numericTriggerAnimations)}

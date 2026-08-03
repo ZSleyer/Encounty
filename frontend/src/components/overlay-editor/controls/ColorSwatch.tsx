@@ -10,7 +10,13 @@ interface GradientDef {
 interface ColorSwatchProps {
   readonly color: string;
   readonly gradient?: GradientDef;
+  /** Primary text of the row, e.g. "Outline 3px". */
   readonly label?: string;
+  /**
+   * Secondary muted text after the label. Defaults to the hex code, or to the
+   * word for a gradient when one is previewed. Pass "" to drop it entirely.
+   */
+  readonly detail?: string;
   readonly onClick?: () => void;
   readonly className?: string;
 }
@@ -27,6 +33,7 @@ export function ColorSwatch({
   color,
   gradient,
   label,
+  detail,
   onClick,
   className,
 }: ColorSwatchProps) {
@@ -37,12 +44,19 @@ export function ColorSwatch({
         .join(", ")})`
     : color;
 
+  // The hex is deliberately secondary: the swatch itself is the answer to
+  // "what colour is this", the code is only there for people who need it.
+  const detailText = detail ?? (gradient ? t("overlay.gradient") : color);
+  const title = label
+    ? [label, detailText].filter(Boolean).join(" ")
+    : t("modal.tooltipColorEdit");
+
   return (
     <button
       type="button"
-      title={label || t("modal.tooltipColorEdit")}
+      title={title}
       onClick={onClick}
-      className={`flex items-center gap-2 group ${className ?? ""}`}
+      className={`flex items-center gap-2 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${className ?? ""}`}
     >
       {/* Swatch container */}
       <span
@@ -61,13 +75,16 @@ export function ColorSwatch({
         />
       </span>
 
-      {/* Optional label + hex code */}
+      {/* Optional label with the hex code as muted secondary text */}
       {label && (
         <span className="text-[10px] 2xl:text-xs text-text-muted group-hover:text-text-primary transition-colors truncate">
-          {label}{" "}
-          <span className="text-text-secondary">
-            {gradient ? "Verlauf" : color}
-          </span>
+          {label}
+          {detailText && (
+            <>
+              {" "}
+              <span className="text-text-faint">{detailText}</span>
+            </>
+          )}
         </span>
       )}
     </button>

@@ -70,8 +70,8 @@ describe("OverlayPropertyPanel", () => {
     const props = makeProps({ selectedEl: "sprite" });
     render(<OverlayPropertyPanel {...props} />);
     expect(screen.getByText("Glow")).toBeInTheDocument();
-    expect(screen.getByLabelText("Idle Animation")).toBeInTheDocument();
-    expect(screen.getByLabelText("Trigger Animation")).toBeInTheDocument();
+    expect(screen.getByLabelText("Dauerhaft")).toBeInTheDocument();
+    expect(screen.getByLabelText("Bei Encounter")).toBeInTheDocument();
   });
 
   it("shows text style editor when name element is selected", () => {
@@ -140,7 +140,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when idle animation is changed for sprite", () => {
     const props = makeProps({ selectedEl: "sprite" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Idle Animation");
+    const select = screen.getByLabelText("Dauerhaft");
     fireEvent.change(select, { target: { value: "float" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -316,7 +316,7 @@ describe("OverlayPropertyPanel", () => {
     const props = makeProps({ selectedEl: "sprite", settings });
     render(<OverlayPropertyPanel {...props} />);
     expect(screen.getByText(/Glow Farbe/)).toBeInTheDocument();
-    expect(screen.getByText("Blur")).toBeInTheDocument();
+    expect(screen.getByText("Weichzeichnen")).toBeInTheDocument();
   });
 
   it("does not show glow details when glow is disabled", () => {
@@ -336,7 +336,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when trigger animation is changed for sprite", () => {
     const props = makeProps({ selectedEl: "sprite" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Trigger Animation");
+    const select = screen.getByLabelText("Bei Encounter");
     fireEvent.change(select, { target: { value: "pop" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -348,7 +348,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when decrement animation is changed for sprite", () => {
     const props = makeProps({ selectedEl: "sprite" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Trigger Animation (Verringern)");
+    const select = screen.getByLabelText("Beim Zurückzählen");
     fireEvent.change(select, { target: { value: "shake" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -362,7 +362,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when idle animation is changed for name", () => {
     const props = makeProps({ selectedEl: "name" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Idle Animation");
+    const select = screen.getByLabelText("Dauerhaft");
     fireEvent.change(select, { target: { value: "breathe" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -374,7 +374,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when trigger animation is changed for name", () => {
     const props = makeProps({ selectedEl: "name" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Trigger Animation");
+    const select = screen.getByLabelText("Bei Encounter");
     fireEvent.change(select, { target: { value: "pop" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -404,7 +404,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when idle animation is changed for title", () => {
     const props = makeProps({ selectedEl: "title" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Idle Animation");
+    const select = screen.getByLabelText("Dauerhaft");
     fireEvent.change(select, { target: { value: "glow" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -434,7 +434,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when idle animation is changed for counter", () => {
     const props = makeProps({ selectedEl: "counter" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Idle Animation");
+    const select = screen.getByLabelText("Dauerhaft");
     fireEvent.change(select, { target: { value: "shimmer" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -446,7 +446,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when trigger animation is changed for counter", () => {
     const props = makeProps({ selectedEl: "counter" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Trigger Animation");
+    const select = screen.getByLabelText("Bei Encounter");
     fireEvent.change(select, { target: { value: "slot" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -551,7 +551,7 @@ describe("OverlayPropertyPanel", () => {
     const props = makeProps({ selectedEl: "canvas" });
     render(<OverlayPropertyPanel {...props} />);
     expect(screen.queryByText("Glow")).not.toBeInTheDocument();
-    expect(screen.queryByText("Idle Animation")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dauerhaft")).not.toBeInTheDocument();
   });
 
   // --- Background animation speed ---
@@ -610,19 +610,22 @@ describe("OverlayPropertyPanel", () => {
   it("shows opacity slider for canvas background", () => {
     const props = makeProps({ selectedEl: "canvas" });
     render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Deckkraft.*100%/)).toBeInTheDocument();
+    expect(screen.getByText("Deckkraft")).toBeInTheDocument();
+    expect(screen.getByLabelText("Deckkraft (%)")).toHaveValue(100);
   });
 
   it("shows blur slider for canvas", () => {
     const props = makeProps({ selectedEl: "canvas" });
     render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Blur.*0px/)).toBeInTheDocument();
+    expect(screen.getByText("Weichzeichnen")).toBeInTheDocument();
+    expect(screen.getByLabelText("Weichzeichnen (px)")).toHaveValue(0);
   });
 
   it("shows border radius slider for canvas", () => {
     const props = makeProps({ selectedEl: "canvas" });
     render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Radius.*0px/)).toBeInTheDocument();
+    expect(screen.getByText("Ecken abrunden")).toBeInTheDocument();
+    expect(screen.getByLabelText("Ecken abrunden (px)")).toHaveValue(0);
   });
 
   // --- Background animation select change ---
@@ -664,7 +667,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when decrement animation is changed for counter", () => {
     const props = makeProps({ selectedEl: "counter" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Trigger Animation (Verringern)");
+    const select = screen.getByLabelText("Beim Zurückzählen");
     fireEvent.change(select, { target: { value: "flash" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -678,7 +681,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when decrement animation is changed for name", () => {
     const props = makeProps({ selectedEl: "name" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Trigger Animation (Verringern)");
+    const select = screen.getByLabelText("Beim Zurückzählen");
     fireEvent.change(select, { target: { value: "bounce" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -692,7 +695,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when decrement animation is changed for title", () => {
     const props = makeProps({ selectedEl: "title" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Trigger Animation (Verringern)");
+    const select = screen.getByLabelText("Beim Zurückzählen");
     fireEvent.change(select, { target: { value: "tada" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -706,7 +709,7 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when trigger animation is changed for title", () => {
     const props = makeProps({ selectedEl: "title" });
     render(<OverlayPropertyPanel {...props} />);
-    const select = screen.getByLabelText("Trigger Animation");
+    const select = screen.getByLabelText("Bei Encounter");
     fireEvent.change(select, { target: { value: "slide-in" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -720,8 +723,8 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when opacity slider is changed for canvas", () => {
     const props = makeProps({ selectedEl: "canvas" });
     render(<OverlayPropertyPanel {...props} />);
-    const opacitySlider = screen.getByLabelText(/Deckkraft/);
-    fireEvent.change(opacitySlider, { target: { value: "0.5" } });
+    const opacityInput = screen.getByLabelText("Deckkraft (%)");
+    fireEvent.change(opacityInput, { target: { value: "50" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ background_opacity: 0.5 }),
     );
@@ -732,8 +735,8 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when blur slider is changed for canvas", () => {
     const props = makeProps({ selectedEl: "canvas" });
     render(<OverlayPropertyPanel {...props} />);
-    const blurSlider = screen.getByLabelText(/Blur/);
-    fireEvent.change(blurSlider, { target: { value: "10" } });
+    const blurInput = screen.getByLabelText("Weichzeichnen (px)");
+    fireEvent.change(blurInput, { target: { value: "10" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ blur: 10 }),
     );
@@ -744,8 +747,8 @@ describe("OverlayPropertyPanel", () => {
   it("calls onUpdate when border radius slider is changed", () => {
     const props = makeProps({ selectedEl: "canvas" });
     render(<OverlayPropertyPanel {...props} />);
-    const radiusSlider = screen.getByLabelText(/Radius/);
-    fireEvent.change(radiusSlider, { target: { value: "15" } });
+    const radiusInput = screen.getByLabelText("Ecken abrunden (px)");
+    fireEvent.change(radiusInput, { target: { value: "15" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ border_radius: 15 }),
     );
@@ -822,10 +825,9 @@ describe("OverlayPropertyPanel", () => {
     });
     const props = makeProps({ selectedEl: "sprite", settings });
     render(<OverlayPropertyPanel {...props} />);
-    // The glow opacity NumSlider contains a range input
+    // The glow opacity slider works in whole percent and stores the fraction
     const sliders = screen.getAllByRole("slider");
-    // Find the opacity slider (the first one after glow is enabled)
-    fireEvent.change(sliders[0], { target: { value: "0.8" } });
+    fireEvent.change(sliders[0], { target: { value: "80" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         sprite: expect.objectContaining({ glow_opacity: 0.8 }),
@@ -944,7 +946,7 @@ describe("OverlayPropertyPanel", () => {
     const props = makeProps({ selectedEl: "name" });
     render(<OverlayPropertyPanel {...props} />);
     // The color swatch shows the color label
-    const colorButton = screen.getByText(/Farbe #ffffff/).closest("button")!;
+    const colorButton = screen.getByTitle("Farbe #ffffff");
     fireEvent.click(colorButton);
     expect(props.openTextColorEditor).toHaveBeenCalledWith(
       "solid",
@@ -964,10 +966,12 @@ describe("OverlayPropertyPanel", () => {
     const outlineButton = screen.getByTitle(/Umriss/);
     fireEvent.click(outlineButton);
     expect(props.openOutlineEditor).toHaveBeenCalledWith(
-      "none",
-      "#000000",
-      0,
-      expect.any(Function),
+      expect.objectContaining({
+        type: "none",
+        color: "#000000",
+        width: 0,
+        onConfirm: expect.any(Function),
+      }),
     );
   });
 
@@ -993,8 +997,8 @@ describe("OverlayPropertyPanel", () => {
     const settings = makeOverlaySettings({ show_border: true, border_width: 2 });
     const props = makeProps({ selectedEl: "canvas", settings });
     render(<OverlayPropertyPanel {...props} />);
-    const borderWidthSlider = screen.getByLabelText(/Kontur Stärke/);
-    fireEvent.change(borderWidthSlider, { target: { value: "5" } });
+    const borderWidthInput = screen.getByLabelText("Kontur Stärke (px)");
+    fireEvent.change(borderWidthInput, { target: { value: "5" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ border_width: 5 }),
     );
@@ -1005,8 +1009,8 @@ describe("OverlayPropertyPanel", () => {
   it("calls openColorPicker when background color swatch is clicked for canvas", () => {
     const props = makeProps({ selectedEl: "canvas" });
     render(<OverlayPropertyPanel {...props} />);
-    // ColorSwatch uses title={label} — background color swatch title is the hex value
-    const bgColorButton = screen.getByTitle("#000000");
+    // ColorSwatch shows the label first and keeps the hex as muted detail
+    const bgColorButton = screen.getByTitle("Farbe #000000");
     fireEvent.click(bgColorButton);
     expect(props.openColorPicker).toHaveBeenCalledWith(
       "#000000",
@@ -1021,7 +1025,7 @@ describe("OverlayPropertyPanel", () => {
     const props = makeProps({ selectedEl: "canvas", settings });
     render(<OverlayPropertyPanel {...props} />);
     // Border color swatch
-    const borderColorButton = screen.getByText(/Kontur Farbe/).parentElement!.querySelector("button")!;
+    const borderColorButton = screen.getByText("Kontur Farbe").closest("button")!;
     fireEvent.click(borderColorButton);
     expect(props.openColorPicker).toHaveBeenCalledWith(
       "#ffffff",
@@ -1199,10 +1203,44 @@ describe("OverlayPropertyPanel", () => {
     const outlineButton = screen.getByTitle(/Umriss 3px/);
     fireEvent.click(outlineButton);
     expect(props.openOutlineEditor).toHaveBeenCalledWith(
-      "solid",
-      "#ff0000",
-      3,
-      expect.any(Function),
+      expect.objectContaining({
+        type: "solid",
+        color: "#ff0000",
+        width: 3,
+        onConfirm: expect.any(Function),
+      }),
+    );
+  });
+
+  // --- Outline swatch with gradient outline ---
+
+  it("calls openOutlineEditor with the stored gradient when outline is a gradient", () => {
+    const stops = [
+      { color: "#ff0000", position: 0 },
+      { color: "#0000ff", position: 100 },
+    ];
+    const settings = makeOverlaySettings({
+      name: {
+        ...makeOverlaySettings().name,
+        style: {
+          ...makeOverlaySettings().name.style,
+          outline_type: "gradient" as const,
+          outline_width: 4,
+          outline_gradient_stops: stops,
+          outline_gradient_angle: 45,
+        },
+      },
+    });
+    const props = makeProps({ selectedEl: "name", settings });
+    render(<OverlayPropertyPanel {...props} />);
+    fireEvent.click(screen.getByTitle(/Umriss 4px/));
+    expect(props.openOutlineEditor).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "gradient",
+        width: 4,
+        gradientStops: stops,
+        gradientAngle: 45,
+      }),
     );
   });
 
@@ -1256,7 +1294,7 @@ describe("OverlayPropertyPanel", () => {
     });
     const props = makeProps({ selectedEl: "name", settings });
     render(<OverlayPropertyPanel {...props} />);
-    const colorButton = screen.getByText(/Farbe \(/).closest("button")!;
+    const colorButton = screen.getByTitle("Farbe (Verlauf)");
     fireEvent.click(colorButton);
     expect(props.openTextColorEditor).toHaveBeenCalledWith(
       "gradient",
@@ -1268,30 +1306,6 @@ describe("OverlayPropertyPanel", () => {
       90,
       expect.any(Function),
     );
-  });
-
-  // --- Reactbits animation-specific settings ---
-
-  it("shows aurora color inputs when rb-aurora animation is selected", () => {
-    const settings = makeOverlaySettings({ background_animation: "rb-aurora" });
-    const props = makeProps({ selectedEl: "canvas", settings });
-    render(<OverlayPropertyPanel {...props} />);
-    const colorInputs = screen.getAllByText(/Farbe/);
-    expect(colorInputs.length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("shows galaxy controls when rb-galaxy animation is selected", () => {
-    const settings = makeOverlaySettings({ background_animation: "rb-galaxy" });
-    const props = makeProps({ selectedEl: "canvas", settings });
-    render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Dichte/)).toBeInTheDocument();
-  });
-
-  it("shows silk controls when rb-silk animation is selected", () => {
-    const settings = makeOverlaySettings({ background_animation: "rb-silk" });
-    const props = makeProps({ selectedEl: "canvas", settings });
-    render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Skalierung/)).toBeInTheDocument();
   });
 
   it("shows waves controls when waves animation is selected", () => {
@@ -1316,13 +1330,6 @@ describe("OverlayPropertyPanel", () => {
     expect(screen.getByText(/Intensität/)).toBeInTheDocument();
   });
 
-  it("shows pixel blast controls when rb-pixelblast animation is selected", () => {
-    const settings = makeOverlaySettings({ background_animation: "rb-pixelblast" });
-    const props = makeProps({ selectedEl: "canvas", settings });
-    render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Pixelgröße/)).toBeInTheDocument();
-  });
-
   // --- Outline type solid branch ---
 
   it("shows outline color in swatch when outline type is solid", () => {
@@ -1339,7 +1346,8 @@ describe("OverlayPropertyPanel", () => {
     });
     const props = makeProps({ selectedEl: "name", settings });
     render(<OverlayPropertyPanel {...props} />);
-    expect(screen.getByText(/Umriss 3px #ff0000/)).toBeInTheDocument();
+    expect(screen.getByText("Umriss 3px")).toBeInTheDocument();
+    expect(screen.getByTitle("Umriss 3px #ff0000")).toBeInTheDocument();
   });
 
   // --- Shadow enabled branch ---
@@ -1362,27 +1370,28 @@ describe("OverlayPropertyPanel", () => {
     expect(screen.getByText(/Schatten 4px 2,3/)).toBeInTheDocument();
   });
 
-  // --- Shadow with gradient type ---
+  // --- Outline type gradient branch ---
 
-  it("shows gradient shadow swatch when shadow color type is gradient", () => {
+  it("shows the gradient marker in the outline swatch when outline type is gradient", () => {
     const settings = makeOverlaySettings({
       name: {
         ...makeOverlaySettings().name,
         style: {
           ...makeOverlaySettings().name.style,
-          text_shadow: true,
-          text_shadow_color_type: "gradient",
-          text_shadow_gradient_stops: [
+          outline_type: "gradient",
+          outline_width: 3,
+          outline_gradient_stops: [
             { color: "#ff0000", position: 0 },
             { color: "#0000ff", position: 100 },
           ],
+          outline_gradient_angle: 90,
         },
       },
     });
     const props = makeProps({ selectedEl: "name", settings });
     render(<OverlayPropertyPanel {...props} />);
-    // Shadow should show details with gradient applied
-    expect(screen.getByText(/Schatten/)).toBeInTheDocument();
+    expect(screen.getByText("Umriss 3px")).toBeInTheDocument();
+    expect(screen.getByTitle("Umriss 3px (Verlauf)")).toBeInTheDocument();
   });
 
   // --- Odds element branch ---
@@ -1426,7 +1435,7 @@ describe("OverlayPropertyPanel", () => {
     });
     const props = makeProps({ selectedEl: "odds", settings });
     render(<OverlayPropertyPanel {...props} />);
-    const input = screen.getByPlaceholderText("Label") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("Label-Text") as HTMLInputElement;
     expect(input.value).toBe("Chance:");
   });
 
@@ -1488,7 +1497,7 @@ describe("OverlayPropertyPanel", () => {
     });
     const props = makeProps({ selectedEl: "odds", settings });
     render(<OverlayPropertyPanel {...props} />);
-    const input = screen.getByPlaceholderText("Label");
+    const input = screen.getByPlaceholderText("Label-Text");
     fireEvent.change(input, { target: { value: "Chance:" } });
     expect(props.onUpdate).toHaveBeenCalledWith(
       expect.objectContaining({

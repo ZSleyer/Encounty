@@ -9,16 +9,12 @@ describe("ShadowEditorModal", () => {
   const defaultProps = {
     enabled: true,
     color: "#000000",
-    colorType: "solid" as const,
-    gradientStops: [],
-    gradientAngle: 0,
     blur: 4,
     x: 2,
     y: 2,
     onConfirm: vi.fn(),
     onClose: vi.fn(),
     onOpenColorPicker: vi.fn(),
-    onOpenGradientEditor: vi.fn(),
   };
 
   it("renders with heading", () => {
@@ -52,10 +48,10 @@ describe("ShadowEditorModal", () => {
     expect(screen.getByText(/Y: 2/)).toBeInTheDocument();
   });
 
-  it("shows color type toggle buttons", () => {
+  it("offers no gradient mode, because CSS text-shadow paints one colour", () => {
     render(<ShadowEditorModal {...defaultProps} />);
-    expect(screen.getByText("Einfarbig")).toBeInTheDocument();
-    expect(screen.getByText("Verlauf")).toBeInTheDocument();
+    expect(screen.queryByText("Verlauf")).not.toBeInTheDocument();
+    expect(screen.queryByText("Farb-Typ")).not.toBeInTheDocument();
   });
 
   it("calls onClose when cancel button is clicked", () => {
@@ -74,9 +70,6 @@ describe("ShadowEditorModal", () => {
     expect(onConfirm).toHaveBeenCalledWith({
       enabled: true,
       color: "#000000",
-      colorType: "solid",
-      gradientStops: [],
-      gradientAngle: 0,
       blur: 4,
       x: 2,
       y: 2,
@@ -110,42 +103,13 @@ describe("ShadowEditorModal", () => {
   it("renders blur slider", () => {
     render(<ShadowEditorModal {...defaultProps} />);
     // NumSlider renders a title with the label text
-    const blurSlider = screen.getByTitle("Blur");
+    const blurSlider = screen.getByTitle("Weichzeichnen");
     expect(blurSlider).toBeInTheDocument();
   });
 
-  it("shows solid color swatch when colorType is solid", () => {
+  it("shows the single colour swatch", () => {
     render(<ShadowEditorModal {...defaultProps} />);
-    // The "Farbe" label section should be visible
     expect(screen.getByText("Farbe")).toBeInTheDocument();
-  });
-
-  it("shows gradient swatch when colorType is gradient", () => {
-    render(
-      <ShadowEditorModal
-        {...defaultProps}
-        colorType="gradient"
-        gradientStops={[
-          { color: "#ff0000", position: 0 },
-          { color: "#0000ff", position: 100 },
-        ]}
-      />,
-    );
-    // "Verlauf" appears in both the toggle button and the label section
-    const matches = screen.getAllByText("Verlauf");
-    expect(matches.length).toBeGreaterThanOrEqual(2);
-  });
-
-  it("switches color type to gradient when gradient button is clicked", () => {
-    const onConfirm = vi.fn();
-    render(<ShadowEditorModal {...defaultProps} onConfirm={onConfirm} />);
-    // Click the gradient toggle button (only one instance when colorType is solid)
-    fireEvent.click(screen.getAllByText("Verlauf")[0]);
-    // Apply and verify colorType changed
-    fireEvent.click(screen.getByText("Anwenden"));
-    expect(onConfirm).toHaveBeenCalledWith(
-      expect.objectContaining({ colorType: "gradient" }),
-    );
   });
 
   it("calls onOpenColorPicker when solid color swatch is clicked", () => {
@@ -158,26 +122,6 @@ describe("ShadowEditorModal", () => {
     if (swatches.length > 0) {
       fireEvent.click(swatches[0]);
       expect(onOpenColorPicker).toHaveBeenCalled();
-    }
-  });
-
-  it("calls onOpenGradientEditor when gradient swatch is clicked", () => {
-    const onOpenGradientEditor = vi.fn();
-    const { container } = render(
-      <ShadowEditorModal
-        {...defaultProps}
-        colorType="gradient"
-        gradientStops={[
-          { color: "#ff0000", position: 0 },
-          { color: "#0000ff", position: 100 },
-        ]}
-        onOpenGradientEditor={onOpenGradientEditor}
-      />,
-    );
-    const swatches = container.querySelectorAll(".w-6.h-4.rounded-none.cursor-pointer");
-    if (swatches.length > 0) {
-      fireEvent.click(swatches[0]);
-      expect(onOpenGradientEditor).toHaveBeenCalled();
     }
   });
 
@@ -247,21 +191,6 @@ describe("ShadowEditorModal", () => {
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ x: 30, y: 30 }));
   });
 
-  it("uses first gradient stop color for preview when colorType is gradient", () => {
-    render(
-      <ShadowEditorModal
-        {...defaultProps}
-        colorType="gradient"
-        gradientStops={[
-          { color: "#ff0000", position: 0 },
-          { color: "#0000ff", position: 100 },
-        ]}
-      />,
-    );
-    const previewText = screen.getByText("Abc");
-    expect(previewText.style.textShadow).toContain("#ff0000");
-  });
-
   it("calls onClose on backdrop click", () => {
     const onClose = vi.fn();
     const { container } = render(<ShadowEditorModal {...defaultProps} onClose={onClose} />);
@@ -273,8 +202,8 @@ describe("ShadowEditorModal", () => {
   it("updates blur via slider and reflects in confirm output", () => {
     const onConfirm = vi.fn();
     render(<ShadowEditorModal {...defaultProps} blur={4} onConfirm={onConfirm} />);
-    // NumSlider renders a range input with title="Blur"
-    const blurRange = screen.getByTitle("Blur") as HTMLInputElement;
+    // NumSlider renders a range input titled with the blur label
+    const blurRange = screen.getByTitle("Weichzeichnen") as HTMLInputElement;
     fireEvent.change(blurRange, { target: { value: "12" } });
     fireEvent.click(screen.getByText("Anwenden"));
     expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ blur: 12 }));

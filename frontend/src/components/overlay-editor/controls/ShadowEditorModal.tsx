@@ -1,19 +1,19 @@
-/** Modal for editing text-shadow properties: offset, blur, color, color type, and enable toggle. */
+/**
+ * Modal for editing text-shadow properties: offset, blur, colour and the enable
+ * toggle. CSS `text-shadow` paints a single colour, so the shadow deliberately
+ * offers no gradient.
+ */
 
 import { useRef, useState, useCallback } from "react";
 import { NumSlider } from "./NumSlider";
 import { ColorSwatch } from "./ColorSwatch";
 import { useI18n } from "../../../contexts/I18nContext";
-import type { GradientStop } from "../../../types";
 import { ModalShell, ModalActions } from "../../shared/ModalShell";
 
 /** Result payload passed to onConfirm when the shadow settings are applied. */
 export interface ShadowConfirmParams {
   readonly enabled: boolean;
   readonly color: string;
-  readonly colorType: "solid" | "gradient";
-  readonly gradientStops: GradientStop[];
-  readonly gradientAngle: number;
   readonly blur: number;
   readonly x: number;
   readonly y: number;
@@ -22,16 +22,12 @@ export interface ShadowConfirmParams {
 interface ShadowEditorModalProps {
   readonly enabled: boolean;
   readonly color: string;
-  readonly colorType: "solid" | "gradient";
-  readonly gradientStops: GradientStop[];
-  readonly gradientAngle: number;
   readonly blur: number;
   readonly x: number;
   readonly y: number;
   readonly onConfirm: (params: ShadowConfirmParams) => void;
   readonly onClose: () => void;
   readonly onOpenColorPicker: (currentColor: string, onPick: (color: string) => void) => void;
-  readonly onOpenGradientEditor: (stops: GradientStop[], angle: number, onConfirm: (stops: GradientStop[], angle: number) => void) => void;
 }
 
 /** Range for XY offset. */
@@ -39,28 +35,21 @@ const XY_MIN = -30;
 const XY_MAX = 30;
 const PAD_SIZE = 120;
 
-/** Modal dialog for editing text-shadow: enable toggle, XY offset, blur, and color. */
+/** Modal dialog for editing text-shadow: enable toggle, XY offset, blur, and colour. */
 export function ShadowEditorModal({
   enabled: initialEnabled,
   color: initialColor,
-  colorType: initialColorType,
-  gradientStops: initialGradientStops,
-  gradientAngle: initialGradientAngle,
   blur: initialBlur,
   x: initialX,
   y: initialY,
   onConfirm,
   onClose,
   onOpenColorPicker,
-  onOpenGradientEditor,
 }: ShadowEditorModalProps) {
   const { t } = useI18n();
 
   const [enabled, setEnabled] = useState(initialEnabled);
   const [color, setColor] = useState(initialColor);
-  const [colorType, setColorType] = useState<"solid" | "gradient">(initialColorType);
-  const [gradientStops, setGradientStops] = useState<GradientStop[]>(initialGradientStops);
-  const [gradientAngle, setGradientAngle] = useState(initialGradientAngle);
   const [blur, setBlur] = useState(initialBlur);
   const [sx, setSx] = useState(initialX);
   const [sy, setSy] = useState(initialY);
@@ -96,12 +85,7 @@ export function ShadowEditorModal({
   /** Map value from range to pixel position inside the pad. */
   const toPixel = (val: number) => ((val - XY_MIN) / (XY_MAX - XY_MIN)) * PAD_SIZE;
 
-  /** Preview color: for gradient, use first stop color (CSS limitation). */
-  const previewColor = colorType === "gradient"
-    ? (gradientStops[0]?.color ?? "#ffffff")
-    : color;
-
-  const shadowCSS = enabled ? `${sx}px ${sy}px ${blur}px ${previewColor}` : "none";
+  const shadowCSS = enabled ? `${sx}px ${sy}px ${blur}px ${color}` : "none";
 
   return (
     <ModalShell
@@ -111,9 +95,7 @@ export function ShadowEditorModal({
       titleSize="sm"
       footer={(requestClose) => (
         <ModalActions
-          onConfirm={() =>
-            onConfirm({ enabled, color, colorType, gradientStops, gradientAngle, blur, x: sx, y: sy })
-          }
+          onConfirm={() => onConfirm({ enabled, color, blur, x: sx, y: sy })}
           requestClose={requestClose}
           confirmLabel={t("common.apply")}
         />
@@ -182,55 +164,15 @@ export function ShadowEditorModal({
         <NumSlider label={t("overlay.blurPx")} value={blur} min={0} max={40} onChange={setBlur} />
       </div>
 
-      {/* --- Color type toggle --- */}
-      <div className="mb-4">
-        <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.colorType")}</p>
-        <div className="flex gap-2">
-          {([["solid", t("overlay.colorSolid")], ["gradient", t("overlay.colorGradient")]] as const).map(([val, label]) => (
-            <button
-              key={val}
-              className={`flex-1 py-1.5 rounded-none text-sm font-medium transition-colors ${
-                colorType === val
-                  ? "bg-accent-blue/20 text-accent-blue"
-                  : "border border-border-subtle text-text-muted hover:text-text-primary"
-              }`}
-              onClick={() => setColorType(val)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      {/* --- Colour --- */}
+      <div>
+        <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
+        <ColorSwatch
+          color={color}
+          className="w-6 h-4 rounded-none cursor-pointer"
+          onClick={() => onOpenColorPicker(color, (c) => setColor(c))}
+        />
       </div>
-
-      {/* --- Color (when solid) --- */}
-      {colorType === "solid" && (
-        <div>
-          <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.color")}</p>
-          <ColorSwatch
-            color={color}
-            className="w-6 h-4 rounded-none cursor-pointer"
-            onClick={() => onOpenColorPicker(color, (c) => setColor(c))}
-          />
-        </div>
-      )}
-
-      {/* --- Gradient swatch (when gradient) --- */}
-      {colorType === "gradient" && (
-        <div>
-          <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.colorGradient")}</p>
-          <ColorSwatch
-            color={gradientStops[0]?.color ?? "#ffffff"}
-            gradient={{ stops: gradientStops, angle: gradientAngle }}
-            className="w-6 h-4 rounded-none cursor-pointer"
-            onClick={() =>
-              onOpenGradientEditor(gradientStops, gradientAngle, (stops, angle) => {
-                setGradientStops(stops);
-                setGradientAngle(angle);
-              })
-            }
-          />
-        </div>
-      )}
     </ModalShell>
   );
 }
