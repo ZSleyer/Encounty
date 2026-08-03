@@ -11,6 +11,13 @@
  * in the DOM still renders: the tooltip moves to the centre of the screen and
  * the cutout is dropped, so a walkthrough can never trap the user behind an
  * opaque backdrop with nothing to read.
+ *
+ * A step may point at something that only exists inside a modal. The host opens
+ * that modal from `onStepChange`, and because the app's modals are native
+ * `<dialog>`s in the top layer, no z-index can cover them. The shell is
+ * therefore a native modal `<dialog>` itself and re-enters the top layer once
+ * the step's target turns up inside another open dialog: the last dialog opened
+ * paints on top and stays interactive, the one underneath goes inert.
  */
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -34,7 +41,8 @@ export interface TutorialOverlayProps {
   readonly namespace: string;
   /**
    * Runs before a step is measured. Hosts use it to reveal the step's target,
-   * for instance by selecting the layer whose rows the step talks about.
+   * for instance by selecting the layer whose rows the step talks about or by
+   * opening the modal the step points into.
    */
   readonly onStepChange?: (index: number) => void;
   /** Called when the walkthrough is finished, skipped or dismissed. */
@@ -83,7 +91,9 @@ export function TutorialOverlay({
   const textId = `${namespace}-text-${uid}`;
   const maskId = `${namespace}-mask-${uid}`;
   // The walkthrough is only mounted while it runs, so it is always "open".
-  const tooltipRef = useModalA11y<HTMLDivElement>({ isOpen: true, onClose: onComplete });
+  // showModal() gives the same trap natively, but not in the tests' jsdom, and
+  // the hook is what turns Escape into onComplete on both.
+  const dialogRef = useModalA11y<HTMLDialogElement>({ isOpen: true, onClose: onComplete });
 
   // Every host passes an inline arrow, so keeping the callback in a ref stops
   // the measuring effect from re-running on unrelated re-renders of the host.
@@ -97,13 +107,44 @@ export function TutorialOverlay({
     [attribute, target],
   );
 
+  /**
+   * Enters the top layer, or re-enters it if the shell is already open. Two
+   * modal dialogs paint in the order they were opened, so the modal a step
+   * opens would otherwise cover the walkthrough that asked for it.
+   */
+  const raiseToTop = useCallback(() => {
+    const dialog = dialogRef.current;
+    if (!dialog?.isConnected) return;
+    const focused = document.activeElement as HTMLElement | null;
+    if (dialog.open) dialog.close();
+    dialog.showModal();
+    // showModal() re-runs the dialog focusing steps and would otherwise throw
+    // the user back to the first button in the middle of a step.
+    if (focused && dialog.contains(focused)) focused.focus();
+  }, [dialogRef]);
+
+  useEffect(() => {
+    raiseToTop();
+    const dialog = dialogRef.current;
+    return () => {
+      if (dialog?.open) dialog.close();
+    };
+  }, [dialogRef, raiseToTop]);
+
   useEffect(() => {
     stepChangeRef.current?.(step);
     let frames = 0;
     let raf = 0;
     const tick = () => {
       const el = findTarget();
-      if (el) {
+      // A target inside a modal has no usable box before that modal is open, so
+      // the retry loop keeps waiting for it rather than measuring a zero rect.
+      const host = el?.closest("dialog") ?? null;
+      const inModal = host !== null && host !== dialogRef.current;
+      if (el && (!inModal || host.open)) {
+        // Getting back on top has to happen after the modal opened, which is
+        // exactly the moment its content became measurable.
+        if (inModal) raiseToTop();
         // The property panel and the template rail both scroll, so a target can
         // sit outside its container's viewport. Absent in jsdom, hence optional.
         el.scrollIntoView?.({ block: "nearest", inline: "nearest" });
@@ -114,11 +155,13 @@ export function TutorialOverlay({
         raf = requestAnimationFrame(tick);
         return;
       }
+      // The step stays readable and dismissible with the tooltip centred, even
+      // when its modal never showed up.
       setRect(null);
     };
     tick();
     return () => cancelAnimationFrame(raf);
-  }, [findTarget, step]);
+  }, [dialogRef, findTarget, raiseToTop, step]);
 
   useEffect(() => {
     const handler = () => {
@@ -161,7 +204,17 @@ export function TutorialOverlay({
     "px-3 py-1 rounded-none text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue";
 
   return createPortal(
-    <div className="fixed inset-0" style={{ zIndex: 10000 }}>
+    <dialog
+      ref={dialogRef}
+      // Escape is answered by useModalA11y, which also has to work in jsdom
+      // where no `cancel` event exists. Letting the UA close the shell as well
+      // would tear it down before the host can unmount it and clean up.
+      onCancel={(e) => e.preventDefault()}
+      aria-labelledby={titleId}
+      aria-describedby={textId}
+      tabIndex={-1}
+      className="tutorial-shell"
+    >
       {/* Dimmed backdrop with a hole punched around the current target */}
       <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 10000 }} aria-hidden="true">
         <defs>
@@ -199,15 +252,9 @@ export function TutorialOverlay({
       )}
 
       <div style={tooltipStyle}>
-        <div
-          ref={tooltipRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          aria-describedby={textId}
-          tabIndex={-1}
-          className="bg-bg-secondary border border-border-subtle rounded-none shadow-lg p-4"
-        >
+        {/* The dialog role and the modality live on the <dialog> shell; a second
+            role="dialog" in here would announce a dialog inside a dialog. */}
+        <div className="bg-bg-secondary border border-border-subtle rounded-none shadow-lg p-4">
           {/* Live region so a step change is announced without moving focus. */}
           <div role="status">
             <p className="sr-only">
@@ -252,7 +299,7 @@ export function TutorialOverlay({
           </div>
         </div>
       </div>
-    </div>,
+    </dialog>,
     document.body,
   );
 }

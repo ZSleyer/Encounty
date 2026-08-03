@@ -925,6 +925,112 @@ describe("OverlayEditor", () => {
     expect(spriteWrapper?.className).toMatch(/accent-blue/);
   });
 
+  // --- Dialogs the walkthrough opens ---
+
+  /** Renders the editor with the walkthrough running on its first step. */
+  function renderWithTutorial(onUpdate = vi.fn()) {
+    const store: Record<string, string> = {};
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, val: string) => { store[key] = val; },
+      removeItem: (key: string) => { delete store[key]; },
+    });
+    render(
+      <OverlayEditor
+        settings={makeOverlaySettings()}
+        onUpdate={onUpdate}
+        activePokemon={makePokemon()}
+      />,
+    );
+    return { onUpdate, store };
+  }
+
+  /** Clicks the walkthrough's next button the given number of times. */
+  function advanceTutorial(times: number) {
+    for (let i = 0; i < times; i++) {
+      fireEvent.click(screen.getByText("Weiter"));
+    }
+  }
+
+  it("opens the template picker while the templates step is shown", () => {
+    renderWithTutorial();
+    expect(document.querySelector('[data-tutorial="template-list"]')).toBeNull();
+
+    advanceTutorial(1);
+    const list = document.querySelector('[data-tutorial="template-list"]');
+    expect(list).not.toBeNull();
+    expect(list?.closest("dialog")).toHaveAttribute("open");
+
+    advanceTutorial(1);
+    expect(document.querySelector('[data-tutorial="template-list"]')).toBeNull();
+  });
+
+  it("opens the color dialog while the color step is shown", () => {
+    renderWithTutorial();
+    advanceTutorial(5);
+    const toggle = document.querySelector('[data-tutorial="text-color-type"]');
+    expect(toggle).not.toBeNull();
+    expect(toggle?.closest("dialog")).toHaveAttribute("open");
+
+    advanceTutorial(1);
+    expect(document.querySelector('[data-tutorial="text-color-type"]')).toBeNull();
+  });
+
+  it("closes the walkthrough's dialog when the walkthrough is skipped mid-step", () => {
+    renderWithTutorial();
+    advanceTutorial(1);
+    expect(document.querySelector('[data-tutorial="template-list"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByText("Überspringen"));
+    expect(document.querySelector('[data-tutorial="template-list"]')).toBeNull();
+  });
+
+  it("closes the walkthrough's dialog when Escape ends it mid-step", () => {
+    renderWithTutorial();
+    advanceTutorial(5);
+    expect(document.querySelector('[data-tutorial="text-color-type"]')).not.toBeNull();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(document.querySelector('[data-tutorial="text-color-type"]')).toBeNull();
+  });
+
+  it("reopens the template picker when stepping back into its step", () => {
+    renderWithTutorial();
+    advanceTutorial(2);
+    expect(document.querySelector('[data-tutorial="template-list"]')).toBeNull();
+
+    fireEvent.click(screen.getByText("Zurück"));
+    expect(document.querySelector('[data-tutorial="template-list"]')).not.toBeNull();
+  });
+
+  it("writes no setting while the walkthrough opens its dialogs", () => {
+    const { onUpdate, store } = renderWithTutorial();
+    // The whole walkthrough, both dialog steps included.
+    advanceTutorial(8);
+    fireEvent.click(screen.getByText("Fertig"));
+
+    // onUpdate is the editor's only route to persistence.
+    expect(onUpdate).not.toHaveBeenCalled();
+    // Nothing about the layout was cached either, only the "seen" flag.
+    expect(store).toHaveProperty("encounty_editor_tutorial_seen", "true");
+    expect(store).not.toHaveProperty("encounty_editor_split");
+  });
+
+  it("cannot apply a template from the copy the walkthrough opens", () => {
+    const { onUpdate } = renderWithTutorial();
+    advanceTutorial(1);
+
+    const list = document.querySelector('[data-tutorial="template-list"]')!;
+    const rows = list.querySelectorAll("button");
+    expect(rows.length).toBeGreaterThan(0);
+    // The real picker would raise the confirmation here. This copy is wired to
+    // nothing, so picking a row can neither confirm nor apply anything.
+    fireEvent.click(rows[0]);
+
+    expect(screen.queryByText("Vorlage anwenden")).not.toBeInTheDocument();
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
   // --- Divider reset button ---
 
   it("resets divider height when reset button is clicked", async () => {

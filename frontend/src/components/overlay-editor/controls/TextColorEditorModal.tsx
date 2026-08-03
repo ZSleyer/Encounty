@@ -70,7 +70,7 @@ export function TextColorEditorModal({
       </div>
 
       {/* --- Type toggle --- */}
-      <div className="mb-4">
+      <div data-tutorial="text-color-type" className="mb-4">
         <p className="text-[10px] 2xl:text-xs text-text-muted mb-1">{t("overlay.type")}</p>
         <div className="flex gap-2">
           {([["solid", t("overlay.outlineSolid")], ["gradient", t("overlay.gradient")]] as const).map(([val, label]) => (

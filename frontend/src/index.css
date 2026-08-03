@@ -257,6 +257,41 @@ dialog:not([open])::backdrop {
   }
 }
 
+/* The walkthrough shell is a native <dialog> as well, so it can stack *above*
+   the dialog a tutorial step opens: two modal dialogs paint in the order they
+   were opened, and the one underneath turns inert. That is exactly what a
+   walkthrough wants: the dialog a step talks about stays visible but cannot be
+   operated by accident, while the step's own buttons keep working.
+
+   It opts out of the CRT reveal on purpose: every step that opens a modal
+   re-enters the top layer (close + showModal) to get back on top, and the
+   animation would replay on each of those. `clip-path: none` is load-bearing
+   twice over, because it also stops the dialog from becoming a clip box and a
+   containing block for the position:fixed backdrop and tooltip inside it. */
+dialog.tutorial-shell {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: visible;
+  clip-path: none;
+  opacity: 1;
+  transition: none;
+}
+
+/* The dim and the cutout come from the overlay's own SVG. The UA backdrop
+   defaults to a slight tint, which would dim the highlighted element too. */
+dialog.tutorial-shell::backdrop {
+  background: transparent;
+  transition: none;
+}
+
 /* Hatch texture: faint 135deg diagonal hairlines. */
 .t-hatch {
   background-image: repeating-linear-gradient(

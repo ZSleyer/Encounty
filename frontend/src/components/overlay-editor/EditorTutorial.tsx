@@ -10,21 +10,35 @@
  * specific layer, for instance the affix fields of a value layer or the sprite's
  * phase cycling. Those steps name that layer in `select`, and the editor
  * switches to it before the step is measured.
+ *
+ * Other steps talk about something that only exists inside a dialog: the
+ * template list and the colour editor. Those steps name it in `modal`, and the
+ * editor opens a read-only copy of that dialog for the duration of the step.
  */
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { TutorialOverlay, type TutorialStep } from "../shared/TutorialOverlay";
 import type { ElementKey } from "../../utils/overlayElements";
+
+/** Dialog a step points into. The editor opens it while the step is shown. */
+export type EditorTutorialModal = "templates" | "text-color";
 
 type Props = Readonly<{
   onComplete: () => void;
   /** Selects the layer a step needs so the rows it points at exist. */
   onSelectElement?: (key: ElementKey) => void;
+  /**
+   * Opens the dialog a step points into, or closes the open one when passed
+   * null. The editor answers with a copy that cannot write anything back.
+   */
+  onOpenModal?: (modal: EditorTutorialModal | null) => void;
 }>;
 
-/** A walkthrough step, optionally tied to the layer that renders its target. */
+/** A walkthrough step, optionally tied to the layer or dialog holding its target. */
 interface EditorTutorialStep extends TutorialStep {
   /** Layer the editor selects before this step is shown. */
   readonly select?: ElementKey;
+  /** Dialog the editor opens before this step is shown. */
+  readonly modal?: EditorTutorialModal;
 }
 
 const STEPS: readonly EditorTutorialStep[] = [
@@ -34,9 +48,10 @@ const STEPS: readonly EditorTutorialStep[] = [
     textKey: "editorTutorial.step1Text",
   },
   {
-    target: "templates",
+    target: "template-list",
     titleKey: "editorTutorial.step2Title",
     textKey: "editorTutorial.step2Text",
+    modal: "templates",
   },
   {
     target: "layers",
@@ -56,32 +71,48 @@ const STEPS: readonly EditorTutorialStep[] = [
     select: "counter",
   },
   {
-    target: "affixes",
+    target: "text-color-type",
     titleKey: "editorTutorial.step6Title",
     textKey: "editorTutorial.step6Text",
+    select: "counter",
+    modal: "text-color",
+  },
+  {
+    target: "affixes",
+    titleKey: "editorTutorial.step7Title",
+    textKey: "editorTutorial.step7Text",
     select: "counter",
   },
   {
     target: "sprite-cycle",
-    titleKey: "editorTutorial.step7Title",
-    textKey: "editorTutorial.step7Text",
+    titleKey: "editorTutorial.step8Title",
+    textKey: "editorTutorial.step8Text",
     select: "sprite",
   },
   {
     target: "toolbar",
-    titleKey: "editorTutorial.step8Title",
-    textKey: "editorTutorial.step8Text",
+    titleKey: "editorTutorial.step9Title",
+    textKey: "editorTutorial.step9Text",
   },
 ];
 
 /** Step-based walkthrough of the Overlay Editor. */
-export function EditorTutorial({ onComplete, onSelectElement }: Props) {
+export function EditorTutorial({ onComplete, onSelectElement, onOpenModal }: Props) {
+  // Skipping, finishing and Escape all unmount the walkthrough, so the dialog a
+  // step opened is closed from the cleanup rather than from each exit path.
+  const openModalRef = useRef(onOpenModal);
+  openModalRef.current = onOpenModal;
+  useEffect(() => () => openModalRef.current?.(null), []);
+
   const handleStepChange = useCallback(
     (index: number) => {
-      const select = STEPS[index].select;
+      const { select, modal } = STEPS[index];
       if (select) onSelectElement?.(select);
+      // Passed on every step, so leaving a modal step closes its dialog no
+      // matter whether the user went forward or back.
+      onOpenModal?.(modal ?? null);
     },
-    [onSelectElement],
+    [onSelectElement, onOpenModal],
   );
 
   return (

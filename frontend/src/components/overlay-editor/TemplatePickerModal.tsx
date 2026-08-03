@@ -81,7 +81,11 @@ export function TemplatePickerModal({ onSelect, onClose }: Readonly<TemplatePick
   return (
     <ModalShell title={t("overlay.templatesTitle")} onClose={onClose} size="lg" titleSize="sm">
       {(requestClose) => (
-        <ul className="space-y-2" aria-label={t("overlay.templatesTitle")}>
+        <ul
+          data-tutorial="template-list"
+          className="space-y-2"
+          aria-label={t("overlay.templatesTitle")}
+        >
           {templates.map((template) => {
             const size = `${template.settings.canvas_width} × ${template.settings.canvas_height}`;
             return (

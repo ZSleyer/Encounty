@@ -20,3 +20,26 @@ if (typeof globalThis.localStorage === "undefined") {
     configurable: true,
   });
 }
+
+// jsdom implements neither dialog.showModal() nor dialog.close(). Toggling the
+// `open` attribute is the part the components depend on: it decides whether the
+// dialog's content reaches the accessibility tree and whether the shared close
+// helper considers the dialog open. Test files that deliberately want a no-op
+// still assign their own stub; those written as `prototype.showModal || vi.fn()`
+// keep this one. There is no top layer here, so stacking is not reproduced.
+if (!HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.show = function show(this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute("open", "");
+  };
+  HTMLDialogElement.prototype.close = function close(
+    this: HTMLDialogElement,
+    returnValue?: string,
+  ) {
+    if (returnValue !== undefined) this.returnValue = returnValue;
+    this.removeAttribute("open");
+    this.dispatchEvent(new Event("close"));
+  };
+}

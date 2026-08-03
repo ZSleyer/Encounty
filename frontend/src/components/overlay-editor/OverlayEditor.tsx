@@ -10,7 +10,7 @@ import {
   RotateCcw,
   LayoutTemplate,
 } from "lucide-react";
-import { EditorTutorial } from "./EditorTutorial";
+import { EditorTutorial, type EditorTutorialModal } from "./EditorTutorial";
 import {
   OverlaySettings,
   OverlayElementBase,
@@ -54,6 +54,9 @@ interface Props {
   compact?: boolean;
 }
 
+
+/** Callback slot for the tutorial's dialog copies, which must not write anything. */
+const NOOP = () => {};
 
 /** Elements that were added after the first release and may be absent in stored settings. */
 const MIGRATABLE_ELEMENT_KEYS = [
@@ -227,6 +230,10 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
 
   // Tutorial
   const [showTutorial, setShowTutorial] = useState(false);
+  // Dialog the current walkthrough step points into. It is a separate state
+  // from the editor's own modals on purpose: the copy opened here gets no
+  // callback that could write a setting.
+  const [tutorialModal, setTutorialModal] = useState<EditorTutorialModal | null>(null);
 
   // Template picker: the picked template waits in pendingTemplate until the
   // user confirms, because applying it discards the current layout.
@@ -1065,8 +1072,32 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
         <EditorTutorial
           onComplete={() => {
             setShowTutorial(false);
+            setTutorialModal(null);
             localStorage.setItem("encounty_editor_tutorial_seen", "true");
           }}
+          onSelectElement={setSelectedEl}
+          onOpenModal={setTutorialModal}
+        />
+      )}
+
+      {/* Dialogs a walkthrough step points into. They are deliberately wired to
+          nothing: no onSelect, no onConfirm and no nested editor, so a step can
+          show what a dialog looks like without ever writing a setting. The
+          walkthrough re-enters the top layer above them, which makes them inert
+          anyway, and leaving the step unmounts them. */}
+      {tutorialModal === "templates" && (
+        <TemplatePickerModal onSelect={NOOP} onClose={NOOP} />
+      )}
+      {tutorialModal === "text-color" && (
+        <TextColorEditorModal
+          colorType={localSettings.counter.style.color_type}
+          color={localSettings.counter.style.color}
+          gradientStops={localSettings.counter.style.gradient_stops}
+          gradientAngle={localSettings.counter.style.gradient_angle}
+          onConfirm={NOOP}
+          onClose={NOOP}
+          onOpenColorPicker={NOOP}
+          onOpenGradientEditor={NOOP}
         />
       )}
 
