@@ -41,6 +41,17 @@ export function useModalA11y<T extends HTMLElement>({
   const containerRef = useRef<T>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  // Every caller passes an inline arrow, so `onClose` gets a fresh identity on
+  // each render. Listing it as an effect dependency would tear the focus trap
+  // down and rebuild it on every unrelated re-render of the host component,
+  // and the teardown hands focus back to the element behind the modal. Pages
+  // that re-render on a timer (anything subscribed to the app-state store)
+  // would therefore yank focus out of the open dialog several times a second.
+  // Holding the callback in a ref keeps the effect keyed on `isOpen` alone
+  // while still invoking the latest callback, so no stale closure is captured.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!isOpen) return;
     const container = containerRef.current;
@@ -53,7 +64,7 @@ export function useModalA11y<T extends HTMLElement>({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -79,7 +90,7 @@ export function useModalA11y<T extends HTMLElement>({
       document.removeEventListener("keydown", handleKeyDown);
       previousFocusRef.current?.focus?.();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return containerRef;
 }

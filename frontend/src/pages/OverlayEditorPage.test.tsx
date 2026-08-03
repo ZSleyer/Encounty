@@ -386,3 +386,108 @@ describe("OverlayEditorPage — unsaved changes modal", () => {
     expect(screen.getByTestId("overlay-editor")).toBeInTheDocument();
   });
 });
+
+/**
+ * The page subscribes to the app-state store, so it re-renders whenever the
+ * backend pushes a state update, independent of user input. These tests pin
+ * down that such a re-render must not disturb the open dialog.
+ */
+describe("OverlayEditorPage — unsaved changes modal survives background re-renders", () => {
+  beforeEach(() => {
+    fetchMock.mockClear();
+    useCounterStore.setState({
+      appState: makeAppState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+    // jsdom always reports offsetParent === null, which would make the focus
+    // trap treat the dialog as having no focusable children.
+    Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+      get(this: HTMLElement) {
+        return this.parentElement ?? null;
+      },
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Simulates a backend state update landing while the dialog is open. */
+  function pushStateUpdate() {
+    act(() => {
+      useCounterStore.setState({ appState: makeAppState() });
+    });
+  }
+
+  it("keeps focus inside the dialog when a state update re-renders the page", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+
+    const navAway = screen.getByTestId("nav-away");
+    const navAwayFocus = vi.spyOn(navAway, "focus");
+
+    for (let i = 0; i < 5; i++) pushStateUpdate();
+
+    // The element behind the backdrop must never regain focus while the
+    // dialog is open (WCAG 2.4.3 focus order).
+    expect(navAwayFocus).not.toHaveBeenCalled();
+    expect(
+      screen.getByText("Ungespeicherte Änderungen").closest(".fixed"),
+    ).toContainElement(document.activeElement as HTMLElement);
+  });
+
+  it("does not steal focus back from the discard button on a state update", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+    expect(document.activeElement).toBe(screen.getByText("Zurück zum Editor"));
+
+    await user.tab();
+    const discard = screen.getByText("Verwerfen");
+    expect(document.activeElement).toBe(discard);
+
+    pushStateUpdate();
+
+    expect(document.activeElement).toBe(discard);
+  });
+
+  it("stays in the editor when clicking stay after a state update", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+    pushStateUpdate();
+
+    await user.click(screen.getByText("Zurück zum Editor"));
+
+    expect(screen.queryByText("Ungespeicherte Änderungen")).not.toBeInTheDocument();
+    expect(screen.getByTestId("overlay-editor")).toBeInTheDocument();
+    expect(screen.queryByTestId("other-page")).not.toBeInTheDocument();
+  });
+
+  it("resolves a blocked navigation only once when discard is fired twice", async () => {
+    const user = userEvent.setup();
+    renderForBlocker();
+
+    await dirtyAndNavigate(user);
+
+    // Two activations within the same tick both see the blocker object from
+    // the render that produced them. Calling react-router's `proceed` twice
+    // throws "Invalid blocker state transition".
+    const discard = screen.getByText("Verwerfen") as HTMLButtonElement;
+    act(() => {
+      discard.click();
+      discard.click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("other-page")).toBeInTheDocument();
+    });
+  });
+});

@@ -126,9 +126,53 @@ export function OverlayEditorPage() {
 
   const blocker = useBlocker(overlayDirty);
   const unsavedDialogOpen = blocker.state === "blocked";
+
+  // react-router only exposes `proceed`/`reset` while the blocker is in the
+  // "blocked" state, and a blocked navigation may be resolved exactly once:
+  // calling `proceed` again after it left "blocked" throws an invariant error
+  // from the router. This latch makes the dialog buttons idempotent for the
+  // current blocked navigation without duplicating the router's state.
+  const navigationResolvedRef = useRef(false);
+  if (!unsavedDialogOpen) navigationResolvedRef.current = false;
+
+  /**
+   * Reports a dialog button that arrived without a usable blocker handle.
+   * The handlers below are closures over the blocker of the render that
+   * produced them; if the navigation resolved in between, the handle is gone
+   * and the button would otherwise do nothing at all.
+   */
+  const reportBlockerUnavailable = (action: string) => {
+    console.warn(
+      `Overlay editor: cannot ${action} the pending navigation, blocker state is "${blocker.state}".`,
+    );
+    push({ type: "error", title: t("overlay.errLeaveFailed"), key: "overlay-leave" });
+  };
+
+  /** Cancels the blocked navigation and keeps the user in the editor. */
+  const stayInEditor = () => {
+    if (navigationResolvedRef.current) return;
+    if (!blocker.reset) {
+      reportBlockerUnavailable("cancel");
+      return;
+    }
+    navigationResolvedRef.current = true;
+    blocker.reset();
+  };
+
+  /** Discards the unsaved changes and lets the blocked navigation continue. */
+  const discardAndLeave = () => {
+    if (navigationResolvedRef.current) return;
+    if (!blocker.proceed) {
+      reportBlockerUnavailable("continue");
+      return;
+    }
+    navigationResolvedRef.current = true;
+    blocker.proceed();
+  };
+
   const unsavedDialogRef = useModalA11y<HTMLDivElement>({
     isOpen: unsavedDialogOpen,
-    onClose: () => blocker.reset?.(),
+    onClose: stayInEditor,
   });
 
   const [previewPokemon] = useState(() => makePreviewPokemon());
@@ -250,7 +294,7 @@ export function OverlayEditorPage() {
           aria-labelledby="overlay-unsaved-title"
           tabIndex={-1}
           className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
-          onClick={(e) => { if (e.target === e.currentTarget) blocker.reset?.(); }}
+          onClick={(e) => { if (e.target === e.currentTarget) stayInEditor(); }}
         >
           <div className="bg-bg-secondary border border-border-subtle rounded-none p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl">
             <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
@@ -267,14 +311,14 @@ export function OverlayEditorPage() {
             <div className="flex gap-3 w-full">
               <button
                 type="button"
-                onClick={() => blocker.reset?.()}
+                onClick={stayInEditor}
                 className="flex-1 px-4 py-2.5 rounded-none border border-border-subtle text-text-muted hover:bg-bg-hover text-sm font-medium transition-colors"
               >
                 {t("overlay.unsavedStay")}
               </button>
               <button
                 type="button"
-                onClick={() => blocker.proceed?.()}
+                onClick={discardAndLeave}
                 className="flex-1 px-4 py-2.5 rounded-none bg-accent-red hover:brightness-110 text-bg-primary text-sm font-semibold transition-colors"
               >
                 {t("overlay.unsavedDiscard")}
