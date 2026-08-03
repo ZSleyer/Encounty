@@ -13,16 +13,16 @@ import (
 )
 
 const (
-	groupsPrefix       = "/api/groups"
-	groupsPrefixSlash  = "/api/groups/"
-	errGroupNotFound   = "group not found"
-	suffixStartHunt    = "/start-hunt"
-	suffixStopHunt     = "/stop-hunt"
-	reasonAlreadyRun   = "already_running"
-	reasonNotRunning   = "not_running"
-	reasonNotFound     = "pokemon_not_found"
-	wsHuntStartEvent   = "hunt_start_requested"
-	wsHuntStopEvent    = "hunt_stop_requested"
+	groupsPrefix      = "/api/groups"
+	groupsPrefixSlash = "/api/groups/"
+	errGroupNotFound  = "group not found"
+	suffixStartHunt   = "/start-hunt"
+	suffixStopHunt    = "/stop-hunt"
+	reasonAlreadyRun  = "already_running"
+	reasonNotRunning  = "not_running"
+	reasonNotFound    = "pokemon_not_found"
+	wsHuntStartEvent  = "hunt_start_requested"
+	wsHuntStopEvent   = "hunt_stop_requested"
 )
 
 // --- DTO types ---------------------------------------------------------------
