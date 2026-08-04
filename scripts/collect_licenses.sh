@@ -120,6 +120,47 @@ find_license_file() {
   done
 }
 
+# Search for a NOTICE file in a given directory. Apache-2.0 section 4(d) requires
+# a shipped NOTICE to be carried into every redistribution, so it has to travel
+# with the license text rather than being dropped.
+# Args: $1 = directory to search in
+# Prints the path to the first match, or nothing if not found.
+find_notice_file() {
+  local dir="$1"
+  [ -n "$dir" ] || return
+  for candidate in NOTICE NOTICE.txt NOTICE.md notice notice.txt; do
+    if [ -f "$dir/$candidate" ]; then
+      echo "$dir/$candidate"
+      return
+    fi
+  done
+}
+
+# Assemble the text stored for one entry: the license file, or a generated
+# fallback when the package ships none, followed by its NOTICE if it has one.
+# Prints the path of the assembled file so callers can pass it to jq --rawfile,
+# which handles all special characters safely.
+# Args: $1 = package directory ("" if unknown), $2 = license file ("" if none),
+#       $3 = license type, $4 = package name
+write_license_text() {
+  local dir="$1" license_file="$2" license_type="$3" name="$4" notice_file out
+  out=$(mktemp "$TMP_DIR/text.XXXXXX")
+
+  if [ -n "$license_file" ]; then
+    cat "$license_file" > "$out"
+  else
+    generate_fallback_license_text "$license_type" "$name" > "$out"
+  fi
+
+  notice_file=$(find_notice_file "$dir")
+  if [ -n "$notice_file" ]; then
+    printf '\n\n----- NOTICE -----\n\n' >> "$out"
+    cat "$notice_file" >> "$out"
+  fi
+
+  printf '%s' "$out"
+}
+
 GO_LICENSES="$(go env GOPATH)/bin/go-licenses"
 if ! command -v "$GO_LICENSES" &>/dev/null; then
   echo "Installing go-licenses..."
@@ -146,27 +187,20 @@ echo '[]' > "$TMP_DIR/go_entries.json"
     # shellcheck disable=SC2086
     license_file=$(find $mod_cache -maxdepth 1 \( -iname 'LICENSE*' -o -iname 'COPYING*' \) 2>/dev/null | head -1 || true)
   fi
-  if [ -n "$license_file" ]; then
-    # Use jq --rawfile to safely read the license text (handles all special chars)
-    jq -n \
-      --arg name "$mod" \
-      --arg version "$version" \
-      --arg license "$license_type" \
-      --rawfile text "$license_file" \
-      --arg source "go" \
-      '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
-      >> "$TMP_DIR/go_entry_parts.jsonl"
-  else
-    fallback_text=$(generate_fallback_license_text "$license_type" "$mod")
-    jq -n \
-      --arg name "$mod" \
-      --arg version "$version" \
-      --arg license "$license_type" \
-      --arg text "$fallback_text" \
-      --arg source "go" \
-      '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
-      >> "$TMP_DIR/go_entry_parts.jsonl"
-  fi
+  # A NOTICE sits next to the license file, so the module directory is whatever
+  # the lookup above resolved to.
+  mod_dir=""
+  [ -n "$license_file" ] && mod_dir=$(dirname "$license_file")
+  text_file=$(write_license_text "$mod_dir" "$license_file" "$license_type" "$mod")
+
+  jq -n \
+    --arg name "$mod" \
+    --arg version "$version" \
+    --arg license "$license_type" \
+    --rawfile text "$text_file" \
+    --arg source "go" \
+    '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
+    >> "$TMP_DIR/go_entry_parts.jsonl"
 done
 
 if [ -f "$TMP_DIR/go_entry_parts.jsonl" ]; then
@@ -209,7 +243,7 @@ read_package_license() {
 # Args: $1 = workspace directory relative to the repository root
 collect_npm_dir() {
   local workspace="$1"
-  local entry name version pkg_dir license_type license_file scope_dir fallback_text
+  local entry name version pkg_dir license_type license_file scope_dir text_file
 
   echo "Collecting npm licenses in ${workspace}/..."
   cd "$ROOT_DIR/$workspace"
@@ -246,26 +280,16 @@ collect_npm_dir() {
       license_file=$(find_license_file "$scope_dir")
     fi
 
-    if [ -n "$license_file" ]; then
-      jq -n \
-        --arg name "$name" \
-        --arg version "$version" \
-        --arg license "$license_type" \
-        --rawfile text "$license_file" \
-        --arg source "npm" \
-        '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
-        >> "$TMP_DIR/npm_entry_parts.jsonl"
-    else
-      fallback_text=$(generate_fallback_license_text "$license_type" "$name")
-      jq -n \
-        --arg name "$name" \
-        --arg version "$version" \
-        --arg license "$license_type" \
-        --arg text "$fallback_text" \
-        --arg source "npm" \
-        '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
-        >> "$TMP_DIR/npm_entry_parts.jsonl"
-    fi
+    text_file=$(write_license_text "$pkg_dir" "$license_file" "$license_type" "$name")
+
+    jq -n \
+      --arg name "$name" \
+      --arg version "$version" \
+      --arg license "$license_type" \
+      --rawfile text "$text_file" \
+      --arg source "npm" \
+      '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
+      >> "$TMP_DIR/npm_entry_parts.jsonl"
   done < "$TMP_DIR/npm_tree.txt"
 }
 
@@ -306,26 +330,16 @@ for entry in $SHIPPED_DEVDEPS; do
     license_file=$(find_license_file "$scope_dir")
   fi
 
-  if [ -n "$license_file" ]; then
-    jq -n \
-      --arg name "$pkg_name" \
-      --arg version "$version" \
-      --arg license "$license_type" \
-      --rawfile text "$license_file" \
-      --arg source "npm" \
-      '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
-      >> "$TMP_DIR/npm_entry_parts.jsonl"
-  else
-    fallback_text=$(generate_fallback_license_text "$license_type" "$pkg_name")
-    jq -n \
-      --arg name "$pkg_name" \
-      --arg version "$version" \
-      --arg license "$license_type" \
-      --arg text "$fallback_text" \
-      --arg source "npm" \
-      '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
-      >> "$TMP_DIR/npm_entry_parts.jsonl"
-  fi
+  text_file=$(write_license_text "$pkg_root" "$license_file" "$license_type" "$pkg_name")
+
+  jq -n \
+    --arg name "$pkg_name" \
+    --arg version "$version" \
+    --arg license "$license_type" \
+    --rawfile text "$text_file" \
+    --arg source "npm" \
+    '{name: $name, version: $version, license: $license, text: $text, source: $source}' \
+    >> "$TMP_DIR/npm_entry_parts.jsonl"
   echo "  Added $pkg_name@$version ($license_type)"
 done
 
