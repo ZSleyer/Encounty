@@ -21,7 +21,13 @@ version=${version#v}
 repo_root=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)
 template="${repo_root}/packaging/aur/PKGBUILD.in"
 desktop="${repo_root}/packaging/aur/encounty.desktop"
+spdx="${repo_root}/packaging/aur/licenses.spdx"
 output=${2:-"${repo_root}/packaging/aur/PKGBUILD"}
+
+if [ ! -s "$spdx" ]; then
+  echo "${spdx} is missing or empty, run 'make licenses'" >&2
+  exit 1
+fi
 
 release="https://github.com/ZSleyer/Encounty/releases/download/v${version}"
 icon="https://raw.githubusercontent.com/ZSleyer/Encounty/v${version}/backend/winres/icon.png"
@@ -50,14 +56,20 @@ remote_sha256() {
 
 sha_x86_64=$(remote_sha256 "${release}/Encounty-x86_64.AppImage")
 sha_aarch64=$(remote_sha256 "${release}/Encounty-arm64.AppImage")
+sha_licenses=$(remote_sha256 "${release}/Encounty-licenses.tar.gz")
 sha_icon=$(remote_sha256 "$icon")
 sha_desktop=$(sha256sum "$desktop" | cut -d' ' -f1)
+
+# One quoted SPDX identifier per line becomes the body of license=().
+license_array=$(sed "s/.*/'&'/" "$spdx" | paste -sd' ' -)
 
 sed -e "s|@VERSION@|${version}|g" \
     -e "s|@SHA_X86_64@|${sha_x86_64}|g" \
     -e "s|@SHA_AARCH64@|${sha_aarch64}|g" \
+    -e "s|@SHA_LICENSES@|${sha_licenses}|g" \
     -e "s|@SHA_ICON@|${sha_icon}|g" \
     -e "s|@SHA_DESKTOP@|${sha_desktop}|g" \
+    -e "s|@LICENSE_ARRAY@|${license_array}|g" \
     "$template" > "$output"
 
 if grep -q '@[A-Z_]*@' "$output"; then
