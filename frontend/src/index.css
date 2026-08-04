@@ -324,9 +324,13 @@ dialog.tutorial-shell::backdrop {
   color: var(--accent-blue);
 }
 
-/* Corner-cut CTA: clips the top-right corner. The clip-path also clips
-   the outline, so keyboard focus is drawn as a box-shadow ring
-   instead (WCAG 2.4.7). */
+/* Corner-cut CTA: cuts the top-right corner.
+
+   Fallback path for renderers without corner-shape. A clip is not a corner:
+   it leaves a bare diagonal that a CSS border has no side to draw along, so
+   the frame reads as broken there, and it clips away everything the element
+   paints outside the polygon, outline and outer box-shadow included. The
+   focus ring therefore has to sit inside the shape (WCAG 2.4.7). */
 .t-cut {
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
   border-radius: 0;
@@ -335,8 +339,28 @@ dialog.tutorial-shell::backdrop {
 .t-cut:focus-visible {
   outline: none;
   box-shadow:
-    0 0 0 2px var(--bg-primary),
-    0 0 0 4px var(--accent-blue);
+    inset 0 0 0 2px var(--accent-blue),
+    inset 0 0 0 4px var(--bg-primary);
+}
+
+/* Preferred path: corner-shape makes the cut a real corner instead of a clip,
+   so the border runs unbroken around the diagonal and the outline follows it
+   too. That lets the focus ring go back to a plain outline drawn outside the
+   shape, which is both more visible and less code.
+   This block is unlayered like the rest of the .t-* rules, so it outranks the
+   `rounded-none` utility the call sites carry regardless of source order. */
+@supports (corner-shape: bevel) {
+  .t-cut {
+    clip-path: none;
+    corner-shape: bevel;
+    border-radius: 0 10px 0 0;
+  }
+
+  .t-cut:focus-visible {
+    outline: 2px solid var(--accent-blue);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
 }
 
 /* Native select: appearance:none plus a hand-drawn chevron so the right-side
