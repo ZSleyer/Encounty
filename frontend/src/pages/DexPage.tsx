@@ -24,6 +24,7 @@ import {
 import { buildDexIndex, type DexEntry, type DexMode } from "../utils/dex";
 import { getDefaultSpriteUrl, SPRITE_FALLBACK } from "../utils/sprites";
 import { getGameName } from "../utils/games";
+import { DexCatchesModal } from "../components/dex/DexCatchesModal";
 import { DexDetailModal } from "../components/dex/DexDetailModal";
 import { DexSpeciesDetail } from "../components/dex/DexSpeciesDetail";
 import { CatchMetaModal } from "../components/pokemon/CatchMetaModal";
@@ -59,7 +60,8 @@ interface DexSlotView {
   name: string;
   generation: number;
   caught: boolean;
-  variantCount: number;
+  /** Archived catches resolved onto this slot; drives the `×N` badge. */
+  catchCount: number;
   /** Complete aria sentence; never assembled from several keys at render time. */
   label: string;
 }
@@ -214,7 +216,7 @@ interface DexSlotProps {
   readonly name: string;
   readonly caught: boolean;
   readonly selected: boolean;
-  readonly variantCount: number;
+  readonly catchCount: number;
   readonly label: string;
   readonly tabIndex: number;
   readonly onOpen: (id: number) => void;
@@ -233,7 +235,7 @@ const DexSlot = memo(function DexSlot({
   name,
   caught,
   selected,
-  variantCount,
+  catchCount,
   label,
   tabIndex,
   onOpen,
@@ -252,31 +254,38 @@ const DexSlot = memo(function DexSlot({
         {selected && (
           <span aria-hidden="true" className="absolute left-0 top-0 h-2 w-2 bg-accent-blue" />
         )}
-        <img
-          src={getDefaultSpriteUrl(id, caught ? "shiny" : "normal")}
-          alt=""
-          width={96}
-          height={96}
-          loading="lazy"
-          decoding="async"
-          onError={handleSpriteError}
-          className={`h-12 w-12 object-contain [image-rendering:pixelated] ${caught ? "" : "t-dex-silhouette"}`}
-        />
+        {/* The badge is anchored to the sprite, not to the button: the button's
+            bottom row is where the species name lives, and at narrow widths a
+            corner badge there lands straight on top of it. */}
+        <span className="relative inline-flex">
+          <img
+            src={getDefaultSpriteUrl(id, caught ? "shiny" : "normal")}
+            alt=""
+            width={96}
+            height={96}
+            loading="lazy"
+            decoding="async"
+            onError={handleSpriteError}
+            className={`h-12 w-12 object-contain [image-rendering:pixelated] ${caught ? "" : "t-dex-silhouette"}`}
+          />
+          {/* Only from the second catch on. A "+1" on the very first catch
+              would promise a base entry this slot never had, and a lone catch
+              needs no hint that the panel holds more than one. */}
+          {catchCount > 1 && (
+            <span
+              aria-hidden="true"
+              className="t-label absolute bottom-0 right-0 bg-bg-card tabular-nums"
+            >
+              ×{catchCount}
+            </span>
+          )}
+        </span>
         <span className="font-mono tabular-nums text-[10px] text-text-faint">
           #{String(id).padStart(4, "0")}
         </span>
         <span className="hidden max-w-full truncate text-[11px] text-text-secondary sm:block">
           {name}
         </span>
-        {/* Threshold matches slotLabel, so the chip and the accessible name
-            never disagree about whether a form was caught. One variant is the
-            case that needs the hint most: the slot shows the base species
-            sprite while what the hunter actually owns is the form. */}
-        {variantCount > 0 && (
-          <span aria-hidden="true" className="t-label absolute bottom-0.5 right-0.5">
-            +{variantCount}
-          </span>
-        )}
       </button>
     </li>
   );
@@ -317,15 +326,29 @@ function DexSection({
       aria-labelledby={headingId}
       style={{ containIntrinsicSize: `auto ${rows * ROW_HEIGHT}px` }}
     >
-      <h2
-        id={headingId}
-        className="sticky top-0 z-10 mb-2 flex items-baseline gap-3 bg-bg-primary py-1 text-xs font-semibold uppercase tracking-[0.18em] text-text-secondary"
-      >
-        {t("dex.generation", { n: block.generation })}
-        <span className="font-mono text-[11px] tabular-nums text-text-faint">
-          {block.caught}/{block.total}
-        </span>
-      </h2>
+      {/* The sticky element is this wrapper, not the bar, so the gap below the
+          bar is opaque page background rather than a hole the grid scrolls
+          through. A margin or a transparent gap cannot do both jobs: it would
+          either close the gap or let the slots show in it. */}
+      <div className="sticky top-0 z-10 bg-bg-primary pb-2">
+        {/* bg-secondary lands within 1.05:1 of a slot card, so a background
+            alone gives the bar no edge. border-active carries the separation,
+            at 6.1:1 dark and 6.8:1 light, the same accent rule the sidebar
+            tabs use. */}
+        <h2
+          id={headingId}
+          className="flex items-baseline gap-3 border-b border-border-active bg-bg-secondary p-4 text-xs font-semibold uppercase tracking-[0.18em] text-text-primary"
+        >
+          {t("dex.generation", { n: block.generation })}
+          <span
+            className={`t-label ${block.caught === block.total ? "t-label--accent" : ""}`}
+          >
+            <span className="font-mono tabular-nums">
+              {block.caught}/{block.total}
+            </span>
+          </span>
+        </h2>
+      </div>
       <ul role="list" className="dex-grid" onKeyDown={onKeyDown}>
         {block.slots.map((slot) => (
           <DexSlot
@@ -334,7 +357,7 @@ function DexSection({
             name={slot.name}
             caught={slot.caught}
             selected={slot.id === selectedId}
-            variantCount={slot.variantCount}
+            catchCount={slot.catchCount}
             label={slot.label}
             tabIndex={slot.id === activeId ? 0 : -1}
             onOpen={onOpen}
@@ -561,10 +584,12 @@ export function DexPage() {
   const [focusedId, setFocusedId] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [catchesOpen, setCatchesOpen] = useState(false);
   const [editCatchId, setEditCatchId] = useState<string | null>(null);
   const [columns, setColumns] = useState(1);
 
   const gridsRef = useRef<HTMLDivElement>(null);
+  const showAllCatchesRef = useRef<HTMLButtonElement>(null);
   // Whether the hunter has chosen a slot. Only their pick is worth preserving
   // across a late-arriving snapshot; a default is not.
   const pickedRef = useRef(false);
@@ -626,7 +651,7 @@ export function DexPage() {
         name,
         generation: entry.generation,
         caught: catchCount > 0,
-        variantCount,
+        catchCount,
         label: slotLabel(t, entry.id, name, catchCount, variantCount),
       };
     });
@@ -742,11 +767,24 @@ export function DexPage() {
     gridsRef.current?.querySelector<HTMLElement>(`[data-dex-id="${selectedId}"]`)?.focus();
   }, [selectedId]);
 
+  const handleCloseCatches = useCallback(() => {
+    setCatchesOpen(false);
+    // The CRT close transition delays unmount, so the dialog's own focus
+    // restoration lands too late. Put it back on the control that opened it.
+    showAllCatchesRef.current?.focus();
+  }, []);
+
   // Growing past the breakpoint turns the dialog into a duplicate of the panel
   // that is already on screen.
   useEffect(() => {
     if (wide) setDetailOpen(false);
   }, [wide]);
+
+  // The catch list belongs to one species and the narrow layout carries its
+  // own copy inside the detail dialog, so both changes retire this one.
+  useEffect(() => {
+    setCatchesOpen(false);
+  }, [selectedId, wide]);
 
   const toggleGeneration = useCallback((generation: number) => {
     setGenerationFilter((current) => {
@@ -770,8 +808,15 @@ export function DexPage() {
 
   return (
     <main id="main-content" className="flex-1 flex flex-col min-h-0 bg-transparent">
-      <div className="flex-1 min-h-0 overflow-auto p-6">
-        <div className="mx-auto flex max-w-6xl flex-col gap-4">
+      {/* A size container, so the sticky detail panel can cap itself at the
+          height of this scrollport (100cqh) instead of guessing at the app
+          chrome above and below it with viewport units. */}
+      {/* No top padding on the scroller itself: a sticky child pins to the
+          padding edge, so any padding here becomes a band above the pinned
+          generation bar that the grid stays visible in while it scrolls. The
+          top inset lives on the content instead, where it scrolls away. */}
+      <div className="flex-1 min-h-0 overflow-auto px-6 pb-6 [container-type:size]">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 pt-6">
           <DexProgress caught={index.caught} total={index.total} />
 
           <div className="t-panel flex flex-col gap-4 p-4">
@@ -869,9 +914,24 @@ export function DexPage() {
             {wide && selected && (
               // Not a live region on purpose: selection follows focus, so an
               // announcement would fire on every single arrow key.
+              //
+              // The summary card is short by construction, but the recorded
+              // catch metadata of its inline catch can still run long (six
+              // determinants plus a ribbon wall). A sticky box taller than the
+              // viewport pins its top and puts the rest out of reach, so the
+              // cap and the panel's own scrollbar stay. The catch list is a
+              // native dialog in the top layer and is not clipped by it.
+              // tabIndex makes that scroll container keyboard operable (WCAG
+              // 2.1.1); the section already carries a name through
+              // aria-labelledby.
               <section
                 aria-labelledby={panelHeadingId}
-                className="sticky top-0 w-[340px] shrink-0 xl:w-[380px]"
+                tabIndex={0}
+                // overflow-x is pinned to hidden because setting only
+                // overflow-y makes the other axis compute to auto, and the
+                // hit-area expanders on the icon buttons overshoot their row by
+                // a few pixels, which was enough to grow a horizontal scrollbar.
+                className="sticky top-0 max-h-[100cqh] w-[340px] shrink-0 overflow-y-auto overflow-x-hidden xl:w-[380px]"
               >
                 <DexSpeciesDetail
                   id={selected.id}
@@ -884,6 +944,8 @@ export function DexPage() {
                   languages={gameLanguages}
                   headingId={panelHeadingId}
                   onEditCatch={setEditCatchId}
+                  onShowAllCatches={() => setCatchesOpen(true)}
+                  showAllRef={showAllCatchesRef}
                 />
               </section>
             )}
@@ -905,6 +967,19 @@ export function DexPage() {
           languages={gameLanguages}
           onEditCatch={setEditCatchId}
           onClose={handleCloseDetail}
+        />
+      )}
+
+      {catchesOpen && selected && (
+        <DexCatchesModal
+          name={selectedName}
+          canonical={selected.canonical}
+          catches={selected.catches}
+          snapshot={snapshot ?? []}
+          games={games}
+          languages={gameLanguages}
+          onEditCatch={setEditCatchId}
+          onClose={handleCloseCatches}
         />
       )}
 
