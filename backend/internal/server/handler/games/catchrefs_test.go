@@ -61,6 +61,27 @@ func TestHandleGetCatchRefs(t *testing.T) {
 	}
 }
 
+// TestCatchRefsAreNotCached pins the rule by behaviour rather than against the
+// header constant, which a change would drag along with it. An app update
+// rewrites these lists, and a cached copy outlives that update with no way for
+// the user to evict it: shipping "max-age=86400, immutable" here once left the
+// previous release's ball names on screen for a day.
+func TestCatchRefsAreNotCached(t *testing.T) {
+	for _, path := range []string{catchRefsPath, catchLocationPath + "?game=pokemon-ruby"} {
+		t.Run(path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			newCatchRefsMux(t).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf(fmtStatusWant200, rec.Code)
+			}
+			if cc := rec.Header().Get("Cache-Control"); cc != "no-store" {
+				t.Errorf("Cache-Control = %q, want no-store: a stored copy survives the update that replaces it", cc)
+			}
+		})
+	}
+}
+
 func TestHandleGetCatchRefLocations(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, catchLocationPath+"?game=pokemon-ruby", nil)

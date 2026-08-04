@@ -1,6 +1,5 @@
 // catchrefs.go serves the embedded reference lists a hunter picks from when
-// recording a catch. The data ships with the binary and only changes on an app
-// update, so both routes are cacheable and need no dependencies.
+// recording a catch. The data ships with the binary and needs no dependencies.
 package games
 
 import (
@@ -10,10 +9,13 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 )
 
-// catchRefsCacheControl lets the renderer keep the reference lists for a day.
-// The payload is baked into the binary, so it can only change when the app
-// itself is replaced, at which point the renderer reloads anyway.
-const catchRefsCacheControl = "max-age=86400, immutable"
+// catchRefsCacheControl keeps these lists out of the renderer's cache. They are
+// read from memory over the loopback interface, so caching them saves nothing
+// measurable, while a cached copy survives the app update that replaces the
+// data and cannot be evicted by the user: that shipped once as
+// "max-age=86400, immutable" and left the previous release's ball names on
+// screen for a day.
+const catchRefsCacheControl = "no-store"
 
 // locationsResponse pairs the PKHeX location group covering a game with its
 // met locations. The group name is returned so the caller can tell "unknown
