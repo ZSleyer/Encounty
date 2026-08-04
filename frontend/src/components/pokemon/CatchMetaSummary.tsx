@@ -11,6 +11,12 @@ import { useI18n } from "../../contexts/I18nContext";
 import type { CatchMeta } from "../../types";
 import { refLabelFor, useCatchRefs } from "../../hooks/useCatchRefs";
 import {
+  CatchIcon,
+  getBallIconUrl,
+  getMarkIconUrl,
+  getRibbonIconUrl,
+} from "../../utils/catchIcons";
+import {
   IV_BORDER_CLASS,
   IV_PERFECT_TOTAL,
   IV_STATS,
@@ -48,10 +54,15 @@ export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
   const { t, locale } = useI18n();
   const refs = useCatchRefs();
 
-  const pairs: { key: string; term: string; value: string }[] = [];
+  const pairs: { key: string; term: string; value: string; icon?: string }[] = [];
   if (meta?.location) pairs.push({ key: "location", term: t("catchMeta.location"), value: meta.location });
   if (meta?.ball) {
-    pairs.push({ key: "ball", term: t("catchMeta.ball"), value: refLabelFor(refs.balls, meta.ball, locale) });
+    pairs.push({
+      key: "ball",
+      term: t("catchMeta.ball"),
+      value: refLabelFor(refs.balls, meta.ball, locale),
+      icon: getBallIconUrl(meta.ball),
+    });
   }
   if (meta?.level !== undefined) {
     pairs.push({ key: "level", term: t("catchMeta.level"), value: String(meta.level) });
@@ -63,7 +74,12 @@ export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
     pairs.push({ key: "ability", term: t("catchMeta.ability"), value: refLabelFor(refs.abilities, meta.ability, locale) });
   }
   if (meta?.mark) {
-    pairs.push({ key: "mark", term: t("catchMeta.mark"), value: refLabelFor(refs.marks, meta.mark, locale) });
+    pairs.push({
+      key: "mark",
+      term: t("catchMeta.mark"),
+      value: refLabelFor(refs.marks, meta.mark, locale),
+      icon: getMarkIconUrl(meta.mark),
+    });
   }
 
   const ivValues = IV_STATS.map((stat) => ivText(meta?.[stat.key]));
@@ -85,26 +101,32 @@ export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
   );
 
   return (
-    <div className="t-panel p-4">
+    <div className="t-panel p-4 @container">
       <div className="flex items-center justify-between gap-2">
         <span className="t-label">{t("catchMeta.title")}</span>
         {editButton}
       </div>
 
       {hasCatchData(meta) ? (
-        <dl className="mt-3 grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-2 text-sm">
+        <dl className="mt-3 grid grid-cols-[auto_1fr] @md:grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-2 text-sm">
           {pairs.map((pair) => (
             <div key={pair.key} className="contents">
               <dt className="t-label self-center">{pair.term}</dt>
-              <dd className="text-text-primary break-words">{pair.value}</dd>
+              <dd className="text-text-primary break-words">
+                {pair.icon ? (
+                  <RefBadge icon={pair.icon} label={pair.value} />
+                ) : (
+                  pair.value
+                )}
+              </dd>
             </div>
           ))}
 
           {hasIvs && (
-            <div className="col-span-2 sm:col-span-4 flex flex-col gap-1.5">
+            <div className="col-span-2 @md:col-span-4 flex flex-col gap-1.5">
               <dt className="t-label self-start">{t("catchMeta.ivs")}</dt>
               <dd>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <div className="grid grid-cols-3 @md:grid-cols-6 gap-2">
                   {IV_STATS.map((stat, index) => (
                     <IvReadout
                       key={stat.key}
@@ -130,16 +152,15 @@ export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
           )}
 
           {ribbons.length > 0 && (
-            <div className="col-span-2 sm:col-span-4 flex flex-col gap-1.5">
+            <div className="col-span-2 @md:col-span-4 flex flex-col gap-1.5">
               <dt className="t-label self-start">{t("catchMeta.ribbons")}</dt>
               <dd className="flex flex-wrap gap-1.5">
                 {ribbons.map((slug) => (
-                  <span
+                  <RefBadge
                     key={slug}
-                    className="inline-flex items-center px-2 py-0.5 rounded-none border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary"
-                  >
-                    {refLabelFor(refs.ribbons, slug, locale)}
-                  </span>
+                    icon={getRibbonIconUrl(slug)}
+                    label={refLabelFor(refs.ribbons, slug, locale)}
+                  />
                 ))}
               </dd>
             </div>
@@ -149,6 +170,28 @@ export function CatchMetaSummary({ meta, onEdit }: CatchMetaSummaryProps) {
         <p className="mt-3 text-sm text-text-muted">{t("catchMeta.summaryEmpty")}</p>
       )}
     </div>
+  );
+}
+
+// --- Reference badge ---
+
+interface RefBadgeProps {
+  readonly icon: string;
+  readonly label: string;
+}
+
+/**
+ * One catalogue entry as a badge. Ball, mark and every ribbon use the same
+ * chip, so a recorded detail with a game icon always reads the same way. The
+ * label never wraps: a broken word beside a 16px icon was unreadable in the
+ * narrow dex panel, a chip that moves to its own line is not.
+ */
+function RefBadge({ icon, label }: RefBadgeProps) {
+  return (
+    <span className="inline-flex items-center gap-1 pl-1.5 pr-2 py-0.5 rounded-none border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary whitespace-nowrap">
+      <CatchIcon src={icon} className="w-4 h-4 object-contain shrink-0" />
+      {label}
+    </span>
   );
 }
 
