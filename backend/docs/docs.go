@@ -48,6 +48,13 @@ const docTemplate = `{
             },
             "catchrefs.Ball": {
                 "properties": {
+                    "games": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
                     "generations": {
                         "items": {
                             "type": "integer"
