@@ -671,6 +671,21 @@ export function DexPage() {
   const blocks = useMemo(() => groupByGeneration(visible, totals), [visible, totals]);
   const generations = useMemo(() => [...totals.keys()].sort((a, b) => a - b), [totals]);
 
+  // Rendering all nine generations at once costs one ~180ms task on entry,
+  // which reads as the tab stalling. Only ~35ms of that is the DOM: the rest
+  // is React walking 1025 slot components, so content-visibility cannot help,
+  // it only skips layout and paint of what React has already produced.
+  // Mounting one block per frame keeps every task short and puts generation 1
+  // on screen in the first one. The counter only grows: once it has passed the
+  // block count it stops mattering, so a later filter renders in a single
+  // pass rather than replaying the ramp.
+  const [mountedBlocks, setMountedBlocks] = useState(1);
+  useEffect(() => {
+    if (mountedBlocks >= blocks.length) return;
+    const frame = requestAnimationFrame(() => setMountedBlocks((n) => n + 1));
+    return () => cancelAnimationFrame(frame);
+  }, [mountedBlocks, blocks.length]);
+
   // Switching to an older game drops the generations above its dex cap. A
   // selection left on one of them would empty the grid with no chip left to
   // switch it off again.
@@ -898,7 +913,7 @@ export function DexPage() {
               {allPokemon.length > 0 && visible.length === 0 && (
                 <p className="text-sm text-text-muted">{t("dex.noResults")}</p>
               )}
-              {blocks.map((block) => (
+              {blocks.slice(0, mountedBlocks).map((block) => (
                 <DexSection
                   key={block.generation}
                   block={block}

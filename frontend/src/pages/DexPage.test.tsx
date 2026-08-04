@@ -61,12 +61,12 @@ function shippedGames(): GameEntry[] {
 }
 
 /** Serves the two catalogues DexPage pulls on mount; everything else is empty. */
-function stubFetch(games: GameEntry[] = GAMES) {
+function stubFetch(games: GameEntry[] = GAMES, pokedex: unknown[] = POKEDEX) {
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
-      const body = url.includes("/api/pokedex") ? POKEDEX : url.includes("/api/games") ? games : [];
+      const body = url.includes("/api/pokedex") ? pokedex : url.includes("/api/games") ? games : [];
       return Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
     }),
   );
@@ -448,5 +448,42 @@ describe("DexPage multi-catch slots", () => {
     expect(showAllControl()).toBeNull();
     expect(fact(inlineCatch(), "Spiel")).toBe("Pokémon Karmesin");
     expect(within(slot(6)).queryByText(/^×\d+$/)).toBeNull();
+  });
+});
+
+describe("DexPage generation mounting", () => {
+  beforeEach(() => {
+    useCounterStore.setState({ appState: makeAppState({ pokemon: [] }) });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useCounterStore.setState({ appState: null });
+  });
+
+  // The grid mounts one generation per frame so entering the tab does not
+  // block on a single render of every slot. The ramp is only worth having if
+  // it still arrives at the whole dex, and only correct if it never stops
+  // early: a generation that never mounts is a species the user cannot reach.
+  it("mounts every generation, not just the first", async () => {
+    const across = [
+      { id: 1, canonical: "bulbasaur", names: { de: "Bisasam", en: "Bulbasaur" } },
+      { id: 152, canonical: "chikorita", names: { de: "Endivie", en: "Chikorita" } },
+      { id: 252, canonical: "treecko", names: { de: "Geckarbor", en: "Treecko" } },
+    ];
+    stubFetch(GAMES, across);
+
+    await act(async () => {
+      render(<DexPage />);
+    });
+
+    // Generation 1 is up immediately; the rest follow over the next frames.
+    await screen.findByRole("heading", { name: /Generation 1/ });
+    await screen.findByRole("heading", { name: /Generation 2/ });
+    await screen.findByRole("heading", { name: /Generation 3/ });
+
+    for (const id of [1, 152, 252]) {
+      expect(slot(id), `slot ${id} never mounted`).toBeTruthy();
+    }
   });
 });
