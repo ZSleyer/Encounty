@@ -10,13 +10,19 @@
  * why there is no validation pass and no `aria-invalid` anywhere (WCAG 3.3.1
  * prefers prevention over error messages).
  */
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
 import type { CatchMeta, Pokemon } from "../../types";
 import { ModalShell } from "../shared/ModalShell";
 import { getGameGroup } from "../../utils/gameGroups";
+import {
+  CatchIcon,
+  getBallIconUrl,
+  getMarkIconUrl,
+  getRibbonIconUrl,
+} from "../../utils/catchIcons";
 import {
   refLabel,
   refLabelFor,
@@ -112,6 +118,25 @@ const EMPTY_IVS: IvState = {
 const INPUT_CLASS =
   "w-full bg-bg-secondary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary placeholder-text-faint focus:border-accent-blue/50 transition-colors";
 
+/** How many suggestions a free-text field offers at once. */
+const SUGGESTION_LIMIT = 50;
+
+/**
+ * Catalogue entries whose localized name starts with what was typed, capped at
+ * {@link SUGGESTION_LIMIT}. An empty query offers the head of the catalogue.
+ */
+function matchingRefs(
+  entries: readonly CatchRefEntry[],
+  query: string,
+  locale: string,
+): CatchRefEntry[] {
+  const needle = query.trim().toLowerCase();
+  const matching = needle
+    ? entries.filter((entry) => refLabel(entry, locale).toLowerCase().startsWith(needle))
+    : entries;
+  return matching.slice(0, SUGGESTION_LIMIT);
+}
+
 /** Renders a numeric string, keeping "" for unset. Non-digits are dropped. */
 function digitsOnly(raw: string, maxLength: number): string {
   return raw.replace(/\D/g, "").slice(0, maxLength);
@@ -183,12 +208,10 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
   const stored = pokemon.catch;
   const ids = {
     location: useId(),
-    locationList: useId(),
     ball: useId(),
     level: useId(),
     nature: useId(),
     ability: useId(),
-    abilityList: useId(),
     mark: useId(),
     ribbons: useId(),
   };
@@ -226,17 +249,17 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
     [refs.marks, locale],
   );
 
-  // Datalists are rendered eagerly by the browser, so the location list is
-  // capped: a game group carries up to ~250 entries.
-  const locationOptions = useMemo(() => {
-    const query = location.trim().toLowerCase();
-    const matching = query
-      ? refs.locations.filter((entry) =>
-          refLabel(entry, locale).toLowerCase().startsWith(query),
-        )
-      : refs.locations;
-    return matching.slice(0, 50);
-  }, [refs.locations, location, locale]);
+  // Both suggestion lists are rendered eagerly, so they are capped: a game
+  // group carries up to ~250 locations and the ability catalogue is flat and
+  // global with several hundred entries.
+  const locationOptions = useMemo(
+    () => matchingRefs(refs.locations, location, locale),
+    [refs.locations, location, locale],
+  );
+  const abilityOptions = useMemo(
+    () => matchingRefs(refs.abilities, ability, locale),
+    [refs.abilities, ability, locale],
+  );
 
   // --- Determinant values ---
 
@@ -331,28 +354,17 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
         <p className="text-sm text-text-muted">{t("catchMeta.intro")}</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5 sm:col-span-2">
-            <label htmlFor={ids.location} className="t-label">
-              {t("catchMeta.location")}
-            </label>
-            <input
-              data-autofocus
-              id={ids.location}
-              type="text"
-              maxLength={120}
-              list={ids.locationList}
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder={t("catchMeta.locationPlaceholder")}
-              className={INPUT_CLASS}
-            />
-            {/* An empty catalogue leaves a plain text input behind, no error. */}
-            <datalist id={ids.locationList}>
-              {locationOptions.map((entry) => (
-                <option key={entry.slug} value={refLabel(entry, locale)} />
-              ))}
-            </datalist>
-          </div>
+          <ComboField
+            id={ids.location}
+            label={t("catchMeta.location")}
+            placeholder={t("catchMeta.locationPlaceholder")}
+            options={locationOptions}
+            value={location}
+            onChange={setLocation}
+            locale={locale}
+            autoFocus
+            className="sm:col-span-2"
+          />
 
           <SelectField
             id={ids.ball}
@@ -362,6 +374,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
             value={ball}
             onChange={setBall}
             locale={locale}
+            iconFor={getBallIconUrl}
           />
 
           <div className="flex flex-col gap-1.5">
@@ -390,26 +403,15 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
             locale={locale}
           />
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor={ids.ability} className="t-label">
-              {t("catchMeta.ability")}
-            </label>
-            <input
-              id={ids.ability}
-              type="text"
-              maxLength={120}
-              list={ids.abilityList}
-              value={ability}
-              onChange={(e) => setAbility(e.target.value)}
-              placeholder={t("catchMeta.abilityPlaceholder")}
-              className={INPUT_CLASS}
-            />
-            <datalist id={ids.abilityList}>
-              {refs.abilities.map((entry) => (
-                <option key={entry.slug} value={refLabel(entry, locale)} />
-              ))}
-            </datalist>
-          </div>
+          <ComboField
+            id={ids.ability}
+            label={t("catchMeta.ability")}
+            placeholder={t("catchMeta.abilityPlaceholder")}
+            options={abilityOptions}
+            value={ability}
+            onChange={setAbility}
+            locale={locale}
+          />
 
           <SelectField
             id={ids.mark}
@@ -419,6 +421,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
             value={mark}
             onChange={setMark}
             locale={locale}
+            iconFor={getMarkIconUrl}
           />
         </div>
 
@@ -436,20 +439,171 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
   );
 }
 
+// --- Combo field ---
+
+interface ComboFieldProps {
+  readonly id: string;
+  readonly label: string;
+  readonly placeholder: string;
+  /** Suggestions to offer; the caller filters and caps them. */
+  readonly options: readonly CatchRefEntry[];
+  readonly value: string;
+  readonly onChange: (value: string) => void;
+  readonly locale: string;
+  /** Focus on mount; also marks the field for useModalDialog. */
+  readonly autoFocus?: boolean;
+  /** Extra classes for the wrapping cell, e.g. a grid span. */
+  readonly className?: string;
+}
+
+/**
+ * Free-text field with a Tempest suggestion list over a reference catalogue.
+ *
+ * Replaces `<datalist>`, whose popup the browser draws in its own chrome and
+ * which no stylesheet can reach. The list is built from the same primitives as
+ * the species picker: focusable rows instead of `role="option"`, so every entry
+ * is reachable with the Tab key (WCAG 2.1.1), and a fixed, anchor-positioned
+ * box so the scrollable modal body cannot clip it.
+ *
+ * Typing stays free-form. The catalogue only suggests, so a location a game
+ * table does not carry can still be recorded.
+ */
+function ComboField({
+  id,
+  label,
+  placeholder,
+  options,
+  value,
+  onChange,
+  locale,
+  autoFocus,
+  className,
+}: ComboFieldProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const instanceId = useId();
+  // useId() yields colons, which are not valid in a CSS dashed-ident.
+  const anchorName = `--combo-${instanceId.replace(/[^a-zA-Z0-9]/g, "-")}`;
+  const [open, setOpen] = useState(false);
+
+  const suggestions = open ? options : [];
+
+  /** Closes the list once focus leaves the field and its suggestions. */
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setOpen(false);
+  };
+
+  /**
+   * Escape closes the list and returns focus to the field. The event must not
+   * bubble: inside a <dialog> the browser would read the same keypress as a
+   * close request and dismiss the whole modal.
+   */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Escape" || suggestions.length === 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    inputRef.current?.focus();
+    setOpen(false);
+  };
+
+  const pick = (entry: CatchRefEntry) => {
+    onChange(refLabel(entry, locale));
+    setOpen(false);
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div className={`flex flex-col gap-1.5 ${className ?? ""}`}>
+      <label htmlFor={id} className="t-label">
+        {label}
+      </label>
+      <div onBlur={handleBlur} onKeyDown={handleKeyDown}>
+        <input
+          ref={inputRef}
+          data-autofocus={autoFocus ? true : undefined}
+          id={id}
+          type="text"
+          maxLength={120}
+          value={value}
+          onChange={(e) => {
+            onChange(e.target.value);
+            // Typing reopens a list that Escape closed.
+            setOpen(true);
+          }}
+          // Opened by clicking or typing, never by focus alone: the field is
+          // autofocused on mount and a list unfolding over the untouched form
+          // would hide the fields below it before anything was asked for.
+          onClick={() => setOpen(true)}
+          placeholder={placeholder}
+          style={{ anchorName } as CSSProperties}
+          className={INPUT_CLASS}
+        />
+        {suggestions.length > 0 && (
+          <div
+            style={
+              {
+                positionAnchor: anchorName,
+                positionArea: "block-end span-inline-end",
+                width: "anchor-size(width)",
+                marginBlockStart: "0.25rem",
+              } as CSSProperties
+            }
+            className="fixed bg-bg-secondary border border-border-subtle rounded-none z-50 shadow-xl max-h-52 overflow-x-hidden overflow-y-auto"
+          >
+            {suggestions.map((entry) => (
+              <button
+                key={entry.slug}
+                type="button"
+                // Keep the press from moving focus at all: browsers that do not
+                // focus a clicked button (Safari) would otherwise blur the
+                // field and unmount the row before its click fires.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(entry)}
+                className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors truncate focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
+              >
+                {refLabel(entry, locale)}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // --- Select field ---
 
 interface SelectFieldProps {
   readonly id: string;
   readonly label: string;
-  /** Label of the leading empty option that clears the field. */
+  /** Label of the leading empty entry that clears the field. */
   readonly emptyLabel: string;
   readonly options: readonly CatchRefEntry[];
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly locale: string;
+  /** Icon URL of one entry; omit for catalogues without icons. */
+  readonly iconFor?: (slug: string) => string;
 }
 
-/** One labelled Tempest select over a reference catalogue. */
+/** How long two keystrokes still count as one typeahead prefix, in ms. */
+const TYPEAHEAD_WINDOW = 700;
+
+/**
+ * One labelled dropdown over a reference catalogue.
+ *
+ * Built from a button and a popup instead of a native `<select>` because an
+ * `<option>` cannot carry an image, and the ball and mark catalogues are far
+ * easier to read with their game icons than by name alone. Trigger and popup
+ * borrow the Tempest select skin (`t-select-wrap` draws the chevron), so the
+ * field looks exactly like the native control it replaces.
+ *
+ * Keyboard support mirrors what the native control offered: the trigger opens
+ * on Enter or Space and moves focus onto the current entry, entries are plain
+ * focusable buttons and therefore Tab-reachable (WCAG 2.1.1), typing a few
+ * letters jumps to the matching entry, and Escape closes without bubbling into
+ * the surrounding dialog.
+ */
 function SelectField({
   id,
   label,
@@ -458,28 +612,153 @@ function SelectField({
   value,
   onChange,
   locale,
+  iconFor,
 }: SelectFieldProps) {
+  const instanceId = useId();
+  const labelId = `${instanceId}-label`;
+  // useId() yields colons, which are not valid in a CSS dashed-ident.
+  const anchorName = `--select-${instanceId.replace(/[^a-zA-Z0-9]/g, "-")}`;
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const typed = useRef({ prefix: "", at: 0 });
+  const [open, setOpen] = useState(false);
+
+  const currentLabel = value ? refLabelFor(options, value, locale) : emptyLabel;
+
+  // Opening lands on the current entry, so the list starts where the native
+  // control would have, instead of forcing a walk from the top.
+  useEffect(() => {
+    if (!open) return;
+    const list = listRef.current;
+    const active = list?.querySelector<HTMLButtonElement>('[data-active="true"]');
+    (active ?? list?.querySelector("button"))?.focus();
+  }, [open]);
+
+  const close = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  const pick = (slug: string) => {
+    onChange(slug);
+    close();
+  };
+
+  /** Closes the popup once focus leaves the trigger and the list. */
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setOpen(false);
+  };
+
+  /**
+   * Escape closes the popup, printable keys jump to the entry starting with
+   * what was typed. Escape must not bubble: inside a <dialog> the browser
+   * would read the same keypress as a close request for the whole modal.
+   */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!open) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+      return;
+    }
+    if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+    const now = Date.now();
+    const prefix =
+      now - typed.current.at > TYPEAHEAD_WINDOW ? e.key : typed.current.prefix + e.key;
+    typed.current = { prefix, at: now };
+    const needle = prefix.toLowerCase();
+    const rows = [...(listRef.current?.querySelectorAll("button") ?? [])];
+    const hit = rows.find((row) => row.textContent?.trim().toLowerCase().startsWith(needle));
+    if (!hit) return;
+    e.preventDefault();
+    hit.focus();
+  };
+
+  const entries = [{ slug: "", name: emptyLabel }, ...options.map((entry) => ({
+    slug: entry.slug,
+    name: refLabel(entry, locale),
+  }))];
+
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="t-label">
+      <span id={labelId} className="t-label">
         {label}
-      </label>
-      <span className="t-select-wrap">
-        <select
-          id={id}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="t-select text-sm"
-        >
-          <option value="">{emptyLabel}</option>
-          {options.map((entry) => (
-            <option key={entry.slug} value={entry.slug}>
-              {refLabel(entry, locale)}
-            </option>
-          ))}
-        </select>
       </span>
+      <div onBlur={handleBlur} onKeyDown={handleKeyDown}>
+        <span className="t-select-wrap" style={{ anchorName } as CSSProperties}>
+          <button
+            ref={triggerRef}
+            id={id}
+            type="button"
+            aria-expanded={open}
+            aria-haspopup="true"
+            // Self-reference keeps the visible entry name inside the accessible
+            // name, which a bare aria-label would have replaced (WCAG 2.5.3).
+            aria-labelledby={`${labelId} ${id}`}
+            onClick={() => setOpen((wasOpen) => !wasOpen)}
+            className="t-select text-sm flex items-center gap-2 text-left"
+          >
+            {iconFor && <IconSlot src={value ? iconFor(value) : ""} />}
+            <span className="flex-1 min-w-0 truncate">{currentLabel}</span>
+          </button>
+        </span>
+
+        {open && (
+          <div
+            ref={listRef}
+            // Fixed instead of absolute: the dialog body scrolls and would clip
+            // an absolutely positioned popup. CSS anchor positioning keeps the
+            // box under the trigger without JS measuring; the properties are
+            // not in React's CSSProperties yet.
+            style={
+              {
+                positionAnchor: anchorName,
+                positionArea: "block-end span-inline-end",
+                width: "anchor-size(width)",
+                marginBlockStart: "0.25rem",
+              } as CSSProperties
+            }
+            className="fixed bg-bg-secondary border border-border-subtle rounded-none z-50 shadow-xl max-h-52 overflow-x-hidden overflow-y-auto"
+          >
+            {entries.map((entry) => (
+              <button
+                key={entry.slug || "none"}
+                type="button"
+                data-active={entry.slug === value ? "true" : undefined}
+                aria-current={entry.slug === value ? "true" : undefined}
+                // Keep the press from moving focus at all: browsers that do not
+                // focus a clicked button (Safari) would otherwise blur the list
+                // and unmount the row before its click fires.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => pick(entry.slug)}
+                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${
+                  entry.slug === value
+                    ? "bg-accent-blue/10 text-accent-blue"
+                    : "text-text-primary hover:bg-bg-hover"
+                }`}
+              >
+                {iconFor && <IconSlot src={entry.slug ? iconFor(entry.slug) : ""} />}
+                <span className="flex-1 min-w-0 truncate">{entry.name}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+/**
+ * Fixed-size icon cell. Keeps its width while the entry has no icon, otherwise
+ * the labels of a catalogue would sit at two different indents.
+ */
+function IconSlot({ src }: { readonly src: string }) {
+  return (
+    <span className="w-5 h-5 shrink-0 flex items-center justify-center">
+      <CatchIcon src={src} className="max-w-full max-h-full object-contain" />
+    </span>
   );
 }
 
@@ -608,8 +887,12 @@ function RibbonPicker({
           {selected.map((slug) => (
             <span
               key={slug}
-              className="inline-flex items-center gap-1 min-h-[24px] pl-2 pr-1 py-0.5 rounded-none border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary"
+              className="inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-1 py-0.5 rounded-none border border-border-subtle bg-bg-secondary text-[11px] text-text-secondary"
             >
+              <CatchIcon
+                src={getRibbonIconUrl(slug)}
+                className="w-4 h-4 object-contain shrink-0"
+              />
               {nameOf(slug)}
               {/* Sibling button, never nested inside another interactive element. */}
               <button
@@ -654,12 +937,16 @@ function RibbonPicker({
               onClick={() => onToggle(entry.slug)}
               aria-pressed={active}
               aria-label={t("aria.catchMetaRibbonToggle", { name })}
-              className={`min-h-[24px] px-2 py-1 rounded-none border text-[11px] transition-colors ${
+              className={`inline-flex items-center gap-1 min-h-[24px] pl-1.5 pr-2 py-1 rounded-none border text-[11px] transition-colors ${
                 active
                   ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
                   : "border-border-subtle text-text-muted hover:text-text-primary"
               }`}
             >
+              <CatchIcon
+                src={getRibbonIconUrl(entry.slug)}
+                className="w-4 h-4 object-contain shrink-0"
+              />
               {name}
             </button>
           );

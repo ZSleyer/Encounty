@@ -84,6 +84,36 @@ function ivInput(abbr: string): HTMLInputElement {
   }) as HTMLInputElement;
 }
 
+/**
+ * Resolves once the reference catalogues arrived. The ribbon toggles are the
+ * only catalogue rendered without opening anything, so they are the cheapest
+ * signal that the fetch settled.
+ */
+function awaitRefs() {
+  // All matches, because a selected ribbon renders both a chip and a toggle.
+  return screen.findAllByRole("button", { name: "Band Fleiß-Band umschalten" });
+}
+
+/**
+ * The trigger of one catalogue dropdown. Its accessible name is the field
+ * label followed by the current entry, e.g. "Ball Pokéball".
+ */
+function trigger(field: string): HTMLButtonElement {
+  return screen.getByRole("button", {
+    name: new RegExp(`^${field} `),
+  }) as HTMLButtonElement;
+}
+
+/** Opens a catalogue dropdown and picks the entry with the given label. */
+async function pick(
+  user: ReturnType<typeof userEvent.setup>,
+  field: string,
+  entry: string,
+) {
+  await user.click(trigger(field));
+  await user.click(await screen.findByRole("button", { name: entry }));
+}
+
 beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch());
   vi.mocked(HTMLDialogElement.prototype.showModal).mockClear();
@@ -129,14 +159,14 @@ describe("CatchMetaModal", () => {
   it("submits the exact payload of every filled field", async () => {
     const user = userEvent.setup();
     const { onSubmit, onClose } = renderModal();
-    await screen.findByRole("option", { name: "Pokéball" });
+    await awaitRefs();
 
     await user.type(screen.getByLabelText("Fundort"), "Route 1");
-    await user.selectOptions(screen.getByLabelText("Ball"), "poke-ball");
+    await pick(user, "Ball", "Pokéball");
     await user.type(screen.getByLabelText(/^Level,/), "50");
-    await user.selectOptions(screen.getByLabelText("Wesen"), "adamant");
+    await pick(user, "Wesen", "Hart");
     await user.type(screen.getByLabelText("Fähigkeit"), "Notdünger");
-    await user.selectOptions(screen.getByLabelText("Zeichen"), "rare-mark");
+    await pick(user, "Zeichen", "Seltenheitszeichen");
     await user.type(ivInput("KP"), "31");
     await user.type(ivInput("INIT"), "0");
     await user.click(
@@ -198,26 +228,38 @@ describe("CatchMetaModal", () => {
   });
 
   it("offers only balls of the game's generation", async () => {
+    const user = userEvent.setup();
     renderModal();
-    await screen.findByRole("option", { name: "Pokéball" });
-    expect(screen.queryByRole("option", { name: "Nestball" })).not.toBeInTheDocument();
+    await awaitRefs();
+
+    await user.click(trigger("Ball"));
+    expect(await screen.findByRole("button", { name: "Pokéball" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Nestball" })).not.toBeInTheDocument();
   });
 
   it("hides a game-scoped ball outside its game", async () => {
+    const user = userEvent.setup();
     renderModal();
-    await screen.findByRole("option", { name: "Pokéball" });
-    expect(screen.queryByRole("option", { name: "Superball" })).not.toBeInTheDocument();
+    await awaitRefs();
+
+    await user.click(trigger("Ball"));
+    expect(await screen.findByRole("button", { name: "Pokéball" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Superball" })).not.toBeInTheDocument();
   });
 
   it("offers a game-scoped ball inside its game", async () => {
+    const user = userEvent.setup();
     renderModal({ pokemon: { game: "pokemon-legends-arceus" } });
-    expect(await screen.findByRole("option", { name: "Superball" })).toBeInTheDocument();
+    await awaitRefs();
+
+    await user.click(trigger("Ball"));
+    expect(await screen.findByRole("button", { name: "Superball" })).toBeInTheDocument();
   });
 
   it("keeps a stored ball selectable outside its game", async () => {
     renderModal({ pokemon: { catch: { ball: "lagreat-ball" } } });
-    await screen.findByRole("option", { name: "Pokéball" });
-    expect(screen.getByLabelText("Ball")).toHaveValue("lagreat-ball");
+    await awaitRefs();
+    expect(trigger("Ball")).toHaveAccessibleName("Ball Superball");
   });
 
   it("seeds every field from the stored metadata", async () => {
@@ -233,12 +275,12 @@ describe("CatchMetaModal", () => {
         },
       },
     });
-    await screen.findByRole("option", { name: "Pokéball" });
+    await awaitRefs();
 
     expect(screen.getByLabelText("Fundort")).toHaveValue("Route 4");
-    expect(screen.getByLabelText("Ball")).toHaveValue("poke-ball");
+    expect(trigger("Ball")).toHaveAccessibleName("Ball Pokéball");
     expect(screen.getByLabelText(/^Level,/)).toHaveValue("7");
-    expect(screen.getByLabelText("Wesen")).toHaveValue("bold");
+    expect(trigger("Wesen")).toHaveAccessibleName("Wesen Kühn");
     expect(ivInput("KP")).toHaveValue("0");
     expect(
       screen.getAllByRole("button", { name: "Band Fleiß-Band umschalten" })[0],
