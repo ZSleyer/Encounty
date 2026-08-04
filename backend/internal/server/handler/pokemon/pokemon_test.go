@@ -194,6 +194,11 @@ func (d *testDeps) StateUncompletePokemon(id string) bool {
 	return d.stateMgr.UncompletePokemon(id)
 }
 
+// StateSetCatchMeta delegates to the real state manager.
+func (d *testDeps) StateSetCatchMeta(id string, meta *state.CatchMeta) bool {
+	return d.stateMgr.SetCatchMeta(id, meta)
+}
+
 // StateEndPhase delegates to the real state manager.
 func (d *testDeps) StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error) {
 	return d.stateMgr.EndPhase(parentID, catch)

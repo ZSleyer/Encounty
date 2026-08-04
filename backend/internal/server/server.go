@@ -387,6 +387,11 @@ func (s *Server) StateCompletePokemon(id string) bool { return s.state.CompleteP
 // StateUncompletePokemon clears CompletedAt on the Pokemon.
 func (s *Server) StateUncompletePokemon(id string) bool { return s.state.UncompletePokemon(id) }
 
+// StateSetCatchMeta replaces the optional details recorded for the catch.
+func (s *Server) StateSetCatchMeta(id string, meta *state.CatchMeta) bool {
+	return s.state.SetCatchMeta(id, meta)
+}
+
 // StateEndPhase ends the current phase of the hunt, archiving the off-target
 // catch as a linked phase entry.
 func (s *Server) StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error) {

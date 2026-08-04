@@ -4,10 +4,13 @@ package pokemon
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/zsleyer/encounty/backend/internal/httputil"
@@ -100,6 +103,8 @@ type Deps interface {
 	StateSetActive(id string) bool
 	StateCompletePokemon(id string) bool
 	StateUncompletePokemon(id string) bool
+	// StateSetCatchMeta replaces the optional details recorded for a catch.
+	StateSetCatchMeta(id string, meta *state.CatchMeta) bool
 	// StateEndPhase archives catch as a phase entry of the hunt and restarts
 	// the hunt's counter and timer at zero.
 	StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error)
@@ -196,6 +201,12 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 		h.handleCompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/complete"))
 	case strings.HasSuffix(path, "/uncomplete"):
 		h.handleUncompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
+	case strings.HasSuffix(path, "/catch"):
+		if r.Method == http.MethodPut {
+			h.handleSetCatchMeta(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/catch"))
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	case strings.HasSuffix(path, "/phase"):
 		id := httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/phase")
 		switch r.Method {
@@ -573,6 +584,37 @@ func (h *handler) handleUncompletePokemon(w http.ResponseWriter, _ *http.Request
 	h.pokemonMutate(w, id, "", h.deps.StateUncompletePokemon)
 }
 
+// handleSetCatchMeta replaces the optional details recorded for a catch. A body
+// of {} clears them, so there is no separate delete route.
+// PUT /api/pokemon/{id}/catch
+//
+// @Summary      Record catch metadata
+// @Description  Replaces the optional catch details (location, nature, ability, ball, mark, level, IVs, ribbons); an empty body clears them
+// @Tags         pokemon
+// @Accept       json
+// @Param        id path string true "Pokemon ID"
+// @Param        meta body state.CatchMeta true "Catch metadata"
+// @Success      204
+// @Failure      400 {object} httputil.ErrResp
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /pokemon/{id}/catch [put]
+func (h *handler) handleSetCatchMeta(w http.ResponseWriter, r *http.Request, id string) {
+	var body state.CatchMeta
+	if err := httputil.ReadJSON(r, &body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	// Validate before the id is looked up so a malformed body cannot be used to
+	// probe which Pokemon ids exist.
+	if err := validateCatchMeta(&body); err != nil {
+		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+		return
+	}
+	h.pokemonMutate(w, id, "", func(pokemonID string) bool {
+		return h.deps.StateSetCatchMeta(pokemonID, &body)
+	})
+}
+
 // handleEndPhase ends the current phase of the hunt: the off-target shiny from
 // the request body becomes a completed phase entry linked to the hunt, and the
 // hunt's counter and timer restart at zero.
@@ -683,6 +725,99 @@ func (h *handler) pokemonMutate(w http.ResponseWriter, id string, eventType stri
 }
 
 // --- Helpers -----------------------------------------------------------------
+
+// Length limits of the free-text catch metadata fields, in runes. Location is
+// a sentence, the remaining fields hold a single name or slug.
+const (
+	catchLocationMaxRunes = 120
+	catchFieldMaxRunes    = 60
+	catchRibbonsMax       = 64
+)
+
+// cleanCatchText trims a free-text catch field and drops the control characters
+// a paste can carry in, so a stored note cannot break the overlay renderer.
+func cleanCatchText(s string) string {
+	return strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, s))
+}
+
+// validateCatchMeta normalizes the catch metadata in place (trimming text,
+// stripping control characters, deduplicating ribbons) and rejects values
+// outside the ranges the game itself allows. A nil or empty meta is valid: it
+// clears the record.
+func validateCatchMeta(meta *state.CatchMeta) error {
+	if meta == nil {
+		return nil
+	}
+	meta.Location = cleanCatchText(meta.Location)
+	meta.Nature = cleanCatchText(meta.Nature)
+	meta.Ability = cleanCatchText(meta.Ability)
+	meta.Ball = cleanCatchText(meta.Ball)
+	meta.Mark = cleanCatchText(meta.Mark)
+
+	if utf8.RuneCountInString(meta.Location) > catchLocationMaxRunes {
+		return fmt.Errorf("location must be at most %d characters", catchLocationMaxRunes)
+	}
+	for _, f := range []struct {
+		name  string
+		value string
+	}{
+		{"nature", meta.Nature}, {"ability", meta.Ability},
+		{"ball", meta.Ball}, {"mark", meta.Mark},
+	} {
+		if utf8.RuneCountInString(f.value) > catchFieldMaxRunes {
+			return fmt.Errorf("%s must be at most %d characters", f.name, catchFieldMaxRunes)
+		}
+	}
+
+	if meta.Level != nil && (*meta.Level < 1 || *meta.Level > 100) {
+		return errors.New("level must be between 1 and 100")
+	}
+	for _, v := range []struct {
+		name string
+		v    *int
+	}{
+		{"hp", meta.HP}, {"atk", meta.Atk}, {"def", meta.Def},
+		{"sp_atk", meta.SpAtk}, {"sp_def", meta.SpDef}, {"speed", meta.Speed},
+	} {
+		if v.v != nil && (*v.v < 0 || *v.v > 31) {
+			return fmt.Errorf("%s must be between 0 and 31", v.name)
+		}
+	}
+
+	return validateCatchRibbons(meta)
+}
+
+// validateCatchRibbons cleans and deduplicates the ribbon slugs in place. It
+// lives apart from validateCatchMeta so neither function grows a second loop
+// nesting level.
+func validateCatchRibbons(meta *state.CatchMeta) error {
+	if len(meta.Ribbons) > catchRibbonsMax {
+		return fmt.Errorf("at most %d ribbons are allowed", catchRibbonsMax)
+	}
+	seen := make(map[string]struct{}, len(meta.Ribbons))
+	cleaned := make([]string, 0, len(meta.Ribbons))
+	for _, ribbon := range meta.Ribbons {
+		ribbon = cleanCatchText(ribbon)
+		if ribbon == "" {
+			continue
+		}
+		if utf8.RuneCountInString(ribbon) > catchFieldMaxRunes {
+			return fmt.Errorf("a ribbon must be at most %d characters", catchFieldMaxRunes)
+		}
+		if _, dup := seen[ribbon]; dup {
+			continue
+		}
+		seen[ribbon] = struct{}{}
+		cleaned = append(cleaned, ribbon)
+	}
+	meta.Ribbons = cleaned
+	return nil
+}
 
 // writePhaseError maps the sentinel errors of the phase state transitions onto
 // HTTP status codes: an unknown hunt is a 404, a hunt or entry that may not
