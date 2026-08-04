@@ -17,6 +17,15 @@ function pokedex(): PokemonData[] {
   ];
 }
 
+/** Dense 1025-species pokedex; only the ids matter for the generation caps. */
+function fullPokedex(): PokemonData[] {
+  return Array.from({ length: 1025 }, (_, i) => ({
+    id: i + 1,
+    canonical: `species-${i + 1}`,
+    names: { en: `Species ${i + 1}` },
+  }));
+}
+
 function pokemon(overrides: Partial<Pokemon> = {}): Pokemon {
   return {
     id: "p1",
@@ -127,7 +136,7 @@ describe("buildDexIndex", () => {
     expect(index.unmatched).toEqual([]);
   });
 
-  it("filters by game while still rendering every slot", () => {
+  it("filters by game while still rendering every slot the cap allows", () => {
     const index = buildDexIndex(
       pokedex(),
       [
@@ -136,6 +145,7 @@ describe("buildDexIndex", () => {
       ],
       "game",
       "pokemon-scarlet",
+      9,
     );
 
     expect(index.entries).toHaveLength(3);
@@ -181,6 +191,53 @@ describe("buildDexIndex", () => {
     );
 
     expect(index.entries.find((e) => e.id === 906)?.catches.map((p) => p.id)).toEqual(["c1"]);
+  });
+
+  it("caps game mode at the National Dex of the game's generation", () => {
+    const gen1 = buildDexIndex(fullPokedex(), [], "game", "pokemon-red", 1);
+    const gen3 = buildDexIndex(fullPokedex(), [], "game", "pokemon-ruby", 3);
+
+    expect(gen1.entries).toHaveLength(151);
+    expect(gen1.total).toBe(151);
+    expect(gen1.entries[gen1.entries.length - 1].id).toBe(151);
+    expect(gen3.entries).toHaveLength(386);
+    expect(gen3.total).toBe(386);
+  });
+
+  it("renders the full dex for the newest generation", () => {
+    const index = buildDexIndex(fullPokedex(), [], "game", "pokemon-scarlet", 9);
+
+    expect(index.entries).toHaveLength(1025);
+    expect(index.total).toBe(1025);
+  });
+
+  it("falls back to the full dex for a generation without a known cap", () => {
+    const index = buildDexIndex(fullPokedex(), [], "game", "pokemon-winds", 10);
+
+    expect(index.entries).toHaveLength(1025);
+    expect(index.total).toBe(1025);
+  });
+
+  it("ignores the generation in national mode", () => {
+    const index = buildDexIndex(fullPokedex(), [], "national", "pokemon-red", 1);
+
+    expect(index.entries).toHaveLength(1025);
+    expect(index.total).toBe(1025);
+  });
+
+  it("moves a catch above the cap into unmatched instead of dropping it", () => {
+    // A gen 5 species carried into a gen 1 game, which trades and transfers
+    // make possible in the archive.
+    const transferred = caught({
+      id: "transferred",
+      canonical_name: "species-649",
+      game: "pokemon-red",
+    });
+    const index = buildDexIndex(fullPokedex(), [transferred], "game", "pokemon-red", 1);
+
+    expect(index.unmatched).toEqual([transferred]);
+    expect(index.caught).toBe(0);
+    expect(index.total).toBe(151);
   });
 
   it("leaves both inputs untouched", () => {

@@ -34,14 +34,47 @@ export interface DexEntry {
 
 /** The full dex projection for one mode/game combination. */
 export interface DexIndex {
-  /** One entry per pokedex species, in pokedex order. */
+  /** One entry per rendered species, in pokedex order. */
   entries: DexEntry[];
   /** Number of entries carrying at least one catch. */
   caught: number;
-  /** Total species count. Never shrinks in game mode. */
+  /** Number of rendered species; the denominator of every progress readout. */
   total: number;
   /** Completed catches that resolve onto no species slot. */
   unmatched: Pokemon[];
+}
+
+/**
+ * Highest National Dex number that existed at the end of each generation.
+ *
+ * A game can only ever show the National Dex of its own generation, so this is
+ * the species cap of a game-mode view. The boundaries mirror
+ * `getPokemonGeneration`, which splits the dex at the very same numbers.
+ */
+const GENERATION_DEX_CAP: Record<number, number> = {
+  1: 151,
+  2: 251,
+  3: 386,
+  4: 493,
+  5: 649,
+  6: 721,
+  7: 809,
+  8: 905,
+  9: 1025,
+};
+
+/**
+ * Highest dex number the current view renders, or null for "no cap".
+ *
+ * A generation this table does not know yet falls back to the uncapped view
+ * rather than to an empty dex, so a newly synced game group stays usable
+ * before its cap is filled in here.
+ */
+function resolveDexCap(mode: DexMode, generation: number | undefined): number | null {
+  if (mode === "game" && generation !== undefined) {
+    return GENERATION_DEX_CAP[generation] ?? null;
+  }
+  return null;
 }
 
 /**
@@ -111,6 +144,9 @@ function placeCatch(
   }
   const id = byCanonical.get(p.canonical_name?.toLowerCase() ?? "");
   if (id === undefined) return "unmatched";
+  // Species above the game's dex cap have no slot. Traded or transferred
+  // catches land there, and losing them silently would be worse than listing
+  // them as unmatched.
   return slots.get(id) ?? "unmatched";
 }
 
@@ -119,12 +155,14 @@ function placeCatch(
  *
  * Only entries carrying `completed_at` count, which includes finished phases
  * (they are ordinary completed entries with a `phase_of` back-reference) and
- * excludes every running hunt. `total` is always the full species count so the
- * denominator does not move when the game filter changes.
+ * excludes every running hunt. Game mode renders the National Dex of the
+ * game's generation, national mode the whole species list.
  * @param pokedex Dex-ordered species as delivered by GET /api/pokedex.
  * @param catches The current snapshot's Pokémon entries, hunts included.
  * @param mode "national" counts every game, "game" only the selected one.
  * @param game Game key the "game" mode filters on; ignored in national mode.
+ * @param generation Generation of that game; ignored in national mode. An
+ * omitted or unknown generation renders the uncapped species list.
  * @returns A fresh index; neither argument is modified.
  */
 export function buildDexIndex(
@@ -132,8 +170,12 @@ export function buildDexIndex(
   catches: Pokemon[],
   mode: DexMode,
   game: string,
+  generation?: number,
 ): DexIndex {
-  const entries: DexEntry[] = pokedex.map((species) => ({
+  const cap = resolveDexCap(mode, generation);
+  const visible = cap === null ? pokedex : pokedex.filter((s) => s.id <= cap);
+
+  const entries: DexEntry[] = visible.map((species) => ({
     id: species.id,
     canonical: species.canonical,
     generation: getPokemonGeneration(species.id),
