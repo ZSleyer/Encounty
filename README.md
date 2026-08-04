@@ -98,14 +98,3 @@ You are free to use, modify, and redistribute this software, provided that you f
 Any use of this source code outside the permissions granted by the AGPLv3, including incorporating it into proprietary software without complying with the license, constitutes copyright infringement.
 
 The author actively protects this project's intellectual property and reserves the right to investigate and pursue any license violations through all available legal remedies.
-
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=ZSleyer%2Fencounty&type=timeline&legend=bottom-right">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=ZSleyer/encounty&type=timeline&theme=dark&legend=bottom-right&sealed_token=YOwMAjeEn0LotAQU9XbXeol6XVNUTJK9eIf0mQtxdxy9nCB2iA-jagDy64HlwPTMFmS7eFqq83uCdYW0Mo8tPq3BBHqkVpmshujyGIxWYkGLw7fGIBIfG7y_naAFHOeWwVS7FmMDeROUs5x7zUxYJJqTsB8Qcv29uS1tbTPQaWV69ZJQkTlAzaMW7WpW" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=ZSleyer/encounty&type=timeline&legend=bottom-right&sealed_token=YOwMAjeEn0LotAQU9XbXeol6XVNUTJK9eIf0mQtxdxy9nCB2iA-jagDy64HlwPTMFmS7eFqq83uCdYW0Mo8tPq3BBHqkVpmshujyGIxWYkGLw7fGIBIfG7y_naAFHOeWwVS7FmMDeROUs5x7zUxYJJqTsB8Qcv29uS1tbTPQaWV69ZJQkTlAzaMW7WpW" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=ZSleyer/encounty&type=timeline&legend=bottom-right&sealed_token=YOwMAjeEn0LotAQU9XbXeol6XVNUTJK9eIf0mQtxdxy9nCB2iA-jagDy64HlwPTMFmS7eFqq83uCdYW0Mo8tPq3BBHqkVpmshujyGIxWYkGLw7fGIBIfG7y_naAFHOeWwVS7FmMDeROUs5x7zUxYJJqTsB8Qcv29uS1tbTPQaWV69ZJQkTlAzaMW7WpW" />
- </picture>
-</a>
