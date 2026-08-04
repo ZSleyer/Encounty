@@ -6,6 +6,12 @@
  * them. The whole dex is in the DOM at once: `content-visibility: auto` per
  * generation plus lazy sprites replace virtualization, which keeps find-in-page
  * and the browser's own focus handling intact.
+ *
+ * The layout is the classic Dex master-detail: the grid on the left, the entry
+ * of the selected species permanently on the right. A selection is always
+ * active and it follows keyboard focus, so arrowing across the grid pages
+ * through the entries. Below the two-pane breakpoint the panel does not fit
+ * and the same detail opens as a modal instead.
  */
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useI18n } from "../contexts/I18nContext";
@@ -19,6 +25,7 @@ import { buildDexIndex, type DexEntry, type DexMode } from "../utils/dex";
 import { getDefaultSpriteUrl, SPRITE_FALLBACK } from "../utils/sprites";
 import { getGameName } from "../utils/games";
 import { DexDetailModal } from "../components/dex/DexDetailModal";
+import { DexSpeciesDetail } from "../components/dex/DexSpeciesDetail";
 import { CatchMetaModal } from "../components/pokemon/CatchMetaModal";
 import { apiUrl } from "../utils/api";
 import type { CatchMeta, Pokemon } from "../types";
@@ -33,6 +40,12 @@ const SLOT_PITCH = 88;
 const ROW_HEIGHT = 100;
 /** Rows a PageUp/PageDown jumps. */
 const PAGE_ROWS = 5;
+/**
+ * Viewport width from which grid and detail panel sit side by side. Mirrors
+ * Tailwind's `lg`, the narrowest breakpoint where a ~340px panel still leaves
+ * the grid enough room for a useful number of columns.
+ */
+const WIDE_LAYOUT_QUERY = "(min-width: 1024px)";
 
 // --- Types ---
 
@@ -168,6 +181,25 @@ function nextIndexFor(
   }
 }
 
+/** First caught species in dex order, else the first species at all. */
+function defaultSelectionId(entries: DexEntry[]): number | null {
+  const caught = entries.find((entry) => entry.catches.length > 0);
+  return (caught ?? entries[0])?.id ?? null;
+}
+
+/**
+ * Surface and border of one slot. Selection outranks the caught state on both
+ * channels, which is why this is a lookup and not three classes stacked on the
+ * element: `bg-bg-card` and `bg-accent-blue/10` would otherwise fight over
+ * stylesheet order.
+ */
+function slotStateClass(caught: boolean, selected: boolean): string {
+  const texture = caught ? "t-cut" : "t-hatch";
+  if (selected) return `${texture} border-accent-blue bg-accent-blue/10`;
+  if (caught) return `${texture} bg-bg-card border-accent-green/70 hover:border-accent-green`;
+  return `${texture} bg-bg-card border-border-subtle hover:border-text-muted`;
+}
+
 /** Swaps a broken sprite for the neutral placeholder glyph, once. */
 function handleSpriteError(event: React.SyntheticEvent<HTMLImageElement>) {
   const img = event.currentTarget;
@@ -181,6 +213,7 @@ interface DexSlotProps {
   readonly id: number;
   readonly name: string;
   readonly caught: boolean;
+  readonly selected: boolean;
   readonly variantCount: number;
   readonly label: string;
   readonly tabIndex: number;
@@ -191,21 +224,20 @@ interface DexSlotProps {
  * One species slot. Caught and uncaught differ on three independent channels
  * so the state never rests on colour alone (WCAG 1.4.1): the corner cut versus
  * a plain square, the hatch texture on uncaught slots, and the full-colour
- * shiny sprite versus a flat silhouette.
+ * shiny sprite versus a flat silhouette. Selection adds a fourth, a filled
+ * corner tab no other state paints, so it reads apart from both the caught
+ * state and the focus ring.
  */
 const DexSlot = memo(function DexSlot({
   id,
   name,
   caught,
+  selected,
   variantCount,
   label,
   tabIndex,
   onOpen,
 }: DexSlotProps) {
-  const stateClass = caught
-    ? "t-cut border-accent-green/70 hover:border-accent-green"
-    : "t-hatch border-border-subtle hover:border-text-muted";
-
   return (
     <li>
       <button
@@ -213,9 +245,13 @@ const DexSlot = memo(function DexSlot({
         data-dex-id={id}
         tabIndex={tabIndex}
         aria-label={label}
+        aria-current={selected ? "true" : undefined}
         onClick={() => onOpen(id)}
-        className={`relative flex h-full w-full min-h-[92px] flex-col items-center justify-center gap-0.5 border bg-bg-card p-1 transition-colors ${stateClass}`}
+        className={`relative flex h-full w-full min-h-[92px] flex-col items-center justify-center gap-0.5 border p-1 transition-colors ${slotStateClass(caught, selected)}`}
       >
+        {selected && (
+          <span aria-hidden="true" className="absolute left-0 top-0 h-2 w-2 bg-accent-blue" />
+        )}
         <img
           src={getDefaultSpriteUrl(id, caught ? "shiny" : "normal")}
           alt=""
@@ -232,7 +268,11 @@ const DexSlot = memo(function DexSlot({
         <span className="hidden max-w-full truncate text-[11px] text-text-secondary sm:block">
           {name}
         </span>
-        {variantCount > 1 && (
+        {/* Threshold matches slotLabel, so the chip and the accessible name
+            never disagree about whether a form was caught. One variant is the
+            case that needs the hint most: the slot shows the base species
+            sprite while what the hunter actually owns is the form. */}
+        {variantCount > 0 && (
           <span aria-hidden="true" className="t-label absolute bottom-0.5 right-0.5">
             +{variantCount}
           </span>
@@ -248,6 +288,7 @@ interface DexSectionProps {
   readonly block: DexGeneration;
   readonly columns: number;
   readonly activeId: number | null;
+  readonly selectedId: number | null;
   readonly onOpen: (id: number) => void;
   readonly onKeyDown: (event: React.KeyboardEvent<HTMLUListElement>) => void;
 }
@@ -258,7 +299,14 @@ interface DexSectionProps {
  * and find-in-page for free. The explicit `role="list"` is load-bearing,
  * Safari drops list semantics under `list-style: none`.
  */
-function DexSection({ block, columns, activeId, onOpen, onKeyDown }: DexSectionProps) {
+function DexSection({
+  block,
+  columns,
+  activeId,
+  selectedId,
+  onOpen,
+  onKeyDown,
+}: DexSectionProps) {
   const { t } = useI18n();
   const headingId = useId();
   const rows = Math.ceil(block.slots.length / Math.max(1, columns));
@@ -285,6 +333,7 @@ function DexSection({ block, columns, activeId, onOpen, onKeyDown }: DexSectionP
             id={slot.id}
             name={slot.name}
             caught={slot.caught}
+            selected={slot.id === selectedId}
             variantCount={slot.variantCount}
             label={slot.label}
             tabIndex={slot.id === activeId ? 0 : -1}
@@ -472,8 +521,28 @@ function UnmatchedSection({ entries }: UnmatchedSectionProps) {
 // --- Page ---
 
 /**
+ * True while the viewport is wide enough for the two-pane layout. Environments
+ * without `matchMedia` (jsdom) report narrow, which keeps the modal path as the
+ * conservative default: it works at every width.
+ */
+function useWideLayout(): boolean {
+  const [wide, setWide] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia?.(WIDE_LAYOUT_QUERY);
+    if (!query) return;
+    setWide(query.matches);
+    const onChange = (event: MediaQueryListEvent) => setWide(event.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  return wide;
+}
+
+/**
  * Pokédex page: completion header, filter toolbar, one grid section per
- * generation and the per-species detail modal.
+ * generation and the detail of the selected species.
  */
 export function DexPage() {
   const { t, locale } = useI18n();
@@ -481,6 +550,8 @@ export function DexPage() {
   const { appState } = useCounterStore();
   const searchId = useId();
   const gameId = useId();
+  const panelHeadingId = useId();
+  const wide = useWideLayout();
 
   const [mode, setMode] = useState<DexMode>("national");
   const [game, setGame] = useState("");
@@ -488,11 +559,15 @@ export function DexPage() {
   const [caughtFilter, setCaughtFilter] = useState<CaughtFilter>("all");
   const [query, setQuery] = useState("");
   const [focusedId, setFocusedId] = useState<number | null>(null);
-  const [detailId, setDetailId] = useState<number | null>(null);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [editCatchId, setEditCatchId] = useState<string | null>(null);
   const [columns, setColumns] = useState(1);
 
   const gridsRef = useRef<HTMLDivElement>(null);
+  // Whether the hunter has chosen a slot. Only their pick is worth preserving
+  // across a late-arriving snapshot; a default is not.
+  const pickedRef = useRef(false);
   const snapshot = appState?.pokemon;
   // Resolving against the live snapshot also closes the editor when the entry
   // is deleted underneath it, so the id can never dangle.
@@ -529,9 +604,13 @@ export function DexPage() {
     return () => observer.disconnect();
   }, []);
 
+  // The game catalogue is the only place that knows a game's generation, so
+  // the cap is resolved here and dex.ts stays free of catalogue knowledge.
+  const gameGeneration = games.find((entry) => entry.key === game)?.generation;
+
   const index = useMemo(
-    () => buildDexIndex(allPokemon, snapshot ?? [], mode, game),
-    [allPokemon, snapshot, mode, game],
+    () => buildDexIndex(allPokemon, snapshot ?? [], mode, game, gameGeneration),
+    [allPokemon, snapshot, mode, game, gameGeneration],
   );
 
   const slots = useMemo<DexSlotView[]>(() => {
@@ -567,16 +646,51 @@ export function DexPage() {
   const blocks = useMemo(() => groupByGeneration(visible, totals), [visible, totals]);
   const generations = useMemo(() => [...totals.keys()].sort((a, b) => a - b), [totals]);
 
-  // Roving tabindex: exactly one slot is tabbable, so Tab passes the whole
-  // grid in a single press. The remembered slot falls back to the first
-  // visible one whenever a filter drops it.
-  const activeId = useMemo(() => {
-    if (focusedId !== null && visible.some((slot) => slot.id === focusedId)) return focusedId;
-    return visible[0]?.id ?? null;
-  }, [focusedId, visible]);
+  // Switching to an older game drops the generations above its dex cap. A
+  // selection left on one of them would empty the grid with no chip left to
+  // switch it off again.
+  useEffect(() => {
+    setGenerationFilter((current) => {
+      const next = new Set([...current].filter((generation) => totals.has(generation)));
+      return next.size === current.size ? current : next;
+    });
+  }, [totals]);
 
+  // A selection is always active, the way a physical Pokédex always shows an
+  // entry: the first caught species, or the first species at all. Until the
+  // hunter picks a slot the default keeps re-deriving, because the species
+  // list and the archive snapshot arrive in separate round trips and the first
+  // catch is only knowable once both are in. Afterwards the pick only gives
+  // way when its species leaves the index entirely (a game switch caps the dex
+  // below it); a filter that merely hides its slot keeps the panel on it, so
+  // filtering never blanks the detail.
+  useEffect(() => {
+    setSelectedId((current) => {
+      const keep =
+        pickedRef.current &&
+        current !== null &&
+        index.entries.some((entry) => entry.id === current);
+      return keep ? current : defaultSelectionId(index.entries);
+    });
+  }, [index]);
+
+  // Roving tabindex: exactly one slot is tabbable, so Tab passes the whole
+  // grid in a single press. Tab lands on the selected slot while the grid has
+  // not been entered yet, and falls back to the first visible slot whenever a
+  // filter drops both.
+  const activeId = useMemo(() => {
+    const isVisible = (id: number | null) => id !== null && visible.some((slot) => slot.id === id);
+    if (isVisible(focusedId)) return focusedId;
+    if (isVisible(selectedId)) return selectedId;
+    return visible[0]?.id ?? null;
+  }, [focusedId, selectedId, visible]);
+
+  // Selection follows focus: arrowing across the grid pages the detail panel
+  // through the entries, which is the whole point of the two-pane layout.
   const focusSlot = useCallback((id: number) => {
+    pickedRef.current = true;
     setFocusedId(id);
+    setSelectedId(id);
     const el = gridsRef.current?.querySelector<HTMLElement>(`[data-dex-id="${id}"]`);
     if (!el) return;
     el.focus();
@@ -607,19 +721,32 @@ export function DexPage() {
     [visible, activeId, focusSlot],
   );
 
-  const handleOpen = useCallback((id: number) => {
-    setFocusedId(id);
-    setDetailId(id);
-  }, []);
+  const handleOpen = useCallback(
+    (id: number) => {
+      pickedRef.current = true;
+      setFocusedId(id);
+      setSelectedId(id);
+      // Wide viewports already show the detail next to the grid, so only the
+      // collapsed layout still needs the dialog.
+      if (wide) return;
+      setDetailOpen(true);
+    },
+    [wide],
+  );
 
   const handleCloseDetail = useCallback(() => {
-    const id = detailId;
-    setDetailId(null);
-    if (id === null) return;
+    setDetailOpen(false);
+    if (selectedId === null) return;
     // The CRT close transition delays unmount, so the dialog's own focus
     // restoration lands too late. Put it back explicitly.
-    gridsRef.current?.querySelector<HTMLElement>(`[data-dex-id="${id}"]`)?.focus();
-  }, [detailId]);
+    gridsRef.current?.querySelector<HTMLElement>(`[data-dex-id="${selectedId}"]`)?.focus();
+  }, [selectedId]);
+
+  // Growing past the breakpoint turns the dialog into a duplicate of the panel
+  // that is already on screen.
+  useEffect(() => {
+    if (wide) setDetailOpen(false);
+  }, [wide]);
 
   const toggleGeneration = useCallback((generation: number) => {
     setGenerationFilter((current) => {
@@ -638,8 +765,8 @@ export function DexPage() {
   const filtersActive =
     generationFilter.size > 0 || caughtFilter !== "all" || query.trim().length > 0;
   const gameLanguages = [locale, ...(appState?.settings?.languages ?? []), "en"];
-  const detail = detailId === null ? null : index.entries.find((entry) => entry.id === detailId);
-  const detailName = slots.find((slot) => slot.id === detailId)?.name ?? "";
+  const selected = index.entries.find((entry) => entry.id === selectedId) ?? null;
+  const selectedName = slots.find((slot) => slot.id === selectedId)?.name ?? "";
 
   return (
     <main id="main-content" className="flex-1 flex flex-col min-h-0 bg-transparent">
@@ -711,41 +838,68 @@ export function DexPage() {
             />
           </div>
 
-          <div
-            ref={gridsRef}
-            role="group"
-            aria-label={t("aria.dexGrid", { count: visible.length })}
-            className="flex flex-col gap-6"
-          >
-            {allPokemon.length === 0 && (
-              <p className="text-sm text-text-muted">{t("dex.loading")}</p>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+            {/* min-w-0 is load-bearing: without it the grid column refuses to
+                shrink below its content and the page scrolls sideways. */}
+            <div
+              ref={gridsRef}
+              role="group"
+              aria-label={t("aria.dexGrid", { count: visible.length })}
+              className="flex min-w-0 flex-1 flex-col gap-6"
+            >
+              {allPokemon.length === 0 && (
+                <p className="text-sm text-text-muted">{t("dex.loading")}</p>
+              )}
+              {allPokemon.length > 0 && visible.length === 0 && (
+                <p className="text-sm text-text-muted">{t("dex.noResults")}</p>
+              )}
+              {blocks.map((block) => (
+                <DexSection
+                  key={block.generation}
+                  block={block}
+                  columns={columns}
+                  activeId={activeId}
+                  selectedId={selectedId}
+                  onOpen={handleOpen}
+                  onKeyDown={handleGridKeyDown}
+                />
+              ))}
+            </div>
+
+            {wide && selected && (
+              // Not a live region on purpose: selection follows focus, so an
+              // announcement would fire on every single arrow key.
+              <section
+                aria-labelledby={panelHeadingId}
+                className="sticky top-0 w-[340px] shrink-0 xl:w-[380px]"
+              >
+                <DexSpeciesDetail
+                  id={selected.id}
+                  canonical={selected.canonical}
+                  name={selectedName}
+                  generation={selected.generation}
+                  catches={selected.catches}
+                  snapshot={snapshot ?? []}
+                  games={games}
+                  languages={gameLanguages}
+                  headingId={panelHeadingId}
+                  onEditCatch={setEditCatchId}
+                />
+              </section>
             )}
-            {allPokemon.length > 0 && visible.length === 0 && (
-              <p className="text-sm text-text-muted">{t("dex.noResults")}</p>
-            )}
-            {blocks.map((block) => (
-              <DexSection
-                key={block.generation}
-                block={block}
-                columns={columns}
-                activeId={activeId}
-                onOpen={handleOpen}
-                onKeyDown={handleGridKeyDown}
-              />
-            ))}
           </div>
 
           {index.unmatched.length > 0 && <UnmatchedSection entries={index.unmatched} />}
         </div>
       </div>
 
-      {detail && (
+      {detailOpen && selected && (
         <DexDetailModal
-          id={detail.id}
-          canonical={detail.canonical}
-          name={detailName}
-          generation={detail.generation}
-          catches={detail.catches}
+          id={selected.id}
+          canonical={selected.canonical}
+          name={selectedName}
+          generation={selected.generation}
+          catches={selected.catches}
           snapshot={snapshot ?? []}
           games={games}
           languages={gameLanguages}
