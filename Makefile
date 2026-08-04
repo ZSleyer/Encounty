@@ -1,4 +1,4 @@
-.PHONY: dev build build-all build-windows build-windows-arm64 build-linux build-linux-arm64 build-darwin build-macos frontend clean licenses test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-linux-arm64 electron-package-windows electron-package-darwin electron-package-macos electron-package-all swagger icons
+.PHONY: dev build build-all build-windows build-windows-arm64 build-linux build-linux-arm64 build-darwin build-macos frontend clean licenses license-bundle test coverage electron electron-deps electron-build electron-dev electron-dev-darwin electron-dev-macos electron-package-linux electron-package-linux-arm64 electron-package-windows electron-package-darwin electron-package-macos electron-package-all swagger icons
 
 BINARY = encounty
 BACKEND_DIR = backend
@@ -24,6 +24,12 @@ dev:
 licenses:
 	@echo "Collecting third-party licenses..."
 	@bash scripts/collect_licenses.sh
+
+# Packs the license texts into the release asset the AUR package installs into
+# /usr/share/licenses/. Needs a packaged AppImage for the Electron and Chromium
+# texts, so run it after electron-package-linux.
+license-bundle:
+	@bash scripts/build-license-bundle.sh $(firstword $(wildcard electron/release/Encounty-x86_64.AppImage electron/release/Encounty-arm64.AppImage))
 
 frontend:
 	@echo "Building frontend..."
