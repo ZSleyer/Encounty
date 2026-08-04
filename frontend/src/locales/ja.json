@@ -73,6 +73,7 @@
   "dash.search": "検索...",
   "dash.searchShortcut": "検索... (Ctrl+K)",
   "dash.tabActive": "アクティブ",
+  "dash.tabArchive": "アーカイブ",
   "dash.tabCounter": "カウンター",
   "dash.tabDetector": "自動検出",
   "dash.tabOverlay": "Overlay",

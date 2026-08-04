@@ -73,6 +73,7 @@
   "dash.search": "Rechercher...",
   "dash.searchShortcut": "Rechercher... (Ctrl+K)",
   "dash.tabActive": "Actif",
+  "dash.tabArchive": "Archives",
   "dash.tabCounter": "Compteur",
   "dash.tabDetector": "Auto-détection",
   "dash.tabOverlay": "Overlay",
