@@ -25,6 +25,152 @@
                 },
                 "type": "object"
             },
+            "catchrefs.Ability": {
+                "properties": {
+                    "names": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "catchrefs.Ball": {
+                "properties": {
+                    "generations": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "names": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "catchrefs.Location": {
+                "properties": {
+                    "names": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "catchrefs.Mark": {
+                "properties": {
+                    "gen": {
+                        "type": "integer"
+                    },
+                    "names": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "catchrefs.Nature": {
+                "properties": {
+                    "lowers": {
+                        "type": "string"
+                    },
+                    "names": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "raises": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "catchrefs.Refs": {
+                "properties": {
+                    "abilities": {
+                        "items": {
+                            "$ref": "#/components/schemas/catchrefs.Ability"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "balls": {
+                        "items": {
+                            "$ref": "#/components/schemas/catchrefs.Ball"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "marks": {
+                        "items": {
+                            "$ref": "#/components/schemas/catchrefs.Mark"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "natures": {
+                        "items": {
+                            "$ref": "#/components/schemas/catchrefs.Nature"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "ribbons": {
+                        "items": {
+                            "$ref": "#/components/schemas/catchrefs.Ribbon"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    }
+                },
+                "type": "object"
+            },
+            "catchrefs.Ribbon": {
+                "properties": {
+                    "category": {
+                        "type": "string"
+                    },
+                    "gen": {
+                        "type": "integer"
+                    },
+                    "names": {
+                        "additionalProperties": {
+                            "type": "string"
+                        },
+                        "type": "object"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "database.EncounterStats": {
                 "properties": {
                     "first_at": {
@@ -166,6 +312,21 @@
                     },
                     "template_db_id": {
                         "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "games.locationsResponse": {
+                "properties": {
+                    "group": {
+                        "type": "string"
+                    },
+                    "locations": {
+                        "items": {
+                            "$ref": "#/components/schemas/catchrefs.Location"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
                     }
                 },
                 "type": "object"
@@ -493,6 +654,58 @@
                     },
                     "settings": {
                         "$ref": "#/components/schemas/state.Settings"
+                    }
+                },
+                "type": "object"
+            },
+            "state.CatchMeta": {
+                "description": "Catch holds the optional details recorded for this catch. Nil means\nnothing was recorded, which is the state of every entry predating the\nfeature and of every hunt that is not finished yet.",
+                "properties": {
+                    "ability": {
+                        "type": "string"
+                    },
+                    "atk": {
+                        "type": "integer"
+                    },
+                    "ball": {
+                        "type": "string"
+                    },
+                    "def": {
+                        "type": "integer"
+                    },
+                    "hp": {
+                        "type": "integer"
+                    },
+                    "level": {
+                        "description": "Level and the six values below are pointers because 0 is a legal DV: a\nPokemon with 0 Speed and one whose Speed was never noted down are\ndifferent facts and both must round-trip unchanged.",
+                        "type": "integer"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "mark": {
+                        "description": "Mark holds at most one mark slug: a Pokemon can never carry two.",
+                        "type": "string"
+                    },
+                    "nature": {
+                        "type": "string"
+                    },
+                    "ribbons": {
+                        "description": "Ribbons holds ribbon slugs. Always a JSON array, never null, matching\nthe contract of Pokemon.Tags.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "uniqueItems": false
+                    },
+                    "sp_atk": {
+                        "type": "integer"
+                    },
+                    "sp_def": {
+                        "type": "integer"
+                    },
+                    "speed": {
+                        "type": "integer"
                     }
                 },
                 "type": "object"
@@ -1013,6 +1226,9 @@
                     "canonical_name": {
                         "description": "English PokéAPI slug",
                         "type": "string"
+                    },
+                    "catch": {
+                        "$ref": "#/components/schemas/state.CatchMeta"
                     },
                     "completed_at": {
                         "type": "string"
@@ -1725,6 +1941,57 @@
                 "summary": "Update capture resolution",
                 "tags": [
                     "settings"
+                ]
+            }
+        },
+        "/catch-refs": {
+            "get": {
+                "description": "Returns natures, balls, abilities, ribbons and marks",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/catchrefs.Refs"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "Get the catch reference lists",
+                "tags": [
+                    "catchrefs"
+                ]
+            }
+        },
+        "/catch-refs/locations": {
+            "get": {
+                "parameters": [
+                    {
+                        "description": "Game key from /api/games",
+                        "in": "query",
+                        "name": "game",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/games.locationsResponse"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    }
+                },
+                "summary": "Get the met locations of a game",
+                "tags": [
+                    "catchrefs"
                 ]
             }
         },
@@ -3112,6 +3379,71 @@
                     }
                 },
                 "summary": "Activate a Pokemon",
+                "tags": [
+                    "pokemon"
+                ]
+            }
+        },
+        "/pokemon/{id}/catch": {
+            "put": {
+                "description": "Replaces the optional catch details (location, nature, ability, ball, mark, level, IVs, ribbons); an empty body clears them",
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "oneOf": [
+                                    {
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/state.CatchMeta",
+                                        "summary": "meta",
+                                        "description": "Catch metadata"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "description": "Catch metadata",
+                    "required": true
+                },
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    }
+                },
+                "summary": "Record catch metadata",
                 "tags": [
                     "pokemon"
                 ]
