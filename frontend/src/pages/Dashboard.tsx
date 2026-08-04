@@ -6,7 +6,7 @@
  * the active Pokémon (increment, decrement, reset, complete/delete).
  * Counter actions are sent over WebSocket for immediate multi-tab sync.
  */
-import { useState, useEffect, useMemo, useRef, useReducer, Fragment } from "react";
+import { useState, useEffect, useMemo, useRef, useReducer, Fragment, memo } from "react";
 import {
   Plus,
   Minus,
@@ -2118,7 +2118,15 @@ interface DashboardProps {
   readonly isActiveRoute?: boolean;
 }
 
-export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {}) {
+/**
+ * Memoised: the Dashboard stays mounted behind every other route, and its only
+ * prop is a boolean. Without this it re-renders its whole tree on every render
+ * of the app shell, including the one that starts the route reveal animation,
+ * which is exactly the frame that must not be spent on work nobody sees.
+ */
+export const Dashboard = memo(function Dashboard({
+  isActiveRoute = true,
+}: Readonly<DashboardProps> = {}) {
   // Narrow selectors: avoid re-rendering on isConnected / flashingIds /
   // lastEncounterPokemonId changes, which the Dashboard does not read. The
   // detectorStatus map is genuinely consumed here (passed to sidebar/cards).
@@ -3530,4 +3538,4 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       )}
     </div>
   );
-}
+});

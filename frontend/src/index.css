@@ -1022,12 +1022,18 @@ code {
   }
 }
 
+/* The delay is a grace period, not a pause: mounting the incoming page runs on
+   the same main thread that ticks this animation, and clip-path cannot be
+   handed to the compositor, so a reveal that starts on the mount frame stutters
+   through its first steps. `both` holds the from-state meanwhile, so the wait
+   is invisible. Two frames covers the commit; anything the page does later
+   (fetches, images) still lands mid-reveal. */
 .anim-t-reveal {
-  animation: t-reveal 240ms cubic-bezier(0.7, 0, 0.2, 1) both;
+  animation: t-reveal 240ms cubic-bezier(0.7, 0, 0.2, 1) 32ms both;
 }
 
 .anim-t-reveal-rtl {
-  animation: t-reveal-rtl 240ms cubic-bezier(0.7, 0, 0.2, 1) both;
+  animation: t-reveal-rtl 240ms cubic-bezier(0.7, 0, 0.2, 1) 32ms both;
 }
 
 /* CRT reveal: unfolds from a center line (old-TV power-on, reversed) instead
@@ -1071,6 +1077,9 @@ dialog:not([open]) .anim-t-crt-in {
 [data-route="app"][data-motion="off"] *::after {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
+  /* Without this the route reveal's grace delay would survive as a hold on the
+     from-state, which is a blank page for as long as the delay lasts. */
+  animation-delay: 0s !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
@@ -1081,6 +1090,7 @@ dialog:not([open]) .anim-t-crt-in {
   [data-route="app"] *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
