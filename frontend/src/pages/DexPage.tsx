@@ -42,6 +42,12 @@ const ROW_HEIGHT = 100;
 /** Rows a PageUp/PageDown jumps. */
 const PAGE_ROWS = 5;
 /**
+ * How far outside the scroll port a slot sprite stays loaded. Roughly six rows
+ * in either direction, enough that a fast scroll never outruns the reload but
+ * small enough that most of the dex is unloaded at any moment.
+ */
+const SPRITE_KEEP_MARGIN = "600px";
+/**
  * Viewport width from which grid and detail panel sit side by side. Mirrors
  * Tailwind's `lg`, the narrowest breakpoint where a ~340px panel still leaves
  * the grid enough room for a useful number of columns.
@@ -206,6 +212,9 @@ function slotStateClass(caught: boolean, selected: boolean): string {
 function handleSpriteError(event: React.SyntheticEvent<HTMLImageElement>) {
   const img = event.currentTarget;
   if (img.src === SPRITE_FALLBACK) return;
+  // Also correct the unloading observer's copy of the URL, otherwise it would
+  // restore the broken sprite every time the slot scrolls back into view.
+  img.dataset.dexSprite = SPRITE_FALLBACK;
   img.src = SPRITE_FALLBACK;
 }
 
@@ -240,6 +249,7 @@ const DexSlot = memo(function DexSlot({
   tabIndex,
   onOpen,
 }: DexSlotProps) {
+  const spriteUrl = getDefaultSpriteUrl(id, caught ? "shiny" : "normal");
   return (
     <li>
       <button
@@ -259,12 +269,16 @@ const DexSlot = memo(function DexSlot({
             corner badge there lands straight on top of it. */}
         <span className="relative inline-flex">
           <img
-            src={getDefaultSpriteUrl(id, caught ? "shiny" : "normal")}
+            src={spriteUrl}
             alt=""
             width={96}
             height={96}
             loading="lazy"
             decoding="async"
+            // The URL this slot belongs to, kept in an attribute React owns so
+            // the unloading observer restores the right sprite even after
+            // React recycled the element for another species.
+            data-dex-sprite={spriteUrl}
             onError={handleSpriteError}
             className={`h-12 w-12 object-contain [image-rendering:pixelated] ${caught ? "" : "t-dex-silhouette"}`}
           />
@@ -290,6 +304,66 @@ const DexSlot = memo(function DexSlot({
     </li>
   );
 });
+
+// --- Sprite unloading ---
+
+/**
+ * Keeps only the sprites near the scroll port loaded.
+ *
+ * `loading="lazy"` alone stops the dex from fetching all 1025 sprites up front,
+ * but once a species has scrolled past, its image stays decoded for the rest of
+ * the session; walking the dex once therefore ends with the full set resident.
+ * The observer swaps the placeholder glyph into every slot that left the port,
+ * which releases the sprite, and puts the real URL back on the way in.
+ *
+ * The URL it puts back is read from `data-dex-sprite`, which React renders
+ * alongside `src`, rather than from a copy the observer parked itself: React
+ * recycles slot elements when a filter rebuilds the grid, and a parked copy
+ * would then restore the previous species' sprite into the reused slot.
+ *
+ * Swapping in a placeholder rather than dropping the `src` attribute is also
+ * load-bearing: an image without a source collapses to a zero area box, an
+ * element of zero area intersects nothing, and the observer would never report
+ * the slot as visible again, leaving it blank forever. The glyph is the one a
+ * failed sprite already shows, so the swap stays unremarkable in the only
+ * moment it can be seen at all, a jump long enough to outrun the keep margin.
+ *
+ * The sprites are the only thing released: the slots stay in the DOM, so
+ * find-in-page, focus order and the roving tabindex are untouched.
+ *
+ * @param gridsRef Element wrapping every generation section.
+ * @param revision Changes whenever the rendered slot set does, so the observer
+ * picks up sprites of newly mounted or re-filtered blocks.
+ */
+function useSpriteUnloading(
+  gridsRef: React.RefObject<HTMLDivElement | null>,
+  revision: unknown,
+) {
+  useEffect(() => {
+    const root = gridsRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const sprite = entry.target as HTMLImageElement;
+          const wanted = entry.isIntersecting
+            ? (sprite.dataset.dexSprite ?? SPRITE_FALLBACK)
+            : SPRITE_FALLBACK;
+          if (sprite.src !== wanted) sprite.src = wanted;
+        }
+      },
+      // No explicit root: the dex scrolls in a container owned by the app
+      // shell, and the viewport intersection is already clipped by it.
+      { rootMargin: SPRITE_KEEP_MARGIN },
+    );
+
+    for (const sprite of root.querySelectorAll<HTMLImageElement>("img[data-dex-sprite]")) {
+      observer.observe(sprite);
+    }
+    return () => observer.disconnect();
+  }, [gridsRef, revision]);
+}
 
 // --- Grid sections ---
 
@@ -685,6 +759,10 @@ export function DexPage() {
     const frame = requestAnimationFrame(() => setMountedBlocks((n) => n + 1));
     return () => cancelAnimationFrame(frame);
   }, [mountedBlocks, blocks.length]);
+
+  // Re-registered whenever a block mounts or the filter rebuilds the grid,
+  // because both change which sprites exist.
+  useSpriteUnloading(gridsRef, `${blocks.length}:${mountedBlocks}:${visible.length}`);
 
   // Switching to an older game drops the generations above its dex cap. A
   // selection left on one of them would empty the grid with no chip left to
