@@ -172,6 +172,151 @@ func TestKnownLocationExists(t *testing.T) {
 	t.Fatal("rsefrlg-17 not found")
 }
 
+// legendsArceusBalls are the eleven balls that exist only in Pokemon Legends:
+// Arceus, with the German name they must carry. PokeAPI ships no German name
+// for any of them, so every one of these is a PKHeX join result. All eleven
+// differ from their English name, which makes the English fallback detectable.
+var legendsArceusBalls = map[string]string{
+	"lastrange-ball": "Rätselball",
+	"lapoke-ball":    "Pokéball",
+	"lagreat-ball":   "Superball",
+	"laultra-ball":   "Hyperball",
+	"laheavy-ball":   "Schwerball",
+	"laleaden-ball":  "Zentnerball",
+	"lagigaton-ball": "Tonnenball",
+	"lafeather-ball": "Federball",
+	"lawing-ball":    "Flügelball",
+	"lajet-ball":     "Düsenball",
+	"laorigin-ball":  "Urball",
+}
+
+// ballsBySlug indexes the ball list for the ball specific tests.
+func ballsBySlug(t *testing.T) map[string]Ball {
+	t.Helper()
+	balls := All().Balls
+	bySlug := make(map[string]Ball, len(balls))
+	for _, b := range balls {
+		bySlug[b.Slug] = b
+	}
+	return bySlug
+}
+
+// TestLegendsArceusBallsAreTranslated pins the German names of the eleven
+// Legends Arceus balls. Upstream carries only English and French for them, so
+// a broken PKHeX join would silently drop the whole set back to English.
+func TestLegendsArceusBallsAreTranslated(t *testing.T) {
+	bySlug := ballsBySlug(t)
+	for slug, want := range legendsArceusBalls {
+		ball, ok := bySlug[slug]
+		if !ok {
+			t.Errorf("ball %q is missing", slug)
+			continue
+		}
+		if ball.Names["de"] != want {
+			t.Errorf("ball %q German name is %q, expected %q", slug, ball.Names["de"], want)
+		}
+		if ball.Names["de"] == ball.Names["en"] {
+			t.Errorf("ball %q fell back to the English name %q", slug, ball.Names["en"])
+		}
+	}
+}
+
+// TestEveryBallHasAllFiveLanguages is the ball specific half of the generic
+// language check, kept separate so a ball regression names the ball list.
+func TestEveryBallHasAllFiveLanguages(t *testing.T) {
+	for _, b := range All().Balls {
+		for _, lang := range uiLangs {
+			if b.Names[lang] == "" {
+				t.Errorf("ball %q has no %s name", b.Slug, lang)
+			}
+		}
+	}
+}
+
+// TestLegendsArceusBallsAreScopedToTheirGame verifies that the eleven balls
+// are offered in Legends Arceus and nowhere else. Their generation is 8 and 9
+// upstream, which used to put them into the Sword and Scarlet pickers where
+// "lagreat-ball" is called "Superball" just like the regular "great-ball".
+func TestLegendsArceusBallsAreScopedToTheirGame(t *testing.T) {
+	elsewhere := []struct {
+		game       string
+		generation int
+	}{
+		{"pokemon-sword", 8},
+		{"pokemon-shield", 8},
+		{"pokemon-scarlet", 9},
+		{"pokemon-violet", 9},
+	}
+	arceus := []string{"pokemon-legends", "pokemon-legends-arceus"}
+
+	bySlug := ballsBySlug(t)
+	for slug := range legendsArceusBalls {
+		ball, ok := bySlug[slug]
+		if !ok {
+			t.Errorf("ball %q is missing", slug)
+			continue
+		}
+		for _, g := range elsewhere {
+			if ball.AvailableIn(g.game, g.generation) {
+				t.Errorf("ball %q is offered for %s", slug, g.game)
+			}
+		}
+		for _, game := range arceus {
+			if !ball.AvailableIn(game, 8) {
+				t.Errorf("ball %q is not offered for %s", slug, game)
+			}
+		}
+	}
+}
+
+// TestRegularBallsAreNotGameScoped verifies that only the Legends Arceus balls
+// carry a game list. Every other ball must keep the plain generation filter, a
+// stray game list would hide it everywhere else.
+func TestRegularBallsAreNotGameScoped(t *testing.T) {
+	regular := 0
+	for _, b := range All().Balls {
+		if _, isLA := legendsArceusBalls[b.Slug]; isLA {
+			continue
+		}
+		regular++
+		if len(b.Games) != 0 {
+			t.Errorf("ball %q unexpectedly carries games %v", b.Slug, b.Games)
+		}
+		if len(b.Generations) == 0 {
+			t.Errorf("ball %q has no generations", b.Slug)
+		}
+	}
+	if regular != 27 {
+		t.Errorf("expected 27 regular balls, got %d", regular)
+	}
+}
+
+// TestKnownRegularBallsAreUnchanged pins a sample of the regular balls that
+// the PKHeX join must never touch, including the "great-ball" that shares its
+// German name with "lagreat-ball".
+func TestKnownRegularBallsAreUnchanged(t *testing.T) {
+	want := map[string]map[string]string{
+		"poke-ball":  {"de": "Pokéball", "en": "Poké Ball", "es": "Poké Ball", "fr": "Poké Ball", "ja": "モンスターボール"},
+		"great-ball": {"de": "Superball", "en": "Great Ball", "es": "Super Ball", "fr": "Super Ball", "ja": "スーパーボール"},
+		"heavy-ball": {"de": "Schwerball", "en": "Heavy Ball", "es": "Peso Ball", "fr": "Masse Ball", "ja": "ヘビーボール"},
+		"beast-ball": {"de": "Ultraball", "en": "Beast Ball", "es": "Ente Ball", "fr": "Ultra Ball", "ja": "ウルトラボール"},
+	}
+
+	bySlug := ballsBySlug(t)
+	for slug, names := range want {
+		ball, ok := bySlug[slug]
+		if !ok {
+			t.Errorf("ball %q is missing", slug)
+			continue
+		}
+		for lang, name := range names {
+			if ball.Names[lang] != name {
+				t.Errorf("ball %q %s name is %q, expected %q", slug, lang, ball.Names[lang], name)
+			}
+		}
+	}
+}
+
 // TestRawJSONMatchesParsedData verifies that the raw byte accessors expose the
 // same documents the parsed API serves.
 func TestRawJSONMatchesParsedData(t *testing.T) {

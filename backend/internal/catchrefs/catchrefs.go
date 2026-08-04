@@ -13,6 +13,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sync"
 )
 
@@ -40,10 +41,23 @@ type Nature struct {
 }
 
 // Ball is a single Poke Ball. Generations lists the game generations the ball
-// exists in so the UI can hide balls a hunt's game does not have.
+// exists in so the UI can hide balls a hunt's game does not have. Games is set
+// only where the generation is too coarse, see AvailableIn.
 type Ball struct {
 	Named
-	Generations []int `json:"generations"`
+	Generations []int    `json:"generations"`
+	Games       []string `json:"games,omitempty"`
+}
+
+// AvailableIn reports whether the ball can be obtained in the given game.
+// Games wins over Generations because the upstream item indices report the
+// Legends Arceus balls for generation 8 and 9 although they exist in exactly
+// one game. The catch dialog mirrors this rule when it builds its ball picker.
+func (b Ball) AvailableIn(gameKey string, generation int) bool {
+	if len(b.Games) > 0 {
+		return slices.Contains(b.Games, gameKey)
+	}
+	return slices.Contains(b.Generations, generation)
 }
 
 // Ability is a single ability. The list is flat and global.

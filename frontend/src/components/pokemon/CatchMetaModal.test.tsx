@@ -24,6 +24,14 @@ const REFS = {
     },
     // Gen 7 only, so it must not show up for a gen 9 game.
     { slug: "beast-ball", names: { de: "Nestball", en: "Beast Ball" }, generations: [7] },
+    // Legends Arceus only. The generations are reported too broadly upstream,
+    // so the game list has to win over them.
+    {
+      slug: "lagreat-ball",
+      names: { de: "Superball", en: "Great Ball" },
+      generations: [8, 9],
+      games: ["pokemon-legends", "pokemon-legends-arceus"],
+    },
   ],
   abilities: [{ slug: "overgrow", names: { de: "Notdünger", en: "Overgrow" } }],
   ribbons: [
@@ -193,6 +201,23 @@ describe("CatchMetaModal", () => {
     renderModal();
     await screen.findByRole("option", { name: "Pokéball" });
     expect(screen.queryByRole("option", { name: "Nestball" })).not.toBeInTheDocument();
+  });
+
+  it("hides a game-scoped ball outside its game", async () => {
+    renderModal();
+    await screen.findByRole("option", { name: "Pokéball" });
+    expect(screen.queryByRole("option", { name: "Superball" })).not.toBeInTheDocument();
+  });
+
+  it("offers a game-scoped ball inside its game", async () => {
+    renderModal({ pokemon: { game: "pokemon-legends-arceus" } });
+    expect(await screen.findByRole("option", { name: "Superball" })).toBeInTheDocument();
+  });
+
+  it("keeps a stored ball selectable outside its game", async () => {
+    renderModal({ pokemon: { catch: { ball: "lagreat-ball" } } });
+    await screen.findByRole("option", { name: "Pokéball" });
+    expect(screen.getByLabelText("Ball")).toHaveValue("lagreat-ball");
   });
 
   it("seeds every field from the stored metadata", async () => {

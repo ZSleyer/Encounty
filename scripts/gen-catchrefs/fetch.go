@@ -111,17 +111,21 @@ type langName struct {
 // namesOf turns PokeAPI language rows into a name map covering all five UI
 // locales, falling back to English where a translation is missing.
 func namesOf(rows []langName) map[string]string {
+	return fillMissing(rawNamesOf(rows))
+}
+
+// rawNamesOf turns PokeAPI language rows into a name map that holds only the
+// locales PokeAPI actually answered. Callers that top the map up from another
+// source need that distinction, an already filled map cannot tell a real
+// translation from the English fallback.
+func rawNamesOf(rows []langName) map[string]string {
 	names := make(map[string]string, len(langs))
 	for _, r := range rows {
-		names[r.Language.Name] = r.Name
-	}
-	// Drop languages we do not ship before filling the gaps.
-	for k := range names {
-		if !isUILang(k) {
-			delete(names, k)
+		if isUILang(r.Language.Name) {
+			names[r.Language.Name] = r.Name
 		}
 	}
-	return fillMissing(names)
+	return names
 }
 
 // isUILang reports whether code is one of the five shipped UI locales.

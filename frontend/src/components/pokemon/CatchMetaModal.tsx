@@ -21,6 +21,7 @@ import {
   refLabel,
   refLabelFor,
   useCatchRefs,
+  type BallRef,
   type CatchRefEntry,
   type RibbonRef,
 } from "../../hooks/useCatchRefs";
@@ -142,6 +143,17 @@ function sortedByLabel<T extends CatchRefEntry>(entries: T[], locale: string): T
   );
 }
 
+/**
+ * Reports whether a ball can be obtained in the given game. A ball scoped to
+ * game keys wins over the generation, because the Legends Arceus balls are
+ * reported for generation 8 and 9 although they exist in a single game, and
+ * their German names collide with the regular balls of those generations.
+ */
+function ballFitsGame(entry: BallRef, gameKey: string, generation: number): boolean {
+  if (entry.games?.length) return entry.games.includes(gameKey);
+  return entry.generations?.includes(generation) ?? false;
+}
+
 // --- Props ---
 
 /** Props for {@link CatchMetaModal}. */
@@ -198,12 +210,12 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
   const ballOptions = useMemo(() => {
     if (generation === null) return sortedByLabel(refs.balls, locale);
     // A ball already stored on the Pokémon stays selectable even when it does
-    // not belong to this generation, so editing cannot silently drop it.
+    // not belong to this game, so editing cannot silently drop it.
     const usable = refs.balls.filter(
-      (entry) => entry.generations?.includes(generation) || entry.slug === ball,
+      (entry) => ballFitsGame(entry, pokemon.game, generation) || entry.slug === ball,
     );
     return sortedByLabel(usable, locale);
-  }, [refs.balls, generation, locale, ball]);
+  }, [refs.balls, generation, locale, ball, pokemon.game]);
 
   const natureOptions = useMemo(
     () => sortedByLabel(refs.natures, locale),

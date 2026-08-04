@@ -45,10 +45,13 @@ type Nature struct {
 	Lowers string `json:"lowers,omitempty"`
 }
 
-// Ball is a single Poke Ball with the game generations it exists in.
+// Ball is a single Poke Ball with the game generations it exists in. Games
+// narrows the ball down to single game keys and wins over Generations where it
+// is set, see scopeLegendsArceusBalls.
 type Ball struct {
 	Named
-	Generations []int `json:"generations"`
+	Generations []int    `json:"generations"`
+	Games       []string `json:"games,omitempty"`
 }
 
 // Ability is a single ability. The list is flat and global, abilities are not

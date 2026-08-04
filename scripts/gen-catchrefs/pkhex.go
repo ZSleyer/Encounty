@@ -1,10 +1,11 @@
-// pkhex.go fetches ribbon, mark and location names from the PKHeX resource
-// files and enriches ribbons and marks with the pokepc dataset.
+// pkhex.go fetches item, ribbon, mark and location names from the PKHeX
+// resource files and enriches ribbons and marks with the pokepc dataset.
 package main
 
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -20,6 +21,69 @@ const (
 	// pokepcRaw is the raw file root of the pokepc dataset.
 	pokepcRaw = "https://raw.githubusercontent.com/pokepc/dataset/main/data/"
 )
+
+// --- Items ---
+
+// itemNames maps an English item name to the distinct translations PKHeX
+// carries for it, keyed by UI locale. A name can sit on more than one line
+// because several games ship their own copy of an item, so the values are
+// collected as a set and the caller decides what an ambiguous hit means.
+type itemNames map[string]map[string][]string
+
+// fetchItemNames downloads the PKHeX master item table for every UI locale and
+// indexes the translations by English name. The language files are line
+// aligned, line N is the same item in all of them, which is the only join key
+// available since the tables carry no item IDs.
+func fetchItemNames() (itemNames, error) {
+	lines := make(map[string][]string, len(langs))
+	for _, l := range langs {
+		text, err := getText(pkhexRaw + "items/text_Items_" + l + ".txt")
+		if err != nil {
+			return nil, err
+		}
+		lines[l] = trimmedLines(text)
+	}
+
+	// A shifted or truncated file would silently mistranslate every item below
+	// the shift, so a length mismatch has to stop the generator.
+	for _, l := range langs {
+		if len(lines[l]) != len(lines["en"]) {
+			return nil, fmt.Errorf("item table %s has %d lines, en has %d",
+				l, len(lines[l]), len(lines["en"]))
+		}
+	}
+
+	index := make(itemNames, len(lines["en"]))
+	for i, en := range lines["en"] {
+		if en == "" {
+			continue
+		}
+		entry, ok := index[en]
+		if !ok {
+			entry = make(map[string][]string, len(langs))
+			index[en] = entry
+		}
+		for _, l := range langs {
+			if v := lines[l][i]; v != "" && !slices.Contains(entry[l], v) {
+				entry[l] = append(entry[l], v)
+			}
+		}
+	}
+	return index, nil
+}
+
+// trimmedLines splits a PKHeX text resource into trimmed lines and drops the
+// trailing empty ones, which differ per file depending on the final newline.
+func trimmedLines(text string) []string {
+	out := strings.Split(text, "\n")
+	for i := range out {
+		out[i] = strings.TrimSpace(out[i])
+	}
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+	return out
+}
 
 // --- Ribbons and marks ---
 

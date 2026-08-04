@@ -28,6 +28,11 @@ export interface NatureRef extends CatchRefEntry {
 /** A Poké Ball with the generations it exists in. */
 export interface BallRef extends CatchRefEntry {
   generations: number[];
+  /**
+   * Game keys the ball is limited to. Set only where the generation is too
+   * coarse, and then it wins over `generations`.
+   */
+  games?: string[];
 }
 
 /** A ribbon with its introducing generation and grouping category. */

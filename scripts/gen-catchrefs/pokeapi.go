@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 )
 
@@ -19,6 +20,22 @@ var statShort = map[int]string{
 // ballCategories are the PokeAPI item categories that hold catchable balls.
 // Together they cover all 38 Poke Balls.
 var ballCategories = `["standard-balls","special-balls","apricorn-balls"]`
+
+// legendsArceusBalls are the eleven balls that exist in Pokemon Legends:
+// Arceus and nowhere else. PokeAPI reports them under generation 8 and 9, so
+// the generation alone would offer them in a Sword, Shield, Scarlet or Violet
+// picker, where "lagreat-ball" is even called "Superball" just like the
+// regular "great-ball".
+var legendsArceusBalls = []string{
+	"lastrange-ball", "lapoke-ball", "lagreat-ball", "laultra-ball",
+	"laheavy-ball", "laleaden-ball", "lagigaton-ball", "lafeather-ball",
+	"lawing-ball", "lajet-ball", "laorigin-ball",
+}
+
+// legendsArceusGames are the game keys of Pokemon Legends: Arceus in
+// backend/internal/gamesync/fallback_games.json. The game list carries the
+// title under two keys, both have to be scoped.
+var legendsArceusGames = []string{"pokemon-legends", "pokemon-legends-arceus"}
 
 // fetchNatures returns the 25 natures with their localized names and the
 // stats they raise and lower. The five neutral natures have neither.
@@ -82,11 +99,73 @@ func fetchBalls() ([]Ball, error) {
 		}
 		slices.Sort(gens)
 		balls = append(balls, Ball{
-			Named:       Named{Slug: b.Name, Names: namesOf(b.ItemNames)},
+			// The names stay unfilled until the PKHeX pass ran, otherwise the
+			// English fallback would be indistinguishable from a real name.
+			Named:       Named{Slug: b.Name, Names: rawNamesOf(b.ItemNames)},
 			Generations: gens,
 		})
 	}
+
+	if err := scopeLegendsArceusBalls(balls); err != nil {
+		return nil, err
+	}
+	if err := fillBallNamesFromPKHeX(balls); err != nil {
+		return nil, err
+	}
+	for i := range balls {
+		balls[i].Names = fillMissing(balls[i].Names)
+	}
 	return balls, nil
+}
+
+// scopeLegendsArceusBalls pins the Legends Arceus balls to their game keys.
+// A missing slug means PokeAPI renamed the items, which would silently put the
+// balls back into the Sword and Scarlet pickers, so it stops the generator.
+func scopeLegendsArceusBalls(balls []Ball) error {
+	found := 0
+	for i := range balls {
+		if slices.Contains(legendsArceusBalls, balls[i].Slug) {
+			balls[i].Games = legendsArceusGames
+			found++
+		}
+	}
+	if found != len(legendsArceusBalls) {
+		return fmt.Errorf("expected %d Legends Arceus balls, found %d",
+			len(legendsArceusBalls), found)
+	}
+	return nil
+}
+
+// fillBallNamesFromPKHeX closes the translation gaps PokeAPI leaves on the
+// Legends Arceus balls, which only carry an English and a French name there.
+// PKHeX is consulted for the locales PokeAPI did not answer at all, a name it
+// did supply is never overwritten.
+func fillBallNamesFromPKHeX(balls []Ball) error {
+	items, err := fetchItemNames()
+	if err != nil {
+		return fmt.Errorf("item names: %w", err)
+	}
+
+	filled := 0
+	for i := range balls {
+		entry, ok := items[balls[i].Names["en"]]
+		if !ok {
+			continue
+		}
+		for _, l := range langs {
+			if balls[i].Names[l] != "" || len(entry[l]) == 0 {
+				continue
+			}
+			if len(entry[l]) > 1 {
+				return fmt.Errorf("ball %q has %d different %s names in PKHeX: %v",
+					balls[i].Slug, len(entry[l]), l, entry[l])
+			}
+			balls[i].Names[l] = entry[l][0]
+			filled++
+		}
+	}
+	fmt.Printf("PKHeX filled %d missing ball names\n", filled)
+	return nil
 }
 
 // fetchAbilities returns the flat global ability list with localized names.
