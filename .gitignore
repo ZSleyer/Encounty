@@ -85,3 +85,6 @@ graphify-out/
 
 # AUR package rendered by scripts/render-aur-pkgbuild.sh
 packaging/aur/PKGBUILD
+
+# Compiled generator, rebuilt on demand with `cd scripts/gen-catchrefs && go run .`
+scripts/gen-catchrefs/gen-catchrefs
