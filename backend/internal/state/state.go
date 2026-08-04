@@ -108,6 +108,10 @@ type Pokemon struct {
 	// PhaseTargets lists the species the hunter expects as off-target shinies.
 	// Always a JSON array, never null.
 	PhaseTargets []PhaseTarget `json:"phase_targets"`
+	// Catch holds the optional details recorded for this catch. Nil means
+	// nothing was recorded, which is the state of every entry predating the
+	// feature and of every hunt that is not finished yet.
+	Catch *CatchMeta `json:"catch,omitempty"`
 }
 
 // PhaseTarget is one species a hunter expects to run into as an off-target
@@ -129,6 +133,43 @@ type PhaseCatch struct {
 	BaseName      string `json:"base_name"`
 	FormName      string `json:"form_name"`
 	SpriteURL     string `json:"sprite_url"`
+}
+
+// CatchMeta records the optional details a hunter notes down for a caught
+// shiny: where it was met, its nature, ability, ball and mark, its level,
+// its individual values and the ribbons it carries. Every field is optional.
+type CatchMeta struct {
+	Location string `json:"location,omitempty"`
+	Nature   string `json:"nature,omitempty"`
+	Ability  string `json:"ability,omitempty"`
+	Ball     string `json:"ball,omitempty"`
+	// Mark holds at most one mark slug: a Pokemon can never carry two.
+	Mark string `json:"mark,omitempty"`
+	// Level and the six values below are pointers because 0 is a legal DV: a
+	// Pokemon with 0 Speed and one whose Speed was never noted down are
+	// different facts and both must round-trip unchanged.
+	Level *int `json:"level,omitempty"`
+	HP    *int `json:"hp,omitempty"`
+	Atk   *int `json:"atk,omitempty"`
+	Def   *int `json:"def,omitempty"`
+	SpAtk *int `json:"sp_atk,omitempty"`
+	SpDef *int `json:"sp_def,omitempty"`
+	Speed *int `json:"speed,omitempty"`
+	// Ribbons holds ribbon slugs. Always a JSON array, never null, matching
+	// the contract of Pokemon.Tags.
+	Ribbons []string `json:"ribbons"`
+}
+
+// IsEmpty reports whether the metadata carries no information at all, which is
+// the case for a nil receiver and for a value whose every field is unset. Such
+// a value is stored as "no metadata" rather than as an empty record.
+func (c *CatchMeta) IsEmpty() bool {
+	if c == nil {
+		return true
+	}
+	return c.Location == "" && c.Nature == "" && c.Ability == "" && c.Ball == "" && c.Mark == "" &&
+		c.Level == nil && c.HP == nil && c.Atk == nil && c.Def == nil &&
+		c.SpAtk == nil && c.SpDef == nil && c.Speed == nil && len(c.Ribbons) == 0
 }
 
 // Group organizes Pokémon into collapsible Sidebar sections.
@@ -1078,6 +1119,8 @@ func applyBasicFields(dst *Pokemon, update Pokemon) {
 	// Same contract as Tags: nil means "not touched", empty clears the list.
 	// PhaseOf and PhaseNumber are intentionally absent here; a phase link is
 	// established by EndPhase alone and must survive every edit of the entry.
+	// Catch is absent for the same reason: it is written by SetCatchMeta alone,
+	// so an edit form that never loaded it cannot wipe it.
 	if update.PhaseTargets != nil {
 		dst.PhaseTargets = normalizePhaseTargets(update.PhaseTargets)
 	}
@@ -1576,6 +1619,31 @@ func (m *Manager) CompletePokemon(id string) bool {
 			m.markDirty()
 			return true
 		}
+	}
+	return false
+}
+
+// SetCatchMeta replaces the recorded catch details of the Pokémon with the
+// given id. A nil meta, or one that carries nothing once its ribbons are
+// normalized, clears the record. Returns false if not found.
+func (m *Manager) SetCatchMeta(id string, meta *CatchMeta) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.state.Pokemon {
+		if m.state.Pokemon[i].ID != id {
+			continue
+		}
+		var stored *CatchMeta
+		if meta != nil {
+			normalized := *meta
+			normalized.Ribbons = normalizeTags(normalized.Ribbons)
+			if !normalized.IsEmpty() {
+				stored = &normalized
+			}
+		}
+		m.state.Pokemon[i].Catch = stored
+		m.markDirty()
+		return true
 	}
 	return false
 }
