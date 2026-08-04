@@ -376,6 +376,36 @@ dialog.tutorial-shell::backdrop {
   border-color: color-mix(in srgb, var(--accent-blue) 50%, transparent);
 }
 
+/* ── Pokédex grid ────────────────────────────────────────────
+   The dex renders every synced species at once (>1000 slots). Skipping the
+   layout and paint of off-screen generations is the entire performance
+   strategy: no virtualization library, no pagination. Each section supplies
+   its own contain-intrinsic-size inline, computed from its row count, so the
+   scrollbar does not jump when a skipped section is finally rendered. */
+.dex-section {
+  content-visibility: auto;
+}
+
+.dex-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  grid-auto-rows: minmax(92px, auto);
+  gap: 8px;
+}
+
+/* Uncaught species render as a flat silhouette. brightness(0) flattens the
+   sprite to black, invert() lifts it to a tone that clears 3:1 against
+   --bg-card in each theme (WCAG 1.4.11): 4.99:1 on #161e28 dark, 4.76:1 on
+   #ffffff light. Alpha survives both filters, so the silhouette keeps the
+   species outline. */
+.t-dex-silhouette {
+  filter: brightness(0) invert(0.55);
+}
+
+[data-theme="light"] .t-dex-silhouette {
+  filter: brightness(0) invert(0.45);
+}
+
 /* ── Native <option> elements — match theme background ─── */
 option {
   background-color: var(--bg-secondary);

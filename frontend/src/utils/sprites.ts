@@ -78,9 +78,18 @@ export function isCustomSprite(url: string | null | undefined): boolean {
   return !!url && ![POKEAPI_BASE, SHOWDOWN_BASE, POKESPRITE_BASE].some((base) => url.startsWith(base));
 }
 
-/** Small default PokeAPI sprite — available for all generations including Gen 9. */
-export function getDefaultSpriteUrl(pokemonId: number | string): string {
-  return `${POKEAPI_BASE}/${pokemonId}.png`;
+/**
+ * Small default PokeAPI sprite — available for all generations including Gen 9.
+ * @param pokemonId Numeric PokeAPI id, or a slug for cosmetic-only forms.
+ * @param spriteType "shiny" switches to the shiny path segment; defaults to the
+ * normal sprite so existing single-argument callers keep their URL.
+ */
+export function getDefaultSpriteUrl(
+  pokemonId: number | string,
+  spriteType: SpriteType = "normal",
+): string {
+  const variant = spriteType === "shiny" ? "shiny/" : "";
+  return `${POKEAPI_BASE}/${variant}${pokemonId}.png`;
 }
 
 /**

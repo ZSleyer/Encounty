@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Routes, Route, Link, useLocation, useNavigate } from "react-router";
 import {
+  BookOpen,
   LayoutGrid,
   Settings as SettingsIcon,
   Power,
@@ -22,6 +23,7 @@ import {
   Star,
 } from "lucide-react";
 import { Dashboard } from "./pages/Dashboard";
+import { DexPage } from "./pages/DexPage";
 import { Settings } from "./pages/Settings";
 import { HotkeyPage } from "./pages/HotkeyPage";
 import { OverlayEditorPage } from "./pages/OverlayEditorPage";
@@ -245,7 +247,7 @@ function AppShell() {
   // flicker. Setting it here means the reveal class is on the first paint.
   const [dashboardReveal, setDashboardReveal] = useState(location.pathname === "/");
   if (prevPathRef.current !== location.pathname) {
-    const order = ["/", "/hotkeys", "/overlay-editor", "/settings"];
+    const order = ["/", "/dex", "/hotkeys", "/overlay-editor", "/settings"];
     const from = order.indexOf(prevPathRef.current);
     const to = order.indexOf(location.pathname);
     revealDirRef.current = to >= from ? "rtl" : "ltr";
@@ -295,6 +297,7 @@ function AppShell() {
     if (isOverlay) return;
     const routeTitles: Record<string, string> = {
       "/": t("nav.dashboard"),
+      "/dex": t("nav.dex"),
       "/hotkeys": t("nav.hotkeys"),
       "/overlay-editor": t("nav.overlayEditor"),
       "/settings": t("nav.settings"),
@@ -721,6 +724,9 @@ function AppShell() {
           <NavTab to="/" icon={<LayoutGrid className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.dashboard")}
           </NavTab>
+          <NavTab to="/dex" icon={<BookOpen className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
+            {t("nav.dex")}
+          </NavTab>
           <NavTab to="/hotkeys" icon={<Keyboard className="w-4 h-4 2xl:w-5 2xl:h-5" />}>
             {t("nav.hotkeys")}
           </NavTab>
@@ -794,6 +800,7 @@ function AppShell() {
           <ErrorBoundary>
             <Routes>
               <Route path="/" element={null} />
+              <Route path="/dex" element={<DexPage />} />
               <Route path="/hotkeys" element={<HotkeyPage />} />
               <Route path="/overlay-editor" element={<OverlayEditorPage />} />
               <Route path="/settings" element={<Settings />} />
