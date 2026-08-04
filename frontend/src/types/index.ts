@@ -42,6 +42,31 @@ export interface Pokemon {
   phase_number?: number;
   /** Species that end a phase when they show up shiny. Always an array in fresh snapshots. */
   phase_targets?: PhaseTarget[];
+  /** Optional catch details. Absent until the hunter records them. */
+  catch?: CatchMeta;
+}
+
+/**
+ * CatchMeta holds the optional details recorded for a caught shiny. Every
+ * field is optional. The six DVs and the level are `undefined` when unset,
+ * which is distinct from 0: a zero DV is a fact worth recording.
+ */
+export interface CatchMeta {
+  location?: string;
+  nature?: string;
+  ability?: string;
+  ball?: string;
+  /** At most one mark: a Pokémon can never carry two. */
+  mark?: string;
+  level?: number;
+  hp?: number;
+  atk?: number;
+  def?: number;
+  sp_atk?: number;
+  sp_def?: number;
+  speed?: number;
+  /** Ribbon slugs. Always an array in fresh backend snapshots. */
+  ribbons?: string[];
 }
 
 /** PhaseTarget is one species preselected as a phase-ending shiny. */
