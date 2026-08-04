@@ -26,12 +26,23 @@ output=${2:-"${repo_root}/packaging/aur/PKGBUILD"}
 release="https://github.com/ZSleyer/Encounty/releases/download/v${version}"
 icon="https://raw.githubusercontent.com/ZSleyer/Encounty/v${version}/backend/winres/icon.png"
 
+# sha256 of a zero-byte stream. curl writes nothing on a failed transfer, so
+# without this check a missing release asset would be published as a valid
+# looking checksum that every user then trips over at install time.
+_empty_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
 # remote_sha256 URL - stream the asset through sha256sum without keeping it on disk.
 remote_sha256() {
   local url=$1 sum
-  sum=$(curl -fsSL --retry 3 --retry-delay 5 "$url" | sha256sum | cut -d' ' -f1)
-  if [ -z "$sum" ]; then
-    echo "failed to hash ${url}" >&2
+  # curl sits at the head of the pipe, so its status has to be forwarded out of
+  # the subshell explicitly; the pipeline's own status is sha256sum's.
+  if ! sum=$(curl -fsSL --retry 3 --retry-delay 5 "$url" | sha256sum | cut -d' ' -f1
+             exit "${PIPESTATUS[0]}"); then
+    echo "failed to fetch ${url}" >&2
+    return 1
+  fi
+  if [ -z "$sum" ] || [ "$sum" = "$_empty_sha256" ]; then
+    echo "${url} produced an empty response" >&2
     return 1
   fi
   printf '%s' "$sum"
