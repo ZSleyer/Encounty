@@ -270,9 +270,9 @@ describe("Dashboard", () => {
     expect(container).toBeTruthy();
   });
 
-  // --- Sidebar lists running hunts only ---
+  // --- Sidebar tabs: active vs caught ---
 
-  it("lists only running hunts in the sidebar, never completed ones", async () => {
+  it("lists only running hunts in the sidebar while the active tab is selected", async () => {
     const activeMon = makePokemon({ id: "a1", name: "ActiveMon", is_active: true });
     const completedMon = makePokemon({
       id: "a2",
@@ -291,11 +291,103 @@ describe("Dashboard", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // Completed entries live in the Dex, so the sidebar shows the running hunt only.
+    // The active tab is the default, so only the running hunt is listed.
     const sidebarItems = [...document.querySelectorAll("[data-sidebar-idx]")];
     expect(sidebarItems.length).toBe(1);
     expect(sidebarItems[0].textContent).toContain("ActiveMon");
     expect(sidebarItems.some(el => el.textContent?.includes("CompletedMon"))).toBe(false);
+  });
+
+  it("renders both sidebar tabs with the active one pressed", async () => {
+    render(<Dashboard />);
+    await act(async () => {});
+
+    const activeTab = screen.getByRole("button", { name: /^Aktiv\b/ });
+    const dexTab = screen.getByRole("button", { name: /^Pokédex\b/ });
+    expect(activeTab).toHaveAttribute("aria-pressed", "true");
+    expect(dexTab).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("lists only caught entries once the pokedex tab is selected", async () => {
+    const user = userEvent.setup();
+    const activeMon = makePokemon({ id: "a1", name: "ActiveMon", is_active: true });
+    const caughtMon = makePokemon({
+      id: "a2",
+      name: "CaughtMon",
+      is_active: false,
+      completed_at: "2024-06-01T00:00:00Z",
+    });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [activeMon, caughtMon], active_id: "a1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    await user.click(screen.getByRole("button", { name: /^Pokédex\b/ }));
+
+    const sidebarItems = [...document.querySelectorAll("[data-sidebar-idx]")];
+    expect(sidebarItems.length).toBe(1);
+    expect(sidebarItems[0].textContent).toContain("CaughtMon");
+    expect(screen.getByRole("button", { name: /^Pokédex\b/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Aktiv\b/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("counts each sidebar tab separately and announces the counts as text", async () => {
+    const p1 = makePokemon({ id: "p1", name: "Mon1" });
+    const p2 = makePokemon({ id: "p2", name: "Mon2" });
+    const c1 = makePokemon({ id: "p3", name: "Mon3", completed_at: "2025-01-01T00:00:00Z" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [p1, p2, c1], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    // Two running hunts, one caught entry. The badge is aria-hidden, so the
+    // accessible name carries the count as words instead of a bare number.
+    expect(screen.getByRole("button", { name: "Aktiv, 2 Einträge" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pokédex, 1 Einträge" })).toBeInTheDocument();
+  });
+
+  it("hides the caught count badge while nothing has been caught", async () => {
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [makePokemon({ id: "p1", name: "Mon1" })], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.getByRole("button", { name: "Pokédex" })).toBeInTheDocument();
+  });
+
+  it("shows the caught empty state when the pokedex tab has no entries", async () => {
+    const user = userEvent.setup();
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [makePokemon({ id: "p1", name: "Mon1" })], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    await user.click(screen.getByRole("button", { name: /^Pokédex\b/ }));
+
+    expect(screen.getByText("Noch nichts gefangen")).toBeInTheDocument();
+    expect(screen.getByText("Markiere gefundene Shinys als Gefangen!")).toBeInTheDocument();
   });
 
   // --- Completed Pokemon rendering ---
@@ -745,6 +837,7 @@ describe("Dashboard pokemon list", () => {
   });
 
   it("never applies the reduced-opacity treatment to a rendered sidebar row", async () => {
+    const user = userEvent.setup();
     const active = makePokemon({ id: "p1", name: "ActiveMon" });
     const completed = makePokemon({
       id: "p2",
@@ -762,11 +855,18 @@ describe("Dashboard pokemon list", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // buildSidebarItemClass still adds "opacity-70" for a completed entry, but
-    // the sidebar renders running hunts only, so no row can reach that branch.
-    const listItems = [...document.querySelectorAll("[data-sidebar-idx]")];
-    expect(listItems.length).toBeGreaterThan(0);
-    expect(listItems.some(el => el.className.includes("opacity-70"))).toBe(false);
+    // A caught row is marked by the trophy badge, not by dimming the whole row:
+    // "opacity-70" pushed the muted metadata text below the 4.5:1 contrast the
+    // project requires, in both themes.
+    const activeRows = [...document.querySelectorAll("[data-sidebar-idx]")];
+    expect(activeRows.length).toBeGreaterThan(0);
+    expect(activeRows.some(el => el.className.includes("opacity-70"))).toBe(false);
+
+    await user.click(screen.getByRole("button", { name: /^Pokédex\b/ }));
+
+    const caughtRows = [...document.querySelectorAll("[data-sidebar-idx]")];
+    expect(caughtRows.length).toBeGreaterThan(0);
+    expect(caughtRows.some(el => el.className.includes("opacity-70"))).toBe(false);
   });
 });
 
@@ -1399,6 +1499,7 @@ describe("Dashboard sidebar", () => {
   });
 
   it("keeps the add pokemon button in the sidebar footer when completed hunts exist", async () => {
+    const user = userEvent.setup();
     const active = makePokemon({ id: "p1", name: "Mon1" });
     const completed = makePokemon({ id: "p2", name: "Mon2", completed_at: "2025-01-01T00:00:00Z" });
 
@@ -1412,8 +1513,12 @@ describe("Dashboard sidebar", () => {
     render(<Dashboard />);
     await act(async () => {});
 
-    // The footer add button renders unconditionally: nothing may gate it again.
+    // Completed hunts do not affect the active tab's footer button.
     expect(screen.getByText("Pokémon hinzufügen")).toBeInTheDocument();
+
+    // Adding a hunt makes no sense while browsing what is already caught.
+    await user.click(screen.getByRole("button", { name: /^Pokédex\b/ }));
+    expect(screen.queryByText("Pokémon hinzufügen")).not.toBeInTheDocument();
   });
 
   it("displays game info in sidebar items", async () => {
@@ -3753,9 +3858,28 @@ describe("Dashboard collapsed sidebar with completed hunts", () => {
     const collapseBtn = screen.getByRole("button", { name: /Einklappen|Collapse/i });
     await user.click(collapseBtn);
 
-    // The collapsed add button renders unconditionally: nothing may gate it again.
-    const addBtns = screen.getAllByLabelText(/Pokémon hinzufügen/i);
-    expect(addBtns.length).toBeGreaterThan(0);
+    // Completed hunts do not affect the active tab's collapsed add button.
+    expect(screen.getAllByLabelText(/Pokémon hinzufügen/i).length).toBeGreaterThan(0);
+  });
+
+  it("hides the add button in the collapsed sidebar on the pokedex tab", async () => {
+    const user = userEvent.setup();
+    const active = makePokemon({ id: "p1", name: "Mon1" });
+    const completed = makePokemon({ id: "p2", name: "Mon2", completed_at: "2025-01-01T00:00:00Z" });
+
+    useCounterStore.setState({
+      appState: makeAppState({ pokemon: [active, completed], active_id: "p1" }),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+
+    await user.click(screen.getByRole("button", { name: /^Pokédex\b/ }));
+    await user.click(screen.getByRole("button", { name: /Einklappen|Collapse/i }));
+
+    expect(screen.queryAllByLabelText(/Pokémon hinzufügen/i).length).toBe(0);
   });
 });
 
@@ -6439,6 +6563,28 @@ describe("Dashboard phase totals and history", () => {
     expect(entry.textContent).toContain("P1");
     expect(entry.textContent).toContain("Glumanda");
     expect(entry.textContent).toContain("00:00:05");
+  });
+
+  it("switches the sidebar to the pokedex tab when a caught entry is opened", async () => {
+    const user = userEvent.setup();
+    useCounterStore.setState({
+      appState: phasedState(),
+      isConnected: true,
+      lastEncounterPokemonId: null,
+      detectorStatus: {},
+    });
+
+    render(<Dashboard />);
+    await act(async () => {});
+
+    expect(screen.getByRole("button", { name: /^Aktiv\b/ })).toHaveAttribute("aria-pressed", "true");
+
+    // The phase entry is completed, so opening it must land on a visible row.
+    await user.click(screen.getByLabelText("Phase 1: Glumanda öffnen"));
+
+    expect(screen.getByRole("button", { name: /^Pokédex\b/ })).toHaveAttribute("aria-pressed", "true");
+    const sidebarItems = [...document.querySelectorAll("[data-sidebar-idx]")];
+    expect(sidebarItems.some(el => el.textContent?.includes("Glumanda"))).toBe(true);
   });
 
   it("marks the parent hunt row in the sidebar with the running phase number", async () => {

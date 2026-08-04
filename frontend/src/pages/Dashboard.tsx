@@ -596,6 +596,7 @@ function useFocusShortcut(ref: React.RefObject<HTMLInputElement | null>) {
   }, [ref]);
 }
 
+type SidebarTab = "active" | "caught";
 type SortMode = "recent" | "name" | "encounters" | "game" | "manual";
 type SortDir = "asc" | "desc";
 type HuntMode = "both" | "timer" | "detector";
@@ -663,13 +664,15 @@ async function applyOverlayMode(
   }
 }
 
-/** Renders the empty-list placeholder based on the current search query. */
+/** Renders the empty-list placeholder based on current search query and sidebar tab. */
 function EmptyListPlaceholder({
   query,
+  sidebarTab,
   onClearAndAdd,
   onAdd,
 }: Readonly<{
   query: string;
+  sidebarTab: SidebarTab;
   onClearAndAdd: () => void;
   onAdd: () => void;
 }>) {
@@ -691,20 +694,55 @@ function EmptyListPlaceholder({
       </>
     );
   }
+  if (sidebarTab === "active") {
+    return (
+      <>
+        <Gamepad2 className="w-10 h-10 text-text-faint mb-3" />
+        <p className="text-sm text-text-muted">
+          {t("dash.noPokemon")}
+        </p>
+        <button
+          onClick={onAdd}
+          className="mt-4 text-xs text-accent-blue hover:underline"
+        >
+          {t("dash.addFirst")}
+        </button>
+      </>
+    );
+  }
   return (
     <>
-      <Gamepad2 className="w-10 h-10 text-text-faint mb-3" />
+      <Trophy className="w-10 h-10 text-text-faint mb-3" />
       <p className="text-sm text-text-muted">
-        {t("dash.noPokemon")}
+        {t("dash.noCaught")}
       </p>
-      <button
-        onClick={onAdd}
-        className="mt-4 text-xs text-accent-blue hover:underline"
-      >
-        {t("dash.addFirst")}
-      </button>
+      <p className="text-xs text-text-faint mt-1">
+        {t("dash.noCaughtHint")}
+      </p>
     </>
   );
+}
+
+/**
+ * Builds the class for a sidebar tab button. `selectedColor` is the text colour
+ * the tab takes while it is the selected one.
+ */
+function sidebarTabClass(isSelected: boolean, selectedColor: string): string {
+  const state = isSelected ? selectedColor : "text-text-muted hover:text-text-secondary";
+  return `flex-1 min-h-8 py-2 text-xs 2xl:text-sm font-semibold transition-colors relative ${state}`;
+}
+
+/**
+ * Accessible name for a sidebar tab. The visible count badge is a bare number
+ * and therefore hidden from assistive tech, so the name spells the count out.
+ * Without entries the badge is absent and the visible label already suffices.
+ */
+function sidebarTabLabel(
+  label: string,
+  count: number,
+  t: (key: string, options?: Record<string, string | number>) => string,
+): string | undefined {
+  return count > 0 ? t("aria.sidebarTabCount", { label, count }) : undefined;
 }
 
 /** Returns the CSS class for a header tab button based on active state. */
@@ -976,7 +1014,7 @@ function applyCopyOverlay(
 
 /** Sidebar quick actions bar: start/stop hunts, mode selector, selection actions, and the total encounter count. */
 function SidebarQuickActions({
-  allPokemon, activeHunts, selectedIds, detectorStatus,
+  allPokemon, activeHunts, selectedIds, sidebarTab, detectorStatus,
   showHuntMenu, setShowHuntMenu, send, capture,
   setDetectorStatus, clearDetectorStatus, bulkComplete, bulkDelete, setSelectedIds,
   viewedPokemonId,
@@ -984,6 +1022,7 @@ function SidebarQuickActions({
   allPokemon: Pokemon[];
   activeHunts: Pokemon[];
   selectedIds: Set<string>;
+  sidebarTab: SidebarTab;
   detectorStatus: Record<string, { state?: string; confidence?: number }>;
   showHuntMenu: boolean;
   setShowHuntMenu: (v: boolean | ((prev: boolean) => boolean)) => void;
@@ -1115,14 +1154,16 @@ function SidebarQuickActions({
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-accent-blue font-semibold tabular-nums">{selectedIds.size}</span>
-          <button
-            onClick={bulkComplete}
-            className="p-1 rounded-none text-text-faint hover:text-accent-green transition-colors"
-            title={t("dash.caught")}
-            aria-label={t("dash.caught")}
-          >
-            <PartyPopper className="w-3 h-3" />
-          </button>
+          {sidebarTab === "active" && (
+            <button
+              onClick={bulkComplete}
+              className="p-1 rounded-none text-text-faint hover:text-accent-green transition-colors"
+              title={t("dash.caught")}
+              aria-label={t("dash.caught")}
+            >
+              <PartyPopper className="w-3 h-3" />
+            </button>
+          )}
           <button
             onClick={bulkDelete}
             className="p-1 rounded-none text-text-faint hover:text-accent-red transition-colors"
@@ -2106,6 +2147,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   const [catchMetaId, setCatchMetaId] = useState<string | null>(null);
   const [imgError, setImgError] = useState<Record<string, string>>({});
 
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("active");
   const [searchQuery, setSearchQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -2302,17 +2344,19 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   // --- Derived State (computed before hooks to avoid conditional hook calls) ---
   const allPokemon = appState?.pokemon ?? [];
   const groups: Group[] = appState?.groups ?? [];
-  // The sidebar lists running hunts only. Completed entries live in the Dex
-  // and reach the main panel through handleOpenEntry, which does not require
-  // the entry to be in the list.
   const activeHunts = allPokemon.filter((p) => !p.completed_at);
+  // Quick access to what has already been caught. The /dex route stays the full
+  // grid view; this list only shortcuts back to an entry from the Dashboard.
+  const caughtHunts = allPokemon.filter((p) => !!p.completed_at);
   const q = searchQuery.trim().toLowerCase();
-  const tagFiltered = activeTagFilters.length > 0
-    ? activeHunts.filter((p) => {
+  const tabPool = sidebarTab === "active" ? activeHunts : caughtHunts;
+  // Tag filter applies only on the active tab; the caught list stays flat.
+  const tagFiltered = sidebarTab === "active" && activeTagFilters.length > 0
+    ? tabPool.filter((p) => {
         const pTags = p.tags ?? [];
         return activeTagFilters.every((t) => pTags.includes(t));
       })
-    : activeHunts;
+    : tabPool;
   const filtered = filterPokemonByQuery(tagFiltered, q);
   const displayList = sortPokemonList(filtered, sortMode, sortDir);
 
@@ -2443,11 +2487,12 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   };
 
   /**
-   * Shows the given entry in the main panel, so jumping from a phase entry to
-   * its hunt (or back) always lands on something visible. A completed entry is
-   * viewable this way even though the sidebar no longer lists it.
+   * Shows the given entry in the main panel and switches the sidebar to the tab
+   * it lives in, so jumping from a phase entry to its hunt (or back) always
+   * lands on something visible.
    */
   const handleOpenEntry = (target: Pokemon) => {
+    setSidebarTab(target.completed_at ? "caught" : "active");
     setViewedGroupId(null);
     setViewedPokemonId(target.id);
     setRightPanelTab("counter");
@@ -2576,8 +2621,8 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   /** Renders the right main panel when no Pokemon is selected. */
   const renderNoPokemonPanel = () => {
     // The inline overview shortcut opens the ungrouped bucket, so only offer it
-    // when ungrouped Pokémon actually exist.
-    const hasUngrouped = activeHunts.some((p) => !p.group_id);
+    // when ungrouped Pokémon actually exist. Scoped to the selected tab.
+    const hasUngrouped = tabPool.some((p) => !p.group_id);
     return (
     <div className="flex flex-col items-center justify-center h-full text-center relative z-10 w-full max-w-4xl mx-auto">
       <Sparkles className="w-8 h-8 text-text-faint mb-6" />
@@ -2623,10 +2668,10 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
       sort_order: 0,
       collapsed: false,
     };
-    // Scoped to the running hunts the sidebar shows, so a group overview never
-    // leaks completed members in (the group entity itself has no completion
-    // state, only its members do).
-    const scopePool = activeHunts;
+    // Scoped to the current tab: a group view opened from Active must not leak
+    // completed members in, and vice versa (the group entity itself has no
+    // completion state, only its members do).
+    const scopePool = tabPool;
     const rawMembers = isUngrouped
       ? scopePool.filter((p) => !p.group_id)
       : scopePool.filter((p) => p.group_id === group.id);
@@ -2728,6 +2773,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
   const renderPokemonItem = (p: Pokemon, idx: number): React.ReactNode => {
     const isViewed = p.id === effectiveViewedId;
     const isHotkeyTarget = p.id === appState.active_id;
+    const isCaught = !!p.completed_at;
     const isSelected = selectedIds.has(p.id);
     const src = resolveSpriteUrl(p.id, p.sprite_url, imgError);
     const itemBorderClass = sidebarItemBorderClass(isSelected, isViewed);
@@ -2738,7 +2784,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
     // The running phase is max(finished) + 1; without a finished phase the hunt
     // is still in phase 1 and stays unmarked.
     const finishedPhases = phaseIndex.latestPhase.get(p.id);
-    const runningPhase = finishedPhases === undefined ? null : finishedPhases + 1;
+    const runningPhase = isCaught || finishedPhases === undefined ? null : finishedPhases + 1;
     // Full metadata as tooltip since the merged line truncates.
     const metaTitle = [formName, p.game ? formatGame(p.game) : "", String(p.encounters), originLabel ?? ""]
       .filter(Boolean)
@@ -2786,6 +2832,13 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
             onError={() => setImgError((prev) => ({ ...prev, [p.id]: resolveSpriteSrc(p.sprite_url) }))}
             className="pokemon-sprite w-full h-full object-contain"
           />
+          {/* Decorative: the caught state is already carried by the selected
+              Pokédex tab this row can only appear under. */}
+          {isCaught && (
+            <div aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-none p-0.5">
+              <Trophy className="w-2 h-2 text-text-primary" />
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           {/* Row 1: Name + Actions */}
@@ -2992,6 +3045,10 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                // The placeholder is the only visible hint and it disappears on
+                // the first keystroke, so the accessible name cannot rest on it
+                // (WCAG 3.3.2).
+                aria-label={t("dash.search")}
                 placeholder={t("dash.searchShortcut")}
                 className="flex-1 min-w-0 bg-transparent text-text-primary placeholder-text-faint outline-none focus:outline-none focus-visible:outline-none text-xs"
               />
@@ -3041,7 +3098,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               )}
             </div>
             {/* Tag filter toggle */}
-            {availableTags.length > 0 && (
+            {sidebarTab === "active" && availableTags.length > 0 && (
               <button
                 onClick={() => setShowTagFilterBar(v => !v)}
                 aria-pressed={showTagFilterBar || activeTagFilters.length > 0}
@@ -3077,11 +3134,59 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
           </div>
         </div>
 
+        {/* Tabs: Active | Pokédex. Two aria-pressed toggles rather than a full
+            tablist: the list below is a plain region, not a tabpanel, and a
+            role="tab" without the matching panel wiring would announce a
+            structure that is not there. */}
+        <div className="flex border-b border-border-subtle">
+          <button
+            type="button"
+            onClick={() => setSidebarTab("active")}
+            aria-pressed={sidebarTab === "active"}
+            aria-label={sidebarTabLabel(t("dash.tabActive"), activeHunts.length, t)}
+            className={sidebarTabClass(sidebarTab === "active", "text-accent-blue")}
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Sparkles className="w-3 h-3" aria-hidden="true" />
+              {t("dash.tabActive")}
+              {activeHunts.length > 0 && (
+                <span aria-hidden="true" className="border border-accent-blue/40 text-accent-blue text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
+                  {activeHunts.length}
+                </span>
+              )}
+            </span>
+            {sidebarTab === "active" && (
+              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-blue rounded-none" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setSidebarTab("caught")}
+            aria-pressed={sidebarTab === "caught"}
+            aria-label={sidebarTabLabel(t("dex.title"), caughtHunts.length, t)}
+            className={sidebarTabClass(sidebarTab === "caught", "text-accent-green")}
+          >
+            <span className="flex items-center justify-center gap-1.5">
+              <Trophy className="w-3 h-3" aria-hidden="true" />
+              {t("dex.title")}
+              {caughtHunts.length > 0 && (
+                <span aria-hidden="true" className="border border-accent-green/40 text-accent-green text-[10px] px-1.5 py-0.5 rounded-none tabular-nums">
+                  {caughtHunts.length}
+                </span>
+              )}
+            </span>
+            {sidebarTab === "caught" && (
+              <div className="absolute bottom-0 left-2 right-2 h-0.5 bg-accent-green rounded-none" />
+            )}
+          </button>
+        </div>
+
         {/* Quick actions bar */}
         <SidebarQuickActions
           allPokemon={appState.pokemon}
           activeHunts={activeHunts}
           selectedIds={selectedIds}
+          sidebarTab={sidebarTab}
           detectorStatus={detectorStatus}
           showHuntMenu={showHuntMenu}
           setShowHuntMenu={setShowHuntMenu}
@@ -3096,7 +3201,7 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
         />
 
         {/* Tag filter bar: only when tags exist and a filter is active or the funnel toggle is on */}
-        {availableTags.length > 0 && (activeTagFilters.length > 0 || showTagFilterBar) && (
+        {sidebarTab === "active" && availableTags.length > 0 && (activeTagFilters.length > 0 || showTagFilterBar) && (
           <TagFilterBar
             activeTags={activeTagFilters}
             availableTags={availableTags}
@@ -3109,27 +3214,30 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
         <div className="flex-1 overflow-y-auto">
           {displayList.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-              <EmptyListPlaceholder query={q} onClearAndAdd={handleClearAndAdd} onAdd={handleOpenAdd} />
+              <EmptyListPlaceholder query={q} sidebarTab={sidebarTab} onClearAndAdd={handleClearAndAdd} onAdd={handleOpenAdd} />
             </div>
           ) : (
             /* Grouped view: each group section renders its own <ul> so the
                native list content model stays valid (group headers are not
-               list items). */
+               list items). Used for both tabs so a group's "view" action
+               scopes correctly to whichever tab it was opened from. */
             <div className="py-1 select-none">{renderGroupedList()}</div>
           )}
         </div>
 
         {/* Add button */}
-        <div className="p-3 border-t border-border-subtle">
-          <button
-            onClick={() => setShowAddModal(true)}
-            title={t("dash.tooltipAddPokemon")}
-            className="t-cut w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-none text-xs 2xl:text-sm font-semibold transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            {t("dash.addPokemon")}
-          </button>
-        </div>
+        {sidebarTab === "active" && (
+          <div className="p-3 border-t border-border-subtle">
+            <button
+              onClick={() => setShowAddModal(true)}
+              title={t("dash.tooltipAddPokemon")}
+              className="t-cut w-full flex items-center justify-center gap-1.5 py-2 2xl:py-2.5 bg-accent-blue hover:bg-accent-blue/80 rounded-none text-xs 2xl:text-sm font-semibold transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {t("dash.addPokemon")}
+            </button>
+          </div>
+        )}
       </aside>
       {/* Collapsed mini-sidebar: sprites only */}
       {sidebarCollapsed && (
@@ -3156,15 +3264,19 @@ export function Dashboard({ isActiveRoute = true }: Readonly<DashboardProps> = {
               />
             ))}
           </div>
-          <div className="border-t border-border-subtle mx-2" />
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="p-2 mx-auto my-2 text-accent-blue hover:text-white hover:bg-accent-blue rounded-none transition-colors"
-            title={t("dash.addPokemon")}
-            aria-label={t("dash.addPokemon")}
-          >
-            <Plus className="w-5 h-5" />
-          </button>
+          {sidebarTab === "active" && (
+            <>
+              <div className="border-t border-border-subtle mx-2" />
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="p-2 mx-auto my-2 text-accent-blue hover:text-white hover:bg-accent-blue rounded-none transition-colors"
+                title={t("dash.addPokemon")}
+                aria-label={t("dash.addPokemon")}
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
       )}
       <div className="w-px shrink-0 bg-border-subtle" />
