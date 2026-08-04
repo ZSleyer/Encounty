@@ -48,3 +48,44 @@ jobs:
       - name: Type Check
         working-directory: frontend
         run: npx tsc --noEmit
+
+  licenses:
+    name: Licenses
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Create frontend/dist stub for go:embed
+        run: mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: yarn install
+
+      - name: Install Electron Dependencies
+        working-directory: electron
+        run: yarn install
+
+      # The collected licenses feed license=() in the AUR package, so a
+      # dependency added without regenerating them ships a package that claims
+      # a license set it no longer has.
+      - name: Check the collected licenses are current
+        run: |
+          make licenses
+          if ! git diff --quiet -- backend/internal/licenses/third_party.json packaging/aur/licenses.spdx; then
+            echo "::error::License data is stale, run 'make licenses' and commit the result."
+            git diff --stat -- backend/internal/licenses/third_party.json packaging/aur/licenses.spdx
+            exit 1
+          fi

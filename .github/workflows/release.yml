@@ -200,6 +200,17 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: yarn package:linux --x64 --publish ${{ steps.prerelease.outputs.publish_flag }}
 
+      # The AUR package installs these into /usr/share/licenses/. Built here
+      # because the Electron and Chromium texts are read out of the AppImage
+      # that the previous step just produced.
+      - name: Build the license bundle
+        run: make license-bundle
+
+      - name: Publish the license bundle
+        uses: softprops/action-gh-release@v3
+        with:
+          files: electron/release/Encounty-licenses.tar.gz
+
       - name: Install Wine for Windows cross-build
         run: |
           sudo dpkg --add-architecture i386
