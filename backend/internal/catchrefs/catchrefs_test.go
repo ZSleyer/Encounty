@@ -36,7 +36,7 @@ func namedByKind(t *testing.T) map[string][]Named {
 	}
 	for group, locs := range locations.Groups {
 		for _, l := range locs {
-			byKind["locations/"+group] = append(byKind["locations/"+group], Named{Slug: l.Slug, Names: l.Names})
+			byKind["locations/"+group] = append(byKind["locations/"+group], Named(l))
 		}
 	}
 	return byKind
