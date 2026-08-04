@@ -881,7 +881,7 @@ function buildSpriteCycleSources(pokemon: Pokemon | null): string[] {
  * stall while dragging.
  */
 function useSpriteCycle(
-  sources: string[],
+  sources: readonly string[],
   enabled: boolean,
   intervalMs: number,
   resetKey: string,
@@ -890,12 +890,23 @@ function useSpriteCycle(
   const count = sources.length;
   const period = intervalMs > 0 ? intervalMs : DEFAULT_CYCLE_INTERVAL_MS;
   const cycling = enabled && count > 1;
+  // Read inside the effect without becoming a dependency of it, so the array
+  // identity changing on every render does not restart the interval.
+  const sourcesRef = useRef(sources);
+  sourcesRef.current = sources;
 
   useEffect(() => {
     // Restart at the hunt's own sprite whenever the sources change. The count
     // alone does not catch a switch to another hunt with equally many targets.
     setIndex(0);
     if (!cycling) return;
+    // Warm the browser cache for the whole cycle before the first swap. A
+    // sprite that is still being fetched when its transition starts decodes
+    // mid-animation, which drops frames on every swap of the first round.
+    for (const url of sourcesRef.current) {
+      const preload = new Image();
+      preload.src = url;
+    }
     const id = setInterval(() => setIndex((i) => (i + 1) % count), period);
     return () => clearInterval(id);
   }, [cycling, count, period, resetKey]);
@@ -985,8 +996,12 @@ function spriteSlotTransitionStyle(
 
 /** Props for {@link CyclingSprite}. */
 interface CyclingSpriteProps {
-  /** Sprite URL to show. A change to this value starts a transition. */
-  readonly src: string;
+  /** Sprite URLs to rotate through, hunt sprite first. */
+  readonly sources: readonly string[];
+  /** Whether the overlay cycles at all; a single sprite is shown at rest. */
+  readonly enabled: boolean;
+  /** Hunt the sources belong to, so a switch restarts the cycle. */
+  readonly resetKey: string;
   /** Render pixel art without smoothing. */
   readonly crisp: boolean;
   /** Cycle period, so a transition never outlasts the interval driving it. */
@@ -1008,18 +1023,38 @@ interface CyclingSpriteProps {
  *
  * The incoming slot always paints above the outgoing one. A wipe that ran
  * behind the sprite it replaces would reveal nothing.
+ *
+ * The cycle itself is driven from in here rather than from the overlay root:
+ * state up there would re-render every element on the overlay once per tick,
+ * for a swap that only ever touches these two images.
  */
-function CyclingSprite({ src, crisp, intervalMs, transition }: CyclingSpriteProps) {
+function CyclingSprite({
+  sources,
+  enabled,
+  resetKey,
+  crisp,
+  intervalMs,
+  transition,
+}: CyclingSpriteProps) {
+  const src = useSpriteCycle(sources, enabled, intervalMs, resetKey);
+
   // Two slots, alternating. `front` is the one currently being shown.
   const [slots, setSlots] = useState<readonly [string, string]>([src, ""]);
   const [front, setFront] = useState(0);
+  // Mirrors of what the swap already handed to the slots. Reading the state
+  // through refs keeps it out of the dependency list, so the effect runs once
+  // per source change instead of a second time on the render it just caused.
+  const shownRef = useRef(src);
+  const frontRef = useRef(0);
 
   useEffect(() => {
-    if (!src || src === slots[front]) return;
-    const back = front === 0 ? 1 : 0;
+    if (!src || src === shownRef.current) return;
+    shownRef.current = src;
+    const back = frontRef.current === 0 ? 1 : 0;
+    frontRef.current = back;
     setSlots((prev) => (back === 0 ? [src, prev[1]] : [prev[0], src]));
     setFront(back);
-  }, [src, slots, front]);
+  }, [src]);
 
   // Half the period, so a fast cycle never spends longer moving between two
   // sprites than it spends showing either of them on its own.
@@ -1107,12 +1142,6 @@ export function Overlay({
   const spriteCycleSources = useMemo(
     () => buildSpriteCycleSources(activePokemon),
     [activePokemon],
-  );
-  const spriteSrc = useSpriteCycle(
-    spriteCycleSources,
-    settings?.sprite.cycle_phase_targets ?? false,
-    settings?.sprite.cycle_interval_ms ?? DEFAULT_CYCLE_INTERVAL_MS,
-    activePokemon?.id ?? "",
   );
 
   // Inject fonts
@@ -1228,7 +1257,9 @@ export function Overlay({
               />
             )}
             <CyclingSprite
-              src={spriteSrc}
+              sources={spriteCycleSources}
+              enabled={settings.sprite.cycle_phase_targets ?? false}
+              resetKey={activePokemon?.id ?? ""}
               crisp={crispSprites}
               intervalMs={settings.sprite.cycle_interval_ms ?? DEFAULT_CYCLE_INTERVAL_MS}
               transition={resolveSpriteTransition(settings.sprite.cycle_transition)}
