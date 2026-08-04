@@ -3,13 +3,12 @@ name: Lint
 on:
   workflow_call:
 
-permissions:
-  contents: read
-
 jobs:
   go:
     name: Go
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -32,6 +31,8 @@ jobs:
   typescript:
     name: TypeScript
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -50,10 +51,13 @@ jobs:
         run: npx tsc --noEmit
 
   # Both artefacts below are generated and committed, so nothing forces them to
-  # be regenerated when their inputs change. Regenerate here and fail on a diff.
+  # be regenerated when their inputs change. Regenerate them here: a push to
+  # main commits the result, everything else only reports the drift.
   generated:
     name: Generated artefacts
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -67,15 +71,8 @@ jobs:
       - name: Create frontend/dist stub for go:embed
         run: mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
 
-      # Checked before the dependency installs below so a stale spec fails fast.
-      - name: Check the Swagger spec is current
-        run: |
-          make swagger
-          if ! git diff --quiet -- backend/docs; then
-            echo "::error::Swagger spec is stale, run 'make swagger' and commit the result."
-            git diff --stat -- backend/docs
-            exit 1
-          fi
+      - name: Regenerate the Swagger spec
+        run: make swagger
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -93,11 +90,67 @@ jobs:
       # The collected licenses feed license=() in the AUR package, so a
       # dependency added without regenerating them ships a package that claims
       # a license set it no longer has.
-      - name: Check the collected licenses are current
+      - name: Regenerate the collected licenses
+        run: make licenses
+
+      # A push to main commits the regenerated files so the tree cannot drift.
+      # Every other event only reports, because a pull request head lives on a
+      # branch this job has no token for.
+      - name: Commit the regenerated artefacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PATHS: backend/docs backend/internal/licenses/third_party.json packaging/aur/licenses.spdx
         run: |
-          make licenses
-          if ! git diff --quiet -- backend/internal/licenses/third_party.json packaging/aur/licenses.spdx; then
-            echo "::error::License data is stale, run 'make licenses' and commit the result."
-            git diff --stat -- backend/internal/licenses/third_party.json packaging/aur/licenses.spdx
+          set -o pipefail
+          # Staged rather than plain diff so a newly generated file counts too.
+          git add -A -- $PATHS
+          if git diff --cached --quiet; then
+            echo "Generated artefacts are current."
+            exit 0
+          fi
+          git diff --cached --stat
+          if [ "$EVENT" != "push" ]; then
+            echo "::error::Generated artefacts are stale, run 'make swagger' and 'make licenses' and commit the result."
             exit 1
           fi
+          # Both the encoded contents and the assembled payload travel through
+          # files: these artefacts run to hundreds of kilobytes each and blow
+          # past ARG_MAX the moment they become a command line argument.
+          git diff --cached --name-only --diff-filter=d \
+            | while read -r f; do
+                base64 -w0 "$f" | jq -Rc --arg p "$f" '{path: $p, contents: .}'
+              done > "$RUNNER_TEMP/additions.jsonl"
+          deletions=$(git diff --cached --name-only --diff-filter=D \
+            | jq -Rsc 'split("\n") | map(select(length > 0) | {path: .})')
+          # A file silently dropped from the payload would commit a partial
+          # regeneration, which reads as success and drifts again next run.
+          staged=$(git diff --cached --name-only --diff-filter=d | wc -l)
+          built=$(wc -l < "$RUNNER_TEMP/additions.jsonl")
+          if [ "$built" != "$staged" ]; then
+            echo "::error::Encoded $built of $staged changed files, refusing to commit a partial regeneration."
+            exit 1
+          fi
+          # createCommitOnBranch rather than a push from the runner: GitHub
+          # signs the commits it creates itself, and a commit made with
+          # GITHUB_TOKEN does not start another run of this workflow.
+          # expectedHeadOid makes a race with a concurrent push fail loudly
+          # instead of overwriting it.
+          jq -n \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg branch "$GITHUB_REF_NAME" \
+            --arg oid "$(git rev-parse HEAD)" \
+            --slurpfile additions "$RUNNER_TEMP/additions.jsonl" \
+            --argjson deletions "$deletions" \
+            '{
+              query: "mutation($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
+              variables: {
+                input: {
+                  branch: {repositoryNameWithOwner: $repo, branchName: $branch},
+                  expectedHeadOid: $oid,
+                  message: {headline: "chore: regenerate the committed artefacts"},
+                  fileChanges: {additions: $additions, deletions: $deletions}
+                }
+              }
+            }' > "$RUNNER_TEMP/commit.json"
+          gh api graphql --input "$RUNNER_TEMP/commit.json"

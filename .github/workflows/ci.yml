@@ -19,6 +19,9 @@ jobs:
   lint:
     name: Lint
     uses: ./.github/workflows/lint.yml
+    # For the generated-artefacts job, which commits what it regenerates.
+    permissions:
+      contents: write
 
   build:
     name: Build
