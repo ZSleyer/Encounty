@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/zsleyer/encounty/backend/internal/state"
@@ -285,7 +286,7 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 	rows, err := db.Query(`SELECT id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
 		sprite_style, encounters, step, is_active, created_at, language, game,
 		completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
-		hunt_mode, group_id, phase_of, phase_number
+		hunt_mode, group_id, phase_of, phase_number, catch_meta
 		FROM pokemon ORDER BY sort_order`)
 	if err != nil {
 		return nil, err
@@ -298,15 +299,17 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		var isActive int
 		var shinyCharm int
 		var createdAtStr string
+		var catchMetaJSON string
 		var completedAt, timerStartedAt sql.NullString
 
 		if err := rows.Scan(&p.ID, &p.Name, &p.BaseName, &p.FormName, &p.Title, &p.CanonicalName, &p.SpriteURL,
 			&p.SpriteType, &p.SpriteStyle, &p.Encounters, &p.Step, &isActive,
 			&createdAtStr, &p.Language, &p.Game, &completedAt, &p.OverlayMode,
 			&p.HuntType, &shinyCharm, &timerStartedAt, &p.TimerAccumulatedMs, &p.HuntMode, &p.GroupID,
-			&p.PhaseOf, &p.PhaseNumber); err != nil {
+			&p.PhaseOf, &p.PhaseNumber, &catchMetaJSON); err != nil {
 			return nil, err
 		}
+		p.Catch = unmarshalCatchMeta(catchMetaJSON)
 		p.IsActive = isActive != 0
 		p.ShinyCharm = shinyCharm != 0
 		if t, err := time.Parse(time.RFC3339, createdAtStr); err == nil {
@@ -325,6 +328,25 @@ func loadPokemon(db *sql.DB) ([]state.Pokemon, error) {
 		pokemon = []state.Pokemon{}
 	}
 	return pokemon, rows.Err()
+}
+
+// unmarshalCatchMeta decodes the JSON blob stored in pokemon.catch_meta.
+// An empty column means "nothing recorded" and a malformed one is treated the
+// same way: an unreadable optional note must never keep the application from
+// starting.
+func unmarshalCatchMeta(raw string) *state.CatchMeta {
+	if raw == "" {
+		return nil
+	}
+	var meta state.CatchMeta
+	if err := json.Unmarshal([]byte(raw), &meta); err != nil {
+		slog.Warn("Discarding unreadable catch metadata", "error", err)
+		return nil
+	}
+	if meta.Ribbons == nil {
+		meta.Ribbons = []string{}
+	}
+	return &meta
 }
 
 // parseOptionalTime parses a nullable RFC3339 string into a *time.Time.

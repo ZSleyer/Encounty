@@ -204,6 +204,11 @@ var migrations = []migration{
 		description: "add the sprite cycle transition column to overlay_elements",
 		fn:          migrateAddSpriteCycleTransition,
 	},
+	{
+		version:     38,
+		description: "add the catch metadata column",
+		fn:          migrateAddCatchMeta,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -718,6 +723,18 @@ func migrateAddSpriteCycling(tx *sql.Tx) error {
 // IF NOT EXISTS on ADD COLUMN.
 func migrateAddSpriteCycleTransition(tx *sql.Tx) error {
 	_, _ = tx.Exec(`ALTER TABLE overlay_elements ADD COLUMN cycle_transition TEXT`)
+	return nil
+}
+
+// migrateAddCatchMeta adds the catch_meta column to pokemon so a finished hunt
+// can carry the optional details recorded for its catch (location, nature,
+// ability, ball, mark, level, individual values, ribbons) as one JSON blob.
+// The empty string means "nothing recorded", which is what every row predating
+// the feature reads as.
+// Errors are ignored for idempotency because SQLite does not support
+// IF NOT EXISTS on ADD COLUMN.
+func migrateAddCatchMeta(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokemon ADD COLUMN catch_meta TEXT NOT NULL DEFAULT ''`)
 	return nil
 }
 

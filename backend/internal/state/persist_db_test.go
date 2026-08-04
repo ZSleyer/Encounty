@@ -790,6 +790,80 @@ func TestLegacyDatabaseOverlaySurvivesRework(t *testing.T) {
 	round := m.GetState()
 	assertDiff(t, "global round trip", diffOverlay(global, round.Settings.Overlay), map[string]string{})
 	assertDiff(t, "pk1 round trip", diffOverlay(*custom, *findPokemonOverlay(t, round, "pk1")), map[string]string{})
+
+	assertLegacyCatchMetaUpgrade(t, m, round)
+}
+
+// assertLegacyCatchMetaUpgrade pins the catch-metadata upgrade of the same
+// fixture: every row predating the feature loads without a record, and adding
+// one to a legacy entry survives the next save/load cycle without disturbing
+// the rest of the row.
+func assertLegacyCatchMetaUpgrade(t *testing.T, m *state.Manager, loaded state.AppState) {
+	t.Helper()
+	for _, p := range loaded.Pokemon {
+		if p.Catch != nil {
+			t.Errorf("legacy pokemon %s loaded with catch metadata %+v, want none", p.ID, p.Catch)
+		}
+	}
+
+	before := findLegacyPokemon(t, loaded, "pk1")
+	level := 100
+	if !m.SetCatchMeta("pk1", &state.CatchMeta{
+		Location: "Route 210",
+		Nature:   "adamant",
+		Ball:     "premier-ball",
+		Level:    &level,
+		// Zero must stay zero, not collapse into "never recorded".
+		HP:      new(int),
+		Ribbons: []string{"effort-ribbon"},
+	}) {
+		t.Fatal("SetCatchMeta on the legacy entry = false, want true")
+	}
+	if err := m.Save(); err != nil {
+		t.Fatalf(fmtSave, err)
+	}
+	if err := m.Load(); err != nil {
+		t.Fatalf(fmtLoad, err)
+	}
+
+	after := findLegacyPokemon(t, m.GetState(), "pk1")
+	if after.Catch == nil {
+		t.Fatal("pk1 lost its catch metadata across the save")
+	}
+	if after.Catch.Location != "Route 210" || after.Catch.Nature != "adamant" || after.Catch.Ball != "premier-ball" {
+		t.Errorf("pk1 catch text = %+v, want the recorded values", after.Catch)
+	}
+	if after.Catch.Level == nil || *after.Catch.Level != 100 {
+		t.Errorf("pk1 catch Level = %v, want 100", after.Catch.Level)
+	}
+	if after.Catch.HP == nil || *after.Catch.HP != 0 {
+		t.Errorf("pk1 catch HP = %v, want a recorded 0", after.Catch.HP)
+	}
+	if len(after.Catch.Ribbons) != 1 || after.Catch.Ribbons[0] != "effort-ribbon" {
+		t.Errorf("pk1 catch Ribbons = %v, want [effort-ribbon]", after.Catch.Ribbons)
+	}
+
+	// Everything except the new record has to come back unchanged.
+	before.Catch, after.Catch = nil, nil
+	if !reflect.DeepEqual(before, after) {
+		t.Errorf("pk1 changed outside its catch metadata:\nbefore = %+v\nafter  = %+v", before, after)
+	}
+	if other := findLegacyPokemon(t, m.GetState(), "pk2"); other.Catch != nil {
+		t.Errorf("pk2 gained catch metadata %+v, want none", other.Catch)
+	}
+}
+
+// findLegacyPokemon returns a copy of the Pokémon with the given id, failing
+// the test when it went missing from the loaded state.
+func findLegacyPokemon(t *testing.T, st state.AppState, id string) state.Pokemon {
+	t.Helper()
+	for _, p := range st.Pokemon {
+		if p.ID == id {
+			return p
+		}
+	}
+	t.Fatalf("pokemon %s missing from loaded state", id)
+	return state.Pokemon{}
 }
 
 // assertFilledBase checks the geometry rules of a filled element that is not a

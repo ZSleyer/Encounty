@@ -616,3 +616,34 @@ func TestMigrateDropShadowGradientIsIdempotent(t *testing.T) {
 		t.Errorf("shadow colour = %q, want %q", color, "#ff0000")
 	}
 }
+
+// TestMigration38AddsCatchMetaColumn verifies that migration 38 adds catch_meta
+// to a pokemon table that predates it, that existing rows read as "nothing
+// recorded", and that running it twice is harmless.
+func TestMigration38AddsCatchMetaColumn(t *testing.T) {
+	db := openRawTestDB(t)
+
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY, name TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create legacy pokemon table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO pokemon (id, name) VALUES ('pk1', 'Karpador')`); err != nil {
+		t.Fatalf("insert legacy row: %v", err)
+	}
+	if hasColumn(t, db, "pokemon", "catch_meta") {
+		t.Fatal("seed already carries catch_meta")
+	}
+
+	runMigrationTx(t, db, migrateAddCatchMeta)
+	runMigrationTx(t, db, migrateAddCatchMeta)
+
+	if !hasColumn(t, db, "pokemon", "catch_meta") {
+		t.Fatal("catch_meta missing after migration")
+	}
+	var stored string
+	if err := db.QueryRow(`SELECT catch_meta FROM pokemon WHERE id = 'pk1'`).Scan(&stored); err != nil {
+		t.Fatalf("read catch_meta: %v", err)
+	}
+	if stored != "" {
+		t.Errorf("catch_meta of a legacy row = %q, want empty", stored)
+	}
+}

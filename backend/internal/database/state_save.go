@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -303,8 +304,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 		INSERT INTO pokemon (id, name, base_name, form_name, title, canonical_name, sprite_url, sprite_type,
 			sprite_style, encounters, step, is_active, created_at, language, game,
 			completed_at, overlay_mode, hunt_type, shiny_charm, timer_started_at, timer_accumulated_ms,
-			hunt_mode, group_id, phase_of, phase_number, sort_order)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			hunt_mode, group_id, phase_of, phase_number, sort_order, catch_meta)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			name                 = excluded.name,
 			base_name            = excluded.base_name,
@@ -330,7 +331,8 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			group_id             = excluded.group_id,
 			phase_of             = excluded.phase_of,
 			phase_number         = excluded.phase_number,
-			sort_order           = excluded.sort_order`)
+			sort_order           = excluded.sort_order,
+			catch_meta           = excluded.catch_meta`)
 	if err != nil {
 		return fmt.Errorf("prepare pokemon upsert: %w", err)
 	}
@@ -343,12 +345,28 @@ func savePokemonRows(tx *sql.Tx, pokemon []state.Pokemon, pokemonIDs []string) e
 			p.CreatedAt.UTC().Format(time.RFC3339), p.Language, p.Game,
 			nullTimeStr(p.CompletedAt), p.OverlayMode, p.HuntType, boolToInt(p.ShinyCharm),
 			nullTimeStr(p.TimerStartedAt), p.TimerAccumulatedMs, p.HuntMode, p.GroupID,
-			p.PhaseOf, p.PhaseNumber, i,
+			p.PhaseOf, p.PhaseNumber, i, marshalCatchMeta(p.Catch),
 		); err != nil {
 			return fmt.Errorf("upsert pokemon %q: %w", p.ID, err)
 		}
 	}
 	return nil
+}
+
+// marshalCatchMeta encodes the optional catch details into the string stored in
+// pokemon.catch_meta, using "" for "nothing recorded". A value that cannot be
+// encoded is dropped rather than failing the save: losing one optional note is
+// preferable to rolling back the whole application state.
+func marshalCatchMeta(meta *state.CatchMeta) string {
+	if meta.IsEmpty() {
+		return ""
+	}
+	raw, err := json.Marshal(meta)
+	if err != nil {
+		slog.Error("Marshal catch metadata failed, dropping it", "error", err)
+		return ""
+	}
+	return string(raw)
 }
 
 // savePokemonOverlays syncs per-pokemon overlay_settings, removing stale entries
