@@ -270,45 +270,32 @@ describe("Dashboard", () => {
     expect(container).toBeTruthy();
   });
 
-  // --- Sidebar tabs: active vs archived ---
+  // --- Sidebar lists running hunts only ---
 
-  it("shows active and archived sidebar tabs", async () => {
-    render(<Dashboard />);
-    await act(async () => {});
-    // Both sidebar tab labels should be present. The hero panel repeats
-    // the active-hunt label, so multiple matches are expected.
-    expect(screen.getAllByText(/Aktiv|Active/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Archiv|Archive/i).length).toBeGreaterThan(0);
-  });
-
-  it("filters pokemon list to archived when archive tab is selected", async () => {
-    const user = userEvent.setup();
+  it("lists only running hunts in the sidebar, never completed ones", async () => {
     const activeMon = makePokemon({ id: "a1", name: "ActiveMon", is_active: true });
-    const archivedMon = makePokemon({
+    const completedMon = makePokemon({
       id: "a2",
-      name: "ArchivedMon",
+      name: "CompletedMon",
       is_active: false,
       completed_at: "2024-06-01T00:00:00Z",
     });
 
     useCounterStore.setState({
-      appState: makeAppState({ pokemon: [activeMon, archivedMon], active_id: "a1" }),
+      appState: makeAppState({ pokemon: [activeMon, completedMon], active_id: "a1" }),
       isConnected: true,
       lastEncounterPokemonId: null,
       detectorStatus: {},
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
-    // Initially, ActiveMon should be in the sidebar
-    expect(screen.getAllByText("ActiveMon").length).toBeGreaterThan(0);
-
-    // Click the archive tab
-    const archiveTab = screen.getByText(/Archiv|Archive/i);
-    await user.click(archiveTab);
-
-    // ArchivedMon should now appear in the sidebar
-    expect(screen.getAllByText("ArchivedMon").length).toBeGreaterThan(0);
+    // Completed entries live in the Dex, so the sidebar shows the running hunt only.
+    const sidebarItems = [...document.querySelectorAll("[data-sidebar-idx]")];
+    expect(sidebarItems.length).toBe(1);
+    expect(sidebarItems[0].textContent).toContain("ActiveMon");
+    expect(sidebarItems.some(el => el.textContent?.includes("CompletedMon"))).toBe(false);
   });
 
   // --- Completed Pokemon rendering ---
@@ -736,72 +723,6 @@ describe("Dashboard pokemon list", () => {
     expect(screen.getAllByText("Glumanda").length).toBeGreaterThan(0);
   });
 
-  it("shows archived pokemon when archive tab is clicked", async () => {
-    const user = userEvent.setup();
-    const active = makePokemon({ id: "p1", name: "Pikachu", is_active: true });
-    const archived = makePokemon({
-      id: "p2",
-      name: "Schiggy",
-      is_active: false,
-      completed_at: "2025-06-01T00:00:00Z",
-    });
-
-    useCounterStore.setState({
-      appState: makeAppState({ pokemon: [active, archived], active_id: "p1" }),
-      isConnected: true,
-      lastEncounterPokemonId: null,
-      detectorStatus: {},
-    });
-
-    render(<Dashboard />);
-
-    // Click the "Archiv" sidebar tab
-    const archiveTab = screen.getByText("Archiv");
-    await user.click(archiveTab);
-
-    // Archived pokemon should appear in the list
-    expect(screen.getAllByText("Schiggy").length).toBeGreaterThan(0);
-  });
-
-  it("shows active count badge in sidebar tab", async () => {
-    const p1 = makePokemon({ id: "p1", name: "Mon1" });
-    const p2 = makePokemon({ id: "p2", name: "Mon2" });
-
-    useCounterStore.setState({
-      appState: makeAppState({ pokemon: [p1, p2], active_id: "p1" }),
-      isConnected: true,
-      lastEncounterPokemonId: null,
-      detectorStatus: {},
-    });
-
-    render(<Dashboard />);
-    await act(async () => {});
-
-    // The active tab badge should show count of 2
-    expect(screen.getByText("2")).toBeInTheDocument();
-  });
-
-  it("shows archived count badge when there are completed pokemon", async () => {
-    const active = makePokemon({ id: "p1", name: "Mon1" });
-    const archived1 = makePokemon({ id: "p2", name: "Mon2", completed_at: "2025-01-01T00:00:00Z" });
-    const archived2 = makePokemon({ id: "p3", name: "Mon3", completed_at: "2025-02-01T00:00:00Z" });
-
-    useCounterStore.setState({
-      appState: makeAppState({ pokemon: [active, archived1, archived2], active_id: "p1" }),
-      isConnected: true,
-      lastEncounterPokemonId: null,
-      detectorStatus: {},
-    });
-
-    render(<Dashboard />);
-    await act(async () => {});
-
-    // Archive tab badge should show 2
-    const archiveTab = screen.getByText("Archiv");
-    const badge = archiveTab.closest("span")?.querySelector(String.raw`.border-accent-green\/40`);
-    expect(badge).toBeTruthy();
-  });
-
   it("displays encounter count for each pokemon in the sidebar", async () => {
     const p1 = makePokemon({ id: "p1", name: "Mon1", encounters: 500 });
     const p2 = makePokemon({ id: "p2", name: "Mon2", encounters: 1234 });
@@ -823,32 +744,29 @@ describe("Dashboard pokemon list", () => {
     expect(sidebarItems.length).toBe(2);
   });
 
-  it("shows archived pokemon with reduced opacity in sidebar", async () => {
-    const user = userEvent.setup();
+  it("never applies the reduced-opacity treatment to a rendered sidebar row", async () => {
     const active = makePokemon({ id: "p1", name: "ActiveMon" });
-    const archived = makePokemon({
+    const completed = makePokemon({
       id: "p2",
-      name: "ArchivedMon",
+      name: "CompletedMon",
       completed_at: "2025-01-01T00:00:00Z",
     });
 
     useCounterStore.setState({
-      appState: makeAppState({ pokemon: [active, archived], active_id: "p1" }),
+      appState: makeAppState({ pokemon: [active, completed], active_id: "p1" }),
       isConnected: true,
       lastEncounterPokemonId: null,
       detectorStatus: {},
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
-    // Switch to archive tab to see the archived pokemon
-    const archiveTab = screen.getByText("Archiv");
-    await user.click(archiveTab);
-
-    // The sidebar item should have reduced opacity for archived pokemon
-    const listItems = document.querySelectorAll("[data-sidebar-idx]");
+    // buildSidebarItemClass still adds "opacity-70" for a completed entry, but
+    // the sidebar renders running hunts only, so no row can reach that branch.
+    const listItems = [...document.querySelectorAll("[data-sidebar-idx]")];
     expect(listItems.length).toBeGreaterThan(0);
-    expect(listItems[0].className).toContain("opacity-70");
+    expect(listItems.some(el => el.className.includes("opacity-70"))).toBe(false);
   });
 });
 
@@ -1303,26 +1221,6 @@ describe("Dashboard empty state", () => {
     expect(screen.getByText("Kein aktives Pokémon")).toBeInTheDocument();
   });
 
-  it("shows empty archive message when archive tab is selected and no completed pokemon exist", async () => {
-    const user = userEvent.setup();
-    const active = makePokemon({ id: "p1", name: "Mon1" });
-
-    useCounterStore.setState({
-      appState: makeAppState({ pokemon: [active], active_id: "p1" }),
-      isConnected: true,
-      lastEncounterPokemonId: null,
-      detectorStatus: {},
-    });
-
-    render(<Dashboard />);
-
-    // Switch to archive tab
-    const archiveTab = screen.getByText("Archiv");
-    await user.click(archiveTab);
-
-    expect(screen.getByText("Noch keine Hunts archiviert")).toBeInTheDocument();
-  });
-
   it("shows loading spinner when app state is null", async () => {
     useCounterStore.setState({
       appState: null,
@@ -1485,7 +1383,7 @@ describe("Dashboard counter tab", () => {
 // --- Sidebar State ---
 
 describe("Dashboard sidebar", () => {
-  it("shows add pokemon button in active tab", async () => {
+  it("shows add pokemon button in the sidebar footer", async () => {
     useCounterStore.setState({
       appState: makeAppState(),
       isConnected: true,
@@ -1500,26 +1398,22 @@ describe("Dashboard sidebar", () => {
     expect(screen.getByText("Pokémon hinzufügen")).toBeInTheDocument();
   });
 
-  it("hides add pokemon button in archive tab", async () => {
-    const user = userEvent.setup();
+  it("keeps the add pokemon button in the sidebar footer when completed hunts exist", async () => {
+    const active = makePokemon({ id: "p1", name: "Mon1" });
+    const completed = makePokemon({ id: "p2", name: "Mon2", completed_at: "2025-01-01T00:00:00Z" });
+
     useCounterStore.setState({
-      appState: makeAppState(),
+      appState: makeAppState({ pokemon: [active, completed], active_id: "p1" }),
       isConnected: true,
       lastEncounterPokemonId: null,
       detectorStatus: {},
     });
 
     render(<Dashboard />);
+    await act(async () => {});
 
-    const archiveTab = screen.getByText("Archiv");
-    await user.click(archiveTab);
-
-    // The footer "Pokémon hinzufügen" button should disappear in archive mode
-    // It only renders when sidebarTab === "active"
-    const addButtons = screen.queryAllByText("Pokémon hinzufügen");
-    // In archive tab the bottom add button should not be rendered
-    // (the button in the sidebar footer is conditional on sidebarTab === "active")
-    expect(addButtons.length).toBe(0);
+    // The footer add button renders unconditionally: nothing may gate it again.
+    expect(screen.getByText("Pokémon hinzufügen")).toBeInTheDocument();
   });
 
   it("displays game info in sidebar items", async () => {
@@ -3164,7 +3058,7 @@ describe("Dashboard collapsed sidebar interactions", () => {
     expect(localStorage.getItem("encounty-sidebar-collapsed")).toBe("true");
   });
 
-  it("shows add button in collapsed sidebar when in active tab", async () => {
+  it("shows add button in collapsed sidebar", async () => {
     const user = userEvent.setup();
     useCounterStore.setState({
       appState: makeAppState(),
@@ -3833,21 +3727,21 @@ describe("Dashboard bulk operations", () => {
   });
 });
 
-// --- Collapsed sidebar archived tab ---
+// --- Collapsed sidebar with completed hunts ---
 
-describe("Dashboard collapsed sidebar archived tab", () => {
+describe("Dashboard collapsed sidebar with completed hunts", () => {
   beforeEach(() => {
     mockSend.mockReset();
     localStorage.clear();
   });
 
-  it("hides add button in collapsed sidebar when on archived tab", async () => {
+  it("keeps the add button in the collapsed sidebar when completed hunts exist", async () => {
     const user = userEvent.setup();
     const active = makePokemon({ id: "p1", name: "Mon1" });
-    const archived = makePokemon({ id: "p2", name: "Mon2", completed_at: "2025-01-01T00:00:00Z" });
+    const completed = makePokemon({ id: "p2", name: "Mon2", completed_at: "2025-01-01T00:00:00Z" });
 
     useCounterStore.setState({
-      appState: makeAppState({ pokemon: [active, archived], active_id: "p1" }),
+      appState: makeAppState({ pokemon: [active, completed], active_id: "p1" }),
       isConnected: true,
       lastEncounterPokemonId: null,
       detectorStatus: {},
@@ -3855,17 +3749,13 @@ describe("Dashboard collapsed sidebar archived tab", () => {
 
     render(<Dashboard />);
 
-    // Switch to archived tab
-    const archiveTab = screen.getByText("Archiv");
-    await user.click(archiveTab);
-
     // Collapse sidebar
     const collapseBtn = screen.getByRole("button", { name: /Einklappen|Collapse/i });
     await user.click(collapseBtn);
 
-    // Add button should not be present in collapsed sidebar for archived tab
-    const addBtns = screen.queryAllByLabelText(/Pokémon hinzufügen/i);
-    expect(addBtns.length).toBe(0);
+    // The collapsed add button renders unconditionally: nothing may gate it again.
+    const addBtns = screen.getAllByLabelText(/Pokémon hinzufügen/i);
+    expect(addBtns.length).toBeGreaterThan(0);
   });
 });
 
@@ -6544,7 +6434,7 @@ describe("Dashboard phase totals and history", () => {
     expect(screen.getByText("Gesamtzeit").textContent).toBe("Gesamtzeit00:01:05");
 
     const history = screen.getByLabelText("Phasen-Historie");
-    const entry = screen.getByLabelText("Phase 1: Glumanda im Archiv öffnen");
+    const entry = screen.getByLabelText("Phase 1: Glumanda öffnen");
     expect(history).toContainElement(entry);
     expect(entry.textContent).toContain("P1");
     expect(entry.textContent).toContain("Glumanda");
