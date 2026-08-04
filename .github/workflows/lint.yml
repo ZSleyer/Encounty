@@ -49,8 +49,10 @@ jobs:
         working-directory: frontend
         run: npx tsc --noEmit
 
-  licenses:
-    name: Licenses
+  # Both artefacts below are generated and committed, so nothing forces them to
+  # be regenerated when their inputs change. Regenerate here and fail on a diff.
+  generated:
+    name: Generated artefacts
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -62,13 +64,23 @@ jobs:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
 
+      - name: Create frontend/dist stub for go:embed
+        run: mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
+
+      # Checked before the dependency installs below so a stale spec fails fast.
+      - name: Check the Swagger spec is current
+        run: |
+          make swagger
+          if ! git diff --quiet -- backend/docs; then
+            echo "::error::Swagger spec is stale, run 'make swagger' and commit the result."
+            git diff --stat -- backend/docs
+            exit 1
+          fi
+
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
           node-version: '22'
-
-      - name: Create frontend/dist stub for go:embed
-        run: mkdir -p backend/frontend/dist && touch backend/frontend/dist/.gitkeep
 
       - name: Install Frontend Dependencies
         working-directory: frontend
