@@ -20,11 +20,15 @@ OWN_LICENSES=('AGPL-3.0-only')
 # "A AND B" means both apply, so it is split into its components. "A OR B" is a
 # choice and stays intact, splitting it would claim obligations that never
 # applied.
+#
+# LC_ALL=C keeps the order byte-based. A locale-aware collation puts
+# BlueOak-1.0.0 before BSD-2-Clause, so the file would differ between a
+# developer machine and a CI runner and the drift guard would never agree.
 print_spdx_list() {
   {
     printf '%s\n' "${OWN_LICENSES[@]}"
     jq -r '.[].license | split(" AND ")[]' "$OUT_FILE"
-  } | sort -u
+  } | LC_ALL=C sort -u
 }
 
 if [ "${1:-}" = "--spdx-list" ]; then
