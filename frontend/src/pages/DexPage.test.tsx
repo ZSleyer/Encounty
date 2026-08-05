@@ -13,6 +13,7 @@ import {
 } from "../test-utils";
 import { useCounterStore } from "../hooks/useCounterState";
 import { getGameName } from "../utils/games";
+import { SPRITE_FALLBACK } from "../utils/sprites";
 import { DexPage } from "./DexPage";
 import type { GameEntry, Pokemon } from "../types";
 
@@ -448,6 +449,35 @@ describe("DexPage multi-catch slots", () => {
     expect(showAllControl()).toBeNull();
     expect(fact(inlineCatch(), "Spiel")).toBe("Pokémon Karmesin");
     expect(within(slot(6)).queryByText(/^×\d+$/)).toBeNull();
+  });
+});
+
+describe("DexPage sprite failures", () => {
+  beforeEach(() => {
+    stubFetch();
+    stubWideViewport();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    useCounterStore.setState({ appState: null });
+  });
+
+  // A sprite host that blips or throttles once must not cost the slot its
+  // sprite for the rest of the session. The unloading observer restores from
+  // data-dex-sprite, so that attribute has to survive the failure: React
+  // never rewrites it on its own, the prop behind it does not change.
+  it("keeps the real sprite URL after a failed load so it can be retried", async () => {
+    await renderDex([]);
+
+    const sprite = slot(1).querySelector("img") as HTMLImageElement;
+    const real = sprite.dataset.dexSprite;
+    expect(real).toMatch(/\.png$/);
+
+    fireEvent.error(sprite);
+
+    expect(sprite.src).toBe(SPRITE_FALLBACK);
+    expect(sprite.dataset.dexSprite).toBe(real);
   });
 });
 

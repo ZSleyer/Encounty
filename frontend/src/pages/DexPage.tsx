@@ -208,13 +208,22 @@ function slotStateClass(caught: boolean, selected: boolean): string {
   return `${texture} bg-bg-card border-border-subtle hover:border-text-muted`;
 }
 
-/** Swaps a broken sprite for the neutral placeholder glyph, once. */
+/**
+ * Swaps a broken sprite for the neutral placeholder glyph.
+ *
+ * Only `src` is touched: `data-dex-sprite` keeps the real URL so the unloading
+ * observer retries it the next time the slot scrolls back into view. Writing
+ * the placeholder into the attribute as well would turn a single transient
+ * failure, a network blip or a throttled response from the sprite host, into a
+ * permanent one for the rest of the session, because the observer restores
+ * from that attribute and React never rewrites a prop whose value did not
+ * change.
+ */
 function handleSpriteError(event: React.SyntheticEvent<HTMLImageElement>) {
   const img = event.currentTarget;
   if (img.src === SPRITE_FALLBACK) return;
-  // Also correct the unloading observer's copy of the URL, otherwise it would
-  // restore the broken sprite every time the slot scrolls back into view.
-  img.dataset.dexSprite = SPRITE_FALLBACK;
+  // ponytail: one retry per scroll-in, no attempt counter. A permanently dead
+  // URL costs one failed request per pass; add a counter if that ever shows up.
   img.src = SPRITE_FALLBACK;
 }
 
