@@ -47,8 +47,11 @@ describe("getMethodsForGame", () => {
     expect(getMethodsForGame("pokemon-colosseum")).toEqual([
       "shadow_snag_colosseum",
     ]);
-    expect(getMethodsForGame("pokemon-xd")).toContain("soft_reset");
-    expect(getMethodsForGame("pokemon-xd")).not.toContain("encounter");
+    expect(getMethodsForGame("pokemon-xd")).toEqual([
+      "poke_spot_xd",
+      "gift_xd",
+      "trade_xd",
+    ]);
     const gen1 = getMethodsForGame("pokemon-red");
     expect(gen1).toContain("soft_reset");
     expect(gen1).not.toContain("encounter");
