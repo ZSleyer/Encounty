@@ -209,7 +209,9 @@ function SettingsTabBar({ activeTab, onSelect, t }: Readonly<{
     <div
       role="tablist"
       aria-label={t("settings.title")}
-      className="flex flex-wrap items-center border-b border-border-subtle"
+      // Scrolls instead of wrapping: every wrapped line costs height, and on a
+      // short window that height is exactly what the panel below needs.
+      className="flex items-center overflow-x-auto border-b border-border-subtle"
     >
       {TABS.map((tab, idx) => {
         const selected = tab.id === activeTab;

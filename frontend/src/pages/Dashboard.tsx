@@ -748,7 +748,9 @@ function sidebarTabLabel(
 
 /** Returns the CSS class for a header tab button based on active state. */
 function tabButtonClass(isActive: boolean): string {
-  return `px-4 py-2 rounded-none text-xs font-semibold transition-all flex items-center gap-1.5 ${
+  // shrink-0 so a narrow window scrolls the strip instead of squeezing the tabs
+  // into unreadable slivers.
+  return `shrink-0 px-4 py-2 rounded-none text-xs font-semibold transition-all flex items-center gap-1.5 ${
     isActive
       ? "bg-accent-blue text-white shadow"
       : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
@@ -757,7 +759,7 @@ function tabButtonClass(isActive: boolean): string {
 
 /** Tempest micro-label shown next to each panel tab icon, visible at all sizes. */
 function tabLabelClass(): string {
-  return "uppercase tracking-[0.14em] text-[10px] font-semibold";
+  return "uppercase tracking-[0.14em] text-[10px] font-semibold whitespace-nowrap";
 }
 
 /** Builds the full CSS class for a sidebar Pokemon list item. */
@@ -3314,9 +3316,11 @@ export const Dashboard = memo(function Dashboard({
             {/* Top Bar (übergeordnet, scrollt nicht mit) */}
             <header className="flex-none px-4 py-2.5 border-b border-border-subtle bg-bg-card z-50 relative grid grid-cols-[auto_1fr_auto] items-center gap-3">
 
-              {/* Left: Tabs */}
+              {/* Left: Tabs. Scrolls horizontally rather than clipping: on a
+                  short, narrow window the strip plus the pokemon header plus the
+                  action buttons no longer fit on one line. */}
               <div className="flex justify-start min-w-0">
-                <div className="flex bg-bg-card rounded-none border border-border-subtle p-0.5 shadow-sm min-w-0">
+                <div className="flex bg-bg-card rounded-none border border-border-subtle p-0.5 shadow-sm min-w-0 overflow-x-auto">
                   <button
                     onClick={() => setRightPanelTab("counter")}
                     className={tabButtonClass(rightPanelTab === "counter")}

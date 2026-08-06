@@ -710,7 +710,12 @@ function AppShell() {
         onDoubleClick={() => globalThis.electronAPI?.maximize()}
       >
         {/* Left: Logo + Nav tabs */}
-        <div className="flex items-center gap-1 mr-auto" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+        {/* min-w-0 plus horizontal scrolling so the tabs never push past the
+            window controls. They are no-drag while the bar is drag, so an
+            overflowing tab would sit on top of the close button and swallow the
+            click. Locales with longer labels than German reach that point on a
+            1080p screen at high display scaling. */}
+        <div className="flex items-center gap-1 mr-auto min-w-0 overflow-x-auto" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
           {/* Logo — hidden on macOS where traffic light buttons occupy this space */}
           {globalThis.electronAPI?.platform !== 'darwin' && (
             <img
@@ -740,7 +745,7 @@ function AppShell() {
           {isMachineTranslated && (
             <button
               onClick={() => pushToast({ type: "info", title: t("settings.autoTranslated"), message: t("app.machineTranslationDisclaimer"), duration: 8000 })}
-              className="flex items-center gap-1 px-2 py-1 rounded-none text-[10px] 2xl:text-xs text-accent-yellow bg-accent-yellow/10 hover:bg-accent-yellow/20 transition-colors"
+              className="shrink-0 whitespace-nowrap flex items-center gap-1 px-2 py-1 rounded-none text-[10px] 2xl:text-xs text-accent-yellow bg-accent-yellow/10 hover:bg-accent-yellow/20 transition-colors"
               title={t("app.machineTranslationDisclaimer")}
             >
               <Bot className="w-3 h-3" />
@@ -751,7 +756,7 @@ function AppShell() {
 
 
         {/* Right: Window controls (Windows/Linux) or logo (macOS) */}
-        <div className="flex items-center ml-auto h-full">
+        <div className="flex items-center ml-auto h-full shrink-0">
           {globalThis.electronAPI?.platform === 'darwin' ? (
             <img
               src="/app-icon.png"
@@ -896,7 +901,7 @@ function NavTab({ to, icon, children }: Readonly<NavTabProps>) {
     <Link
       to={to}
       aria-current={isActive ? "page" : undefined}
-      className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs 2xl:text-sm font-medium uppercase tracking-[0.18em] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
+      className={`relative shrink-0 whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-none text-xs 2xl:text-sm font-medium uppercase tracking-[0.18em] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-accent-blue ${
         isActive
           ? "text-accent-blue"
           : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
