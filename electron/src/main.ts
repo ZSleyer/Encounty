@@ -672,14 +672,20 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 // causing the OS volume OSD to appear and potentially degrading shell responsiveness.
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
 
-// WebGPU: override GPU blocklist so NVIDIA works on Linux
-app.commandLine.appendSwitch('disable-gpu-blocklist');
+// WebGPU: the detection engine has no CPU fallback worth shipping, so keep it
+// running on drivers Chromium would otherwise refuse. ignore-gpu-blocklist covers
+// GPUs on the blocklist, enable-unsafe-webgpu covers configurations WebGPU itself
+// still considers unsupported. The switch is called "ignore", not "disable";
+// Chromium drops unknown switches without a word, so a typo here disables nothing
+// and reports nothing.
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
 app.commandLine.appendSwitch('enable-unsafe-webgpu');
 
-// Wayland-specific Chromium flags
+// Wayland-specific Chromium flags. PipeWire screen capture and server-side window
+// decorations are built in since Chromium 150, the feature flags that used to gate
+// them are gone.
 if (isWayland) {
   app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
-  app.commandLine.appendSwitch('enable-features', 'PipeWireV4L2Camera,WebRTCPipeWireCapturer,WaylandWindowDecorations');
   app.commandLine.appendSwitch('enable-wayland-ime');
 }
 
