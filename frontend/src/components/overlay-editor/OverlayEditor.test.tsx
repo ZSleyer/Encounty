@@ -2004,6 +2004,48 @@ describe("OverlayEditor", () => {
     expect(localStorage.getItem("encounty_editor_split")).toBe("100");
   });
 
+  it("caps a stored split that does not fit the right column, leaving room for the layers panel", () => {
+    // Regression guard for issue #48: on a short window (high Windows display
+    // scaling) the stored 500px ate the whole column and collapsed the layers
+    // panel to zero height.
+    let notifyResize: (() => void) | undefined;
+    const OriginalResizeObserver = globalThis.ResizeObserver;
+    class ResizeObserverStub implements ResizeObserver {
+      constructor(cb: ResizeObserverCallback) {
+        // The component ignores the entries, so an empty notification suffices.
+        notifyResize = () => cb([], this);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    globalThis.ResizeObserver = ResizeObserverStub;
+    localStorage.setItem("encounty_editor_split", "500");
+
+    const { container } = render(
+      <OverlayEditor
+        settings={makeOverlaySettings()}
+        onUpdate={vi.fn()}
+        activePokemon={makePokemon()}
+      />,
+    );
+
+    const propertiesSection = container.querySelector("[data-tutorial='properties']") as HTMLElement;
+    // jsdom measures everything as 0, so the column height has to be faked.
+    Object.defineProperty(propertiesSection.parentElement as HTMLElement, "clientHeight", {
+      value: 400,
+      configurable: true,
+    });
+    act(() => notifyResize?.());
+
+    // 400px column minus the divider and the layers panel minimum (24 + 140).
+    expect(propertiesSection.style.height).toBe("236px");
+    // The capped value must not overwrite what was chosen on a larger monitor.
+    expect(localStorage.getItem("encounty_editor_split")).toBe("500");
+
+    globalThis.ResizeObserver = OriginalResizeObserver;
+  });
+
   // --- Zoom drag interaction ---
 
   it("handles zoom drag interaction on canvas", () => {

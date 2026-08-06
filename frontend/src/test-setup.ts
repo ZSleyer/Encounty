@@ -21,6 +21,18 @@ if (typeof globalThis.localStorage === "undefined") {
   });
 }
 
+// jsdom has no ResizeObserver. Components use it to react to their own box
+// changing, which jsdom never reports anyway (every element measures 0), so a
+// stub that observes nothing is behaviourally accurate here rather than a
+// shortcut. Tests that need an observation to fire install their own stub.
+if (typeof globalThis.ResizeObserver === "undefined") {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // jsdom implements neither dialog.showModal() nor dialog.close(). Toggling the
 // `open` attribute is the part the components depend on: it decides whether the
 // dialog's content reaches the accessibility tree and whether the shared close

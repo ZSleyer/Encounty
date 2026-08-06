@@ -58,6 +58,21 @@ interface Props {
 /** Callback slot for the tutorial's dialog copies, which must not write anything. */
 const NOOP = () => {};
 
+/** Height of the properties panel on a fresh install and after a layout reset. */
+const DEFAULT_SPLIT_PX = 500;
+
+/** Smallest height the properties panel above the divider may be dragged to. */
+const MIN_SPLIT_PX = 100;
+
+/** Height of the divider between the two panes (h-6). */
+const DIVIDER_PX = 24;
+
+/**
+ * Height the layers list is kept at while there is room for it. On columns too
+ * short to grant it, the two panes split the available space evenly instead.
+ */
+const MIN_LAYERS_PX = 140;
+
 /** Elements that were added after the first release and may be absent in stored settings. */
 const MIGRATABLE_ELEMENT_KEYS = [
   "title",
@@ -223,10 +238,45 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
   const [propertiesHeight, setPropertiesHeight] = useState(() => {
     try {
       const stored = localStorage.getItem("encounty_editor_split");
-      return stored ? Number(stored) : 500;
-    } catch { return 500; }
+      return stored ? Number(stored) : DEFAULT_SPLIT_PX;
+    } catch { return DEFAULT_SPLIT_PX; }
   });
+  const rightColRef = useRef<HTMLDivElement>(null);
   const dividerDragRef = useRef<{ startY: number; startHeight: number } | null>(null);
+
+  /**
+   * Clamps the properties/layers split against the measured height of the right
+   * column, so the layers panel below the divider always stays usable.
+   *
+   * Measuring the column rather than subtracting a chrome constant from
+   * `innerHeight` is deliberate: the title bar is `h-12 2xl:h-14` and the editor
+   * header wraps, so any constant would be wrong exactly on the narrow, short
+   * windows this guards against.
+   */
+  const clampSplit = useCallback((h: number) => {
+    const col = rightColRef.current?.clientHeight ?? 0;
+    // The lower bound does not depend on the measurement. The upper one does, so
+    // before the first measurement it is skipped; the observer below corrects
+    // the value on the first frame after mount.
+    if (col === 0) return Math.max(MIN_SPLIT_PX, h);
+    const flexible = col - DIVIDER_PX;
+    // Reserve for the layers list below, but never more than half of what there
+    // is: on a very short column an even split beats starving one pane.
+    const reserve = Math.min(MIN_LAYERS_PX, Math.max(0, Math.floor(flexible / 2)));
+    return Math.max(MIN_SPLIT_PX, Math.min(h, flexible - reserve));
+  }, []);
+
+  // Re-clamp whenever the column changes height. A ResizeObserver rather than a
+  // window resize listener: the column also shrinks without the window changing
+  // size, for example when the wrapping editor header gains a line after a
+  // language switch.
+  useEffect(() => {
+    const col = rightColRef.current;
+    if (!col) return;
+    const observer = new ResizeObserver(() => setPropertiesHeight(clampSplit));
+    observer.observe(col);
+    return () => observer.disconnect();
+  }, [clampSplit]);
 
   // Tutorial
   const [showTutorial, setShowTutorial] = useState(false);
@@ -765,8 +815,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     const onMove = (ev: MouseEvent) => {
       if (!dividerDragRef.current) return;
       const dy = ev.clientY - dividerDragRef.current.startY;
-      const newH = Math.max(100, Math.min(dividerDragRef.current.startHeight + dy, globalThis.innerHeight - 200));
-      setPropertiesHeight(newH);
+      setPropertiesHeight(clampSplit(dividerDragRef.current.startHeight + dy));
     };
     const onUp = () => {
       globalThis.removeEventListener("mousemove", onMove);
@@ -776,7 +825,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     };
     globalThis.addEventListener("mousemove", onMove);
     globalThis.addEventListener("mouseup", onUp);
-  }, [propertiesHeight]);
+  }, [propertiesHeight, clampSplit]);
 
   /** Resizes the properties/layers divider via arrow keys, mirroring the mouse-drag clamping and persistence. */
   const handleDividerKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -784,11 +833,11 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
     e.preventDefault();
     const step = e.key === "ArrowUp" ? -24 : 24;
     setPropertiesHeight(h => {
-      const newH = Math.max(100, Math.min(h + step, globalThis.innerHeight - 200));
+      const newH = clampSplit(h + step);
       try { localStorage.setItem("encounty_editor_split", String(newH)); } catch {}
       return newH;
     });
-  }, []);
+  }, [clampSplit]);
 
   return (
     <div className={`flex min-h-0 h-full ${compact ? "pb-2" : ""}`}>
@@ -865,7 +914,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
       </div>
 
       {/* Right panel: Properties (top) + Layers (bottom) with draggable divider */}
-      <div className={`w-72 shrink-0 flex flex-col min-h-0 bg-bg-secondary border-l border-border-subtle ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
+      <div ref={rightColRef} className={`w-72 shrink-0 flex flex-col min-h-0 bg-bg-secondary border-l border-border-subtle ${readOnly ? "pointer-events-none opacity-60" : ""}`}>
         {/* Properties section (top, resizable) */}
         <div style={{ height: propertiesHeight }} className="overflow-y-auto shrink-0" data-tutorial="properties">
           <div className="px-4 py-3">
@@ -906,7 +955,7 @@ export function OverlayEditor({ settings, onUpdate, activePokemon, previewPokemo
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setPropertiesHeight(500);
+              setPropertiesHeight(clampSplit(DEFAULT_SPLIT_PX));
               try { localStorage.removeItem("encounty_editor_split"); } catch {}
             }}
             onMouseDown={(e) => e.stopPropagation()}
