@@ -79,8 +79,9 @@ import { resolveOverlay } from "../utils/overlay";
 import { getOddsFractional } from "../utils/odds";
 import { computePhaseStats, phaseChildren } from "../utils/phase";
 import { isPhasingMethod } from "../utils/huntTypes";
-import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite } from "../utils/sprites";
+import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite, getBoxSpriteUrl } from "../utils/sprites";
 import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
+import { FreezableSprite } from "../components/shared/FreezableSprite";
 
 import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
 
@@ -779,6 +780,22 @@ function resolveSpriteUrl(pokemonId: string, spriteUrl: string | undefined, imgE
   return imgError[pokemonId] === src ? SPRITE_FALLBACK : src;
 }
 
+/**
+ * Sprite URL for the sidebar rows, which always show the plain box sprite.
+ *
+ * The sidebar ignores the hunt's own sprite style and any uploaded image on
+ * purpose: it is the one list that stays on screen permanently, and an animated
+ * GIF there keeps the GPU process busy for as long as the app is open. Box
+ * sprites are static and uniform in size, which also keeps the rows aligned.
+ * Hunts without a canonical name (legacy snapshots) have no box sprite to
+ * derive, so they fall back to the neutral silhouette.
+ */
+function sidebarSpriteUrl(pokemon: Pokemon, imgError: Record<string, string>): string {
+  if (!pokemon.canonical_name) return SPRITE_FALLBACK;
+  const src = getBoxSpriteUrl(pokemon.canonical_name, pokemon.sprite_type);
+  return imgError[pokemon.id] === src ? SPRITE_FALLBACK : src;
+}
+
 /** Returns the border class for a sidebar Pokemon item based on selection state. */
 function sidebarItemBorderClass(isSelected: boolean, isViewed: boolean): string {
   if (isSelected) return "bg-accent-blue/15 border-l-2 border-accent-blue";
@@ -1438,7 +1455,7 @@ function CollapsedSidebarItem({
   onImgError: (id: string, src: string) => void;
   t: (key: string) => string;
 }>) {
-  const src = resolveSpriteUrl(pokemon.id, pokemon.sprite_url, imgError);
+  const src = sidebarSpriteUrl(pokemon, imgError);
   const showDot = hasDetectorReady(pokemon);
   return (
     <button
@@ -1453,7 +1470,7 @@ function CollapsedSidebarItem({
           src={src}
           alt={pokemon.name}
           className="pokemon-sprite w-full h-full object-contain"
-          onError={() => onImgError(pokemon.id, resolveSpriteSrc(pokemon.sprite_url))}
+          onError={() => onImgError(pokemon.id, src)}
         />
         {showDot && (() => {
           const { dotClass, title } = resolveDetectorDot(detectorStatus, pokemon.id, t);
@@ -1590,10 +1607,10 @@ function PhaseHistory({
                 aria-label={t("aria.phaseHistoryEntry", { number, name: entry.name })}
                 className="w-full min-h-8 flex items-center gap-2 px-2 py-1 rounded-none text-left hover:bg-bg-hover transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
-                <img
+                <FreezableSprite
                   src={resolveSpriteUrl(entry.id, entry.sprite_url, imgError)}
-                  alt=""
-                  aria-hidden="true"
+                  alt={entry.name}
+                  decorative
                   onError={() => onImgError(entry.id, resolveSpriteSrc(entry.sprite_url))}
                   className="pokemon-sprite w-6 h-6 shrink-0 object-contain"
                 />
@@ -1716,7 +1733,7 @@ function DashboardCounterTab({
         className="flex flex-col items-center gap-1 mt-8"
         style={{ width: "min(100%, clamp(420px, 40vw, 620px))" }}
       >
-        <img
+        <FreezableSprite
           src={spriteUrl}
           alt={pokemon.name}
           onError={() => onImgError(pokemon.id, resolveSpriteSrc(pokemon.sprite_url))}
@@ -2783,7 +2800,7 @@ export const Dashboard = memo(function Dashboard({
     const isHotkeyTarget = p.id === appState.active_id;
     const isCaught = !!p.completed_at;
     const isSelected = selectedIds.has(p.id);
-    const src = resolveSpriteUrl(p.id, p.sprite_url, imgError);
+    const src = sidebarSpriteUrl(p, imgError);
     const itemBorderClass = sidebarItemBorderClass(isSelected, isViewed);
     const itemClassName = buildSidebarItemClass(itemBorderClass, focusedIdx === idx);
     const [baseName, formName] = getBaseAndFormName(p);
@@ -2837,7 +2854,7 @@ export const Dashboard = memo(function Dashboard({
           <img
             src={src}
             alt={p.name}
-            onError={() => setImgError((prev) => ({ ...prev, [p.id]: resolveSpriteSrc(p.sprite_url) }))}
+            onError={() => setImgError((prev) => ({ ...prev, [p.id]: src }))}
             className="pokemon-sprite w-full h-full object-contain"
           />
           {/* Decorative: the caught state is already carried by the selected
@@ -3347,7 +3364,7 @@ export const Dashboard = memo(function Dashboard({
               {/* Center: Pokemon sprite + name + game badge — always centered via grid */}
               <div className="flex items-center gap-2 justify-center min-w-0">
                 {isCustomSprite(viewedPokemon.sprite_url) ? (
-                  <img
+                  <FreezableSprite
                     src={resolveSpriteUrl(viewedPokemon.id, viewedPokemon.sprite_url, imgError)}
                     alt={viewedPokemon.name}
                     className="h-10 w-auto shrink-0 object-contain"
