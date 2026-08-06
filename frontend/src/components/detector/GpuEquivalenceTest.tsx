@@ -1770,7 +1770,7 @@ export default function GpuEquivalenceTest({
     <dialog
       ref={dialogRef}
       onCancel={handleDialogClose}
-      className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center m-0 p-0 border-none max-w-none max-h-none w-full h-full"
+      className="fixed inset-0 z-50 bg-black/60 flex items-center-safe justify-center-safe m-0 p-0 border-none max-w-none max-h-none w-full h-full"
       aria-label="GPU Equivalence Test"
     >
       <div className="bg-bg-card rounded-none border border-border-subtle shadow-xl max-w-4xl w-full max-h-[85vh] flex flex-col">

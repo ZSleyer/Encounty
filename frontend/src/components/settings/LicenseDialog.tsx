@@ -65,7 +65,7 @@ export function LicenseDialog({ onAccept }: Readonly<LicenseDialogProps>) {
     <div
       ref={containerRef}
       tabIndex={-1}
-      className="fixed inset-0 z-200 bg-bg-primary flex items-center justify-center p-4"
+      className="fixed inset-0 z-200 bg-bg-primary flex items-center-safe justify-center-safe p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="license-title"

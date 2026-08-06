@@ -76,7 +76,7 @@ function UpdateOverlay({
       aria-modal="true"
       aria-labelledby="update-overlay-title"
       tabIndex={-1}
-      className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
+      className="fixed inset-0 z-100 bg-black/80 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
     >
       <div className="t-panel p-12 flex flex-col items-center gap-6 max-w-md mx-4 shadow-2xl anim-t-crt-in">
         <div className="w-16 h-16 border-3 border-accent-blue border-t-transparent rounded-full animate-spin" />
@@ -119,7 +119,7 @@ function UpdateNotification({
       aria-modal="true"
       aria-labelledby="update-notification-title"
       tabIndex={-1}
-      className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
+      className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
     >
       <div className="t-panel p-10 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
         <div className="w-14 h-14 rounded-full border border-accent-blue/40 flex items-center justify-center">
@@ -185,7 +185,7 @@ function CloseTabWarning({
       aria-modal="true"
       aria-labelledby="close-warning-title"
       tabIndex={-1}
-      className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
+      className="fixed inset-0 z-95 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
     >
       <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
         <div className="w-14 h-14 rounded-full border border-accent-yellow/40 flex items-center justify-center">
@@ -1056,7 +1056,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
   // Dev mode setup choice screen
   if (setupPending && devMode && !showProgress) {
     return (
-      <div className="fixed inset-0 bg-bg-primary flex flex-col items-center justify-center z-50">
+      <div className="fixed inset-0 bg-bg-primary flex flex-col items-center-safe justify-center-safe z-50">
         <div className="flex flex-col items-center gap-6 max-w-lg text-center">
           <img
             src="/app-icon.png"
@@ -1096,7 +1096,7 @@ function PreparingScreen({ onReady, setupPending, devMode }: Readonly<PreparingS
   const stepText = step && step !== "syncing" && step !== "error" ? t(stepKey(step)) : "";
 
   return (
-    <div className="fixed inset-0 bg-bg-primary flex flex-col items-center justify-center z-50">
+    <div className="fixed inset-0 bg-bg-primary flex flex-col items-center-safe justify-center-safe z-50">
       <div className="flex flex-col items-center gap-4 max-w-sm text-center">
         <img
           src="/app-icon.png"

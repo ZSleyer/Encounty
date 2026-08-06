@@ -1306,7 +1306,7 @@ function RegionEditCard({ region: r, index: i, onUpdate, onDelete, onRunOCR, isR
         </button>
         {showHelp && createPortal(
           <div
-            className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4"
+            className="fixed inset-0 z-100 flex items-center-safe justify-center-safe overflow-y-auto bg-black/60 p-4"
             onClick={() => setShowHelp(false)}
             onKeyDown={(e) => { if (e.key === "Escape") setShowHelp(false); }}
             role="presentation"
@@ -1844,7 +1844,11 @@ export function TemplateEditor({
   // --- Render ----------------------------------------------------------------
 
   const modalContent = (
-    <div className="fixed inset-0 z-100 bg-black/95 flex flex-col items-center justify-center p-4 md:p-6 backdrop-blur-sm overflow-y-auto">
+    // Safe alignment, not plain centering: with `overflow-y-auto` a centered
+    // flex container pushes overflowing content past its top edge, where it
+    // cannot be scrolled back into view. `safe` falls back to start alignment
+    // exactly then, which is what keeps this reachable on short windows.
+    <div className="fixed inset-0 z-100 bg-black/95 flex flex-col items-center-safe justify-center-safe p-4 md:p-6 backdrop-blur-sm overflow-y-auto">
       <button
         onClick={onClose}
         aria-label={t("templateEditor.closeEditor")}

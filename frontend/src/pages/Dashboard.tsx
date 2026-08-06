@@ -3515,7 +3515,7 @@ export const Dashboard = memo(function Dashboard({
           aria-modal="true"
           aria-labelledby="dashboard-unsaved-title"
           tabIndex={-1}
-          className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center justify-center animate-fadeIn"
+          className="fixed inset-0 z-90 bg-black/50 backdrop-blur-sm flex items-center-safe justify-center-safe animate-fadeIn"
           onClick={(e) => { if (e.target === e.currentTarget) setPendingTab(null); }}
         >
           <div className="t-panel p-8 flex flex-col items-center gap-5 max-w-md mx-4 shadow-2xl anim-t-crt-in">
