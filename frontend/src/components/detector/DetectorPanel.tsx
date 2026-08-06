@@ -42,6 +42,23 @@ import { getActiveLoop } from "../../engine/DetectionLoop";
 import { ensureDetector, getDetectorBackend, setForceCPU, isForceCPU, stopDetectionForPokemon, reloadDetectionTemplates } from "../../engine/startDetection";
 import type { DetectionLoop } from "../../engine/DetectionLoop";
 
+// --- Right panel split -------------------------------------------------------
+
+/** Height of the templates panel on a fresh install and after a layout reset. */
+const DEFAULT_SPLIT_PX = 500;
+
+/** Smallest height the templates panel above the divider may be dragged to. */
+const MIN_SPLIT_PX = 80;
+
+/** Divider (h-6) plus the log/settings tab strip, both fixed height. */
+const BELOW_FIXED_PX = 24 + 38;
+
+/**
+ * Height the log/settings tab content is kept at while there is room for it. On
+ * columns too short to grant it, the two panes split the space evenly instead.
+ */
+const MIN_TAB_CONTENT_PX = 140;
+
 // --- Default config ----------------------------------------------------------
 
 const DEFAULT_CONFIG: DetectorConfig = {
@@ -214,10 +231,49 @@ export function DetectorPanel({
   const [templatesHeight, setTemplatesHeight] = useState(() => {
     try {
       const stored = localStorage.getItem("encounty_detector_split");
-      return stored ? Number(stored) : 500;
-    } catch { return 500; }
+      return stored ? Number(stored) : DEFAULT_SPLIT_PX;
+    } catch { return DEFAULT_SPLIT_PX; }
   });
+  const rightColRef = useRef<HTMLDivElement>(null);
+  const templatesGridRef = useRef<HTMLDivElement>(null);
   const detectorDividerRef = useRef<{ startY: number; startHeight: number } | null>(null);
+
+  /**
+   * Clamps the templates/log split against the measured height of the right
+   * column, so the log and settings tabs below the divider stay reachable.
+   *
+   * Measuring the column rather than subtracting a chrome constant from
+   * `innerHeight` is deliberate: the amount of chrome above this column varies
+   * with the title bar breakpoint and with headers that wrap on narrow windows.
+   */
+  const clampSplit = useCallback((h: number) => {
+    const col = rightColRef.current;
+    const grid = templatesGridRef.current;
+    // The lower bound does not depend on a measurement. The upper one does, so
+    // before the first measurement it is skipped; the observer below corrects
+    // the value on the first frame after mount.
+    if (!col || !grid || col.clientHeight === 0) return Math.max(MIN_SPLIT_PX, h);
+    // The templates header sits above the grid and wraps to a second line on
+    // narrow columns, so it is measured rather than assumed. Reading it from the
+    // rects stays correct even while the current split overflows the column.
+    const header = grid.getBoundingClientRect().top - col.getBoundingClientRect().top;
+    const flexible = col.clientHeight - header - BELOW_FIXED_PX;
+    // Reserve for the tab content below, but never more than half of what there
+    // is: on a very short column an even split beats starving one pane.
+    const reserve = Math.min(MIN_TAB_CONTENT_PX, Math.max(0, Math.floor(flexible / 2)));
+    return Math.max(MIN_SPLIT_PX, Math.min(h, flexible - reserve));
+  }, []);
+
+  // Re-clamp whenever the column changes height. A ResizeObserver rather than a
+  // window resize listener: the column also shrinks without the window changing
+  // size, for example when the wrapping templates header gains a line.
+  useEffect(() => {
+    const col = rightColRef.current;
+    if (!col) return;
+    const observer = new ResizeObserver(() => setTemplatesHeight(clampSplit));
+    observer.observe(col);
+    return () => observer.disconnect();
+  }, [clampSplit]);
 
   // Per-pokemon detection loop (local ref for the currently viewed pokemon)
   const loopRef = useRef<DetectionLoop | null>(null);
@@ -687,8 +743,7 @@ export function DetectorPanel({
     const onMove = (ev: MouseEvent) => {
       if (!detectorDividerRef.current) return;
       const dy = ev.clientY - detectorDividerRef.current.startY;
-      const newH = Math.max(80, Math.min(detectorDividerRef.current.startHeight + dy, window.innerHeight - 250));
-      setTemplatesHeight(newH);
+      setTemplatesHeight(clampSplit(detectorDividerRef.current.startHeight + dy));
     };
     const onUp = () => {
       globalThis.removeEventListener("mousemove", onMove);
@@ -698,7 +753,7 @@ export function DetectorPanel({
     };
     globalThis.addEventListener("mousemove", onMove);
     globalThis.addEventListener("mouseup", onUp);
-  }, [templatesHeight]);
+  }, [templatesHeight, clampSplit]);
 
   /** Resizes the templates/log divider via arrow keys, mirroring the mouse-drag clamping and persistence. */
   const handleDetectorDividerKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -706,11 +761,11 @@ export function DetectorPanel({
     e.preventDefault();
     const step = e.key === "ArrowUp" ? -24 : 24;
     setTemplatesHeight(h => {
-      const newH = Math.max(80, Math.min(h + step, window.innerHeight - 250));
+      const newH = clampSplit(h + step);
       try { localStorage.setItem("encounty_detector_split", String(newH)); } catch {}
       return newH;
     });
-  }, []);
+  }, [clampSplit]);
 
   // --- Derived ---------------------------------------------------------------
 
@@ -904,7 +959,7 @@ export function DetectorPanel({
           </div>
 
           {/* Right: Templates top, divider, Log/Settings bottom */}
-          <div className="w-80 xl:w-96 shrink-0 flex flex-col min-h-0 border-l border-border-subtle bg-bg-card" data-detector-tutorial="templates">
+          <div ref={rightColRef} className="w-80 xl:w-96 shrink-0 flex flex-col min-h-0 border-l border-border-subtle bg-bg-card" data-detector-tutorial="templates">
               {/* Templates header */}
               <div className="flex items-center flex-wrap justify-between gap-x-1.5 gap-y-1.5 px-4 py-2.5 border-b border-border-subtle shrink-0">
                 <span className="text-xs font-semibold text-text-primary whitespace-nowrap">
@@ -1002,7 +1057,7 @@ export function DetectorPanel({
                 </div>
               </div>
               {/* Template grid */}
-              <div className="p-4 overflow-y-auto shrink-0" style={{ height: templatesHeight }}>
+              <div ref={templatesGridRef} className="p-4 overflow-y-auto shrink-0" style={{ height: templatesHeight }}>
                 {templates.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2">
                     {templates.map((tmpl, index) => {
@@ -1124,7 +1179,7 @@ export function DetectorPanel({
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setTemplatesHeight(500);
+                    setTemplatesHeight(clampSplit(DEFAULT_SPLIT_PX));
                     try { localStorage.removeItem("encounty_detector_split"); } catch {}
                   }}
                   onMouseDown={(e) => e.stopPropagation()}

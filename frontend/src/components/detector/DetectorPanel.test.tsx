@@ -2364,6 +2364,49 @@ describe("DetectorPanel", () => {
     localStorage.removeItem("encounty_detector_split");
   });
 
+  it("caps a stored split that does not fit the right column, keeping the log and settings tabs reachable", async () => {
+    // Regression guard for issue #48: on a short window (high Windows display
+    // scaling) the stored 500px ate the whole column, so the settings tab with
+    // the precision slider had zero height and could not be reached.
+    let notifyResize: (() => void) | undefined;
+    const OriginalResizeObserver = globalThis.ResizeObserver;
+    class ResizeObserverStub implements ResizeObserver {
+      constructor(cb: ResizeObserverCallback) {
+        // The component ignores the entries, so an empty notification suffices.
+        notifyResize = () => cb([], this);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    globalThis.ResizeObserver = ResizeObserverStub;
+    localStorage.setItem("encounty_detector_split", "500");
+    renderPanel({});
+
+    const templateGrid = await waitFor(() => {
+      const el = document.querySelector("[style*='height: 500px']");
+      expect(el).toBeInTheDocument();
+      return el as HTMLElement;
+    });
+    // jsdom measures everything as 0, so the column height has to be faked.
+    Object.defineProperty(templateGrid.parentElement as HTMLElement, "clientHeight", {
+      value: 400,
+      configurable: true,
+    });
+    act(() => notifyResize?.());
+
+    // 400px column minus the divider, the tab strip and the tab content
+    // reservation. jsdom reports a zero-sized header above the grid.
+    await waitFor(() => {
+      expect(templateGrid.style.height).toBe("198px");
+    });
+    // The capped value must not overwrite what was chosen on a larger monitor.
+    expect(localStorage.getItem("encounty_detector_split")).toBe("500");
+
+    localStorage.removeItem("encounty_detector_split");
+    globalThis.ResizeObserver = OriginalResizeObserver;
+  });
+
   // --- Settings update through settings tab sliders ---
 
   it("updates config field and marks dirty when settings slider changes", async () => {
