@@ -8,6 +8,7 @@ import { SPRITE_FALLBACK, resolveSpriteSrc, isCustomSprite } from "../../utils/s
 import { getOddsFractional } from "../../utils/odds";
 import { DetectorPreview } from "../detector/DetectorPreview";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
+import { FreezableSprite } from "../shared/FreezableSprite";
 
 type Props = Readonly<{
   pokemon: Pokemon;
@@ -135,7 +136,7 @@ export function PokemonCard({
                 fallbackSrc={spriteUrl}
               />
             ) : (
-              <img
+              <FreezableSprite
                 src={spriteUrl}
                 alt={pokemon.name}
                 className="w-10 h-10 2xl:w-12 2xl:h-12 object-contain group-hover:scale-110 transition-transform duration-300"
