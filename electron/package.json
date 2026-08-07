@@ -1,7 +1,7 @@
 {
   "name": "encounty",
-  "version": "0.0.1",
-  "description": "Shiny hunt with ease",
+  "version": "0.22.0",
+  "description": "Free, open-source auto shiny counter for Pokémon shiny hunting.",
   "author": "ZSleyer",
   "license": "AGPL-3.0-only",
   "main": "dist/main.js",

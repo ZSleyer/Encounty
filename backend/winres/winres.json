@@ -14,7 +14,7 @@
       "0000": {
         "identity": {
           "name": "Encounty",
-          "version": "0.2.0.0"
+          "version": "0.22.0.0"
         },
         "description": "Encounty - Pokémon Shiny Encounter Counter & Tracker",
         "minimum-os": "win7",
@@ -38,29 +38,29 @@
     "#1": {
       "0000": {
         "fixed": {
-          "file_version": "0.2.0.0",
-          "product_version": "0.2.0.0"
+          "file_version": "0.22.0.0",
+          "product_version": "0.22.0.0"
         },
         "info": {
           "0409": {
             "CompanyName": "ZSleyer",
             "FileDescription": "Encounty - Pokémon Shiny Encounter Counter & Tracker",
-            "FileVersion": "0.2.0.0",
+            "FileVersion": "0.22.0.0",
             "InternalName": "Encounty",
             "LegalCopyright": "© 2026 ZSleyer",
             "OriginalFilename": "encounty-windows.exe",
             "ProductName": "Encounty",
-            "ProductVersion": "0.2.0.0"
+            "ProductVersion": "0.22.0.0"
           },
           "0407": {
             "CompanyName": "ZSleyer",
             "FileDescription": "Encounty - Pokémon Shiny Encounter Counter & Tracker",
-            "FileVersion": "0.2.0.0",
+            "FileVersion": "0.22.0.0",
             "InternalName": "Encounty",
             "LegalCopyright": "© 2026 ZSleyer",
             "OriginalFilename": "encounty-windows.exe",
             "ProductName": "Encounty",
-            "ProductVersion": "0.2.0.0"
+            "ProductVersion": "0.22.0.0"
           }
         }
       }
