@@ -73,6 +73,7 @@ import { GroupManagementModal } from "../components/shared/GroupManagementModal"
 import { GroupCounterView } from "../components/group/GroupCounterView";
 import { updateGroup, startGroupHunt, stopGroupHunt } from "../utils/groupsApi";
 import { useI18n } from "../contexts/I18nContext";
+import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../utils/anchoredMenu";
 import { useCaptureService, useCaptureVersion } from "../contexts/CaptureServiceContext";
 import { useToast } from "../contexts/ToastContext";
 import { resolveOverlay } from "../utils/overlay";
@@ -1055,6 +1056,7 @@ function SidebarQuickActions({
   viewedPokemonId: string | null;
 }>) {
   const { t } = useI18n();
+  const huntMenuAnchor = useAnchorName("hunt-mode");
   const activeId = useCounterStore(s => s.appState?.active_id);
   const viewedId = viewedPokemonId || activeId;
   const viewedPokemon = viewedId ? allPokemon.find(p => p.id === viewedId) ?? null : null;
@@ -1117,6 +1119,7 @@ function SidebarQuickActions({
         </button>
         <button
           onClick={() => setShowHuntMenu((v: boolean) => !v)}
+          style={anchorTriggerStyle(huntMenuAnchor)}
           className="p-1.5 text-text-muted hover:text-text-primary transition-colors"
           title={sidebarLabel}
         >
@@ -1125,7 +1128,7 @@ function SidebarQuickActions({
         {showHuntMenu && (
           <>
             <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowHuntMenu(false)} aria-label="Close" />
-            <div className="absolute left-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
+            <div style={anchoredMenuStyle(huntMenuAnchor, "below-start")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
               <button
                 onClick={() => setHuntMode("both")}
                 className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
@@ -1263,6 +1266,7 @@ function HeaderHuntButton({
   clearDetectorStatus: (id: string) => void;
 }>) {
   const { t } = useI18n();
+  const modeMenuAnchor = useAnchorName("row-mode");
   const { push: pushToast } = useToast();
   const timerRunning = !!pokemon.timer_started_at;
   const detRunning = !!detectorStatus[pokemon.id] || isLoopRunning(pokemon.id);
@@ -1325,6 +1329,7 @@ function HeaderHuntButton({
             anyRunning ? "text-accent-red hover:bg-accent-red/20" : "hover:bg-white/10"
           }`}
           aria-label={t("sidebar.both")}
+          style={anchorTriggerStyle(modeMenuAnchor)}
         >
           <ChevronDown className="w-3 h-3" />
         </button>
@@ -1332,7 +1337,7 @@ function HeaderHuntButton({
       {showMenu && (
         <>
           <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMenu(false)} aria-label={t("aria.close")} />
-          <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
+          <div style={anchoredMenuStyle(modeMenuAnchor, "below-end")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
             {[
               { mode: "both" as const, icon: <><Timer className="w-3.5 h-3.5" /><Eye className="w-3.5 h-3.5 -ml-1" /></>, label: t("sidebar.both") },
               { mode: "timer" as const, icon: <Timer className="w-3.5 h-3.5" />, label: t("sidebar.timerOnly") },
@@ -1371,6 +1376,7 @@ function HeaderOverflowMenu({
   onReactivate: () => void;
 }>) {
   const { t } = useI18n();
+  const kebabAnchor = useAnchorName("row-more");
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -1403,13 +1409,14 @@ function HeaderOverflowMenu({
         title={t("dash.moreActions")}
         aria-label={t("dash.moreActions")}
         aria-expanded={open}
+        style={anchorTriggerStyle(kebabAnchor)}
       >
         <MoreVertical className="w-3.5 h-3.5" />
       </button>
       {open && (
         <>
           <button className="fixed inset-0 z-40 cursor-default" onClick={close} aria-label={t("aria.close")} />
-          <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
+          <div style={anchoredMenuStyle(kebabAnchor, "below-end")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-40">
             <button
               onClick={() => runAction(onEdit)}
               className="flex items-center gap-2 w-full px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors"
@@ -1940,6 +1947,7 @@ function DashboardOverlayTab({
   onOverlayUpdate: (overlay: OverlaySettings) => void;
 }>) {
   const { t } = useI18n();
+  const importMenuAnchor = useAnchorName("overlay-import");
   const overlayMode = pokemon.overlay_mode || "default";
   const modeBase = overlayMode === "custom" ? "custom" : "default";
 
@@ -1989,12 +1997,12 @@ function DashboardOverlayTab({
 
         {modeBase === "custom" && (
           <div className="relative group shrink-0">
-            <button className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
+            <button style={anchorTriggerStyle(importMenuAnchor)} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-none text-xs font-semibold bg-bg-primary border border-border-subtle text-text-muted hover:text-text-primary hover:border-accent-blue/30 transition-colors">
               <Download className="w-3.5 h-3.5" />
               {t("overlay.import")}
               <ChevronDown className="w-3 h-3" />
             </button>
-            <div className="absolute right-0 top-full mt-1 w-52 bg-bg-secondary border border-border-subtle rounded-none shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 max-h-60 overflow-y-auto">
+            <div style={anchoredMenuStyle(importMenuAnchor, "below-end")} className="fixed w-52 bg-bg-secondary border border-border-subtle rounded-none shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 py-1 overflow-y-auto">
               <button
                 onClick={() => onCopyFrom("global")}
                 className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:bg-bg-primary transition-colors flex items-center gap-2"
@@ -2155,6 +2163,7 @@ export const Dashboard = memo(function Dashboard({
   const setDetectorStatus = useCounterStore((s) => s.setDetectorStatus);
   const clearDetectorStatus = useCounterStore((s) => s.clearDetectorStatus);
   const { t } = useI18n();
+  const sortMenuAnchor = useAnchorName("sidebar-sort");
   const capture = useCaptureService();
   const { push: pushToast } = useToast();
   useCaptureVersion(); // Re-render when capture sources connect/disconnect
@@ -3095,13 +3104,14 @@ export const Dashboard = memo(function Dashboard({
                 className="p-1.5 rounded-none bg-bg-primary border border-border-subtle hover:border-accent-blue/40 text-text-muted hover:text-text-primary transition-colors"
                 title={t("sidebar.sortBy")}
                 aria-label={t("sidebar.sortBy")}
+                style={anchorTriggerStyle(sortMenuAnchor)}
               >
                 <ArrowUpDown className="w-3.5 h-3.5" />
               </button>
               {showSortMenu && (
                 <>
                   <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowSortMenu(false)} aria-label={t("aria.close")} />
-                  <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-36">
+                  <div style={anchoredMenuStyle(sortMenuAnchor, "below-end")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-36">
                     {([
                       { mode: "recent" as const, label: t("sidebar.sortRecent") },
                       { mode: "name" as const, label: t("sidebar.sortName") },

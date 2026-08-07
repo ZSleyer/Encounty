@@ -17,6 +17,7 @@ import {
   DEFAULT_COOLDOWN_SEC, DEFAULT_POLL_MS, MIN_POLL_MS, MAX_POLL_MS,
 } from "../../engine/detectorDefaults";
 import { useI18n } from "../../contexts/I18nContext";
+import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
 import { preloadOcrLang } from "../../hooks/useOCR";
 import { useToast } from "../../contexts/ToastContext";
 import { useCaptureService, useCaptureVersion } from "../../contexts/CaptureServiceContext";
@@ -236,6 +237,7 @@ export function DetectorPanel({
   });
   const rightColRef = useRef<HTMLDivElement>(null);
   const templatesGridRef = useRef<HTMLDivElement>(null);
+  const moreMenuAnchor = useAnchorName("detector-more");
   const detectorDividerRef = useRef<{ startY: number; startHeight: number } | null>(null);
 
   /**
@@ -1005,13 +1007,14 @@ export function DetectorPanel({
                       title={isRunning ? t("detector.disabledWhileRunning") : t("detector.more")}
                       aria-label={t("detector.more")}
                       aria-disabled={isRunning || undefined}
+                      style={anchorTriggerStyle(moreMenuAnchor)}
                     >
                       <MoreHorizontal className="w-3.5 h-3.5" />
                     </button>
                     {showMoreMenu && (
                       <>
                         <button className="fixed inset-0 z-40 cursor-default" onClick={() => setShowMoreMenu(false)} aria-label={t("aria.close")} />
-                        <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-48">
+                        <div style={anchoredMenuStyle(moreMenuAnchor, "below-end")} className="fixed z-50 overflow-y-auto bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-48">
                           {templates.length > 0 && (
                             <button
                               onClick={handleExportTemplates}

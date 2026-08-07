@@ -16,6 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
 import { GameEntry, PhaseTarget } from "../../types";
 import {
   getSpriteUrl,
@@ -304,6 +305,7 @@ function GroupAndTagsSection({
   inputClass,
 }: GroupAndTagsSectionProps) {
   const { t } = useI18n();
+  const tagAnchor = useAnchorName("tag-suggest");
 
   // Autocomplete suggestions: show tags from the pool that match the current
   // draft (case-insensitive prefix) and are not already attached.
@@ -388,10 +390,13 @@ function GroupAndTagsSection({
             onKeyDown={handleKeyDown}
             placeholder={t("tag.placeholder")}
             aria-label={t("tag.add")}
+            style={anchorTriggerStyle(tagAnchor)}
             className={inputClass}
           />
           {suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full mt-1 z-20 bg-bg-secondary border border-border-subtle rounded-none shadow-lg max-h-40 overflow-y-auto">
+            // Fixed + anchored instead of absolute: this list lives inside a
+            // native <dialog> whose own scroll box clipped it away.
+            <div style={anchoredMenuStyle(tagAnchor, "below-start", true)} className="fixed z-20 bg-bg-secondary border border-border-subtle rounded-none shadow-lg overflow-y-auto">
               {suggestions.map((s) => (
                 <button
                   key={s}
@@ -461,6 +466,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { t, locale } = useI18n();
   const { push } = useToast();
+  const speciesAnchor = useAnchorName("species-search");
+  const langAnchor = useAnchorName("lang-menu");
 
   // --- State initialization (differs by mode) ---
   const defaults = isEdit ? editDefaults(props.pokemon, activeLanguages, locale) : addDefaults(activeLanguages, locale);
@@ -1029,6 +1036,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                 aria-expanded={langMenuOpen}
                 aria-haspopup="true"
                 aria-label={t("modal.language")}
+                style={anchorTriggerStyle(langAnchor)}
                 className="flex items-center gap-2 w-full bg-bg-primary border border-border-subtle rounded-none px-3 py-2 text-sm text-text-primary hover:border-border-default transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 <CountryFlag code={language} />
@@ -1038,7 +1046,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
               {langMenuOpen && (
                 <>
                   <button className="fixed inset-0 z-40 cursor-default" onClick={() => setLangMenuOpen(false)} aria-label={t("aria.close")} />
-                  <div aria-label={t("modal.language")} className="absolute left-0 bottom-full mb-1 z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 min-w-full max-h-48 overflow-y-auto">
+                  <div aria-label={t("modal.language")} style={anchoredMenuStyle(langAnchor, "above-start", true)} className="fixed z-50 bg-bg-secondary border border-border-subtle rounded-none shadow-lg py-1 overflow-y-auto">
                     {availableLangs.map((lang) => {
                       const info = ALL_LANGUAGES.find((l) => l.code === lang);
                       return (
@@ -1103,7 +1111,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
             </div>
           ) : (
             <div className="relative">
-              <div data-focus-wrapper className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2">
+              <div data-focus-wrapper style={anchorTriggerStyle(speciesAnchor)} className="flex items-center gap-2 bg-bg-secondary border border-border-subtle focus-within:border-accent-blue/50 focus-within:ring-2 focus-within:ring-accent-blue/30 transition-colors rounded-none px-3 py-2">
                 <Search className="w-4 h-4 text-text-muted shrink-0" />
                 <input
                   ref={inputRef}
@@ -1145,7 +1153,8 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       setBrowseLimit((l) => Math.min(l + BROWSE_PAGE, allPokemon.length));
                     }
                   }}
-                  className="absolute top-full left-0 right-0 mt-1 bg-bg-secondary border border-border-subtle rounded-none overflow-hidden z-10 shadow-xl max-h-52 overflow-y-auto"
+                  style={anchoredMenuStyle(speciesAnchor, "below-start", true)}
+                  className="fixed bg-bg-secondary border border-border-subtle rounded-none z-10 shadow-xl overflow-y-auto"
                 >
                   {isBrowseMode && (
                     <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">

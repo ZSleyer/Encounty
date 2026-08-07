@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef, useCallback, useId, type RefObject } from "react";
 import { X, Monitor, AppWindow, Camera, RefreshCw, Settings as SettingsIcon } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
+import { useAnchorName, anchorTriggerStyle, anchoredMenuStyle } from "../../utils/anchoredMenu";
 import { useToast } from "../../contexts/ToastContext";
 import { useCounterStore } from "../../hooks/useCounterState";
 import { useModalDialog } from "../../hooks/useModalDialog";
@@ -224,6 +225,7 @@ function ResolutionGear({
   onChange: (deviceId: string, res: CaptureResolution) => void;
   t: (k: string) => string;
 }>) {
+  const resolutionAnchor = useAnchorName("resolution");
   const label = (r: CaptureResolution) => (r === "auto" ? t("sourcePicker.resolutionAuto") : `${r}p`);
   return (
     <div className="absolute top-1 right-1 z-10">
@@ -232,6 +234,7 @@ function ResolutionGear({
         aria-label={t("sourcePicker.resolution")}
         aria-expanded={open}
         onClick={(e) => { e.stopPropagation(); onToggle(); }}
+        style={anchorTriggerStyle(resolutionAnchor)}
         className="p-1 rounded-none bg-bg-primary/80 text-text-muted hover:text-text-primary backdrop-blur-sm transition-colors relative after:absolute after:-inset-2 after:content-['']"
       >
         <SettingsIcon className="w-3.5 h-3.5" />
@@ -240,7 +243,8 @@ function ResolutionGear({
         <div
           role="radiogroup"
           aria-label={t("sourcePicker.resolution")}
-          className="absolute top-7 right-0 flex flex-col rounded-none border border-border-subtle bg-bg-card shadow-lg overflow-hidden"
+          style={anchoredMenuStyle(resolutionAnchor, "below-end")}
+          className="fixed z-50 flex flex-col rounded-none border border-border-subtle bg-bg-card shadow-lg overflow-y-auto"
         >
           {RESOLUTION_OPTIONS.map((r) => (
             <button

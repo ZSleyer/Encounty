@@ -97,10 +97,14 @@ export function HelpPopover({ label, title, children, align = "left" }: HelpPopo
             {
               positionAnchor: anchorName,
               positionArea: align === "right" ? "block-end span-inline-start" : "block-end span-inline-end",
+              // Without a fallback the panel only ever opens downwards and runs
+              // off the bottom of short windows. flip-block moves it above the
+              // toggle when there is no room below.
+              positionTryFallbacks: "flip-block",
               marginBlockStart: "0.5rem",
             } as CSSProperties
           }
-          className="fixed z-50 block w-[min(20rem,70vw)] rounded-none border border-border-subtle bg-bg-card p-3 text-left shadow-lg"
+          className="fixed z-50 block max-h-[min(18rem,60vh)] w-[min(20rem,70vw)] overflow-y-auto rounded-none border border-border-subtle bg-bg-card p-3 text-left shadow-lg"
         >
           <span className="block text-xs font-bold text-text-primary">{title}</span>
           <span className="mt-1 block text-[11px] leading-relaxed text-text-secondary">

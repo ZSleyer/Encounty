@@ -514,11 +514,15 @@ export function PokemonSearchPicker({
               {
                 positionAnchor: anchorName,
                 positionArea: "block-end span-inline-end",
+                // Without a fallback the list only ever opens downwards and
+                // runs off the bottom of short windows. flip-block moves it
+                // above the field when there is no room below.
+                positionTryFallbacks: "flip-block",
                 width: "anchor-size(width)",
                 marginBlockStart: "0.25rem",
               } as CSSProperties
             }
-            className="fixed bg-bg-secondary border border-border-subtle rounded-none z-50 shadow-xl max-h-52 overflow-x-hidden overflow-y-auto"
+            className="fixed bg-bg-secondary border border-border-subtle rounded-none z-50 shadow-xl max-h-[min(13rem,45vh)] overflow-x-hidden overflow-y-auto"
           >
             {isBrowseMode && (
               <div className="px-4 py-1.5 text-xs text-text-faint border-b border-border-subtle bg-bg-primary/50">
