@@ -85,10 +85,14 @@ export function VerticalToolbar({
         : "text-text-muted hover:text-text-primary hover:bg-bg-hover"
     }`;
 
+  // The toolbar needs roughly 600px for its buttons, more than a 1080p screen at
+  // 200% display scaling leaves for the editor. Without a scroller of its own it
+  // overflows and grows the page instead, which drags the canvas and the right
+  // column out of view.
   return (
     <div
       data-tutorial="toolbar"
-      className="w-12 shrink-0 flex flex-col items-center py-2 gap-1 bg-bg-secondary border-r border-border-subtle"
+      className="w-12 shrink-0 flex flex-col items-center py-2 gap-1 overflow-y-auto overflow-x-hidden bg-bg-secondary border-r border-border-subtle"
     >
       {/* --- Tool Buttons --- */}
       <button
