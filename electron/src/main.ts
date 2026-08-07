@@ -192,6 +192,7 @@ interface WindowBounds {
   width: number;
   height: number;
   maximized?: boolean;
+  zoom?: number;
 }
 
 const boundsFile = path.join(app.getPath('userData'), 'window-bounds.json');
@@ -211,10 +212,87 @@ function saveBounds(): void {
   // Store the restored (non-maximized) bounds so the window doesn't
   // permanently stick to full-screen dimensions after a restart.
   const bounds = maximized ? mainWindow.getNormalBounds() : mainWindow.getBounds();
-  const data: WindowBounds = { ...bounds, maximized };
+  const data: WindowBounds = { ...bounds, maximized, zoom: getZoom() };
   try {
     fs.writeFileSync(boundsFile, JSON.stringify(data));
   } catch { /* ignore write errors */ }
+}
+
+// --- UI zoom ------------------------------------------------------------------
+//
+// Windows display scaling shrinks the CSS pixel viewport: a maximised 1080p
+// window reports roughly 960x533 CSS pixels at 200%. Users on such machines
+// cannot make the OS scaling smaller without shrinking every other app, so the
+// UI offers its own zoom on top of it.
+
+/** Zoom factors the shortcuts step through, so the steps stay predictable. */
+const ZOOM_STEPS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
+
+const MIN_ZOOM = ZOOM_STEPS[0];
+const MAX_ZOOM = ZOOM_STEPS[ZOOM_STEPS.length - 1];
+const DEFAULT_ZOOM = 1;
+
+/** Current zoom factor, or the default when there is no window yet. */
+function getZoom(): number {
+  return mainWindow?.webContents.getZoomFactor() ?? DEFAULT_ZOOM;
+}
+
+/** Applies a zoom factor, clamped to the supported range, and persists it. */
+function setZoom(factor: number): number {
+  if (!mainWindow) return DEFAULT_ZOOM;
+  const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, factor));
+  mainWindow.webContents.setZoomFactor(clamped);
+  saveBounds();
+  mainWindow.webContents.send('window:zoom-change', clamped);
+  return clamped;
+}
+
+/** Steps to the next zoom factor in the given direction. */
+function stepZoom(direction: 1 | -1): void {
+  const current = getZoom();
+  // Nearest step rather than exact match: the settings slider can set values
+  // that are not in the list.
+  const idx = ZOOM_STEPS.reduce(
+    (best, step, i) => (Math.abs(step - current) < Math.abs(ZOOM_STEPS[best] - current) ? i : best),
+    0,
+  );
+  const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, idx + direction))];
+  setZoom(next);
+}
+
+/**
+ * Registers Ctrl/Cmd +, - and 0 on the window.
+ *
+ * The application menu only exists on macOS, so the menu's zoom roles would
+ * leave Windows and Linux, the platforms that actually need this, without any
+ * shortcut. A before-input-event handler works everywhere.
+ */
+function setupZoomShortcuts(win: BrowserWindow, saved: WindowBounds): void {
+  if (saved.zoom && saved.zoom !== DEFAULT_ZOOM) {
+    // The factor only sticks once the frame has committed a document.
+    win.webContents.once('did-finish-load', () => {
+      win.webContents.setZoomFactor(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, saved.zoom as number)));
+    });
+  }
+
+  win.webContents.on('before-input-event', (event, input) => {
+    if (input.type !== 'keyDown') return;
+    const modifier = process.platform === 'darwin' ? input.meta : input.control;
+    if (!modifier || input.alt) return;
+
+    // "+" needs both spellings: the main row reports "=" unshifted, the numpad
+    // and shifted main row report "+".
+    if (input.key === '+' || input.key === '=') {
+      stepZoom(1);
+    } else if (input.key === '-' || input.key === '_') {
+      stepZoom(-1);
+    } else if (input.key === '0') {
+      setZoom(DEFAULT_ZOOM);
+    } else {
+      return;
+    }
+    event.preventDefault();
+  });
 }
 
 // --- Window creation -----------------------------------------------------------
@@ -337,6 +415,7 @@ async function createWindow(): Promise<void> {
   });
 
   setupWindowEvents(mainWindow, saved);
+  setupZoomShortcuts(mainWindow, saved);
   await loadContent(mainWindow);
 }
 
@@ -495,6 +574,10 @@ ipcMain.handle('window:focus', () => {
     mainWindow.focus();
   }
 });
+
+ipcMain.handle('window:get-zoom', () => getZoom());
+
+ipcMain.handle('window:set-zoom', (_event, factor: number) => setZoom(factor));
 
 // --- Detector performance metrics (dev-only modal in renderer) -------------
 // Returns per-process CPU/memory snapshots from Chromium's task-manager

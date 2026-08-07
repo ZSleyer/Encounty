@@ -43,6 +43,7 @@ import { useTheme, useMotion } from "../contexts/ThemeContext";
 import { useToast } from "../contexts/ToastContext";
 import { CountryFlag } from "../components/shared/CountryFlag";
 import { AboutSection } from "../components/settings/AboutSection";
+import { UiZoomSetting } from "../components/settings/UiZoomSetting";
 import { MacPermissions } from "../components/settings/MacPermissions";
 import { LOCALES } from "../utils/i18n";
 import type { Locale } from "../locales";
@@ -542,6 +543,11 @@ function DisplaySection({ settings, theme, toggleTheme, locale, setLocale, setCr
           ))}
         </div>
       </div>
+
+      <div className="border-t border-border-subtle/50" />
+
+      {/* Interface zoom (Electron only) */}
+      <UiZoomSetting />
 
       <div className="border-t border-border-subtle/50" />
 

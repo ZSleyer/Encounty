@@ -53,6 +53,12 @@ interface ElectronAPI {
   maximize(): void;
   close(): void;
   focusWindow(): void;
+  /** Current UI zoom factor. Only present in Electron builds. */
+  getZoomFactor?(): Promise<number>;
+  /** Sets the UI zoom factor; returns the value after clamping. */
+  setZoomFactor?(factor: number): Promise<number>;
+  /** Subscribes to zoom changes made via the keyboard shortcuts. */
+  onZoomChange?(callback: (factor: number) => void): () => void;
   onMaximizedChange(callback: (maximized: boolean) => void): () => void;
   getCaptureSources(): Promise<CaptureSource[]>;
   selectCaptureSource(sourceId: string): Promise<void>;

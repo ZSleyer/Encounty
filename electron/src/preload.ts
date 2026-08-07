@@ -55,6 +55,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('window:focus');
   },
 
+  getZoomFactor(): Promise<number> {
+    return ipcRenderer.invoke('window:get-zoom');
+  },
+
+  setZoomFactor(factor: number): Promise<number> {
+    return ipcRenderer.invoke('window:set-zoom', factor);
+  },
+
+  onZoomChange(callback: (factor: number) => void): () => void {
+    const handler = (_event: Electron.IpcRendererEvent, factor: number) => {
+      callback(factor);
+    };
+    ipcRenderer.on('window:zoom-change', handler);
+    return () => {
+      ipcRenderer.removeListener('window:zoom-change', handler);
+    };
+  },
+
   onMaximizedChange(callback: (maximized: boolean) => void): () => void {
     const handler = (_event: Electron.IpcRendererEvent, maximized: boolean) => {
       callback(maximized);
