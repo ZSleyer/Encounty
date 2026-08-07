@@ -90,7 +90,9 @@ jobs:
         run: |
           WIN_VER=$(echo "$CLEAN_VERSION" | awk -F. '{if(NF==2) print $0".0"; else print $0}')
           echo "WIN_VER=$WIN_VER" >> $GITHUB_ENV
-          sed -i "s/0\.2\.0\.0/${WIN_VER}.0/g" winres/winres.json
+          # Match any four-part version rather than the one that happened to be
+          # committed, so bumping winres.json cannot silently stop the rewrite.
+          sed -i -E "s/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/${WIN_VER}.0/g" winres/winres.json
 
       - name: Build Windows Binary (x64)
         working-directory: backend
