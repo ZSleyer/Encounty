@@ -1,5 +1,13 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
-import { act, render, screen, makeAppState, makeOverlaySettings, makePokemon } from "../test-utils";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  makeAppState,
+  makeOverlaySettings,
+  makePokemon,
+} from "../test-utils";
 import { Overlay } from "./Overlay";
 import { useCounterStore } from "../hooks/useCounterState";
 import type { LabeledTextElement, TextStyle } from "../types";
@@ -1041,6 +1049,67 @@ describe("Overlay", () => {
 
     afterEach(() => {
       vi.useRealTimers();
+    });
+
+    it("falls back to the box sprite when the stored URL fails to load", () => {
+      // A form whose stored URL was baked wrong (or whose host dropped the
+      // file) used to leave the overlay blank, because it is the one surface
+      // without an onError chain.
+      const pokemon = makePokemon({
+        sprite_url: "http://example.com/gone.gif",
+        canonical_name: "zigzagoon-galar",
+        sprite_type: "shiny",
+      });
+      const { container } = render(
+        <Overlay previewSettings={cyclingSettings(false)} previewPokemon={pokemon} />,
+      );
+      const slot = container.querySelector("img.pokemon-sprite") as HTMLImageElement;
+      expect(slot).toHaveAttribute("src", "http://example.com/gone.gif");
+
+      act(() => {
+        fireEvent.error(slot);
+      });
+      expect(slot.getAttribute("src")).toContain("/shiny/zigzagoon-galar.png");
+
+      // And the placeholder as the last resort, never an empty slot.
+      act(() => {
+        fireEvent.error(slot);
+      });
+      expect(slot.getAttribute("src")).toContain("data:image/svg+xml");
+    });
+
+    it("falls back per phase target, not for the whole cycle", () => {
+      vi.useFakeTimers();
+      const pokemon = makePokemon({
+        sprite_url: huntSprite,
+        canonical_name: "bulbasaur",
+        sprite_type: "shiny",
+        phase_targets: [
+          {
+            canonical_name: "zigzagoon-galar",
+            name: "Galar-Zigzachs",
+            sprite_url: "http://example.com/gone.gif",
+          },
+        ],
+      });
+      const { container } = render(
+        <Overlay previewSettings={cyclingSettings(true)} previewPokemon={pokemon} />,
+      );
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      const incoming = [...container.querySelectorAll("img.pokemon-sprite")][1] as HTMLImageElement;
+      act(() => {
+        fireEvent.error(incoming);
+      });
+      expect(incoming.getAttribute("src")).toContain("/shiny/zigzagoon-galar.png");
+
+      // Back at the hunt sprite the chain starts over: the target's failure
+      // must not push the hunt's own sprite down a step.
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(container.querySelector("img.pokemon-sprite")).toHaveAttribute("src", huntSprite);
     });
 
     it("crossfades to the next sprite when the interval elapses", () => {

@@ -11,7 +11,12 @@ import {
   outlinePadding,
   textDecorationPadding,
 } from "../utils/textStyle";
-import { resolveSpriteSrc } from "../utils/sprites";
+import {
+  getBoxSpriteUrl,
+  resolveSpriteSrc,
+  SPRITE_FALLBACK,
+  type SpriteType,
+} from "../utils/sprites";
 import { apiUrl } from "../utils/api";
 import { formatTimer, computeTimerMs } from "../utils/timer";
 import { computeOddsDisplay } from "../utils/odds";
@@ -857,14 +862,43 @@ function LabeledTextLayer({
 const DEFAULT_CYCLE_INTERVAL_MS = 3000;
 
 /**
+ * One cycle step: the URLs to try for it, best first.
+ *
+ * Sprite URLs are baked when a hunt or a phase target is created and stored as
+ * they were, so a URL that turns out to be wrong stays wrong for that entry.
+ * Everywhere else in the app an onError chain papers over that; the overlay had
+ * none, so a 404 showed nothing at all instead of a placeholder.
+ */
+type SpriteCandidates = readonly string[];
+
+/** Build the candidate chain for one entry: stored URL, box sprite, placeholder. */
+function spriteCandidates(
+  spriteUrl: string | undefined,
+  canonicalName: string | undefined,
+  spriteType: SpriteType,
+): SpriteCandidates {
+  const candidates = [resolveSpriteSrc(spriteUrl)];
+  // Pokesprite is name-based, so it still resolves for forms whose stored URL
+  // was built from a wrong numeric ID or a wrong Showdown slug.
+  if (canonicalName) candidates.push(getBoxSpriteUrl(canonicalName, spriteType));
+  candidates.push(SPRITE_FALLBACK);
+  return [...new Set(candidates)];
+}
+
+/**
  * Collects the sprite sources the sprite element can cycle through: the hunt
  * sprite first, then every phase target that has a sprite of its own.
  */
-function buildSpriteCycleSources(pokemon: Pokemon | null): string[] {
+function buildSpriteCycleSources(pokemon: Pokemon | null): SpriteCandidates[] {
   if (!pokemon) return [];
-  const sources = [resolveSpriteSrc(pokemon.sprite_url)];
+  const spriteType = pokemon.sprite_type || "shiny";
+  const sources = [
+    spriteCandidates(pokemon.sprite_url, pokemon.canonical_name, spriteType),
+  ];
   for (const target of pokemon.phase_targets ?? []) {
-    if (target.sprite_url) sources.push(resolveSpriteSrc(target.sprite_url));
+    if (target.sprite_url) {
+      sources.push(spriteCandidates(target.sprite_url, target.canonical_name, spriteType));
+    }
   }
   return sources;
 }
@@ -881,11 +915,11 @@ function buildSpriteCycleSources(pokemon: Pokemon | null): string[] {
  * stall while dragging.
  */
 function useSpriteCycle(
-  sources: readonly string[],
+  sources: readonly SpriteCandidates[],
   enabled: boolean,
   intervalMs: number,
   resetKey: string,
-): string {
+): SpriteCandidates {
   const [index, setIndex] = useState(0);
   const count = sources.length;
   const period = intervalMs > 0 ? intervalMs : DEFAULT_CYCLE_INTERVAL_MS;
@@ -903,9 +937,11 @@ function useSpriteCycle(
     // Warm the browser cache for the whole cycle before the first swap. A
     // sprite that is still being fetched when its transition starts decodes
     // mid-animation, which drops frames on every swap of the first round.
-    for (const url of sourcesRef.current) {
+    for (const candidates of sourcesRef.current) {
       const preload = new Image();
-      preload.src = url;
+      // Only the first candidate: the rest exist for the case where this one
+      // fails, and fetching them up front would waste a request per swap.
+      preload.src = candidates[0];
     }
     const id = setInterval(() => setIndex((i) => (i + 1) % count), period);
     return () => clearInterval(id);
@@ -913,7 +949,23 @@ function useSpriteCycle(
 
   // Read through `cycling` instead of trusting the state: after the setting is
   // switched off the reset only lands in the next effect run.
-  return sources[cycling ? index % count : 0] ?? "";
+  return sources[cycling ? index % count : 0] ?? EMPTY_CANDIDATES;
+}
+
+/** Stable empty chain, so a sourceless render does not churn the slot state. */
+const EMPTY_CANDIDATES: SpriteCandidates = [];
+
+/** A slot's chain plus how far its onError has already walked down it. */
+interface SpriteSlot {
+  readonly candidates: SpriteCandidates;
+  readonly index: number;
+}
+
+const EMPTY_SLOT: SpriteSlot = { candidates: EMPTY_CANDIDATES, index: 0 };
+
+/** The URL a slot shows right now, empty while it holds no chain. */
+function slotSrcOf(slot: SpriteSlot): string {
+  return slot.candidates[slot.index] ?? "";
 }
 
 /** Longest transition between two cycled sprites, in milliseconds. */
@@ -996,8 +1048,8 @@ function spriteSlotTransitionStyle(
 
 /** Props for {@link CyclingSprite}. */
 interface CyclingSpriteProps {
-  /** Sprite URLs to rotate through, hunt sprite first. */
-  readonly sources: readonly string[];
+  /** Candidate chains to rotate through, hunt sprite first. */
+  readonly sources: readonly SpriteCandidates[];
   /** Whether the overlay cycles at all; a single sprite is shown at rest. */
   readonly enabled: boolean;
   /** Hunt the sources belong to, so a switch restarts the cycle. */
@@ -1036,25 +1088,47 @@ function CyclingSprite({
   intervalMs,
   transition,
 }: CyclingSpriteProps) {
-  const src = useSpriteCycle(sources, enabled, intervalMs, resetKey);
+  const candidates = useSpriteCycle(sources, enabled, intervalMs, resetKey);
+  // The chain's first entry identifies the cycle step. Everything below it only
+  // ever comes into play through onError, so it never drives a swap.
+  const src = candidates[0] ?? "";
 
   // Two slots, alternating. `front` is the one currently being shown.
-  const [slots, setSlots] = useState<readonly [string, string]>([src, ""]);
+  const [slots, setSlots] = useState<readonly [SpriteSlot, SpriteSlot]>([
+    { candidates, index: 0 },
+    EMPTY_SLOT,
+  ]);
   const [front, setFront] = useState(0);
   // Mirrors of what the swap already handed to the slots. Reading the state
   // through refs keeps it out of the dependency list, so the effect runs once
   // per source change instead of a second time on the render it just caused.
   const shownRef = useRef(src);
   const frontRef = useRef(0);
+  // Same reason: the chain changes identity on every render, `src` does not.
+  const candidatesRef = useRef(candidates);
+  candidatesRef.current = candidates;
 
   useEffect(() => {
     if (!src || src === shownRef.current) return;
     shownRef.current = src;
     const back = frontRef.current === 0 ? 1 : 0;
     frontRef.current = back;
-    setSlots((prev) => (back === 0 ? [src, prev[1]] : [prev[0], src]));
+    // A fresh step starts at the head of its chain: the stored URL may well
+    // load now even if the previous step's did not.
+    const slot: SpriteSlot = { candidates: candidatesRef.current, index: 0 };
+    setSlots((prev) => (back === 0 ? [slot, prev[1]] : [prev[0], slot]));
     setFront(back);
   }, [src]);
+
+  /** Walk one slot down to its next candidate after a failed load. */
+  const advanceSlot = (slotIndex: number) => {
+    setSlots((prev) => {
+      const slot = prev[slotIndex];
+      if (slot.index >= slot.candidates.length - 1) return prev;
+      const next: SpriteSlot = { candidates: slot.candidates, index: slot.index + 1 };
+      return slotIndex === 0 ? [next, prev[1]] : [prev[0], next];
+    });
+  };
 
   // Half the period, so a fast cycle never spends longer moving between two
   // sprites than it spends showing either of them on its own.
@@ -1062,13 +1136,16 @@ function CyclingSprite({
 
   return (
     <>
-      {slots.map((slotSrc, i) => (
+      {slots.map((slot, i) => {
+        const slotSrc = slotSrcOf(slot);
+        return (
         <img
           // Index keys are correct here: the two slots are fixed positions that
           // swap contents, not a reorderable list.
           key={i}
           src={slotSrc || undefined}
           alt=""
+          onError={() => advanceSlot(i)}
           className="pokemon-sprite motion-reduce:transition-none motion-reduce:animate-none"
           style={{
             width: "100%",
@@ -1081,12 +1158,13 @@ function CyclingSprite({
             ...spriteSlotTransitionStyle(
               transition,
               !!slotSrc && i === front,
-              !!slots[i === 0 ? 1 : 0],
+              !!slotSrcOf(slots[i === 0 ? 1 : 0]),
               durationMs,
             ),
           }}
         />
-      ))}
+        );
+      })}
     </>
   );
 }
