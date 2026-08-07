@@ -21,7 +21,9 @@ import {
   PokemonData,
   PokemonSearchPicker,
   SearchResult,
+  buildFormStrip,
   getPkmnName,
+  type PickOrigin,
 } from "./pokemonPicker";
 
 // --- Types ---
@@ -89,7 +91,15 @@ export function PhaseTargetsSection({
 }: Readonly<PhaseTargetsSectionProps>) {
   const { t } = useI18n();
 
-  const addTarget = (entry: SearchResult) => {
+  const addTarget = (entry: SearchResult, origin: PickOrigin) => {
+    // Picking from the search list is also what reveals the form strip, so for
+    // a species that has one the pick is not a decision yet: adding here would
+    // land the base species in the list of everyone who was after a form. The
+    // strip leads with the base, so committing to it stays one click away.
+    const base = allPokemon.find((p) => p.id === entry.id);
+    const hasStrip =
+      !!base && buildFormStrip(base, selectedGame, games, language).length > 0;
+    if (origin === "search" && hasStrip) return;
     if (targets.some((target) => target.canonical_name === entry.canonical)) return;
     onChange([...targets, toPhaseTarget(entry, selectedGame, spriteStyle, language)]);
   };

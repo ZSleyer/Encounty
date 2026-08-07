@@ -365,9 +365,17 @@ export interface PokemonSearchPickerProps {
    * showModal() would otherwise have claimed the focus for the close button.
    */
   readonly autoFocus?: boolean;
-  /** Called with the picked entry (base species or form). */
-  readonly onPick: (entry: SearchResult) => void;
+  /**
+   * Called with the picked entry (base species or form). `origin` tells the
+   * two lists apart: a pick from the search list is also what reveals the form
+   * strip, so for a species that has one it is not yet a final choice, while
+   * every pick from the strip is.
+   */
+  readonly onPick: (entry: SearchResult, origin: PickOrigin) => void;
 }
+
+/** Which of the picker's two lists a selection came from. */
+export type PickOrigin = "search" | "strip";
 
 /**
  * Species search field with a paged suggestion list and a form strip.
@@ -455,13 +463,13 @@ export function PokemonSearchPicker({
     setListOpen(false);
   };
 
-  const handlePick = (entry: SearchResult) => {
+  const handlePick = (entry: SearchResult, origin: PickOrigin) => {
     setListOpen(false);
     // The search field always shows the base species name; form entries carry
     // it in baseName, base entries fall back to their own display name.
     setQuery(entry.baseName ?? getPkmnName(entry, language));
     setBaseId(entry.id);
-    onPick(entry);
+    onPick(entry, origin);
   };
 
   return (
@@ -542,7 +550,7 @@ export function PokemonSearchPicker({
                 // focus a clicked button (Safari) would otherwise blur the
                 // field and unmount the row before its click fires.
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => handlePick(s)}
+                onClick={() => handlePick(s, "search")}
                 className="w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue"
               >
                 <PokemonThumb
@@ -575,7 +583,7 @@ export function PokemonSearchPicker({
                 <button
                   key={f.canonical}
                   type="button"
-                  onClick={() => handlePick(f)}
+                  onClick={() => handlePick(f, "strip")}
                   aria-pressed={isActive}
                   className={`flex items-center gap-1.5 min-h-[24px] px-2 py-1 rounded-none border text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue ${
                     isActive

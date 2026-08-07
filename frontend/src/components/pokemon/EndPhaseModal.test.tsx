@@ -14,6 +14,19 @@ HTMLDialogElement.prototype.close = vi.fn(function (this: HTMLDialogElement) {
 const POKEDEX_DATA = [
   { id: 1, canonical: "bulbasaur", names: { de: "Bisasam", en: "Bulbasaur" }, forms: [] },
   { id: 4, canonical: "charmander", names: { de: "Glumanda", en: "Charmander" }, forms: [] },
+  {
+    id: 263,
+    canonical: "zigzagoon",
+    names: { de: "Zigzachs", en: "Zigzagoon" },
+    forms: [
+      {
+        canonical: "zigzagoon-galar",
+        names: { de: "Galar Zigzachs", en: "Galarian Zigzagoon" },
+        form_names: { de: "Galar-Form", en: "Galarian Form" },
+        sprite_id: 10174,
+      },
+    ],
+  },
 ];
 
 /** Sample games data returned by /api/games. */
@@ -131,6 +144,38 @@ describe("EndPhaseModal", () => {
       canonical_name: "pidgey",
       name: "Taubsi",
       sprite_url: "https://example.com/pidgey.png",
+    });
+  });
+
+  it("recovers the form labels of a picked chip from the pokedex", async () => {
+    // A phase target stores only canonical, name and sprite URL, so the labels
+    // the phase archive keeps have to come back out of the pokedex. Without
+    // them a phase ended from a chip loses which form it was.
+    const onSubmit = vi.fn();
+    const user = userEvent.setup();
+    renderModal({
+      onSubmit,
+      parent: {
+        phase_targets: [
+          {
+            canonical_name: "zigzagoon-galar",
+            name: "Galar Zigzachs",
+            sprite_url: "https://example.com/zigzagoon-galar.png",
+          },
+        ],
+      },
+    });
+    await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+
+    await user.click(screen.getByRole("button", { name: /galar zigzachs/i }));
+    await user.click(screen.getByRole("button", { name: /abschließen|complete/i }));
+
+    expect(onSubmit).toHaveBeenCalledWith({
+      canonical_name: "zigzagoon-galar",
+      name: "Galar Zigzachs",
+      base_name: "Zigzachs",
+      form_name: "Galar-Form",
+      sprite_url: "https://example.com/zigzagoon-galar.png",
     });
   });
 

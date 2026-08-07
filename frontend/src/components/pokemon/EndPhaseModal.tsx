@@ -22,6 +22,7 @@ import {
   getPkmnName,
   usePokedex,
   PokemonSearchPicker,
+  type PokemonData,
   type SearchResult,
 } from "./pokemonPicker";
 
@@ -55,6 +56,32 @@ export interface EndPhaseModalProps {
   readonly onSubmit: (data: PhaseCatchData) => Promise<void> | void;
   /** Called after the close transition finishes; unmount the modal here. */
   readonly onClose: () => void;
+}
+
+// --- Helpers ---
+
+/**
+ * Base species and form label of a canonical name, empty for a base species.
+ *
+ * A phase target stores nothing but its canonical name, its display name and a
+ * sprite URL, so the labels the phase archive keeps have to be read back out of
+ * the pokedex when a chip is picked. The search path gets them from the entry
+ * it was picked from and never needs this.
+ */
+function formLabels(
+  canonicalName: string,
+  allPokemon: PokemonData[],
+  language: string,
+): Pick<PhaseCatchData, "base_name" | "form_name"> {
+  for (const p of allPokemon) {
+    const form = p.forms?.find((f) => f.canonical === canonicalName);
+    if (!form) continue;
+    return {
+      base_name: p.names?.[language] || p.names?.["en"] || undefined,
+      form_name: form.form_names?.[language] || form.form_names?.["en"] || undefined,
+    };
+  }
+  return {};
 }
 
 // --- Component ---
@@ -94,6 +121,7 @@ export function EndPhaseModal({
     setSelection({
       canonical_name: target.canonical_name,
       name: target.name,
+      ...formLabels(target.canonical_name, allPokemon, language),
       sprite_url: target.sprite_url,
     });
   };
