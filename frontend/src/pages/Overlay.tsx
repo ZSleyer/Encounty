@@ -897,7 +897,9 @@ function buildSpriteCycleSources(pokemon: Pokemon | null): SpriteCandidates[] {
   ];
   for (const target of pokemon.phase_targets ?? []) {
     if (target.sprite_url) {
-      sources.push(spriteCandidates(target.sprite_url, target.canonical_name, spriteType));
+      // A phase only ends when a shiny of another species shows up, so a
+      // target is shiny regardless of what the hunt itself is after.
+      sources.push(spriteCandidates(target.sprite_url, target.canonical_name, "shiny"));
     }
   }
   return sources;

@@ -1083,7 +1083,9 @@ describe("Overlay", () => {
       const pokemon = makePokemon({
         sprite_url: huntSprite,
         canonical_name: "bulbasaur",
-        sprite_type: "shiny",
+        // A normal-sprite hunt still phases on shinies, so the target's
+        // fallback must not inherit the hunt's sprite type.
+        sprite_type: "normal",
         phase_targets: [
           {
             canonical_name: "zigzagoon-galar",
