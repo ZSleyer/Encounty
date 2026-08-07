@@ -261,18 +261,17 @@ jobs:
     name: Publish AUR package
     runs-on: ubuntu-latest
     needs: [release]
-    # Disabled since 2026-08-02: Arch turned off package adoption on 2026-07-30
-    # and pushes altogether on 2026-08-01 while handling an influx of malicious
-    # package adoptions, with no announced end date. Until the aur-general
-    # follow-up says pushes are back, do not attempt to publish. Re-enable by
-    # removing the `false &&` below.
+    # Arch turned pushes off on 2026-08-01 while handling an influx of malicious
+    # package adoptions and has not announced an end date. The job attempts the
+    # publish anyway, since a maintenance window that ended is only visible by
+    # trying, and does not fail the release when writes are still down.
     # https://lists.archlinux.org/archives/list/aur-general@lists.archlinux.org/message/YPJ3FQYJTJXXY3RUXCYLMHUKHLIUNVFF/
     #
     # Pre-release tags are moved on every build, which would invalidate the
     # checksums in the AUR package, so only stable tags are pushed.
+    continue-on-error: true
     if: >-
-      false
-      && github.repository == 'ZSleyer/Encounty'
+      github.repository == 'ZSleyer/Encounty'
       && !contains(github.ref, '-pre')
       && !contains(github.ref, '-rc')
       && !contains(github.ref, '-alpha')
