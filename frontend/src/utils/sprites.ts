@@ -279,6 +279,10 @@ export function bestAvailableStyle(
  * no 3D Home render and no official artwork; the slug-based default pixel
  * sprite is the only PokeAPI asset available, so the 3d/artwork/classic styles
  * all resolve to it. Box and animated stay canonical-name based.
+ *
+ * `baseCanonical` is the canonical name of the base species a form belongs to.
+ * Only the animated style needs it, to place Showdown's single form hyphen;
+ * leaving it out costs the animated sprite of every form with a suffix.
  */
 export function getSpriteUrl(
   pokemonId: number | string,
@@ -287,6 +291,7 @@ export function getSpriteUrl(
   spriteStyle: SpriteStyle = "box",
   canonicalName?: string,
   spriteSlug?: string,
+  baseCanonical?: string,
 ): string {
   const shiny = spriteType === "shiny";
 
@@ -311,7 +316,7 @@ export function getSpriteUrl(
 
   // ── Animated (Pokémon Showdown GIFs) ─────────────────────────────────
   if (spriteStyle === "animated") {
-    return getShowdownAnimatedUrl(resolvedId, canonicalName, shiny);
+    return getShowdownAnimatedUrl(resolvedId, canonicalName, shiny, baseCanonical);
   }
 
   // ── 3D Home renders ──────────────────────────────────────────────────
@@ -333,9 +338,30 @@ export function getSpriteUrl(
   return getClassicSpriteUrl(resolvedId, gameKey, shiny, canonicalName);
 }
 
-/** Convert a name to a Showdown sprite ID (lowercase, non-alphanumeric removed). */
+/** Lowercase a name and drop everything that is not a letter or a digit. */
 function toShowdownId(name: string): string {
   return name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "");
+}
+
+/**
+ * Build a Showdown sprite ID from a canonical name.
+ *
+ * Showdown keeps exactly one hyphen — the one between the species and its form
+ * suffix — and drops every other one: "mr-mime-galar" is "mrmime-galar" and
+ * "charizard-mega-x" is "charizard-megax". Nothing in the name itself marks
+ * that separator (both "ho-oh" and "zigzagoon-galar" are one hyphen), so the
+ * split comes from the base canonical when the caller knows it. Without it the
+ * whole name collapses, which is what base species need anyway ("ho-oh" →
+ * "hooh", "type-null" → "typenull").
+ */
+function toShowdownSlug(canonicalName: string, baseCanonical?: string): string {
+  // Showdown spells the Paldean Tauros breeds without the "breed" word, and
+  // dropping it first also keeps normalizeDefaultForm from swallowing
+  // "-combat-breed" whole and collapsing that form onto plain "tauros".
+  const name = normalizeDefaultForm(canonicalName.replace(/-breed$/, ""));
+  const base = baseCanonical?.toLowerCase();
+  if (!base || !name.toLowerCase().startsWith(`${base}-`)) return toShowdownId(name);
+  return `${toShowdownId(base)}-${toShowdownId(name.slice(base.length + 1))}`;
 }
 
 /**
@@ -346,9 +372,10 @@ function getShowdownAnimatedUrl(
   pokemonId: number,
   canonicalName?: string,
   shiny = false,
+  baseCanonical?: string,
 ): string {
   const name = canonicalName || String(pokemonId);
-  const slug = toShowdownId(normalizeDefaultForm(name));
+  const slug = toShowdownSlug(name, baseCanonical);
   const dir = shiny ? "ani-shiny" : "ani";
   return `${SHOWDOWN_BASE}/${dir}/${slug}.gif`;
 }

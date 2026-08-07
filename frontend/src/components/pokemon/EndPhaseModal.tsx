@@ -111,6 +111,7 @@ export function EndPhaseModal({
         spriteStyle,
         entry.canonical,
         entry.spriteSlug,
+        entry.baseCanonical,
       ),
     });
   };

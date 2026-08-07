@@ -96,6 +96,42 @@ describe("getSpriteUrl", () => {
       const url = getSpriteUrl(25, "pokemon-red", "shiny", "animated");
       expect(url).toBe(`${SHOWDOWN_BASE}/ani-shiny/25.gif`);
     });
+
+    // Showdown keeps exactly one hyphen, the one between species and form
+    // suffix. Every expectation below was checked against the live sprite
+    // directory once; the table replaces that network call.
+    it.each([
+      ["zigzagoon-galar", "zigzagoon", "zigzagoon-galar"],
+      ["linoone-galar", "linoone", "linoone-galar"],
+      ["mr-mime-galar", "mr-mime", "mrmime-galar"],
+      ["charizard-mega-x", "charizard", "charizard-megax"],
+      ["vivillon-icy-snow", "vivillon", "vivillon-icysnow"],
+      ["basculin-white-striped", "basculin", "basculin-whitestriped"],
+      ["darmanitan-galar-zen", "darmanitan", "darmanitan-galarzen"],
+      // A default-form suffix collapses onto the base, hyphen and all.
+      ["darmanitan-galar-standard", "darmanitan", "darmanitan-galar"],
+      ["urshifu-single-strike", "urshifu", "urshifu"],
+      ["dudunsparce-two-segment", "dudunsparce", "dudunsparce"],
+      // Showdown spells the Paldean breeds without the "breed" word.
+      ["tauros-paldea-combat-breed", "tauros", "tauros-paldeacombat"],
+      ["tauros-paldea-blaze-breed", "tauros", "tauros-paldeablaze"],
+    ])("maps %s to the Showdown slug %s", (canonical, base, slug) => {
+      const url = getSpriteUrl(0, "", "shiny", "animated", canonical, undefined, base);
+      expect(url).toBe(`${SHOWDOWN_BASE}/ani-shiny/${slug}.gif`);
+    });
+
+    // Without a base the split point is unknown, so the whole name collapses.
+    // That is what base species need: Showdown has no hyphen in those.
+    it.each([
+      ["ho-oh", "hooh"],
+      ["porygon-z", "porygonz"],
+      ["type-null", "typenull"],
+      ["tapu-koko", "tapukoko"],
+      ["nidoran-f", "nidoranf"],
+    ])("drops every hyphen of the base species %s", (canonical, slug) => {
+      const url = getSpriteUrl(0, "", "shiny", "animated", canonical, undefined, canonical);
+      expect(url).toBe(`${SHOWDOWN_BASE}/ani-shiny/${slug}.gif`);
+    });
   });
 
   describe("3d style", () => {

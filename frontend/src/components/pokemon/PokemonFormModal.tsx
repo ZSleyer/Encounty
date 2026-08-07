@@ -201,6 +201,8 @@ interface SelectedState {
   spriteSlug?: string;
   formName?: string;
   baseName?: string;
+  /** Canonical of the base species; the animated sprite URL of a form needs it. */
+  baseCanonical: string;
 }
 
 /** Match an existing pokemon's canonical name against loaded pokedex data (edit mode). */
@@ -217,8 +219,8 @@ function applyEditModeMatch(
 ) {
   const matchBase = data.find((p) => p.canonical === pokemon.canonical_name);
   if (matchBase) {
-    const sprite = getSpriteUrl(matchBase.id.toString(), selectedGame, spriteType, spriteStyle, matchBase.canonical);
-    setSelected({ id: matchBase.id, canonical: matchBase.canonical, name: getPkmnName(matchBase, pokemon.language), sprite, spriteId: matchBase.id });
+    const sprite = getSpriteUrl(matchBase.id.toString(), selectedGame, spriteType, spriteStyle, matchBase.canonical, undefined, matchBase.canonical);
+    setSelected({ id: matchBase.id, canonical: matchBase.canonical, name: getPkmnName(matchBase, pokemon.language), sprite, spriteId: matchBase.id, baseCanonical: matchBase.canonical });
     setQuery(getPkmnName(matchBase, pokemon.language));
     setPendingForms(buildFormStrip(matchBase, selectedGame, games, pokemon.language));
     return;
@@ -226,9 +228,10 @@ function applyEditModeMatch(
   for (const p of data) {
     const form = p.forms?.find((f) => f.canonical === pokemon.canonical_name);
     if (form) {
-      const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical, form.sprite_slug);
+      const sprite = getSpriteUrl(form.sprite_id.toString(), selectedGame, spriteType, spriteStyle, form.canonical, form.sprite_slug, p.canonical);
       setSelected({
         id: p.id, canonical: form.canonical, name: getPkmnName(form, pokemon.language), sprite, spriteId: form.sprite_id,
+        baseCanonical: p.canonical,
         spriteSlug: form.sprite_slug,
         formName: (form as any).form_names?.[pokemon.language] || (form as any).form_names?.["en"] || undefined,
         baseName: p.names?.[pokemon.language] || p.names?.["en"] || undefined,
@@ -602,11 +605,12 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
 
     const effectiveStyle = resolveEffectiveStyle(p.id, spriteStyle, setSpriteStyle);
     const sprite = getSpriteUrl(
-      p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical, p.spriteSlug,
+      p.spriteId.toString(), selectedGame, spriteType, effectiveStyle, p.canonical, p.spriteSlug, p.baseCanonical,
     );
     setSelected({
       id: p.id, canonical: p.canonical,
       name: getPkmnName(p, language), sprite, spriteId: p.spriteId,
+      baseCanonical: p.baseCanonical,
       spriteSlug: p.spriteSlug,
       formName: p.formName,
       baseName: p.baseName,
@@ -629,7 +633,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
   useEffect(() => {
     if (!selected) return;
     const newSprite = getSpriteUrl(
-      selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical, selected.spriteSlug,
+      selected.spriteId.toString(), selectedGame, spriteType, spriteStyle, selected.canonical, selected.spriteSlug, selected.baseCanonical,
     );
     // Preserve a user-set custom sprite (local upload or manual URL): only
     // resync customSprite when it still mirrors the auto-computed sprite.
@@ -862,7 +866,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                   src={safeSpriteSrc(
                     customSprite ||
                       (spriteStyle === "box"
-                        ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug)
+                        ? getSpriteUrl(selected.spriteId.toString(), selectedGame, spriteType, "3d", selected.canonical, selected.spriteSlug, selected.baseCanonical)
                         : selected.sprite),
                   )}
                   alt={activeName}
@@ -926,6 +930,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       s.key,
                       selected.canonical,
                       selected.spriteSlug,
+                      selected.baseCanonical,
                     )
                   : "";
                 // Last item in an odd-length list spans full width

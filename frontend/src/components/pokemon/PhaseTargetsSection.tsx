@@ -65,6 +65,7 @@ function toPhaseTarget(
       spriteStyle,
       entry.canonical,
       entry.spriteSlug,
+      entry.baseCanonical,
     ),
   };
 }

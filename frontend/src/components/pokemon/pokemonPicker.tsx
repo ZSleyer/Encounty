@@ -52,6 +52,8 @@ export interface SearchResult {
   spriteSlug?: string;
   formName?: string;
   baseName?: string;
+  /** Canonical of the base species; a form's animated sprite URL needs it. */
+  baseCanonical: string;
 }
 
 // --- Helpers ---
@@ -95,6 +97,7 @@ export function buildBrowseList(allPokemon: PokemonData[], limit: number): Searc
       names: p.names,
       isForm: false,
       spriteId: p.id,
+      baseCanonical: p.canonical,
     }));
 }
 
@@ -120,7 +123,7 @@ export function filterByQuery(
 
   const results: SearchResult[] = [];
   for (const p of allPokemon) {
-    const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id };
+    const baseEntry: SearchResult = { id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id, baseCanonical: p.canonical };
     const baseMatches = matchesQuery(baseEntry);
     const matchingForms = formEntriesFor(p, selectedGame, games, language).filter(matchesQuery);
 
@@ -151,12 +154,13 @@ export function buildSearchList(
 ): SearchResult[] {
   const results: SearchResult[] = [];
   for (const p of data) {
-    results.push({ id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id });
+    results.push({ id: p.id, canonical: p.canonical, names: p.names, isForm: false, spriteId: p.id, baseCanonical: p.canonical });
     if (p.forms) {
       for (const f of p.forms) {
         if (!isFormAvailableForGame(f, selectedGame, games)) continue;
         results.push({
           id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+          baseCanonical: p.canonical,
           spriteSlug: f.sprite_slug,
           formName: f.form_names?.[language] || f.form_names?.["en"] || undefined,
           baseName: p.names?.[language] || p.names?.["en"] || undefined,
@@ -178,6 +182,7 @@ export function formEntriesFor(
     .filter((f) => isFormAvailableForGame(f, selectedGame, games))
     .map((f) => ({
       id: p.id, canonical: f.canonical, names: f.names, isForm: true, spriteId: f.sprite_id,
+      baseCanonical: p.canonical,
       spriteSlug: f.sprite_slug,
       formName: f.form_names?.[language] || f.form_names?.["en"] || undefined,
       baseName: p.names?.[language] || p.names?.["en"] || undefined,
@@ -197,7 +202,7 @@ export function buildFormStrip(
 ): SearchResult[] {
   const forms = formEntriesFor(base, selectedGame, games, language);
   if (forms.length === 0) return [];
-  const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id };
+  const baseEntry: SearchResult = { id: base.id, canonical: base.canonical, names: base.names, isForm: false, spriteId: base.id, baseCanonical: base.canonical };
   return [baseEntry, ...forms];
 }
 
