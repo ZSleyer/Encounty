@@ -22,6 +22,8 @@ export interface Pokemon {
   language: string; // "de" | "en"
   game: string; // key from games.json
   completed_at?: string; // ISO timestamp when hunt completed
+  /** True when the hunt (or phase) ended without catching the shiny. */
+  failed?: boolean;
   overlay_mode: OverlayMode;
   overlay?: OverlaySettings; // Pokemon-specific overlay settings
   hunt_type?: string;

@@ -190,8 +190,10 @@ function resolveFormStates(
     const matchingCatches = entry.catches.filter(
       (p) => p.canonical_name?.toLowerCase() === canonical,
     );
-    let caught = matchingCatches.length > 0;
-    let seen = caught;
+    // Same split as the species-level state: a failed-only form was seen,
+    // never caught.
+    let caught = matchingCatches.some((p) => !p.failed);
+    let seen = caught || matchingCatches.length > 0;
     for (const o of overrides) {
       if (o.speciesId !== entry.id) continue;
       if (o.formCanonical.toLowerCase() !== canonical) continue;
@@ -300,10 +302,11 @@ export function buildDexIndex(
       entry.catches.sort(byNewestCompletion);
       entry.variants = collectVariants(entry);
     }
-    entry.caught = entry.catches.length > 0;
-    // A real catch on the slot already implies seen; overrides below only
-    // ever add to this, never take it away.
-    entry.seen = entry.caught;
+    // A slot only counts as caught when at least one catch was not failed;
+    // a failed-only slot (the shiny was seen but never kept) still counts as
+    // seen, mirroring how the mainline games separate the two dex states.
+    entry.caught = entry.catches.some((c) => !c.failed);
+    entry.seen = entry.caught || entry.catches.length > 0;
     entry.forms = resolveFormStates(
       entry,
       speciesById.get(entry.id)?.forms ?? [],
