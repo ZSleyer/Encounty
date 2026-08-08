@@ -51,6 +51,9 @@ function renderDetail(
       snapshot={snapshot}
       games={GAMES}
       languages={["de", "en"]}
+      caught={catches.length > 0}
+      overrides={[]}
+      setOverride={vi.fn()}
       {...extra}
     />,
   );
@@ -101,6 +104,9 @@ describe("DexSpeciesDetail", () => {
         games={GAMES}
         languages={["de", "en"]}
         headingId="panel-heading"
+        caught={false}
+        overrides={[]}
+        setOverride={vi.fn()}
       />,
     );
 
@@ -204,6 +210,9 @@ describe("DexSpeciesDetail", () => {
         snapshot={[]}
         games={games}
         languages={["de", "en"]}
+        caught={true}
+        overrides={[]}
+        setOverride={vi.fn()}
       />,
     );
 
@@ -266,6 +275,9 @@ describe("DexSpeciesDetail", () => {
         games={GAMES}
         languages={["de", "en"]}
         onEditCatch={vi.fn()}
+        caught={true}
+        overrides={[]}
+        setOverride={vi.fn()}
       />,
     );
     expect(screen.getByRole("button", { name: "Details bearbeiten" })).toBeInTheDocument();
@@ -351,6 +363,9 @@ describe("DexDetailModal", () => {
         languages={["de", "en"]}
         onEditCatch={onEditCatch}
         onClose={onClose}
+        caught={catches.length > 0}
+        overrides={[]}
+        setOverride={vi.fn()}
       />,
     );
     return { onEditCatch, onClose };

@@ -301,6 +301,18 @@ dialog.tutorial-shell::backdrop {
   );
 }
 
+/* Dot texture: seen-but-not-caught dex slots. A third pattern, distinct from
+   both the hatch lines (uncaught) and the plain cut corner (caught), so the
+   state still reads without the border colour (WCAG 1.4.1). Round dots are
+   the one curve the corner-cut language allows. */
+.t-dot {
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--text-primary) 4%, transparent) 1px,
+    transparent 1.5px
+  );
+  background-size: 8px 8px;
+}
+
 /* Micro label chip: uppercase spaced-out tag with a hairline border.
    inline-flex (not inline-block) so icon+text chips lay out horizontally:
    this is unlayered CSS and Tailwind's utilities live in @layer, so an

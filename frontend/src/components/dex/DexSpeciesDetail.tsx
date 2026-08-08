@@ -16,7 +16,7 @@
  * is a container query context, so the facts grid reflows off the width it
  * actually gets instead of the viewport width.
  */
-import { useCallback, useId, type Ref } from "react";
+import { useCallback, useId, useMemo, useRef, useState, type Ref } from "react";
 import { useNavigate } from "react-router";
 import { useI18n } from "../../contexts/I18nContext";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
@@ -24,6 +24,9 @@ import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { computePhaseStats } from "../../utils/phase";
 import { getDefaultSpriteUrl } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
+import type { SetOverrideInput } from "../../hooks/useDexOverrides";
+import { DexOverrideModal } from "./DexOverrideModal";
+import type { DexOverride } from "../../utils/dex";
 import type { GameEntry, Pokemon } from "../../types";
 
 // --- Constants ---
@@ -67,6 +70,24 @@ export interface DexSpeciesDetailProps {
   readonly onShowAllCatches?: () => void;
   /** Ref on that control, so an opener can hand the focus back to it. */
   readonly showAllRef?: Ref<HTMLButtonElement>;
+  /**
+   * Whether this slot counts as caught, exactly as the dex grid computes it: a
+   * completed catch OR a manual override, never `catches.length` alone. Passed
+   * down rather than re-derived here so the header/silhouette and the grid
+   * slot can never disagree about a species that was only ever marked caught
+   * through the override modal, not through a real hunt.
+   */
+  readonly caught: boolean;
+  /**
+   * Every manual override, so the "manually marked" list and the caught flag
+   * above both reflect the same state the grid is built from.
+   */
+  readonly overrides: DexOverride[];
+  /**
+   * Writes one manual override; shared with the dex grid so a write here
+   * updates the grid slot immediately instead of only on the next fetch.
+   */
+  readonly setOverride: (input: SetOverrideInput) => Promise<void>;
 }
 
 /** Props for {@link DexCatchList}. */
@@ -385,7 +406,8 @@ function SpeciesFacts({ catches, canonical, games, languages }: SpeciesFactsProp
 
 // --- Species header ---
 
-interface SpeciesHeaderProps {
+/** Props for {@link SpeciesHeader}. */
+export interface SpeciesHeaderProps {
   readonly id: number;
   readonly canonical: string;
   readonly name: string;
@@ -395,7 +417,7 @@ interface SpeciesHeaderProps {
 }
 
 /** Sprite, padded dex number, localized name and generation chip. */
-function SpeciesHeader({
+export function SpeciesHeader({
   id,
   canonical,
   name,
@@ -449,14 +471,27 @@ export function DexSpeciesDetail({
   onEditCatch,
   onShowAllCatches,
   showAllRef,
+  caught,
+  overrides,
+  setOverride,
 }: DexSpeciesDetailProps) {
   const { t } = useI18n();
   const openInDashboard = useOpenInDashboard();
   const latestId = useId();
-  const caught = catches.length > 0;
   // A single catch needs no way "to the others": the inline card is all there
   // is, and a "1 catch" button would promise a list that does not exist.
   const showAll = Boolean(onShowAllCatches) && catches.length > 1;
+
+  const speciesOverrides = useMemo(
+    () => overrides.filter((o) => o.speciesId === id),
+    [overrides, id],
+  );
+  const [overrideModalOpen, setOverrideModalOpen] = useState(false);
+  const markManuallyRef = useRef<HTMLButtonElement>(null);
+  const handleCloseOverrideModal = useCallback(() => {
+    setOverrideModalOpen(false);
+    markManuallyRef.current?.focus();
+  }, []);
 
   return (
     <div className="@container flex flex-col gap-4">
@@ -469,7 +504,7 @@ export function DexSpeciesDetail({
         headingId={headingId}
       />
 
-      {caught ? (
+      {catches.length > 0 ? (
         <>
           <SpeciesFacts
             catches={catches}
@@ -505,7 +540,36 @@ export function DexSpeciesDetail({
           )}
         </>
       ) : (
-        <p className="text-sm text-text-muted">{t("dex.notCaughtYet")}</p>
+        // caught-via-override-only (no real catches) has no dedicated copy: the
+        // header sprite already reads as caught, and the "manually marked" list
+        // below states why. Repeating "not caught yet" next to a caught sprite
+        // would contradict it.
+        !caught && <p className="text-sm text-text-muted">{t("dex.notCaughtYet")}</p>
+      )}
+
+      {/* Visible whether or not the species has any real catches: marking a
+          species that was never hunted through this app at all is the whole
+          point of the feature. */}
+      <button
+        ref={markManuallyRef}
+        type="button"
+        onClick={() => setOverrideModalOpen(true)}
+        className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
+      >
+        {t("dex.markManually")}
+      </button>
+
+      {overrideModalOpen && (
+        <DexOverrideModal
+          speciesId={id}
+          canonical={canonical}
+          name={name}
+          generation={generation}
+          caught={caught}
+          overrides={speciesOverrides}
+          setOverride={setOverride}
+          onClose={handleCloseOverrideModal}
+        />
       )}
     </div>
   );

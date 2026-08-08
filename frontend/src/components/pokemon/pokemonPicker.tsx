@@ -31,6 +31,8 @@ export interface PokemonForm {
   /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
   sprite_slug?: string;
   generations?: number[];
+  /** Set on a gender-restricted form (including synthesized gender-only pseudo-forms). */
+  gender?: "male" | "female";
 }
 
 /** One base species entry as delivered by /api/pokedex. */
@@ -54,6 +56,8 @@ export interface SearchResult {
   baseName?: string;
   /** Canonical of the base species; a form's animated sprite URL needs it. */
   baseCanonical: string;
+  /** Set on a gender-restricted form (including synthesized gender-only pseudo-forms). */
+  gender?: "male" | "female";
 }
 
 // --- Helpers ---
@@ -164,6 +168,7 @@ export function buildSearchList(
           spriteSlug: f.sprite_slug,
           formName: f.form_names?.[language] || f.form_names?.["en"] || undefined,
           baseName: p.names?.[language] || p.names?.["en"] || undefined,
+          gender: f.gender,
         });
       }
     }
@@ -186,6 +191,7 @@ export function formEntriesFor(
       spriteSlug: f.sprite_slug,
       formName: f.form_names?.[language] || f.form_names?.["en"] || undefined,
       baseName: p.names?.[language] || p.names?.["en"] || undefined,
+      gender: f.gender,
     }));
 }
 

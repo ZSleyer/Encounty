@@ -16,6 +16,7 @@
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useI18n } from "../contexts/I18nContext";
 import { useCounterStore } from "../hooks/useCounterState";
+import { useDexOverrides } from "../hooks/useDexOverrides";
 import {
   usePokedex,
   localeToPokemonLangs,
@@ -56,8 +57,8 @@ const WIDE_LAYOUT_QUERY = "(min-width: 1024px)";
 
 // --- Types ---
 
-/** Three-way caught-state filter. */
-type CaughtFilter = "all" | "caught" | "missing";
+/** Four-way caught-state filter. */
+type CaughtFilter = "all" | "caught" | "seen" | "missing";
 
 /** Everything one slot needs, flattened to primitives so `memo` can bite. */
 interface DexSlotView {
@@ -66,6 +67,12 @@ interface DexSlotView {
   name: string;
   generation: number;
   caught: boolean;
+  /**
+   * Seen but not caught (a manual override, since a real catch always sets
+   * `caught` too). Excludes caught slots on purpose, unlike `DexEntry.seen`,
+   * so this and `caught` partition the slots without overlap.
+   */
+  seenOnly: boolean;
   /** Archived catches resolved onto this slot; drives the `×N` badge. */
   catchCount: number;
   /** Complete aria sentence; never assembled from several keys at render time. */
@@ -109,10 +116,16 @@ function matchesQuery(slot: DexSlotView, needle: string): boolean {
   return matchesNumber(slot.id, needle);
 }
 
-/** Applies the caught-state filter to one slot. */
+/**
+ * Applies the caught-state filter to one slot. The four states partition the
+ * slots: "seen" never also matches "missing", even though a seen slot is
+ * technically "not caught" too, because the filter is about the distinct
+ * visible state, not the caught boolean alone.
+ */
 function matchesCaughtState(slot: DexSlotView, filter: CaughtFilter): boolean {
   if (filter === "caught") return slot.caught;
-  if (filter === "missing") return !slot.caught;
+  if (filter === "seen") return slot.seenOnly;
+  if (filter === "missing") return !slot.caught && !slot.seenOnly;
   return true;
 }
 
@@ -146,7 +159,7 @@ function generationTotals(entries: DexEntry[]): Map<number, { caught: number; to
   for (const entry of entries) {
     const bucket = totals.get(entry.generation) ?? { caught: 0, total: 0 };
     bucket.total++;
-    if (entry.catches.length > 0) bucket.caught++;
+    if (entry.caught) bucket.caught++;
     totals.set(entry.generation, bucket);
   }
   return totals;
@@ -191,20 +204,28 @@ function nextIndexFor(
 
 /** First caught species in dex order, else the first species at all. */
 function defaultSelectionId(entries: DexEntry[]): number | null {
-  const caught = entries.find((entry) => entry.catches.length > 0);
+  const caught = entries.find((entry) => entry.caught);
   return (caught ?? entries[0])?.id ?? null;
+}
+
+/** The texture channel of one slot; never picked from color alone (WCAG 1.4.1). */
+function slotTexture(caught: boolean, seenOnly: boolean): string {
+  if (caught) return "t-cut";
+  if (seenOnly) return "t-dot";
+  return "t-hatch";
 }
 
 /**
  * Surface and border of one slot. Selection outranks the caught state on both
- * channels, which is why this is a lookup and not three classes stacked on the
+ * channels, which is why this is a lookup and not classes stacked on the
  * element: `bg-bg-card` and `bg-accent-blue/10` would otherwise fight over
  * stylesheet order.
  */
-function slotStateClass(caught: boolean, selected: boolean): string {
-  const texture = caught ? "t-cut" : "t-hatch";
+function slotStateClass(caught: boolean, seenOnly: boolean, selected: boolean): string {
+  const texture = slotTexture(caught, seenOnly);
   if (selected) return `${texture} border-accent-blue bg-accent-blue/10`;
   if (caught) return `${texture} bg-bg-card border-accent-green/70 hover:border-accent-green`;
+  if (seenOnly) return `${texture} bg-bg-card border-accent-yellow/70 hover:border-accent-yellow`;
   return `${texture} bg-bg-card border-border-subtle hover:border-text-muted`;
 }
 
@@ -233,6 +254,7 @@ interface DexSlotProps {
   readonly id: number;
   readonly name: string;
   readonly caught: boolean;
+  readonly seenOnly: boolean;
   readonly selected: boolean;
   readonly catchCount: number;
   readonly label: string;
@@ -241,17 +263,20 @@ interface DexSlotProps {
 }
 
 /**
- * One species slot. Caught and uncaught differ on three independent channels
- * so the state never rests on colour alone (WCAG 1.4.1): the corner cut versus
- * a plain square, the hatch texture on uncaught slots, and the full-colour
- * shiny sprite versus a flat silhouette. Selection adds a fourth, a filled
- * corner tab no other state paints, so it reads apart from both the caught
- * state and the focus ring.
+ * One species slot. Caught, seen-only and uncaught differ on three
+ * independent channels so the state never rests on colour alone (WCAG
+ * 1.4.1): the corner cut, dot or hatch texture, the border colour, and the
+ * sprite, a flat silhouette for uncaught, the plain sprite for seen-only, the
+ * full-colour shiny for caught, mirroring how mainline games distinguish
+ * seen from caught. Selection adds a fourth channel, a filled corner tab no
+ * other state paints, so it reads apart from both the caught state and the
+ * focus ring.
  */
 const DexSlot = memo(function DexSlot({
   id,
   name,
   caught,
+  seenOnly,
   selected,
   catchCount,
   label,
@@ -259,6 +284,7 @@ const DexSlot = memo(function DexSlot({
   onOpen,
 }: DexSlotProps) {
   const spriteUrl = getDefaultSpriteUrl(id, caught ? "shiny" : "normal");
+  const showSilhouette = !caught && !seenOnly;
   return (
     <li>
       <button
@@ -268,7 +294,7 @@ const DexSlot = memo(function DexSlot({
         aria-label={label}
         aria-current={selected ? "true" : undefined}
         onClick={() => onOpen(id)}
-        className={`relative flex h-full w-full min-h-[92px] flex-col items-center justify-center gap-0.5 border p-1 transition-colors ${slotStateClass(caught, selected)}`}
+        className={`relative flex h-full w-full min-h-[92px] flex-col items-center justify-center gap-0.5 border p-1 transition-colors ${slotStateClass(caught, seenOnly, selected)}`}
       >
         {selected && (
           <span aria-hidden="true" className="absolute left-0 top-0 h-2 w-2 bg-accent-blue" />
@@ -289,7 +315,7 @@ const DexSlot = memo(function DexSlot({
             // React recycled the element for another species.
             data-dex-sprite={spriteUrl}
             onError={handleSpriteError}
-            className={`h-12 w-12 object-contain [image-rendering:pixelated] ${caught ? "" : "t-dex-silhouette"}`}
+            className={`h-12 w-12 object-contain [image-rendering:pixelated] ${showSilhouette ? "t-dex-silhouette" : ""}`}
           />
           {/* Only from the second catch on. A "+1" on the very first catch
               would promise a base entry this slot never had, and a lone catch
@@ -439,6 +465,7 @@ function DexSection({
             id={slot.id}
             name={slot.name}
             caught={slot.caught}
+            seenOnly={slot.seenOnly}
             selected={slot.id === selectedId}
             catchCount={slot.catchCount}
             label={slot.label}
@@ -487,10 +514,11 @@ function GenerationChips({ generations, selected, onToggle }: GenerationChipsPro
   );
 }
 
-/** Caught-state options in display order. */
+/** Caught-state options in display order, from fully done to never encountered. */
 const CAUGHT_FILTERS: { value: CaughtFilter; key: string }[] = [
   { value: "all", key: "dex.filterAll" },
   { value: "caught", key: "dex.filterCaught" },
+  { value: "seen", key: "dex.filterSeen" },
   { value: "missing", key: "dex.filterMissing" },
 ];
 
@@ -500,9 +528,9 @@ interface CaughtFilterControlProps {
 }
 
 /**
- * Three-way caught-state control as a real radio group: one tab stop, arrow
- * keys move and select. The group is named after the state it filters on,
- * which is the only thing all three options have in common.
+ * Caught-state control as a real radio group: one tab stop, arrow keys move
+ * and select. The group is named after the state it filters on, which is the
+ * only thing all options have in common.
  */
 function CaughtFilterControl({ value, onChange }: CaughtFilterControlProps) {
   const { t } = useI18n();
@@ -654,6 +682,10 @@ export function DexPage() {
   const { t, locale } = useI18n();
   const { allPokemon, games } = usePokedex();
   const { appState } = useCounterStore();
+  // Single instance, threaded down to DexSpeciesDetail/DexDetailModal: the
+  // grid slot and the "mark manually" modal must share one overrides list, or
+  // a write in the modal would not show up on the grid until a reload.
+  const { overrides, setOverride } = useDexOverrides();
   const searchId = useId();
   const gameId = useId();
   const panelHeadingId = useId();
@@ -717,8 +749,8 @@ export function DexPage() {
   const gameGeneration = games.find((entry) => entry.key === game)?.generation;
 
   const index = useMemo(
-    () => buildDexIndex(allPokemon, snapshot ?? [], mode, game, gameGeneration),
-    [allPokemon, snapshot, mode, game, gameGeneration],
+    () => buildDexIndex(allPokemon, snapshot ?? [], mode, game, gameGeneration, overrides),
+    [allPokemon, snapshot, mode, game, gameGeneration, overrides],
   );
 
   const slots = useMemo<DexSlotView[]>(() => {
@@ -728,14 +760,16 @@ export function DexPage() {
       const name = species ? localizedName(species, locale) : entry.canonical;
       const catchCount = entry.catches.length;
       const variantCount = entry.variants.length;
+      const seenOnly = entry.seen && !entry.caught;
       return {
         id: entry.id,
         canonical: entry.canonical,
         name,
         generation: entry.generation,
-        caught: catchCount > 0,
+        caught: entry.caught,
+        seenOnly,
         catchCount,
-        label: slotLabel(t, entry.id, name, catchCount, variantCount),
+        label: slotLabel(t, entry.id, name, entry.caught, seenOnly, catchCount, variantCount),
       };
     });
   }, [index, allPokemon, locale, t]);
@@ -1048,6 +1082,9 @@ export function DexPage() {
                   onEditCatch={setEditCatchId}
                   onShowAllCatches={() => setCatchesOpen(true)}
                   showAllRef={showAllCatchesRef}
+                  caught={selected.caught}
+                  overrides={overrides}
+                  setOverride={setOverride}
                 />
               </section>
             )}
@@ -1069,6 +1106,9 @@ export function DexPage() {
           languages={gameLanguages}
           onEditCatch={setEditCatchId}
           onClose={handleCloseDetail}
+          caught={selected.caught}
+          overrides={overrides}
+          setOverride={setOverride}
         />
       )}
 
@@ -1124,17 +1164,26 @@ function ModeButton({ active, onClick, children }: ModeButtonProps) {
 }
 
 /**
- * Builds the complete aria sentence of one slot. The caught variants use
- * their own full-sentence key on purpose; the pieces are never concatenated.
+ * Builds the complete aria sentence of one slot. The caught and seen variants
+ * use their own full-sentence key on purpose; the pieces are never
+ * concatenated. Driven by `caught`/`seenOnly` rather than `catchCount`, since
+ * a manual override can mark a slot caught (or seen) with zero archived
+ * catches behind it.
  */
 function slotLabel(
   t: (key: string, options?: Record<string, string | number>) => string,
   id: number,
   name: string,
+  caught: boolean,
+  seenOnly: boolean,
   catchCount: number,
   variantCount: number,
 ): string {
-  if (catchCount === 0) return t("aria.dexSlotUncaught", { num: id, name });
+  if (!caught) {
+    return seenOnly
+      ? t("aria.dexSlotSeen", { num: id, name })
+      : t("aria.dexSlotUncaught", { num: id, name });
+  }
   if (variantCount > 0) {
     return t("aria.dexSlotCaughtVariants", {
       num: id,
