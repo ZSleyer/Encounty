@@ -474,8 +474,16 @@ describe("DexPage sprite failures", () => {
     const real = sprite.dataset.dexSprite;
     expect(real).toMatch(/\.png$/);
 
+    // First failure steps down to the Pokésprite box sprite, a handful of
+    // cosmetic forms (e.g. "pikachu-starter") have no default PokeAPI pixel
+    // sprite at all, only that one.
     fireEvent.error(sprite);
+    expect(sprite.src).toMatch(/pokesprite/);
+    expect(sprite.dataset.dexSprite).toBe(real);
 
+    // Only a second failure (the box sprite missing too) falls back to the
+    // placeholder glyph.
+    fireEvent.error(sprite);
     expect(sprite.src).toBe(SPRITE_FALLBACK);
     expect(sprite.dataset.dexSprite).toBe(real);
   });

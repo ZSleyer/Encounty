@@ -25,7 +25,7 @@ import {
 } from "../components/pokemon/pokemonPicker";
 import { buildDexIndex, type DexEntry, type DexMode } from "../utils/dex";
 import { formCanonicalLabel } from "../components/dex/DexOverrideModal";
-import { getDefaultSpriteUrl, SPRITE_FALLBACK } from "../utils/sprites";
+import { getDefaultSpriteUrl, getBoxSpriteUrl, SPRITE_FALLBACK } from "../utils/sprites";
 import { getGameName } from "../utils/games";
 import { DexCatchesModal } from "../components/dex/DexCatchesModal";
 import { DexDetailModal } from "../components/dex/DexDetailModal";
@@ -249,22 +249,35 @@ function slotStateClass(caught: boolean, seenOnly: boolean, selected: boolean): 
 }
 
 /**
- * Swaps a broken sprite for the neutral placeholder glyph.
+ * Falls back to the Pokésprite box sprite, then the neutral placeholder glyph.
  *
- * Only `src` is touched: `data-dex-sprite` keeps the real URL so the unloading
- * observer retries it the next time the slot scrolls back into view. Writing
- * the placeholder into the attribute as well would turn a single transient
- * failure, a network blip or a throttled response from the sprite host, into a
- * permanent one for the rest of the session, because the observer restores
- * from that attribute and React never rewrites a prop whose value did not
- * change.
+ * A handful of cosmetic forms (e.g. "pikachu-starter", the Let's Go partner
+ * form) have no default PokeAPI pixel sprite or Home render at all, only
+ * official artwork and a Showdown GIF, so the primary sprite 404s every time,
+ * not just transiently. `boxUrl` is Pokésprite's box art for the same
+ * canonical name, which does cover these forms.
+ *
+ * Only `src` (and the one-shot `data-dex-sprite-boxed` marker) is touched:
+ * `data-dex-sprite` keeps the real URL so the unloading observer retries it,
+ * and resets the marker, the next time the slot scrolls back into view.
+ * Writing the placeholder into `data-dex-sprite` itself would turn a single
+ * transient failure, a network blip or a throttled response from the sprite
+ * host, into a permanent one for the rest of the session, because the
+ * observer restores from that attribute and React never rewrites a prop whose
+ * value did not change.
  */
-function handleSpriteError(event: React.SyntheticEvent<HTMLImageElement>) {
+function handleSpriteError(event: React.SyntheticEvent<HTMLImageElement>, boxUrl: string) {
   const img = event.currentTarget;
   if (img.src === SPRITE_FALLBACK) return;
-  // ponytail: one retry per scroll-in, no attempt counter. A permanently dead
-  // URL costs one failed request per pass; add a counter if that ever shows up.
-  img.src = SPRITE_FALLBACK;
+  // ponytail: one retry per scroll-in, no attempt counter beyond the single
+  // box-sprite step. A permanently dead URL costs two failed requests per
+  // pass instead of one; add a counter if a longer chain ever shows up.
+  if (img.dataset.dexSpriteBoxed || img.src === boxUrl) {
+    img.src = SPRITE_FALLBACK;
+    return;
+  }
+  img.dataset.dexSpriteBoxed = "1";
+  img.src = boxUrl;
 }
 
 // --- Slot ---
@@ -273,6 +286,8 @@ interface DexSlotProps {
   readonly slotKey: string;
   readonly dexNumber: number;
   readonly name: string;
+  /** English PokéAPI slug; drives the Pokésprite box-sprite fallback. */
+  readonly canonical: string;
   readonly caught: boolean;
   readonly seenOnly: boolean;
   readonly selected: boolean;
@@ -299,6 +314,7 @@ const DexSlot = memo(function DexSlot({
   slotKey,
   dexNumber,
   name,
+  canonical,
   caught,
   seenOnly,
   selected,
@@ -311,6 +327,7 @@ const DexSlot = memo(function DexSlot({
   onOpen,
 }: DexSlotProps) {
   const spriteUrl = getDefaultSpriteUrl(spriteSlug ?? spriteId, caught ? "shiny" : "normal", gender);
+  const boxUrl = getBoxSpriteUrl(canonical, caught ? "shiny" : "normal");
   const showSilhouette = !caught && !seenOnly;
   return (
     <li>
@@ -341,7 +358,7 @@ const DexSlot = memo(function DexSlot({
             // the unloading observer restores the right sprite even after
             // React recycled the element for another species.
             data-dex-sprite={spriteUrl}
-            onError={handleSpriteError}
+            onError={(e) => handleSpriteError(e, boxUrl)}
             className={`h-12 w-12 object-contain [image-rendering:pixelated] ${showSilhouette ? "t-dex-silhouette" : ""}`}
           />
           {/* Only from the second catch on. A "+1" on the very first catch
@@ -412,6 +429,11 @@ function useSpriteUnloading(
           const wanted = entry.isIntersecting
             ? (sprite.dataset.dexSprite ?? SPRITE_FALLBACK)
             : SPRITE_FALLBACK;
+          // Coming back into view retries the primary sprite fresh, so a
+          // form whose default sprite is permanently missing gets another
+          // shot at the box-sprite fallback instead of jumping straight to
+          // the placeholder on every pass after the first.
+          if (entry.isIntersecting) delete sprite.dataset.dexSpriteBoxed;
           if (sprite.src !== wanted) sprite.src = wanted;
         }
       },
@@ -492,6 +514,7 @@ function DexSection({
             slotKey={slot.slotKey}
             dexNumber={slot.id}
             name={slot.name}
+            canonical={slot.canonical}
             caught={slot.caught}
             seenOnly={slot.seenOnly}
             selected={slot.slotKey === selectedKey}
