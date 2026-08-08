@@ -552,6 +552,10 @@ const docTemplate = `{
                     "canonical_name": {
                         "type": "string"
                     },
+                    "failed": {
+                        "description": "Failed marks the resulting phase entry as sighted-but-not-caught instead\nof a regular catch.",
+                        "type": "boolean"
+                    },
                     "form_name": {
                         "type": "string"
                     },
@@ -1290,6 +1294,9 @@ const docTemplate = `{
                     },
                     "encounters": {
                         "type": "integer"
+                    },
+                    "failed": {
+                        "type": "boolean"
                     },
                     "form_name": {
                         "type": "string"
@@ -3660,6 +3667,41 @@ const docTemplate = `{
                 ]
             }
         },
+        "/pokemon/{id}/fail": {
+            "post": {
+                "description": "Marks the hunt as finished and failed by stamping CompletedAt (shiny sighted, not caught)",
+                "parameters": [
+                    {
+                        "description": "Pokemon ID",
+                        "in": "path",
+                        "name": "id",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Not Found"
+                    }
+                },
+                "summary": "Fail a Pokemon hunt",
+                "tags": [
+                    "pokemon"
+                ]
+            }
+        },
         "/pokemon/{id}/increment": {
             "post": {
                 "description": "Adds one encounter to the Pokemon and broadcasts the update",
@@ -3789,7 +3831,7 @@ const docTemplate = `{
                 ]
             },
             "post": {
-                "description": "Archives the off-target shiny as a linked phase entry and restarts the hunt's counter and timer at zero",
+                "description": "Archives the off-target shiny as a linked phase entry and restarts the hunt's counter and timer at zero; an optional failed flag marks the archived phase as sighted-but-not-caught",
                 "parameters": [
                     {
                         "description": "Pokemon ID",
