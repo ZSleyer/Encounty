@@ -91,7 +91,11 @@ function hasGenderVariance(forms: PokemonForm[]): boolean {
  * the synced data for pyroar-female/meowstic-female/indeedee-female) rather
  * than leaking the raw PokeAPI slug.
  */
-function formCanonicalLabel(f: PokemonForm, locale: string, t: (key: string) => string): string {
+export function formCanonicalLabel(
+  f: PokemonForm,
+  locale: string,
+  t: (key: string) => string,
+): string {
   return (
     f.form_names?.[locale] ||
     f.form_names?.en ||
