@@ -206,8 +206,8 @@ func TestMigrationVersion(t *testing.T) {
 		t.Errorf("MigrationVersion = %d, want > 0", v)
 	}
 	// Should match the last migration in the list.
-	if v != 42 {
-		t.Errorf("MigrationVersion = %d, want 42", v)
+	if v != 43 {
+		t.Errorf("MigrationVersion = %d, want 43", v)
 	}
 }
 
@@ -309,6 +309,43 @@ func TestPokemonHuntModeRoundtrip(t *testing.T) {
 		want := modes[p.ID]
 		if p.HuntMode != want {
 			t.Errorf("Pokemon %q HuntMode = %q, want %q", p.ID, p.HuntMode, want)
+		}
+	}
+}
+
+// TestPokemonFailedRoundtrip verifies that the Failed flag round-trips through
+// a save and load, for both a failed and a regular (not failed) hunt.
+func TestPokemonFailedRoundtrip(t *testing.T) {
+	db := openTestDB(t)
+	now := time.Now().UTC().Truncate(time.Second)
+
+	st := state.AppState{
+		ActiveID: "p1",
+		Pokemon: []state.Pokemon{
+			{ID: "p1", Name: "Eevee", CreatedAt: now, OverlayMode: "default", Failed: true},
+			{ID: "p2", Name: "Snorlax", CreatedAt: now, OverlayMode: "default", Failed: false},
+		},
+		Sessions: []state.Session{},
+		Settings: state.Settings{
+			Languages: []string{"en"},
+			Overlay:   makeTestOverlay(),
+		},
+	}
+
+	if err := db.SaveFullState(&st); err != nil {
+		t.Fatalf(fmtSaveState, err)
+	}
+
+	got, err := db.LoadFullState()
+	if err != nil {
+		t.Fatalf(fmtLoadState, err)
+	}
+
+	failedByID := map[string]bool{"p1": true, "p2": false}
+	for _, p := range got.Pokemon {
+		want := failedByID[p.ID]
+		if p.Failed != want {
+			t.Errorf("Pokemon %q Failed = %v, want %v", p.ID, p.Failed, want)
 		}
 	}
 }

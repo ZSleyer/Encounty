@@ -194,14 +194,17 @@ func (d *testDeps) StateUncompletePokemon(id string) bool {
 	return d.stateMgr.UncompletePokemon(id)
 }
 
+// StateFailPokemon delegates to the real state manager.
+func (d *testDeps) StateFailPokemon(id string) bool { return d.stateMgr.FailPokemon(id) }
+
 // StateSetCatchMeta delegates to the real state manager.
 func (d *testDeps) StateSetCatchMeta(id string, meta *state.CatchMeta) bool {
 	return d.stateMgr.SetCatchMeta(id, meta)
 }
 
 // StateEndPhase delegates to the real state manager.
-func (d *testDeps) StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error) {
-	return d.stateMgr.EndPhase(parentID, catch)
+func (d *testDeps) StateEndPhase(parentID string, catch state.PhaseCatch, failed bool) (state.Pokemon, error) {
+	return d.stateMgr.EndPhase(parentID, catch, failed)
 }
 
 // StateUndoPhase delegates to the real state manager.
@@ -919,6 +922,58 @@ func TestUncompletePokemonNotFound(t *testing.T) {
 	}
 }
 
+// --- POST /api/pokemon/{id}/fail ---------------------------------------------
+
+// TestFailPokemonSuccess verifies that failing a Pokemon stamps CompletedAt
+// and sets Failed.
+func TestFailPokemonSuccess(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Pikachu")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/fail", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNoContent)
+	}
+
+	st := deps.stateMgr.GetState()
+	p := st.Pokemon[0]
+	if p.CompletedAt == nil {
+		t.Error("expected CompletedAt to be set")
+	}
+	if !p.Failed {
+		t.Error("expected Failed to be set")
+	}
+
+	// Verify pokemon_failed broadcast
+	found := false
+	for _, msg := range deps.broadcaster.messages {
+		if msg.MsgType == "pokemon_failed" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected pokemon_failed broadcast")
+	}
+}
+
+// TestFailPokemonNotFound verifies that failing a non-existent Pokemon
+// returns 404.
+func TestFailPokemonNotFound(t *testing.T) {
+	mux, _ := newTestMux(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/nonexistent/fail", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusNotFound)
+	}
+}
+
 // --- POST /api/pokemon/{id}/phase --------------------------------------------
 
 // TestEndPhaseCreated verifies that ending a phase returns 201 with the new
@@ -959,6 +1014,36 @@ func TestEndPhaseCreated(t *testing.T) {
 	st := deps.stateMgr.GetState()
 	if st.Pokemon[0].Encounters != 0 {
 		t.Errorf("hunt Encounters = %d, want 0 after the phase change", st.Pokemon[0].Encounters)
+	}
+}
+
+// TestEndPhaseFailedCreated verifies that ending a phase with failed: true in
+// the request body archives the resulting phase entry as failed.
+func TestEndPhaseFailedCreated(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addPokemon(t, deps, "p1", "Rattata")
+
+	body := jsonBody(t, map[string]any{
+		"canonical_name": "hoothoot",
+		"name":           "Hoothoot",
+		"sprite_url":     "https://example.test/hoothoot.png",
+		"failed":         true,
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/pokemon/p1/phase", body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf(fmtWantStatus, w.Code, http.StatusCreated)
+	}
+
+	var child state.Pokemon
+	decodeJSON(t, w, &child)
+	if !child.Failed {
+		t.Error("expected the phase entry to be marked Failed")
+	}
+	if child.CompletedAt == nil {
+		t.Error("expected CompletedAt to still be set on a failed phase entry")
 	}
 }
 
@@ -1022,7 +1107,7 @@ func phasePath(id string) string { return pathPokemon + "/" + id + "/phase" }
 // phase entry, so the undo tests start from a real phase history.
 func endPhaseOn(t *testing.T, deps *testDeps, parentID, name string) state.Pokemon {
 	t.Helper()
-	child, err := deps.stateMgr.EndPhase(parentID, state.PhaseCatch{Name: name})
+	child, err := deps.stateMgr.EndPhase(parentID, state.PhaseCatch{Name: name}, false)
 	if err != nil {
 		t.Fatalf("EndPhase(%s): %v", parentID, err)
 	}

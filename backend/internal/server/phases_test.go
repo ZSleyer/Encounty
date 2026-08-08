@@ -26,7 +26,7 @@ func newPhaseTestServer(t *testing.T, withPhase bool) *Server {
 
 	addTestPokemon(t, srv, "p1", "Rattata")
 	if withPhase {
-		if _, err := srv.state.EndPhase("p1", state.PhaseCatch{Name: "Hoothoot"}); err != nil {
+		if _, err := srv.state.EndPhase("p1", state.PhaseCatch{Name: "Hoothoot"}, false); err != nil {
 			t.Fatalf("EndPhase: %v", err)
 		}
 	}

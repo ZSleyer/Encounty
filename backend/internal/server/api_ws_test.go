@@ -218,6 +218,36 @@ func TestHandleWSMessageUncompleteEmptyID(t *testing.T) {
 	srv.handleWSMessage(msg)
 }
 
+// --- handleWSMessage: fail ---
+
+func TestHandleWSMessageFail(t *testing.T) {
+	srv := newTestServer(t)
+	addTestPokemon(t, srv, "p1", "Pikachu")
+
+	msg := makeWSMessage(t, "fail", map[string]string{"pokemon_id": "p1"})
+	srv.handleWSMessage(msg)
+
+	st := srv.state.GetState()
+	if st.Pokemon[0].CompletedAt == nil {
+		t.Error("CompletedAt should be set after fail")
+	}
+	if !st.Pokemon[0].Failed {
+		t.Error("Failed should be set after fail")
+	}
+}
+
+func TestHandleWSMessageFailNotFound(t *testing.T) {
+	srv := newTestServer(t)
+	msg := makeWSMessage(t, "fail", map[string]string{"pokemon_id": "nonexistent"})
+	srv.handleWSMessage(msg)
+}
+
+func TestHandleWSMessageFailEmptyID(t *testing.T) {
+	srv := newTestServer(t)
+	msg := makeWSMessage(t, "fail", map[string]string{"pokemon_id": ""})
+	srv.handleWSMessage(msg)
+}
+
 // --- handleWSMessage: unknown type ---
 
 func TestHandleWSMessageUnknownType(t *testing.T) {

@@ -74,7 +74,7 @@ func findByID(t *testing.T, m *Manager, id string) Pokemon {
 func TestEndPhaseInheritsHuntContext(t *testing.T) {
 	m, parent := newPhaseParent(t)
 
-	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"))
+	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
 	if err != nil {
 		t.Fatalf("EndPhase: %v", err)
 	}
@@ -153,6 +153,33 @@ func TestEndPhaseInheritsHuntContext(t *testing.T) {
 	}
 }
 
+// TestEndPhaseFailedMarksChildFailed verifies that ending a phase with
+// failed=true archives the resulting child entry as sighted-but-not-caught
+// (Failed set, CompletedAt still set), while a regular (failed=false) phase
+// end leaves Failed unset.
+func TestEndPhaseFailedMarksChildFailed(t *testing.T) {
+	m, parent := newPhaseParent(t)
+
+	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), true)
+	if err != nil {
+		t.Fatalf("EndPhase: %v", err)
+	}
+	if !child.Failed {
+		t.Error("Failed should be set on a failed phase entry")
+	}
+	if child.CompletedAt == nil {
+		t.Error("CompletedAt should still be set on a failed phase entry")
+	}
+
+	caughtChild, err := m.EndPhase(parent.ID, catchOf("sentret", "Wiesor"), false)
+	if err != nil {
+		t.Fatalf("EndPhase: %v", err)
+	}
+	if caughtChild.Failed {
+		t.Error("Failed should not be set on a regular (caught) phase entry")
+	}
+}
+
 // TestEndPhaseKeepsRunningTimerRunning verifies that a timer that was running
 // keeps running across the phase change, with its origin moved so the new phase
 // starts at zero, and that the elapsed segment is frozen into the phase entry.
@@ -164,7 +191,7 @@ func TestEndPhaseKeepsRunningTimerRunning(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	before := time.Now()
-	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"))
+	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
 	if err != nil {
 		t.Fatalf("EndPhase: %v", err)
 	}
@@ -188,7 +215,7 @@ func TestEndPhaseKeepsRunningTimerRunning(t *testing.T) {
 func TestEndPhaseLeavesStoppedTimerStopped(t *testing.T) {
 	m, parent := newPhaseParent(t)
 
-	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"))
+	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
 	if err != nil {
 		t.Fatalf("EndPhase: %v", err)
 	}
@@ -206,11 +233,11 @@ func TestEndPhaseLeavesStoppedTimerStopped(t *testing.T) {
 func TestEndPhaseNumberingSurvivesDeletedChild(t *testing.T) {
 	m, parent := newPhaseParent(t)
 
-	first, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"))
+	first, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
 	if err != nil {
 		t.Fatalf("EndPhase first: %v", err)
 	}
-	second, err := m.EndPhase(parent.ID, catchOf("sentret", "Wiesor"))
+	second, err := m.EndPhase(parent.ID, catchOf("sentret", "Wiesor"), false)
 	if err != nil {
 		t.Fatalf("EndPhase second: %v", err)
 	}
@@ -221,7 +248,7 @@ func TestEndPhaseNumberingSurvivesDeletedChild(t *testing.T) {
 	if !m.DeletePokemon(first.ID) {
 		t.Fatal("DeletePokemon returned false")
 	}
-	third, err := m.EndPhase(parent.ID, catchOf("ledyba", "Ledyba"))
+	third, err := m.EndPhase(parent.ID, catchOf("ledyba", "Ledyba"), false)
 	if err != nil {
 		t.Fatalf("EndPhase third: %v", err)
 	}
@@ -234,22 +261,22 @@ func TestEndPhaseNumberingSurvivesDeletedChild(t *testing.T) {
 // running hunt can end a phase.
 func TestEndPhaseRejectsPhaseEntryAndCompletedHunt(t *testing.T) {
 	m, parent := newPhaseParent(t)
-	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"))
+	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
 	if err != nil {
 		t.Fatalf("EndPhase: %v", err)
 	}
 
-	if _, err := m.EndPhase("nonexistent", catchOf("sentret", "Wiesor")); !errors.Is(err, ErrPhaseParentNotFound) {
+	if _, err := m.EndPhase("nonexistent", catchOf("sentret", "Wiesor"), false); !errors.Is(err, ErrPhaseParentNotFound) {
 		t.Errorf("EndPhase on unknown id: err = %v, want ErrPhaseParentNotFound", err)
 	}
-	if _, err := m.EndPhase(child.ID, catchOf("sentret", "Wiesor")); !errors.Is(err, ErrNotPhaseable) {
+	if _, err := m.EndPhase(child.ID, catchOf("sentret", "Wiesor"), false); !errors.Is(err, ErrNotPhaseable) {
 		t.Errorf("EndPhase on a phase entry: err = %v, want ErrNotPhaseable", err)
 	}
 
 	if !m.CompletePokemon(parent.ID) {
 		t.Fatal("CompletePokemon returned false")
 	}
-	if _, err := m.EndPhase(parent.ID, catchOf("sentret", "Wiesor")); !errors.Is(err, ErrNotPhaseable) {
+	if _, err := m.EndPhase(parent.ID, catchOf("sentret", "Wiesor"), false); !errors.Is(err, ErrNotPhaseable) {
 		t.Errorf("EndPhase on a completed hunt: err = %v, want ErrNotPhaseable", err)
 	}
 }
@@ -262,7 +289,7 @@ func TestEndPhaseRejectsPhaseEntryAndCompletedHunt(t *testing.T) {
 // hands encounters and accumulated time back and removes the phase entry.
 func TestUndoPhaseReturnsCountersToParent(t *testing.T) {
 	m, parent := newPhaseParent(t)
-	if _, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot")); err != nil {
+	if _, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false); err != nil {
 		t.Fatalf("EndPhase: %v", err)
 	}
 	// Encounters gathered in the new phase must survive the undo.
@@ -291,11 +318,11 @@ func TestUndoPhaseReturnsCountersToParent(t *testing.T) {
 // phase can be taken back.
 func TestUndoPhaseRejectsOlderAndNonPhaseEntries(t *testing.T) {
 	m, parent := newPhaseParent(t)
-	first, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"))
+	first, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
 	if err != nil {
 		t.Fatalf("EndPhase first: %v", err)
 	}
-	if _, err := m.EndPhase(parent.ID, catchOf("sentret", "Wiesor")); err != nil {
+	if _, err := m.EndPhase(parent.ID, catchOf("sentret", "Wiesor"), false); err != nil {
 		t.Fatalf("EndPhase second: %v", err)
 	}
 
@@ -319,7 +346,7 @@ func TestUndoPhaseRejectsOlderAndNonPhaseEntries(t *testing.T) {
 // their hunt, so without the guard a group reset would wipe the whole history.
 func TestGroupMutationsSkipCompletedEntries(t *testing.T) {
 	m, parent := newPhaseParent(t)
-	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"))
+	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
 	if err != nil {
 		t.Fatalf("EndPhase: %v", err)
 	}
@@ -355,7 +382,7 @@ func TestGroupMutationsSkipCompletedEntries(t *testing.T) {
 // ordinary hunts.
 func TestDeletePokemonKeepsPhaseOf(t *testing.T) {
 	m, parent := newPhaseParent(t)
-	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"))
+	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
 	if err != nil {
 		t.Fatalf("EndPhase: %v", err)
 	}

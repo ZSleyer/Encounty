@@ -494,6 +494,96 @@ func TestUncompletePokemonNotFound(t *testing.T) {
 	}
 }
 
+// TestUncompletePokemonResetsFailed verifies that reactivating a failed hunt
+// also clears Failed, so there is no separate "unfail" action needed.
+func TestUncompletePokemonResetsFailed(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	if ok := m.FailPokemon("p1"); !ok {
+		t.Fatal("FailPokemon returned false")
+	}
+	if ok := m.UncompletePokemon("p1"); !ok {
+		t.Fatal("UncompletePokemon returned false")
+	}
+
+	st := m.GetState()
+	p := st.Pokemon[0]
+	if p.CompletedAt != nil {
+		t.Error("CompletedAt should be nil after uncomplete")
+	}
+	if p.Failed {
+		t.Error("Failed should be reset to false after uncomplete")
+	}
+}
+
+func TestFailPokemon(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	ok := m.FailPokemon("p1")
+	if !ok {
+		t.Fatal("FailPokemon returned false")
+	}
+	st := m.GetState()
+	p := st.Pokemon[0]
+	if p.CompletedAt == nil {
+		t.Error("CompletedAt should be set")
+	}
+	if !p.Failed {
+		t.Error("Failed should be set")
+	}
+}
+
+func TestFailPokemonNotFound(t *testing.T) {
+	m := NewManager(t.TempDir())
+	ok := m.FailPokemon("nonexistent")
+	if ok {
+		t.Error("FailPokemon returned true for nonexistent id")
+	}
+}
+
+// TestFailPokemonStopsRunningTimer mirrors CompletePokemon's timer handling:
+// a running timer is finalized so elapsed ms are preserved and the counter
+// stops advancing after the hunt is failed.
+func TestFailPokemonStopsRunningTimer(t *testing.T) {
+	m := NewManager(t.TempDir())
+	m.AddPokemon(makePokemon("p1", "Pikachu"))
+
+	if ok := m.StartTimer("p1"); !ok {
+		t.Fatal("StartTimer returned false")
+	}
+	time.Sleep(10 * time.Millisecond)
+
+	if ok := m.FailPokemon("p1"); !ok {
+		t.Fatal("FailPokemon returned false")
+	}
+
+	st := m.GetState()
+	p := st.Pokemon[0]
+	if p.TimerStartedAt != nil {
+		t.Error("TimerStartedAt should be nil after FailPokemon")
+	}
+	if p.TimerAccumulatedMs <= 0 {
+		t.Errorf("TimerAccumulatedMs should be > 0, got %d", p.TimerAccumulatedMs)
+	}
+}
+
+// TestFailPokemonRejectsPhaseChild verifies that a phase entry cannot be
+// failed directly: only EndPhase archives a phase, mirroring the guard on
+// UncompletePokemon.
+func TestFailPokemonRejectsPhaseChild(t *testing.T) {
+	m, parent := newPhaseParent(t)
+	child, err := m.EndPhase(parent.ID, catchOf("hoothoot", "Hoothoot"), false)
+	if err != nil {
+		t.Fatalf("EndPhase: %v", err)
+	}
+
+	if ok := m.FailPokemon(child.ID); ok {
+		t.Error("FailPokemon returned true for a phase entry, want false")
+	}
+}
+
 func TestUpdateSettings(t *testing.T) {
 	m := NewManager(t.TempDir())
 	s := Settings{

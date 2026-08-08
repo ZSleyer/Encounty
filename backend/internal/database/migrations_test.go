@@ -744,3 +744,34 @@ func TestMigration42AddsOverrideMetaColumn(t *testing.T) {
 		t.Errorf("meta_json of a legacy row = %q, want {}", metaJSON)
 	}
 }
+
+// TestMigration43AddsFailedColumn verifies that migration 43 adds the failed
+// column to a pokemon table that predates it, that existing rows default to
+// "not failed", and that running it twice is harmless.
+func TestMigration43AddsFailedColumn(t *testing.T) {
+	db := openRawTestDB(t)
+
+	if _, err := db.Exec(`CREATE TABLE pokemon (id TEXT PRIMARY KEY, name TEXT NOT NULL)`); err != nil {
+		t.Fatalf("create legacy pokemon table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO pokemon (id, name) VALUES ('pk1', 'Karpador')`); err != nil {
+		t.Fatalf("insert legacy row: %v", err)
+	}
+	if hasColumn(t, db, "pokemon", "failed") {
+		t.Fatal("seed already carries failed")
+	}
+
+	runMigrationTx(t, db, migrateAddFailed)
+	runMigrationTx(t, db, migrateAddFailed)
+
+	if !hasColumn(t, db, "pokemon", "failed") {
+		t.Fatal("failed missing after migration")
+	}
+	var failed int
+	if err := db.QueryRow(`SELECT failed FROM pokemon WHERE id = 'pk1'`).Scan(&failed); err != nil {
+		t.Fatalf("read failed: %v", err)
+	}
+	if failed != 0 {
+		t.Errorf("failed of a legacy row = %d, want 0", failed)
+	}
+}
