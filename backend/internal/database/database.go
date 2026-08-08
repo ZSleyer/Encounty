@@ -415,6 +415,8 @@ type PokedexSpeciesRow struct {
 // PokedexFormRow represents one alternate form in the pokedex_forms table.
 // SpriteSlug carries the name-based sprite identifier for cosmetic forms
 // without a dedicated PokéAPI pokemon entry; it is empty for regular forms.
+// Gender restricts the form to a single gender's appearance ("male" or
+// "female"); it is empty when the form does not depend on gender.
 type PokedexFormRow struct {
 	SpeciesID       int
 	Canonical       string
@@ -423,6 +425,7 @@ type PokedexFormRow struct {
 	NamesJSON       []byte
 	FormNamesJSON   []byte
 	GenerationsJSON []byte
+	Gender          string
 }
 
 // SavePokedex replaces all rows in the pokedex tables within a transaction.
@@ -452,7 +455,7 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		}
 	}
 
-	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, sprite_slug, names_json, form_names_json, generations) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+	formStmt, err := tx.Prepare(`INSERT INTO pokedex_forms (species_id, canonical, sprite_id, sprite_slug, names_json, form_names_json, generations, gender) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -466,7 +469,7 @@ func (d *DB) SavePokedex(species []PokedexSpeciesRow, forms []PokedexFormRow) er
 		if formNamesStr == "" {
 			formNamesStr = "{}"
 		}
-		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, f.SpriteSlug, string(f.NamesJSON), formNamesStr, string(gens)); err != nil {
+		if _, err := formStmt.Exec(f.SpeciesID, f.Canonical, f.SpriteID, f.SpriteSlug, string(f.NamesJSON), formNamesStr, string(gens), f.Gender); err != nil {
 			return err
 		}
 	}
@@ -495,7 +498,7 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 		return nil, nil, err
 	}
 
-	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, sprite_slug, names_json, form_names_json, generations FROM pokedex_forms ORDER BY species_id, id`)
+	formRows, err := d.db.Query(`SELECT species_id, canonical, sprite_id, sprite_slug, names_json, form_names_json, generations, gender FROM pokedex_forms ORDER BY species_id, id`)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -504,7 +507,7 @@ func (d *DB) LoadPokedex() ([]PokedexSpeciesRow, []PokedexFormRow, error) {
 	for formRows.Next() {
 		var f PokedexFormRow
 		var names, formNames, gens string
-		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &f.SpriteSlug, &names, &formNames, &gens); err != nil {
+		if err := formRows.Scan(&f.SpeciesID, &f.Canonical, &f.SpriteID, &f.SpriteSlug, &names, &formNames, &gens, &f.Gender); err != nil {
 			return nil, nil, err
 		}
 		f.NamesJSON = []byte(names)
@@ -531,6 +534,97 @@ func (d *DB) PokedexCount() int {
 	var n int
 	_ = d.db.QueryRow(`SELECT COUNT(*) FROM pokedex_species`).Scan(&n)
 	return n
+}
+
+// PokedexOverrideRow represents one manual Pokédex caught/seen override in
+// the pokedex_overrides table. FormCanonical empty means the override applies
+// at the species level (no form restriction); Gender empty means it is not
+// gender-restricted; Game empty means it is global (counts everywhere).
+type PokedexOverrideRow struct {
+	ID            int64
+	SpeciesID     int
+	FormCanonical string
+	Gender        string
+	Game          string
+	Caught        bool
+	Seen          bool
+	CreatedAt     string
+	UpdatedAt     string
+}
+
+// ListPokedexOverrides returns all manual Pokédex caught/seen overrides.
+func (d *DB) ListPokedexOverrides() ([]PokedexOverrideRow, error) {
+	rows, err := d.db.Query(`SELECT id, species_id, form_canonical, gender, game, caught, seen, created_at, updated_at
+		FROM pokedex_overrides ORDER BY id`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var result []PokedexOverrideRow
+	for rows.Next() {
+		var r PokedexOverrideRow
+		var caught, seen int
+		if err := rows.Scan(&r.ID, &r.SpeciesID, &r.FormCanonical, &r.Gender, &r.Game, &caught, &seen, &r.CreatedAt, &r.UpdatedAt); err != nil {
+			return nil, err
+		}
+		r.Caught = caught != 0
+		r.Seen = seen != 0
+		result = append(result, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if result == nil {
+		result = []PokedexOverrideRow{}
+	}
+	return result, nil
+}
+
+// UpsertPokedexOverride creates or updates the manual Pokédex override
+// identified by (SpeciesID, FormCanonical, Gender, Game). When row has both
+// Caught and Seen false, the matching row is deleted instead of being stored
+// with all-false flags; the second return value reports whether a deletion
+// happened. CreatedAt/UpdatedAt on the input row are ignored; this method
+// stamps them itself. On a successful upsert the returned row is read back
+// from the database so the caller sees the final ID and timestamps.
+func (d *DB) UpsertPokedexOverride(row PokedexOverrideRow) (PokedexOverrideRow, bool, error) {
+	if !row.Caught && !row.Seen {
+		if _, err := d.db.Exec(
+			`DELETE FROM pokedex_overrides WHERE species_id = ? AND form_canonical = ? AND gender = ? AND game = ?`,
+			row.SpeciesID, row.FormCanonical, row.Gender, row.Game,
+		); err != nil {
+			return PokedexOverrideRow{}, false, fmt.Errorf("delete pokedex override: %w", err)
+		}
+		return PokedexOverrideRow{}, true, nil
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	if _, err := d.db.Exec(
+		`INSERT INTO pokedex_overrides (species_id, form_canonical, gender, game, caught, seen, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(species_id, form_canonical, gender, game) DO UPDATE SET
+			caught     = excluded.caught,
+			seen       = excluded.seen,
+			updated_at = excluded.updated_at`,
+		row.SpeciesID, row.FormCanonical, row.Gender, row.Game, boolToInt(row.Caught), boolToInt(row.Seen), now, now,
+	); err != nil {
+		return PokedexOverrideRow{}, false, fmt.Errorf("upsert pokedex override: %w", err)
+	}
+
+	var out PokedexOverrideRow
+	var caught, seen int
+	err := d.db.QueryRow(
+		`SELECT id, species_id, form_canonical, gender, game, caught, seen, created_at, updated_at
+		 FROM pokedex_overrides WHERE species_id = ? AND form_canonical = ? AND gender = ? AND game = ?`,
+		row.SpeciesID, row.FormCanonical, row.Gender, row.Game,
+	).Scan(&out.ID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &caught, &seen, &out.CreatedAt, &out.UpdatedAt)
+	if err != nil {
+		return PokedexOverrideRow{}, false, fmt.Errorf("read back pokedex override: %w", err)
+	}
+	out.Caught = caught != 0
+	out.Seen = seen != 0
+	return out, false, nil
 }
 
 func mustAtoi(s string) int {

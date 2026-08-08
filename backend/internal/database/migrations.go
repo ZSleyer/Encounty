@@ -209,6 +209,21 @@ var migrations = []migration{
 		description: "add the catch metadata column",
 		fn:          migrateAddCatchMeta,
 	},
+	{
+		version:     39,
+		description: "add gender column to pokedex_forms",
+		fn:          migrateAddFormGender,
+	},
+	{
+		version:     40,
+		description: "force pokedex re-sync to populate gender data",
+		fn:          migrateForcePokedexResync,
+	},
+	{
+		version:     41,
+		description: "add pokedex_overrides table for manual caught/seen overrides",
+		fn:          migrateAddPokedexOverrides,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -809,6 +824,43 @@ func migrateDropShadowGradient(tx *sql.Tx) error {
 	}
 	_, _ = tx.Exec(`ALTER TABLE text_styles DROP COLUMN text_shadow_color_type`)
 	_, _ = tx.Exec(`ALTER TABLE text_styles DROP COLUMN text_shadow_gradient_angle`)
+	return nil
+}
+
+// migrateAddFormGender adds the gender column to pokedex_forms. The column
+// restricts a form to a single gender's appearance ("male" or "female"); an
+// empty string (the default) means the form does not depend on gender. Errors
+// are ignored for idempotency because SQLite does not support IF NOT EXISTS
+// on ADD COLUMN.
+func migrateAddFormGender(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_forms ADD COLUMN gender TEXT NOT NULL DEFAULT ''`)
+	return nil
+}
+
+// migrateAddPokedexOverrides creates the pokedex_overrides table and its
+// species index so users can manually mark species/forms as caught or seen
+// outside of what encounter tracking already implies. The table intentionally
+// carries no foreign key: the pokedex sync deletes and reinserts
+// pokedex_species and pokedex_forms on every run, which would either
+// cascade-delete these user-entered overrides or break the sync outright.
+func migrateAddPokedexOverrides(tx *sql.Tx) error {
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS pokedex_overrides (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		species_id      INTEGER NOT NULL,
+		form_canonical  TEXT    NOT NULL DEFAULT '',
+		gender          TEXT    NOT NULL DEFAULT '',
+		game            TEXT    NOT NULL DEFAULT '',
+		caught          INTEGER NOT NULL DEFAULT 0,
+		seen            INTEGER NOT NULL DEFAULT 0,
+		created_at      TEXT    NOT NULL DEFAULT '',
+		updated_at      TEXT    NOT NULL DEFAULT '',
+		UNIQUE (species_id, form_canonical, gender, game)
+	)`); err != nil {
+		return fmt.Errorf("create pokedex_overrides: %w", err)
+	}
+	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_pokedex_overrides_species ON pokedex_overrides(species_id)`); err != nil {
+		return fmt.Errorf("create idx_pokedex_overrides_species: %w", err)
+	}
 	return nil
 }
 

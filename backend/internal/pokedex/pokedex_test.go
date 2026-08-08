@@ -935,6 +935,39 @@ func TestMergeCosmeticFormRowsGenerationsFallback(t *testing.T) {
 	}
 }
 
+// TestMergeCosmeticFormRowsGenderTagging verifies that a cosmetic form row
+// whose form_name is exactly "male" or "female" gets its Gender field set to
+// that value (Path A gender tagging), while an ordinary cosmetic form's
+// Gender stays empty.
+func TestMergeCosmeticFormRowsGenderTagging(t *testing.T) {
+	pyroar := []Entry{{ID: 668, Canonical: "pyroar"}}
+	added := mergeCosmeticFormRows(&pyroar, []cosmeticFormRow{
+		cosmeticRow("pyroar-female", "female", 668, []int{6}, 6),
+	})
+	if len(added) != 1 || added[0] != "pyroar-female" {
+		t.Fatalf("added = %v, want [pyroar-female]", added)
+	}
+	gendered := findForm(pyroar, "pyroar-female")
+	if gendered == nil {
+		t.Fatal("pyroar-female not attached")
+	}
+	if gendered.Gender != "female" {
+		t.Errorf("Gender = %q, want female", gendered.Gender)
+	}
+
+	entries := cosmeticFixtureEntries()
+	mergeCosmeticFormRows(&entries, []cosmeticFormRow{
+		cosmeticRow("unown-b", "b", 201, []int{2}, 2),
+	})
+	ungendered := findForm(entries, "unown-b")
+	if ungendered == nil {
+		t.Fatal("unown-b not attached")
+	}
+	if ungendered.Gender != "" {
+		t.Errorf("Gender = %q, want empty for a non-gender form_name", ungendered.Gender)
+	}
+}
+
 // TestMergeCosmeticFormRowsDuplicateWithinBatch verifies that a canonical
 // appearing twice in the same response is added only once; the second row
 // takes the update path instead of creating a UNIQUE-violating duplicate.

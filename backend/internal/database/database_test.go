@@ -1629,3 +1629,166 @@ func TestMustAtoi(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Pokédex overrides
+// ---------------------------------------------------------------------------
+
+// TestUpsertPokedexOverrideInsert verifies that a fresh override is created
+// with stamped timestamps and reported as not deleted.
+func TestUpsertPokedexOverrideInsert(t *testing.T) {
+	db := openTestDB(t)
+
+	row, deleted, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 25, FormCanonical: "pikachu-alola", Gender: "female", Game: "pokemon-sword",
+		Caught: true, Seen: true,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPokedexOverride: %v", err)
+	}
+	if deleted {
+		t.Fatal("insert reported deleted = true, want false")
+	}
+	if row.ID == 0 {
+		t.Error("row.ID = 0, want non-zero after insert")
+	}
+	if row.SpeciesID != 25 || row.FormCanonical != "pikachu-alola" || row.Gender != "female" || row.Game != "pokemon-sword" {
+		t.Errorf("row identity mismatch: %+v", row)
+	}
+	if !row.Caught || !row.Seen {
+		t.Errorf("row flags = caught=%v seen=%v, want both true", row.Caught, row.Seen)
+	}
+	if row.CreatedAt == "" || row.UpdatedAt == "" {
+		t.Error("expected non-empty CreatedAt/UpdatedAt after insert")
+	}
+}
+
+// TestUpsertPokedexOverrideUpdateOnConflict verifies that a second upsert for
+// the same (species_id, form_canonical, gender, game) key updates the
+// existing row in place instead of creating a duplicate.
+func TestUpsertPokedexOverrideUpdateOnConflict(t *testing.T) {
+	db := openTestDB(t)
+
+	first, _, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 1, Caught: true, Seen: false,
+	})
+	if err != nil {
+		t.Fatalf("first UpsertPokedexOverride: %v", err)
+	}
+
+	second, deleted, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 1, Caught: true, Seen: true,
+	})
+	if err != nil {
+		t.Fatalf("second UpsertPokedexOverride: %v", err)
+	}
+	if deleted {
+		t.Fatal("update reported deleted = true, want false")
+	}
+	if second.ID != first.ID {
+		t.Errorf("second.ID = %d, want %d (same row updated in place)", second.ID, first.ID)
+	}
+	if !second.Seen {
+		t.Error("second.Seen = false, want true after update")
+	}
+
+	rows, err := db.ListPokedexOverrides()
+	if err != nil {
+		t.Fatalf("ListPokedexOverrides: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("len(rows) = %d, want 1 (conflict should update, not duplicate)", len(rows))
+	}
+}
+
+// TestUpsertPokedexOverrideDeleteOnBothFalse verifies that upserting a row
+// with both caught and seen false deletes any matching row instead of
+// storing all-false flags, and reports the deletion.
+func TestUpsertPokedexOverrideDeleteOnBothFalse(t *testing.T) {
+	db := openTestDB(t)
+
+	if _, _, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 4, FormCanonical: "charmander", Caught: true, Seen: false,
+	}); err != nil {
+		t.Fatalf("initial UpsertPokedexOverride: %v", err)
+	}
+
+	_, deleted, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 4, FormCanonical: "charmander", Caught: false, Seen: false,
+	})
+	if err != nil {
+		t.Fatalf("delete UpsertPokedexOverride: %v", err)
+	}
+	if !deleted {
+		t.Fatal("deleted = false, want true when both caught and seen are false")
+	}
+
+	rows, err := db.ListPokedexOverrides()
+	if err != nil {
+		t.Fatalf("ListPokedexOverrides: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("len(rows) = %d, want 0 after delete-on-both-false", len(rows))
+	}
+}
+
+// TestUpsertPokedexOverrideDeleteNonExistent verifies that deleting a row
+// that never existed is not an error and still reports a deletion, mirroring
+// the idempotent DELETE semantics used elsewhere in this package.
+func TestUpsertPokedexOverrideDeleteNonExistent(t *testing.T) {
+	db := openTestDB(t)
+
+	_, deleted, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 999, Caught: false, Seen: false,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPokedexOverride: %v", err)
+	}
+	if !deleted {
+		t.Error("deleted = false, want true for a delete-on-both-false call")
+	}
+}
+
+// TestListPokedexOverridesEmpty verifies that ListPokedexOverrides returns an
+// empty (non-nil) slice when the table has no rows.
+func TestListPokedexOverridesEmpty(t *testing.T) {
+	db := openTestDB(t)
+
+	rows, err := db.ListPokedexOverrides()
+	if err != nil {
+		t.Fatalf("ListPokedexOverrides: %v", err)
+	}
+	if rows == nil {
+		t.Error("ListPokedexOverrides = nil, want empty slice")
+	}
+	if len(rows) != 0 {
+		t.Errorf("len(rows) = %d, want 0", len(rows))
+	}
+}
+
+// TestListPokedexOverridesMultipleKeys verifies that overrides distinguished
+// only by form_canonical, gender, or game are stored as separate rows rather
+// than colliding on the species_id alone.
+func TestListPokedexOverridesMultipleKeys(t *testing.T) {
+	db := openTestDB(t)
+
+	specs := []database.PokedexOverrideRow{
+		{SpeciesID: 25, Caught: true, Seen: true},                     // species-level, global
+		{SpeciesID: 25, FormCanonical: "pikachu-alola", Caught: true}, // form-level
+		{SpeciesID: 25, Gender: "female", Seen: true},                 // gender-level
+		{SpeciesID: 25, Game: "pokemon-sword", Caught: true},          // game-scoped
+	}
+	for _, s := range specs {
+		if _, _, err := db.UpsertPokedexOverride(s); err != nil {
+			t.Fatalf("UpsertPokedexOverride(%+v): %v", s, err)
+		}
+	}
+
+	rows, err := db.ListPokedexOverrides()
+	if err != nil {
+		t.Fatalf("ListPokedexOverrides: %v", err)
+	}
+	if len(rows) != len(specs) {
+		t.Fatalf("len(rows) = %d, want %d (each key combination is a distinct row)", len(rows), len(specs))
+	}
+}

@@ -324,7 +324,27 @@ var schemaV2 = []string{
 		names_json      TEXT    NOT NULL DEFAULT '{}',
 		form_names_json TEXT    NOT NULL DEFAULT '{}',
 		generations     TEXT    NOT NULL DEFAULT '[]',
+		gender          TEXT    NOT NULL DEFAULT '',
 		FOREIGN KEY (species_id) REFERENCES pokedex_species(id) ON DELETE CASCADE
+	)`,
+
+	// ── Pokedex manual overrides (caught/seen) ────────────────────────────
+	// No foreign key: the pokedex sync deletes and reinserts pokedex_species
+	// and pokedex_forms on every run, which would either cascade-delete these
+	// user-entered overrides or break the sync outright. form_canonical=''
+	// means species-level, gender='' means not gender-restricted, game=''
+	// means global (counts everywhere).
+	`CREATE TABLE IF NOT EXISTS pokedex_overrides (
+		id              INTEGER PRIMARY KEY AUTOINCREMENT,
+		species_id      INTEGER NOT NULL,
+		form_canonical  TEXT    NOT NULL DEFAULT '',
+		gender          TEXT    NOT NULL DEFAULT '',
+		game            TEXT    NOT NULL DEFAULT '',
+		caught          INTEGER NOT NULL DEFAULT 0,
+		seen            INTEGER NOT NULL DEFAULT 0,
+		created_at      TEXT    NOT NULL DEFAULT '',
+		updated_at      TEXT    NOT NULL DEFAULT '',
+		UNIQUE (species_id, form_canonical, gender, game)
 	)`,
 
 	// ── Indexes ──────────────────────────────────────────────────────────
@@ -338,4 +358,5 @@ var schemaV2 = []string{
 	`CREATE INDEX IF NOT EXISTS idx_game_names_key ON game_names(game_key)`,
 	`CREATE INDEX IF NOT EXISTS idx_pokedex_forms_species ON pokedex_forms(species_id)`,
 	`CREATE INDEX IF NOT EXISTS idx_pokemon_tags_tag ON pokemon_tags(tag)`,
+	`CREATE INDEX IF NOT EXISTS idx_pokedex_overrides_species ON pokedex_overrides(species_id)`,
 }

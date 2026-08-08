@@ -42,7 +42,7 @@ func TestRunMigrationsFreshDB(t *testing.T) {
 	}
 
 	// Spot-check a few tables created by the baseline migration.
-	for _, table := range []string{"encounter_events", "pokemon", "settings", "detector_configs", "capture_resolutions"} {
+	for _, table := range []string{"encounter_events", "pokemon", "settings", "detector_configs", "capture_resolutions", "pokedex_overrides"} {
 		var name string
 		err := db.QueryRow(
 			`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, table,
@@ -645,5 +645,69 @@ func TestMigration38AddsCatchMetaColumn(t *testing.T) {
 	}
 	if stored != "" {
 		t.Errorf("catch_meta of a legacy row = %q, want empty", stored)
+	}
+}
+
+// TestMigration39AddsFormGenderColumn verifies that migration 39 adds the
+// gender column to a pokedex_forms table that predates it, that existing
+// rows read as "not gender-restricted", and that running it twice is harmless.
+func TestMigration39AddsFormGenderColumn(t *testing.T) {
+	db := openRawTestDB(t)
+
+	if _, err := db.Exec(`CREATE TABLE pokedex_forms (
+		id INTEGER PRIMARY KEY AUTOINCREMENT, species_id INTEGER NOT NULL, canonical TEXT NOT NULL UNIQUE
+	)`); err != nil {
+		t.Fatalf("create legacy pokedex_forms table: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO pokedex_forms (species_id, canonical) VALUES (668, 'pyroar-female')`); err != nil {
+		t.Fatalf("insert legacy row: %v", err)
+	}
+	if hasColumn(t, db, "pokedex_forms", "gender") {
+		t.Fatal("seed already carries gender")
+	}
+
+	runMigrationTx(t, db, migrateAddFormGender)
+	runMigrationTx(t, db, migrateAddFormGender)
+
+	if !hasColumn(t, db, "pokedex_forms", "gender") {
+		t.Fatal("gender column missing after migration")
+	}
+	var gender string
+	if err := db.QueryRow(`SELECT gender FROM pokedex_forms WHERE canonical = 'pyroar-female'`).Scan(&gender); err != nil {
+		t.Fatalf("read gender: %v", err)
+	}
+	if gender != "" {
+		t.Errorf("gender of a legacy row = %q, want empty", gender)
+	}
+}
+
+// TestMigration41CreatesPokedexOverridesTable verifies that migration 41
+// creates the pokedex_overrides table with its species index, and that
+// running it twice against a database that already has the table is harmless.
+func TestMigration41CreatesPokedexOverridesTable(t *testing.T) {
+	db := openRawTestDB(t)
+
+	runMigrationTx(t, db, migrateAddPokedexOverrides)
+	runMigrationTx(t, db, migrateAddPokedexOverrides)
+
+	var name string
+	if err := db.QueryRow(
+		`SELECT name FROM sqlite_master WHERE type='table' AND name='pokedex_overrides'`,
+	).Scan(&name); err != nil {
+		t.Fatalf("expected pokedex_overrides table to exist: %v", err)
+	}
+
+	// Verify the UNIQUE constraint is enforced by the upsert conflict target.
+	if _, err := db.Exec(
+		`INSERT INTO pokedex_overrides (species_id, form_canonical, gender, game, caught, seen, created_at, updated_at)
+		 VALUES (25, '', '', '', 1, 0, 'now', 'now')`,
+	); err != nil {
+		t.Fatalf("insert into pokedex_overrides: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO pokedex_overrides (species_id, form_canonical, gender, game, caught, seen, created_at, updated_at)
+		 VALUES (25, '', '', '', 0, 1, 'now', 'now')`,
+	); err == nil {
+		t.Error("expected UNIQUE constraint violation on duplicate (species_id, form_canonical, gender, game)")
 	}
 }

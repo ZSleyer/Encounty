@@ -26,6 +26,7 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/server/handler/backgrounds"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/backup"
 	detectorhandler "github.com/zsleyer/encounty/backend/internal/server/handler/detector"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/dexoverride"
 	"github.com/zsleyer/encounty/backend/internal/server/handler/games"
 	groupshandler "github.com/zsleyer/encounty/backend/internal/server/handler/groups"
 	permissionshandler "github.com/zsleyer/encounty/backend/internal/server/handler/permissions"
@@ -148,6 +149,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	backgrounds.RegisterRoutes(mux, s)
 	settings.RegisterRoutes(mux, s)
 	games.RegisterRoutes(mux, s)
+	dexoverride.RegisterRoutes(mux, s)
 	stats.RegisterRoutes(mux, s)
 	system.RegisterRoutes(mux, s)
 	detectorhandler.RegisterRoutes(mux, s)
@@ -303,6 +305,12 @@ func (s *Server) GamesDB() gamesync.GamesStore { return dbAs[gamesync.GamesStore
 // games handler sub-package can load and sync Pokédex data without depending
 // on the concrete *database.DB type. Returns nil when no database is configured.
 func (s *Server) PokedexDB() pokedex.PokedexStore { return dbAs[pokedex.PokedexStore](s.db) }
+
+// PokedexOverrideDB returns the database handle as a pokedex.OverrideStore so
+// the dexoverride handler sub-package can list and upsert manual Pokédex
+// caught/seen overrides without depending on the concrete *database.DB type.
+// Returns nil when no database is configured.
+func (s *Server) PokedexOverrideDB() pokedex.OverrideStore { return dbAs[pokedex.OverrideStore](s.db) }
 
 // StatsDB returns the database handle as a stats.StatsQuerier so the stats
 // handler sub-package can query encounter statistics without depending on

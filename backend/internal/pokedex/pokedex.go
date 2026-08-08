@@ -40,6 +40,8 @@ type Entry struct {
 // Generations lists the generation IDs in which this form is available;
 // an empty slice means "unknown/unconstrained" and the form is shown for
 // any selected game.
+// Gender restricts this form to a single gender's appearance: "male" or
+// "female". Empty means the form's appearance does not depend on gender.
 type Form struct {
 	Canonical   string            `json:"canonical"`
 	Names       map[string]string `json:"names,omitempty"`
@@ -47,6 +49,7 @@ type Form struct {
 	SpriteID    int               `json:"sprite_id"`
 	SpriteSlug  string            `json:"sprite_slug,omitempty"`
 	Generations []int             `json:"generations,omitempty"`
+	Gender      string            `json:"gender,omitempty"`
 }
 
 // SyncResult carries aggregated statistics from a PokéAPI sync run.
@@ -175,6 +178,7 @@ func RowsToEntries(species []database.PokedexSpeciesRow, forms []database.Pokede
 			Names:       names,
 			FormNames:   formNames,
 			Generations: gens,
+			Gender:      f.Gender,
 		})
 	}
 
@@ -222,6 +226,7 @@ func EntriesToRows(entries []Entry) ([]database.PokedexSpeciesRow, []database.Po
 				NamesJSON:       fNamesJSON,
 				FormNamesJSON:   fFormNamesJSON,
 				GenerationsJSON: fGensJSON,
+				Gender:          f.Gender,
 			})
 		}
 	}

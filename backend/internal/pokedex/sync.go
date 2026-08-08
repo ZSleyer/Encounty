@@ -11,12 +11,19 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 )
 
-const (
-	// pokeAPIGraphQL is the PokéAPI GraphQL v1beta2 endpoint.
-	pokeAPIGraphQL = "https://graphql.pokeapi.co/v1beta2"
+// pokeAPIGraphQL is the PokéAPI GraphQL v1beta2 endpoint. It is a var rather
+// than a const so tests can redirect it to an httptest server.
+var pokeAPIGraphQL = "https://graphql.pokeapi.co/v1beta2"
 
+const (
 	// langJaHrkt is the PokéAPI language code for Japanese Katakana.
 	langJaHrkt = "ja-hrkt"
+
+	// genderFormNameMale and genderFormNameFemale are the exact pokemonform
+	// form_name values PokéAPI uses to mark a form as restricted to one
+	// gender's appearance (e.g. Pyroar's "pyroar-male"/"pyroar-female" forms).
+	genderFormNameMale   = "male"
+	genderFormNameFemale = "female"
 )
 
 // pokeAPILangMap maps PokéAPI language codes to the shorter keys used in
@@ -79,6 +86,19 @@ func SyncFromPokeAPI(current []Entry, progress ProgressFn) (SyncResult, []Entry,
 		slog.Warn("Pokédex sync: cosmetic forms fetch failed, continuing", "error", err)
 	} else {
 		added = append(added, cosmeticAdded...)
+	}
+
+	// Fetch and merge synthesized female-appearance gender variants via
+	// GraphQL. This runs after the forms/cosmetic-forms phases (Path A above
+	// already tags forms whose form_name is "male"/"female") and before the
+	// names-localization phases so newly synthesized canonicals still pick up
+	// their localized names in the same sync run.
+	callProgress(progress, "gender_variants", "")
+	genderAdded, err := fetchAndMergeGenderVariants(&current)
+	if err != nil {
+		slog.Warn("Pokédex sync: gender variants fetch failed, continuing", "error", err)
+	} else {
+		added = append(added, genderAdded...)
 	}
 
 	// Fetch and apply localized species names via GraphQL.
@@ -175,10 +195,37 @@ type formVGRow struct {
 
 // pokemonFormRow is a single pokemonform record returned by the GraphQL
 // query in fetchAndMergeForms. Each variant pokemon may have one or more
-// such forms.
+// such forms. FormName carries PokéAPI's pokemonform.form_name, used to
+// detect gender-restricted forms (e.g. "male"/"female").
 type pokemonFormRow struct {
+	FormName               string       `json:"form_name"`
 	VersionGroup           formVGRow    `json:"versiongroup"`
 	PokemonFormGenerations []formGenRow `json:"pokemonformgenerations"`
+}
+
+// formNameGender returns "male" or "female" when formName is exactly one of
+// those PokéAPI form_name values, marking a form as restricted to that
+// gender's appearance (e.g. Pyroar's "pyroar-male"/"pyroar-female" forms).
+// Returns "" for any other form_name, including the empty default form.
+func formNameGender(formName string) string {
+	switch formName {
+	case genderFormNameMale, genderFormNameFemale:
+		return formName
+	default:
+		return ""
+	}
+}
+
+// genderFromPokemonForms scans a pokemon's pokemonform rows and returns the
+// gender ("male"/"female") of the first row whose form_name matches, or ""
+// when none of the rows are gender-restricted.
+func genderFromPokemonForms(forms []pokemonFormRow) string {
+	for _, pf := range forms {
+		if g := formNameGender(pf.FormName); g != "" {
+			return g
+		}
+	}
+	return ""
 }
 
 // fetchAndMergeForms fetches alternate Pokémon forms (ID > 10000) from the
@@ -187,7 +234,7 @@ type pokemonFormRow struct {
 // installations pick up the newly added field. Returns canonical names of
 // newly added forms.
 func fetchAndMergeForms(current *[]Entry) ([]string, error) {
-	q := `{"query":"query{pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id pokemonforms{versiongroup{generation_id} pokemonformgenerations{generation_id}}}}"}`
+	q := `{"query":"query{pokemon(where:{id:{_gt:10000}}){id name pokemon_species_id pokemonforms{form_name versiongroup{generation_id} pokemonformgenerations{generation_id}}}}"}`
 
 	var glForms struct {
 		Data struct {
@@ -215,6 +262,7 @@ func fetchAndMergeForms(current *[]Entry) ([]string, error) {
 			continue
 		}
 		gens := collectFormGenerations(f.PokemonForms)
+		gender := genderFromPokemonForms(f.PokemonForms)
 		existingIdx := -1
 		for j, existingForm := range (*current)[i].Forms {
 			if existingForm.Canonical == f.Name {
@@ -225,12 +273,14 @@ func fetchAndMergeForms(current *[]Entry) ([]string, error) {
 		if existingIdx >= 0 {
 			(*current)[i].Forms[existingIdx].Generations = gens
 			(*current)[i].Forms[existingIdx].SpriteID = f.ID
+			(*current)[i].Forms[existingIdx].Gender = gender
 			continue
 		}
 		(*current)[i].Forms = append((*current)[i].Forms, Form{
 			Canonical:   f.Name,
 			SpriteID:    f.ID,
 			Generations: gens,
+			Gender:      gender,
 		})
 		added = append(added, f.Name)
 	}
@@ -347,6 +397,7 @@ func mergeCosmeticFormRows(current *[]Entry, rows []cosmeticFormRow) []string {
 		}
 		slug := fmt.Sprintf("%d-%s", speciesID, row.FormName)
 		gens := collectCosmeticFormGenerations(row)
+		gender := formNameGender(row.FormName)
 		if pos, exists := formLoc[row.Name]; exists {
 			// Refresh sprite slug and generations only when the existing
 			// form belongs to the same species; otherwise the row would
@@ -354,6 +405,7 @@ func mergeCosmeticFormRows(current *[]Entry, rows []cosmeticFormRow) []string {
 			if (*current)[pos.entryIdx].ID == speciesID {
 				(*current)[pos.entryIdx].Forms[pos.formIdx].SpriteSlug = slug
 				(*current)[pos.entryIdx].Forms[pos.formIdx].Generations = gens
+				(*current)[pos.entryIdx].Forms[pos.formIdx].Gender = gender
 			}
 			continue
 		}
@@ -362,6 +414,7 @@ func mergeCosmeticFormRows(current *[]Entry, rows []cosmeticFormRow) []string {
 			SpriteID:    0,
 			SpriteSlug:  slug,
 			Generations: gens,
+			Gender:      gender,
 		})
 		formLoc[row.Name] = formPos{entryIdx: entryIdx, formIdx: len((*current)[entryIdx].Forms) - 1}
 		added = append(added, row.Name)
@@ -377,6 +430,78 @@ func collectCosmeticFormGenerations(row cosmeticFormRow) []int {
 		VersionGroup:           row.VersionGroup,
 		PokemonFormGenerations: row.PokemonFormGenerations,
 	}})
+}
+
+// fetchAndMergeGenderVariants fetches species with gender-based sprite
+// differences from PokéAPI and, for each species that does not already carry
+// a gender-tagged form (from the form_name matching in fetchAndMergeForms and
+// fetchAndMergeCosmeticForms above), synthesizes a "<canonical>-female" form
+// representing the female appearance. No male pseudo-form is created: the
+// base/default species entry already represents the male appearance. A
+// synthesized canonical that collides with an existing species or form
+// canonical is skipped with a warning, mirroring how mergeCosmeticFormRows
+// guards the pokedex_forms.canonical UNIQUE constraint. Returns the canonical
+// names of newly added synthetic forms.
+func fetchAndMergeGenderVariants(current *[]Entry) ([]string, error) {
+	q := `{"query":"query{pokemonspecies(where:{has_gender_differences:{_eq:true}}){id}}"}`
+
+	var glResp struct {
+		Data struct {
+			Species []struct {
+				ID int `json:"id"`
+			} `json:"pokemonspecies"`
+		} `json:"data"`
+	}
+	if err := httputil.PostJSON(pokeAPIGraphQL, strings.NewReader(q), &glResp); err != nil {
+		return nil, fmt.Errorf("fetch gender variants: %w", err)
+	}
+
+	specIndex := make(map[int]int, len(*current))
+	canonicals := make(map[string]bool, len(*current))
+	for i := range *current {
+		specIndex[(*current)[i].ID] = i
+		canonicals[(*current)[i].Canonical] = true
+		for _, f := range (*current)[i].Forms {
+			canonicals[f.Canonical] = true
+		}
+	}
+
+	var added []string
+	for _, sp := range glResp.Data.Species {
+		i, ok := specIndex[sp.ID]
+		if !ok {
+			continue
+		}
+		if hasGenderTaggedForm((*current)[i].Forms) {
+			continue
+		}
+		canonical := (*current)[i].Canonical + "-female"
+		if canonicals[canonical] {
+			slog.Warn("Pokédex sync: skipping synthesized gender variant, canonical collision", "canonical", canonical)
+			continue
+		}
+		(*current)[i].Forms = append((*current)[i].Forms, Form{
+			Canonical: canonical,
+			SpriteID:  sp.ID,
+			Gender:    genderFormNameFemale,
+		})
+		canonicals[canonical] = true
+		added = append(added, canonical)
+	}
+	return added, nil
+}
+
+// hasGenderTaggedForm reports whether any form in forms already carries a
+// non-empty Gender, meaning form_name matching already tagged this species'
+// gender-specific appearance and the female-variant synthesis should not add
+// a duplicate.
+func hasGenderTaggedForm(forms []Form) bool {
+	for _, f := range forms {
+		if f.Gender != "" {
+			return true
+		}
+	}
+	return false
 }
 
 // fetchAndApplySpeciesNames fetches localized species names from the PokéAPI
