@@ -12,7 +12,7 @@
  * "current game" to default it to here, since this modal is deliberately
  * self-contained and does not thread the dex page's game filter down to it.
  */
-import { useId, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useI18n } from "../../contexts/I18nContext";
 import { ModalShell } from "../shared/ModalShell";
 import { SpeciesHeader } from "./DexSpeciesDetail";
@@ -307,7 +307,6 @@ export function DexOverrideModal({
 }: DexOverrideModalProps) {
   const { t, locale } = useI18n();
   const { allPokemon } = usePokedex();
-  const existingHeadingId = useId();
 
   // Kept as the full species object, not just its `.forms`, because the
   // sprite-preview strip needs the species' own id/canonical for its
@@ -505,32 +504,19 @@ export function DexOverrideModal({
             onEdit={current ? () => openDetails(requestClose) : undefined}
           />
 
-          {speciesOverrides.length > 0 && (
-            <section aria-labelledby={existingHeadingId} className="flex flex-col gap-2">
-              <h3 id={existingHeadingId} className="t-label w-fit">
-                {t("dex.overrideExisting")}
-              </h3>
-              <ul role="list" className="flex flex-col gap-1.5">
-                {speciesOverrides.map((o) => (
-                  <li
-                    key={`${o.formCanonical}|${o.gender}|${o.game}`}
-                    className="flex items-center justify-between gap-2 bg-bg-secondary px-3 py-1.5 text-xs text-text-secondary"
-                  >
-                    <span className="truncate">
-                      {formLabel(o, forms, locale, t)} · {genderLabel(o, t)} ·{" "}
-                      {o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => void removeOverride(o)}
-                      className="t-cut shrink-0 border border-border-subtle px-2 py-1 text-[11px] text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
-                    >
-                      {t("dex.overrideRemove")}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
+          {/* Every other manually marked scope of this species is listed on
+              its own card in the species panel, each with its own edit icon
+              (which opens this modal already scoped to it) — removing one
+              only ever happens from there, not from a second list bundled
+              into this "add a new one" dialog. */}
+          {current && (
+            <button
+              type="button"
+              onClick={() => void removeOverride(current)}
+              className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
+            >
+              {t("dex.overrideRemove")}
+            </button>
           )}
         </div>
       )}

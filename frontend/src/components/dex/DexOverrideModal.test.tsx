@@ -33,7 +33,11 @@ beforeEach(() => {
   );
 });
 
-function renderModal(overrides: DexOverride[] = [], setOverride = vi.fn().mockResolvedValue(undefined)) {
+function renderModal(
+  overrides: DexOverride[] = [],
+  setOverride = vi.fn().mockResolvedValue(undefined),
+  scope?: { formCanonical: string; gender: string },
+) {
   const onClose = vi.fn();
   render(
     <DexOverrideModal
@@ -45,6 +49,8 @@ function renderModal(overrides: DexOverride[] = [], setOverride = vi.fn().mockRe
       overrides={overrides}
       setOverride={setOverride}
       onClose={onClose}
+      initialFormCanonical={scope?.formCanonical}
+      initialGender={scope?.gender}
     />,
   );
   return { onClose, setOverride };
@@ -95,10 +101,12 @@ describe("DexOverrideModal", () => {
     expect(seenToggle).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("lists an already-set override with a working remove action", async () => {
-    const { setOverride } = renderModal([
-      { id: 1, speciesId: 906, formCanonical: "sprigatito-female", gender: "female", game: "", caught: true, seen: true },
-    ]);
+  it("removes the current scope's override when opened pre-scoped to it", async () => {
+    const { setOverride } = renderModal(
+      [{ id: 1, speciesId: 906, formCanonical: "sprigatito-female", gender: "female", game: "", caught: true, seen: true }],
+      undefined,
+      { formCanonical: "sprigatito-female", gender: "female" },
+    );
 
     const removeButton = await screen.findByRole("button", { name: "Entfernen" });
     fireEvent.click(removeButton);
