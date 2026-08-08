@@ -858,12 +858,12 @@ function AppShell() {
           {/* Center */}
           <p className="text-center">
             <a
-              href="https://www.youtube.com/watch?v=zvIS6EIkXx8"
+              href="https://www.youtube.com/watch?v=1zgsM9fC61M"
               target="_blank"
               rel="noopener noreferrer"
               className="text-text-faint tracking-wide hover:text-text-muted transition-colors"
             >
-              「TACTIC」
+              「ATTITUDE」
             </a>
           </p>
 
