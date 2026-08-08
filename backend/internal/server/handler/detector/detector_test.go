@@ -844,6 +844,64 @@ func TestMatchSubmitSuccess(t *testing.T) {
 	}
 }
 
+// TestMatchSubmitDedupesRetry simulates a client retry (same match_id sent
+// twice, mirroring the frontend's retry-on-network-error behavior) and
+// verifies the encounter is only counted once.
+func TestMatchSubmitDedupesRetry(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	body := jsonBody(t, matchSubmitRequest{Score: 0.95, FrameDelta: 0.1, MatchID: "match-1"})
+	req := httptest.NewRequest(http.MethodPost, pathMatch, body)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	// Retry with the same match_id, as the client does when the first
+	// response is lost after the server already processed it.
+	body = jsonBody(t, matchSubmitRequest{Score: 0.95, FrameDelta: 0.1, MatchID: "match-1"})
+	req = httptest.NewRequest(http.MethodPost, pathMatch, body)
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.Encounters != 1 {
+		t.Errorf("encounters = %d, want 1 (retry must not double-count)", p.Encounters)
+	}
+	if len(deps.encounterLogger.calls) != 1 {
+		t.Errorf("encounterLogger calls = %d, want 1", len(deps.encounterLogger.calls))
+	}
+}
+
+// TestMatchSubmitDistinctMatchIDsBothCount verifies that two genuinely
+// different matches (distinct match_id) both increment the counter.
+func TestMatchSubmitDistinctMatchIDsBothCount(t *testing.T) {
+	mux, deps := newTestMux(t)
+	addTestPokemon(t, deps, "p1", "Pikachu")
+
+	for _, id := range []string{"match-1", "match-2"} {
+		body := jsonBody(t, matchSubmitRequest{Score: 0.95, FrameDelta: 0.1, MatchID: id})
+		req := httptest.NewRequest(http.MethodPost, pathMatch, body)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf(msgWant200Body, w.Code, w.Body.String())
+		}
+	}
+
+	st := deps.stateMgr.GetState()
+	p := findPokemon(st, "p1")
+	if p.Encounters != 2 {
+		t.Errorf("encounters = %d, want 2", p.Encounters)
+	}
+}
+
 func TestMatchSubmitNoPokemon(t *testing.T) {
 	mux, _ := newTestMux(t)
 

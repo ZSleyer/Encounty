@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/kbinani/screenshot"
 	"github.com/zsleyer/encounty/backend/internal/detector"
@@ -15,6 +17,11 @@ import (
 	"github.com/zsleyer/encounty/backend/internal/state"
 	"golang.org/x/image/draw"
 )
+
+// matchDedupeWindow bounds how long a match_id is remembered for dedupe
+// purposes. It only needs to cover the client's own retry window (a few
+// seconds at most), not the lifetime of the server.
+const matchDedupeWindow = 60 * time.Second
 
 // DetectorStore defines the database operations needed by detector handlers.
 type DetectorStore interface {
@@ -43,13 +50,44 @@ type Deps interface {
 // handler groups the detector HTTP handlers together with their dependencies.
 type handler struct {
 	deps Deps
+
+	recentMatchesMu sync.Mutex
+	// recentMatches maps a client-generated match_id to when it was first
+	// processed, so a retried request for an already-handled match does not
+	// increment the counter a second time.
+	recentMatches map[string]time.Time
 }
 
 // RegisterRoutes wires the /api/detector/* routes onto mux.
 func RegisterRoutes(mux *http.ServeMux, d Deps) {
-	h := &handler{deps: d}
+	h := &handler{deps: d, recentMatches: make(map[string]time.Time)}
 	mux.HandleFunc("/api/detector/screenshot", h.handleDetectorScreenshot)
 	mux.HandleFunc("/api/detector/", h.handleDetectorDispatch)
+}
+
+// seenMatch reports whether matchID was already processed within
+// matchDedupeWindow. It also opportunistically evicts expired entries and
+// records new IDs, so a single call both checks and marks.
+func (h *handler) seenMatch(matchID string) bool {
+	if matchID == "" {
+		return false
+	}
+
+	h.recentMatchesMu.Lock()
+	defer h.recentMatchesMu.Unlock()
+
+	now := time.Now()
+	for id, seenAt := range h.recentMatches {
+		if now.Sub(seenAt) > matchDedupeWindow {
+			delete(h.recentMatches, id)
+		}
+	}
+
+	if seenAt, ok := h.recentMatches[matchID]; ok && now.Sub(seenAt) <= matchDedupeWindow {
+		return true
+	}
+	h.recentMatches[matchID] = now
+	return false
 }
 
 // --- Response / request types ------------------------------------------------
@@ -202,6 +240,10 @@ type matchSubmitRequest struct {
 	FrameDelta float64 `json:"frame_delta"`
 	// Category is the counting category that fired, empty for the default one.
 	Category string `json:"category"`
+	// MatchID identifies one confirmed match on the client. It stays the same
+	// across retries of the same match so the server can dedupe a request it
+	// already processed when the response was lost in transit.
+	MatchID string `json:"match_id"`
 }
 
 // matchSubmitResponse is returned by handleMatchSubmit.
@@ -243,6 +285,16 @@ func (h *handler) handleMatchSubmit(w http.ResponseWriter, r *http.Request, id s
 	pokemon := findPokemon(st, id)
 	if pokemon == nil {
 		httputil.WriteJSON(w, http.StatusNotFound, httputil.ErrResp{Error: errPokemonNotFound})
+		return
+	}
+
+	if h.seenMatch(req.MatchID) {
+		// A retry of a match we already counted (the earlier response was lost
+		// in transit). Report success without incrementing again.
+		httputil.WriteJSON(w, http.StatusOK, matchSubmitResponse{
+			Matched:    true,
+			Confidence: req.Score,
+		})
 		return
 	}
 

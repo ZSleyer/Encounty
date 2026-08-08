@@ -712,7 +712,10 @@ export class DetectionLoop {
     // Fire-and-forget from the caller's perspective: the loop must not block on
     // network I/O. The helper retries internally so a transient failure does not
     // silently drop a confirmed encounter (which is worse when many detectors run).
-    void this.sendMatchWithRetry(score, frameDelta, category);
+    // matchId is generated once per confirmed match and reused across retries so
+    // the backend can dedupe a retried request that it already processed.
+    const matchId = crypto.randomUUID();
+    void this.sendMatchWithRetry(matchId, score, frameDelta, category);
   }
 
   /**
@@ -723,12 +726,12 @@ export class DetectionLoop {
    * retry (e.g. the pokemon was deleted), so both stop immediately. After all
    * attempts are exhausted a warning is logged so the loss stays visible.
    */
-  private async sendMatchWithRetry(score: number, frameDelta: number, category: string): Promise<void> {
+  private async sendMatchWithRetry(matchId: string, score: number, frameDelta: number, category: string): Promise<void> {
     const url = apiUrl(`/api/detector/${this.pokemonId}/match`);
     const backoffsMs = [150, 400, 800];
 
     for (let attempt = 0; attempt < MATCH_RETRY_ATTEMPTS; attempt += 1) {
-      const transient = await this.attemptMatchPost(url, score, frameDelta, category);
+      const transient = await this.attemptMatchPost(url, matchId, score, frameDelta, category);
       if (!transient) return;
       const isLastAttempt = attempt === MATCH_RETRY_ATTEMPTS - 1;
       if (isLastAttempt) break;
@@ -745,12 +748,12 @@ export class DetectionLoop {
    * (network rejection or 5xx), false when the outcome is final (2xx success or
    * a 4xx that will not be fixed by retrying).
    */
-  private async attemptMatchPost(url: string, score: number, frameDelta: number, category: string): Promise<boolean> {
+  private async attemptMatchPost(url: string, matchId: string, score: number, frameDelta: number, category: string): Promise<boolean> {
     try {
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ score, frame_delta: frameDelta, category }),
+        body: JSON.stringify({ match_id: matchId, score, frame_delta: frameDelta, category }),
       });
       return response.status >= 500;
     } catch {
