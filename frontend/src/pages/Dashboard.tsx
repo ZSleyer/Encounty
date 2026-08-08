@@ -48,12 +48,14 @@ import {
   VideoOff,
   FolderPlus,
   Split,
+  XCircle,
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AddPokemonModal, NewPokemonData } from "../components/pokemon/AddPokemonModal";
 import { EditPokemonModal } from "../components/pokemon/EditPokemonModal";
 import { EndPhaseModal } from "../components/pokemon/EndPhaseModal";
 import { CaughtChoiceModal, type CaughtChoice } from "../components/pokemon/CaughtChoiceModal";
+import { FailedChoiceModal, type FailedChoice } from "../components/pokemon/FailedChoiceModal";
 import { CatchMetaModal } from "../components/pokemon/CatchMetaModal";
 import { ConfirmModal } from "../components/shared/ConfirmModal";
 import { SetEncounterModal } from "../components/shared/SetEncounterModal";
@@ -85,6 +87,7 @@ import { TrimmedBoxSprite } from "../components/shared/TrimmedBoxSprite";
 import { FreezableSprite } from "../components/shared/FreezableSprite";
 
 import { apiUrl, reorderPokemon, setPokemonGroup } from "../utils/api";
+import { markSpeciesSeen } from "../utils/dexSeen";
 
 /** Sentinel viewedGroupId value selecting the synthetic "ungrouped" bucket. */
 const UNGROUPED_VIEW_ID = "__ungrouped__";
@@ -1654,12 +1657,19 @@ function CaughtBanner({
 }>) {
   const { t } = useI18n();
   const originLabel = phaseOriginLabel(pokemon, parent?.name, t);
+  const failed = !!pokemon.failed;
   return (
-    <div className="flex flex-wrap items-center gap-2.5 px-6 py-2 rounded-none bg-accent-green/10 text-accent-green text-sm mb-2 border border-accent-green/30 shadow-sm mt-8">
-      <Trophy className="w-4 h-4" />
-      <span className="font-bold">{t("dash.caughtBanner")}</span>
-      <span className="w-px h-3 bg-accent-green/30" />
-      <span className="text-accent-green/80 text-xs font-medium">
+    <div
+      className={`flex flex-wrap items-center gap-2.5 px-6 py-2 rounded-none text-sm mb-2 border shadow-sm mt-8 ${
+        failed
+          ? "bg-accent-red/10 text-accent-red border-accent-red/30"
+          : "bg-accent-green/10 text-accent-green border-accent-green/30"
+      }`}
+    >
+      {failed ? <XCircle className="w-4 h-4" /> : <Trophy className="w-4 h-4" />}
+      <span className="font-bold">{failed ? t("dash.failedBanner") : t("dash.caughtBanner")}</span>
+      <span className={`w-px h-3 ${failed ? "bg-accent-red/30" : "bg-accent-green/30"}`} />
+      <span className={`text-xs font-medium ${failed ? "text-accent-red/80" : "text-accent-green/80"}`}>
         {new Date(pokemon.completed_at!).toLocaleDateString("de-DE", { day: "2-digit", month: "short", year: "numeric" })}
       </span>
       {originLabel && parent && (
@@ -2174,9 +2184,17 @@ export const Dashboard = memo(function Dashboard({
   // Only the id: the modal shows live encounters and timer, so a snapshot
   // would go stale as soon as the hotkey keeps counting while it is open.
   const [endPhaseId, setEndPhaseId] = useState<string | null>(null);
+  // True while endPhaseId's EndPhaseModal is closing out a failed phase
+  // rather than a caught one: routes its onSubmit to handleEndPhaseFailed and
+  // switches the modal to its "failed" variant. Reset on close so the modal
+  // never reopens in the wrong mode for the next hunt.
+  const [endPhaseFailed, setEndPhaseFailed] = useState(false);
   // Hunt whose "Caught!" button asked what actually happened, id for the same
   // reason as endPhaseId.
   const [caughtChoiceId, setCaughtChoiceId] = useState<string | null>(null);
+  // Hunt whose "Failed" button asked what actually happened, mirrors
+  // caughtChoiceId for the fail flow.
+  const [failedChoiceId, setFailedChoiceId] = useState<string | null>(null);
   // Entry whose optional catch details are being recorded. Set only after the
   // catch itself is persisted, and shared by the post-catch step and the edit
   // action coming back from the Dex, so only ever one dialog is mounted.
@@ -2327,6 +2345,30 @@ export const Dashboard = memo(function Dashboard({
   };
   const handleUncomplete = async (id: string) => {
     await fetch(apiUrl(`/api/pokemon/${id}/uncomplete`), { method: "POST" });
+  };
+  /**
+   * Archives a hunt as failed: the shiny was seen but never caught. Unlike
+   * handleComplete this never opens the catch-metadata step, since nothing
+   * was actually caught, but it does sync the species as "seen" in the
+   * Pokédex through the manual override system.
+   */
+  const handleFailPokemon = async (id: string) => {
+    // Captured before the request: a successful fail moves the entry out of
+    // the active list, and the fire-and-forget dex sync below must not race
+    // that state update to read the canonical name back off it.
+    const canonicalName = allPokemon.find((p) => p.id === id)?.canonical_name ?? "";
+    const res = await fetch(apiUrl(`/api/pokemon/${id}/fail`), { method: "POST" });
+    if (res.ok) void markSpeciesSeen(canonicalName);
+  };
+  /** Opens the destructive confirmation for failing a whole hunt (not just a phase). */
+  const confirmFailHunt = (id: string) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: t("confirm.failTitle"),
+      message: t("confirm.failMsg"),
+      isDestructive: true,
+      onConfirm: () => void handleFailPokemon(id),
+    });
   };
   const handleAddPokemon = async (data: NewPokemonData) => {
     await fetch(apiUrl("/api/pokemon"), {
@@ -2487,6 +2529,7 @@ export const Dashboard = memo(function Dashboard({
   // hotkey keeps the modal summary in sync with what the backend will freeze.
   const endPhaseParent = allPokemon.find((p) => p.id === endPhaseId) ?? null;
   const caughtChoiceHunt = allPokemon.find((p) => p.id === caughtChoiceId) ?? null;
+  const failedChoiceHunt = allPokemon.find((p) => p.id === failedChoiceId) ?? null;
   // Resolving against the live list also closes the dialog when the entry is
   // deleted underneath it, so the id can never dangle.
   const catchMetaTarget = allPokemon.find((p) => p.id === catchMetaId) ?? null;
@@ -2517,9 +2560,37 @@ export const Dashboard = memo(function Dashboard({
   const handleCaughtChoice = (id: string, choice: CaughtChoice) => {
     if (choice === "phase") {
       setEndPhaseId(id);
+      // Explicit reset, not just EndPhaseModal's onClose: if the previous
+      // end-phase dialog's hunt got deleted out from under it (e.g. a WS
+      // update from another tab), the modal unmounts via endPhaseParent
+      // turning null and onClose never runs, leaving the flag stuck.
+      setEndPhaseFailed(false);
       return;
     }
     void handleComplete(id);
+  };
+
+  /**
+   * Entry point of the Failed button: ask first when the hunt can phase (a
+   * failed encounter might only end the current phase, not the whole hunt),
+   * and fail the hunt straight away when it cannot.
+   */
+  const handleFailed = (p: Pokemon) => {
+    if (catchIsAmbiguous(p)) {
+      setFailedChoiceId(p.id);
+      return;
+    }
+    confirmFailHunt(p.id);
+  };
+
+  /** Routes the answer of the failed dialog to the matching flow. */
+  const handleFailedChoice = (id: string, choice: FailedChoice) => {
+    if (choice === "phase") {
+      setEndPhaseId(id);
+      setEndPhaseFailed(true);
+      return;
+    }
+    confirmFailHunt(id);
   };
 
   /**
@@ -2557,6 +2628,31 @@ export const Dashboard = memo(function Dashboard({
       throw err;
     }
     pushToast({ type: "success", title: t("phase.ended", { number }), key: "phase-end" });
+  };
+
+  /**
+   * Ends the running phase of a hunt with a foreign shiny that got away
+   * rather than one that was caught. Mirrors handleEndPhase except the POST
+   * body carries `failed: true`, nothing was caught so the catch-metadata
+   * step never opens, and the newly archived phase child is synced into the
+   * Pokédex as seen instead.
+   */
+  const handleEndPhaseFailed = async (parent: Pokemon, data: PhaseCatchPayload) => {
+    const number = computePhaseStats(parent, allPokemon).phaseNumber;
+    try {
+      const res = await fetch(apiUrl(`/api/pokemon/${parent.id}/phase`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...data, failed: true }),
+      });
+      if (!res.ok) throw new Error("end phase failed");
+      const child = (await res.json()) as Pokemon;
+      void markSpeciesSeen(child.canonical_name);
+    } catch (err) {
+      pushToast({ type: "error", title: t("phase.endFailedError"), key: "phase-end" });
+      throw err;
+    }
+    pushToast({ type: "success", title: t("phase.endedFailed", { number }), key: "phase-end" });
   };
 
   /** Stores the optional catch details recorded in the metadata dialog. */
@@ -2868,11 +2964,16 @@ export const Dashboard = memo(function Dashboard({
             onError={() => setImgError((prev) => ({ ...prev, [p.id]: src }))}
             className="pokemon-sprite w-full h-full object-contain"
           />
-          {/* Decorative: the caught state is already carried by the selected
-              Pokédex tab this row can only appear under. */}
-          {isCaught && (
+          {/* Decorative: the caught/failed state is already carried by the
+              selected Pokédex tab this row can only appear under. */}
+          {isCaught && !p.failed && (
             <div aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 bg-accent-green rounded-none p-0.5">
               <Trophy className="w-2 h-2 text-text-primary" />
+            </div>
+          )}
+          {isCaught && p.failed && (
+            <div aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 bg-accent-red rounded-none p-0.5">
+              <XCircle className="w-2 h-2 text-text-primary" />
             </div>
           )}
         </div>
@@ -3418,6 +3519,18 @@ export const Dashboard = memo(function Dashboard({
                 </button>
               )}
 
+              {/* 1b. Failed, negative state change before CTA */}
+              {!viewedPokemon.completed_at && (
+                <button
+                  onClick={() => handleFailed(viewedPokemon)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-none bg-accent-red hover:bg-accent-red/90 border border-transparent text-xs font-bold transition-colors"
+                  aria-label={t("dash.failed")}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                  <span className="hidden 2xl:inline">{t("dash.failed")}</span>
+                </button>
+              )}
+
               {/* 2. Hunt start/stop, primary CTA */}
               {!viewedPokemon.completed_at && (
                 <HeaderHuntButton
@@ -3481,14 +3594,28 @@ export const Dashboard = memo(function Dashboard({
           onClose={() => setCaughtChoiceId(null)}
         />
       )}
+      {failedChoiceHunt && (
+        <FailedChoiceModal
+          targetName={failedChoiceHunt.name}
+          phaseNumber={computePhaseStats(failedChoiceHunt, allPokemon).phaseNumber}
+          onChoose={(choice) => handleFailedChoice(failedChoiceHunt.id, choice)}
+          onClose={() => setFailedChoiceId(null)}
+        />
+      )}
       {endPhaseParent && (
         <EndPhaseModal
           parent={endPhaseParent}
           phaseNumber={computePhaseStats(endPhaseParent, allPokemon).phaseNumber}
           encounters={endPhaseParent.encounters}
           timerMs={computeTimerMs(endPhaseParent)}
-          onSubmit={(data) => handleEndPhase(endPhaseParent, data)}
-          onClose={() => setEndPhaseId(null)}
+          variant={endPhaseFailed ? "failed" : "caught"}
+          onSubmit={(data) =>
+            endPhaseFailed ? handleEndPhaseFailed(endPhaseParent, data) : handleEndPhase(endPhaseParent, data)
+          }
+          onClose={() => {
+            setEndPhaseId(null);
+            setEndPhaseFailed(false);
+          }}
         />
       )}
       {catchMetaTarget && (

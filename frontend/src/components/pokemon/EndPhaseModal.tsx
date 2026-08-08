@@ -56,6 +56,13 @@ export interface EndPhaseModalProps {
   readonly onSubmit: (data: PhaseCatchData) => Promise<void> | void;
   /** Called after the close transition finishes; unmount the modal here. */
   readonly onClose: () => void;
+  /**
+   * Which phase outcome this dialog closes out. Only changes the title and
+   * the confirm button's label/colour: the species picked here is the same
+   * "which species was it" question either way, the caller mixes the
+   * `failed` flag into the POST body itself.
+   */
+  readonly variant?: "caught" | "failed";
 }
 
 // --- Helpers ---
@@ -101,8 +108,10 @@ export function EndPhaseModal({
   timerMs,
   onSubmit,
   onClose,
+  variant = "caught",
 }: EndPhaseModalProps) {
   const { t } = useI18n();
+  const isFailed = variant === "failed";
   const { allPokemon, games } = usePokedex();
   const targetsLabelId = useId();
 
@@ -173,15 +182,22 @@ export function EndPhaseModal({
         type="button"
         onClick={() => void handleConfirm(requestClose)}
         disabled={!selection || submitting}
-        className="flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap bg-accent-blue hover:bg-accent-blue/80 text-bg-primary disabled:opacity-50 disabled:cursor-not-allowed"
+        className={`flex-1 px-4 py-2 t-cut rounded-none font-semibold text-sm transition-colors shadow-sm whitespace-nowrap text-bg-primary disabled:opacity-50 disabled:cursor-not-allowed ${
+          isFailed ? "bg-accent-red hover:bg-accent-red/80" : "bg-accent-blue hover:bg-accent-blue/80"
+        }`}
       >
-        {t("phase.confirm")}
+        {isFailed ? t("phase.confirmFailed") : t("phase.confirm")}
       </button>
     </div>
   );
 
   return (
-    <ModalShell title={t("phase.endTitle")} onClose={onClose} size="md" footer={footer}>
+    <ModalShell
+      title={isFailed ? t("phase.endFailedTitle") : t("phase.endTitle")}
+      onClose={onClose}
+      size="md"
+      footer={footer}
+    >
       <div className="flex flex-col gap-4">
         <p className="text-sm text-text-muted tabular-nums">
           {t("phase.summary", {

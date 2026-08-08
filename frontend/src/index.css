@@ -336,6 +336,11 @@ dialog.tutorial-shell::backdrop {
   color: var(--accent-blue);
 }
 
+.t-label--danger {
+  border-color: color-mix(in srgb, var(--accent-red) 55%, transparent);
+  color: var(--accent-red);
+}
+
 /* Corner-cut CTA: cuts the top-right corner.
 
    Fallback path for renderers without corner-shape. A clip is not a corner:
