@@ -49,36 +49,7 @@ import { LOCALES } from "../utils/i18n";
 import type { Locale } from "../locales";
 import { apiUrl, wsUrl } from "../utils/api";
 import { FolderPathInput } from "../components/settings/FolderPathInput";
-
-// --- Toggle switch -----------------------------------------------------------
-
-function Toggle({
-  enabled,
-  onChange,
-  label,
-  color = "bg-accent-blue/80",
-}: Readonly<{
-  enabled: boolean;
-  onChange: () => void;
-  label?: string;
-  color?: string;
-}>) {
-  return (
-    <button
-      onClick={onChange}
-      role="switch"
-      aria-checked={enabled}
-      aria-label={label}
-      className={`relative w-12 h-6 2xl:w-14 2xl:h-7 rounded-full transition-colors flex items-center px-1 shrink-0 ${
-        enabled ? color : "bg-bg-secondary border border-border-subtle"
-      }`}
-    >
-      <div
-        className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${enabled ? "translate-x-6" : "translate-x-0"}`}
-      />
-    </button>
-  );
-}
+import { Toggle } from "../components/shared/Toggle";
 
 // --- Section wrapper ---------------------------------------------------------
 
