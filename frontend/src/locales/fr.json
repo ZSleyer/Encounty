@@ -1233,7 +1233,7 @@
   "dex.unmatchedHint": "Ces captures n'ont pas de numéro de Pokédex et ne sont pas comptabilisées.",
   "dex.loading": "Chargement du Pokédex",
   "dex.filterSeen": "Vus",
-  "dex.markManually": "Marquer manuellement…",
+  "dex.markManually": "Ajouter manuellement…",
   "dex.overrideModalTitle": "Saisie manuelle pour {{name}}",
   "dex.overrideForm": "Forme",
   "dex.overrideGender": "Sexe",

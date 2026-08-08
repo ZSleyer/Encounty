@@ -1233,7 +1233,7 @@
   "dex.unmatchedHint": "These catches have no Pokédex number and are not counted.",
   "dex.loading": "Loading Pokédex",
   "dex.filterSeen": "Seen",
-  "dex.markManually": "Mark manually…",
+  "dex.markManually": "Add manually…",
   "dex.overrideModalTitle": "Manual entry for {{name}}",
   "dex.overrideForm": "Form",
   "dex.overrideGender": "Gender",

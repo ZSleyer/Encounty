@@ -1233,7 +1233,7 @@
   "dex.unmatchedHint": "Diese Fänge haben keine Pokédex-Nummer und zählen nicht mit.",
   "dex.loading": "Pokédex wird geladen",
   "dex.filterSeen": "Gesehen",
-  "dex.markManually": "Manuell markieren…",
+  "dex.markManually": "Manuell anlegen…",
   "dex.overrideModalTitle": "Manueller Eintrag für {{name}}",
   "dex.overrideForm": "Form",
   "dex.overrideGender": "Geschlecht",
