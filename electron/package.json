@@ -20,5 +20,8 @@
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
+  },
+  "resolutions": {
+    "js-yaml": "4.3.1"
   }
 }
