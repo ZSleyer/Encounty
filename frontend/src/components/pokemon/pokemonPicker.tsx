@@ -62,12 +62,23 @@ export interface SearchResult {
 
 // --- Helpers ---
 
-/** Localized display name of a pokedex entry, falling back to English then canonical. */
+/**
+ * Localized display name of a pokedex entry, falling back to English then
+ * canonical. `genderFemaleLabel` (pass `t("dex.genderFormFemale")`) covers
+ * gender-only pseudo-forms PokeAPI never names (e.g. a synthesized
+ * "pikachu-female"): without it these would otherwise fall back to the raw
+ * PokeAPI slug instead of a translated label.
+ */
 export function getPkmnName(
   p: SearchResult | PokemonData | PokemonForm,
   lang: string,
+  genderFemaleLabel?: string,
 ): string {
-  return p.names?.[lang] || p.names?.["en"] || p.canonical;
+  const named = p.names?.[lang] || p.names?.["en"];
+  if (named) return named;
+  const gender = "gender" in p ? p.gender : undefined;
+  if (gender === "female" && genderFemaleLabel) return genderFemaleLabel;
+  return p.canonical;
 }
 
 /**
@@ -570,7 +581,7 @@ export function PokemonSearchPicker({
                   #{s.id}
                 </span>
                 <span className="capitalize flex-1 min-w-0 truncate text-text-primary">
-                  {getPkmnName(s, language)}
+                  {getPkmnName(s, language, t("dex.genderFormFemale"))}
                 </span>
                 <span className="text-xs text-text-muted shrink-0">{s.canonical}</span>
               </button>
@@ -605,7 +616,7 @@ export function PokemonSearchPicker({
                     className="h-6 w-6 object-contain shrink-0"
                   />
                   <span className="capitalize truncate max-w-[10rem]">
-                    {f.formName || getPkmnName(f, language)}
+                    {f.formName || getPkmnName(f, language, t("dex.genderFormFemale"))}
                   </span>
                 </button>
               );

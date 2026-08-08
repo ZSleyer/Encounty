@@ -1240,6 +1240,7 @@
   "dex.genderAny": "Any",
   "dex.genderMale": "Male",
   "dex.genderFemale": "Female",
+  "dex.genderFormFemale": "Female",
   "dex.overrideCaught": "Mark as caught",
   "dex.overrideSeen": "Mark as seen",
   "dex.overrideRemove": "Remove",

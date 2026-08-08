@@ -1176,7 +1176,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         spriteId={s.spriteId}
                         canonical={s.canonical}
                         spriteSlug={s.spriteSlug}
-                        alt={getPkmnName(s, language)}
+                        alt={getPkmnName(s, language, t("dex.genderFormFemale"))}
                         className="h-7 w-7 object-contain shrink-0"
                       />
                       {!s.isForm && (
@@ -1187,7 +1187,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                       <span
                         className={`capitalize flex-1 min-w-0 truncate ${s.isForm ? "text-text-secondary" : "text-text-primary"}`}
                       >
-                        {getPkmnName(s, language)}
+                        {getPkmnName(s, language, t("dex.genderFormFemale"))}
                       </span>
                       <span className="text-xs text-text-muted shrink-0">
                         {s.canonical}
@@ -1226,7 +1226,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         className="h-6 w-6 object-contain shrink-0"
                       />
                       <span className="capitalize truncate max-w-[10rem]">
-                        {f.formName || getPkmnName(f, language)}
+                        {f.formName || getPkmnName(f, language, t("dex.genderFormFemale"))}
                       </span>
                     </button>
                   );

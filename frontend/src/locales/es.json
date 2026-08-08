@@ -1240,6 +1240,7 @@
   "dex.genderAny": "Cualquiera",
   "dex.genderMale": "Macho",
   "dex.genderFemale": "Hembra",
+  "dex.genderFormFemale": "Hembra",
   "dex.overrideCaught": "Marcar como atrapado",
   "dex.overrideSeen": "Marcar como visto",
   "dex.overrideRemove": "Eliminar",

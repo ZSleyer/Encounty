@@ -1240,6 +1240,7 @@
   "dex.genderAny": "Beliebig",
   "dex.genderMale": "Männlich",
   "dex.genderFemale": "Weiblich",
+  "dex.genderFormFemale": "Weiblich",
   "dex.overrideCaught": "Als gefangen markieren",
   "dex.overrideSeen": "Als gesehen markieren",
   "dex.overrideRemove": "Entfernen",

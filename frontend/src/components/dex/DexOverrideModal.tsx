@@ -58,9 +58,34 @@ function hasGenderVariance(forms: PokemonForm[]): boolean {
   return forms.some((f) => Boolean(f.gender));
 }
 
-/** Localized label of one override row's form scope. */
-function formLabel(o: DexOverride, t: (key: string) => string): string {
-  return o.formCanonical || t("dex.defaultForm");
+/**
+ * Localized display label of a form's own canonical. PokeAPI never names a
+ * gender-only pseudo-form (there is no in-game distinct form, just a sprite
+ * difference), so the fallback below reuses the exact string PokeAPI's own
+ * localization gives the equivalent *named* gender forms (verified against
+ * the synced data for pyroar-female/meowstic-female/indeedee-female) rather
+ * than leaking the raw PokeAPI slug.
+ */
+function formCanonicalLabel(f: PokemonForm, locale: string, t: (key: string) => string): string {
+  return (
+    f.form_names?.[locale] ||
+    f.form_names?.en ||
+    (f.gender === "female" ? t("dex.genderFormFemale") : f.canonical)
+  );
+}
+
+/** Localized label of one override row's form scope, resolved against the
+ * species' known forms so an already-set override shows a real name instead
+ * of its raw PokeAPI canonical. */
+function formLabel(
+  o: DexOverride,
+  forms: PokemonForm[],
+  locale: string,
+  t: (key: string) => string,
+): string {
+  if (!o.formCanonical) return t("dex.defaultForm");
+  const form = forms.find((f) => f.canonical === o.formCanonical);
+  return form ? formCanonicalLabel(form, locale, t) : o.formCanonical;
 }
 
 /** Localized label of one override row's gender scope. */
@@ -255,7 +280,7 @@ export function DexOverrideModal({
                   .filter((f) => isFormAvailableForGame(f, "", []))
                   .map((f) => (
                     <option key={f.canonical} value={f.canonical}>
-                      {f.form_names?.[locale] || f.form_names?.en || f.canonical}
+                      {formCanonicalLabel(f, locale, t)}
                     </option>
                   ))}
               </select>
@@ -301,7 +326,7 @@ export function DexOverrideModal({
                   className="flex items-center justify-between gap-2 bg-bg-secondary px-3 py-1.5 text-xs text-text-secondary"
                 >
                   <span className="truncate">
-                    {formLabel(o, t)} · {genderLabel(o, t)} ·{" "}
+                    {formLabel(o, forms, locale, t)} · {genderLabel(o, t)} ·{" "}
                     {o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}
                   </span>
                   <button

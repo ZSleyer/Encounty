@@ -1240,6 +1240,7 @@
   "dex.genderAny": "指定なし",
   "dex.genderMale": "オス",
   "dex.genderFemale": "メス",
+  "dex.genderFormFemale": "メスのすがた",
   "dex.overrideCaught": "捕獲済みにする",
   "dex.overrideSeen": "目撃済みにする",
   "dex.overrideRemove": "削除",
