@@ -31,6 +31,7 @@ import { DexCatchesModal } from "../components/dex/DexCatchesModal";
 import { DexDetailModal } from "../components/dex/DexDetailModal";
 import { DexSpeciesDetail } from "../components/dex/DexSpeciesDetail";
 import { CatchMetaModal } from "../components/pokemon/CatchMetaModal";
+import { Toggle } from "../components/shared/Toggle";
 import { apiUrl } from "../utils/api";
 import type { CatchMeta, Pokemon } from "../types";
 
@@ -1056,40 +1057,53 @@ export function DexPage() {
           <DexProgress caught={index.caught} total={index.total} />
 
           <div className="t-panel flex flex-col gap-4 p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <ModeButton active={mode === "national"} onClick={() => setMode("national")}>
-                {t("dex.modeNational")}
-              </ModeButton>
-              <ModeButton active={mode === "game"} onClick={() => setMode("game")}>
-                {t("dex.modeGame")}
-              </ModeButton>
-              {mode === "game" && (
-                <div className="flex items-center gap-2">
-                  <label htmlFor={gameId} className="text-xs text-text-muted">
-                    {t("dex.pickGame")}
-                  </label>
-                  <div className="t-select-wrap w-56">
-                    <select
-                      id={gameId}
-                      className="t-select text-sm"
-                      value={game}
-                      onChange={(e) => setGame(e.target.value)}
-                    >
-                      {games.map((entry) => (
-                        <option key={entry.key} value={entry.key}>
-                          {getGameName(entry, gameLanguages)}
-                        </option>
-                      ))}
-                    </select>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <ModeButton active={mode === "national"} onClick={() => setMode("national")}>
+                  {t("dex.modeNational")}
+                </ModeButton>
+                <ModeButton active={mode === "game"} onClick={() => setMode("game")}>
+                  {t("dex.modeGame")}
+                </ModeButton>
+                {mode === "game" && (
+                  <div className="flex items-center gap-2">
+                    <label htmlFor={gameId} className="text-xs text-text-muted">
+                      {t("dex.pickGame")}
+                    </label>
+                    <div className="t-select-wrap w-56">
+                      <select
+                        id={gameId}
+                        className="t-select text-sm"
+                        value={game}
+                        onChange={(e) => setGame(e.target.value)}
+                      >
+                        {games.map((entry) => (
+                          <option key={entry.key} value={entry.key}>
+                            {getGameName(entry, gameLanguages)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                </div>
-              )}
-              {/* Additive to National/Spiel on purpose: it does not replace
-                  either mode, it only adds a slot per known form on top of
-                  whichever mode is active. */}
-              <ModeButton active={showAllForms} onClick={() => setShowAllForms((v) => !v)}>
-                {t("dex.modeForms")}
-              </ModeButton>
+                )}
+              </div>
+              {/* A pill switch, not a third ModeButton: National/Spiel are
+                  mutually exclusive, but this is additive on top of whichever
+                  one is active, and needs to read as a different kind of
+                  control at a glance, not a third pressed-state option in the
+                  same group. The divider reinforces that it belongs to its
+                  own control, not the mode group. */}
+              <div className="hidden h-5 w-px bg-border-subtle sm:block" aria-hidden="true" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
+                  {t("dex.modeForms")}
+                </span>
+                <Toggle
+                  enabled={showAllForms}
+                  onChange={() => setShowAllForms((v) => !v)}
+                  label={t("dex.modeForms")}
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-4">
@@ -1250,9 +1264,8 @@ interface ModeButtonProps {
 }
 
 /**
- * Mode switch. A pressed-state button rather than a tablist entry: the forms
- * toggle sits next to National/Spiel but is additive, not mutually exclusive
- * with either of them.
+ * Mode switch. Two pressed-state buttons rather than a tablist: both states
+ * show the very same panel, only its numbers change.
  */
 function ModeButton({ active, onClick, children }: ModeButtonProps) {
   return (
