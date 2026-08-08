@@ -1792,3 +1792,52 @@ func TestListPokedexOverridesMultipleKeys(t *testing.T) {
 		t.Fatalf("len(rows) = %d, want %d (each key combination is a distinct row)", len(rows), len(specs))
 	}
 }
+
+// TestUpsertPokedexOverrideMetaJSONRoundTrip verifies that MetaJSON on the
+// input row is stored and read back unchanged.
+func TestUpsertPokedexOverrideMetaJSONRoundTrip(t *testing.T) {
+	db := openTestDB(t)
+
+	const meta = `{"location":"Route 1","level":5,"ribbons":["champion"]}`
+	row, _, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 25, Caught: true, Seen: true, MetaJSON: meta,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPokedexOverride: %v", err)
+	}
+	if row.MetaJSON != meta {
+		t.Errorf("row.MetaJSON = %q, want %q", row.MetaJSON, meta)
+	}
+
+	rows, err := db.ListPokedexOverrides()
+	if err != nil {
+		t.Fatalf("ListPokedexOverrides: %v", err)
+	}
+	if len(rows) != 1 || rows[0].MetaJSON != meta {
+		t.Fatalf("ListPokedexOverrides = %+v, want one row with MetaJSON = %q", rows, meta)
+	}
+}
+
+// TestUpsertPokedexOverrideMetaJSONOverwritesOnConflict verifies that a
+// second upsert for the same key replaces meta_json with whatever value the
+// caller passes; UpsertPokedexOverride has no "preserve" behaviour of its
+// own, that logic lives in the pokedex package above it.
+func TestUpsertPokedexOverrideMetaJSONOverwritesOnConflict(t *testing.T) {
+	db := openTestDB(t)
+
+	if _, _, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 1, Caught: true, MetaJSON: `{"location":"Route 1"}`,
+	}); err != nil {
+		t.Fatalf("first UpsertPokedexOverride: %v", err)
+	}
+
+	second, _, err := db.UpsertPokedexOverride(database.PokedexOverrideRow{
+		SpeciesID: 1, Caught: true, Seen: true, MetaJSON: "{}",
+	})
+	if err != nil {
+		t.Fatalf("second UpsertPokedexOverride: %v", err)
+	}
+	if second.MetaJSON != "{}" {
+		t.Errorf("second.MetaJSON = %q, want {} (overwritten, not merged)", second.MetaJSON)
+	}
+}

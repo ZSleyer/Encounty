@@ -711,3 +711,36 @@ func TestMigration41CreatesPokedexOverridesTable(t *testing.T) {
 		t.Error("expected UNIQUE constraint violation on duplicate (species_id, form_canonical, gender, game)")
 	}
 }
+
+// TestMigration42AddsOverrideMetaColumn verifies that migration 42 adds the
+// meta_json column to a pokedex_overrides table that predates it, that
+// existing rows default to "{}" (nothing recorded), and that running it
+// twice is harmless.
+func TestMigration42AddsOverrideMetaColumn(t *testing.T) {
+	db := openRawTestDB(t)
+
+	runMigrationTx(t, db, migrateAddPokedexOverrides)
+	if _, err := db.Exec(
+		`INSERT INTO pokedex_overrides (species_id, form_canonical, gender, game, caught, seen, created_at, updated_at)
+		 VALUES (25, '', '', '', 1, 0, 'now', 'now')`,
+	); err != nil {
+		t.Fatalf("insert legacy override row: %v", err)
+	}
+	if hasColumn(t, db, "pokedex_overrides", "meta_json") {
+		t.Fatal("seed already carries meta_json")
+	}
+
+	runMigrationTx(t, db, migrateAddOverrideMeta)
+	runMigrationTx(t, db, migrateAddOverrideMeta)
+
+	if !hasColumn(t, db, "pokedex_overrides", "meta_json") {
+		t.Fatal("meta_json missing after migration")
+	}
+	var metaJSON string
+	if err := db.QueryRow(`SELECT meta_json FROM pokedex_overrides WHERE species_id = 25`).Scan(&metaJSON); err != nil {
+		t.Fatalf("read meta_json: %v", err)
+	}
+	if metaJSON != "{}" {
+		t.Errorf("meta_json of a legacy row = %q, want {}", metaJSON)
+	}
+}

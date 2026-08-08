@@ -540,6 +540,8 @@ func (d *DB) PokedexCount() int {
 // the pokedex_overrides table. FormCanonical empty means the override applies
 // at the species level (no form restriction); Gender empty means it is not
 // gender-restricted; Game empty means it is global (counts everywhere).
+// MetaJSON holds the optional catch metadata (state.CatchMeta) as a JSON
+// string, with "{}" meaning nothing recorded.
 type PokedexOverrideRow struct {
 	ID            int64
 	SpeciesID     int
@@ -550,11 +552,12 @@ type PokedexOverrideRow struct {
 	Seen          bool
 	CreatedAt     string
 	UpdatedAt     string
+	MetaJSON      string
 }
 
 // ListPokedexOverrides returns all manual Pokédex caught/seen overrides.
 func (d *DB) ListPokedexOverrides() ([]PokedexOverrideRow, error) {
-	rows, err := d.db.Query(`SELECT id, species_id, form_canonical, gender, game, caught, seen, created_at, updated_at
+	rows, err := d.db.Query(`SELECT id, species_id, form_canonical, gender, game, caught, seen, created_at, updated_at, meta_json
 		FROM pokedex_overrides ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -565,7 +568,7 @@ func (d *DB) ListPokedexOverrides() ([]PokedexOverrideRow, error) {
 	for rows.Next() {
 		var r PokedexOverrideRow
 		var caught, seen int
-		if err := rows.Scan(&r.ID, &r.SpeciesID, &r.FormCanonical, &r.Gender, &r.Game, &caught, &seen, &r.CreatedAt, &r.UpdatedAt); err != nil {
+		if err := rows.Scan(&r.ID, &r.SpeciesID, &r.FormCanonical, &r.Gender, &r.Game, &caught, &seen, &r.CreatedAt, &r.UpdatedAt, &r.MetaJSON); err != nil {
 			return nil, err
 		}
 		r.Caught = caught != 0
@@ -586,8 +589,11 @@ func (d *DB) ListPokedexOverrides() ([]PokedexOverrideRow, error) {
 // Caught and Seen false, the matching row is deleted instead of being stored
 // with all-false flags; the second return value reports whether a deletion
 // happened. CreatedAt/UpdatedAt on the input row are ignored; this method
-// stamps them itself. On a successful upsert the returned row is read back
-// from the database so the caller sees the final ID and timestamps.
+// stamps them itself. MetaJSON is written as given, so a caller that wants to
+// preserve the previously stored metadata must resolve it to the existing
+// value itself before calling; this method has no notion of "unchanged". On a
+// successful upsert the returned row is read back from the database so the
+// caller sees the final ID and timestamps.
 func (d *DB) UpsertPokedexOverride(row PokedexOverrideRow) (PokedexOverrideRow, bool, error) {
 	if !row.Caught && !row.Seen {
 		if _, err := d.db.Exec(
@@ -601,13 +607,14 @@ func (d *DB) UpsertPokedexOverride(row PokedexOverrideRow) (PokedexOverrideRow, 
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	if _, err := d.db.Exec(
-		`INSERT INTO pokedex_overrides (species_id, form_canonical, gender, game, caught, seen, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO pokedex_overrides (species_id, form_canonical, gender, game, caught, seen, created_at, updated_at, meta_json)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(species_id, form_canonical, gender, game) DO UPDATE SET
 			caught     = excluded.caught,
 			seen       = excluded.seen,
-			updated_at = excluded.updated_at`,
-		row.SpeciesID, row.FormCanonical, row.Gender, row.Game, boolToInt(row.Caught), boolToInt(row.Seen), now, now,
+			updated_at = excluded.updated_at,
+			meta_json  = excluded.meta_json`,
+		row.SpeciesID, row.FormCanonical, row.Gender, row.Game, boolToInt(row.Caught), boolToInt(row.Seen), now, now, row.MetaJSON,
 	); err != nil {
 		return PokedexOverrideRow{}, false, fmt.Errorf("upsert pokedex override: %w", err)
 	}
@@ -615,10 +622,10 @@ func (d *DB) UpsertPokedexOverride(row PokedexOverrideRow) (PokedexOverrideRow, 
 	var out PokedexOverrideRow
 	var caught, seen int
 	err := d.db.QueryRow(
-		`SELECT id, species_id, form_canonical, gender, game, caught, seen, created_at, updated_at
+		`SELECT id, species_id, form_canonical, gender, game, caught, seen, created_at, updated_at, meta_json
 		 FROM pokedex_overrides WHERE species_id = ? AND form_canonical = ? AND gender = ? AND game = ?`,
 		row.SpeciesID, row.FormCanonical, row.Gender, row.Game,
-	).Scan(&out.ID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &caught, &seen, &out.CreatedAt, &out.UpdatedAt)
+	).Scan(&out.ID, &out.SpeciesID, &out.FormCanonical, &out.Gender, &out.Game, &caught, &seen, &out.CreatedAt, &out.UpdatedAt, &out.MetaJSON)
 	if err != nil {
 		return PokedexOverrideRow{}, false, fmt.Errorf("read back pokedex override: %w", err)
 	}

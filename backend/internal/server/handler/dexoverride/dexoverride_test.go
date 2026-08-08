@@ -59,6 +59,7 @@ func (m *mockOverrideStore) UpsertPokedexOverride(row database.PokedexOverrideRo
 			r.Gender == row.Gender && r.Game == row.Game {
 			m.rows[i].Caught = row.Caught
 			m.rows[i].Seen = row.Seen
+			m.rows[i].MetaJSON = row.MetaJSON
 			m.rows[i].UpdatedAt = "updated"
 			return m.rows[i], false, nil
 		}
@@ -263,6 +264,161 @@ func TestHandlePutStoreError(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf(fmtStatusWant, w.Code, http.StatusInternalServerError)
+	}
+}
+
+// --- PUT tests: catch metadata ---------------------------------------------------
+
+// TestHandlePutWithMetaIsReflectedByGet verifies that metadata sent on a PUT
+// is validated, stored, and shows up both on the PUT response and on a
+// subsequent GET.
+func TestHandlePutWithMetaIsReflectedByGet(t *testing.T) {
+	store := &mockOverrideStore{}
+	mux := newTestMux(t, store)
+
+	body, _ := json.Marshal(map[string]any{
+		"species_id": 25,
+		"caught":     true,
+		"seen":       true,
+		"meta": map[string]any{
+			"location": "Route 1",
+			"level":    5,
+			"ribbons":  []string{"champion"},
+		},
+	})
+	req := httptest.NewRequest(http.MethodPut, overridesPath, bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf(fmtStatusWant, w.Code, http.StatusOK)
+	}
+	var put pokedex.Override
+	if err := json.Unmarshal(w.Body.Bytes(), &put); err != nil {
+		t.Fatalf(fmtUnmarshal, err)
+	}
+	if put.Meta == nil || put.Meta.Location != "Route 1" {
+		t.Fatalf("PUT response Meta = %+v, want Location=Route 1", put.Meta)
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, overridesPath, nil)
+	getW := httptest.NewRecorder()
+	mux.ServeHTTP(getW, getReq)
+
+	var got []pokedex.Override
+	if err := json.Unmarshal(getW.Body.Bytes(), &got); err != nil {
+		t.Fatalf(fmtUnmarshal, err)
+	}
+	if len(got) != 1 || got[0].Meta == nil || got[0].Meta.Location != "Route 1" {
+		t.Fatalf("GET result = %+v, want one override with Location=Route 1", got)
+	}
+}
+
+// TestHandlePutTogglingWithoutMetaPreservesIt verifies the existing
+// caught/seen-only toggle behaviour: a PUT that omits "meta" entirely must
+// not wipe metadata a previous PUT stored for the same override.
+func TestHandlePutTogglingWithoutMetaPreservesIt(t *testing.T) {
+	store := &mockOverrideStore{}
+	mux := newTestMux(t, store)
+
+	withMeta, _ := json.Marshal(map[string]any{
+		"species_id": 25,
+		"caught":     true,
+		"seen":       false,
+		"meta":       map[string]any{"location": "Route 1"},
+	})
+	req1 := httptest.NewRequest(http.MethodPut, overridesPath, bytes.NewReader(withMeta))
+	w1 := httptest.NewRecorder()
+	mux.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf(fmtStatusWant, w1.Code, http.StatusOK)
+	}
+
+	toggleOnly, _ := json.Marshal(map[string]any{
+		"species_id": 25,
+		"caught":     true,
+		"seen":       true,
+	})
+	req2 := httptest.NewRequest(http.MethodPut, overridesPath, bytes.NewReader(toggleOnly))
+	w2 := httptest.NewRecorder()
+	mux.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf(fmtStatusWant, w2.Code, http.StatusOK)
+	}
+
+	var got pokedex.Override
+	if err := json.Unmarshal(w2.Body.Bytes(), &got); err != nil {
+		t.Fatalf(fmtUnmarshal, err)
+	}
+	if !got.Seen {
+		t.Error("Seen = false, want true after the toggle")
+	}
+	if got.Meta == nil || got.Meta.Location != "Route 1" {
+		t.Errorf("Meta = %+v, want the previously stored Location=Route 1 preserved", got.Meta)
+	}
+}
+
+// TestHandlePutExplicitEmptyMetaClears verifies that an explicit "meta": {}
+// clears previously stored metadata, distinguishing it from an omitted key.
+func TestHandlePutExplicitEmptyMetaClears(t *testing.T) {
+	store := &mockOverrideStore{}
+	mux := newTestMux(t, store)
+
+	withMeta, _ := json.Marshal(map[string]any{
+		"species_id": 25, "caught": true, "meta": map[string]any{"location": "Route 1"},
+	})
+	req1 := httptest.NewRequest(http.MethodPut, overridesPath, bytes.NewReader(withMeta))
+	w1 := httptest.NewRecorder()
+	mux.ServeHTTP(w1, req1)
+	if w1.Code != http.StatusOK {
+		t.Fatalf(fmtStatusWant, w1.Code, http.StatusOK)
+	}
+
+	clearBody, _ := json.Marshal(map[string]any{
+		"species_id": 25, "caught": true, "meta": map[string]any{},
+	})
+	req2 := httptest.NewRequest(http.MethodPut, overridesPath, bytes.NewReader(clearBody))
+	w2 := httptest.NewRecorder()
+	mux.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf(fmtStatusWant, w2.Code, http.StatusOK)
+	}
+
+	var got pokedex.Override
+	if err := json.Unmarshal(w2.Body.Bytes(), &got); err != nil {
+		t.Fatalf(fmtUnmarshal, err)
+	}
+	if got.Meta != nil {
+		t.Errorf("Meta = %+v, want nil after an explicit empty meta", got.Meta)
+	}
+}
+
+// TestHandlePutMetaValidationErrors verifies that malformed catch metadata is
+// rejected with the same validation behaviour as PUT /api/pokemon/{id}/catch:
+// an out-of-range individual value and too many ribbons both fail with 400.
+func TestHandlePutMetaValidationErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		meta map[string]any
+	}{
+		{"iv out of range", map[string]any{"hp": 32}},
+		{"level out of range", map[string]any{"level": 101}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mux := newTestMux(t, &mockOverrideStore{})
+
+			body, _ := json.Marshal(map[string]any{
+				"species_id": 25, "caught": true, "meta": tc.meta,
+			})
+			req := httptest.NewRequest(http.MethodPut, overridesPath, bytes.NewReader(body))
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf(fmtStatusWant, w.Code, http.StatusBadRequest)
+			}
+		})
 	}
 }
 

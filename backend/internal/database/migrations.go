@@ -224,6 +224,11 @@ var migrations = []migration{
 		description: "add pokedex_overrides table for manual caught/seen overrides",
 		fn:          migrateAddPokedexOverrides,
 	},
+	{
+		version:     42,
+		description: "add meta_json column to pokedex_overrides",
+		fn:          migrateAddOverrideMeta,
+	},
 }
 
 // RunMigrations creates the migrations tracking table if needed, then applies
@@ -861,6 +866,19 @@ func migrateAddPokedexOverrides(tx *sql.Tx) error {
 	if _, err := tx.Exec(`CREATE INDEX IF NOT EXISTS idx_pokedex_overrides_species ON pokedex_overrides(species_id)`); err != nil {
 		return fmt.Errorf("create idx_pokedex_overrides_species: %w", err)
 	}
+	return nil
+}
+
+// migrateAddOverrideMeta adds the meta_json column to pokedex_overrides so a
+// manual override can optionally carry the same catch details recorded for a
+// real hunt (location, ball, level, nature, ability, mark, individual values,
+// ribbons), JSON-encoded. The default '{}' means "no metadata recorded",
+// which is what every row predating the feature reads as. Errors are ignored
+// for idempotency because SQLite does not support IF NOT EXISTS on ADD
+// COLUMN, and fresh databases already get the column from the baseline
+// schema.
+func migrateAddOverrideMeta(tx *sql.Tx) error {
+	_, _ = tx.Exec(`ALTER TABLE pokedex_overrides ADD COLUMN meta_json TEXT NOT NULL DEFAULT '{}'`)
 	return nil
 }
 

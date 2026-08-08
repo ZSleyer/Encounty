@@ -160,19 +160,19 @@ func TestValidateCatchMeta(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			meta := tc.meta
-			err := validateCatchMeta(&meta)
+			err := ValidateCatchMeta(&meta)
 			if tc.wantErr && err == nil {
-				t.Fatalf("validateCatchMeta(%+v) = nil, want an error", tc.meta)
+				t.Fatalf("ValidateCatchMeta(%+v) = nil, want an error", tc.meta)
 			}
 			if !tc.wantErr && err != nil {
-				t.Fatalf("validateCatchMeta(%+v) = %v, want nil", tc.meta, err)
+				t.Fatalf("ValidateCatchMeta(%+v) = %v, want nil", tc.meta, err)
 			}
 		})
 	}
 
 	// Duplicates are deduplicated in place rather than rejected.
 	dupes := state.CatchMeta{Ribbons: []string{"effort", " effort ", "champion"}}
-	if err := validateCatchMeta(&dupes); err != nil {
+	if err := ValidateCatchMeta(&dupes); err != nil {
 		t.Fatalf("validateCatchMeta on duplicates = %v, want nil", err)
 	}
 	if len(dupes.Ribbons) != 2 {

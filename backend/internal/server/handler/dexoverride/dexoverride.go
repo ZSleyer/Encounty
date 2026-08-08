@@ -9,6 +9,8 @@ import (
 
 	"github.com/zsleyer/encounty/backend/internal/httputil"
 	"github.com/zsleyer/encounty/backend/internal/pokedex"
+	"github.com/zsleyer/encounty/backend/internal/server/handler/pokemon"
+	"github.com/zsleyer/encounty/backend/internal/state"
 )
 
 // overridesRoute is the single route this package registers; GET and PUT
@@ -66,25 +68,37 @@ func (h *handler) handleGetOverrides(w http.ResponseWriter, _ *http.Request) {
 // setOverrideRequest is the body for PUT /api/pokedex/overrides.
 // FormCanonical empty means the override applies at the species level;
 // Gender empty means it is not gender-restricted; Game empty means it is
-// global (counts everywhere, both national and every game view).
+// global (counts everywhere, both national and every game view). Meta is
+// optional catch metadata: an absent (or JSON null) "meta" key leaves this
+// field nil, which preserves whatever metadata is already stored for this
+// override; an explicit "meta": {} decodes into a non-nil, all-empty
+// *state.CatchMeta, which clears the stored metadata.
 type setOverrideRequest struct {
-	SpeciesID     int    `json:"species_id"`
-	FormCanonical string `json:"form_canonical"`
-	Gender        string `json:"gender"`
-	Game          string `json:"game"`
-	Caught        bool   `json:"caught"`
-	Seen          bool   `json:"seen"`
+	SpeciesID     int              `json:"species_id"`
+	FormCanonical string           `json:"form_canonical"`
+	Gender        string           `json:"gender"`
+	Game          string           `json:"game"`
+	Caught        bool             `json:"caught"`
+	Seen          bool             `json:"seen"`
+	Meta          *state.CatchMeta `json:"meta,omitempty"`
 }
 
 // handleSetOverride creates, updates, or deletes a manual Pokédex caught/seen
 // override. A request whose caught and seen are both false deletes the
 // matching override and responds 204 with an empty body; otherwise it
-// responds 200 with the resulting override as JSON.
+// responds 200 with the resulting override as JSON. The optional "meta" field
+// carries the same catch metadata a real hunt records (location, ball,
+// level, nature, ability, mark, individual values, ribbons), validated with
+// the same rules as PUT /api/pokemon/{id}/catch. Omitting "meta" preserves
+// whatever metadata is already stored for the override; an explicit
+// "meta": {} clears it.
 // PUT /api/pokedex/overrides
 //
 // @Summary      Set a Pokédex override
 // @Description  Creates, updates, or deletes a manual caught/seen override. A
 // @Description  request with caught=false and seen=false deletes the override.
+// @Description  Omitting "meta" preserves the previously stored metadata; an
+// @Description  explicit "meta": {} clears it.
 // @Tags         pokedex
 // @Accept       json
 // @Produce      json
@@ -103,11 +117,17 @@ func (h *handler) handleSetOverride(w http.ResponseWriter, r *http.Request) {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "species_id required"})
 		return
 	}
+	if body.Meta != nil {
+		if err := pokemon.ValidateCatchMeta(body.Meta); err != nil {
+			httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
+			return
+		}
+	}
 
 	result, deleted, err := pokedex.SetOverride(
 		h.deps.PokedexOverrideDB(),
 		body.SpeciesID, body.FormCanonical, body.Gender, body.Game,
-		body.Caught, body.Seen,
+		body.Caught, body.Seen, body.Meta,
 	)
 	if err != nil {
 		httputil.WriteJSON(w, http.StatusInternalServerError, httputil.ErrResp{Error: err.Error()})

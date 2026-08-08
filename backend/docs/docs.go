@@ -479,6 +479,9 @@ const docTemplate = `{
                         },
                         "type": "object"
                     },
+                    "gender": {
+                        "type": "string"
+                    },
                     "generations": {
                         "items": {
                             "type": "integer"
@@ -496,6 +499,38 @@ const docTemplate = `{
                         "type": "integer"
                     },
                     "sprite_slug": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "pokedex.Override": {
+                "properties": {
+                    "caught": {
+                        "type": "boolean"
+                    },
+                    "form_canonical": {
+                        "type": "string"
+                    },
+                    "game": {
+                        "type": "string"
+                    },
+                    "gender": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "meta": {
+                        "$ref": "#/components/schemas/state.CatchMeta"
+                    },
+                    "seen": {
+                        "type": "boolean"
+                    },
+                    "species_id": {
+                        "type": "integer"
+                    },
+                    "updated_at": {
                         "type": "string"
                     }
                 },
@@ -3141,6 +3176,91 @@ const docTemplate = `{
                     }
                 },
                 "summary": "Get the Pokedex",
+                "tags": [
+                    "pokedex"
+                ]
+            }
+        },
+        "/pokedex/overrides": {
+            "get": {
+                "description": "Returns all manual Pokédex caught/seen overrides",
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/pokedex.Override"
+                                    },
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Get Pokédex overrides",
+                "tags": [
+                    "pokedex"
+                ]
+            },
+            "put": {
+                "description": "Creates, updates, or deletes a manual caught/seen override. A\nrequest with caught=false and seen=false deletes the override.\nOmitting \"meta\" preserves the previously stored metadata; an\nexplicit \"meta\": {} clears it.",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/pokedex.Override"
+                                }
+                            }
+                        },
+                        "description": "OK"
+                    },
+                    "204": {
+                        "description": "override deleted (both caught and seen false)"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Bad Request"
+                    },
+                    "500": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/httputil.ErrResp"
+                                }
+                            }
+                        },
+                        "description": "Internal Server Error"
+                    }
+                },
+                "summary": "Set a Pokédex override",
                 "tags": [
                     "pokedex"
                 ]

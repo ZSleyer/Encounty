@@ -344,6 +344,7 @@ var schemaV2 = []string{
 		seen            INTEGER NOT NULL DEFAULT 0,
 		created_at      TEXT    NOT NULL DEFAULT '',
 		updated_at      TEXT    NOT NULL DEFAULT '',
+		meta_json       TEXT    NOT NULL DEFAULT '{}',
 		UNIQUE (species_id, form_canonical, gender, game)
 	)`,
 

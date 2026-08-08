@@ -606,7 +606,7 @@ func (h *handler) handleSetCatchMeta(w http.ResponseWriter, r *http.Request, id 
 	}
 	// Validate before the id is looked up so a malformed body cannot be used to
 	// probe which Pokemon ids exist.
-	if err := validateCatchMeta(&body); err != nil {
+	if err := ValidateCatchMeta(&body); err != nil {
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: err.Error()})
 		return
 	}
@@ -745,11 +745,12 @@ func cleanCatchText(s string) string {
 	}, s))
 }
 
-// validateCatchMeta normalizes the catch metadata in place (trimming text,
+// ValidateCatchMeta normalizes the catch metadata in place (trimming text,
 // stripping control characters, deduplicating ribbons) and rejects values
 // outside the ranges the game itself allows. A nil or empty meta is valid: it
-// clears the record.
-func validateCatchMeta(meta *state.CatchMeta) error {
+// clears the record. Exported so other handler packages that also accept
+// catch metadata (e.g. dexoverride) can enforce the same rules.
+func ValidateCatchMeta(meta *state.CatchMeta) error {
 	if meta == nil {
 		return nil
 	}
@@ -789,13 +790,13 @@ func validateCatchMeta(meta *state.CatchMeta) error {
 		}
 	}
 
-	return validateCatchRibbons(meta)
+	return ValidateCatchRibbons(meta)
 }
 
-// validateCatchRibbons cleans and deduplicates the ribbon slugs in place. It
-// lives apart from validateCatchMeta so neither function grows a second loop
-// nesting level.
-func validateCatchRibbons(meta *state.CatchMeta) error {
+// ValidateCatchRibbons cleans and deduplicates the ribbon slugs in place. It
+// lives apart from ValidateCatchMeta so neither function grows a second loop
+// nesting level. Exported alongside ValidateCatchMeta for the same reason.
+func ValidateCatchRibbons(meta *state.CatchMeta) error {
 	if len(meta.Ribbons) > catchRibbonsMax {
 		return fmt.Errorf("at most %d ribbons are allowed", catchRibbonsMax)
 	}
