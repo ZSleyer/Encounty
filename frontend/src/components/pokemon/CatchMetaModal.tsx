@@ -372,7 +372,9 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }:
       footer={footer}
     >
       <div className="flex flex-col gap-5">
-        <p className="text-sm text-text-muted">{t("catchMeta.intro")}</p>
+        {mode === "capture" && (
+          <p className="text-sm text-text-muted">{t("catchMeta.intro")}</p>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <ComboField
