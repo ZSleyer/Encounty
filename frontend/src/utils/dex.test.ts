@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Pokemon } from "../types";
 import type { PokemonData } from "../components/pokemon/pokemonPicker";
-import { buildDexIndex } from "./dex";
+import { buildDexIndex, type DexOverride } from "./dex";
 
 /** Three-species pokedex with one regional form on Vulpix. */
 function pokedex(): PokemonData[] {
@@ -253,5 +253,122 @@ describe("buildDexIndex", () => {
 
     expect(dex).toEqual(dexSnapshot);
     expect(entries).toEqual(entriesSnapshot);
+  });
+});
+
+/** A manual override fixture; defaults to an unscoped, globally-caught row. */
+function override(overrides: Partial<DexOverride> = {}): DexOverride {
+  return {
+    id: 1,
+    speciesId: 906,
+    formCanonical: "",
+    gender: "",
+    game: "",
+    caught: true,
+    seen: true,
+    ...overrides,
+  };
+}
+
+describe("overrides", () => {
+  it("marks a slot caught from an override with no catches at all", () => {
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [
+      override({ speciesId: 906 }),
+    ]);
+
+    const sprigatito = index.entries.find((e) => e.id === 906);
+    expect(sprigatito?.caught).toBe(true);
+    expect(sprigatito?.seen).toBe(true);
+    expect(index.caught).toBe(1);
+  });
+
+  it("adds a form/gender-scoped override's canonical to variants like a real catch", () => {
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [
+      override({ speciesId: 37, formCanonical: "vulpix-alola", gender: "female" }),
+    ]);
+
+    const vulpix = index.entries.find((e) => e.id === 37);
+    expect(vulpix?.caught).toBe(true);
+    expect(vulpix?.variants).toEqual(["vulpix-alola"]);
+  });
+
+  it("counts a global override in national mode and in every per-game view", () => {
+    const national = buildDexIndex(pokedex(), [], "national", "", undefined, [
+      override({ speciesId: 906, game: "" }),
+    ]);
+    const gameView = buildDexIndex(pokedex(), [], "game", "pokemon-scarlet", 9, [
+      override({ speciesId: 906, game: "" }),
+    ]);
+
+    expect(national.entries.find((e) => e.id === 906)?.caught).toBe(true);
+    expect(gameView.entries.find((e) => e.id === 906)?.caught).toBe(true);
+  });
+
+  it("counts a game-scoped override in national mode and its own game view but not another game", () => {
+    const scoped = [override({ speciesId: 906, game: "pokemon-scarlet" })];
+
+    const national = buildDexIndex(pokedex(), [], "national", "", undefined, scoped);
+    const ownGame = buildDexIndex(pokedex(), [], "game", "pokemon-scarlet", 9, scoped);
+    const otherGame = buildDexIndex(pokedex(), [], "game", "pokemon-violet", 9, scoped);
+
+    expect(national.entries.find((e) => e.id === 906)?.caught).toBe(true);
+    expect(ownGame.entries.find((e) => e.id === 906)?.caught).toBe(true);
+    expect(otherGame.entries.find((e) => e.id === 906)?.caught).toBe(false);
+  });
+
+  it("keeps caught implying seen even when only the caught override applies", () => {
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [
+      override({ speciesId: 906, caught: true, seen: false }),
+    ]);
+
+    const sprigatito = index.entries.find((e) => e.id === 906);
+    expect(sprigatito?.caught).toBe(true);
+    expect(sprigatito?.seen).toBe(true);
+  });
+
+  it("does not exclude seen-only overrides from caught, but keeps them out of the caught count", () => {
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [
+      override({ speciesId: 906, caught: false, seen: true }),
+    ]);
+
+    const sprigatito = index.entries.find((e) => e.id === 906);
+    expect(sprigatito?.caught).toBe(false);
+    expect(sprigatito?.seen).toBe(true);
+    expect(index.caught).toBe(0);
+  });
+
+  it("treats an override with both flags false as a no-op", () => {
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [
+      override({ speciesId: 906, caught: false, seen: false, formCanonical: "sprigatito-x" }),
+    ]);
+
+    const sprigatito = index.entries.find((e) => e.id === 906);
+    expect(sprigatito?.caught).toBe(false);
+    expect(sprigatito?.seen).toBe(false);
+    expect(sprigatito?.variants).toEqual([]);
+    expect(index.caught).toBe(0);
+  });
+
+  it("ignores an override for a species outside the current view", () => {
+    const index = buildDexIndex(pokedex(), [], "national", "", undefined, [
+      override({ speciesId: 9999 }),
+    ]);
+
+    expect(index.caught).toBe(0);
+  });
+
+  it("leaves an existing real catch's caught state alone when an override targets a different species", () => {
+    const index = buildDexIndex(
+      pokedex(),
+      [caught({ id: "c1", canonical_name: "bulbasaur" })],
+      "national",
+      "",
+      undefined,
+      [override({ speciesId: 906 })],
+    );
+
+    expect(index.entries.find((e) => e.id === 1)?.caught).toBe(true);
+    expect(index.entries.find((e) => e.id === 906)?.caught).toBe(true);
+    expect(index.caught).toBe(2);
   });
 });

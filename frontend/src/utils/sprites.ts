@@ -283,6 +283,17 @@ export function bestAvailableStyle(
  * `baseCanonical` is the canonical name of the base species a form belongs to.
  * Only the animated style needs it, to place Showdown's single form hyphen;
  * leaving it out costs the animated sprite of every form with a suffix.
+ *
+ * `gender` marks a female-appearance gender variant (see `pokedex.Form.Gender`
+ * on the backend). Only *synthesized* variants (Path B: species carries the
+ * gender-differences flag but has no dedicated pokemonform, so the backend
+ * fabricates a "<canonical>-female" form reusing the species' own numeric id)
+ * take the female-path branch below. Gendered forms with their own dedicated
+ * PokeAPI pokemon id (Path A, e.g. Meowstic-female = 10025) already have a
+ * working 3D Home render and official artwork at that id and must resolve
+ * through the normal id-based paths instead, so the branch is gated to
+ * base-species ids (<= 10000), mirroring the id > 10000 check in
+ * getClassicSpriteUrl below.
  */
 export function getSpriteUrl(
   pokemonId: number | string,
@@ -292,6 +303,7 @@ export function getSpriteUrl(
   canonicalName?: string,
   spriteSlug?: string,
   baseCanonical?: string,
+  gender?: string,
 ): string {
   const shiny = spriteType === "shiny";
 
@@ -304,6 +316,21 @@ export function getSpriteUrl(
     return shiny
       ? `${POKEAPI_BASE}/shiny/${spriteSlug}.png`
       : `${POKEAPI_BASE}/${spriteSlug}.png`;
+  }
+
+  // Synthesized female gender variants (Path B) carry the species' own
+  // numeric id, not a slug, so they insert a "female/" path segment instead
+  // of substituting a slug. Gendered forms with their own dedicated PokeAPI
+  // pokemon id (Path A, id > 10000) already resolve correctly through the
+  // normal id-based paths below and must not take this branch.
+  if (
+    gender === "female" &&
+    Number(pokemonId) <= 10000 &&
+    (spriteStyle === "3d" || spriteStyle === "artwork" || spriteStyle === "classic")
+  ) {
+    return shiny
+      ? `${POKEAPI_BASE}/shiny/female/${pokemonId}.png`
+      : `${POKEAPI_BASE}/female/${pokemonId}.png`;
   }
 
   const resolvedId = resolvePokeApiId(pokemonId, canonicalName);

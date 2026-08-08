@@ -18,6 +18,23 @@ import { getPokemonGeneration } from "./sprites";
 /** Which catches the index counts: the whole archive or one game only. */
 export type DexMode = "national" | "game";
 
+/**
+ * One manual caught/seen override as delivered by GET /api/pokedex/overrides.
+ *
+ * `formCanonical`/`gender`/`game` narrow the override's scope; an empty string
+ * on any of them means "unscoped" on that axis (species-level, not
+ * gender-restricted, global), mirroring the backend's own semantics.
+ */
+export interface DexOverride {
+  id: number;
+  speciesId: number;
+  formCanonical: string;
+  gender: string;
+  game: string;
+  caught: boolean;
+  seen: boolean;
+}
+
 /** One pokedex species slot with the archived catches resolved onto it. */
 export interface DexEntry {
   /** National Dex number. */
@@ -30,6 +47,10 @@ export interface DexEntry {
   catches: Pokemon[];
   /** Distinct non-default form canonicals among `catches`, first seen first. */
   variants: string[];
+  /** True when a completed catch or a manual override marks this slot caught. */
+  caught: boolean;
+  /** True when caught, or a manual override marks this slot seen without being caught. */
+  seen: boolean;
 }
 
 /** The full dex projection for one mode/game combination. */
@@ -118,6 +139,20 @@ function collectVariants(entry: DexEntry): string[] {
   return variants;
 }
 
+/**
+ * Whether one override is in scope for the current mode/game view.
+ *
+ * National mode counts every override regardless of its `game`, the same way
+ * it counts every catch regardless of `game`. Game mode differs from catch
+ * filtering on purpose: a catch with no `game` is unmatched there, but an
+ * override with no `game` is a deliberate "global" scope and counts in every
+ * per-game view, not just the selected one.
+ */
+function overrideInView(o: DexOverride, mode: DexMode, game: string): boolean {
+  if (mode === "national") return true;
+  return o.game === "" || o.game === game;
+}
+
 /** Catches that belong to no slot in the current view. */
 type Rejected = "skip" | "unmatched";
 
@@ -163,6 +198,8 @@ function placeCatch(
  * @param game Game key the "game" mode filters on; ignored in national mode.
  * @param generation Generation of that game; ignored in national mode. An
  * omitted or unknown generation renders the uncapped species list.
+ * @param overrides Manual caught/seen overrides to fold onto the entries;
+ * defaults to none so every existing caller keeps working unchanged.
  * @returns A fresh index; neither argument is modified.
  */
 export function buildDexIndex(
@@ -171,6 +208,7 @@ export function buildDexIndex(
   mode: DexMode,
   game: string,
   generation?: number,
+  overrides: DexOverride[] = [],
 ): DexIndex {
   const cap = resolveDexCap(mode, generation);
   const visible = cap === null ? pokedex : pokedex.filter((s) => s.id <= cap);
@@ -181,6 +219,8 @@ export function buildDexIndex(
     generation: getPokemonGeneration(species.id),
     catches: [],
     variants: [],
+    caught: false,
+    seen: false,
   }));
 
   const slots = new Map<number, DexEntry>();
@@ -200,12 +240,37 @@ export function buildDexIndex(
     target.catches.push(p);
   }
 
+  for (const entry of entries) {
+    if (entry.catches.length > 0) {
+      entry.catches.sort(byNewestCompletion);
+      entry.variants = collectVariants(entry);
+    }
+    entry.caught = entry.catches.length > 0;
+    // A real catch on the slot already implies seen; overrides below only
+    // ever add to this, never take it away.
+    entry.seen = entry.caught;
+  }
+
+  // A "both flags false" override is the backend's delete shape and carries
+  // no information here, so it never touches an entry (also keeps a
+  // species-level "no-op" override from spuriously listing an empty variant).
+  for (const o of overrides) {
+    if (!o.caught && !o.seen) continue;
+    if (!overrideInView(o, mode, game)) continue;
+    const entry = slots.get(o.speciesId);
+    if (!entry) continue;
+    if (o.caught) entry.caught = true;
+    entry.seen = true;
+    // A form/gender-scoped override acts as a virtual catch of that variant,
+    // discoverable through `variants` the same way a real catch would be.
+    if (o.formCanonical && !entry.variants.includes(o.formCanonical)) {
+      entry.variants.push(o.formCanonical);
+    }
+  }
+
   let caught = 0;
   for (const entry of entries) {
-    if (entry.catches.length === 0) continue;
-    caught++;
-    entry.catches.sort(byNewestCompletion);
-    entry.variants = collectVariants(entry);
+    if (entry.caught) caught++;
   }
 
   return { entries, caught, total: entries.length, unmatched };

@@ -185,6 +185,42 @@ describe("getSpriteUrl", () => {
     });
   });
 
+  describe("female gender variant", () => {
+    it("resolves the 3d style to the shiny female sprite", () => {
+      const url = getSpriteUrl(1, "", "shiny", "3d", "bulbasaur-female", undefined, undefined, "female");
+      expect(url).toBe(`${POKEAPI_BASE}/shiny/female/1.png`);
+    });
+
+    it("resolves the artwork style to the normal female sprite", () => {
+      const url = getSpriteUrl(1, "", "normal", "artwork", "bulbasaur-female", undefined, undefined, "female");
+      expect(url).toBe(`${POKEAPI_BASE}/female/1.png`);
+    });
+
+    it("resolves the classic style to the female sprite", () => {
+      const url = getSpriteUrl(1, "pokemon-gold", "shiny", "classic", "bulbasaur-female", undefined, undefined, "female");
+      expect(url).toBe(`${POKEAPI_BASE}/shiny/female/1.png`);
+    });
+
+    it("ignores gender for the box style (canonical-name based)", () => {
+      const url = getSpriteUrl(1, "", "shiny", "box", "bulbasaur-female", undefined, undefined, "female");
+      expect(url).toBe(`${POKESPRITE_BASE}/shiny/bulbasaur-female.png`);
+    });
+
+    it("does not apply the female path without a gender marker", () => {
+      const url = getSpriteUrl(1, "", "shiny", "3d", "bulbasaur");
+      expect(url).toBe(`${POKEAPI_BASE}/other/home/shiny/1.png`);
+    });
+
+    // Gendered forms with their own dedicated PokeAPI pokemon id (Path A,
+    // e.g. Meowstic-female = 10025) already have a working Home render at
+    // that id and must not be shadowed by the synthesized female/ path,
+    // which only exists for base-species ids.
+    it("ignores the female path for a form with its own dedicated pokemon id", () => {
+      const url = getSpriteUrl(10025, "", "shiny", "3d", "meowstic-female", undefined, undefined, "female");
+      expect(url).toBe(`${POKEAPI_BASE}/other/home/shiny/10025.png`);
+    });
+  });
+
   describe("box style (legacy fallback) — Gen 1", () => {
     it("returns Gen 1 red/blue sprite (ignores shiny flag)", () => {
       const url = getSpriteUrl(25, "pokemon-red", "shiny", "box");
