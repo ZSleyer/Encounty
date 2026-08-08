@@ -20,10 +20,15 @@ jobs:
     name: Lint
     uses: ./.github/workflows/lint.yml
 
+  ncc:
+    name: NCC Quality Suite
+    uses: ./.github/workflows/ncc-suite.yml
+    secrets: inherit
+
   release:
     name: Build & Publish
     runs-on: ubuntu-latest
-    needs: [test, lint]
+    needs: [test, lint, ncc]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -325,7 +330,7 @@ jobs:
   release-macos:
     name: Build & Publish macOS
     runs-on: macos-latest
-    needs: [test, lint]
+    needs: [test, lint, ncc]
     steps:
       - name: Checkout
         uses: actions/checkout@v5

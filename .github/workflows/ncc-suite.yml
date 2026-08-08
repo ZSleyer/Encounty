@@ -9,8 +9,9 @@ name: NCC Quality Suite
 
 on:
   workflow_dispatch:
+  workflow_call:
   schedule:
-    # Weekly sanity run (Mondays 04:30 UTC); releases should trigger it manually.
+    # Weekly sanity run (Mondays 04:30 UTC); also required by release.yml.
     - cron: "30 4 * * 1"
 
 permissions:
