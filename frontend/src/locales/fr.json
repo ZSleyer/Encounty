@@ -1012,6 +1012,7 @@
   "aria.dexSlotSeen": "Numéro {{num}}, {{name}}, vu mais non attrapé",
   "aria.dexOverrideToggleCaught": "Marquer comme attrapé",
   "aria.dexOverrideToggleSeen": "Marquer comme vu",
+  "aria.dexOverrideEdit": "Modifier l'entrée manuelle",
   "aria.genderSelector": "Sexe",
   "aria.dexProgress": "Progression de la complétion du Pokédex",
   "aria.sidebarTabCount": "{{label}}, {{count}} entrées",

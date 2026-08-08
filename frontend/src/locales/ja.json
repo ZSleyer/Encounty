@@ -1012,6 +1012,7 @@
   "aria.dexSlotSeen": "No.{{num}}、{{name}}、目撃済みだが未捕獲",
   "aria.dexOverrideToggleCaught": "捕獲済みにする",
   "aria.dexOverrideToggleSeen": "目撃済みにする",
+  "aria.dexOverrideEdit": "手動登録を編集",
   "aria.genderSelector": "性別",
   "aria.dexProgress": "図鑑の完成度の進捗",
   "aria.sidebarTabCount": "{{label}}、{{count}} 件",

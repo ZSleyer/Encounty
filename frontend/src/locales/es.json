@@ -1012,6 +1012,7 @@
   "aria.dexSlotSeen": "Número {{num}}, {{name}}, visto pero no atrapado",
   "aria.dexOverrideToggleCaught": "Marcar como atrapado",
   "aria.dexOverrideToggleSeen": "Marcar como visto",
+  "aria.dexOverrideEdit": "Editar entrada manual",
   "aria.genderSelector": "Sexo",
   "aria.dexProgress": "Progreso de completado de la Pokédex",
   "aria.sidebarTabCount": "{{label}}, {{count}} entradas",

@@ -18,6 +18,7 @@
  */
 import { useCallback, useId, useMemo, useRef, useState, type Ref } from "react";
 import { useNavigate } from "react-router";
+import { Pencil } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
@@ -497,7 +498,15 @@ interface ManualEntryCardProps {
   readonly forms: PokemonForm[];
   readonly speciesId: number;
   readonly speciesCanonical: string;
-  readonly onEdit: () => void;
+  /** Opens the details editor directly (the summary panel's own pencil). */
+  readonly onEditDetails: () => void;
+  /**
+   * Opens the full override editor (form/gender scope, caught/seen, remove)
+   * pre-scoped to this exact entry. The species-level "add manually" button
+   * only ever starts a fresh, unscoped entry; this is the only way back into
+   * an existing one's own scope without picking it again from that button.
+   */
+  readonly onEditScope: () => void;
 }
 
 /**
@@ -507,7 +516,14 @@ interface ManualEntryCardProps {
  * them apart, since a manual entry has no game/date/hunt-method facts and no
  * dashboard record to open.
  */
-function ManualEntryCard({ override: o, forms, speciesId, speciesCanonical, onEdit }: ManualEntryCardProps) {
+function ManualEntryCard({
+  override: o,
+  forms,
+  speciesId,
+  speciesCanonical,
+  onEditDetails,
+  onEditScope,
+}: ManualEntryCardProps) {
   const { t, locale } = useI18n();
   const sprite = spriteForOverride(o, forms, speciesId, speciesCanonical);
 
@@ -528,9 +544,17 @@ function ManualEntryCard({ override: o, forms, speciesId, speciesCanonical, onEd
         </span>
         <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>
         <span className="t-label">{o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}</span>
+        <button
+          type="button"
+          onClick={onEditScope}
+          aria-label={t("aria.dexOverrideEdit")}
+          className="relative ml-auto after:absolute after:-inset-2 after:content-[''] t-label text-text-muted hover:text-text-primary transition-colors"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
       </div>
 
-      <CatchMetaSummary meta={o.meta} onEdit={onEdit} />
+      <CatchMetaSummary meta={o.meta} onEdit={onEditDetails} />
     </div>
   );
 }
@@ -589,12 +613,25 @@ export function DexSpeciesDetail({
     setOverrideModalOpen(null);
     markManuallyRef.current?.focus();
   }, []);
-  const editOverride = useCallback(
+  /** Straight into the details editor, from the entry card's own pencil. */
+  const editOverrideDetails = useCallback(
     (o: DexOverride) =>
       setOverrideModalOpen({
         formCanonical: o.formCanonical,
         gender: o.gender,
         autoOpenDetails: true,
+      }),
+    [],
+  );
+  /** Into the full editor (scope, caught/seen, remove), pre-scoped to this
+   * entry so switching to an existing one never needs the species-level "add
+   * manually" button, which only ever starts a fresh, unscoped entry. */
+  const editOverrideScope = useCallback(
+    (o: DexOverride) =>
+      setOverrideModalOpen({
+        formCanonical: o.formCanonical,
+        gender: o.gender,
+        autoOpenDetails: false,
       }),
     [],
   );
@@ -665,7 +702,8 @@ export function DexSpeciesDetail({
               forms={forms}
               speciesId={id}
               speciesCanonical={canonical}
-              onEdit={() => editOverride(o)}
+              onEditDetails={() => editOverrideDetails(o)}
+              onEditScope={() => editOverrideScope(o)}
             />
           ))}
         </section>
