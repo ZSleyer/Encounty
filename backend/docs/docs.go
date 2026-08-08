@@ -251,6 +251,10 @@ const docTemplate = `{
                     "frame_delta": {
                         "type": "number"
                     },
+                    "match_id": {
+                        "description": "MatchID identifies one confirmed match on the client. It stays the same\nacross retries of the same match so the server can dedupe a request it\nalready processed when the response was lost in transit.",
+                        "type": "string"
+                    },
                     "score": {
                         "type": "number"
                     }
