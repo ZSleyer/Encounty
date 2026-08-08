@@ -20,9 +20,11 @@ import { useDexOverrides } from "../hooks/useDexOverrides";
 import {
   usePokedex,
   localeToPokemonLangs,
+  isFormAvailableForGame,
   type PokemonData,
 } from "../components/pokemon/pokemonPicker";
 import { buildDexIndex, type DexEntry, type DexMode } from "../utils/dex";
+import { formCanonicalLabel } from "../components/dex/DexOverrideModal";
 import { getDefaultSpriteUrl, SPRITE_FALLBACK } from "../utils/sprites";
 import { getGameName } from "../utils/games";
 import { DexCatchesModal } from "../components/dex/DexCatchesModal";
@@ -62,6 +64,13 @@ type CaughtFilter = "all" | "caught" | "seen" | "missing";
 
 /** Everything one slot needs, flattened to primitives so `memo` can bite. */
 interface DexSlotView {
+  /**
+   * Unique grid/DOM identity: the dex id alone for a species slot, or
+   * `"{id}:{formCanonical}"` for one of its form slots. `id` alone cannot
+   * serve this role once a species has more than one slot on screen.
+   */
+  slotKey: string;
+  /** National Dex number; identical for a species slot and all its form slots. */
   id: number;
   canonical: string;
   name: string;
@@ -77,6 +86,12 @@ interface DexSlotView {
   catchCount: number;
   /** Complete aria sentence; never assembled from several keys at render time. */
   label: string;
+  /** PokeAPI id the sprite renders; a form's own id for a form slot. */
+  spriteId: number | string;
+  /** Cosmetic form slug that overrides `spriteId` when the form has no own PokeAPI entity. */
+  spriteSlug?: string;
+  /** Gender the sprite should render, for a gender-restricted form. */
+  gender?: "male" | "female";
 }
 
 /** One generation block of the grid. */
@@ -153,7 +168,11 @@ function groupByGeneration(
     }));
 }
 
-/** Per-generation caught/total over the unfiltered index. */
+/**
+ * Per-generation caught/total over the unfiltered index. Species-level on
+ * purpose: the forms toggle only adds more slots to look at, it must never
+ * inflate the completion numbers.
+ */
 function generationTotals(entries: DexEntry[]): Map<number, { caught: number; total: number }> {
   const totals = new Map<number, { caught: number; total: number }>();
   for (const entry of entries) {
@@ -251,19 +270,23 @@ function handleSpriteError(event: React.SyntheticEvent<HTMLImageElement>) {
 // --- Slot ---
 
 interface DexSlotProps {
-  readonly id: number;
+  readonly slotKey: string;
+  readonly dexNumber: number;
   readonly name: string;
   readonly caught: boolean;
   readonly seenOnly: boolean;
   readonly selected: boolean;
   readonly catchCount: number;
   readonly label: string;
+  readonly spriteId: number | string;
+  readonly spriteSlug?: string;
+  readonly gender?: "male" | "female";
   readonly tabIndex: number;
-  readonly onOpen: (id: number) => void;
+  readonly onOpen: (slotKey: string, dexNumber: number) => void;
 }
 
 /**
- * One species slot. Caught, seen-only and uncaught differ on three
+ * One species or form slot. Caught, seen-only and uncaught differ on three
  * independent channels so the state never rests on colour alone (WCAG
  * 1.4.1): the corner cut, dot or hatch texture, the border colour, and the
  * sprite, a flat silhouette for uncaught, the plain sprite for seen-only, the
@@ -273,27 +296,31 @@ interface DexSlotProps {
  * focus ring.
  */
 const DexSlot = memo(function DexSlot({
-  id,
+  slotKey,
+  dexNumber,
   name,
   caught,
   seenOnly,
   selected,
   catchCount,
   label,
+  spriteId,
+  spriteSlug,
+  gender,
   tabIndex,
   onOpen,
 }: DexSlotProps) {
-  const spriteUrl = getDefaultSpriteUrl(id, caught ? "shiny" : "normal");
+  const spriteUrl = getDefaultSpriteUrl(spriteSlug ?? spriteId, caught ? "shiny" : "normal", gender);
   const showSilhouette = !caught && !seenOnly;
   return (
     <li>
       <button
         type="button"
-        data-dex-id={id}
+        data-dex-slot-key={slotKey}
         tabIndex={tabIndex}
         aria-label={label}
         aria-current={selected ? "true" : undefined}
-        onClick={() => onOpen(id)}
+        onClick={() => onOpen(slotKey, dexNumber)}
         className={`relative flex h-full w-full min-h-[92px] flex-col items-center justify-center gap-0.5 border p-1 transition-colors ${slotStateClass(caught, seenOnly, selected)}`}
       >
         {selected && (
@@ -330,7 +357,7 @@ const DexSlot = memo(function DexSlot({
           )}
         </span>
         <span className="font-mono tabular-nums text-[10px] text-text-faint">
-          #{String(id).padStart(4, "0")}
+          #{String(dexNumber).padStart(4, "0")}
         </span>
         <span className="hidden max-w-full truncate text-[11px] text-text-secondary sm:block">
           {name}
@@ -405,9 +432,9 @@ function useSpriteUnloading(
 interface DexSectionProps {
   readonly block: DexGeneration;
   readonly columns: number;
-  readonly activeId: number | null;
-  readonly selectedId: number | null;
-  readonly onOpen: (id: number) => void;
+  readonly activeKey: string | null;
+  readonly selectedKey: string | null;
+  readonly onOpen: (slotKey: string, dexNumber: number) => void;
   readonly onKeyDown: (event: React.KeyboardEvent<HTMLUListElement>) => void;
 }
 
@@ -420,8 +447,8 @@ interface DexSectionProps {
 function DexSection({
   block,
   columns,
-  activeId,
-  selectedId,
+  activeKey,
+  selectedKey,
   onOpen,
   onKeyDown,
 }: DexSectionProps) {
@@ -461,15 +488,19 @@ function DexSection({
       <ul role="list" className="dex-grid" onKeyDown={onKeyDown}>
         {block.slots.map((slot) => (
           <DexSlot
-            key={slot.id}
-            id={slot.id}
+            key={slot.slotKey}
+            slotKey={slot.slotKey}
+            dexNumber={slot.id}
             name={slot.name}
             caught={slot.caught}
             seenOnly={slot.seenOnly}
-            selected={slot.id === selectedId}
+            selected={slot.slotKey === selectedKey}
             catchCount={slot.catchCount}
             label={slot.label}
-            tabIndex={slot.id === activeId ? 0 : -1}
+            spriteId={slot.spriteId}
+            spriteSlug={slot.spriteSlug}
+            gender={slot.gender}
+            tabIndex={slot.slotKey === activeKey ? 0 : -1}
             onOpen={onOpen}
           />
         ))}
@@ -693,11 +724,17 @@ export function DexPage() {
 
   const [mode, setMode] = useState<DexMode>("national");
   const [game, setGame] = useState("");
+  const [showAllForms, setShowAllForms] = useState(false);
   const [generationFilter, setGenerationFilter] = useState<ReadonlySet<number>>(new Set());
   const [caughtFilter, setCaughtFilter] = useState<CaughtFilter>("all");
   const [query, setQuery] = useState("");
-  const [focusedId, setFocusedId] = useState<number | null>(null);
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // The exact slot last picked by click or keyboard, species or form. Only
+  // trusted for the aria-current marker while it still belongs to
+  // `selectedId`; a species switch (game change, default re-selection) leaves
+  // it stale, and `selectedKey` below falls back to the species slot then.
+  const [pickedSlotKey, setPickedSlotKey] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [catchesOpen, setCatchesOpen] = useState(false);
   const [editCatchId, setEditCatchId] = useState<string | null>(null);
@@ -755,13 +792,15 @@ export function DexPage() {
 
   const slots = useMemo<DexSlotView[]>(() => {
     const speciesById = new Map(allPokemon.map((species) => [species.id, species]));
-    return index.entries.map((entry) => {
+    const result: DexSlotView[] = [];
+    for (const entry of index.entries) {
       const species = speciesById.get(entry.id);
       const name = species ? localizedName(species, locale) : entry.canonical;
       const catchCount = entry.catches.length;
       const variantCount = entry.variants.length;
       const seenOnly = entry.seen && !entry.caught;
-      return {
+      result.push({
+        slotKey: String(entry.id),
         id: entry.id,
         canonical: entry.canonical,
         name,
@@ -770,9 +809,36 @@ export function DexPage() {
         seenOnly,
         catchCount,
         label: slotLabel(t, entry.id, name, entry.caught, seenOnly, catchCount, variantCount),
-      };
-    });
-  }, [index, allPokemon, locale, t]);
+        spriteId: entry.id,
+      });
+
+      if (!showAllForms) continue;
+      const forms = species?.forms ?? [];
+      const formStates = new Map(entry.forms.map((f) => [f.canonical.toLowerCase(), f]));
+      for (const form of forms) {
+        if (!isFormAvailableForGame(form, mode === "game" ? game : "", games)) continue;
+        const state = formStates.get(form.canonical.toLowerCase());
+        const formCaught = state?.caught ?? false;
+        const formSeenOnly = (state?.seen ?? false) && !formCaught;
+        const formName = formCanonicalLabel(form, locale, t);
+        result.push({
+          slotKey: `${entry.id}:${form.canonical}`,
+          id: entry.id,
+          canonical: form.canonical,
+          name: formName,
+          generation: entry.generation,
+          caught: formCaught,
+          seenOnly: formSeenOnly,
+          catchCount: state?.catchCount ?? 0,
+          label: formSlotLabel(t, entry.id, name, formName, formCaught, formSeenOnly, state?.catchCount ?? 0),
+          spriteId: form.sprite_id,
+          spriteSlug: form.sprite_slug,
+          gender: form.gender,
+        });
+      }
+    }
+    return result;
+  }, [index, allPokemon, locale, t, showAllForms, mode, game, games]);
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -835,24 +901,34 @@ export function DexPage() {
     });
   }, [index]);
 
+  // The slot-level aria-current marker. `pickedSlotKey` only wins while it
+  // still belongs to the current `selectedId`; a species-level reset (above)
+  // leaves it pointing at a slot that no longer exists in `slots`, and this
+  // falls back to that species' own slot instead of marking nothing at all.
+  const selectedKey = useMemo(() => {
+    if (pickedSlotKey && pickedSlotKey.split(":")[0] === String(selectedId)) return pickedSlotKey;
+    return selectedId === null ? null : String(selectedId);
+  }, [pickedSlotKey, selectedId]);
+
   // Roving tabindex: exactly one slot is tabbable, so Tab passes the whole
   // grid in a single press. Tab lands on the selected slot while the grid has
   // not been entered yet, and falls back to the first visible slot whenever a
   // filter drops both.
-  const activeId = useMemo(() => {
-    const isVisible = (id: number | null) => id !== null && visible.some((slot) => slot.id === id);
-    if (isVisible(focusedId)) return focusedId;
-    if (isVisible(selectedId)) return selectedId;
-    return visible[0]?.id ?? null;
-  }, [focusedId, selectedId, visible]);
+  const activeKey = useMemo(() => {
+    const isVisible = (key: string | null) => key !== null && visible.some((slot) => slot.slotKey === key);
+    if (isVisible(focusedKey)) return focusedKey;
+    if (isVisible(selectedKey)) return selectedKey;
+    return visible[0]?.slotKey ?? null;
+  }, [focusedKey, selectedKey, visible]);
 
   // Selection follows focus: arrowing across the grid pages the detail panel
   // through the entries, which is the whole point of the two-pane layout.
-  const focusSlot = useCallback((id: number) => {
+  const focusSlot = useCallback((slotKey: string, dexNumber: number) => {
     pickedRef.current = true;
-    setFocusedId(id);
-    setSelectedId(id);
-    const el = gridsRef.current?.querySelector<HTMLElement>(`[data-dex-id="${id}"]`);
+    setFocusedKey(slotKey);
+    setPickedSlotKey(slotKey);
+    setSelectedId(dexNumber);
+    const el = gridsRef.current?.querySelector<HTMLElement>(`[data-dex-slot-key="${slotKey}"]`);
     if (!el) return;
     el.focus();
     // Focusing un-skips the section, and the corrected heights only land on
@@ -870,23 +946,24 @@ export function DexPage() {
       );
       const current = Math.max(
         0,
-        visible.findIndex((slot) => slot.id === activeId),
+        visible.findIndex((slot) => slot.slotKey === activeKey),
       );
       const next = nextIndexFor(event.key, current, visible.length, gridColumns);
       if (next === null) return;
       // Enter and Space are deliberately absent: the slots are real buttons
       // and the browser already turns both into a click.
       event.preventDefault();
-      focusSlot(visible[next].id);
+      focusSlot(visible[next].slotKey, visible[next].id);
     },
-    [visible, activeId, focusSlot],
+    [visible, activeKey, focusSlot],
   );
 
   const handleOpen = useCallback(
-    (id: number) => {
+    (slotKey: string, dexNumber: number) => {
       pickedRef.current = true;
-      setFocusedId(id);
-      setSelectedId(id);
+      setFocusedKey(slotKey);
+      setPickedSlotKey(slotKey);
+      setSelectedId(dexNumber);
       // Wide viewports already show the detail next to the grid, so only the
       // collapsed layout still needs the dialog.
       if (wide) return;
@@ -897,11 +974,11 @@ export function DexPage() {
 
   const handleCloseDetail = useCallback(() => {
     setDetailOpen(false);
-    if (selectedId === null) return;
+    if (selectedKey === null) return;
     // The CRT close transition delays unmount, so the dialog's own focus
     // restoration lands too late. Put it back explicitly.
-    gridsRef.current?.querySelector<HTMLElement>(`[data-dex-id="${selectedId}"]`)?.focus();
-  }, [selectedId]);
+    gridsRef.current?.querySelector<HTMLElement>(`[data-dex-slot-key="${selectedKey}"]`)?.focus();
+  }, [selectedKey]);
 
   const handleCloseCatches = useCallback(() => {
     setCatchesOpen(false);
@@ -984,6 +1061,12 @@ export function DexPage() {
                   </div>
                 </div>
               )}
+              {/* Additive to National/Spiel on purpose: it does not replace
+                  either mode, it only adds a slot per known form on top of
+                  whichever mode is active. */}
+              <ModeButton active={showAllForms} onClick={() => setShowAllForms((v) => !v)}>
+                {t("dex.modeForms")}
+              </ModeButton>
             </div>
 
             <div className="flex flex-wrap items-end gap-4">
@@ -1039,8 +1122,8 @@ export function DexPage() {
                   key={block.generation}
                   block={block}
                   columns={columns}
-                  activeId={activeId}
-                  selectedId={selectedId}
+                  activeKey={activeKey}
+                  selectedKey={selectedKey}
                   onOpen={handleOpen}
                   onKeyDown={handleGridKeyDown}
                 />
@@ -1144,8 +1227,9 @@ interface ModeButtonProps {
 }
 
 /**
- * Mode switch. Two pressed-state buttons rather than a tablist: both states
- * show the very same panel, only its numbers change.
+ * Mode switch. A pressed-state button rather than a tablist entry: the forms
+ * toggle sits next to National/Spiel but is additive, not mutually exclusive
+ * with either of them.
  */
 function ModeButton({ active, onClick, children }: ModeButtonProps) {
   return (
@@ -1165,8 +1249,8 @@ function ModeButton({ active, onClick, children }: ModeButtonProps) {
 }
 
 /**
- * Builds the complete aria sentence of one slot. The caught and seen variants
- * use their own full-sentence key on purpose; the pieces are never
+ * Builds the complete aria sentence of one species slot. The caught and seen
+ * variants use their own full-sentence key on purpose; the pieces are never
  * concatenated. Driven by `caught`/`seenOnly` rather than `catchCount`, since
  * a manual override can mark a slot caught (or seen) with zero archived
  * catches behind it.
@@ -1194,4 +1278,26 @@ function slotLabel(
     });
   }
   return t("aria.dexSlotCaught", { num: id, name, count: catchCount });
+}
+
+/**
+ * Builds the complete aria sentence of one form slot. Always names both the
+ * species and the form, since the form name alone (e.g. "Mega X") means
+ * nothing without knowing which species it belongs to.
+ */
+function formSlotLabel(
+  t: (key: string, options?: Record<string, string | number>) => string,
+  id: number,
+  speciesName: string,
+  formName: string,
+  caught: boolean,
+  seenOnly: boolean,
+  catchCount: number,
+): string {
+  if (!caught) {
+    return seenOnly
+      ? t("aria.dexFormSlotSeen", { num: id, name: speciesName, form: formName })
+      : t("aria.dexFormSlotUncaught", { num: id, name: speciesName, form: formName });
+  }
+  return t("aria.dexFormSlotCaught", { num: id, name: speciesName, form: formName, count: catchCount });
 }

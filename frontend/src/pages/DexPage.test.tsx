@@ -119,9 +119,9 @@ function panelHeading(): string {
   return heading?.textContent ?? "";
 }
 
-/** The slot button of one dex number. */
+/** The species slot button of one dex number (not one of its form slots). */
 function slot(id: number): HTMLElement {
-  return document.querySelector(`[data-dex-id="${id}"]`) as HTMLElement;
+  return document.querySelector(`[data-dex-slot-key="${id}"]`) as HTMLElement;
 }
 
 /** The control that opens the catch list of the selected species, if any. */
@@ -357,7 +357,7 @@ describe("DexPage multi-catch slots", () => {
     ]);
 
     // One slot, counted once, badged with what sits behind it.
-    expect(document.querySelectorAll('[data-dex-id="6"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-dex-slot-key="6"]')).toHaveLength(1);
     expect(within(slot(6)).getByText("×3")).toBeInTheDocument();
     expect(slot(6)).toHaveAccessibleName(/Fänge: 3/);
     expect(screen.getByText("1 von 4")).toBeInTheDocument();
@@ -408,7 +408,7 @@ describe("DexPage multi-catch slots", () => {
 
     // National mode counts the species once, no matter how many games it came
     // from, and the badge states the number of catches behind the slot.
-    expect(document.querySelectorAll('[data-dex-id="6"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-dex-slot-key="6"]')).toHaveLength(1);
     expect(within(slot(6)).getByText("×54")).toBeInTheDocument();
     expect(slot(6)).toHaveAccessibleName(/Fänge: 54/);
     expect(screen.getByText("1 von 4")).toBeInTheDocument();
