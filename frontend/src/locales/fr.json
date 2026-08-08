@@ -1236,6 +1236,7 @@
   "dex.defaultForm": "Forme par défaut",
   "dex.sourceGame": "Jeu",
   "dex.caughtOn": "Attrapé le",
+  "dex.failedOn": "Échoué le",
   "dex.encounters": "Encounters",
   "dex.catchCount": "Captures",
   "dex.firstCatch": "Première capture",

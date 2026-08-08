@@ -282,7 +282,7 @@ function CatchCard({
           wide modal render this very card at completely different widths. */}
       <div className="grid grid-cols-2 gap-3 @md:grid-cols-4">
         <Fact label={t("dex.sourceGame")} value={gameLabel(entry, games, languages)} />
-        {date && <Fact label={t("dex.caughtOn")} value={date} />}
+        {date && <Fact label={t(entry.failed ? "dex.failedOn" : "dex.caughtOn")} value={date} />}
         <Fact label={t("huntType.label")} value={huntMethodLabel(t, entry.hunt_type)} />
         <Fact label={t("dex.encounters")} value={String(entry.encounters ?? 0)} numeric />
       </div>

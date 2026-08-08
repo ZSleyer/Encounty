@@ -1236,6 +1236,7 @@
   "dex.defaultForm": "通常フォルム",
   "dex.sourceGame": "ゲーム",
   "dex.caughtOn": "捕獲した日",
+  "dex.failedOn": "失敗した日",
   "dex.encounters": "Encounters",
   "dex.catchCount": "捕獲数",
   "dex.firstCatch": "最初の捕獲",
