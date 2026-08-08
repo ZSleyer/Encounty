@@ -1057,53 +1057,34 @@ export function DexPage() {
           <DexProgress caught={index.caught} total={index.total} />
 
           <div className="t-panel flex flex-col gap-4 p-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <ModeButton active={mode === "national"} onClick={() => setMode("national")}>
-                  {t("dex.modeNational")}
-                </ModeButton>
-                <ModeButton active={mode === "game"} onClick={() => setMode("game")}>
-                  {t("dex.modeGame")}
-                </ModeButton>
-                {mode === "game" && (
-                  <div className="flex items-center gap-2">
-                    <label htmlFor={gameId} className="text-xs text-text-muted">
-                      {t("dex.pickGame")}
-                    </label>
-                    <div className="t-select-wrap w-56">
-                      <select
-                        id={gameId}
-                        className="t-select text-sm"
-                        value={game}
-                        onChange={(e) => setGame(e.target.value)}
-                      >
-                        {games.map((entry) => (
-                          <option key={entry.key} value={entry.key}>
-                            {getGameName(entry, gameLanguages)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <ModeButton active={mode === "national"} onClick={() => setMode("national")}>
+                {t("dex.modeNational")}
+              </ModeButton>
+              <ModeButton active={mode === "game"} onClick={() => setMode("game")}>
+                {t("dex.modeGame")}
+              </ModeButton>
+              {mode === "game" && (
+                <div className="flex items-center gap-2">
+                  <label htmlFor={gameId} className="text-xs text-text-muted">
+                    {t("dex.pickGame")}
+                  </label>
+                  <div className="t-select-wrap w-56">
+                    <select
+                      id={gameId}
+                      className="t-select text-sm"
+                      value={game}
+                      onChange={(e) => setGame(e.target.value)}
+                    >
+                      {games.map((entry) => (
+                        <option key={entry.key} value={entry.key}>
+                          {getGameName(entry, gameLanguages)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                )}
-              </div>
-              {/* A pill switch, not a third ModeButton: National/Spiel are
-                  mutually exclusive, but this is additive on top of whichever
-                  one is active, and needs to read as a different kind of
-                  control at a glance, not a third pressed-state option in the
-                  same group. The divider reinforces that it belongs to its
-                  own control, not the mode group. */}
-              <div className="hidden h-5 w-px bg-border-subtle sm:block" aria-hidden="true" />
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-[0.18em] text-text-muted">
-                  {t("dex.modeForms")}
-                </span>
-                <Toggle
-                  enabled={showAllForms}
-                  onChange={() => setShowAllForms((v) => !v)}
-                  label={t("dex.modeForms")}
-                />
-              </div>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-wrap items-end gap-4">
@@ -1121,6 +1102,20 @@ export function DexPage() {
                 />
               </div>
               <CaughtFilterControl value={caughtFilter} onChange={setCaughtFilter} />
+              {/* Grouped with the other list-shaping controls (search, caught
+                  state), not the mode buttons above: it shapes what the grid
+                  shows exactly the way they do, National/Spiel choose the
+                  underlying data instead. Still a pill switch rather than
+                  another radio/button, since it toggles independently of
+                  caughtFilter instead of picking one of a fixed set. */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-muted">{t("dex.modeForms")}</span>
+                <Toggle
+                  enabled={showAllForms}
+                  onChange={() => setShowAllForms((v) => !v)}
+                  label={t("dex.modeForms")}
+                />
+              </div>
               {filtersActive && (
                 <button
                   type="button"
