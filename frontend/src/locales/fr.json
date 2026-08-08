@@ -1246,5 +1246,7 @@
   "dex.overrideSeen": "Marquer comme vu",
   "dex.overrideRemove": "Supprimer",
   "dex.overrideExisting": "Marqué manuellement",
-  "dex.manualBadge": "Manuel"
+  "dex.manualBadge": "Manuel",
+  "dex.confirmRemoveTitle": "Supprimer l'entrée",
+  "dex.confirmRemoveMessage": "Vraiment supprimer l'entrée manuelle pour {{name}} ?"
 }

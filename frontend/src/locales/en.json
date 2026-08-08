@@ -1246,5 +1246,7 @@
   "dex.overrideSeen": "Mark as seen",
   "dex.overrideRemove": "Remove",
   "dex.overrideExisting": "Manually marked",
-  "dex.manualBadge": "Manual"
+  "dex.manualBadge": "Manual",
+  "dex.confirmRemoveTitle": "Remove entry",
+  "dex.confirmRemoveMessage": "Really remove the manual entry for {{name}}?"
 }

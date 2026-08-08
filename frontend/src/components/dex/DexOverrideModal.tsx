@@ -26,6 +26,7 @@ import {
 } from "../pokemon/pokemonPicker";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { CatchMetaModal } from "../pokemon/CatchMetaModal";
+import { ConfirmModal } from "../shared/ConfirmModal";
 import type { DexOverride } from "../../utils/dex";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import type { CatchMeta } from "../../types";
@@ -335,6 +336,12 @@ export function DexOverrideModal({
   // <dialog> close is animated, so the swap has to wait for that transition
   // to finish instead of happening in the same tick as the click.
   const pendingDetailsRef = useRef(false);
+  // Same swap as `detailsOpen`/`pendingDetailsRef`, for the "really remove
+  // this?" confirmation: a destructive action needs a real confirm step, and
+  // that confirmation is itself a dialog, so it gets the same no-stacking
+  // treatment.
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const pendingConfirmRef = useRef(false);
 
   const speciesOverrides = useMemo(
     () => overrides.filter((o) => o.speciesId === speciesId),
@@ -418,11 +425,19 @@ export function DexOverrideModal({
     requestClose();
   };
 
+  /** Same close-then-reopen swap as {@link openDetails}, for the removal
+   * confirmation instead of the details editor. */
+  const openConfirmRemove = (requestClose: () => void) => {
+    pendingConfirmRef.current = true;
+    requestClose();
+  };
+
   /**
    * ModalShell's onClose for this modal's own dialog. A close request that
-   * was only meant to make room for the details view reopens into it instead
-   * of unmounting; every other close request (Escape, backdrop, the header
-   * button) is the real thing and runs the outer `onClose` prop.
+   * was only meant to make room for the details view or the removal
+   * confirmation reopens into whichever one instead of unmounting; every
+   * other close request (Escape, backdrop, the header button) is the real
+   * thing and runs the outer `onClose` prop.
    */
   const handleShellClose = () => {
     if (pendingDetailsRef.current) {
@@ -430,6 +445,20 @@ export function DexOverrideModal({
       setDetailsOpen(true);
       return;
     }
+    if (pendingConfirmRef.current) {
+      pendingConfirmRef.current = false;
+      setConfirmRemoveOpen(true);
+      return;
+    }
+    onClose();
+  };
+
+  /** Removes the current scope's override and closes the whole modal: once
+   * it is gone there is nothing left here to keep editing. */
+  const confirmRemove = async () => {
+    if (!current) return;
+    await removeOverride(current);
+    setConfirmRemoveOpen(false);
     onClose();
   };
 
@@ -451,6 +480,18 @@ export function DexOverrideModal({
         mode="edit"
         onSubmit={handleMetaSubmit}
         onClose={() => setDetailsOpen(false)}
+      />
+    );
+  }
+
+  if (confirmRemoveOpen) {
+    return (
+      <ConfirmModal
+        title={t("dex.confirmRemoveTitle")}
+        message={t("dex.confirmRemoveMessage", { name })}
+        isDestructive
+        onConfirm={() => void confirmRemove()}
+        onClose={() => setConfirmRemoveOpen(false)}
       />
     );
   }
@@ -512,7 +553,7 @@ export function DexOverrideModal({
           {current && (
             <button
               type="button"
-              onClick={() => void removeOverride(current)}
+              onClick={() => openConfirmRemove(requestClose)}
               className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
             >
               {t("dex.overrideRemove")}

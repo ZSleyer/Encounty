@@ -101,7 +101,7 @@ describe("DexOverrideModal", () => {
     expect(seenToggle).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("removes the current scope's override when opened pre-scoped to it", async () => {
+  it("removes the current scope's override after confirming, when opened pre-scoped to it", async () => {
     const { setOverride } = renderModal(
       [{ id: 1, speciesId: 906, formCanonical: "sprigatito-female", gender: "female", game: "", caught: true, seen: true }],
       undefined,
@@ -110,6 +110,9 @@ describe("DexOverrideModal", () => {
 
     const removeButton = await screen.findByRole("button", { name: "Entfernen" });
     fireEvent.click(removeButton);
+
+    const confirmButton = await screen.findByRole("button", { name: "Bestätigen" });
+    fireEvent.click(confirmButton);
 
     await waitFor(() =>
       expect(setOverride).toHaveBeenCalledWith({

@@ -1246,5 +1246,7 @@
   "dex.overrideSeen": "目撃済みにする",
   "dex.overrideRemove": "削除",
   "dex.overrideExisting": "手動マーク済み",
-  "dex.manualBadge": "手動"
+  "dex.manualBadge": "手動",
+  "dex.confirmRemoveTitle": "エントリーを削除",
+  "dex.confirmRemoveMessage": "{{name}}の手動登録を本当に削除しますか?"
 }
