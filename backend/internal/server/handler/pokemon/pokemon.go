@@ -50,6 +50,9 @@ type endPhaseRequest struct {
 	BaseName      string `json:"base_name"`
 	FormName      string `json:"form_name"`
 	SpriteURL     string `json:"sprite_url"`
+	// Failed marks the resulting phase entry as sighted-but-not-caught instead
+	// of a regular catch.
+	Failed bool `json:"failed"`
 }
 
 // reorderRequest is the JSON body for PUT /api/pokemon/reorder. Order lists the
@@ -103,11 +106,15 @@ type Deps interface {
 	StateSetActive(id string) bool
 	StateCompletePokemon(id string) bool
 	StateUncompletePokemon(id string) bool
+	// StateFailPokemon marks the hunt as finished and failed: a shiny was
+	// sighted but not caught.
+	StateFailPokemon(id string) bool
 	// StateSetCatchMeta replaces the optional details recorded for a catch.
 	StateSetCatchMeta(id string, meta *state.CatchMeta) bool
 	// StateEndPhase archives catch as a phase entry of the hunt and restarts
-	// the hunt's counter and timer at zero.
-	StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error)
+	// the hunt's counter and timer at zero. failed marks the archived phase
+	// entry as sighted-but-not-caught instead of a regular catch.
+	StateEndPhase(parentID string, catch state.PhaseCatch, failed bool) (state.Pokemon, error)
 	// StateUndoPhase removes the newest phase entry of a hunt and returns its
 	// encounters and timer milliseconds to the parent hunt.
 	StateUndoPhase(childID string) (state.Pokemon, error)
@@ -201,6 +208,8 @@ func (h *handler) dispatchPokemonAction(w http.ResponseWriter, r *http.Request) 
 		h.handleCompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/complete"))
 	case strings.HasSuffix(path, "/uncomplete"):
 		h.handleUncompletePokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/uncomplete"))
+	case strings.HasSuffix(path, "/fail"):
+		h.handleFailPokemon(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/fail"))
 	case strings.HasSuffix(path, "/catch"):
 		if r.Method == http.MethodPut {
 			h.handleSetCatchMeta(w, r, httputil.PokemonIDFromPath(path, pokemonAPIPrefix, "/catch"))
@@ -584,6 +593,21 @@ func (h *handler) handleUncompletePokemon(w http.ResponseWriter, _ *http.Request
 	h.pokemonMutate(w, id, "", h.deps.StateUncompletePokemon)
 }
 
+// handleFailPokemon marks the hunt as finished and failed by stamping
+// CompletedAt and setting Failed: a shiny was sighted but not caught.
+// POST /api/pokemon/{id}/fail
+//
+// @Summary      Fail a Pokemon hunt
+// @Description  Marks the hunt as finished and failed by stamping CompletedAt (shiny sighted, not caught)
+// @Tags         pokemon
+// @Param        id path string true "Pokemon ID"
+// @Success      204
+// @Failure      404 {object} httputil.ErrResp
+// @Router       /pokemon/{id}/fail [post]
+func (h *handler) handleFailPokemon(w http.ResponseWriter, _ *http.Request, id string) {
+	h.pokemonMutate(w, id, "pokemon_failed", h.deps.StateFailPokemon)
+}
+
 // handleSetCatchMeta replaces the optional details recorded for a catch. A body
 // of {} clears them, so there is no separate delete route.
 // PUT /api/pokemon/{id}/catch
@@ -621,7 +645,7 @@ func (h *handler) handleSetCatchMeta(w http.ResponseWriter, r *http.Request, id 
 // POST /api/pokemon/{id}/phase
 //
 // @Summary      End the current phase
-// @Description  Archives the off-target shiny as a linked phase entry and restarts the hunt's counter and timer at zero
+// @Description  Archives the off-target shiny as a linked phase entry and restarts the hunt's counter and timer at zero; an optional failed flag marks the archived phase as sighted-but-not-caught
 // @Tags         pokemon
 // @Accept       json
 // @Produce      json
@@ -649,7 +673,7 @@ func (h *handler) handleEndPhase(w http.ResponseWriter, r *http.Request, id stri
 		httputil.WriteJSON(w, http.StatusBadRequest, httputil.ErrResp{Error: "name is required"})
 		return
 	}
-	child, err := h.deps.StateEndPhase(id, catch)
+	child, err := h.deps.StateEndPhase(id, catch, body.Failed)
 	if err != nil {
 		writePhaseError(w, err)
 		return

@@ -37,6 +37,8 @@ func (s *Server) handleWSMessage(msg WSMessage) {
 		s.wsHandleComplete(msg.Payload)
 	case "uncomplete":
 		s.wsHandleUncomplete(msg.Payload)
+	case "fail":
+		s.wsHandleFail(msg.Payload)
 	case "timer_start":
 		s.wsHandleTimerStart(msg.Payload)
 	case "timer_stop":
@@ -186,6 +188,22 @@ func (s *Server) wsHandleUncomplete(payload json.RawMessage) {
 	}
 	s.state.UncompletePokemon(p.PokemonID)
 	s.state.ScheduleSave()
+	s.broadcastState()
+}
+
+// wsHandleFail marks the hunt as finished and failed for the Pokémon
+// identified in the payload (shiny sighted, not caught) and broadcasts the
+// updated state.
+func (s *Server) wsHandleFail(payload json.RawMessage) {
+	var p wsIDPayload
+	if json.Unmarshal(payload, &p) != nil || p.PokemonID == "" {
+		return
+	}
+	if !s.state.FailPokemon(p.PokemonID) {
+		return
+	}
+	s.state.ScheduleSave()
+	s.hub.BroadcastRaw("pokemon_failed", map[string]any{"pokemon_id": p.PokemonID})
 	s.broadcastState()
 }
 

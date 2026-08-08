@@ -395,15 +395,20 @@ func (s *Server) StateCompletePokemon(id string) bool { return s.state.CompleteP
 // StateUncompletePokemon clears CompletedAt on the Pokemon.
 func (s *Server) StateUncompletePokemon(id string) bool { return s.state.UncompletePokemon(id) }
 
+// StateFailPokemon stamps CompletedAt and sets Failed on the Pokemon: a shiny
+// was sighted but not caught.
+func (s *Server) StateFailPokemon(id string) bool { return s.state.FailPokemon(id) }
+
 // StateSetCatchMeta replaces the optional details recorded for the catch.
 func (s *Server) StateSetCatchMeta(id string, meta *state.CatchMeta) bool {
 	return s.state.SetCatchMeta(id, meta)
 }
 
 // StateEndPhase ends the current phase of the hunt, archiving the off-target
-// catch as a linked phase entry.
-func (s *Server) StateEndPhase(parentID string, catch state.PhaseCatch) (state.Pokemon, error) {
-	return s.state.EndPhase(parentID, catch)
+// catch as a linked phase entry. failed marks the archived phase entry as
+// sighted-but-not-caught instead of a regular catch.
+func (s *Server) StateEndPhase(parentID string, catch state.PhaseCatch, failed bool) (state.Pokemon, error) {
+	return s.state.EndPhase(parentID, catch, failed)
 }
 
 // StateUndoPhase removes the newest phase entry and returns its encounters and
