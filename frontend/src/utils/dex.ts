@@ -12,7 +12,7 @@
  * species behind a gap onto the wrong slot.
  */
 import type { CatchMeta, Pokemon } from "../types";
-import type { PokemonData } from "../components/pokemon/pokemonPicker";
+import type { PokemonData, PokemonForm } from "../components/pokemon/pokemonPicker";
 import { getPokemonGeneration } from "./sprites";
 
 /** Which catches the index counts: the whole archive or one game only. */
@@ -37,6 +37,18 @@ export interface DexOverride {
   meta?: CatchMeta;
 }
 
+/** Caught/seen state of one known form, independent of whether it was ever caught. */
+export interface DexFormState {
+  /** English PokéAPI slug of the form. */
+  canonical: string;
+  /** True when a completed catch or a form-scoped override marks this form caught. */
+  caught: boolean;
+  /** True when caught, or a form-scoped override marks this form seen without being caught. */
+  seen: boolean;
+  /** Completed catches resolving onto this exact form. */
+  catchCount: number;
+}
+
 /** One pokedex species slot with the archived catches resolved onto it. */
 export interface DexEntry {
   /** National Dex number. */
@@ -53,6 +65,8 @@ export interface DexEntry {
   caught: boolean;
   /** True when caught, or a manual override marks this slot seen without being caught. */
   seen: boolean;
+  /** Every known form of this species, independent of the species' own caught state. */
+  forms: DexFormState[];
 }
 
 /** The full dex projection for one mode/game combination. */
@@ -155,6 +169,40 @@ function overrideInView(o: DexOverride, mode: DexMode, game: string): boolean {
   return o.game === "" || o.game === game;
 }
 
+/**
+ * Caught/seen state of every known form of one entry, independent of the
+ * species' own state.
+ *
+ * A species-level override (`formCanonical === ""`) is deliberately excluded
+ * here: it marks the whole species caught without saying anything about any
+ * one form, so folding it into every form's state would claim forms the
+ * hunter never actually confirmed.
+ */
+function resolveFormStates(
+  entry: DexEntry,
+  forms: PokemonForm[],
+  overrides: DexOverride[],
+  mode: DexMode,
+  game: string,
+): DexFormState[] {
+  return forms.map((form) => {
+    const canonical = form.canonical.toLowerCase();
+    const matchingCatches = entry.catches.filter(
+      (p) => p.canonical_name?.toLowerCase() === canonical,
+    );
+    let caught = matchingCatches.length > 0;
+    let seen = caught;
+    for (const o of overrides) {
+      if (o.speciesId !== entry.id) continue;
+      if (o.formCanonical.toLowerCase() !== canonical) continue;
+      if (!overrideInView(o, mode, game)) continue;
+      if (o.caught) caught = true;
+      if (o.caught || o.seen) seen = true;
+    }
+    return { canonical: form.canonical, caught, seen, catchCount: matchingCatches.length };
+  });
+}
+
 /** Catches that belong to no slot in the current view. */
 type Rejected = "skip" | "unmatched";
 
@@ -223,11 +271,16 @@ export function buildDexIndex(
     variants: [],
     caught: false,
     seen: false,
+    forms: [],
   }));
 
   const slots = new Map<number, DexEntry>();
+  const speciesById = new Map<number, PokemonData>();
   for (const entry of entries) {
     if (!slots.has(entry.id)) slots.set(entry.id, entry);
+  }
+  for (const species of visible) {
+    if (!speciesById.has(species.id)) speciesById.set(species.id, species);
   }
   const byCanonical = buildCanonicalIndex(pokedex);
 
@@ -251,6 +304,13 @@ export function buildDexIndex(
     // A real catch on the slot already implies seen; overrides below only
     // ever add to this, never take it away.
     entry.seen = entry.caught;
+    entry.forms = resolveFormStates(
+      entry,
+      speciesById.get(entry.id)?.forms ?? [],
+      overrides,
+      mode,
+      game,
+    );
   }
 
   // A "both flags false" override is the backend's delete shape and carries
