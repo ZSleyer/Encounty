@@ -1244,5 +1244,6 @@
   "dex.overrideCaught": "捕獲済みにする",
   "dex.overrideSeen": "目撃済みにする",
   "dex.overrideRemove": "削除",
-  "dex.overrideExisting": "手動マーク済み"
+  "dex.overrideExisting": "手動マーク済み",
+  "dex.manualBadge": "手動"
 }

@@ -22,7 +22,7 @@ import { useI18n } from "../../contexts/I18nContext";
 import { TrimmedBoxSprite } from "../shared/TrimmedBoxSprite";
 import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
 import { computePhaseStats } from "../../utils/phase";
-import { getDefaultSpriteUrl } from "../../utils/sprites";
+import { getDefaultSpriteUrl, resolveSpriteSrc, SPRITE_FALLBACK } from "../../utils/sprites";
 import { getGameName } from "../../utils/games";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
 import {
@@ -30,7 +30,7 @@ import {
   formLabel as overrideFormLabel,
   genderLabel as overrideGenderLabel,
 } from "./DexOverrideModal";
-import { usePokedex } from "../pokemon/pokemonPicker";
+import { usePokedex, PokemonThumb, type PokemonForm } from "../pokemon/pokemonPicker";
 import type { DexOverride } from "../../utils/dex";
 import type { GameEntry, Pokemon } from "../../types";
 
@@ -258,6 +258,18 @@ function CatchCard({
   return (
     <div className="t-panel flex flex-col gap-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
+        {/* The recorded sprite, not a canonical-derived box sprite: a hunter
+            may have picked a custom image, and the whole point here is to
+            tell forms apart at a glance by what was actually caught. */}
+        <img
+          src={resolveSpriteSrc(entry.sprite_url)}
+          alt=""
+          className="h-8 w-8 shrink-0 object-contain"
+          onError={(e) => {
+            e.currentTarget.onerror = null;
+            e.currentTarget.src = SPRITE_FALLBACK;
+          }}
+        />
         <span className="text-sm font-semibold text-text-primary">
           {formLabel(entry, canonical, t("dex.defaultForm"))}
         </span>
@@ -457,6 +469,72 @@ export function SpeciesHeader({
   );
 }
 
+// --- Manual entry card ---
+
+/** Sprite identity for an override's scope: its own form when set, the base
+ * species otherwise. Mirrors how a real catch's `canonical_name` picks the
+ * sprite, so a manual entry's card looks the same as an archived one. */
+function spriteForOverride(
+  o: DexOverride,
+  forms: PokemonForm[],
+  speciesId: number,
+  speciesCanonical: string,
+): { spriteId: number; canonical: string; spriteSlug?: string; gender?: "male" | "female" } {
+  const form = o.formCanonical ? forms.find((f) => f.canonical === o.formCanonical) : undefined;
+  if (form) {
+    return {
+      spriteId: form.sprite_id,
+      canonical: form.canonical,
+      spriteSlug: form.sprite_slug,
+      gender: form.gender,
+    };
+  }
+  return { spriteId: speciesId, canonical: speciesCanonical };
+}
+
+interface ManualEntryCardProps {
+  readonly override: DexOverride;
+  readonly forms: PokemonForm[];
+  readonly speciesId: number;
+  readonly speciesCanonical: string;
+  readonly onEdit: () => void;
+}
+
+/**
+ * One manual override styled exactly like {@link CatchCard}, so a hunt logged
+ * through the app and a species marked by hand read as the same kind of
+ * thing at a glance. The "manually marked" badge is the one thing that tells
+ * them apart, since a manual entry has no game/date/hunt-method facts and no
+ * dashboard record to open.
+ */
+function ManualEntryCard({ override: o, forms, speciesId, speciesCanonical, onEdit }: ManualEntryCardProps) {
+  const { t, locale } = useI18n();
+  const sprite = spriteForOverride(o, forms, speciesId, speciesCanonical);
+
+  return (
+    <div className="t-panel flex flex-col gap-3 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <PokemonThumb
+          spriteId={sprite.spriteId}
+          canonical={sprite.canonical}
+          spriteSlug={sprite.spriteSlug}
+          gender={sprite.gender}
+          alt=""
+          className="h-8 w-8 shrink-0 object-contain"
+        />
+        <span className="text-sm font-semibold text-text-primary">
+          {overrideFormLabel(o, forms, locale, t)}
+          {o.gender && ` · ${overrideGenderLabel(o, t)}`}
+        </span>
+        <span className="t-label t-label--accent">{t("dex.manualBadge")}</span>
+        <span className="t-label">{o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}</span>
+      </div>
+
+      <CatchMetaSummary meta={o.meta} onEdit={onEdit} />
+    </div>
+  );
+}
+
 // --- Detail body ---
 
 /**
@@ -581,13 +659,14 @@ export function DexSpeciesDetail({
             {t("dex.overrideExisting")}
           </h3>
           {speciesOverrides.map((o) => (
-            <div key={`${o.formCanonical}|${o.gender}|${o.game}`} className="flex flex-col gap-1">
-              <span className="text-xs text-text-muted">
-                {overrideFormLabel(o, forms, locale, t)} · {overrideGenderLabel(o, t)} ·{" "}
-                {o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}
-              </span>
-              <CatchMetaSummary meta={o.meta} onEdit={() => editOverride(o)} />
-            </div>
+            <ManualEntryCard
+              key={`${o.formCanonical}|${o.gender}|${o.game}`}
+              override={o}
+              forms={forms}
+              speciesId={id}
+              speciesCanonical={canonical}
+              onEdit={() => editOverride(o)}
+            />
           ))}
         </section>
       )}

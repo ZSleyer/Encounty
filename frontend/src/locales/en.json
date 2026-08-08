@@ -1244,5 +1244,6 @@
   "dex.overrideCaught": "Mark as caught",
   "dex.overrideSeen": "Mark as seen",
   "dex.overrideRemove": "Remove",
-  "dex.overrideExisting": "Manually marked"
+  "dex.overrideExisting": "Manually marked",
+  "dex.manualBadge": "Manual"
 }
