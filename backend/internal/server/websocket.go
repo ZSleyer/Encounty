@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -27,10 +28,32 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 )
 
-// upgrader promotes HTTP connections to WebSocket. CheckOrigin always returns
-// true because the app is a single-user localhost server — no CSRF risk.
+// upgrader promotes HTTP connections to WebSocket. CheckOrigin allows
+// requests with no Origin header (native/Electron contexts) and requests
+// from localhost, matching the server's 127.0.0.1-only bind. This covers
+// both the Vite dev server (port 5173) and the production same-origin case.
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: checkLocalOrigin,
+}
+
+// checkLocalOrigin reports whether r's Origin header (if present) points at
+// localhost. Requests without an Origin header are allowed since non-browser
+// clients (Electron's WebView in some configurations) do not send one.
+func checkLocalOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	switch u.Hostname() {
+	case "localhost", "127.0.0.1", "[::1]", "::1":
+		return true
+	default:
+		return false
+	}
 }
 
 // WSMessage is the envelope used for all WebSocket messages in both

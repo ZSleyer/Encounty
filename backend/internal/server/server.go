@@ -130,8 +130,8 @@ func New(cfg Config) *Server {
 	s.registerRoutes(mux)
 
 	s.httpServer = &http.Server{
-		Addr:    fmt.Sprintf(":%d", cfg.Port),
-		Handler: corsMiddleware(mux),
+		Addr:    fmt.Sprintf("127.0.0.1:%d", cfg.Port),
+		Handler: corsMiddleware(mux, cfg.DevMode),
 	}
 
 	return s
@@ -998,13 +998,17 @@ func (s *Server) syncPokedex(store pokedex.PokedexStore) *pokedex.SyncResult {
 	return &result
 }
 
-// corsMiddleware adds permissive CORS headers so the Vite dev server (port
-// 5173) can call the Go API (port 8192) in development mode.
-func corsMiddleware(next http.Handler) http.Handler {
+// corsMiddleware adds permissive CORS headers only in dev mode, so the Vite
+// dev server (port 5173) can call the Go API (port 8192) across origins. In
+// production the server is same-origin (it serves the frontend itself) and
+// binds to 127.0.0.1, so no CORS header is needed or set.
+func corsMiddleware(next http.Handler, devMode bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if devMode {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		}
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 			return

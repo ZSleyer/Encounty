@@ -14,13 +14,13 @@ const srvFmtStatus = "status = %d, want %d"
 
 // --- CORS Middleware Tests ---
 
-// TestCorsMiddlewareHeaders verifies that CORS headers are added to regular
-// requests and the inner handler is invoked.
-func TestCorsMiddlewareHeaders(t *testing.T) {
+// TestCorsMiddlewareHeadersDevMode verifies that CORS headers are added to
+// regular requests in dev mode and the inner handler is invoked.
+func TestCorsMiddlewareHeadersDevMode(t *testing.T) {
 	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := corsMiddleware(inner)
+	handler := corsMiddleware(inner, true)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
 	w := httptest.NewRecorder()
@@ -40,6 +40,26 @@ func TestCorsMiddlewareHeaders(t *testing.T) {
 	}
 }
 
+// TestCorsMiddlewareHeadersProdMode verifies that no CORS headers are added
+// outside dev mode, since production is same-origin.
+func TestCorsMiddlewareHeadersProdMode(t *testing.T) {
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	handler := corsMiddleware(inner, false)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/state", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf(srvFmtStatus, w.Code, http.StatusOK)
+	}
+	if got := w.Header().Get("Access-Control-Allow-Origin"); got != "" {
+		t.Errorf("Allow-Origin = %q, want empty", got)
+	}
+}
+
 // TestCorsMiddlewarePreflight verifies that OPTIONS requests receive a 204
 // and the inner handler is NOT invoked.
 func TestCorsMiddlewarePreflight(t *testing.T) {
@@ -48,7 +68,7 @@ func TestCorsMiddlewarePreflight(t *testing.T) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	})
-	handler := corsMiddleware(inner)
+	handler := corsMiddleware(inner, true)
 
 	req := httptest.NewRequest(http.MethodOptions, "/api/pokemon", nil)
 	w := httptest.NewRecorder()

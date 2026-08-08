@@ -12,6 +12,35 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// TestCheckLocalOrigin verifies that only missing or localhost origins are
+// allowed to upgrade to a WebSocket connection.
+func TestCheckLocalOrigin(t *testing.T) {
+	cases := []struct {
+		name   string
+		origin string
+		want   bool
+	}{
+		{"no origin header", "", true},
+		{"localhost dev server", "http://localhost:5173", true},
+		{"127.0.0.1 prod", "http://127.0.0.1:8192", true},
+		{"IPv6 loopback", "http://[::1]:8192", true},
+		{"remote LAN origin", "http://192.168.1.42:8192", false},
+		{"remote web origin", "https://evil.example.com", false},
+		{"malformed origin", "http://[::1", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/ws", nil)
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			if got := checkLocalOrigin(req); got != tc.want {
+				t.Errorf("checkLocalOrigin(%q) = %v, want %v", tc.origin, got, tc.want)
+			}
+		})
+	}
+}
+
 // TestHubNewHub verifies that a freshly created hub has no clients.
 func TestHubNewHub(t *testing.T) {
 	h := NewHub()
