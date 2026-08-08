@@ -275,6 +275,7 @@ function CatchCard({
           {formLabel(entry, canonical, t("dex.defaultForm"))}
         </span>
         {phase && <span className="t-label">{phase}</span>}
+        {entry.failed && <span className="t-label t-label--danger">{t("dex.failedTag")}</span>}
       </div>
 
       {/* Container query, not a viewport one: the narrow side panel and the
@@ -585,10 +586,16 @@ export function DexSpeciesDetail({
   const { t, locale } = useI18n();
   const openInDashboard = useOpenInDashboard();
   const latestId = useId();
+  const seenId = useId();
   const manualId = useId();
+  // A failed attempt was never caught: it belongs in its own "seen" section,
+  // not folded into the catch facts/history a hunter actually wants to see
+  // "latest catch" answer.
+  const realCatches = useMemo(() => catches.filter((c) => !c.failed), [catches]);
+  const failedCatches = useMemo(() => catches.filter((c) => c.failed), [catches]);
   // A single catch needs no way "to the others": the inline card is all there
   // is, and a "1 catch" button would promise a list that does not exist.
-  const showAll = Boolean(onShowAllCatches) && catches.length > 1;
+  const showAll = Boolean(onShowAllCatches) && realCatches.length > 1;
 
   const speciesOverrides = useMemo(
     () => overrides.filter((o) => o.speciesId === id),
@@ -647,10 +654,10 @@ export function DexSpeciesDetail({
         headingId={headingId}
       />
 
-      {catches.length > 0 ? (
+      {realCatches.length > 0 && (
         <>
           <SpeciesFacts
-            catches={catches}
+            catches={realCatches}
             canonical={canonical}
             games={games}
             languages={languages}
@@ -661,7 +668,7 @@ export function DexSpeciesDetail({
               {t("dex.latestCatchTitle")}
             </h3>
             <CatchCard
-              entry={catches[0]}
+              entry={realCatches[0]}
               canonical={canonical}
               snapshot={snapshot}
               games={games}
@@ -678,17 +685,42 @@ export function DexSpeciesDetail({
               onClick={onShowAllCatches}
               className="t-cut min-h-[32px] w-full border border-border-subtle px-3 py-2 text-xs text-text-muted transition-colors hover:border-accent-blue hover:text-text-primary"
             >
-              {t("dex.showAllCatches", { count: catches.length })}
+              {t("dex.showAllCatches", { count: realCatches.length })}
             </button>
           )}
         </>
-      ) : (
+      )}
+
+      {failedCatches.length > 0 && (
+        // A shiny that got away is "seen", never a catch: its own section
+        // keeps it out of the catch facts/history above, which count and
+        // date actual catches only.
+        <section aria-labelledby={seenId} className="flex flex-col gap-2">
+          <h3 id={seenId} className="t-label w-fit">
+            {t("dex.filterSeen")}
+          </h3>
+          {failedCatches.map((entry) => (
+            <CatchCard
+              key={entry.id}
+              entry={entry}
+              canonical={canonical}
+              snapshot={snapshot}
+              games={games}
+              languages={languages}
+              onOpenInDashboard={openInDashboard}
+              onEditCatch={onEditCatch}
+            />
+          ))}
+        </section>
+      )}
+
+      {realCatches.length === 0 &&
+        failedCatches.length === 0 &&
         // caught-via-override-only (no real catches) has no dedicated copy: the
         // header sprite already reads as caught, and the "manually marked" list
         // below states why. Repeating "not caught yet" next to a caught sprite
         // would contradict it.
-        !caught && <p className="text-sm text-text-muted">{t("dex.notCaughtYet")}</p>
-      )}
+        !caught && <p className="text-sm text-text-muted">{t("dex.notCaughtYet")}</p>}
 
       {speciesOverrides.length > 0 && (
         <section aria-labelledby={manualId} className="flex flex-col gap-2">
