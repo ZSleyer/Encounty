@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiUrl } from "../utils/api";
 import type { DexOverride } from "../utils/dex";
+import type { CatchMeta } from "../types";
 
 // --- Wire types ---
 
@@ -23,6 +24,8 @@ interface OverridePayload {
   caught: boolean;
   seen: boolean;
   updated_at: string;
+  /** Field names inside already match CatchMeta; no snake_case mapping needed. */
+  meta?: CatchMeta;
 }
 
 /** snake_case wire payload to the camelCase shape the app works with. */
@@ -35,6 +38,7 @@ function fromPayload(o: OverridePayload): DexOverride {
     game: o.game ?? "",
     caught: o.caught,
     seen: o.seen,
+    meta: o.meta,
   };
 }
 
@@ -52,6 +56,14 @@ export interface DexOverrideScope {
 export interface SetOverrideInput extends DexOverrideScope {
   caught: boolean;
   seen: boolean;
+  /**
+   * Catch details to write. Omit entirely (do not pass `undefined` on
+   * purpose either, though `JSON.stringify` drops it either way) when there
+   * is nothing new to record: the backend leaves the stored meta on the row
+   * untouched when the key is absent from the request body, and only clears
+   * it when an explicit empty object is sent.
+   */
+  meta?: CatchMeta;
 }
 
 /** Everything {@link useDexOverrides} hands to its consumers. */
@@ -113,6 +125,10 @@ export function useDexOverrides(): DexOverridesData {
       const res = await fetch(apiUrl("/api/pokedex/overrides"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
+        // meta is only included when the caller actually has one to write:
+        // JSON.stringify drops an undefined-valued key entirely, so a plain
+        // caught/seen toggle (which never sets input.meta) omits the key and
+        // the backend leaves the stored meta on the row untouched.
         body: JSON.stringify({
           species_id: input.speciesId,
           form_canonical: input.formCanonical,
@@ -120,6 +136,7 @@ export function useDexOverrides(): DexOverridesData {
           game: input.game,
           caught: input.caught,
           seen: input.seen,
+          meta: input.meta,
         }),
       });
       if (!res.ok) throw new Error(`setOverride failed: ${res.status}`);

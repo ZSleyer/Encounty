@@ -14,7 +14,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { X } from "lucide-react";
 import { useI18n } from "../../contexts/I18nContext";
 import { useToast } from "../../contexts/ToastContext";
-import type { CatchMeta, Pokemon } from "../../types";
+import type { CatchMeta } from "../../types";
 import { ModalShell } from "../shared/ModalShell";
 import { getGameGroup } from "../../utils/gameGroups";
 import {
@@ -181,14 +181,35 @@ function ballFitsGame(entry: BallRef, gameKey: string, generation: number): bool
 
 // --- Props ---
 
+/**
+ * Minimal structural shape {@link CatchMetaModal} needs from a Pokémon: it
+ * only ever reads `id`, `game` and `catch`. A full {@link Pokemon} always
+ * satisfies this, so every real call site needs no change, but it also lets a
+ * caller with no real Pokémon (e.g. a manual dex override) hand in a
+ * synthetic stand-in instead of fabricating a whole `Pokemon`.
+ */
+export interface CatchMetaModalPokemon {
+  readonly id: string;
+  readonly game: string;
+  readonly catch?: CatchMeta;
+}
+
 /** Props for {@link CatchMetaModal}. */
 export interface CatchMetaModalProps {
   /** The caught Pokémon whose details are recorded; seeds the initial state. */
-  readonly pokemon: Pokemon;
+  readonly pokemon: CatchMetaModalPokemon;
   /** Persists the metadata; rejects to keep the dialog open. */
   readonly onSubmit: (id: string, meta: CatchMeta) => Promise<void>;
   /** Called after the close transition finishes; unmount the modal here. */
   readonly onClose: () => void;
+  /**
+   * "capture" (default) is the moment right after a hunt completes, where the
+   * left footer button offers to skip recording details entirely. "edit"
+   * reopens an already-recorded catch (or a manual override) later, where
+   * "skip" reads wrong: the same button still closes without saving, only its
+   * label switches to "cancel".
+   */
+  readonly mode?: "capture" | "edit";
 }
 
 // --- Component ---
@@ -200,7 +221,7 @@ export interface CatchMetaModalProps {
  * the capture flow never forces data entry. The right one saves and keeps the
  * dialog open when the request fails, so nothing typed is lost.
  */
-export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalProps) {
+export function CatchMetaModal({ pokemon, onSubmit, onClose, mode = "capture" }: CatchMetaModalProps) {
   const { t, locale } = useI18n();
   const { push } = useToast();
   const refs = useCatchRefs(pokemon.game);
@@ -329,7 +350,7 @@ export function CatchMetaModal({ pokemon, onSubmit, onClose }: CatchMetaModalPro
         onClick={requestClose}
         className="flex-1 px-4 py-2 rounded-none border border-border-subtle text-text-muted hover:text-text-primary hover:border-text-muted transition-colors text-sm whitespace-nowrap"
       >
-        {t("catchMeta.skip")}
+        {mode === "edit" ? t("common.cancel") : t("catchMeta.skip")}
       </button>
       <button
         type="button"

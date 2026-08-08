@@ -476,6 +476,21 @@ describe("getDefaultSpriteUrl", () => {
   it("returns PokeAPI URL for string ID", () => {
     expect(getDefaultSpriteUrl("150")).toBe(`${POKEAPI_BASE}/150.png`);
   });
+
+  it("inserts the female path segment for a synthesized female pseudo-form", () => {
+    expect(getDefaultSpriteUrl(25, "normal", "female")).toBe(`${POKEAPI_BASE}/female/25.png`);
+    expect(getDefaultSpriteUrl(25, "shiny", "female")).toBe(`${POKEAPI_BASE}/shiny/female/25.png`);
+  });
+
+  it("does not take the female branch for a dedicated gendered-form id above 10000", () => {
+    // Path A (e.g. Meowstic-female = 10025) already has its own numeric id
+    // with a working default sprite; the female path segment would 404 there.
+    expect(getDefaultSpriteUrl(10025, "normal", "female")).toBe(`${POKEAPI_BASE}/10025.png`);
+  });
+
+  it("ignores gender when unset", () => {
+    expect(getDefaultSpriteUrl(25, "shiny")).toBe(`${POKEAPI_BASE}/shiny/25.png`);
+  });
 });
 
 describe("getBoxSpriteUrl", () => {

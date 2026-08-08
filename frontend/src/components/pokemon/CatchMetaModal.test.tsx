@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, userEvent, makePokemon } from "../../test-utils";
-import { CatchMetaModal } from "./CatchMetaModal";
+import { CatchMetaModal, type CatchMetaModalPokemon } from "./CatchMetaModal";
 import type { CatchMeta, Pokemon } from "../../types";
 
 HTMLDialogElement.prototype.showModal = vi.fn(function (this: HTMLDialogElement) {
@@ -64,6 +64,7 @@ function renderModal(overrides?: {
   pokemon?: Partial<Pokemon>;
   onSubmit?: (id: string, meta: CatchMeta) => Promise<void>;
   onClose?: () => void;
+  mode?: "capture" | "edit";
 }) {
   const onSubmit = overrides?.onSubmit ?? vi.fn().mockResolvedValue(undefined);
   const onClose = overrides?.onClose ?? vi.fn();
@@ -72,6 +73,7 @@ function renderModal(overrides?: {
       pokemon={makePokemon(overrides?.pokemon)}
       onSubmit={onSubmit}
       onClose={onClose}
+      mode={overrides?.mode}
     />,
   );
   return { onSubmit, onClose };
@@ -285,5 +287,40 @@ describe("CatchMetaModal", () => {
     expect(
       screen.getAllByRole("button", { name: "Band Fleiß-Band umschalten" })[0],
     ).toBeInTheDocument();
+  });
+
+  it("labels the left footer button 'Skip' by default (capture mode)", () => {
+    renderModal();
+    expect(screen.getByRole("button", { name: "Überspringen" })).toBeInTheDocument();
+  });
+
+  it("labels the left footer button 'Cancel' in edit mode, same close behavior", async () => {
+    const user = userEvent.setup();
+    const { onSubmit, onClose } = renderModal({ mode: "edit" });
+
+    expect(screen.queryByRole("button", { name: "Überspringen" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("accepts a minimal structural pokemon object instead of a full Pokemon", () => {
+    // CatchMetaModalPokemon only needs id/game/catch; this is the exact shape
+    // DexOverrideModal seeds for a manual override with no real Pokemon.
+    const minimal: CatchMetaModalPokemon = {
+      id: "override:906::",
+      game: "",
+      catch: { level: 5 },
+    };
+    render(
+      <CatchMetaModal
+        pokemon={minimal}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+        onClose={vi.fn()}
+        mode="edit"
+      />,
+    );
+    expect(screen.getByLabelText(/^Level,/)).toHaveValue("5");
   });
 });

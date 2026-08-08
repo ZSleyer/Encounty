@@ -1176,6 +1176,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         spriteId={s.spriteId}
                         canonical={s.canonical}
                         spriteSlug={s.spriteSlug}
+                        gender={s.gender}
                         alt={getPkmnName(s, language, t("dex.genderFormFemale"))}
                         className="h-7 w-7 object-contain shrink-0"
                       />
@@ -1222,6 +1223,7 @@ export function PokemonFormModal(props: Readonly<PokemonFormModalProps>) {
                         spriteId={f.spriteId}
                         canonical={f.canonical}
                         spriteSlug={f.spriteSlug}
+                        gender={f.gender}
                         alt=""
                         className="h-6 w-6 object-contain shrink-0"
                       />

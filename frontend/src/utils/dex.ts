@@ -11,7 +11,7 @@
  * keyed by dex id. Indexing an array by `id - 1` would silently shift every
  * species behind a gap onto the wrong slot.
  */
-import type { Pokemon } from "../types";
+import type { CatchMeta, Pokemon } from "../types";
 import type { PokemonData } from "../components/pokemon/pokemonPicker";
 import { getPokemonGeneration } from "./sprites";
 
@@ -33,6 +33,8 @@ export interface DexOverride {
   game: string;
   caught: boolean;
   seen: boolean;
+  /** Optional catch details recorded for this override row. */
+  meta?: CatchMeta;
 }
 
 /** One pokedex species slot with the archived catches resolved onto it. */

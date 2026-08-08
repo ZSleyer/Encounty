@@ -1128,6 +1128,7 @@ export function DexPage() {
       {editCatchTarget && (
         <CatchMetaModal
           pokemon={editCatchTarget}
+          mode="edit"
           onSubmit={saveCatchMeta}
           onClose={() => setEditCatchId(null)}
         />

@@ -12,13 +12,23 @@
  * "current game" to default it to here, since this modal is deliberately
  * self-contained and does not thread the dex page's game filter down to it.
  */
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../contexts/I18nContext";
 import { ModalShell } from "../shared/ModalShell";
 import { SpeciesHeader } from "./DexSpeciesDetail";
-import { usePokedex, isFormAvailableForGame, type PokemonForm } from "../pokemon/pokemonPicker";
+import {
+  usePokedex,
+  formEntriesFor,
+  getPkmnName,
+  PokemonThumb,
+  type PokemonData,
+  type PokemonForm,
+} from "../pokemon/pokemonPicker";
+import { CatchMetaSummary } from "../pokemon/CatchMetaSummary";
+import { CatchMetaModal } from "../pokemon/CatchMetaModal";
 import type { DexOverride } from "../../utils/dex";
 import type { SetOverrideInput } from "../../hooks/useDexOverrides";
+import type { CatchMeta } from "../../types";
 
 /** Props for {@link DexOverrideModal}. */
 export interface DexOverrideModalProps {
@@ -145,6 +155,94 @@ function GenderRadioGroup({ value, onChange }: GenderRadioGroupProps) {
   );
 }
 
+interface FormChipProps {
+  readonly active: boolean;
+  readonly onClick: () => void;
+  readonly label: string;
+  readonly spriteId: number;
+  readonly canonical: string;
+  readonly spriteSlug?: string;
+  readonly gender?: "male" | "female";
+}
+
+/**
+ * One form-strip chip: sprite thumbnail plus label, active state carried by
+ * both the border/background and `aria-pressed` (never colour alone).
+ * Mirrors the chip markup of `PokemonSearchPicker`'s own form strip exactly,
+ * since the user asked for "the same as the Pokédex catch modal".
+ */
+function FormChip({ active, onClick, label, spriteId, canonical, spriteSlug, gender }: FormChipProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`flex items-center gap-1.5 min-h-[24px] px-2 py-1 rounded-none border text-xs transition-colors ${
+        active
+          ? "border-accent-blue/40 bg-accent-blue/10 text-accent-blue"
+          : "border-border-subtle text-text-muted hover:text-text-primary"
+      }`}
+    >
+      <PokemonThumb
+        spriteId={spriteId}
+        canonical={canonical}
+        spriteSlug={spriteSlug}
+        gender={gender}
+        alt=""
+        className="h-6 w-6 object-contain shrink-0"
+      />
+      <span className="capitalize truncate max-w-[10rem]">{label}</span>
+    </button>
+  );
+}
+
+interface FormStripProps {
+  readonly species: PokemonData;
+  readonly value: string;
+  readonly onChange: (formCanonical: string) => void;
+}
+
+/**
+ * Sprite-preview form picker, replacing a plain `<select>` with the same
+ * chip-strip interaction as `PokemonSearchPicker`'s form strip: a leading
+ * "default form" chip (the species' own sprite) followed by one chip per
+ * game-filtered form. No active game is known inside this modal, so
+ * `formEntriesFor` is called with `""`/`[]`, which is also what the removed
+ * `<select>` passed to `isFormAvailableForGame` before.
+ */
+function FormStrip({ species, value, onChange }: FormStripProps) {
+  const { t, locale } = useI18n();
+  const forms = useMemo(() => formEntriesFor(species, "", [], locale), [species, locale]);
+  if (forms.length === 0) return null;
+
+  return (
+    <div>
+      <span className="block text-xs text-text-muted mb-1">{t("dex.overrideForm")}</span>
+      <div className="flex flex-wrap gap-1.5">
+        <FormChip
+          active={value === ""}
+          onClick={() => onChange("")}
+          label={t("dex.defaultForm")}
+          spriteId={species.id}
+          canonical={species.canonical}
+        />
+        {forms.map((f) => (
+          <FormChip
+            key={f.canonical}
+            active={value === f.canonical}
+            onClick={() => onChange(f.canonical)}
+            label={f.formName || getPkmnName(f, locale, t("dex.genderFormFemale"))}
+            spriteId={f.spriteId}
+            canonical={f.canonical}
+            spriteSlug={f.spriteSlug}
+            gender={f.gender}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface OverrideToggleProps {
   readonly label: string;
   readonly ariaLabel: string;
@@ -194,13 +292,27 @@ export function DexOverrideModal({
   const { allPokemon } = usePokedex();
   const existingHeadingId = useId();
 
-  const forms = useMemo(
-    () => allPokemon.find((p) => p.id === speciesId)?.forms ?? [],
+  // Kept as the full species object, not just its `.forms`, because the
+  // sprite-preview strip needs the species' own id/canonical for its
+  // "default form" chip too.
+  const species = useMemo(
+    () => allPokemon.find((p) => p.id === speciesId),
     [allPokemon, speciesId],
   );
+  const forms = species?.forms ?? [];
   const showGenderRadio = hasGenderVariance(forms);
 
   const [scope, setScope] = useState<Scope>({ formCanonical: "", gender: "" });
+  // True while the details sub-view (CatchMetaModal) is showing instead of
+  // this modal's own caught/seen editor; see the render function below for
+  // why this never stacks a second native <dialog>.
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  // Set right before this modal's own dialog is asked to close so it can
+  // reopen the details view instead of unmounting, mirroring the
+  // `pendingEditRef` pattern DexDetailModal uses for the same reason: a
+  // <dialog> close is animated, so the swap has to wait for that transition
+  // to finish instead of happening in the same tick as the click.
+  const pendingDetailsRef = useRef(false);
 
   const speciesOverrides = useMemo(
     () => overrides.filter((o) => o.speciesId === speciesId),
@@ -255,93 +367,150 @@ export function DexOverrideModal({
       seen: false,
     }).catch(() => {});
 
+  /**
+   * Persists the details editor's submission alongside the caught/seen flags
+   * already set for the current scope, so editing details never changes
+   * them. `id` is the synthetic pokemon id CatchMetaModal was seeded with; it
+   * carries no meaning here, the real target is `scope`.
+   */
+  const handleMetaSubmit = async (_id: string, meta: CatchMeta) => {
+    await setOverride({
+      speciesId,
+      formCanonical: scope.formCanonical,
+      gender: scope.gender,
+      game: "",
+      caught: isCaught,
+      seen: isSeen,
+      meta,
+    });
+  };
+
+  /**
+   * Requests this modal's own dialog to close and marks the pending reason as
+   * "reopen into the details view" rather than "close for good". The actual
+   * swap happens once `requestClose`'s animation finishes and this modal's
+   * own onClose fires, see `handleShellClose` below.
+   */
+  const openDetails = (requestClose: () => void) => {
+    pendingDetailsRef.current = true;
+    requestClose();
+  };
+
+  /**
+   * ModalShell's onClose for this modal's own dialog. A close request that
+   * was only meant to make room for the details view reopens into it instead
+   * of unmounting; every other close request (Escape, backdrop, the header
+   * button) is the real thing and runs the outer `onClose` prop.
+   */
+  const handleShellClose = () => {
+    if (pendingDetailsRef.current) {
+      pendingDetailsRef.current = false;
+      setDetailsOpen(true);
+      return;
+    }
+    onClose();
+  };
+
+  // Only one native <dialog> is ever open at a time: while `detailsOpen` is
+  // true this modal renders CatchMetaModal instead of its own ModalShell,
+  // the same body-swap DexDetailModal uses for its own summary/full-list
+  // toggle. Unlike DexDetailModal this component itself never unmounts
+  // across the swap (it owns no parent-level "which modal is open" state to
+  // hand this off to), so `scope` survives the round trip and the caught/seen
+  // editor comes back exactly where the hunter left it.
+  if (detailsOpen) {
+    return (
+      <CatchMetaModal
+        pokemon={{
+          id: `override:${speciesId}:${scope.formCanonical}:${scope.gender}`,
+          game: "",
+          catch: current?.meta,
+        }}
+        mode="edit"
+        onSubmit={handleMetaSubmit}
+        onClose={() => setDetailsOpen(false)}
+      />
+    );
+  }
+
   return (
-    <ModalShell title={t("dex.overrideModalTitle", { name })} onClose={onClose}>
-      <div className="flex flex-col gap-4">
-        <SpeciesHeader id={speciesId} canonical={canonical} name={name} generation={generation} caught={caught} />
+    <ModalShell title={t("dex.overrideModalTitle", { name })} onClose={handleShellClose}>
+      {(requestClose) => (
+        <div className="flex flex-col gap-4">
+          <SpeciesHeader id={speciesId} canonical={canonical} name={name} generation={generation} caught={caught} />
 
-        {forms.length > 0 && (
-          <div>
-            <label htmlFor="dex-override-form" className="block text-xs text-text-muted mb-1">
-              {t("dex.overrideForm")}
-            </label>
-            <div className="t-select-wrap">
-              <select
-                id="dex-override-form"
-                value={scope.formCanonical}
-                onChange={(e) => setScope((s) => ({ ...s, formCanonical: e.target.value }))}
-                className="t-select"
-              >
-                <option value="">{t("dex.defaultForm")}</option>
-                {forms
-                  // No active game is known inside this modal, so nothing is
-                  // filtered out; the helper is still the single source of
-                  // truth for what "available" means.
-                  .filter((f) => isFormAvailableForGame(f, "", []))
-                  .map((f) => (
-                    <option key={f.canonical} value={f.canonical}>
-                      {formCanonicalLabel(f, locale, t)}
-                    </option>
-                  ))}
-              </select>
+          {species && (
+            <FormStrip
+              species={species}
+              value={scope.formCanonical}
+              onChange={(formCanonical) => setScope((s) => ({ ...s, formCanonical }))}
+            />
+          )}
+
+          {showGenderRadio && (
+            <div>
+              <span className="block text-xs text-text-muted mb-1">{t("dex.overrideGender")}</span>
+              <GenderRadioGroup
+                value={scope.gender}
+                onChange={(gender) => setScope((s) => ({ ...s, gender }))}
+              />
             </div>
-          </div>
-        )}
+          )}
 
-        {showGenderRadio && (
-          <div>
-            <span className="block text-xs text-text-muted mb-1">{t("dex.overrideGender")}</span>
-            <GenderRadioGroup
-              value={scope.gender}
-              onChange={(gender) => setScope((s) => ({ ...s, gender }))}
+          <div className="flex gap-2">
+            <OverrideToggle
+              label={t("dex.overrideCaught")}
+              ariaLabel={t("aria.dexOverrideToggleCaught")}
+              pressed={isCaught}
+              onClick={() => void toggleCaught()}
+            />
+            <OverrideToggle
+              label={t("dex.overrideSeen")}
+              ariaLabel={t("aria.dexOverrideToggleSeen")}
+              pressed={isSeen}
+              disabled={isCaught}
+              onClick={() => void toggleSeen()}
             />
           </div>
-        )}
 
-        <div className="flex gap-2">
-          <OverrideToggle
-            label={t("dex.overrideCaught")}
-            ariaLabel={t("aria.dexOverrideToggleCaught")}
-            pressed={isCaught}
-            onClick={() => void toggleCaught()}
+          {/* Hidden rather than disabled while unset: a manual entry with no
+              caught/seen flag has no override row to attach details to, and
+              CatchMetaSummary's onEdit is already optional-hides-the-button,
+              so gating it this way needs no change to that shared component. */}
+          <CatchMetaSummary
+            meta={current?.meta}
+            onEdit={current ? () => openDetails(requestClose) : undefined}
           />
-          <OverrideToggle
-            label={t("dex.overrideSeen")}
-            ariaLabel={t("aria.dexOverrideToggleSeen")}
-            pressed={isSeen}
-            disabled={isCaught}
-            onClick={() => void toggleSeen()}
-          />
-        </div>
 
-        {speciesOverrides.length > 0 && (
-          <section aria-labelledby={existingHeadingId} className="flex flex-col gap-2">
-            <h3 id={existingHeadingId} className="t-label w-fit">
-              {t("dex.overrideExisting")}
-            </h3>
-            <ul role="list" className="flex flex-col gap-1.5">
-              {speciesOverrides.map((o) => (
-                <li
-                  key={`${o.formCanonical}|${o.gender}|${o.game}`}
-                  className="flex items-center justify-between gap-2 bg-bg-secondary px-3 py-1.5 text-xs text-text-secondary"
-                >
-                  <span className="truncate">
-                    {formLabel(o, forms, locale, t)} · {genderLabel(o, t)} ·{" "}
-                    {o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => void removeOverride(o)}
-                    className="t-cut shrink-0 border border-border-subtle px-2 py-1 text-[11px] text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
+          {speciesOverrides.length > 0 && (
+            <section aria-labelledby={existingHeadingId} className="flex flex-col gap-2">
+              <h3 id={existingHeadingId} className="t-label w-fit">
+                {t("dex.overrideExisting")}
+              </h3>
+              <ul role="list" className="flex flex-col gap-1.5">
+                {speciesOverrides.map((o) => (
+                  <li
+                    key={`${o.formCanonical}|${o.gender}|${o.game}`}
+                    className="flex items-center justify-between gap-2 bg-bg-secondary px-3 py-1.5 text-xs text-text-secondary"
                   >
-                    {t("dex.overrideRemove")}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-      </div>
+                    <span className="truncate">
+                      {formLabel(o, forms, locale, t)} · {genderLabel(o, t)} ·{" "}
+                      {o.caught ? t("dex.overrideCaught") : t("dex.overrideSeen")}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void removeOverride(o)}
+                      className="t-cut shrink-0 border border-border-subtle px-2 py-1 text-[11px] text-text-muted transition-colors hover:border-accent-red hover:text-accent-red"
+                    >
+                      {t("dex.overrideRemove")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+      )}
     </ModalShell>
   );
 }

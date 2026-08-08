@@ -301,6 +301,12 @@ interface PokemonThumbProps {
   readonly className?: string;
   /** PokeAPI sprite slug for cosmetic-only forms (sprite_id 0), e.g. "201-b". */
   readonly spriteSlug?: string;
+  /**
+   * Set on a gender-restricted form so a synthesized female pseudo-form
+   * (e.g. "pikachu-female") renders the female sprite instead of the base
+   * (male-appearing) one.
+   */
+  readonly gender?: "male" | "female";
 }
 
 /**
@@ -314,7 +320,7 @@ interface PokemonThumbProps {
  * Home render, so their chain starts at the slug-based default sprite and
  * skips straight to the Pokésprite box sprite.
  */
-export function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug }: PokemonThumbProps) {
+export function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug, gender }: PokemonThumbProps) {
   // Candidate URLs in fallback order, deduplicated so onError always advances
   // to a genuinely different source. Pixel-art candidates render pixelated.
   const sources = spriteSlug
@@ -324,8 +330,11 @@ export function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug }
         { src: SPRITE_FALLBACK, pixelated: false },
       ]
     : [
-        { src: getDefaultSpriteUrl(spriteId), pixelated: true },
-        { src: getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical), pixelated: false },
+        { src: getDefaultSpriteUrl(spriteId, "normal", gender), pixelated: true },
+        {
+          src: getSpriteUrl(spriteId.toString(), "", "shiny", "3d", canonical, undefined, undefined, gender),
+          pixelated: false,
+        },
         { src: getBoxSpriteUrl(canonical, "shiny"), pixelated: true },
         { src: SPRITE_FALLBACK, pixelated: false },
       ];
@@ -345,7 +354,7 @@ export function PokemonThumb({ spriteId, canonical, alt, className, spriteSlug }
   // so React keeps the component instance (and its state) alive across items.
   useEffect(() => {
     setCandidateIndex(0);
-  }, [spriteId, canonical, spriteSlug]);
+  }, [spriteId, canonical, spriteSlug, gender]);
 
   const current = candidates[Math.min(candidateIndex, candidates.length - 1)];
   return (
@@ -574,6 +583,7 @@ export function PokemonSearchPicker({
                   spriteId={s.spriteId}
                   canonical={s.canonical}
                   spriteSlug={s.spriteSlug}
+                  gender={s.gender}
                   alt=""
                   className="h-7 w-7 object-contain shrink-0"
                 />
@@ -612,6 +622,7 @@ export function PokemonSearchPicker({
                     spriteId={f.spriteId}
                     canonical={f.canonical}
                     spriteSlug={f.spriteSlug}
+                    gender={f.gender}
                     alt=""
                     className="h-6 w-6 object-contain shrink-0"
                   />

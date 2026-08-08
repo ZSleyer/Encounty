@@ -80,15 +80,31 @@ export function isCustomSprite(url: string | null | undefined): boolean {
 
 /**
  * Small default PokeAPI sprite — available for all generations including Gen 9.
+ *
+ * `gender` mirrors the female-path branch of {@link getSpriteUrl}: a
+ * synthesized female pseudo-form (species carries the gender-differences flag
+ * but has no dedicated pokemonform, so it reuses the species' own numeric id)
+ * inserts a "female/" path segment instead of substituting a slug. Gated to
+ * base-species ids (<= 10000) since a gendered form with its own dedicated
+ * PokeAPI id already resolves correctly through the plain id path.
  * @param pokemonId Numeric PokeAPI id, or a slug for cosmetic-only forms.
  * @param spriteType "shiny" switches to the shiny path segment; defaults to the
  * normal sprite so existing single-argument callers keep their URL.
+ * @param gender "female" inserts the female path segment for a synthesized
+ * gender variant; omit for every other case.
  */
 export function getDefaultSpriteUrl(
   pokemonId: number | string,
   spriteType: SpriteType = "normal",
+  gender?: string,
 ): string {
-  const variant = spriteType === "shiny" ? "shiny/" : "";
+  const shiny = spriteType === "shiny";
+  if (gender === "female" && Number(pokemonId) <= 10000) {
+    return shiny
+      ? `${POKEAPI_BASE}/shiny/female/${pokemonId}.png`
+      : `${POKEAPI_BASE}/female/${pokemonId}.png`;
+  }
+  const variant = shiny ? "shiny/" : "";
   return `${POKEAPI_BASE}/${variant}${pokemonId}.png`;
 }
 
